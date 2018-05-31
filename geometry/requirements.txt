@@ -1,0 +1,4 @@
+eo-learn-core
+shapely
+geopandas
+rasterio

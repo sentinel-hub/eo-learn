@@ -1,0 +1,5 @@
+numpy
+networkx
+pydot
+graphviz
+matplotlib

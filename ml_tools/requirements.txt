@@ -1,0 +1,4 @@
+eo-learn-core
+seaborn
+scikit-image
+pandas
