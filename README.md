@@ -158,7 +158,7 @@ The following **`EOTask`**s are currently implemented and included into the **`e
 
 If a task doesn't exist yet, the user can implement it and easily include it into his/hers workflow. There is very little or almost no overhead in the implementation of a new **`EOTask`** as seen from this minimal example:
 ```python
-class FooTaks(EOTask):
+class FooTask(EOTask):
     def __init__(self, foo_param):
         self.foo_param = foo_param
 
@@ -277,3 +277,12 @@ To install all packages at once you can download the repository and call
 ```bash
 python install_all.py
 ```
+
+---
+
+## License
+
+<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">
+<img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/88x31.png" /></a>
+<br />
+This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
