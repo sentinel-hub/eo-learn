@@ -10,7 +10,7 @@ before_install:
 - sudo apt-get install -y libgdal-dev
 install:
 - pip install -r requirements-dev.txt
-- python install_all.py --upgrade --user
+- python install_all.py
 script:
 - pylint core/eolearn/core/*.py
 - pylint coregistration/eolearn/coregistration/*.py
