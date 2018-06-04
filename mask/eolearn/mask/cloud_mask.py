@@ -1,8 +1,7 @@
 from eolearn.core import EOTask, FeatureType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType
-from sentinelhub.constants import ServiceType
+from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
 import numpy as np
 from scipy.ndimage.interpolation import zoom

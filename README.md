@@ -86,14 +86,14 @@ Check what kind of features are already in an example **`EOPatch`** instance:
 eopatch.get_features()
 ```
 Our example **`EOPatch`** instance may have for an example:
-* a **`DATA`**-feature array named `ALL_BANDS` containing 13 Sentinel-2 bands for images of size `1013x1029` from 88 different dates
+* a **`DATA`**-feature array named `BANDS-S2-L1C` containing 13 Sentinel-2 bands for images of size `1013x1029` from 88 different dates
 * a **`DATA`**-feature array named `CLOUD_PROBS` containing cloud probabilities for each frame
 * a **`MASK`**-feature array named `IS_DATA` containing valida data masks (indicating which pixels are useful or not) for each frame
 
 In such case the output of the above command would be:
 ```python
 defaultdict(dict,
-            {<FeatureType.DATA: 'data'>: {'ALL_BANDS': (88, 1013, 1029, 13),
+            {<FeatureType.DATA: 'data'>: {'BANDS-S2-L1C': (88, 1013, 1029, 13),
                                           'CLOUD_PROBS': (88, 1013, 1029, 1)},
              <FeatureType.MASK: 'mask'>: {'IS_DATA': (88, 1013, 1029)}})
 ```

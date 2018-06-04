@@ -28,7 +28,7 @@ class AddSpatioTemporalFeaturesTask(EOTask):
     """
     def __init__(self, argmax_ndvi='ARGMAX_NDVI', argmin_ndvi='ARGMIN_NDVI', argmax_red='ARGMAX_B4',
                  argmax_ndvi_slope='ARGMAX_NDVI_SLOPE', argmin_ndvi_slope='ARGMIN_NDVI_SLOPE', feats_field='STF',
-                 data_field='ALL_BANDS', indices=None):
+                 data_field='BANDS-S2-L1C', indices=None):
         """ Class constructor
 
         Initialisation of task variables. The name of the dictionary keys that will be used for the computation of the
@@ -48,7 +48,7 @@ class AddSpatioTemporalFeaturesTask(EOTask):
         :type argmin_ndvi_slope: str
         :param feats_field: Name of field containing spatio-temporal features. Default is `'STF'`
         :type feats_field: str
-        :param data_field: Name of field containing the reflectances to be used as features. Default is `'ALL_BANDS'`
+        :param data_field: Name of field containing the reflectances to be used as features. Default is `'BANDS-S2-L1C'`
         :type data_field: str
         :param indices: List of indices from `data_field` to be used as features. Default is `None`, corresponding to
                         [2, 3, 7, 11] indices
