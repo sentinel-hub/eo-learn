@@ -1,6 +1,8 @@
 """
 Module contains tools and EOTasks for morphological and postprocessing operations
 """
+# pylint: disable=no-name-in-module
+# pylint: disable=import-error
 
 import itertools as it
 from enum import Enum

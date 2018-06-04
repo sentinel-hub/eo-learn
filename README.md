@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/sentinel-hub/eo-learn.svg?branch=master)](https://travis-ci.org/sentinel-hub/eo-learn)
+
 # eo-learn
 **`eo-learn` makes extraction of valuable information from satellite imagery easy.**
 

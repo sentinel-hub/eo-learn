@@ -1,6 +1,9 @@
 """
 Module for classification helper classes and classification task.
 """
+# pylint: disable=invalid-name
+# pylint: disable=no-name-in-module
+# pylint: disable=import-error
 
 import numpy as np
 import itertools
@@ -9,8 +12,6 @@ from abc import ABC, abstractmethod
 from eolearn.core import EOTask
 
 from .utilities import rolling_window
-
-# pylint: disable=invalid-name
 
 
 class ImageBaseClassifier(ABC):

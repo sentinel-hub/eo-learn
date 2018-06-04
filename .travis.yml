@@ -1,0 +1,29 @@
+language: python
+notifications:
+  email: false
+python:
+- "3.5"
+- "3.6"
+before_install:
+- echo "deb de.archive.ubuntu.com/ubuntu xenial main universe" >> /etc/apt/source.list
+- apt update
+- apt install -y libgdal-dev
+install:
+- pip install -r requirements-dev.txt
+- python install_all.py --upgrade --user
+script:
+- pylint core/eolearn/core/*.py
+- pylint coregistration/eolearn/coregistration/*.py
+- pylint features/eolearn/features/*.py
+- pylint geometry/eolearn/geometry/*.py
+- pylint io/eolearn/io/*.py
+- pylint mask/eolearn/mask/*.py
+- pylint ml_tools/eolearn/ml_tools/*.py
+- radon cc core/eolearn/core/*.py -a -nb
+- radon cc coregistration/eolearn/coregistration/*.py -a -nb
+- radon cc features/eolearn/features/*.py -a -nb
+- radon cc geometry/eolearn/geometry/*.py -a -nb
+- radon cc io/eolearn/io/*.py -a -nb
+- radon cc mask/eolearn/mask/*.py -a -nb
+- radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
+- pytest
