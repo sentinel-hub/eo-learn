@@ -5,9 +5,9 @@ python:
 - "3.5"
 - "3.6"
 before_install:
-- echo "deb de.archive.ubuntu.com/ubuntu xenial main universe" >> /etc/apt/source.list
-- apt update
-- apt install -y libgdal-dev
+- sudo echo "deb de.archive.ubuntu.com/ubuntu xenial main universe" >> /etc/apt/source.list
+- sudo apt update
+- sudo apt install -y libgdal-dev
 install:
 - pip install -r requirements-dev.txt
 - python install_all.py --upgrade --user
