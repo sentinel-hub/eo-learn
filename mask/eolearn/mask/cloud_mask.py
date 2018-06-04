@@ -199,7 +199,7 @@ class AddCloudMaskTask(EOTask):
         service_type = meta_info['service_type']
 
         # Raise error if resolutions are not specified
-        if (self.cm_size_y is None) and (self.cm_size_x is None):
+        if self.cm_size_x is None and self.cm_size_y is None:
             raise ValueError("Specify size_x and size_y for data request")
 
         # If WCS request, make sure both resolutions are set
