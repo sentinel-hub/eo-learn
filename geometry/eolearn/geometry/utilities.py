@@ -71,7 +71,7 @@ class VectorToRaster(EOTask):
         else:
             raster = np.ones(dst_shape[1:3], dtype=self.raster_dtype) * self.no_data_value
 
-        if bbox_map:
+        if not bbox_map.empty:
             features.rasterize([(bbox_map.cascaded_union.buffer(0), self.raster_value)], out=raster,
                                transform=dst_transform, dtype=self.raster_dtype)
 
