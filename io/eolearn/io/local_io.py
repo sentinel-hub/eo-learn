@@ -82,6 +82,9 @@ class ExportToTiff(EOTask):
     def execute(self, eopatch, *, filename):
         array = eopatch.get_feature(self.feature_type, self.feature_name)
 
+        if self.band_count == 1:
+            array = array[..., 0]
+
         dst_shape = array.shape
         dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=dst_shape[1], height=dst_shape[0])
         dst_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
