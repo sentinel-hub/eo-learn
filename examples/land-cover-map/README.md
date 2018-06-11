@@ -90,7 +90,7 @@ B. Number of valid observations per EOPatch and entire AOI
 
 ![slovenia-valid](./readme_figs/number_of_valid_observations_slovenia.png)
 
-** Figure: ** Number of valid Senintel-2 observations for Slovenia in 2017. This plot can be created my mergeing all geo-referenced tiffs into a single one using `gdal_merge.py`.
+** Figure: ** Number of valid Sentinel-2 observations for Slovenia in 2017. This plot can be created by merging all geo-referenced tiffs into a single one using `gdal_merge.py`.
 
 ![slovenia-valid-hist](./readme_figs/hist_number_of_valid_observations_slovenia.png)
 
