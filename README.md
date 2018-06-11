@@ -284,4 +284,4 @@ python install_all.py
 
 ## License
 
-See [LICENSE](LICENSE.md).
+See [LICENSE](LICENSE).
