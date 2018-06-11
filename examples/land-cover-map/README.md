@@ -96,3 +96,12 @@ B. Number of valid observations per EOPatch and entire AOI
 
 ** Figure: ** Distribution of number of valid Senintel-2 observations for Slovenia in 2017. 
 
+![slovenia-fraction-valid-before](./readme_figs/fraction_valid_pixels_per_frame_eopatch-0.png)
+
+** Figure: ** Fraction of valid pixels per frame for an EOPatch with index 0.
+
+![slovenia-fraction-valid-before](./readme_figs/fraction_valid_pixels_per_frame_cleaned-eopatch-0.png)
+
+** Figure: ** Fraction of valid pixels per frame for an EOPatch with index 0 with frames with this fraction below 60% removed.
+
+
