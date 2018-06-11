@@ -9,7 +9,7 @@ explained.
 
 ##### Requirements
 
-In order to run the example you'll need a Sentinel Hub account. You can get a trail version [here](https://www.sentinel-hub.com).
+In order to run the example you'll need a Sentinel Hub account. You can get a trial version [here](https://www.sentinel-hub.com).
 
 __ Note: The full end-to-end LULC workflow is not yet shown in the example so make sure to
 check regularly for the updates. __
