@@ -229,7 +229,7 @@ class AddGeopediaFeature(EOTask):
 
     def __init__(self, feature_type, feature_name, layer, theme,
                  raster_value, raster_dtype=np.uint8, no_data_val=0,
-                 image_format=MimeType.PNG):
+                 image_format=MimeType.PNG, mean_abs_difference=2):
 
         self.feature_type = feature_type
         self.feature_name = feature_name
@@ -237,6 +237,7 @@ class AddGeopediaFeature(EOTask):
         self.raster_value = raster_value
         self.raster_dtype = raster_dtype
         self.no_data_val = no_data_val
+        self.mean_abs_difference = mean_abs_difference
 
         self.layer = layer
         self.theme = theme
@@ -292,26 +293,67 @@ class AddGeopediaFeature(EOTask):
         # check where the transparency is not zero
         return (array[..., -1] > 0).astype(self.raster_dtype) * self.raster_value
 
+    def _map_from_binaries(self, eopatch, dst_shape, request_data):
+        """
+        Each request represents a binary class which will be mapped to the scalar `raster_value`
+        """
+        if eopatch.feature_exists(self.feature_type, self.feature_name):
+            raster = eopatch.get_feature(self.feature_type, self.feature_name).squeeze()
+        else:
+            raster = np.ones(dst_shape, dtype=self.raster_dtype) * self.no_data_val
+
+        new_raster = self._reproject(eopatch, self._to_binary_mask(request_data))
+
+        # update raster
+        raster[new_raster != 0] = new_raster[new_raster != 0]
+
+        return raster
+
+    def _map_from_multiclass(self, eopatch, dst_shape, request_data):
+        """
+        `raster_value` is a dictionary specifying the intensity values for each class and the corresponding label value.
+
+        A dictionary example for GLC30 LULC mapping is:
+        raster_value = {'no_data': (0,[0,0,0,0]),
+                        'cultivated land': (1,[193, 243, 249, 255]),
+                        'forest': (2,[73, 119, 20, 255]),
+                        'grassland': (3,[95, 208, 169, 255]),
+                        'schrubland': (4,[112, 179, 62, 255]),
+                        'water': (5,[154, 86, 1, 255]),
+                        'wetland': (6,[244, 206, 126, 255]),
+                        'thundra': (7,[50, 100, 100, 255]),
+                        'artificial surface': (8,[20, 47, 147, 255]),
+                        'bareland': (9,[202, 202, 202, 255]),
+                        'snow and ice': (10,[251, 237, 211, 255])}
+        """
+        raster = np.ones(dst_shape, dtype=self.raster_dtype) * self.no_data_val
+
+        for key in self.raster_value.keys():
+            value, intensities = self.raster_value[key]
+            raster[np.mean(np.abs(request_data - intensities), axis=-1) < self.mean_abs_difference] = value
+
+        return self._reproject(eopatch, raster)
+
     def execute(self, eopatch):
         """
         Add requested feature to this existing EOPatch.
         """
         data_arr = eopatch.get_feature(FeatureType.MASK, 'IS_DATA')
-        dst_shape = data_arr.shape
+        _, height, width, _ = data_arr.shape
 
-        request = self._get_wms_request(eopatch.bbox, dst_shape[2], dst_shape[1])
+        request = self._get_wms_request(eopatch.bbox, width, height)
 
-        request_data = np.asarray(request.get_data())
+        request_data, = np.asarray(request.get_data())
 
-        if eopatch.feature_exists(self.feature_type, self.feature_name):
-            raster = eopatch.get_feature(self.feature_type, self.feature_name)
+        if isinstance(self.raster_value, dict):
+            raster = self._map_from_multiclass(eopatch, (height, width), request_data)
+        elif isinstance(self.raster_value, (int, float)):
+            raster = self._map_from_binaries(eopatch, (height, width), request_data)
         else:
-            raster = np.ones(dst_shape[1:3], dtype=self.raster_dtype) * self.no_data_val
+            raise ValueError("Unsupported raster value type")
 
-        new_raster = self._reproject(eopatch, self._to_binary_mask(request_data[0]))
-
-        # update raster
-        raster[new_raster != 0] = new_raster[new_raster != 0]
+        if (self.feature_type in [FeatureType.MASK_TIMELESS]) and raster.ndim == 2:
+            raster = raster[..., np.newaxis]
 
         eopatch.add_feature(self.feature_type, self.feature_name, raster)
 
