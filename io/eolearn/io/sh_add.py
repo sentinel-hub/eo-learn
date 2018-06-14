@@ -3,12 +3,31 @@ Module for adding data obtained from sentinelhub package to existing EOPatches
 """
 
 import numpy as np
+import logging
 from rasterio import transform, warp
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, CRS, GeopediaWmsRequest,\
     ServiceType, transform_bbox
 
 from eolearn.core import EOTask, FeatureType
+
+LOGGER = logging.getLogger(__name__)
+
+
+def get_common_timestamps(source, target):
+    """
+    Return indices of timestamps from source that are also found in target.
+
+    :param source: timestamps from source
+    :type source: list of datetime objects
+    :param target: timestamps from target
+    :type target: list of datetime objects
+    :return: indices of timestamps from source that are also found in target
+    :rtype: list of ints
+    """
+    remove_from_source = set(source).difference(target)
+    remove_from_source_idxs = [source.index(rm_date) for rm_date in remove_from_source]
+    return [idx for idx, _ in enumerate(source) if idx not in remove_from_source_idxs]
 
 
 class AddSentinelHubOGCFeature(EOTask):
@@ -21,6 +40,18 @@ class AddSentinelHubOGCFeature(EOTask):
     * time_difference
     * service_type: WMS or WCS
     * time_interval
+
+    In case the available dates in feature request don't match the dates of frames in the EOPatch the
+    timestamp consolidation is triggered. This means that if for example and EOPatch has data for the following dates
+    (noted as integers for brevity):
+        * eopatch.timestamps = [1, 2, 3, 4, 5],
+    while available dates for the new feature are:
+        * new_feature_request.get_dates() = [1, 3, 4, 5, 6]
+        * note date 2 is missing and 6 is additional in the request,
+    then this task will
+        * download new feature data only for the dates [1,3,4,5]
+        * and will remove all data for date [2] in the eopatch.
+    Finally, the eopatch will at the end contain data for dates [1, 3, 4, 5] for old and new features.
 
     :param layer: the preconfigured layer to be added to EOPatch. Required.
     :type layer: str
@@ -130,7 +161,15 @@ class AddSentinelHubOGCFeature(EOTask):
                    ServiceType.WCS: self._get_wcs_request}[service_type](eopatch.bbox, time_interval, size_x, size_y,
                                                                          maxcc, time_difference)
 
-        request_data = np.asarray(request.get_data())
+        # check timestamp consistency between request and this eopatch
+        request_dates = request.get_dates()
+        download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
+        removed_frames = eopatch.consolidate_timestamps(download_frames)
+
+        for rm_frame in removed_frames:
+            LOGGER.warning(f'Removed data for frame {rm_frame} from eopatch due to unavailability of {self.layer}!')
+
+        request_data = np.asarray(request.get_data(data_filter=download_frames))
 
         request_data = self._check_dimensionality(request_data, eopatch.ndims)
 
