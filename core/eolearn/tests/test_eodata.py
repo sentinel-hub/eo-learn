@@ -2,6 +2,7 @@ import unittest
 import logging
 import os
 import shutil
+import datetime
 
 from eolearn.core.eodata import EOPatch, FeatureType
 
@@ -159,6 +160,42 @@ class TestEOPatch(unittest.TestCase):
         eop2 = EOPatch.load('./test_outputs/eop1')
 
         self.assertEqual(eop1, eop2)
+
+    def test_timestamp_consolidation(self):
+        # 10 frames
+        timestamps = [datetime.datetime(2017, 1, 1, 10, 4, 7),
+                      datetime.datetime(2017, 1, 4, 10, 14, 5),
+                      datetime.datetime(2017, 1, 11, 10, 3, 51),
+                      datetime.datetime(2017, 1, 14, 10, 13, 46),
+                      datetime.datetime(2017, 1, 24, 10, 14, 7),
+                      datetime.datetime(2017, 2, 10, 10, 1, 32),
+                      datetime.datetime(2017, 2, 20, 10, 6, 35),
+                      datetime.datetime(2017, 3, 2, 10, 0, 20),
+                      datetime.datetime(2017, 3, 12, 10, 7, 6),
+                      datetime.datetime(2017, 3, 15, 10, 12, 14)]
+
+        data = np.random.rand(10, 100, 100, 3)
+        mask = np.random.randint(0, 2, (10, 100, 100, 1))
+        mask_timeless = np.random.randint(10, 20, (100, 100, 1))
+        scalar = np.random.rand(10, 1)
+
+        eop = EOPatch(timestamp=timestamps,
+                      data={'DATA': data},
+                      mask={'MASK': mask},
+                      scalar={'SCALAR': scalar},
+                      mask_timeless={'MASK_TIMELESS': mask_timeless})
+
+        good_timestamps = timestamps.copy()
+        del good_timestamps[0]
+        del good_timestamps[-1]
+
+        eop.consolidate_timestamps(good_timestamps)
+
+        self.assertEqual(good_timestamps, eop.timestamp)
+        self.assertTrue(np.array_equal(data[1:-1, ...], eop.data['DATA']))
+        self.assertTrue(np.array_equal(mask[1:-1, ...], eop.mask['MASK']))
+        self.assertTrue(np.array_equal(scalar[1:-1, ...], eop.scalar['SCALAR']))
+        self.assertTrue(np.array_equal(mask_timeless, eop.mask_timeless['MASK_TIMELESS']))
 
     @classmethod
     def tearDown(cls):
