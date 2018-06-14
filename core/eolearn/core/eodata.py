@@ -445,6 +445,8 @@ class EOPatch:
 
         :param timestamps: keep frames with date found in this list
         :type timestamps: list of datetime objects
+        :return: set of removed frames' dates
+        :rtype: set of datetime objects
         """
         remove_from_patch = set(self.timestamp).difference(timestamps)
         remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
@@ -459,3 +461,5 @@ class EOPatch:
                         self.add_feature(attr_type, field, value[good_timestamp_idxs, ...])
 
         self.timestamp = good_timestamps
+
+        return remove_from_patch

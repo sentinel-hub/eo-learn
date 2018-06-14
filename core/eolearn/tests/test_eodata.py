@@ -188,10 +188,14 @@ class TestEOPatch(unittest.TestCase):
         good_timestamps = timestamps.copy()
         del good_timestamps[0]
         del good_timestamps[-1]
+        good_timestamps.append(datetime.datetime(2017, 12, 1))
 
-        eop.consolidate_timestamps(good_timestamps)
+        removed_frames = eop.consolidate_timestamps(good_timestamps)
 
-        self.assertEqual(good_timestamps, eop.timestamp)
+        self.assertEqual(good_timestamps[:-1], eop.timestamp)
+        self.assertEqual(len(removed_frames), 2)
+        self.assertTrue(timestamps[0] in removed_frames)
+        self.assertTrue(timestamps[-1] in removed_frames)
         self.assertTrue(np.array_equal(data[1:-1, ...], eop.data['DATA']))
         self.assertTrue(np.array_equal(mask[1:-1, ...], eop.mask['MASK']))
         self.assertTrue(np.array_equal(scalar[1:-1, ...], eop.scalar['SCALAR']))
