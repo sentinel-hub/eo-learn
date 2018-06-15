@@ -164,12 +164,19 @@ class AddSentinelHubOGCFeature(EOTask):
         # check timestamp consistency between request and this eopatch
         request_dates = request.get_dates()
         download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
-        removed_frames = eopatch.consolidate_timestamps(download_frames)
 
+        request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
+        bad_data = [idx for idx, value in enumerate(request_return) if value is None]
+        for idx in reversed(sorted(bad_data)):
+            LOGGER.warning(f'Data from {request_dates[idx]} could not be downloaded for {self.layer}!')
+            del request_return[idx]
+            del request_dates[idx]
+
+        request_data = np.asarray(request_return)
+
+        removed_frames = eopatch.consolidate_timestamps(request_dates)
         for rm_frame in removed_frames:
             LOGGER.warning(f'Removed data for frame {rm_frame} from eopatch due to unavailability of {self.layer}!')
-
-        request_data = np.asarray(request.get_data(data_filter=download_frames))
 
         request_data = self._check_dimensionality(request_data, eopatch.ndims)
 
