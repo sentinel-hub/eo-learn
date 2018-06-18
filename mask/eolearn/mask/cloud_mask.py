@@ -34,7 +34,9 @@ class AddCloudMaskTask(EOTask):
 
         :param classifier: Cloud detector classifier. This object implements a `get_cloud_probability_map` and
                             `get_cloud_masks` functions to generate probability maps and binary masks
-        :param data_field: Name of key in eopatch.data dictionary to be used as input to the classifier
+        :param data_field: Name of key in eopatch.data dictionary to be used as input to the classifier. If the
+                           `data_field` does not exist, a new OGC request at the given cloud mask resolution is made
+                           with layer name set to `data_field` parameter.
         :param cm_size_x: Resolution to be used for computation of cloud mask. Allowed values are number of column
                             pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
         :param cm_size_y: Resolution to be used for computation of cloud mask. Allowed values are number of row
@@ -67,7 +69,7 @@ class AddCloudMaskTask(EOTask):
         """
         Returns WMS request.
         """
-        return WmsRequest(layer='TRUE_COLOR',
+        return WmsRequest(layer=self.data_field,
                           bbox=bbox,
                           time=time_interval,
                           width=size_x,
@@ -83,7 +85,7 @@ class AddCloudMaskTask(EOTask):
         """
         Returns WCS request.
         """
-        return WcsRequest(layer='TRUE_COLOR',
+        return WcsRequest(layer=self.data_field,
                           bbox=bbox,
                           time=time_interval,
                           resx=size_x, resy=size_y,
