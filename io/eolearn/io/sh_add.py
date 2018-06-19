@@ -9,25 +9,9 @@ from rasterio import transform, warp
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, CRS, GeopediaWmsRequest,\
     ServiceType, transform_bbox
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask, FeatureType, get_common_timestamps
 
 LOGGER = logging.getLogger(__name__)
-
-
-def get_common_timestamps(source, target):
-    """
-    Return indices of timestamps from source that are also found in target.
-
-    :param source: timestamps from source
-    :type source: list of datetime objects
-    :param target: timestamps from target
-    :type target: list of datetime objects
-    :return: indices of timestamps from source that are also found in target
-    :rtype: list of ints
-    """
-    remove_from_source = set(source).difference(target)
-    remove_from_source_idxs = [source.index(rm_date) for rm_date in remove_from_source]
-    return [idx for idx, _ in enumerate(source) if idx not in remove_from_source_idxs]
 
 
 class AddSentinelHubOGCFeature(EOTask):
