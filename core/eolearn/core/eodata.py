@@ -169,6 +169,40 @@ class EOPatch:
 
         return self.bbox == other.bbox and self.timestamp == other.timestamp
 
+    def __repr__(self):
+        """ Representation of EOPatch object
+
+        :return: representation
+        :rtype: str
+        """
+        feature_repr_list = ['{}('.format(self.__class__.__name__)]
+        for feature in FeatureType:
+            attribute = feature.value
+            content = getattr(self, attribute)
+
+            if isinstance(content, dict) and content:
+                content_str = '\n    '.join(['{'] + ['{}: {}'.format(label, self._repr_value(value)) for label, value in
+                                                     content.items()]) + '\n  }'
+            else:
+                content_str = self._repr_value(content)
+            feature_repr_list.append('{}: {}'.format(attribute, content_str))
+
+        return '\n  '.join(feature_repr_list) + '\n)'
+
+    @staticmethod
+    def _repr_value(value):
+        """ Creates representation string for different types of data
+
+        :param value: data in any type
+        :return: representation string
+        :rtype: str
+        """
+        if isinstance(value, np.ndarray):
+            return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
+        if isinstance(value, (list, tuple, dict)) and len(value) > 10:  # <- rethink this
+            return '{}, length={}'.format(type(value), len(value))
+        return repr(value)
+
     def add_meta_info(self, meta_info):
         """
         Adds meta information to existing meta info dictionary.
@@ -209,6 +243,10 @@ class EOPatch:
         """
         if not isinstance(attr_type, FeatureType):
             raise TypeError('Expected FeatureType instance for attribute type')
+        if attr_type is FeatureType.BBOX:
+            raise TypeError('BBOX feature is not a dictionary. Use set_bbox method instead.')
+        if attr_type is FeatureType.TIMESTAMP:
+            raise TypeError('TIMESTAMP feature is not a dictionary. Use set_timestamp method instead')
 
         LOGGER.debug("Accessing attribute '%s'", attr_type.value)
 
@@ -216,6 +254,21 @@ class EOPatch:
         attr[field] = value
         self._check_dimensions()
         self.features[attr_type][field] = value.shape
+
+    def set_bbox(self, new_bbox):
+        """ Method for setting a new bounding box
+        :param new_bbox: Bounding box of any type
+        """
+        self.bbox = new_bbox
+
+    def set_timestamp(self, new_timestamp):
+        """ Method for setting new list of dates
+        :param new_timestamp: list of dates
+        :type new_timestamp: list(str)
+        """
+        if not isinstance(new_timestamp, (list, tuple)):
+            raise ValueError("Timestamp must be a list of dates")
+        self.timestamp = new_timestamp
 
     def get_feature(self, attr_type, field):
         """
