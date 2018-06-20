@@ -133,7 +133,7 @@ class SentinelHubOGCInput(EOTask):
 
         bad_data = [idx for idx, value in enumerate(request_return) if value is None]
         for idx in reversed(sorted(bad_data)):
-            LOGGER.warning(f'Data from {timestamps[idx]} could not be downloaded for {self.layer}!')
+            LOGGER.warning('Data from {} could not be downloaded for {}!'.format(timestamps[idx], self.layer))
             del request_return[idx]
             del timestamps[idx]
 

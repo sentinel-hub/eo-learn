@@ -152,7 +152,7 @@ class AddSentinelHubOGCFeature(EOTask):
         request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
         bad_data = [idx for idx, value in enumerate(request_return) if value is None]
         for idx in reversed(sorted(bad_data)):
-            LOGGER.warning(f'Data from {request_dates[idx]} could not be downloaded for {self.layer}!')
+            LOGGER.warning('Data from {} could not be downloaded for {}!'.format(request_dates[idx], self.layer))
             del request_return[idx]
             del request_dates[idx]
 
@@ -160,7 +160,8 @@ class AddSentinelHubOGCFeature(EOTask):
 
         removed_frames = eopatch.consolidate_timestamps(request_dates)
         for rm_frame in removed_frames:
-            LOGGER.warning(f'Removed data for frame {rm_frame} from eopatch due to unavailability of {self.layer}!')
+            LOGGER.warning('Removed data for frame {} from eopatch '
+                           'due to unavailability of {}!'.format(rm_frame, self.layer))
 
         request_data = self._check_dimensionality(request_data, eopatch.ndims)
 
