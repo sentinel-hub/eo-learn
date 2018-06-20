@@ -3,12 +3,15 @@ Module for adding data obtained from sentinelhub package to existing EOPatches
 """
 
 import numpy as np
+import logging
 from rasterio import transform, warp
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, CRS, GeopediaWmsRequest,\
     ServiceType, transform_bbox
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask, FeatureType, get_common_timestamps
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AddSentinelHubOGCFeature(EOTask):
@@ -21,6 +24,18 @@ class AddSentinelHubOGCFeature(EOTask):
     * time_difference
     * service_type: WMS or WCS
     * time_interval
+
+    In case the available dates in feature request don't match the dates of frames in the EOPatch the
+    timestamp consolidation is triggered. This means that if for example and EOPatch has data for the following dates
+    (noted as integers for brevity):
+        * eopatch.timestamps = [1, 2, 3, 4, 5],
+    while available dates for the new feature are:
+        * new_feature_request.get_dates() = [1, 3, 4, 5, 6]
+        * note date 2 is missing and 6 is additional in the request,
+    then this task will
+        * download new feature data only for the dates [1,3,4,5]
+        * and will remove all data for date [2] in the eopatch.
+    Finally, the eopatch will at the end contain data for dates [1, 3, 4, 5] for old and new features.
 
     :param layer: the preconfigured layer to be added to EOPatch. Required.
     :type layer: str
@@ -130,7 +145,23 @@ class AddSentinelHubOGCFeature(EOTask):
                    ServiceType.WCS: self._get_wcs_request}[service_type](eopatch.bbox, time_interval, size_x, size_y,
                                                                          maxcc, time_difference)
 
-        request_data = np.asarray(request.get_data())
+        # check timestamp consistency between request and this eopatch
+        request_dates = request.get_dates()
+        download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
+
+        request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
+        bad_data = [idx for idx, value in enumerate(request_return) if value is None]
+        for idx in reversed(sorted(bad_data)):
+            LOGGER.warning('Data from {} could not be downloaded for {}!'.format(request_dates[idx], self.layer))
+            del request_return[idx]
+            del request_dates[idx]
+
+        request_data = np.asarray(request_return)
+
+        removed_frames = eopatch.consolidate_timestamps(request_dates)
+        for rm_frame in removed_frames:
+            LOGGER.warning('Removed data for frame {} from eopatch '
+                           'due to unavailability of {}!'.format(rm_frame, self.layer))
 
         request_data = self._check_dimensionality(request_data, eopatch.ndims)
 

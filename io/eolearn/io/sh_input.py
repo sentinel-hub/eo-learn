@@ -4,10 +4,13 @@ Module for creating new EOPatches with data obtained from sentinelhub package
 
 import datetime
 import numpy as np
+import logging
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
 
 from eolearn.core import EOPatch, EOTask
+
+LOGGER = logging.getLogger(__name__)
 
 
 class SentinelHubOGCInput(EOTask):
@@ -125,7 +128,16 @@ class SentinelHubOGCInput(EOTask):
         request = {ServiceType.WMS: self._get_wms_request,
                    ServiceType.WCS: self._get_wcs_request}[self.service_type](bbox, time_interval)
 
-        request_data = np.asarray(request.get_data())
+        request_return = request.get_data(raise_download_errors=False)
+        timestamps = request.get_dates()
+
+        bad_data = [idx for idx, value in enumerate(request_return) if value is None]
+        for idx in reversed(sorted(bad_data)):
+            LOGGER.warning('Data from {} could not be downloaded for {}!'.format(timestamps[idx], self.layer))
+            del request_return[idx]
+            del timestamps[idx]
+
+        request_data = np.asarray(request_return)
 
         data = request_data[..., :-1]
         if data.ndim == 3:
@@ -140,7 +152,7 @@ class SentinelHubOGCInput(EOTask):
                      'service_type': self.service_type,
                      'time_interval': time_interval}
 
-        return EOPatch(bbox=bbox, timestamp=request.get_dates(), data=eop_data, mask=eop_mask, meta_info=meta_info)
+        return EOPatch(bbox=bbox, timestamp=timestamps, data=eop_data, mask=eop_mask, meta_info=meta_info)
 
 
 class SentinelHubWMSInput(SentinelHubOGCInput):

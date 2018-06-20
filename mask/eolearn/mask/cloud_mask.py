@@ -1,13 +1,16 @@
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask, FeatureType, get_common_timestamps
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
 import numpy as np
+import logging
 from scipy.ndimage.interpolation import zoom
 from scipy.ndimage import gaussian_filter
 
 INTERP_METHODS = ['nearest', 'linear']
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AddCloudMaskTask(EOTask):
@@ -191,7 +194,7 @@ class AddCloudMaskTask(EOTask):
 
         return hr_array
 
-    def _make_request(self, bbox, meta_info):
+    def _make_request(self, bbox, meta_info, timestamps):
         """ Make OGC request to create input for cloud detector classifier
 
         :param bbox: Bounding box
@@ -224,7 +227,17 @@ class AddCloudMaskTask(EOTask):
                                                                          meta_info['time_difference'],
                                                                          custom_url_params)
 
-        return np.asarray(request.get_data())
+        request_dates = request.get_dates()
+        download_frames = get_common_timestamps(request_dates, timestamps)
+
+        request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
+        bad_data = [idx for idx, value in enumerate(request_return) if value is None]
+        for idx in reversed(sorted(bad_data)):
+            LOGGER.warning('Data from {} could not be downloaded for {}!'.format(request_dates[idx], self.data_field))
+            del request_return[idx]
+            del request_dates[idx]
+
+        return np.asarray(request_return), request_dates
 
     def execute(self, eopatch):
         """ Add cloud binary mask and (optionally) cloud probability map to input eopatch
@@ -239,9 +252,13 @@ class AddCloudMaskTask(EOTask):
             new_data, rescale = self._downscaling(eopatch.data[self.data_field], eopatch.meta_info)
             reference_shape = eopatch.data[self.data_field].shape[:3]
         else:
-            new_data = self._make_request(eopatch.bbox, eopatch.meta_info)
-            # Get reference shape from first item in data dictionary
+            new_data, new_dates = self._make_request(eopatch.bbox, eopatch.meta_info, eopatch.timestamp)
+            removed_frames = eopatch.consolidate_timestamps(new_dates)
+            for rm_frame in removed_frames:
+                LOGGER.warning('Removed data for frame {} from '
+                               'eopatch due to unavailability of {}!'.format(rm_frame, self.data_field))
 
+            # Get reference shape from first item in data dictionary
             reference_shape = next(iter(eopatch.data.values())).shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
@@ -249,14 +266,15 @@ class AddCloudMaskTask(EOTask):
         if new_data.shape[-1] < len(self.classifier.band_idxs):
             raise ValueError("Data field has less than the required 10 bands")
 
-        # Compute cloud mask and add as feature to EOPatch
-        clf_mask_lr = self.classifier.get_cloud_masks(new_data)
+        clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
+        clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
+
+        # Add cloud mask as a feature to EOPatch
         clf_mask_hr = self._upsampling(clf_mask_lr, rescale, reference_shape, interp='nearest')
         eopatch.add_feature(attr_type=FeatureType.MASK, field=self.cm_field, value=clf_mask_hr.astype(np.uint8))
 
-        # If the field name for cloud probability maps is specified, compute and add as feature
+        # If the field name for cloud probability maps is specified, add as feature
         if self.cprobs_field is not None:
-            clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
             clf_probs_hr = self._upsampling(clf_probs_lr, rescale, reference_shape, interp='linear')
             eopatch.add_feature(attr_type=FeatureType.DATA, field=self.cprobs_field,
                                 value=clf_probs_hr.astype(np.float32))

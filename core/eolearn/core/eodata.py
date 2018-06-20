@@ -491,3 +491,28 @@ class EOPatch:
             ref_date = self.timestamp[0]
 
         return np.asarray([(timestamp - ref_date).total_seconds() for timestamp in self.timestamp], dtype=np.int64)
+
+    def consolidate_timestamps(self, timestamps):
+        """
+        Removes all frames from the EOPatch with a date not found in the provided timestamps list.
+
+        :param timestamps: keep frames with date found in this list
+        :type timestamps: list of datetime objects
+        :return: set of removed frames' dates
+        :rtype: set of datetime objects
+        """
+        remove_from_patch = set(self.timestamp).difference(timestamps)
+        remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
+        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
+        good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
+
+        for attr_type in FeatureType:
+            if attr_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]:
+                attr = getattr(self, attr_type.value)
+                for field, value in attr.items():
+                    if isinstance(value, np.ndarray):
+                        self.add_feature(attr_type, field, value[good_timestamp_idxs, ...])
+
+        self.timestamp = good_timestamps
+
+        return remove_from_patch
