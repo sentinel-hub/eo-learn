@@ -182,7 +182,7 @@ class EOPatch:
 
             if isinstance(content, dict) and content:
                 content_str = '\n    '.join(['{'] + ['{}: {}'.format(label, self._repr_value(value)) for label, value in
-                                                     content.items()]) + '\n  }'
+                                                     sorted(content.items())]) + '\n  }'
             else:
                 content_str = self._repr_value(content)
             feature_repr_list.append('{}: {}'.format(attribute, content_str))
