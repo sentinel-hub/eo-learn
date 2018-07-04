@@ -4,7 +4,8 @@ A collection of EOTasks for feature manipulation
 
 from .temporal_features import AddSpatioTemporalFeaturesTask, AddMaxMinTemporalIndicesTask, \
     AddMaxMinNDVISlopeIndicesTask
-from .interp_smooth import BSplineInterpolation
+from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, \
+    BSplineInterpolation, AkimaInterpolation
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import RemoveFeature, SimpleFilterTask
 
