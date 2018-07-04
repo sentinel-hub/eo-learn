@@ -1,0 +1,2 @@
+eo-learn-core
+s2cloudless>=1.2.0
