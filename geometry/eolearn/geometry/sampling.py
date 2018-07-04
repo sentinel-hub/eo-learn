@@ -12,6 +12,8 @@ from rasterio.features import shapes
 
 from eolearn.core import EOTask, FeatureType
 
+from skimage.morphology import binary_erosion, disk
+
 import collections
 import functools
 import math
@@ -79,9 +81,9 @@ class PointSampler:
         TODO: If polygon has holes the number of sampled points will be less than nsamples
 
         :param nsamples: number of sampled samples
-        :param type: integer
+        :type nsamples: integer
         :param weighted: flag to apply weights proportional to total area of each class/polygon when sampling
-        :param weighted: bool, default is True
+        :type weighted: bool, default is True
         """
         weights = self.areas / np.sum(self.areas) if weighted else None
         index = np.random.choice(a=len(self.geometries), size=nsamples, p=weights)
@@ -176,6 +178,146 @@ class PointSampler:
             rx, ry = math.round(rx), math.round(ry)
             return Point(int(rx), int(ry))
         return Point(rx, ry)
+
+
+class PointRasterSampler:
+    """ Class to perform point sampling of a label image
+
+        Class that handles sampling of points from a label image representing classification labels. Labels are
+        encoded as `uint8` and the raster is a 2D or single-channel 3D array.
+
+        Supported operations include:
+         * erosion of label classes to remove border effects
+         * exclusion of some labels from sampling
+         * sampling based on label frequency in raster or even sampling of labels (i.e. over-sampling)
+
+    """
+    def __init__(self, disk_radius=None, even_sampling=False, no_data_value=None, ignore_labels=None):
+        """ Initialisation of sampler parameters
+
+        :param disk_radius: Radius of disk used as structure element for erosion. If `None`, no erosion is performed.
+                            Default is `None`
+        :type disk_radius: uint8 or None
+        :param even_sampling: Whether to sample class labels evenly or not. If `True`, labels will have the same number
+                                samples, with less frequent labels being over-sampled (i.e. same observation is sampled
+                                multiple times). If `False`, sampling follows the label distribution in raster.
+                                Default is `False`
+        :type even_sampling: bool
+        :param no_data_value: Label value denoting no data. This value will not be sampled. Default is `None`
+        :type no_data_value: None or uint8
+        :param ignore_labels: List of label values to ignore during sampling. Default is `None`
+        :type ignore_labels: None or list of uint8
+        """
+        self.disk_radius = disk_radius
+        self.ignore_labels = [] if ignore_labels is None else ignore_labels
+        self.even_sampling = even_sampling
+        self.no_data_value = no_data_value
+
+    @staticmethod
+    def _erosion(image, label, struct_elem):
+        """ Perform erosion of the binary mask corresponding to `label`
+
+        If `struct_elem` is defined, erosion of the binary mask corresponding to `label` is returned, otherwise
+        the un-eroded binary mask is returned
+
+        :param image: Input 2D raster label image
+        :type image: uint8 numpy array
+        :param label: Scalar value of label to consider
+        :type label: uint8
+        :param struct_elem: Structuring element used for erosion
+        :type struct_elem: uint8 numpy array
+        :return: Binary mask corresponding to label. If `struct_elem` is defined, the binary mask is eroded
+        :rtype: uint8 numpy array
+        """
+        if struct_elem is not None:
+            return binary_erosion(image == label, struct_elem).astype(np.uint16)
+        return (image == label).astype(np.uint16)
+
+    @staticmethod
+    def _binary_sample(image, label, n_samples_per_label, label_count):
+        """ Sample `nsamples_per_label` points from the binary mask corresponding to `label`
+
+        Randomly sample `nsamples_per_label` point form the binary mask corresponding to `label`. Sampling with
+        replacement is used if the required `nsamples_per_label` is larger than the available `label_count`
+
+        :param image: Input 2D raster label image
+        :type image: uint8 numpy array
+        :param label: Scalar value of label to consider
+        :type label: uint8
+        :param n_samples_per_label: Number of points to sample form the binary mask
+        :type n_samples_per_label: uint32
+        :param label_count: Number of points available for `label`
+        :type label_count: uint32
+        :return: Sampled label value, row index of samples, col index of samples
+        """
+        h_idx, w_idx = np.where(image == label)
+        replace = True if label_count < n_samples_per_label else False
+        rand_idx = np.random.choice(len(h_idx), size=n_samples_per_label, replace=replace)
+        # Here we rescale the labels as per input
+        return image[h_idx[rand_idx], w_idx[rand_idx]] - 1, h_idx[rand_idx], w_idx[rand_idx]
+
+    def sample(self, raster, n_samples=1000):
+        """ Sample `nsamples` points form raster
+
+        :param raster: Input 2D or single-channel 3D label image
+        :type raster: uint8 numpy array
+        :param n_samples: Number of points to sample in total
+        :type n_samples: uint32
+        :return: Sampled label values, row index of samples, col index of samples
+        """
+        # check dimensionality and reshape to 2D
+        if raster.ndim == 3 and raster.shape[-1] == 1:
+            raster = raster.squeeze()
+        elif raster.ndim == 2:
+            pass
+        else:
+            raise ValueError('Class operates on 2D or 3D single-channel raster images')
+
+        # trick to deal with label of value 0. Raster is casted to uint16 not to overflow incase 255 classes are used
+        raster = raster.astype(np.uint16) + 1
+        no_data_value = self.no_data_value + 1 if self.no_data_value is not None else self.no_data_value
+        ignore_labels = [il + 1 for il in self.ignore_labels] if self.ignore_labels else self.ignore_labels
+
+        # find unique labels
+        unique_labels = np.unique(raster)
+
+        # structured element for binary erosion
+        struct_elem = disk(self.disk_radius) if self.disk_radius is not None else None
+
+        # filter out unwanted labels and no data values and apply erosion if required
+        raster_filtered = np.sum(np.asarray([lbl * self._erosion(raster, lbl, struct_elem)
+                                             for lbl in unique_labels
+                                             if (lbl != no_data_value) and (lbl not in ignore_labels)]),
+                                 axis=0)
+
+        # update unique labels and compute counts for each filtered label
+        unique_labels, label_count = np.unique(raster_filtered, return_counts=True)
+
+        # 0 now has all pixels to ignore due to erosion or no_data_value or ignore labels
+        zero_index, = np.where(unique_labels == 0)
+        zero_index = 0 if zero_index.size == 0 else zero_index[0] + 1
+
+        # define number of samples per filtered label
+        n_valid_labels = len(unique_labels[zero_index:])
+        if self.even_sampling:
+            # valid labels have the same number of samples
+            n_samples_per_label = np.diff(np.round(np.linspace(0, n_samples, num=n_valid_labels + 1))).astype(np.uint32)
+        else:
+            # number of samples per label is proportional to label frequency
+            label_ratio = label_count[zero_index:] / np.sum(label_count[zero_index:])
+            n_samples_per_label = (np.ceil(n_samples * label_ratio)).astype(np.uint32)
+
+        # sample raster
+        samples = np.concatenate([self._binary_sample(raster, lbl, n_sample_lbl, lbl_count)
+                                  for lbl, n_sample_lbl, lbl_count in
+                                  zip(unique_labels[zero_index:], n_samples_per_label, label_count[zero_index:])],
+                                 axis=1).T
+
+        # shuffle to mix labels in case they are fed directly to train a ML model
+        np.random.shuffle(samples)
+
+        # return value, row index and col index. Return exactly `n_sample` values
+        return samples[:n_samples, 0].astype(np.uint8), samples[:n_samples, 1], samples[:n_samples, 2]
 
 
 class PointSamplingTask(EOTask):
