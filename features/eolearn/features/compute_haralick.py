@@ -8,6 +8,7 @@ from eolearn.core import EOTask, FeatureType
 class AddHaralickTask(EOTask):
     """
     Task to compute Haralick texture images
+
     The task compute the grey-level co-occurrence matrix on a sliding window over the input image and extract the
     texture properties.
 
