@@ -128,7 +128,7 @@ class SentinelHubOGCInput(EOTask):
         request = {ServiceType.WMS: self._get_wms_request,
                    ServiceType.WCS: self._get_wcs_request}[self.service_type](bbox, time_interval)
 
-        request_return = request.get_data()
+        request_return = request.get_data(raise_download_errors=False)
         timestamps = request.get_dates()
 
         bad_data = [idx for idx, value in enumerate(request_return) if value is None]
