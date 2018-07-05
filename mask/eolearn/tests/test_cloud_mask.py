@@ -45,7 +45,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
     def test_wms_request(self):
         classifier = get_s2_pixel_cloud_detector(all_bands=False)
         # Classifier is run on new request of data array
-        add_cm = AddCloudMaskTask(classifier, 'BANDS', cm_size_y=50, cmask_field='clm', cprobs_field='clp')
+        add_cm = AddCloudMaskTask(classifier, 'BANDS-S2-L1C', cm_size_y=50, cmask_field='clm', cprobs_field='clp')
         eop_clm = add_cm(self.eop)
         _, h, w, _ = eop_clm.mask['clm'].shape
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)

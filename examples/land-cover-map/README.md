@@ -15,8 +15,8 @@ Once you have the account set up, login to [Sentinel Hub Configurator](https://a
 
 After you have decided which configuration to use, you have two options You can either put configuration's **instance ID** into `sentinelhub` package's configuration file following the [configuration instructions](http://sentinelhub-py.readthedocs.io/en/latest/configure.html) or you can write it down in the example notebooks.
 
-__ Note: The full end-to-end LULC workflow is not yet shown in the example so make sure to
-check regularly for the updates. __
+__Note: The full end-to-end LULC workflow is not yet shown in the example so make sure to
+check regularly for the updates.__
 
 ---
 
@@ -28,7 +28,7 @@ Each smaller piece is called an `EOPatch` in the `eo-learn` package. In order to
 `EOPatch` we simply need the bounding box in a given coordinate reference system. We'll
 use `BBOXSplitter` from [`sentinelhub`](https://github.com/sentinel-hub/sentinelhub-py) python package.
 
-** Notebook: 1_split-AOI.ipynb **
+**Notebook: 1_split-AOI.ipynb**
 * Inputs:
     * a geo-json file defining the AOI. In our case, a buffered version of Slovenia. (`reference-data/slovenia-def/svn_buffered.geojson`)
 * Outputs:
@@ -37,7 +37,7 @@ use `BBOXSplitter` from [`sentinelhub`](https://github.com/sentinel-hub/sentinel
 
 ![SLO-tiles](./readme_figs/aoi_to_tiles.png)
 
-** Figure: ** AOI (Slovenia) tiled into smaller rectangular tiles.
+**Figure:** AOI (Slovenia) tiled into smaller rectangular tiles.
 
 ## 2. Create EOPatches
 
@@ -50,7 +50,7 @@ Now is time to create an `EOPatch` for each out of 293 tiles of the AOI. The `EO
 
 We can count how many times in a time series a pixel is valid or not from the or SentinelHub's cloud mask.
 
-** Notebook: 2_eopatch-L1C.ipynb **
+**Notebook: 2_eopatch-L1C.ipynb**
 * Inputs:
     * pickled `BBoxSplitter` with 293 tiles (seeds for 293 `EOPatch`es)
 * Outputs:
@@ -80,32 +80,43 @@ A. Visualise a couple of frames
 
 ![eopatch-0-frame-0](./readme_figs/patch_0.png) 
 
-** Figure: ** Frame with index 0 for an `EOPatch`.
+**Figure:** Frame with index 0 for an `EOPatch`.
 
 ![eopatch-0-frame-31](./readme_figs/patch_31.png) 
 
-** Figure: ** Frame with index 31 for the same `EOPatch`.
+**Figure:** Frame with index 31 for the same `EOPatch`.
 
 B. Number of valid observations per EOPatch and entire AOI
 
 ![eopatch-valid](./readme_figs/number_of_valid_observations_eopatch_0.png)
 
-** Figure: ** Number of valid observations for an `EOPatch`.
+**Figure:** Number of valid observations for an `EOPatch` with index 0.
 
 ![slovenia-valid](./readme_figs/number_of_valid_observations_slovenia.png)
 
-** Figure: ** Number of valid Sentinel-2 observations for Slovenia in 2017. This plot can be created by merging all geo-referenced tiffs into a single one using `gdal_merge.py`.
+**Figure:** Number of valid Sentinel-2 observations for Slovenia in 2017. This image can be created by merging all geo-referenced tiffs into a single one using `gdal_merge.py`.
 
 ![slovenia-valid-hist](./readme_figs/hist_number_of_valid_observations_slovenia.png)
 
-** Figure: ** Distribution of number of valid Senintel-2 observations for Slovenia in 2017. 
+**Figure:** Distribution of number of valid Senintel-2 observations for Slovenia in 2017. 
 
 ![slovenia-fraction-valid-before](./readme_figs/fraction_valid_pixels_per_frame_eopatch-0.png)
 
-** Figure: ** Fraction of valid pixels per frame for an EOPatch with index 0.
+**Figure:** Fraction of valid pixels per frame for an EOPatch with index 0.
 
 ![slovenia-fraction-valid-before](./readme_figs/fraction_valid_pixels_per_frame_cleaned-eopatch-0.png)
 
-** Figure: ** Fraction of valid pixels per frame for an EOPatch with index 0 with frames with this fraction below 60% removed.
+**Figure:** Fraction of valid pixels per frame for an EOPatch with index 0 with frames with this fraction below 60% removed.
 
+**Notebook: 2_eopatch-L2A.ipynb**
+
+This notebook does almost the same thing as the notebook `2_eopatch-L1C.ipynb`. The main difference that here the input source is Sentinel-2 L2A (bottom of atmosphere or atmosphericaly corrected refelectances) produced with Sen2Cor. The cloud and cloud shadow masking is based on Sen2Cor's scene classification. 
+
+![slovenia-valid-s2c](./readme_figs/number_of_valid_observations_slovenia_s2c.png)
+
+**Figure:** Number of valid Sentinel-2 observations for Slovenia in 2017 as determined from Sen2Cor's scene classification.  
+
+![slovenia-valid-hist-comp](./readme_figs/hist_number_of_valid_observations_slovenia_s2c_vs_sh.png)
+
+**Figure:** Distributions of number of valid Senintel-2 observations for Slovenia in 2017 as determined using Sen2Cor's scene classification in red and Sentinel Hub's cloud detector `s2cloudless` in blue. 
 
