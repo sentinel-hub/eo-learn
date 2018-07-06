@@ -209,8 +209,8 @@ class AkimaInterpolation(InterpolationTask):
 
 class ResamplingTask(InterpolationTask):
     """
-    A subclass of InterpolationTask task that works much faster, works only on data with no missing, masked or invalid
-    values and resamples timeseries to different timestamps
+    A subclass of InterpolationTask task that works much faster however works only with data with no missing, masked or
+    invalid values. It always resamples timeseries to different timestamps.
     """
     def __init__(self, feature_name, interpolation_object, resample_range, *, result_interval=None,
                  unknown_value=np.nan, **interpolation_parameters):
