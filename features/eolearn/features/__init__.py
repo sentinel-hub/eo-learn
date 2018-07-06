@@ -12,3 +12,4 @@ from .feature_manipulation import RemoveFeature, SimpleFilterTask, FilterTimeSer
 
 
 __version__ = '0.1.0'
+1
