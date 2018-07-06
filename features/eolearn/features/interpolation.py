@@ -167,31 +167,87 @@ class InterpolationTask(EOTask):
 
 
 class LinearInterpolation(InterpolationTask):
-
+    """
+    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
+    """
     def __init__(self, feature_name, **kwargs):
         super(LinearInterpolation, self).__init__(feature_name, interpolate.interp1d, kind='linear', **kwargs)
 
 
 class CubicInterpolation(InterpolationTask):
-
+    """
+    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
+    """
     def __init__(self, feature_name, **kwargs):
         super(CubicInterpolation, self).__init__(feature_name, interpolate.interp1d, kind='cubic', **kwargs)
 
 
 class SplineInterpolation(InterpolationTask):
-
+    """
+    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`
+    """
     def __init__(self, feature_name, *, spline_degree=3, smoothing_factor=0, **kwargs):
         super(SplineInterpolation, self).__init__(feature_name, interpolate.UnivariateSpline, k=spline_degree,
                                                   s=smoothing_factor, **kwargs)
 
 
 class BSplineInterpolation(InterpolationTask):
-
+    """
+    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`
+    """
     def __init__(self, feature_name, *, spline_degree=3, **kwargs):
         super(BSplineInterpolation, self).__init__(feature_name, interpolate.BSpline, k=spline_degree, **kwargs)
 
 
 class AkimaInterpolation(InterpolationTask):
-
+    """
+    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`
+    """
     def __init__(self, feature_name, **kwargs):
         super(AkimaInterpolation, self).__init__(feature_name, interpolate.Akima1DInterpolator, **kwargs)
+
+
+class ResamplingTask(InterpolationTask):
+    """
+    A subclass of InterpolationTask task that works much faster, works only on data with no missing, masked or invalid
+    values and resamples timeseries to different timestamps
+    """
+    def __init__(self, feature_name, interpolation_object, resample_range, *, result_interval=None,
+                 unknown_value=np.nan, **interpolation_parameters):
+        if resample_range is None:
+            raise ValueError("resample_range parameter must be in form ('start_date', 'end_date', step_days)")
+        super(ResamplingTask, self).__init__(feature_name, interpolation_object, resample_range=resample_range,
+                                             result_interval=result_interval, unknown_value=unknown_value,
+                                             **interpolation_parameters)
+
+    def interpolate_data(self, data, times, resampled_times):
+        if True in np.unique(np.isnan(data)):
+            raise ValueError('Data must not contain any masked/invalid pixels or NaN values')
+
+        interp_func = self.get_interpolation_function(times, data)
+
+        time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
+        new_data = np.full((resampled_times.size,) + data.shape[1:], np.nan, dtype=data.dtype)
+        new_data[time_mask] = interp_func(resampled_times[time_mask])
+        return new_data
+
+    def get_interpolation_function(self, times, data):
+        return self.interpolation_object(times, data, axis=0, **self.interpolation_parameters)
+
+
+class LinearResampling(ResamplingTask):
+    """
+    Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`
+    """
+    def __init__(self, feature_name, resample_range, **kwargs):
+        super(LinearResampling, self).__init__(feature_name, interpolate.interp1d, resample_range, kind='linear',
+                                               **kwargs)
+
+
+class CubicResampling(ResamplingTask):
+    """
+    Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`
+    """
+    def __init__(self, feature_name, resample_range, **kwargs):
+        super(CubicResampling, self).__init__(feature_name, interpolate.interp1d, resample_range, kind='cubic',
+                                              **kwargs)

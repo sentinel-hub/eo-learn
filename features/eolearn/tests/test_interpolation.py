@@ -6,7 +6,7 @@ from datetime import datetime
 
 from eolearn.core import EOPatch
 from eolearn.features import LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation, \
-    AkimaInterpolation
+    AkimaInterpolation, LinearResampling, CubicResampling
 
 
 class TestInterpolation(unittest.TestCase):
@@ -17,7 +17,8 @@ class TestInterpolation(unittest.TestCase):
         """
         TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'TestInputs', 'TestPatch')
 
-        def __init__(self, name, task, result_len, img_min=None, img_max=None, img_mean=None, img_median=None):
+        def __init__(self, name, task, result_len, img_min=None, img_max=None, img_mean=None, img_median=None,
+                     nan_replace=None):
             self.name = name
             self.task = task
             self.result_len = result_len
@@ -25,11 +26,14 @@ class TestInterpolation(unittest.TestCase):
             self.img_max = img_max
             self.img_mean = img_mean
             self.img_median = img_median
+            self.nan_replace = nan_replace
 
             self.result = None
 
         def execute(self):
             patch = EOPatch.load(self.TEST_PATCH_FILENAME)
+            if self.nan_replace is not None:
+                patch.data[self.task.feature_name][np.isnan(patch.data[self.task.feature_name])] = self.nan_replace
             self.result = self.task.execute(patch)
 
 
@@ -59,6 +63,16 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('akima', AkimaInterpolation('ndvi', unknown_value=0),
                                       result_len=180, img_min=-0.4821199, img_max=0.2299331, img_mean=-0.20141865,
                                       img_median=-0.213559),
+            cls.InterpolationTestCase('linear resample', LinearResampling('ndvi', result_interval=(-0.3, -0.1),
+                                                                          resample_range=('2016-01-01',
+                                                                                          '2018-01-01', 5)),
+                                      result_len=147, img_min=-0.3000, img_max=-0.1000, img_mean=-0.1946315,
+                                      img_median=-0.20000, nan_replace=-0.2),
+            cls.InterpolationTestCase('cubic resample', CubicResampling('ndvi', result_interval=(-0.3, -0.1),
+                                                                        resample_range=('2015-01-01', '2018-01-01', 16),
+                                                                        unknown_value=5),
+                                      result_len=69, img_min=-0.3000, img_max=5.0, img_mean=1.22359,
+                                      img_median=-0.181167, nan_replace=-0.2)
         ]
 
         for test_case in cls.test_cases:
