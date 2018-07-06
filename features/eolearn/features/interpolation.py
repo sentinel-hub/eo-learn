@@ -6,7 +6,7 @@ from dateutil import parser
 from datetime import timedelta
 from scipy import interpolate
 
-from eolearn.core import EOTask
+from eolearn.core import EOTask, EOPatch
 
 
 class InterpolationTask(EOTask):
@@ -25,8 +25,12 @@ class InterpolationTask(EOTask):
     :type feature_name: str
     :param interpolation_object: Interpolation class which is initialized with
     :type interpolation_object: object
-    :param resample_range: Range of resampled data, e.g. ('2018-01-01', '2018-06-01', 16) (this excludes end date)
-    :type resample_range: (str, str, int)
+    :param resample_range: If None the data will be only interpolated over existing timestamps and NaN values will be
+        replaced with interpolated values (if possible) in the existing EOPatch. Otherwise ``resample_range`` can be
+        set to tuple in a form of (start_date, end_date, step_days), e.g. ('2018-01-01', '2018-06-01', 16). This will
+        create a new EOPatch with resampled values for times start_date, start_date + step_days,
+        start_date + 2 * step_days, ... . End date is excluded from timestamps.
+    :type resample_range: (str, str, int) or None
     :param result_interval: Maximum and minimum of returned data
     :type result_interval: (float, float)
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
@@ -119,6 +123,8 @@ class InterpolationTask(EOTask):
         return days
 
     def execute(self, eopatch):
+        """ Execute method that processes EOPatch and returns EOPatch
+        """
         if self.feature_name not in eopatch.data:
             raise ValueError('Feature {} not found in EOPatch.data.'.format(self.feature_name))
 
@@ -132,12 +138,15 @@ class InterpolationTask(EOTask):
         # Flatten array
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
 
+        # If resampling create new EOPatch
+        new_eopatch = EOPatch() if self.resample_range else eopatch
+
         # Resample times
         times = eopatch.time_series()
         start_time = eopatch.timestamp[0]
-        eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
-        total_diff = int((eopatch.timestamp[0].date() - start_time.date()).total_seconds())
-        resampled_times = eopatch.time_series() + total_diff
+        new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
+        total_diff = int((new_eopatch.timestamp[0].date() - start_time.date()).total_seconds())
+        resampled_times = new_eopatch.time_series() + total_diff
 
         # Interpolate
         feature_data = self.interpolate_data(feature_data, times, resampled_times)
@@ -153,8 +162,8 @@ class InterpolationTask(EOTask):
             feature_data[np.isnan(feature_data)] = self.unknown_value
 
         # Reshape back
-        eopatch.data[self.feature_name] = np.reshape(feature_data, (feature_data.shape[0], height, width, band_num))
-        return eopatch
+        new_eopatch.data[self.feature_name] = np.reshape(feature_data, (feature_data.shape[0], height, width, band_num))
+        return new_eopatch
 
 
 class LinearInterpolation(InterpolationTask):
