@@ -7,6 +7,7 @@ from .temporal_features import AddSpatioTemporalFeaturesTask, AddMaxMinTemporalI
 from .interp_smooth import BSplineInterpolation
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import RemoveFeature, SimpleFilterTask, FilterTimeSeries
+from .compute_haralick import AddHaralickTask
 
 
 __version__ = '0.1.0'

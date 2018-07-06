@@ -2,3 +2,4 @@ eo-learn-core
 shapely
 geopandas
 rasterio
+scikit-image
