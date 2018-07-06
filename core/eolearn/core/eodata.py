@@ -464,7 +464,11 @@ class EOPatch:
 
         for feature in feature_list:
             feature_filename = filenames[feature.value]
-            if os.path.exists(feature_filename) and os.path.getsize(feature_filename) > 0:
+
+            if not os.access(feature_filename, os.R_OK):
+                raise PermissionError('Reading permission denied: {}'.format(feature_filename))
+
+            if os.path.exists(feature_filename) and os.path.getsize(feature_filename):
                 with open(feature_filename, "rb") as feature_file:
                     eopatch_features[feature.value] = pickle.load(feature_file)
 
@@ -478,7 +482,7 @@ class EOPatch:
 
         If reference date is none the first date in the EOPatch's timestamp is taken.
 
-        If EOPatch timestamp atribute is empty the method returns None.
+        If EOPatch timestamp attribute is empty the method returns None.
 
         :param ref_date: reference date relative to which the time is measured
         :type ref_date: datetime object
