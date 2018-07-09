@@ -197,16 +197,16 @@ class PointRasterSampler:
 
         :param disk_radius: Radius of disk used as structure element for erosion. If `None`, no erosion is performed.
                             Default is `None`
-        :type disk_radius: uint8 or None
+        :type disk_radius: int or None
         :param even_sampling: Whether to sample class labels evenly or not. If `True`, labels will have the same number
                                 samples, with less frequent labels being over-sampled (i.e. same observation is sampled
                                 multiple times). If `False`, sampling follows the label distribution in raster.
                                 Default is `False`
         :type even_sampling: bool
         :param no_data_value: Label value denoting no data. This value will not be sampled. Default is `None`
-        :type no_data_value: None or uint8
+        :type no_data_value: None or int
         :param ignore_labels: List of label values to ignore during sampling. Default is `None`
-        :type ignore_labels: None or list of uint8
+        :type ignore_labels: None or list of int
         """
         self.disk_radius = disk_radius
         self.ignore_labels = [] if ignore_labels is None else ignore_labels
@@ -321,38 +321,88 @@ class PointRasterSampler:
 
 
 class PointSamplingTask(EOTask):
-    """
-    Task for sampling points.
+    """ Task for spatially sampling points from a time-series.
+
+    This task performs random spatial sampling of a time-series based on a label mask. The user specifies the number of
+    points to be sampled, the name of the `DATA` time-series, the name of the label raster image, and the name of the
+    output sample features and sampled labels.
     """
     # pylint: disable=too-many-arguments
-    def __init__(self, nsamples,
-                 out_feature_type, out_feature_name, out_truth_name,
-                 sample_raster_feature_type, sample_raster_name,
-                 data_feature_type, data_feature_name,
-                 no_data_value=None, ignore_labels=None):
-        self.nsamples = nsamples
-        self.out_feature_type = out_feature_type
+    def __init__(self, n_samples, sample_raster_name, data_feature_name,
+                 out_feature_name='FEATS', out_label_name='LABELS',
+                 disk_radius=None, even_sampling=False, no_data_value=None, ignore_labels=None, add_rows_cols=True):
+        """ Initialise sampling task.
+
+        The data to be sampled is supposed to be a time-series stored in `DATA` type of hte eopatch, while the raster
+        image is supposed to be stored in `MASK_TIMELESS`. The output sampled features are stored in `DATA` and have
+        shape T x N_SAMPLES x 1 x D, where T is the number of time-frames, N_SAMPLES the number of random samples, and D
+        is the number of channels of the input time-series.
+
+        The row and column index of sampled points can also be stored in the eopatch, to allow the same random sampling
+        of other masks.
+
+        :param n_samples: Number of random spatial points to be sampled from the time-series
+        :type n_samples: int
+        :param sample_raster_name: Name of `MASK_TIMELESS` raster image to be used for sampling
+        :type sample_raster_name: str
+        :param data_feature_name: Name of `DATA` time-series to be spatially sampled
+        :type data_feature_name: str
+        :param out_feature_name: Name of output sampled features stored in `DATA`. Default is `'FEATS'`
+        :type out_feature_name: str
+        :param out_label_name: Name of output sampled label values stored in `LABEL_TIMELESS`. Default is `'LABELS'`
+        :type out_label_name: str
+        :param disk_radius: Size of disk radius used for eroding raster labels. Default is `None`
+        :type disk_radius: None or int
+        :param even_sampling: Whether to sample class labels evenly or not. If `True`, labels will have the same number
+                                samples, with less frequent labels being over-sampled (i.e. same observation is sampled
+                                multiple times). If `False`, sampling follows the label distribution in raster.
+                                Default is `False`
+        :type even_sampling: bool
+        :param no_data_value: Label value denoting no data. This value will not be sampled. Default is `None`
+        :type no_data_value: None or int
+        :param ignore_labels: List of label values to ignore during sampling. Default is `None`
+        :type ignore_labels: None or list of int
+        :param add_rows_cols: Whether to add to eopatch the rows and cols indices of sampled points. Default is `True`
+        :type add_rows_cols: bool
+        """
+        self.n_samples = n_samples
         self.out_feature_name = out_feature_name
-        self.out_truth_name = out_truth_name
-        self.sample_raster_feature_type = sample_raster_feature_type
+        self.out_label_name = out_label_name
         self.sample_raster_name = sample_raster_name
-        self.data_feature_type = data_feature_type
         self.data_feature_name = data_feature_name
+        self.disk_radius = disk_radius
+        self.even_sampling = even_sampling
         self.no_data_value = no_data_value
         self.ignore_labels = ignore_labels
+        self.add_rows_cols = add_rows_cols
 
     def execute(self, eopatch):
-        raster = eopatch.get_feature(self.sample_raster_feature_type, self.sample_raster_name)
-        data = eopatch.get_feature(self.data_feature_type, self.data_feature_name)
+        """ Execute random spatial sampling of time-series stored in the input eopatch
 
-        sampler = PointSampler(raster, no_data_value=self.no_data_value, ignore_labels=self.ignore_labels)
+        :param eopatch: Input eopatch ot be sampled
+        :return: eopatch with spatially sampled temporal features and associated labels
+        """
+        # Retrieve data and raster label image from eopatch
+        raster = eopatch.get_feature(FeatureType.MASK_TIMELESS, self.sample_raster_name)
+        data = eopatch.get_feature(FeatureType.DATA, self.data_feature_name)
 
-        labels, rows, cols = sampler.sample(self.nsamples)
-        labels = np.asarray(labels)
+        # Initialise sampler
+        sampler = PointRasterSampler(disk_radius=self.disk_radius,
+                                     even_sampling=self.even_sampling,
+                                     no_data_value=self.no_data_value,
+                                     ignore_labels=self.ignore_labels)
+
+        # Perform sampling
+        labels, rows, cols = sampler.sample(raster, n_samples=self.n_samples)
 
         sampled_points = data[:, rows, cols, :]
 
-        eopatch.add_feature(self.out_feature_type, self.out_feature_name, sampled_points[:, :, np.newaxis, :])
-        eopatch.add_feature(FeatureType.LABEL_TIMELESS, self.out_truth_name, labels[:, np.newaxis])
+        # Add sampled features, labels and (optionally) rows and columns indices of sampled points
+        eopatch.add_feature(FeatureType.DATA, self.out_feature_name, sampled_points[:, :, np.newaxis, :])
+        eopatch.add_feature(FeatureType.LABEL_TIMELESS, self.out_label_name, labels)
+
+        if self.add_rows_cols:
+            eopatch.add_feature(FeatureType.LABEL_TIMELESS, 'SAMPLE_ROWS', rows)
+            eopatch.add_feature(FeatureType.LABEL_TIMELESS, 'SAMPLE_COLS', cols)
 
         return eopatch
