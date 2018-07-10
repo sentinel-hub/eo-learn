@@ -52,7 +52,7 @@ class InterpolationTask(EOTask):
     def interpolate_data(self, data, times, resampled_times):
         """ Interpolates data feature
 
-        :param data: Array in a shape of t x h x w x n
+        :param data: Array in a shape of t x nobs, where nobs = h x w x n
         :type data: numpy.ndarray
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
@@ -133,7 +133,8 @@ class InterpolationTask(EOTask):
 
         # Prepare mask of valid data
         if 'VALID_DATA' in eopatch.mask:
-            feature_data[~eopatch.mask['VALID_DATA']] = np.nan
+            invalid_data = ~eopatch.mask['VALID_DATA'].squeeze()
+            feature_data[invalid_data, :] = np.nan
 
         # Flatten array
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
@@ -221,6 +222,18 @@ class ResamplingTask(InterpolationTask):
                                              **interpolation_parameters)
 
     def interpolate_data(self, data, times, resampled_times):
+        """ Interpolates data feature
+
+        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times in second relative to the first timestamp
+        :type times: numpy.array
+        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
+                                array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
+        """
         if True in np.unique(np.isnan(data)):
             raise ValueError('Data must not contain any masked/invalid pixels or NaN values')
 
@@ -232,6 +245,14 @@ class ResamplingTask(InterpolationTask):
         return new_data
 
     def get_interpolation_function(self, times, data):
+        """ Initializes interpolation model
+
+        :param times: Array of reference times in second relative to the first timestamp
+        :type times: numpy.array
+        :param data: One dimensional array of time series
+        :type data: numpy.array
+        :return: Initialized interpolation model class
+        """
         return self.interpolation_object(times, data, axis=0, **self.interpolation_parameters)
 
 
