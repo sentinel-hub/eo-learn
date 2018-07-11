@@ -2,21 +2,18 @@
 Tasks for spatial sampling of points for building training/validation samples for example.
 """
 
+import collections
+import functools
+import math
 import numpy as np
 
 from shapely.geometry import Polygon, Point
 from shapely.geometry import LinearRing
 from shapely.ops import triangulate
-
 from rasterio.features import shapes
-
-from eolearn.core import EOTask, FeatureType
-
 from skimage.morphology import binary_erosion, disk
 
-import collections
-import functools
-import math
+from eolearn.core import EOTask, FeatureType
 
 
 class PointSampler:
@@ -273,7 +270,7 @@ class PointRasterSampler:
         else:
             raise ValueError('Class operates on 2D or 3D single-channel raster images')
 
-        # trick to deal with label of value 0. Raster is casted to uint16 not to overflow incase 255 classes are used
+        # trick to deal with label of value 0. Raster is casted to uint16 not to overflow in case 255 classes are used
         raster = raster.astype(np.uint16) + 1
         no_data_value = self.no_data_value + 1 if self.no_data_value is not None else self.no_data_value
         ignore_labels = [il + 1 for il in self.ignore_labels] if self.ignore_labels else self.ignore_labels
@@ -333,7 +330,7 @@ class PointSamplingTask(EOTask):
                  disk_radius=None, even_sampling=False, no_data_value=None, ignore_labels=None, add_rows_cols=True):
         """ Initialise sampling task.
 
-        The data to be sampled is supposed to be a time-series stored in `DATA` type of hte eopatch, while the raster
+        The data to be sampled is supposed to be a time-series stored in `DATA` type of the eopatch, while the raster
         image is supposed to be stored in `MASK_TIMELESS`. The output sampled features are stored in `DATA` and have
         shape T x N_SAMPLES x 1 x D, where T is the number of time-frames, N_SAMPLES the number of random samples, and D
         is the number of channels of the input time-series.
@@ -354,9 +351,8 @@ class PointSamplingTask(EOTask):
         :param disk_radius: Size of disk radius used for eroding raster labels. Default is `None`
         :type disk_radius: None or int
         :param even_sampling: Whether to sample class labels evenly or not. If `True`, labels will have the same number
-                                samples, with less frequent labels being over-sampled (i.e. same observation is sampled
-                                multiple times). If `False`, sampling follows the label distribution in raster.
-                                Default is `False`
+            of samples, with less frequent labels being over-sampled (i.e. same observation is sampled multiple times).
+            If `False`, sampling follows the label distribution in raster. Default is `False`
         :type even_sampling: bool
         :param no_data_value: Label value denoting no data. This value will not be sampled. Default is `None`
         :type no_data_value: None or int
@@ -379,7 +375,7 @@ class PointSamplingTask(EOTask):
     def execute(self, eopatch):
         """ Execute random spatial sampling of time-series stored in the input eopatch
 
-        :param eopatch: Input eopatch ot be sampled
+        :param eopatch: Input eopatch to be sampled
         :return: eopatch with spatially sampled temporal features and associated labels
         """
         # Retrieve data and raster label image from eopatch
