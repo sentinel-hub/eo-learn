@@ -128,7 +128,8 @@ class InterpolationTask(EOTask):
         if self.feature_name not in eopatch.data:
             raise ValueError('Feature {} not found in EOPatch.data.'.format(self.feature_name))
 
-        feature_data = eopatch.data[self.feature_name]
+        # Make a copy not to change original numpy array
+        feature_data = eopatch.data[self.feature_name].copy()
         time_num, height, width, band_num = eopatch.data[self.feature_name].shape
 
         # Prepare mask of valid data
@@ -148,6 +149,10 @@ class InterpolationTask(EOTask):
         new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
         total_diff = int((new_eopatch.timestamp[0].date() - start_time.date()).total_seconds())
         resampled_times = new_eopatch.time_series() + total_diff
+
+        # Add BBox to eopatch if it was created anew
+        if new_eopatch.bbox is None:
+            new_eopatch.bbox = eopatch.bbox
 
         # Interpolate
         feature_data = self.interpolate_data(feature_data, times, resampled_times)
