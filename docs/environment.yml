@@ -1,0 +1,11 @@
+name: eolearn-docs
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python>=3.5
+  - cython
+  - libgdal
+  - numpy
