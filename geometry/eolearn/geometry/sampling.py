@@ -211,8 +211,8 @@ class PointRasterSampler:
     def _get_unknown_value(self):
         """ Finds the smallest integer value >=0 that is not in `labels`
 
-        :return:
-        :rtype:
+        :return: Value that is not in the labels
+        :rtype: int
         """
         label_set = set(self.labels)
         value = 0
