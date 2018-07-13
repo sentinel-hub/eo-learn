@@ -6,8 +6,7 @@ eolearn.coregistration
     :undoc-members:
     :show-inheritance:
 
-Submodules
-----------
+Submodules:
 
 .. toctree::
 

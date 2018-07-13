@@ -6,8 +6,7 @@ eolearn.core
     :undoc-members:
     :show-inheritance:
 
-Submodules
-----------
+Submodules:
 
 .. toctree::
 

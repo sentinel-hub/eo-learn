@@ -2,8 +2,7 @@
 Package content
 ***************
 
-Subpackages
------------
+Subpackages:
 
 .. toctree::
 

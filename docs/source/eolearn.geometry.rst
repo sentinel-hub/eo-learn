@@ -6,8 +6,7 @@ eolearn.geometry
     :undoc-members:
     :show-inheritance:
 
-Submodules
-----------
+Submodules:
 
 .. toctree::
 

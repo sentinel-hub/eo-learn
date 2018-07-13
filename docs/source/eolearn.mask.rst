@@ -6,8 +6,7 @@ eolearn.mask
     :undoc-members:
     :show-inheritance:
 
-Submodules
-----------
+Submodules:
 
 .. toctree::
 
