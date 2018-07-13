@@ -47,6 +47,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.inheritance_diagram',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting'
 ]
@@ -201,3 +202,35 @@ try:
     shutil.copytree('../../examples', './examples')
 except FileExistsError:
     pass
+
+# Create a list of all EOTasks
+
+def get_eotasks():
+    import eolearn.core
+    import eolearn.coregistration
+    import eolearn.features
+    # import eolearn.geometry
+    # import eolearn.io
+    # import eolearn.mask
+    import eolearn.ml_tools
+
+    return eolearn.core.EOTask.__subclasses__()
+
+
+eotasks_str = " ".join([
+    eotask.__module__ + "." + eotask.__name__
+    for eotask in get_eotasks()
+])
+
+eotasks_file_content = '''
+********
+EO Tasks
+********
+
+.. inheritance-diagram:: %s
+   :top-classes: eolearn.core.EOTask
+   :parts: 3
+'''
+
+with open("eotasks.rst", "w") as f:
+    f.write(eotasks_file_content % eotasks_str)

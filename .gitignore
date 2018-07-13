@@ -106,5 +106,6 @@ ENV/
 # IDE config
 .idea/
 
-# Directory where examples are copied for Sphinx to process them
+# Files that Sphinx generates
 /docs/source/examples
+/docs/source/eotasks.rst

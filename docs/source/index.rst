@@ -11,6 +11,7 @@ Documentation for eo-learn Python packages
    :caption: Contents:
 
    install
+   eotasks
    examples
    eolearn
 
