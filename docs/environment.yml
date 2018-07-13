@@ -1,4 +1,4 @@
-name: eolearn-docs
+name: eolearn-docs3
 
 channels:
   - conda-forge
@@ -6,9 +6,8 @@ channels:
 
 dependencies:
   - python>=3.5
-  - cython
-  - libgdal
-  - numpy
+  - rasterio
+  - opencv
   - pip:
     - Sphinx==1.7.5
     - sphinx-rtd-theme==0.4.0
