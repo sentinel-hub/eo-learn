@@ -272,7 +272,7 @@ class PointRasterSampler:
         unique_labels, label_count = np.unique(raster[mask], return_counts=True)
         if not unique_labels.size:
             LOGGER.warning('No samples matching given parameters found in EOPatch')
-            return np.array((0,), dtype=np.uint32), np.array((0,), dtype=np.uint32)
+            return np.empty((0,), dtype=np.uint32), np.empty((0,), dtype=np.uint32)
 
         if self.even_sampling:
             # Valid labels have the same (or off by one) number of samples
