@@ -35,10 +35,12 @@ class InterpolationTask(EOTask):
     :type result_interval: (float, float)
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
     :type unknown_value: float or numpy.nan
+    :param filling_factor:
+    :param :
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature_name, interpolation_object, *, resample_range=None, result_interval=None,
-                 unknown_value=np.nan, **interpolation_parameters):
+                 unknown_value=np.nan, filling_factor=10, scale_time=3600, **interpolation_parameters):
         self.feature_name = feature_name
         self.interpolation_object = interpolation_object
 
@@ -46,49 +48,88 @@ class InterpolationTask(EOTask):
         self.result_interval = result_interval
         self.unknown_value = unknown_value
         self.interpolation_parameters = interpolation_parameters
+        self.scale_time = scale_time
+        self.filling_factor = filling_factor
 
         self._resampled_times = None
+
+    @staticmethod
+    def _get_start_end_nans(data):
+        """ Find NaN values in data that either start or end the time-series
+
+        Function to return a binary array of same size as data where `True` values correspond to NaN values present at
+        beginning or end of time-series. NaNs internal to the time-series are not included in the binary mask.
+
+        :param data: Array of observations of size TxNOBS
+        :type data: numpy.array
+        :return: Binary array of shape TxNOBS. `True` values indicate NaNs present at beginning or end of time-series
+        :rtype: numpy.array
+        """
+        # find NaNs that start a time-series
+        start_nan = np.isnan(data)
+        for idx, row in enumerate(start_nan[:-1]):
+            start_nan[idx+1] = np.logical_and(row, start_nan[idx+1])
+        # find NaNs that end a time-series
+        end_nan = np.isnan(data)
+        for idx, row in enumerate(end_nan[-2::-1]):
+            end_nan[-idx-2] = np.logical_and(row, end_nan[-idx-1])
+
+        return np.logical_or(start_nan, end_nan)
 
     def interpolate_data(self, data, times, resampled_times):
         """ Interpolates data feature
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
         :type data: numpy.ndarray
-        :param times: Array of reference times in second relative to the first timestamp
+        :param times: Array of reference times relative to the first timestamp
         :type times: numpy.array
-        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray
         """
-        return np.apply_along_axis(self.interpolate_series, axis=0, arr=data, times=times,
-                                   resampled_times=resampled_times)
+        # get size of 2d array t x nobs
+        ntimes, nobs = data.shape
 
-    def interpolate_series(self, series, times, resampled_times):
-        """ Interpolates time series
+        # get valid data mask
+        valid_mask = ~np.isnan(data)
 
-        :param series: One dimensional array of time series
-        :type series: numpy.array
-        :param times: Array of reference times in second relative to the first timestamp
-        :type times: numpy.array
-        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
-        :type resampled_times: numpy.array
-        :return: Array of interpolated values
-        :rtype: numpy.array
-        """
-        valid_mask = ~np.isnan(series)
-        interp_func = self.get_interpolation_function(times[valid_mask], series[valid_mask])
-
-        start_time = np.min(times[valid_mask])
-        end_time = np.max(times[valid_mask])
-
-        new_series = series if self.resample_range is None else \
-            np.full(resampled_times.shape, np.nan, dtype=series.dtype)
+        # start/end time of reference times
+        start_time, end_time = np.min(times), np.max(times)
+        # mask representing overlap between reference and resampled times
         time_mask = (resampled_times >= start_time) & (resampled_times <= end_time)
-        new_series[time_mask] = interp_func(resampled_times[time_mask])
-        return new_series
+
+        # define time values as linear mono-tonically increasing over the observations
+        const = int(self.filling_factor * (end_time - start_time))
+        temp_values = (times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+        res_temp_values = (resampled_times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+
+        # initialise array of interpolated values
+        new_data = data if self.resample_range is None else np.full((len(resampled_times), nobs),
+                                                                    np.nan, dtype=data.dtype)
+        # array defining index correspondence between reference times and resampled times
+        ori2res = np.arange(ntimes, dtype=np.int32) if self.resample_range is None else np.array(
+            [np.abs(resampled_times - o).argmin() for o in times], np.int32)
+
+        # find NaNs that start or end a time-series
+        row_nans, col_nans = np.where(self._get_start_end_nans(data))
+        # mask out from output values the starting/ending NaNs
+        res_temp_values[ori2res[row_nans], col_nans] = np.nan
+        # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
+        res_temp_values[~time_mask, :] = np.nan
+
+        # build 1d array for interpolation. Spline functions require monotonically increasing values of x, so .T is used
+        input_x = temp_values.T[valid_mask.T]
+        input_y = data.T[valid_mask.T]
+
+        # build interpolation function
+        interp_func = self.get_interpolation_function(input_x, input_y)
+
+        # interpolate non-NaN values in resampled time values
+        new_data[~np.isnan(res_temp_values)] = interp_func(res_temp_values[~np.isnan(res_temp_values)])
+
+        # return interpolated values
+        return new_data
 
     def get_interpolation_function(self, times, series):
         """ Initializes interpolation model
@@ -144,11 +185,11 @@ class InterpolationTask(EOTask):
         new_eopatch = EOPatch() if self.resample_range else eopatch
 
         # Resample times
-        times = eopatch.time_series()
+        times = eopatch.time_series(scale_time=self.scale_time)
         start_time = eopatch.timestamp[0]
         new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
         total_diff = int((new_eopatch.timestamp[0].date() - start_time.date()).total_seconds())
-        resampled_times = new_eopatch.time_series() + total_diff
+        resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff//self.scale_time
 
         # Add BBox to eopatch if it was created anew
         if new_eopatch.bbox is None:
