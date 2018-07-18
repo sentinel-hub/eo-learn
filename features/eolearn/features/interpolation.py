@@ -35,8 +35,12 @@ class InterpolationTask(EOTask):
     :type result_interval: (float, float)
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
     :type unknown_value: float or numpy.nan
-    :param filling_factor:
-    :param :
+    :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Default
+        is `10`
+    :type filling_factor: int
+    :param scale_time: Factor used to scale the time difference in seconds between acquisitions. If `scale_time=60`,
+        returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
+    :type scale_time: int
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature_name, interpolation_object, *, resample_range=None, result_interval=None,
