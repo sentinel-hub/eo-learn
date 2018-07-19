@@ -81,6 +81,16 @@ class FeatureType(Enum):
         return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
                                   FeatureType.LABEL_TIMELESS])
 
+    def has_dictionary(self):
+        """Checks if FeatureType stores a dictionary
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: `True` if feature type stores a dictionary and `False` otherwise.
+        :rtype: bool
+        """
+        return self not in frozenset([FeatureType.TIMESTAMP, FeatureType.BBOX])
+
     def type(self):
         """Provides type of the data for the given FeatureType
 
@@ -292,7 +302,6 @@ class EOPatch:
 
         if field in attr.keys():
             del attr[field]
-            del self.features[attr_type][field]
 
     def add_feature(self, attr_type, field, value):
         """
@@ -618,7 +627,7 @@ class EOPatch:
         """
         new_eopatch = self.__copy__(feature_list=feature_list)
         for feature_type in FeatureType:
-            new_eopatch[feature_type] = deepcopy(self[feature_type])
+            new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type])
 
         return new_eopatch
 

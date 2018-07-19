@@ -3,9 +3,7 @@ import logging
 import datetime
 import numpy as np
 
-from copy import copy, deepcopy
-
-from eolearn.core import EOPatch, CopyTask, DeepCopyTask
+from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -34,9 +32,9 @@ class TestCoreTasks(unittest.TestCase):
         cls.patch.meta_info['something'] = np.random.rand(10, 1)
 
     def test_copy(self):
-        patch_copy = copy(self.patch)
+        patch_copy = CopyTask().execute(self.patch)
 
-        self.assertTrue(self.patch == patch_copy, 'Copied patch is different')
+        self.assertEqual(self.patch, patch_copy, 'Copied patch is different')
 
         patch_copy.data['new'] = np.arange(1).reshape(1, 1, 1, 1)
         self.assertFalse('new' in self.patch.data, 'Dictionary of features was not copied')
@@ -46,9 +44,9 @@ class TestCoreTasks(unittest.TestCase):
                         'Data should not be copied')
 
     def test_deepcopy(self):
-        patch_deepcopy = deepcopy(self.patch)
+        patch_deepcopy = DeepCopyTask().execute(self.patch)
 
-        self.assertTrue(self.patch == patch_deepcopy, 'Deep copied patch is different')
+        self.assertEqual(self.patch, patch_deepcopy, 'Deep copied patch is different')
 
         patch_deepcopy.data['new'] = np.arange(1).reshape(1, 1, 1, 1)
         self.assertFalse('new' in self.patch.data, 'Dictionary of features was not copied')
@@ -56,6 +54,27 @@ class TestCoreTasks(unittest.TestCase):
         patch_deepcopy.data['bands'][0, 0, 0, 0] += 1
         self.assertFalse(np.array_equal(self.patch.data['bands'], patch_deepcopy.data['bands']),
                          'Data should be copied')
+
+    def test_partial_copy(self):
+        partial_copy = DeepCopyTask(feature_list=[(FeatureType.MASK_TIMELESS, 'mask'),
+                                                  FeatureType.BBOX]).execute(self.patch)
+        expected_patch = EOPatch(mask_timeless=self.patch.mask_timeless, bbox=self.patch.bbox)
+        self.assertEqual(partial_copy, expected_patch, 'Partial copying was not successful')
+
+        partial_deepcopy = DeepCopyTask(feature_list=[FeatureType.TIMESTAMP,
+                                                      (FeatureType.SCALAR, 'values')]).execute(self.patch)
+        expected_patch = EOPatch(scalar=self.patch.scalar, timestamp=self.patch.timestamp)
+        self.assertEqual(partial_deepcopy, expected_patch, 'Partial deep copying was not successful')
+
+    def test_add_remove_feature(self):
+        cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
+        feature_name = 'CLOUD MASK'
+        patch = AddFeature(FeatureType.MASK, feature_name)(self.patch, cloud_mask)
+
+        self.assertTrue(np.array_equal(patch.mask[feature_name], cloud_mask), 'Feature was not added')
+
+        patch = RemoveFeature(FeatureType.MASK, feature_name)(patch)
+        self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
 
 
 if __name__ == '__main__':

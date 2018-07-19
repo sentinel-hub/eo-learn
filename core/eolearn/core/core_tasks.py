@@ -2,7 +2,8 @@
 A collection of most basic EOTasks
 """
 
-from .eotask import EOTask
+from .eodata import FeatureType
+from .eotask import EOTask, FeatureTask
 
 
 class CopyTask(EOTask):
@@ -34,7 +35,59 @@ class DeepCopyTask(CopyTask):
     :type feature_list: list((FeatureType, str)) or None
     """
     def __init__(self, **kwargs):
-        super(CopyTask, self).__init__(**kwargs)
+        super(DeepCopyTask, self).__init__(**kwargs)
 
     def execute(self, eopatch):
         return eopatch.__deepcopy__(self.feature_list)
+
+
+class AddFeature(FeatureTask):
+    """
+    Adds a feature to given EOPatch.
+
+    :param feature_type: Type of the feature to be added.
+    :type feature_type: FeatureType
+    :param feature_name: Name of the feature to be added.
+    :type feature_name: str
+    """
+    def __init__(self, feature_type, feature_name):
+        super(AddFeature, self).__init__(feature_type, feature_name)
+
+    def execute(self, eopatch, data):
+        """Adds the feature and returns the EOPatch.
+
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        :param data: data to be added to the feature
+        :type data: object
+        :return: input EOPatch with the specified feature
+        :rtype: EOPatch
+        """
+        eopatch[self.feature_type][self.feature_name] = data
+
+        return eopatch
+
+
+class RemoveFeature(FeatureTask):
+    """
+    Removes a feature from given EOPatch.
+
+    :param feature_type: Type of the feature to be removed.
+    :type feature_type: FeatureType
+    :param feature_name: Name of the feature to be removed.
+    :type feature_name: str
+    """
+    def __init__(self, feature_type, feature_name):
+        super(RemoveFeature, self).__init__(feature_type, feature_name)
+
+    def execute(self, eopatch):
+        """ Removes the feature and returns the EOPatch.
+
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        :return: input EOPatch without the specified feature
+        :rtype: EOPatch
+        """
+        eopatch.remove_feature(self.feature_type, self.feature_name)
+
+        return eopatch

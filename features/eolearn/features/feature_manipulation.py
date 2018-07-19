@@ -12,33 +12,6 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-class RemoveFeature(EOTask):
-    """
-    Removes a feature from existing EOPatch.
-
-    :param feature_type: Type of the feature to be removed.
-    :type feature_type: FeatureType
-    :param feature_name: Name (key) of the feature to be removed.
-    :type feature_name: str
-    """
-
-    def __init__(self, feature_type, feature_name):
-        self.feature_type = feature_type
-        self.feature_name = feature_name
-
-    def execute(self, eopatch):
-        """ Removes the feature and returns the EOPatch.
-
-        :param eopatch: input EOPatch
-        :type eopatch: eolearn.core.EOPatch
-        :return: input EOPatch without the specified feature
-        :rtype: eolearn.core.EOPatch
-        """
-        eopatch.remove_feature(self.feature_type, self.feature_name)
-
-        return eopatch
-
-
 class SimpleFilterTask(EOTask):
     """
     Transforms an eopatch of shape [n, w, h, d] into [m, w, h, d] for m <= n. It removes all slices which don't

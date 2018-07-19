@@ -8,7 +8,7 @@ EO task might take as input an EOPatch containing cloud mask and return as a res
 
 Beside the base EOTask the hierarchy provides several additional general-purpose tasks that deserve a mention:
 
- - EOChainedTask class represents a compositum of EO tasks. It takes as input to the constructor a list of EOTask
+ - ChainedTask class represents a compositum of EO tasks. It takes as input to the constructor a list of EOTask
  instances, say [t1,t2,...,tn]. The result of invoking the execute (or __call__) on the chained task is, by definition,
  the same as invoking tn(...(t2(t1(*args, **kwargs)))...). The chained task does lazy evaluation: it performs no
  work until execute has been invoked.
@@ -26,6 +26,8 @@ import functools
 import logging
 from abc import ABC, abstractmethod
 
+from .eodata import FeatureType
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -41,7 +43,7 @@ class EOTask(ABC):
         return self.execute(*eopatches, **kwargs)
 
 
-class EOChainedTask(EOTask):
+class ChainedTask(EOTask):
     """
     A sequence of tasks  is a task: Tn(...T2(T1(eopatch))...) = T(eopatch) for T = Tn o ... o T2 o T1.
 
@@ -74,3 +76,23 @@ class EOChainedTask(EOTask):
         :rtype: EOPatch
         """
         return self.compositum(*eopatch, **kwargs)
+
+
+class FeatureTask(EOTask):
+    """ An abstract class of EOTask that manipulates a single feature
+
+    :param feature_type: Type of the feature
+    :type feature_type: FeatureType
+    :param feature_name: Name of the feature
+    :type feature_name: str
+    """
+    def __init__(self, feature_type, feature_name=None):
+        self.feature_type = FeatureType(feature_type)
+        self.feature_name = feature_name
+
+        if feature_name is not None and not feature_type.has_dictionary():
+            raise ValueError('{} does not store a dictionary of features'.format(feature_type))
+
+    @abstractmethod
+    def execute(self, *eopatches, **kwargs):
+        raise NotImplementedError
