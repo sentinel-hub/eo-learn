@@ -142,7 +142,7 @@ class SentinelHubOGCInput(EOTask):
         data = request_data[..., :-1]
         if data.ndim == 3:
             data = data.reshape(data.shape + (1,))
-        valid_data = (request_data[..., -1] > 0.5).astype(np.int).reshape(request_data[..., -1].shape + (1,))
+        valid_data = (request_data[..., -1] == 1).astype(np.uint8).reshape(request_data[..., -1].shape + (1,))
 
         eop_data = {self.feature_name: data}
         eop_mask = {self.valid_data_mask_name: valid_data}

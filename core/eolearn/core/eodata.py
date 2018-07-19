@@ -49,6 +49,38 @@ class FeatureType(Enum):
     BBOX = 'bbox'
     TIMESTAMP = 'timestamp'
 
+    def is_spatial(self):
+        """Checks if FeatureType has a spatial component
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: `True` if feature type has a spatial component and `False` otherwise.
+        :rtype: bool
+        """
+        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.DATA_TIMELESS,
+                                  FeatureType.MASK_TIMELESS])
+
+    def is_time_dependant(self):
+        """Checks if FeatureType has a time component
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: `True` if feature type has a time component and `False` otherwise.
+        :rtype: bool
+        """
+        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL])
+
+    def is_discrete(self):
+        """Checks if FeatureType has discrete (integer) values
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: `True` if feature type has discrete values and `False` otherwise.
+        :rtype: bool
+        """
+        return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
+                                  FeatureType.LABEL_TIMELESS])
+
 
 class EOPatch:
     """
@@ -152,9 +184,14 @@ class EOPatch:
                 else:
                     self.features[attr_type][field] = type(value)
 
-    def __getitem__(self, attr_name):
-        LOGGER.debug("Accessing attribute '%s'", attr_name)
-        return getattr(self, attr_name)
+    def __getitem__(self, feature_type):
+        """Provides features of requested feature type from EOPatch
+
+        :param feature_type: Type of EOPatch feature
+        :type feature_type: FeatureType or str
+        :return: Dictionary of features
+        """
+        return getattr(self, FeatureType(feature_type).value)
 
     def __eq__(self, other):
         """
