@@ -35,8 +35,8 @@ class InterpolationTask(EOTask):
     :type result_interval: (float, float)
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
     :type unknown_value: float or numpy.nan
-    :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Default
-        is `10`
+    :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Value
+        has to be greater than 1. Default is `10`
     :type filling_factor: int
     :param scale_time: Factor used to scale the time difference in seconds between acquisitions. If `scale_time=60`,
         returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
@@ -95,9 +95,6 @@ class InterpolationTask(EOTask):
         # get size of 2d array t x nobs
         ntimes, nobs = data.shape
 
-        # get valid data mask
-        valid_mask = ~np.isnan(data)
-
         # start/end time of reference times
         start_time, end_time = np.min(times), np.max(times)
         # mask representing overlap between reference and resampled times
@@ -113,18 +110,21 @@ class InterpolationTask(EOTask):
                                                                     np.nan, dtype=data.dtype)
         # array defining index correspondence between reference times and resampled times
         ori2res = np.arange(ntimes, dtype=np.int32) if self.resample_range is None else np.array(
-            [np.abs(resampled_times - o).argmin() for o in times], np.int32)
+            [np.abs(resampled_times - o).argmin()
+             if (o >= np.min(resampled_times)) and (o <= np.max(resampled_times)) else None for o in times])
 
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
-        # mask out from output values the starting/ending NaNs
-        res_temp_values[ori2res[row_nans], col_nans] = np.nan
+        nan_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
+        if nan_res_indices.size:
+            # mask out from output values the starting/ending NaNs
+            res_temp_values[nan_res_indices, col_nans] = np.nan
         # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
         res_temp_values[~time_mask, :] = np.nan
 
         # build 1d array for interpolation. Spline functions require monotonically increasing values of x, so .T is used
-        input_x = temp_values.T[valid_mask.T]
-        input_y = data.T[valid_mask.T]
+        input_x = temp_values.T[~np.isnan(data).T]
+        input_y = data.T[~np.isnan(data).T]
 
         # build interpolation function
         interp_func = self.get_interpolation_function(input_x, input_y)
@@ -247,7 +247,8 @@ class BSplineInterpolation(InterpolationTask):
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`
     """
     def __init__(self, feature_name, *, spline_degree=3, **kwargs):
-        super(BSplineInterpolation, self).__init__(feature_name, interpolate.BSpline, k=spline_degree, **kwargs)
+        super(BSplineInterpolation, self).__init__(feature_name, interpolate.make_interp_spline, k=spline_degree,
+                                                   **kwargs)
 
 
 class AkimaInterpolation(InterpolationTask):
