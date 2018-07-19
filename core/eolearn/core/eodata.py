@@ -485,7 +485,7 @@ class EOPatch:
 
         LOGGER.debug('Saving to %s', path)
 
-        filenames = EOPatch._get_filenames(path)
+        filename_list = EOPatch._get_filenames(path)
 
         if feature_list is None:
             feature_list = FeatureType
@@ -496,20 +496,15 @@ class EOPatch:
 
         for feature in feature_list:
             attribute = feature.value
-            path = filenames[attribute]
+            path = filename_list[attribute]
 
             LOGGER.debug("Saving %s to %s", attribute, path)
 
-            with open(path, 'wb') as outfile:
-                if not hasattr(self, attribute):
-                    raise AttributeError(
-                        "The object doesn't have attribute '{}' and hence cannot serialize it.".format(attribute))
-
-                value = getattr(self, attribute)
-                if value:
-                    pickle.dump(value, outfile)
-                else:
-                    LOGGER.debug("Attribute '%s' is None, nothing to serialize", attribute)
+            if self[attribute]:
+                with open(path, 'wb') as outfile:
+                    pickle.dump(self[attribute], outfile)
+            else:
+                LOGGER.debug("Attribute '%s' is None, nothing to serialize", attribute)
 
     @staticmethod
     def load(path, feature_list=None):
@@ -537,12 +532,13 @@ class EOPatch:
         for feature in feature_list:
             feature_filename = filenames[feature.value]
 
-            if not os.access(feature_filename, os.R_OK):
-                raise PermissionError('Reading permission denied: {}'.format(feature_filename))
+            if os.path.exists(feature_filename):
+                if not os.access(feature_filename, os.R_OK):
+                    raise PermissionError('Reading permission denied: {}'.format(feature_filename))
 
-            if os.path.exists(feature_filename) and os.path.getsize(feature_filename):
-                with open(feature_filename, "rb") as feature_file:
-                    eopatch_features[feature.value] = pickle.load(feature_file)
+                if os.path.getsize(feature_filename):
+                    with open(feature_filename, "rb") as feature_file:
+                        eopatch_features[feature.value] = pickle.load(feature_file)
 
         return EOPatch(**eopatch_features)
 
@@ -644,7 +640,7 @@ class EOPatch:
         :return: dictionary of sets
         :rtype: dict(FeatureType: set(str))
         """
-        if feature_list is None:
+        if not feature_list:
             feature_list = FeatureType
 
         feature_dict = {}
