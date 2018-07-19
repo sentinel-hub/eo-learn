@@ -23,7 +23,7 @@ class DirectedGraph:
         self.adj_dict = collections.defaultdict(list, adjacency_dict) if adjacency_dict else collections.defaultdict(
             list)
         self.indegrees = DirectedGraph._get_indegrees(self.adj_dict)
-        self._vertices = set(self.adj_dict.keys()) | set([v for neighs in self.adj_dict.values() for v in neighs])
+        self._vertices = set(self.adj_dict.keys()) | {v for neighs in self.adj_dict.values() for v in neighs}
 
     def __len__(self):
         """

@@ -5,9 +5,10 @@ This module implements the co-registration transformers.
 
 import logging
 import numpy as np
-import copy
 import cv2
+
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from enum import Enum
 from registration import CrossCorr
 
@@ -111,9 +112,9 @@ class Registration(ABC):
         self.check_params()
         self.get_params()
         # Copy EOPatch and replace registered fields
-        eopatch_new = copy.deepcopy(eopatch)
+        eopatch_new = deepcopy(eopatch)
         # Extract channel for registration
-        sliced_data = copy.deepcopy(eopatch[self.attr_type.value][self.field_name][..., self.channel])
+        sliced_data = deepcopy(eopatch[self.attr_type.value][self.field_name][..., self.channel])
         # Number of timeframes
         dn = sliced_data.shape[0]
         # Resolve interpolation
@@ -344,8 +345,8 @@ class PointBasedRegistration(Registration):
             matches = bf.match(des1, des2)
             # Sort them in the order of their distance.
             matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1, 2)
-            trg_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1, 2)
+            src_pts = np.asarray([kp1[m.queryIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)
+            trg_pts = np.asarray([kp2[m.trainIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)
             # Parse model and estimate matrix
             if self.params['Model'] == 'PartialAffine':
                 warp_matrix = cv2.estimateRigidTransform(src_pts, trg_pts, fullAffine=False)

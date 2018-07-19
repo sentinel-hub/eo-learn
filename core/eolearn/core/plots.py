@@ -16,7 +16,7 @@ def bgr_to_rgb(bgr):
     return bgr[..., [2, 1, 0]]
 
 
-class IndexTracker(object):
+class IndexTracker:
     """ Class to handle slicing of the eopatch """
     # pylint: disable=invalid-name
     def __init__(self, ax, im_seq, single_channel=False, msg=None, colorbar=False):

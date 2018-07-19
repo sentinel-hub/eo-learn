@@ -125,7 +125,7 @@ class AddSentinelHubOGCFeature(EOTask):
         """
         if self.feature_type in [FeatureType.DATA, FeatureType.MASK]:
             return self._reshape_array(array, dims_dict)
-        elif self.feature_type in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS]:
+        if self.feature_type in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS]:
             array = array.squeeze(axis=0)
             return self._reshape_array(array, dims_dict)
         return array

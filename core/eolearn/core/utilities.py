@@ -53,7 +53,7 @@ def deep_eq(fst_obj, snd_obj):
     if isinstance(fst_obj, np.ndarray):
         return np.array_equal(fst_obj, snd_obj)
 
-    elif isinstance(fst_obj, (list, tuple)):
+    if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):
             return False
 
@@ -62,7 +62,7 @@ def deep_eq(fst_obj, snd_obj):
                 return False
         return True
 
-    elif isinstance(fst_obj, dict):
+    if isinstance(fst_obj, dict):
         if fst_obj.keys() != snd_obj.keys():
             return False
 

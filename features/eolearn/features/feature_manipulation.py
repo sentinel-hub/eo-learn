@@ -84,7 +84,7 @@ class FilterTimeSeries(EOTask):
             diff_to_begin = (date - self.start_date)
             diff_to_end = (date - self.end_date)
 
-            if (diff_to_begin.total_seconds() > 0) and (diff_to_end.total_seconds() < 0):
+            if diff_to_begin.total_seconds() > 0 > diff_to_end.total_seconds():
                 good_idxs.append(idx)
 
         LOGGER.debug("good_idxs: %s", good_idxs)

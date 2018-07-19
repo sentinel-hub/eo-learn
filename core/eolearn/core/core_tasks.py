@@ -2,7 +2,6 @@
 A collection of most basic EOTasks
 """
 
-from .eodata import FeatureType
 from .eotask import EOTask, FeatureTask
 
 

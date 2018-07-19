@@ -117,7 +117,7 @@ class FeatureExtendedExtractor:
         if nxt.isdigit():
             lexer.popleft()
             return lambda x: x[10 * int(num) + int(nxt)]
-        elif nxt.lower() == 'a':
+        if nxt.lower() == 'a':
             lexer.popleft()
             return lambda x: x[8]
         nr = int(num) - 1
