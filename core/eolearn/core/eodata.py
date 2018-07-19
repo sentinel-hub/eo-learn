@@ -6,10 +6,10 @@ import os
 import logging
 import pickle
 import collections
+import numpy as np
 
 from enum import Enum
-
-import numpy as np
+from copy import copy, deepcopy
 
 from .utilities import deep_eq
 
@@ -80,6 +80,17 @@ class FeatureType(Enum):
         """
         return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
                                   FeatureType.LABEL_TIMELESS])
+
+    def type(self):
+        """Provides type of the data for the given FeatureType
+
+        :return: A type of data
+        """
+        if self is FeatureType.TIMESTAMP:
+            return list
+        if self is FeatureType.BBOX:
+            return object
+        return dict
 
 
 class EOPatch:
@@ -192,6 +203,21 @@ class EOPatch:
         :return: Dictionary of features
         """
         return getattr(self, FeatureType(feature_type).value)
+
+    def __setitem__(self, feature_type, value):
+        """Sets new dictionary / list to the given FeatureType
+
+        :param feature_type: Type of EOPatch feature
+        :type feature_type: FeatureType or str
+        :param value: New dictionary or list
+        :type value: dict or list
+        :return: Dictionary of features
+        """
+        feature_type = FeatureType(feature_type)
+        value_type = feature_type.type()
+        if not isinstance(value, value_type):
+            raise TypeError('Only items of type {} can be set to {} attribute'.format(value_type, feature_type))
+        return setattr(self, feature_type.value, value)
 
     def __eq__(self, other):
         """
@@ -547,13 +573,87 @@ class EOPatch:
         good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
         good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
 
-        for attr_type in FeatureType:
-            if attr_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]:
-                attr = getattr(self, attr_type.value)
-                for field, value in attr.items():
-                    if isinstance(value, np.ndarray):
-                        self.add_feature(attr_type, field, value[good_timestamp_idxs, ...])
+        for attr_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]:
+            attr = getattr(self, attr_type.value)
+            for field, value in attr.items():
+                if isinstance(value, np.ndarray):
+                    self.add_feature(attr_type, field, value[good_timestamp_idxs, ...])
 
         self.timestamp = good_timestamps
 
         return remove_from_patch
+
+    def __copy__(self, feature_list=None):
+        """ Overwrites copy method
+
+        :param feature_list: A list of features or feature types that will be copied into new EOPatch. If None, all
+        features will be copied.
+
+        Example: feature_list=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
+
+        :type feature_list: list((FeatureType, str) or FeatureType) or None
+        :return: Copied EOPatch
+        :rtype: EOPatch
+        """
+        new_eopatch = EOPatch()
+        for feature_type, features in self._parse_to_dict(feature_list).items():
+            if features is True:
+                new_eopatch[feature_type] = copy(self[feature_type])
+            else:
+                for feature_name in features:
+                    new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
+        return new_eopatch
+
+    def __deepcopy__(self, feature_list=None):
+        """ Overwrites deepcopy method
+
+        :param feature_list: A list of features or feature types that will be copied into new EOPatch. If None, all
+        features will be copied.
+
+        Example: feature_list=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
+
+        :type feature_list: list((FeatureType, str)) or None
+        :return: Deep copied EOPatch
+        :rtype: EOPatch
+        """
+        new_eopatch = self.__copy__(feature_list=feature_list)
+        for feature_type in FeatureType:
+            new_eopatch[feature_type] = deepcopy(self[feature_type])
+
+        return new_eopatch
+
+    @staticmethod
+    def _parse_to_dict(feature_list):
+        """ Parses list of features to dictionary of sets
+
+        :param feature_list: A list of features or feature types that will be copied into new EOPatch. If None, all
+        features will be copied.
+
+        Example: feature_list=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
+
+        :type feature_list: list((FeatureType, str) or FeatureType) or None
+        :return: dictionary of sets
+        :rtype: dict(FeatureType: set(str))
+        """
+        if feature_list is None:
+            feature_list = FeatureType
+
+        feature_dict = {}
+        for feature_item in feature_list:
+            if isinstance(feature_item, FeatureType):
+                feature_dict[feature_item] = True
+            elif isinstance(feature_item, (tuple, list)):
+                feature_type = feature_item[0]
+                if not isinstance(feature_type, FeatureType):
+                    raise ValueError('First element of {} must be of type {}'.format(feature_item, FeatureType))
+                if feature_type in [FeatureType.TIMESTAMP, FeatureType.BBOX]:
+                    raise ValueError('{} cannot be in a tuple'.format(FeatureType.TIMESTAMP))
+
+                feature_dict[feature_type] = feature_dict.get(feature_type, set())
+                if feature_dict[feature_type] is not True:
+                    for feature_name in feature_item[1:]:
+                        feature_dict[feature_type].add(feature_name)
+            else:
+                raise ValueError('Item {} in feature_list must be of type {} or {}'.format(feature_item, tuple,
+                                                                                           FeatureType))
+        return feature_dict
