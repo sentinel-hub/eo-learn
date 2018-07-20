@@ -172,12 +172,12 @@ class InterpolationTask(EOTask):
     def execute(self, eopatch):
         """ Execute method that processes EOPatch and returns EOPatch
         """
-        if self.feature_name not in eopatch[self.feature_type]:
+        if self.feature_name not in eopatch[self.feature_type.value]:
             raise ValueError('Feature {0} not found in {1}.'.format(self.feature_name, self.feature_type))
 
         # Make a copy not to change original numpy array
-        feature_data = eopatch[self.feature_type][self.feature_name].copy()
-        time_num, height, width, band_num = eopatch[self.feature_type][self.feature_name].shape
+        feature_data = eopatch[self.feature_type.value][self.feature_name].copy()
+        time_num, height, width, band_num = feature_data.shape
 
         # Prepare mask of valid data
         if 'VALID_DATA' in eopatch.mask:
@@ -215,8 +215,8 @@ class InterpolationTask(EOTask):
             feature_data[np.isnan(feature_data)] = self.unknown_value
 
         # Reshape back
-        new_eopatch[self.feature_type][self.feature_name] = np.reshape(feature_data,
-                                                                       (feature_data.shape[0], height, width, band_num))
+        new_eopatch[self.feature_type.value][self.feature_name] = np.reshape(feature_data, (feature_data.shape[0],
+                                                                                            height, width, band_num))
         return new_eopatch
 
 
