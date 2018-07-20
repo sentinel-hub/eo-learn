@@ -6,7 +6,7 @@ from dateutil import parser
 from datetime import timedelta
 from scipy import interpolate
 
-from eolearn.core import EOTask, EOPatch
+from eolearn.core import EOTask, EOPatch, FeatureType
 
 
 class InterpolationTask(EOTask):
@@ -21,7 +21,9 @@ class InterpolationTask(EOTask):
     In the process the interpolated feature is overwritten and so are the timestamps. After the execution of the task
     the feature will contain interpolated and resampled values and corresponding new timestamps.
 
-    :param feature_name: Name of the feature in FeatureType.DATA which will be processed
+    :param feature_type: FeatureType which will be processed. Default is `FeatureType.DATA`
+    :type feature_type: FeatureType
+    :param feature_name: Name of FeatureType which will be processed
     :type feature_name: str
     :param interpolation_object: Interpolation class which is initialized with
     :type interpolation_object: object
@@ -43,8 +45,10 @@ class InterpolationTask(EOTask):
     :type scale_time: int
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
-    def __init__(self, feature_name, interpolation_object, *, resample_range=None, result_interval=None,
-                 unknown_value=np.nan, filling_factor=10, scale_time=3600, **interpolation_parameters):
+    def __init__(self, feature_name, interpolation_object, *, feature_type=FeatureType.DATA, resample_range=None,
+                 result_interval=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
+                 **interpolation_parameters):
+        self.feature_type = feature_type
         self.feature_name = feature_name
         self.interpolation_object = interpolation_object
 
@@ -168,12 +172,12 @@ class InterpolationTask(EOTask):
     def execute(self, eopatch):
         """ Execute method that processes EOPatch and returns EOPatch
         """
-        if self.feature_name not in eopatch.data:
-            raise ValueError('Feature {} not found in EOPatch.data.'.format(self.feature_name))
+        if self.feature_name not in eopatch[self.feature_type]:
+            raise ValueError('Feature {0} not found in {1}.'.format(self.feature_name, self.feature_type))
 
         # Make a copy not to change original numpy array
-        feature_data = eopatch.data[self.feature_name].copy()
-        time_num, height, width, band_num = eopatch.data[self.feature_name].shape
+        feature_data = eopatch[self.feature_type][self.feature_name].copy()
+        time_num, height, width, band_num = eopatch[self.feature_type][self.feature_name].shape
 
         # Prepare mask of valid data
         if 'VALID_DATA' in eopatch.mask:
@@ -211,7 +215,8 @@ class InterpolationTask(EOTask):
             feature_data[np.isnan(feature_data)] = self.unknown_value
 
         # Reshape back
-        new_eopatch.data[self.feature_name] = np.reshape(feature_data, (feature_data.shape[0], height, width, band_num))
+        new_eopatch[self.feature_type][self.feature_name] = np.reshape(feature_data,
+                                                                       (feature_data.shape[0], height, width, band_num))
         return new_eopatch
 
 
