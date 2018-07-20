@@ -24,7 +24,7 @@ class TestFeatureExtractionTask(unittest.TestCase):
     def test_add_ndvi(self):
         a = np.arange(2*3*3*13).reshape(2, 3, 3, 13)
         eop = EOPatch()
-        eop.add_feature(attr_type=FeatureType.DATA, field='bands', value=a)
+        eop.add_feature(FeatureType.DATA, 'bands', value=a)
 
         eotask_ndvi = FeatureExtractionTask('I(B4, B8A)', 'bands', 'ndvi')
 

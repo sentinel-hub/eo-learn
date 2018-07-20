@@ -21,8 +21,8 @@ class TestEOPatch(unittest.TestCase):
 
         cls.mask_name = 'mask'
         cls.timeless_mask_name = 'timeless_mask'
-        cls.patch.add_feature(attr_type=FeatureType.MASK, field=cls.mask_name, value=mask)
-        cls.patch.add_feature(attr_type=FeatureType.MASK_TIMELESS, field=cls.timeless_mask_name, value=timeless_mask)
+        cls.patch.add_feature(FeatureType.MASK, cls.mask_name, value=mask)
+        cls.patch.add_feature(FeatureType.MASK_TIMELESS, cls.timeless_mask_name, value=timeless_mask)
 
     def test_postprocessing(self):
         for morph_operation in MorphologicalOperations:

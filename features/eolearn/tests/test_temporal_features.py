@@ -1,7 +1,7 @@
 import unittest
 
-from eolearn.core.eodata import EOPatch, FeatureType
-from eolearn.features.temporal_features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask,\
+from eolearn.core import EOPatch, FeatureType
+from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask,\
     AddSpatioTemporalFeaturesTask
 
 from datetime import date, datetime, timedelta
@@ -54,10 +54,10 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         # BANDS
         bands_shape = (t, h, w, c)
         eopatch.add_feature(FeatureType.DATA, 'BANDS', np.arange(np.prod(bands_shape)).reshape(bands_shape))
-        add_bands = AddMaxMinTemporalIndicesTask(data_field='BANDS',
+        add_bands = AddMaxMinTemporalIndicesTask(data_feature='BANDS',
                                                  data_index=1,
-                                                 amax_data_field='ARGMAX_B1',
-                                                 amin_data_field='ARGMIN_B1',
+                                                 amax_data_feature='ARGMAX_B1',
+                                                 amin_data_feature='ARGMIN_B1',
                                                  mask_data=False)
         new_eopatch = add_bands(eopatch)
         self.assertTrue(np.array_equal(new_eopatch.data_timeless['ARGMIN_B1'], np.zeros((h, w, 1))))
@@ -137,13 +137,13 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         eopatch.add_feature(FeatureType.MASK, 'IS_DATA', np.ones(ndvi_shape))
         # Tasks
         add_ndvi = AddMaxMinTemporalIndicesTask(mask_data=False)
-        add_bands = AddMaxMinTemporalIndicesTask(data_field='BANDS',
+        add_bands = AddMaxMinTemporalIndicesTask(data_feature='BANDS',
                                                  data_index=1,
-                                                 amax_data_field='ARGMAX_B1',
-                                                 amin_data_field='ARGMIN_B1',
+                                                 amax_data_feature='ARGMAX_B1',
+                                                 amin_data_feature='ARGMIN_B1',
                                                  mask_data=False)
         add_ndvi_slope = AddMaxMinNDVISlopeIndicesTask(mask_data=False)
-        add_stf = AddSpatioTemporalFeaturesTask(argmax_red='ARGMAX_B1', data_field='BANDS', indices=[0, 1])
+        add_stf = AddSpatioTemporalFeaturesTask(argmax_red='ARGMAX_B1', data_feature='BANDS', indices=[0, 1])
         # Run tasks
         new_eopatch = add_stf(add_ndvi_slope(add_bands(add_ndvi(eopatch))))
         # Asserts

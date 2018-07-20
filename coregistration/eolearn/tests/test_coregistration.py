@@ -24,10 +24,10 @@ class TestEOPatch(unittest.TestCase):
         dem = np.ones((20, 20, 1))
 
         eop = EOPatch()
-        eop.add_feature(attr_type=FeatureType.DATA, field='bands', value=bands)
-        eop.add_feature(attr_type=FeatureType.DATA, field='ndvi', value=ndvi)
-        eop.add_feature(attr_type=FeatureType.MASK, field='cm', value=mask)
-        eop.add_feature(attr_type=FeatureType.DATA_TIMELESS, field='dem', value=dem)
+        eop.add_feature(FeatureType.DATA, 'bands', value=bands)
+        eop.add_feature(FeatureType.DATA, 'ndvi', value=ndvi)
+        eop.add_feature(FeatureType.MASK, 'cm', value=mask)
+        eop.add_feature(FeatureType.DATA_TIMELESS, 'dem', value=dem)
 
         reg = ECCRegistration(FeatureType.DATA, 'bands', interpolation=Interpolation.NEAREST)
         reop = reg.execute(eop)

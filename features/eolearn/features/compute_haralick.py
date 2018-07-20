@@ -48,7 +48,7 @@ class AddHaralickTask(EOTask):
             warn('Haralick stride is superior to the window size; some pixel values will be ignored')
 
     def execute(self, eopatch):
-        if self.feature_name not in eopatch.features[FeatureType.DATA].keys():
+        if self.feature_name not in eopatch[FeatureType.DATA]:
             raise ValueError('Feature {} not found in eopatch.data.'.format(self.feature_name))
 
         data_in = eopatch.get_feature(FeatureType.DATA, self.feature_name)

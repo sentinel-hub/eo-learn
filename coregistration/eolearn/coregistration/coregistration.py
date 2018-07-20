@@ -58,18 +58,18 @@ class Registration(ABC):
         pair-wise transformation that map one source image to a target image. The pair-wise registrations start form the
         latest frame proceeding backwards time-wise. This is because the latest frames are supposed to be least affected
         by orthorectification inaccuracies. Each pair-wise registration uses a single channel to estimate the
-        transformation. The constructor takes two mandatory arguments specifying the attribute and field of array to
+        transformation. The constructor takes two mandatory arguments specifying the attribute and feature of array to
         use for registration, and three optional arguments specifying the index of the channel to use to
         estimate the registration, a dictionary specifying the parameters of the registration and an interpolation
         method used to generate the final warped images. If a ground-truth mask is present, it is warped using a nearest
         neighbour interpolation to not alter the encoding.
 
-        :param attr_type: FeatureType specifying the attribute to use for transformation estimation
-        :type attr_type: FeatureType
-        :param field_name: String specifying the name of the dictionary field of hte attribute
-        :type field_name: string
-        :param valid_mask: String specifying the name of hte valid mask field ot be used to mask pixels during
-                           registration. This field is supposed to be stored in the `mask` attribute
+        :param feature_type: FeatureType specifying the attribute to use for transformation estimation
+        :type feature_type: FeatureType
+        :param feature_name: String specifying the name of the dictionary feature of the attribute
+        :type feature_name: string
+        :param valid_mask: String specifying the name of hte valid mask feature ot be used to mask pixels during
+                           registration. This feature is supposed to be stored in the `mask` attribute
         :type valid_mask: string
         :param channel: Index of channel to be used in estimating transformation
         :type channel: int
@@ -79,10 +79,10 @@ class Registration(ABC):
         :type interpolation: Interpolation enum
     """
 
-    def __init__(self, attr_type, field_name, valid_mask=None, channel=0, params=None,
+    def __init__(self, feature_type, feature_name, valid_mask=None, channel=0, params=None,
                  interpolation=Interpolation.CUBIC):
-        self.attr_type = attr_type
-        self.field_name = field_name
+        self.feature_type = feature_type
+        self.feature_name = feature_name
         self.channel = channel
         self.params = params
         self.interpolation = interpolation
@@ -111,10 +111,10 @@ class Registration(ABC):
         # Check if params are given correctly
         self.check_params()
         self.get_params()
-        # Copy EOPatch and replace registered fields
+        # Copy EOPatch and replace registered features
         eopatch_new = deepcopy(eopatch)
         # Extract channel for registration
-        sliced_data = deepcopy(eopatch[self.attr_type.value][self.field_name][..., self.channel])
+        sliced_data = deepcopy(eopatch[self.feature_type][self.feature_name][..., self.channel])
         # Number of timeframes
         dn = sliced_data.shape[0]
         # Resolve interpolation
@@ -148,11 +148,11 @@ class Registration(ABC):
             # Transform and update sliced_data
             sliced_data[idx-1] = self.warp(warp_matrix, sliced_data[idx-1], iflag)
 
-            # Warp corresponding image in every field of data
+            # Warp corresponding image in every feature of data
             for data_key in eopatch_new.data.keys():
                 eopatch_new.data[data_key][idx-1] = self.warp(warp_matrix, eopatch_new.data[data_key][idx-1], iflag)
 
-            # Warp corresponding image in every field of mask
+            # Warp corresponding image in every feature of mask
             for mask_key in eopatch_new.mask.keys():
                 eopatch_new.mask[mask_key][idx-1] = self.warp(warp_matrix, eopatch_new.mask[mask_key][idx-1], iflag)
 

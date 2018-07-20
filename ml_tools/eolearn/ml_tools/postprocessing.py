@@ -108,7 +108,7 @@ class PostprocessingTask(EOTask):
         """ Execute method takes EOPatch and changes the specified feature
         """
 
-        if not eopatch.feature_exists(self.feature_type, self.feature_name):
+        if self.feature_name not in eopatch[self.feature_type]:
             raise ValueError('Unknown feature {}, {}'.format(self.feature_type, self.feature_name))
 
         new_raster = self.process(eopatch.get_feature(self.feature_type, self.feature_name))

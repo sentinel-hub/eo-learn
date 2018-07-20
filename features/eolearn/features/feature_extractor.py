@@ -125,21 +125,21 @@ class FeatureExtendedExtractor:
 
 
 class FeatureExtractionTask(EOTask):
-    def __init__(self, expr, source_field, target_field):
+    def __init__(self, expr, source_feature, target_feature):
         self.fee = FeatureExtendedExtractor(expr)
-        self.src_field = source_field
-        self.tgt_field = target_field
+        self.src_feature = source_feature
+        self.tgt_feature = target_feature
 
     def execute(self, eopatch):
-        shp = eopatch.data[self.src_field].shape
+        shp = eopatch.data[self.src_feature].shape
 
         LOGGER.debug("Input array shape: %s", shp)
 
-        value = np.apply_along_axis(lambda x: np.asarray(self.fee(x)), arr=eopatch.data[self.src_field],
+        value = np.apply_along_axis(lambda x: np.asarray(self.fee(x)), arr=eopatch.data[self.src_feature],
                                     axis=len(shp)-1)
 
         LOGGER.debug("Feature array shape: %s", value.shape)
 
-        eopatch.add_feature(attr_type=FeatureType.DATA, field=self.tgt_field, value=value)
+        eopatch.add_feature(FeatureType.DATA, self.tgt_feature, value=value)
 
         return eopatch
