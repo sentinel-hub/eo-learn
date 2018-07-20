@@ -95,13 +95,11 @@ class InterpolationTask(EOTask):
         # get size of 2d array t x nobs
         ntimes, nobs = data.shape
 
-        # start/end time of reference times
-        start_time, end_time = np.min(times), np.max(times)
         # mask representing overlap between reference and resampled times
-        time_mask = (resampled_times >= start_time) & (resampled_times <= end_time)
+        time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
 
         # define time values as linear mono-tonically increasing over the observations
-        const = int(self.filling_factor * (end_time - start_time))
+        const = int(self.filling_factor * (np.max(times) - np.min(times)))
         temp_values = (times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
         res_temp_values = (resampled_times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
 
@@ -111,7 +109,7 @@ class InterpolationTask(EOTask):
         # array defining index correspondence between reference times and resampled times
         ori2res = np.arange(ntimes, dtype=np.int32) if self.resample_range is None else np.array(
             [np.abs(resampled_times - o).argmin()
-             if (o >= np.min(resampled_times)) and (o <= np.max(resampled_times)) else None for o in times])
+             if np.min(resampled_times) <= o <= np.max(resampled_times) else None for o in times])
 
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
@@ -305,6 +303,15 @@ class ResamplingTask(InterpolationTask):
         :return: Initialized interpolation model class
         """
         return self.interpolation_object(times, data, axis=0, **self.interpolation_parameters)
+
+
+class NearestResampling(ResamplingTask):
+    """
+    Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
+    """
+    def __init__(self, feature_name, resample_range, **kwargs):
+        super(NearestResampling, self).__init__(feature_name, interpolate.interp1d, resample_range, kind='nearest',
+                                                **kwargs)
 
 
 class LinearResampling(ResamplingTask):
