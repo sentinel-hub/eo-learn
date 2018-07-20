@@ -433,7 +433,7 @@ class PointSamplingTask(EOTask):
             feature_type, feature_name = sample_feature[0], sample_feature[1]
             new_feature_name = self._get_new_feature_name(sample_feature)
 
-            if feature_type.is_time_dependant():
+            if feature_type.is_time_dependent():
                 sampled_data = eopatch[feature_type][feature_name][:, rows, cols, :]
             else:
                 sampled_data = eopatch[feature_type][feature_name][rows, cols, :]

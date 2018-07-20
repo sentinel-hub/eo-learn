@@ -9,7 +9,9 @@ logging.basicConfig(level=logging.DEBUG)
 
 class TestEOTask(unittest.TestCase):
     class PlusOneTask(EOTask):
-        def execute(self, x):
+
+        @staticmethod
+        def execute(x):
             return x + 1
 
     def test_call_equals_transform(self):
@@ -19,6 +21,7 @@ class TestEOTask(unittest.TestCase):
 
 class TestChainedTask(unittest.TestCase):
     class AddOneTask(EOTask):
+
         def execute(self, x):
             return x+1
 

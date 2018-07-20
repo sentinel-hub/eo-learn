@@ -90,7 +90,7 @@ class FeatureTask(EOTask):
         self.feature_type = FeatureType(feature_type)
         self.feature_name = feature_name
 
-        if feature_name is not None and not feature_type.has_dictionary():
+        if feature_name is not None and not feature_type.has_dict():
             raise ValueError('{} does not store a dictionary of features'.format(feature_type))
 
     @abstractmethod

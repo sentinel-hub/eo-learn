@@ -5,7 +5,6 @@ The eodata module provides core objects for handling remotely sensing multi-temp
 import os
 import logging
 import pickle
-import collections
 import numpy as np
 
 from enum import Enum
@@ -23,15 +22,17 @@ class FeatureType(Enum):
      - DATA with shape t x n x m x d: time- and position-dependent remote sensing data (e.g. bands) of type float
      - MASK with shape t x n x m x d': time- and position-dependent mask (e.g. ground truth, cloud/shadow mask,
        super pixel identifier) of type int
+     - SCALAR with shape t x s: time-dependent and position-independent remote sensing data (e.g. weather data,) of type
+       float
+     - LABEL with shape t x s': time-dependent and position-independent label (e.g. ground truth) of type int
+     - VECTOR: a list of time-dependent vector shapes in shapely.geometry classes
      - DATA_TIMELESS with shape n x m x d'': time-independent and position-dependent remote sensing data (e.g.
        elevation model) of type float
      - MASK_TIMELESS with shape n x m x d''': time-independent and position-dependent mask (e.g. ground truth,
        region of interest mask) of type int
-     - SCALAR with shape t x s: time-dependent and position-independent remote sensing data (e.g. weather data,) of type
-       float
-     - LABEL with shape t x s': time-dependent and position-independent label (e.g. ground truth) of type int
      - SCALAR_TIMELESS with shape s'':  time-independent and position-independent remote sensing data of type float
      - LABEL_TIMELESS with shape s''': time-independent and position-independent label of type int
+     - VECTOR_TIMELESS: time-independent vector shapes in shapely.geometry classes
      - META_INFO: dictionary of additional info (e.g. resolution, time difference)
      - BBOX: bounding box of the patch which is an instance of sentinelhub.BBox
      - TIMESTAMP: list of dates which are instances of datetime.datetime
@@ -41,48 +42,67 @@ class FeatureType(Enum):
     MASK = 'mask'
     SCALAR = 'scalar'
     LABEL = 'label'
+    VECTOR = 'vector'
     DATA_TIMELESS = 'data_timeless'
     MASK_TIMELESS = 'mask_timeless'
     SCALAR_TIMELESS = 'scalar_timeless'
     LABEL_TIMELESS = 'label_timeless'
+    VECTOR_TIMELESS = 'vector_timeless'
     META_INFO = 'meta_info'
     BBOX = 'bbox'
     TIMESTAMP = 'timestamp'
 
+    @classmethod
+    def has_value(cls, value):
+        """ Checks if value is in FeatureType values
+        """
+        return any(value == item.value for item in cls)
+
     def is_spatial(self):
-        """Checks if FeatureType has a spatial component
+        """Tells if FeatureType has a spatial component
 
         :param self: A feature type
         :type self: FeatureType
         :return: `True` if feature type has a spatial component and `False` otherwise.
         :rtype: bool
         """
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.DATA_TIMELESS,
-                                  FeatureType.MASK_TIMELESS])
+        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.DATA_TIMELESS,
+                                  FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS])
 
-    def is_time_dependant(self):
-        """Checks if FeatureType has a time component
+    def is_time_dependent(self):
+        """Tells if FeatureType has a time component
 
         :param self: A feature type
         :type self: FeatureType
         :return: `True` if feature type has a time component and `False` otherwise.
         :rtype: bool
         """
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL])
+        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
+                                  FeatureType.VECTOR])
 
     def is_discrete(self):
-        """Checks if FeatureType has discrete (integer) values
+        """Tells if FeatureType should have discrete (integer) values
 
         :param self: A feature type
         :type self: FeatureType
-        :return: `True` if feature type has discrete values and `False` otherwise.
+        :return: `True` if feature type should have discrete values and `False` otherwise.
         :rtype: bool
         """
         return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
                                   FeatureType.LABEL_TIMELESS])
 
-    def has_dictionary(self):
-        """Checks if FeatureType stores a dictionary
+    def is_vector(self):
+        """Tells if FeatureType is vector feature type
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: `True` if feature type vector feature type and `False` otherwise.
+        :rtype: bool
+        """
+        return self in frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
+
+    def has_dict(self):
+        """Tells if FeatureType stores a dictionary
 
         :param self: A feature type
         :type self: FeatureType
@@ -90,6 +110,38 @@ class FeatureType(Enum):
         :rtype: bool
         """
         return self not in frozenset([FeatureType.TIMESTAMP, FeatureType.BBOX])
+
+    def contains_ndarrays(self):
+        """Tells if FeatureType stores a dictionary of numpy.ndarrays
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: `True` if feature type stores a dictionary of numpy.ndarrays and `False` otherwise.
+        :rtype: bool
+        """
+        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
+                                  FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
+                                  FeatureType.LABEL_TIMELESS])
+
+    def ndim(self):
+        """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays
+
+        :param self: A feature type
+        :type self: FeatureType
+        :return: Number of dimensions of numpy.ndarrays or None if FeatureType doesn't store numpy.ndarrays
+        :rtype: int or None
+        """
+        if self.contains_ndarrays():
+            return {
+                FeatureType.DATA: 4,
+                FeatureType.MASK: 4,
+                FeatureType.SCALAR: 2,
+                FeatureType.LABEL: 2,
+                FeatureType.DATA_TIMELESS: 3,
+                FeatureType.MASK_TIMELESS: 3,
+                FeatureType.SCALAR_TIMELESS: 1,
+                FeatureType.LABEL_TIMELESS: 1
+            }[self]
 
     def type(self):
         """Provides type of the data for the given FeatureType
@@ -101,6 +153,40 @@ class FeatureType(Enum):
         if self is FeatureType.BBOX:
             return object
         return dict
+
+
+class FeatureDict(dict):
+    """A dictionary structure that holds features of certain feature type. It also check that features have a correct
+    dimension
+
+    :param feature_dict: A dictionary of feature names and values
+    :type feature_dict: dict(str: object)
+    :param feature_type: Type of features
+    :type feature_type: FeatureType
+    """
+    def __init__(self, feature_dict, feature_type):
+        super(FeatureDict, self).__init__()
+
+        self.feature_type = feature_type
+        self.ndim = self.feature_type.ndim()
+
+        for feature_name, value in feature_dict.items():
+            self[feature_name] = value
+
+    def __setitem__(self, feature_name, value):
+        """ Before setting value to the dictionary it checks that value is of correct type and dimension
+        """
+        if self.ndim and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
+            raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
+        super(FeatureDict, self).__setitem__(feature_name, value)
+
+    def get_dict(self):
+        """ Returns a normal dictionary of features and value
+
+        :return: A normal dictionary class
+        :rtype: dict(str: object)
+        """
+        return dict(self)
 
 
 class EOPatch:
@@ -123,87 +209,69 @@ class EOPatch:
     EOPatch (thus extending the functionality of numpy ndarray).
 
     These attributes are:
-        - features: dictionary of feature names (length n_features) and their array indices
+        - data: A dictionary of FeatureType.DATA features
 
-        - scalar: array of scalar features (aggregates over single image in a time series); shape n_time x n_scalar,
-          where n_scalar is the number of all scalar features
+        - mask: A dictionary of FeatureType.MASK features
 
-        - bounding box: (bbox, crs) where bbox is an array of 4 floats and crs is the epsg code
+        - scalar: A dictionary of scalar features, each of shape n_times x d, d >= 1
+
+        - label: A dictionary of labels, each of shape n_times x d, d >= 1
+
+        - vector: A dictionary of lists of time-dependent vector shapes
 
         - data_timeless: A dictionary containing time-independent data (e.g. DEM of the bbox)
 
         - mask_timeless: A dictionary containing time-independent masks (e.g. cloud mask), each mask is a numpy array.
 
-        - scalar: dictionary of scalar features, each of shape n_times x d, d >= 1
-
-        - label: dictionary of labels, each of shape n_times x d, d >= 1
-
-        - scalar_timeless: Dictionary of time-independent scalar features (e.g. standard deviation of heights of the
+        - scalar_timeless: A dictionary of time-independent scalar features (e.g. standard deviation of heights of the
           terrain)
 
-        - label_timeless: Dictionary of time-independent label features
+        - label_timeless: A dictionary of time-independent label features
+
+        - vector_timeless: A dictionary of time-independent vector shapes
+
+        - meta_info: A dictionary of meta information
+
+        - bounding box: (bbox, crs) where bbox is an array of 4 floats and crs is the epsg code
 
         - timestamp: list of dimension 1 and length n_time, where each element represents the time (datetime object) at
           which the individual image was taken.
-
-        - meta_info: dictionary of meta information
 
     Currently the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
     arrays in other attributes.
     """
     # pylint: disable=too-many-instance-attributes
-    def __init__(self, *, bbox=None, timestamp=None, data=None, mask=None,
-                 scalar=None, label=None, data_timeless=None, mask_timeless=None,
-                 scalar_timeless=None, label_timeless=None, meta_info=None):
-
-        self.bbox = bbox
-
-        self.timestamp = timestamp if timestamp is not None else []
+    def __init__(self, *, data=None, mask=None, scalar=None, label=None, vector=None, data_timeless=None,
+                 mask_timeless=None, scalar_timeless=None, label_timeless=None, vector_timeless=None,
+                 meta_info=None, bbox=None, timestamp=None):
 
         self.data = data if data is not None else {}
         self.mask = mask if mask is not None else {}
         self.scalar = scalar if scalar is not None else {}
         self.label = label if label is not None else {}
+        self.vector = vector if vector is not None else {}
         self.data_timeless = data_timeless if data_timeless is not None else {}
         self.mask_timeless = mask_timeless if mask_timeless is not None else {}
         self.scalar_timeless = scalar_timeless if scalar_timeless is not None else {}
         self.label_timeless = label_timeless if label_timeless is not None else {}
+        self.vector_timeless = vector_timeless if vector_timeless is not None else {}
         self.meta_info = meta_info if meta_info is not None else {}
-        self.ndims = {'data': 4,
-                      'mask': 4,
-                      'data_timeless': 3,
-                      'mask_timeless': 3,
-                      'scalar': 2,
-                      'label': 2,
-                      'scalar_timeless': 1,
-                      'label_timeless': 1}
-        self.features = collections.defaultdict(dict)
-        self._check_dimensions()
-        self._initialize_features()
+        self.bbox = bbox
+        self.timestamp = timestamp if timestamp is not None else []
 
-    def _check_dimensions(self):
-        """ Check if dimensions of arrays are in line with requirements
+    def __setattr__(self, key, value):
+        """Before attribute is set it is checked that feature type attributes are of correct type and in case they
+        are a dictionary they are cast to FeatureDict class
         """
-        for attr_type in FeatureType:
-            if attr_type in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP]:
-                continue
-            attr = getattr(self, attr_type.value)
-            for field, value in attr.items():
-                if isinstance(value, np.ndarray) and (not value.ndim == self.ndims[attr_type.value]):
-                    raise ValueError("Error in dimensionality of {0:s}.{1:s},"
-                                     " has to be {2:d}D array".format(attr_type.value, field,
-                                                                      self.ndims[attr_type.value]))
+        if FeatureType.has_value(key):
+            feature_type = FeatureType(key)
+            value_type = feature_type.type()
+            if not isinstance(value, value_type):
+                raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
+            if feature_type.has_dict() and not isinstance(value, FeatureDict):
+                value = FeatureDict(value, feature_type)
 
-    def _initialize_features(self):
-        for attr_type in FeatureType:
-            if attr_type in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP]:
-                continue
-            attr = getattr(self, attr_type.value)
-            for field, value in attr.items():
-                if isinstance(value, np.ndarray):
-                    self.features[attr_type][field] = value.shape
-                else:
-                    self.features[attr_type][field] = type(value)
+        super(EOPatch, self).__setattr__(key, value)
 
     def __getitem__(self, feature_type):
         """Provides features of requested feature type from EOPatch
@@ -223,24 +291,23 @@ class EOPatch:
         :type value: dict or list
         :return: Dictionary of features
         """
-        feature_type = FeatureType(feature_type)
-        value_type = feature_type.type()
-        if not isinstance(value, value_type):
-            raise TypeError('Only items of type {} can be set to {} attribute'.format(value_type, feature_type))
-        return setattr(self, feature_type.value, value)
+        return setattr(self, FeatureType(feature_type).value, value)
 
     def __eq__(self, other):
-        """
-        EO patches are defined equal if all FeatureType attributes, bbox, and timestamp are (deeply) equal.
+        """ EO patches are defined equal if all FeatureType attributes, bbox, and timestamp are (deeply) equal.
         """
         if not isinstance(self, type(other)):
             return False
 
-        for ftr_type in FeatureType:
-            if not deep_eq(getattr(self, ftr_type.value), getattr(other, ftr_type.value)):
+        for feature_type in FeatureType:
+            if not deep_eq(self[feature_type], other[feature_type]):
                 return False
+        return True
 
-        return self.bbox == other.bbox and self.timestamp == other.timestamp
+    def __add__(self, other):
+        """ Adding two EOPatches will result into concatenation and a new EOPatch will be produced
+        """
+        return EOPatch.concatenate(self, other)
 
     def __repr__(self):
         """ Representation of EOPatch object
@@ -249,344 +316,17 @@ class EOPatch:
         :rtype: str
         """
         feature_repr_list = ['{}('.format(self.__class__.__name__)]
-        for feature in FeatureType:
-            attribute = feature.value
-            content = getattr(self, attribute)
+        for feature_type in FeatureType:
+            content = self[feature_type]
 
             if isinstance(content, dict) and content:
                 content_str = '\n    '.join(['{'] + ['{}: {}'.format(label, self._repr_value(value)) for label, value in
                                                      sorted(content.items())]) + '\n  }'
             else:
                 content_str = self._repr_value(content)
-            feature_repr_list.append('{}: {}'.format(attribute, content_str))
+            feature_repr_list.append('{}: {}'.format(feature_type.value, content_str))
 
         return '\n  '.join(feature_repr_list) + '\n)'
-
-    @staticmethod
-    def _repr_value(value):
-        """ Creates representation string for different types of data
-
-        :param value: data in any type
-        :return: representation string
-        :rtype: str
-        """
-        if isinstance(value, np.ndarray):
-            return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
-        if isinstance(value, (list, tuple, dict)) and len(value) > 10:  # <- rethink this
-            return '{}, length={}'.format(type(value), len(value))
-        return repr(value)
-
-    def add_meta_info(self, meta_info):
-        """
-        Adds meta information to existing meta info dictionary.
-
-        :param meta_info: dictionary of meta information to be added
-        :type meta_info: dictionary
-        """
-        self.meta_info = {**self.meta_info, **meta_info}
-
-    def remove_feature(self, attr_type, field):
-        """
-        Removes the feature ``field`` from ``attr_type``
-        :param attr_type: Enum of the attribute we're about to modify
-        :type attr_type: FeatureType
-        :param field: Name of the field of the attribute
-        :type field: str
-        """
-        if not isinstance(attr_type, FeatureType):
-            raise TypeError('Expected FeatureType instance for attribute type')
-
-        LOGGER.debug("Removing feature '%s' from attribute '%s'", field, attr_type.value)
-
-        attr = getattr(self, attr_type.value)
-
-        if field in attr.keys():
-            del attr[field]
-
-    def add_feature(self, attr_type, field, value):
-        """
-        Sets the appropriate attribute's ``field`` to ``value``
-        :param attr_type: Enum of the attribute we're about to modify
-        :type attr_type: FeatureType
-        :param field: Name of the field of the attribute
-        :type field: str
-        :param value: Value to store in the field of the attribute
-        :type value: object
-        """
-        if not isinstance(attr_type, FeatureType):
-            raise TypeError('Expected FeatureType instance for attribute type')
-        if attr_type is FeatureType.BBOX:
-            raise TypeError('BBOX feature is not a dictionary. Use set_bbox method instead.')
-        if attr_type is FeatureType.TIMESTAMP:
-            raise TypeError('TIMESTAMP feature is not a dictionary. Use set_timestamp method instead')
-
-        LOGGER.debug("Accessing attribute '%s'", attr_type.value)
-
-        attr = getattr(self, attr_type.value)
-        attr[field] = value
-        self._check_dimensions()
-        self.features[attr_type][field] = value.shape
-
-    def set_bbox(self, new_bbox):
-        """ Method for setting a new bounding box
-        :param new_bbox: Bounding box of any type
-        """
-        self.bbox = new_bbox
-
-    def set_timestamp(self, new_timestamp):
-        """ Method for setting new list of dates
-        :param new_timestamp: list of dates
-        :type new_timestamp: list(str)
-        """
-        if not isinstance(new_timestamp, (list, tuple)):
-            raise ValueError("Timestamp must be a list of dates")
-        self.timestamp = new_timestamp
-
-    def get_feature(self, attr_type, field):
-        """
-        Returns the array of corresponding feature.
-
-        :param attr_type: Enum of the attribute
-        :type attr_type: FeatureType
-        :param field: Name of the field of the attribute
-        :type field: str
-        """
-        if not isinstance(attr_type, FeatureType):
-            raise TypeError('Expected FeatureType instance for attribute type')
-
-        LOGGER.debug("Accessing attribute '%s'", attr_type.value)
-
-        attr = getattr(self, attr_type.value)
-
-        return attr[field] if field in attr.keys() else None
-
-    def feature_exists(self, attr_type, field):
-        """
-        Checks if the corresponding feature exists.
-
-        :param attr_type: Enum of the attribute
-        :type attr_type: FeatureType
-        :param field: Name of the field of the attribute
-        :type field: str
-        """
-        if not isinstance(attr_type, FeatureType):
-            raise TypeError('Expected FeatureType instance for attribute type')
-
-        LOGGER.debug("Accessing attribute '%s'", attr_type.value)
-
-        attr = getattr(self, attr_type.value)
-
-        return field in attr.keys()
-
-    def get_features(self):
-        """ Returns all features of EOPatch
-        :return: dictionary of features
-        :rtype: dict(FeatureType)
-        """
-        return self.features
-
-    @staticmethod
-    def concatenate(eopatch1, eopatch2):
-        """
-        Combines all data from two EOPatches and returns the new EOPatch.
-
-        For time-independent attribute ``a`` a key ``k`` is retrained if and only if we have
-        ``eopatch1.a[k]==eopatch2.a[k]``.
-        """
-
-        if eopatch1.bbox != eopatch2.bbox:
-            raise ValueError('Cannot concatenate two EOpatches with different BBoxes')
-
-        def merge_dicts(fst_dict, snd_dict, concatenator=EOPatch._concatenate):
-            if not fst_dict or not snd_dict:
-                return {}
-
-            if fst_dict.keys() != snd_dict.keys():
-                raise ValueError('Key mismatch')
-
-            return {field: concatenator(fst_dict[field], snd_dict[field]) for field in fst_dict}
-
-        data = merge_dicts(eopatch1.data, eopatch2.data)
-
-        timestamp = eopatch1.timestamp + eopatch2.timestamp
-
-        bbox = eopatch1.bbox
-        meta_info = {**eopatch2.meta_info, **eopatch1.meta_info}
-
-        mask = merge_dicts(eopatch1.mask, eopatch2.mask)
-        scalar = merge_dicts(eopatch1.scalar, eopatch2.scalar)
-        label = merge_dicts(eopatch1.label, eopatch2.label)
-
-        def merge_time_independent_dicts(fst_dict, snd_dict):
-            merged_dict = {}
-            if not fst_dict or not snd_dict:
-                return merged_dict
-
-            for field in fst_dict.keys() & snd_dict.keys():
-                if isinstance(fst_dict[field], np.ndarray) and isinstance(snd_dict[field], np.ndarray):
-                    if np.array_equal(fst_dict[field], snd_dict[field]):
-                        merged_dict[field] = snd_dict[field]
-                    else:
-                        LOGGER.debug("Field %s skipped due to value mismatch", field)
-                        continue
-                elif fst_dict[field] == snd_dict[field]:
-                    merged_dict[field] = fst_dict[field]
-                else:
-                    LOGGER.debug("Field %s skipped due to value mismatch", field)
-            return merged_dict
-
-        data_timeless = merge_time_independent_dicts(eopatch1.data_timeless, eopatch2.data_timeless)
-        mask_timeless = merge_time_independent_dicts(eopatch1.mask_timeless, eopatch2.mask_timeless)
-        scalar_timeless = merge_time_independent_dicts(eopatch1.scalar_timeless, eopatch2.scalar_timeless)
-        label_timeless = merge_time_independent_dicts(eopatch1.label_timeless, eopatch2.label_timeless)
-
-        return EOPatch(data=data, timestamp=timestamp, bbox=bbox, mask=mask, data_timeless=data_timeless,
-                       mask_timeless=mask_timeless, scalar=scalar, label=label, scalar_timeless=scalar_timeless,
-                       label_timeless=label_timeless, meta_info=meta_info)
-
-    @staticmethod
-    def _concatenate(data1, data2):
-        """
-        Private method to concatenate data nparrays.
-
-        :param data1: array, shape (n_times1, height, width, n_features)
-        :param data2: array, shape (n_times2, height, width, n_features)
-        """
-
-        data1_shape, data2_shape = data1.shape[1:], data2.shape[1:]
-
-        if data1_shape == data2_shape:
-            return np.concatenate((data1, data2), axis=0)
-
-        raise TypeError('Add data failed. Entries are not of correct shape.\n'
-                        'Expected {}, but got {}'.format(data1_shape, data2_shape))
-
-    @staticmethod
-    def _get_filenames(path):
-        """
-        Returns dictionary of filenames and locations on disk.
-        """
-        return {feature.value: os.path.join(path, feature.value) for feature in FeatureType}
-
-    def save(self, path, feature_list=None):
-        """
-        Saves EOPatch to disk.
-
-        :param path: Location on the disk
-        :type path: str
-        :param feature_list: List of features to be saved. If set to None all features will be saved.
-        :type feature_list: list(FeatureType) or None
-        """
-        path = os.path.expanduser(path)
-        if not os.path.exists(path):
-            os.makedirs(path)
-        else:
-            LOGGER.warning('Overwriting data in %s', path)
-
-        LOGGER.debug('Saving to %s', path)
-
-        filename_list = EOPatch._get_filenames(path)
-
-        if feature_list is None:
-            feature_list = FeatureType
-        else:
-            for feature in feature_list:
-                if not isinstance(feature, FeatureType):
-                    raise ValueError("Parameter feature_list must get a list with elements of type FeatureType")
-
-        for feature in feature_list:
-            attribute = feature.value
-            path = filename_list[attribute]
-
-            LOGGER.debug("Saving %s to %s", attribute, path)
-
-            if self[attribute]:
-                with open(path, 'wb') as outfile:
-                    pickle.dump(self[attribute], outfile)
-            else:
-                LOGGER.debug("Attribute '%s' is None, nothing to serialize", attribute)
-
-    @staticmethod
-    def load(path, feature_list=None):
-        """
-        Loads EOPatch from disk.
-
-        :param path: Location on the disk
-        :type path: str
-        :param feature_list: List of features to be loaded. If set to None all features will be loaded.
-        :type feature_list: list(FeatureType) or None
-        :return: Loaded EOPatch
-        :rtype: EOPatch
-        """
-        path = os.path.expanduser(path)
-        if not os.path.exists(path):
-            LOGGER.warning('Specified path does not exist: %s', path)
-
-        filenames = EOPatch._get_filenames(path)
-
-        eopatch_features = {feature.value: None for feature in FeatureType}
-
-        if feature_list is None:
-            feature_list = FeatureType
-
-        for feature in feature_list:
-            feature_filename = filenames[feature.value]
-
-            if os.path.exists(feature_filename):
-                if not os.access(feature_filename, os.R_OK):
-                    raise PermissionError('Reading permission denied: {}'.format(feature_filename))
-
-                if os.path.getsize(feature_filename):
-                    with open(feature_filename, "rb") as feature_file:
-                        eopatch_features[feature.value] = pickle.load(feature_file)
-
-        return EOPatch(**eopatch_features)
-
-    def time_series(self, ref_date=None):
-        """
-        Returns a numpy array with seconds passed between reference date and the timestamp of each image:
-
-        time_series[i] = (timestamp[i] - ref_date).total_seconds()
-
-        If reference date is none the first date in the EOPatch's timestamp is taken.
-
-        If EOPatch timestamp attribute is empty the method returns None.
-
-        :param ref_date: reference date relative to which the time is measured
-        :type ref_date: datetime object
-        """
-
-        if not self.timestamp:
-            return None
-
-        if ref_date is None:
-            ref_date = self.timestamp[0]
-
-        return np.asarray([(timestamp - ref_date).total_seconds() for timestamp in self.timestamp], dtype=np.int64)
-
-    def consolidate_timestamps(self, timestamps):
-        """
-        Removes all frames from the EOPatch with a date not found in the provided timestamps list.
-
-        :param timestamps: keep frames with date found in this list
-        :type timestamps: list of datetime objects
-        :return: set of removed frames' dates
-        :rtype: set of datetime objects
-        """
-        remove_from_patch = set(self.timestamp).difference(timestamps)
-        remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
-        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
-        good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
-
-        for attr_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]:
-            attr = getattr(self, attr_type.value)
-            for field, value in attr.items():
-                if isinstance(value, np.ndarray):
-                    self.add_feature(attr_type, field, value[good_timestamp_idxs, ...])
-
-        self.timestamp = good_timestamps
-
-        return remove_from_patch
 
     def __copy__(self, feature_list=None):
         """ Overwrites copy method
@@ -628,6 +368,20 @@ class EOPatch:
         return new_eopatch
 
     @staticmethod
+    def _repr_value(value):
+        """ Creates representation string for different types of data
+
+        :param value: data in any type
+        :return: representation string
+        :rtype: str
+        """
+        if isinstance(value, np.ndarray):
+            return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
+        if isinstance(value, (list, tuple, dict)) and len(value) > 10:  # <- rethink this
+            return '{}, length={}'.format(type(value), len(value))
+        return repr(value)
+
+    @staticmethod
     def _parse_to_dict(feature_list):
         """ Parses list of features to dictionary of sets
 
@@ -662,3 +416,281 @@ class EOPatch:
                 raise ValueError('Item {} in feature_list must be of type {} or {}'.format(feature_item, tuple,
                                                                                            FeatureType))
         return feature_dict
+
+    def remove_feature(self, feature_type, feature_name):
+        """ Removes the feature ``feature_name`` from dictionary of ``feature_type``
+
+        :param feature_type: Enum of the attribute we're about to modify
+        :type feature_type: FeatureType
+        :param feature_name: Name of the feature of the attribute
+        :type feature_name: str
+        """
+        LOGGER.debug("Removing feature '%s' from attribute '%s'", feature_name, feature_type.value)
+
+        self._check_if_dict(feature_type)
+        if feature_name in self[feature_type]:
+            del self[feature_type][feature_name]
+
+    def add_feature(self, feature_type, feature_name, value):
+        """ Sets EOPatch[feature_type][feature_name] to the given value
+
+        :param feature_type: Type of feature
+        :type feature_type: FeatureType
+        :param feature_name: Name of the feature
+        :type feature_name: str
+        :param value: New value of the feature
+        :type value: object
+        """
+        self._check_if_dict(feature_type)
+        self[feature_type][feature_name] = value
+
+    @staticmethod
+    def _check_if_dict(feature_type):
+        """ Checks if given FeatureType contains a dictionary and raises an error if it doesn't
+
+        :param feature_type: Type of feature
+        :type feature_type: FeatureType
+        :raise: TypeError
+        """
+        feature_type = FeatureType(feature_type)
+        if feature_type.type() is not dict:
+            raise TypeError('{} does not contain a dictionary of features'.format(feature_type))
+
+    def set_bbox(self, new_bbox):
+        """ Method for setting a new bounding box
+        :param new_bbox: Bounding box of any type
+        """
+        self.bbox = new_bbox
+
+    def set_timestamp(self, new_timestamp):
+        """ Method for setting a new list of dates
+        :param new_timestamp: list of dates
+        :type new_timestamp: list(str)
+        """
+        self.timestamp = new_timestamp
+
+    def get_feature(self, feature_type, feature_name=None):
+        """
+        Returns the array of corresponding feature.
+
+        :param feature_type: Enum of the attribute
+        :type feature_type: FeatureType
+        :param feature_name: Name of the feature
+        :type feature_name: str
+        """
+        if feature_name is None:
+            return self[feature_type]
+        return self[feature_type][feature_name]
+
+    def get_features(self):
+        """ Returns a dictionary of all non-empty features of EOPatch. The elements are either sets of feature names or
+        a boolean `True` in case feature type has no dictionary of feature names
+
+        :return: A dictionary of features
+        :rtype: dict(FeatureType: str or True)
+        """
+        feature_dict = {}
+        for feature_type in FeatureType:
+            if self[feature_type]:
+                feature_dict[feature_type] = set(self[feature_type]) if feature_type.has_dict() else True
+
+        return feature_dict
+
+    def get_feature_list(self):
+        """ Returns a list of all non-empty features of EOPatch. The elements are either only FeatureType or a pair of
+        FeatureType and feature name.
+
+        :return: list of features
+        :rtype: list(FeatureType or (FeatureType, str))
+        """
+        feature_list = []
+        for feature_type in FeatureType:
+            if feature_type.has_dict():
+                for feature_name in self[feature_type]:
+                    feature_list.append((feature_type, feature_name))
+            elif self[feature_type]:
+                feature_list.append(feature_type)
+        return feature_list
+
+    @staticmethod
+    def concatenate(eopatch1, eopatch2):
+        """ Joins all data from two EOPatches and returns a new EOPatch. If timestamps don't match it will try to join
+        all time-dependent features with the same name.
+
+        Note: In general the data won't be deep copied. Deep copy will only happen when merging time-dependent features
+        along time
+
+        :param eopatch1: First EOPatch
+        :type eopatch1: EOPatch
+        :param eopatch2: First EOPatch
+        :type eopatch2: EOPatch
+        :return: Joined EOPatch
+        :rtype: EOPatch
+        """
+        eopatch_content = {}
+
+        timestamps_match = eopatch1.timestamp and eopatch2.timestamp and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
+
+        for feature_type in FeatureType:
+            if feature_type.has_dict():
+                eopatch_content[feature_type.value] = {**eopatch1[feature_type], **eopatch2[feature_type]}
+
+                for feature_name in eopatch1[feature_type].keys() & eopatch2[feature_type].keys():
+                    data1 = eopatch1[feature_type][feature_name]
+                    data2 = eopatch2[feature_type][feature_name]
+
+                    if feature_type.is_time_dependent() and not timestamps_match:
+                        eopatch_content[feature_type.value][feature_name] = EOPatch.concatenate_data(data1, data2)
+                    elif not deep_eq(data1, data2):
+                        raise ValueError('Could not merge ({}, {}) feature because values differ'.format(feature_type,
+                                                                                                         feature_name))
+
+            elif feature_type is FeatureType.TIMESTAMP and timestamps_match:
+                eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
+            else:
+                if not eopatch1[feature_type] or deep_eq(eopatch1[feature_type], eopatch2[feature_type]):
+                    eopatch_content[feature_type.value] = copy(eopatch2[feature_type])
+                elif not eopatch2[feature_type]:
+                    eopatch_content[feature_type.value] = copy(eopatch1[feature_type])
+                else:
+                    raise ValueError('Could not merge {} feature because values differ'.format(feature_type))
+
+        return EOPatch(**eopatch_content)
+
+    @staticmethod
+    def concatenate_data(data1, data2):
+        """ A method that concatenates two numpy array along first axis
+
+        :param data1: Numpy array of shape (times1, height, width, n_features)
+        :type data1: numpy.ndarray
+        :param data2: Numpy array of shape (times2, height, width, n_features)
+        :type data1: numpy.ndarray
+        :return: Numpy array of shape (times1 + times2, height, width, n_features)
+        :rtype: numpy.ndarray
+        """
+        if data1.shape[1:] != data2.shape[1:]:
+            raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
+        return np.concatenate((data1, data2), axis=0)
+
+    def save(self, path, feature_list=None):
+        """ Saves EOPatch to disk.
+
+        :param path: Location on the disk
+        :type path: str
+        :param feature_list: List of features types specifying features of which type will be saved. If set to `None`
+        all features will be saved.
+        :type feature_list: list(FeatureType) or None
+        """
+        # path = os.path.expanduser(path)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        else:
+            LOGGER.warning('Overwriting data in %s', path)
+
+        LOGGER.debug('Saving to %s', path)
+
+        if feature_list is None:
+            feature_list = [feature_type for feature_type in FeatureType]
+        file_paths = self._get_file_paths(path, feature_list)
+
+        for feature_type, file_path in zip(feature_list, file_paths):
+
+            LOGGER.debug("Saving %s to %s", str(feature_type), path)
+            if self[feature_type]:
+                with open(file_path, 'wb') as outfile:
+                    pickle.dump(self[feature_type].get_dict() if feature_type.has_dict() else self[feature_type],
+                                outfile)
+            else:
+                LOGGER.debug("Attribute '%s' is None, nothing to serialize", str(feature_type))
+
+    @staticmethod
+    def load(path, feature_list=None):
+        """ Loads EOPatch from disk.
+
+        :param path: Location on the disk
+        :type path: str
+        :param feature_list: List of features to be loaded. If set to None all features will be loaded.
+        :type feature_list: list(FeatureType) or None
+        :return: Loaded EOPatch
+        :rtype: EOPatch
+        """
+        # path = os.path.expanduser(path)
+        if not os.path.exists(path):
+            raise ValueError('Specified path {} does not exist'.format(path))
+
+        if feature_list is None:
+            feature_list = [feature_type for feature_type in FeatureType]
+        file_paths = EOPatch._get_file_paths(path, feature_list)
+
+        eopatch_content = {}
+        for feature_type, file_path in zip(feature_list, file_paths):
+
+            if os.path.exists(file_path):
+                if not os.access(file_path, os.R_OK):
+                    raise PermissionError('Reading permission denied: {}'.format(file_path))
+
+                if os.path.getsize(file_path):
+                    with open(file_path, "rb") as infile:
+                        eopatch_content[feature_type.value] = pickle.load(infile)
+
+        return EOPatch(**eopatch_content)
+
+    @staticmethod
+    def _get_file_paths(path, feature_list):
+        """ Returns a list of file paths on disk for each FeatureType in list of features
+
+        :param path: Location on the disk
+        :type path: str
+        :param feature_list: List of features types
+        :type feature_list: list(FeatureType)
+        :return: A list of file paths
+        :rtype: list(str)
+        """
+        return [os.path.join(path, FeatureType(feature).value) for feature in feature_list]
+
+    def time_series(self, ref_date=None):
+        """
+        Returns a numpy array with seconds passed between reference date and the timestamp of each image:
+
+        time_series[i] = (timestamp[i] - ref_date).total_seconds()
+
+        If reference date is none the first date in the EOPatch's timestamp is taken.
+
+        If EOPatch timestamp attribute is empty the method returns None.
+
+        :param ref_date: reference date relative to which the time is measured
+        :type ref_date: datetime object
+        """
+
+        if not self.timestamp:
+            return None
+
+        if ref_date is None:
+            ref_date = self.timestamp[0]
+
+        return np.asarray([(timestamp - ref_date).total_seconds() for timestamp in self.timestamp], dtype=np.int64)
+
+    def consolidate_timestamps(self, timestamps):
+        """
+        Removes all frames from the EOPatch with a date not found in the provided timestamps list.
+
+        :param timestamps: keep frames with date found in this list
+        :type timestamps: list of datetime objects
+        :return: set of removed frames' dates
+        :rtype: set of datetime objects
+        """
+        remove_from_patch = set(self.timestamp).difference(timestamps)
+        remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
+        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
+        good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
+
+        for feature_type in [feature_type for feature_type in FeatureType if feature_type.is_time_dependent()]:
+
+            for feature_name, value in self[feature_type].items():
+                if isinstance(value, np.ndarray):
+                    self[feature_type][feature_name] = value[good_timestamp_idxs, ...]
+                if isinstance(value, list):
+                    self[feature_type][feature_name] = [value[idx] for idx in good_timestamp_idxs]
+
+        self.timestamp = good_timestamps
+        return remove_from_patch
