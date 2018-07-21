@@ -142,6 +142,7 @@ class FeatureType(Enum):
                 FeatureType.SCALAR_TIMELESS: 1,
                 FeatureType.LABEL_TIMELESS: 1
             }[self]
+        return None
 
     def type(self):
         """Provides type of the data for the given FeatureType

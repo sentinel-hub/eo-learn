@@ -43,16 +43,14 @@ class SimpleFilterTask(EOTask):
 
         LOGGER.debug("good_idxs: %s", good_idxs)
 
-        time_dependent = [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]
-
         eopatch.timestamp = [eopatch.timestamp[idx] for idx in good_idxs]
 
-        for feature_type in time_dependent:
-            attr = getattr(eopatch, feature_type.value)
+        for temp_feature_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]:
+            attr = getattr(eopatch, temp_feature_type.value)
             assert isinstance(attr, dict)
             for target_feature in attr:
                 value = attr[target_feature]
-                eopatch.add_feature(feature_type, target_feature,
+                eopatch.add_feature(temp_feature_type, target_feature,
                                     value=np.asarray([value[idx] for idx in good_idxs]))
 
         return eopatch
