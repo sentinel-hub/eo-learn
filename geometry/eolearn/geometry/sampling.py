@@ -310,7 +310,7 @@ class PointSamplingTask(EOTask):
     output sample features and sampled labels.
     """
     # pylint: disable=too-many-arguments
-    def __init__(self, n_samples, ref_mask_name, ref_labels, sample_feature_list, return_new_eopatch=False, seed=None,
+    def __init__(self, n_samples, ref_mask_name, ref_labels, sample_feature_list, return_new_eopatch=False,
                  **sampling_params):
         """ Initialise sampling task.
 
@@ -341,8 +341,6 @@ class PointSamplingTask(EOTask):
             and meta_info data in it and return it. If `False` it will just add sampled data to input EOPatch and
             return it.
         :type return_new_eopatch: bool
-        :param seed: Setting seed of random sampling. If None no seed will be used.
-        :type seed: int or None
         :param sampling_params: Any other parameter used by `PointRasterSampler` class
         """
         self.n_samples = n_samples
@@ -351,8 +349,6 @@ class PointSamplingTask(EOTask):
         self.sample_feature_list = sample_feature_list
         self.return_new_eopatch = return_new_eopatch
         self.sampling_params = sampling_params
-
-        np.random.seed(seed)
 
         if not isinstance(self.sample_feature_list, (list, tuple)):
             raise ValueError('sample_feature_list must be a list or a tuple')
@@ -403,14 +399,18 @@ class PointSamplingTask(EOTask):
             return '{}_SAMPLED'.format(sample_feature[1])
         return sample_feature[2]
 
-    def execute(self, eopatch):
+    def execute(self, eopatch, seed=None):
         """ Execute random spatial sampling of time-series stored in the input eopatch
 
         :param eopatch: Input eopatch to be sampled
         :type eopatch: eolearn.core.EOPatch
+        :param seed: Setting seed of random sampling. If None no seed will be used.
+        :type seed: int or None
         :return: An EOPatch with spatially sampled temporal features and associated labels
         :type eopatch: eolearn.core.EOPatch
         """
+        np.random.seed(seed)
+
         self._check_paramaters(eopatch)
         # Retrieve data and raster label image from eopatch
         raster = eopatch.get_feature(FeatureType.MASK_TIMELESS, self.ref_mask_name)
