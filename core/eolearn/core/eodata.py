@@ -649,7 +649,7 @@ class EOPatch:
         """
         return [os.path.join(path, FeatureType(feature).value) for feature in feature_list]
 
-    def time_series(self, ref_date=None):
+    def time_series(self, ref_date=None, scale_time=1):
         """
         Returns a numpy array with seconds passed between reference date and the timestamp of each image:
 
@@ -661,6 +661,8 @@ class EOPatch:
 
         :param ref_date: reference date relative to which the time is measured
         :type ref_date: datetime object
+        :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
+        :type scale_time: int
         """
 
         if not self.timestamp:
@@ -669,7 +671,7 @@ class EOPatch:
         if ref_date is None:
             ref_date = self.timestamp[0]
 
-        return np.asarray([(timestamp - ref_date).total_seconds() for timestamp in self.timestamp], dtype=np.int64)
+        return np.asarray([(timestamp - ref_date).total_seconds()//scale_time for timestamp in self.timestamp], dtype=np.int64)
 
     def consolidate_timestamps(self, timestamps):
         """

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from eolearn.core import EOPatch
 from eolearn.features import LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation, \
-    AkimaInterpolation, LinearResampling, CubicResampling
+    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling
 
 
 class TestInterpolation(unittest.TestCase):
@@ -36,7 +36,6 @@ class TestInterpolation(unittest.TestCase):
                 patch.data[self.task.feature_name][np.isnan(patch.data[self.task.feature_name])] = self.nan_replace
             self.result = self.task.execute(patch)
 
-
     @classmethod
     def setUpClass(cls):
 
@@ -53,16 +52,21 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('spline', SplineInterpolation('ndvi', result_interval=(-10, 10),
                                                                     resample_range=('2016-01-01', '2018-01-01', 5),
                                                                     spline_degree=3, smoothing_factor=0.5),
-                                      result_len=147, img_min=-0.431703, img_max=0.116959, img_mean=-0.1948325,
-                                      img_median=-0.1922528),
+                                      result_len=147, img_min=-0.6867819, img_max=0.26210105, img_mean=-0.1886001,
+                                      img_median=-0.18121514),
             cls.InterpolationTestCase('bspline', BSplineInterpolation('ndvi', unknown_value=-3,
                                                                       resample_range=('2017-01-01', '2017-02-01', 50),
                                                                       spline_degree=5),
-                                      result_len=1, img_min=-0.161574, img_max=-0.0116416, img_mean=-0.085181,
-                                      img_median=-0.0856696),
+                                      result_len=1, img_min=-0.20366311, img_max=0.03428878, img_mean=-0.04307341,
+                                      img_median=-0.040708482),
             cls.InterpolationTestCase('akima', AkimaInterpolation('ndvi', unknown_value=0),
                                       result_len=180, img_min=-0.4821199, img_max=0.2299331, img_mean=-0.20141865,
                                       img_median=-0.213559),
+            cls.InterpolationTestCase('nearest resample', NearestResampling('ndvi', result_interval=(-0.3, -0.1),
+                                                                            resample_range=('2016-01-01',
+                                                                                            '2018-01-01', 5)),
+                                      result_len=147, img_min=-0.3000, img_max=-0.1000, img_mean=-0.19651729,
+                                      img_median=-0.20000, nan_replace=-0.2),
             cls.InterpolationTestCase('linear resample', LinearResampling('ndvi', result_interval=(-0.3, -0.1),
                                                                           resample_range=('2016-01-01',
                                                                                           '2018-01-01', 5)),
@@ -94,28 +98,29 @@ class TestInterpolation(unittest.TestCase):
 
     def test_stats(self):
         for test_case in self.test_cases:
-            delta = 1e-4
+            delta = 1e-3
 
             if test_case.img_min is not None:
                 min_val = np.amin(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                    self.assertAlmostEqual(test_case.img_min, min_val, delta=delta,
-                                           msg="Expected min {}, got {}".format(test_case.img_min, min_val))
+                        self.assertAlmostEqual(test_case.img_min, min_val, delta=delta,
+                                               msg="Expected min {}, got {}".format(test_case.img_min, min_val))
             if test_case.img_max is not None:
                 max_val = np.amax(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                    self.assertAlmostEqual(test_case.img_max, max_val, delta=delta,
-                                           msg="Expected max {}, got {}".format(test_case.img_max, max_val))
+                        self.assertAlmostEqual(test_case.img_max, max_val, delta=delta,
+                                               msg="Expected max {}, got {}".format(test_case.img_max, max_val))
             if test_case.img_mean is not None:
                 mean_val = np.mean(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                    self.assertAlmostEqual(test_case.img_mean, mean_val, delta=delta,
-                                           msg="Expected mean {}, got {}".format(test_case.img_mean, mean_val))
+                        self.assertAlmostEqual(test_case.img_mean, mean_val, delta=delta,
+                                               msg="Expected mean {}, got {}".format(test_case.img_mean, mean_val))
             if test_case.img_median is not None:
                 median_val = np.median(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                    self.assertAlmostEqual(test_case.img_median, median_val, delta=delta,
-                                           msg="Expected median {}, got {}".format(test_case.img_median, median_val))
+                        self.assertAlmostEqual(test_case.img_median, median_val, delta=delta,
+                                               msg="Expected median {}, got {}".format(test_case.img_median,
+                                                                                       median_val))
 
 
 if __name__ == '__main__':
