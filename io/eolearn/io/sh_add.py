@@ -105,29 +105,17 @@ class AddSentinelHubOGCFeature(EOTask):
                           data_source=self.data_source,
                           instance_id=self.instance_id)
 
-    def _reshape_array(self, array, dims_dict):
-        """ Reshape array if dimensions do not match requirements
-
-        :param array: Input array
-        :param dims_dict: Dictionary with target dimensionality for the feature types
-        :return: Reshaped array with additional channel
-        """
-        if array.ndim == dims_dict[self.feature_type.value] - 1:
-            return array.reshape(array.shape + (1,))
-        return array
-
-    def _check_dimensionality(self, array, dims_dict):
+    def _fix_dimensionality(self, array):
         """ Method to ensure array has the dimensionality required by the feature type
 
         :param array: Input array
         :param dims_dict: Dictionary with target dimensionality for the feature types
         :return: Reshaped array with additional channel
         """
-        if self.feature_type in [FeatureType.DATA, FeatureType.MASK]:
-            return self._reshape_array(array, dims_dict)
-        if self.feature_type in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS]:
+        if not self.feature_type.is_time_dependent():
             array = array.squeeze(axis=0)
-            return self._reshape_array(array, dims_dict)
+        if array.ndim == self.feature_type.ndim() - 1:
+            return array.reshape(array.shape + (1,))
         return array
 
     def execute(self, eopatch):
@@ -163,7 +151,7 @@ class AddSentinelHubOGCFeature(EOTask):
             LOGGER.warning('Removed data for frame %s from eopatch '
                            'due to unavailability of %s!', str(rm_frame), self.layer)
 
-        request_data = self._check_dimensionality(request_data, eopatch.ndims)
+        request_data = self._fix_dimensionality(request_data)
 
         eopatch.add_feature(self.feature_type, self.feature_name, request_data)
 
