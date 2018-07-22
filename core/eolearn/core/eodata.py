@@ -671,7 +671,8 @@ class EOPatch:
         if ref_date is None:
             ref_date = self.timestamp[0]
 
-        return np.asarray([(timestamp - ref_date).total_seconds()//scale_time for timestamp in self.timestamp], dtype=np.int64)
+        return np.asarray([round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in self.timestamp],
+                          dtype=np.int64)
 
     def consolidate_timestamps(self, timestamps):
         """
