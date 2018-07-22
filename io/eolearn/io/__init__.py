@@ -8,4 +8,4 @@ from .sh_add import AddSentinelHubOGCFeature, AddDEMFeature, AddS2L1CFeature, Ad
     AddSen2CorClassificationFeature, AddGeopediaFeature
 from .local_io import SaveToDisk, LoadFromDisk, ExportToTiff
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'

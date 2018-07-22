@@ -11,4 +11,4 @@ from .feature_manipulation import SimpleFilterTask, FilterTimeSeries
 from .compute_haralick import AddHaralickTask
 
 
-__version__ = '0.1.0'
+__version__ = '0.2.0'
