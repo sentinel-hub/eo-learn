@@ -58,7 +58,7 @@ class AddSentinelHubOGCFeature(EOTask):
     """
 
     def __init__(self, feature_type, layer, feature_name=None, data_source=None,
-                 image_format=MimeType.TIFF_d32f, instance_id=None, custom_url_params=None):
+                 image_format=MimeType.TIFF_d32f, instance_id=None, custom_url_params=None, raise_download_error=False):
 
         self.feature_type = feature_type
         self.layer = layer
@@ -66,6 +66,7 @@ class AddSentinelHubOGCFeature(EOTask):
         self.data_source = data_source
         self.image_format = image_format
         self.instance_id = instance_id
+        self.raise_download_error = raise_download_error
 
         custom_params = {CustomUrlParam.SHOWLOGO: False,
                          CustomUrlParam.TRANSPARENT: False}
@@ -127,7 +128,13 @@ class AddSentinelHubOGCFeature(EOTask):
         maxcc = eopatch.meta_info['maxcc']
         time_difference = eopatch.meta_info['time_difference']
         service_type = eopatch.meta_info['service_type']
-        time_interval = (eopatch.timestamp[0].isoformat(), eopatch.timestamp[-1].isoformat())
+
+        if eopatch.timestamp:
+            time_interval = (eopatch.timestamp[0].isoformat(), eopatch.timestamp[-1].isoformat())
+        elif eopatch.meta_info['time_interval']:
+            time_interval = eopatch.meta_info['time_interval']
+        else:
+            raise ValueError('Failed to determine time range')
 
         request = {ServiceType.WMS: self._get_wms_request,
                    ServiceType.WCS: self._get_wcs_request}[service_type](eopatch.bbox, time_interval, size_x, size_y,
@@ -135,9 +142,12 @@ class AddSentinelHubOGCFeature(EOTask):
 
         # check timestamp consistency between request and this eopatch
         request_dates = request.get_dates()
+        if not eopatch.timestamp:
+            eopatch.timestamp = request_dates
+
         download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
 
-        request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
+        request_return = request.get_data(raise_download_errors=self.raise_download_error, data_filter=download_frames)
         bad_data = [idx for idx, value in enumerate(request_return) if value is None]
         for idx in reversed(sorted(bad_data)):
             LOGGER.warning('Data from %s could not be downloaded for %s!', str(request_dates[idx]), self.layer)
