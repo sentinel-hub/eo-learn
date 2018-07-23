@@ -37,6 +37,9 @@ class InterpolationTask(EOTask):
     :type result_interval: (float, float)
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
     :type unknown_value: float or numpy.nan
+    :param mask_data: Whether the data to be interpolated is masked using the `VALID_DATA` option or not. Default is
+        `True`
+    :type mask_data: bool
     :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Value
         has to be greater than 1. Default is `10`
     :type filling_factor: int
@@ -46,7 +49,7 @@ class InterpolationTask(EOTask):
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature_name, interpolation_object, *, feature_type=FeatureType.DATA, resample_range=None,
-                 result_interval=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
+                 result_interval=None, unknown_value=np.nan, mask_data=True, filling_factor=10, scale_time=3600,
                  **interpolation_parameters):
         self.feature_type = feature_type
         self.feature_name = feature_name
@@ -58,6 +61,7 @@ class InterpolationTask(EOTask):
         self.interpolation_parameters = interpolation_parameters
         self.scale_time = scale_time
         self.filling_factor = filling_factor
+        self.mask_data = mask_data
 
         self._resampled_times = None
 
@@ -180,7 +184,7 @@ class InterpolationTask(EOTask):
         time_num, height, width, band_num = feature_data.shape
 
         # Prepare mask of valid data
-        if 'VALID_DATA' in eopatch.mask:
+        if self.mask_data and 'VALID_DATA' in eopatch.mask:
             invalid_data = ~eopatch.mask['VALID_DATA'].squeeze()
             feature_data[invalid_data, :] = np.nan
 
