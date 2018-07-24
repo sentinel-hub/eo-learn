@@ -57,7 +57,7 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('bspline', BSplineInterpolation('ndvi', unknown_value=-3,
                                                                       resample_range=('2017-01-01', '2017-02-01', 50),
                                                                       spline_degree=5),
-                                      result_len=1, img_min=-0.20366311, img_max=0.03428878, img_mean=-0.04307341,
+                                      result_len=1, img_min=-0.20366311, img_max=0.035470814, img_mean=-0.04307341,
                                       img_median=-0.040708482),
             cls.InterpolationTestCase('akima', AkimaInterpolation('ndvi', unknown_value=0),
                                       result_len=180, img_min=-0.4821199, img_max=0.2299331, img_mean=-0.20141865,
