@@ -25,6 +25,7 @@ Beside the base EOTask the hierarchy provides several additional general-purpose
 import functools
 import logging
 from abc import ABC, abstractmethod
+from inspect import getfullargspec
 
 from .eodata import FeatureType
 
@@ -35,6 +36,15 @@ class EOTask(ABC):
     """
     Base class for task.
     """
+    def __init__(self, values=None):
+        if values is None:
+            return
+
+        self.init_args = {}
+
+        for i in getfullargspec(values['self'].__init__).args[1:]:
+            self.init_args[i] = values[i]
+
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
         raise NotImplementedError
