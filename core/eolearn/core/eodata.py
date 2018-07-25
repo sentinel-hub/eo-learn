@@ -378,7 +378,7 @@ class EOPatch:
         """
         if isinstance(value, np.ndarray):
             return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
-        if isinstance(value, (list, tuple, dict)) and len(value) > 10:  # <- rethink this
+        if isinstance(value, (list, tuple, dict)):
             return '{}, length={}'.format(type(value), len(value))
         return repr(value)
 
