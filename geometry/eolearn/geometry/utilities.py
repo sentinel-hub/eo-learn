@@ -66,7 +66,7 @@ class VectorToRaster(EOTask):
         dst_shape = data_arr.shape
         dst_transform = transform.from_bounds(*eopatch.bbox, width=dst_shape[2], height=dst_shape[1])
 
-        if eopatch.feature_exists(self.feature_type, self.feature_name):
+        if self.feature_name in eopatch[self.feature_type.value]:
             raster = eopatch.get_feature(self.feature_type, self.feature_name)
         else:
             raster = np.ones(dst_shape[1:3], dtype=self.raster_dtype) * self.no_data_value
