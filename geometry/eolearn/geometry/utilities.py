@@ -67,14 +67,14 @@ class VectorToRaster(EOTask):
         dst_transform = transform.from_bounds(*eopatch.bbox, width=dst_shape[2], height=dst_shape[1])
 
         if self.feature_name in eopatch[self.feature_type.value]:
-            raster = eopatch.get_feature(self.feature_type, self.feature_name)
+            raster = eopatch.get_feature(self.feature_type, self.feature_name).squeeze()
         else:
-            raster = np.ones((dst_shape[1:3]+(1,)), dtype=self.raster_dtype) * self.no_data_value
+            raster = np.ones(dst_shape[1:3], dtype=self.raster_dtype) * self.no_data_value
 
         if not bbox_map.empty:
             features.rasterize([(bbox_map.cascaded_union.buffer(0), self.raster_value)], out=raster,
                                transform=dst_transform, dtype=self.raster_dtype)
 
-        eopatch.add_feature(self.feature_type, self.feature_name, raster)
+        eopatch.add_feature(self.feature_type, self.feature_name, raster[..., np.newaxis])
 
         return eopatch
