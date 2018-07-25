@@ -3,3 +3,5 @@ networkx
 pydot
 graphviz
 matplotlib
+jinja2
+pygments
