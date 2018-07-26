@@ -32,9 +32,6 @@ class EOExecutor:
         if out_dir is None:
             out_dir = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
 
-        if not os.path.isdir(out_dir):
-            os.mkdir(out_dir)
-
         self.out_dir = out_dir
         self.executions_logs = None
         self.executions_info = None
@@ -43,18 +40,24 @@ class EOExecutor:
         """
         Run the executor with n workers.
 
+        In a Jupyter Notebook on Windows it raises the following error:
+            BrokenProcessPool: A process in the process pool was terminated
+            abruptly while the future was running or pending.
+
         :type workers: int
         """
+        if not os.path.isdir(self.out_dir):
+            os.mkdir(self.out_dir)
+
         log_paths = []
 
         for idx in range(len(self.executions_args)):
-            log_path = os.path.join(self.out_dir, "execution-{}.log".format(idx))
+            log_paths.append(os.path.join(self.out_dir,
+                                          "execution-{}.log".format(idx)))
 
-            log_paths.append(log_path)
+        future2idx = {}
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-            future2idx = {}
-
             for idx, (exec_args, log_path) in enumerate(zip(self.executions_args,
                                                             log_paths)):
                 future = executor.submit(self._execute_workflow,
@@ -67,13 +70,13 @@ class EOExecutor:
             self.executions_logs = [None for _ in range (len(self.executions_args))]
             self.executions_info = [None for _ in range (len(self.executions_args))]
 
-            for future in concurrent.futures.as_completed(future2idx):
-                idx = future2idx[future]
+        for future in concurrent.futures.as_completed(future2idx):
+            idx = future2idx[future]
 
-                self.executions_info[idx] = future.result()
+            self.executions_info[idx] = future.result()
 
-                with open(log_paths[idx]) as fin:
-                    self.executions_logs[idx] = fin.read()
+            with open(log_paths[idx]) as fin:
+                self.executions_logs[idx] = fin.read()
 
     @classmethod
     def _execute_workflow(cls, workflow, input_args, log_path):
@@ -101,7 +104,7 @@ class EOExecutor:
 
         return handler
 
-    def make_report(self):
+    def create_html_report(self):
         """
         Make a html report in the dir where logs are stored.
         """
@@ -117,15 +120,17 @@ class EOExecutor:
 
         template = self._get_template()
         html_fpath = os.path.join(self.out_dir, 'report.html')
-        html_out = template.render(dependency_graph=dependency_graph,
-                                   tasks_info=tasks_info,
-                                   tasks_source=tasks_source,
-                                   executions_info=executions_info,
-                                   executions_logs=self.executions_logs,
-                                   code_css=formatter.get_style_defs())
+        html = template.render(dependency_graph=dependency_graph,
+                               tasks_info=tasks_info,
+                               tasks_source=tasks_source,
+                               executions_info=executions_info,
+                               executions_logs=self.executions_logs,
+                               code_css=formatter.get_style_defs())
 
         with open(html_fpath, 'w') as fout:
-            fout.write(html_out)
+            fout.write(html)
+
+        return html
 
     def _create_dependency_graph(self):
         dot = self.workflow.get_dot()
@@ -162,15 +167,21 @@ class EOExecutor:
         sources = {}
 
         for task in self.workflow.id2task.values():
-            if not task.__module__.startswith("eolearn"):
-                key = "{} ({})".format(task.__class__.__name__,
-                                       task.__module__)
+            if task.__module__.startswith("eolearn"):
+                continue
 
-                if key in sources:
-                    continue
+            key = "{} ({})".format(task.__class__.__name__,
+                                   task.__module__)
 
+            if key in sources:
+                continue
+
+            try:
                 source = inspect.getsource(task.__class__)
-                sources[key] = highlight(source, lexer, formatter)
+            except TypeError as err:
+                source = traceback.format_exc()
+
+            sources[key] = highlight(source, lexer, formatter)
 
         return sources
 
@@ -192,7 +203,7 @@ class EOExecutor:
     @classmethod
     def _get_template(cls):
         templates_dir = os.path.join(os.path.dirname(__file__),
-                                    'report_templates')
+                                     'report_templates')
         env = Environment(loader=FileSystemLoader(templates_dir))
 
         env.filters['datetime'] = cls._datetimeformat

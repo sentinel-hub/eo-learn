@@ -17,16 +17,16 @@
 
     <h2>Tasks</h2>
 
-    {% for task_title, task_args in core_tasks_info.items() %}
-        <h3>{{ task_title }}</h3>
+    {% for task in tasks_info %}
+        <h3>{{ task['title'] }}</h3>
         <ul>
-            {% for key, value in task_args.items() %}
+            {% for key, value in task['args'].items() %}
                 <li>{{ key }} = {{ value }}</li>
             {% endfor %}
         </ul>
     {% endfor %}
 
-    {% for task_title, task_source in other_tasks_info.items() %}
+    {% for task_title, task_source in tasks_source.items() %}
         <h3>{{ task_title }}</h3>
         {{ task_source }}
    {% endfor %}
