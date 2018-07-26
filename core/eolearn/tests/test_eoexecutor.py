@@ -92,7 +92,7 @@ class TestEOExecutor(unittest.TestCase):
         out_dir = 'dir'
         executor = EOExecutor(workflow, executions_args, out_dir)
         executor.run()
-        executor.make_report()
+        executor.create_html_report()
 
         report_path = os.path.join(out_dir, 'report.html')
         self.assertTrue(os.path.exists(report_path))
