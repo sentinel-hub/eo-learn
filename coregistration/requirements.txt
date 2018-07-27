@@ -1,4 +1,3 @@
 eo-learn-core
-opencv-python
-opencv-contrib-python
+opencv-contrib-python-headless
 thunder-registration
