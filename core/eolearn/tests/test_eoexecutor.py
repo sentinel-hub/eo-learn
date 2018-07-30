@@ -10,15 +10,18 @@ from eolearn.core.eoexecution import EOExecutor
 
 logging.basicConfig(level=logging.DEBUG)
 
+
 class ExampleTask(EOTask):
 
     def execute(self):
         pass
 
+
 class RaiserErrorTask(EOTask):
 
     def execute(self):
         raise Exception()
+
 
 class TestEOExecutor(unittest.TestCase):
 
@@ -97,6 +100,7 @@ class TestEOExecutor(unittest.TestCase):
         report_path = os.path.join(out_dir, 'report.html')
         self.assertTrue(os.path.exists(report_path))
         shutil.rmtree(out_dir)
+
 
 if __name__ == '__main__':
     unittest.main()
