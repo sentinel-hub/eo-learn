@@ -530,8 +530,14 @@ class EOPatch:
         """
         eopatch_content = {}
 
-        timestamps_match = eopatch1.timestamp and eopatch2.timestamp and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
+        timestamps_exist = eopatch1.timestamp and eopatch2.timestamp
+        timestamps_match = timestamps_exist and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
 
+        """
+        if not timestamps_match and timestamps_exist and eopatch1.timestamp[-1] >= eopatch2.timestamp[0]:
+            raise ValueError('Could not merge timestamps because any timestamp of the first EOPatch must be before any'
+                             'timestamp of the second EOPatch')
+        """
         for feature_type in FeatureType:
             if feature_type.has_dict():
                 eopatch_content[feature_type.value] = {**eopatch1[feature_type], **eopatch2[feature_type]}
@@ -546,7 +552,7 @@ class EOPatch:
                         raise ValueError('Could not merge ({}, {}) feature because values differ'.format(feature_type,
                                                                                                          feature_name))
 
-            elif feature_type is FeatureType.TIMESTAMP and timestamps_match:
+            elif feature_type is FeatureType.TIMESTAMP and timestamps_exist and not timestamps_match:
                 eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
             else:
                 if not eopatch1[feature_type] or deep_eq(eopatch1[feature_type], eopatch2[feature_type]):
