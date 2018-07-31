@@ -123,14 +123,29 @@ class TestEOPatch(unittest.TestCase):
             eop = eop1 + eop2
 
     def test_equals(self):
-        eop1 = EOPatch(data={'bands': np.arange(2*3*3*2).reshape(2, 3, 3, 2)})
-        eop2 = EOPatch(data={'bands': np.arange(2*3*3*2).reshape(2, 3, 3, 2)})
+        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
+        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
+        self.assertEqual(eop1, eop2)
 
-        self.assertTrue(eop1 == eop2)
+        eop1.data['bands'][1, ...] = np.nan
+        self.assertNotEqual(eop1, eop2)
 
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'dem', np.arange(3*3*2).reshape(3, 3, 2))
+        eop2.data['bands'][1, ...] = np.nan
+        self.assertEqual(eop1, eop2)
 
-        self.assertFalse(eop1 == eop2)
+        eop1.data['bands'] = np.reshape(eop1.data['bands'], (2, 3, 2, 3))
+        self.assertNotEqual(eop1, eop2)
+
+        eop2.data['bands'] = np.reshape(eop2.data['bands'], (2, 3, 2, 3))
+        eop1.data['bands'] = eop1.data['bands'].astype(np.float16)
+        self.assertNotEqual(eop1, eop2)
+
+        del eop1.data['bands']
+        del eop2.data['bands']
+        self.assertEqual(eop1, eop2)
+
+        eop1.add_feature(FeatureType.DATA_TIMELESS, 'dem', np.arange(3 * 3 * 2).reshape(3, 3, 2))
+        self.assertNotEqual(eop1, eop2)
 
     def test_timestamp_consolidation(self):
         # 10 frames
