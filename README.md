@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/sentinel-hub/eo-learn.svg?branch=master)](https://travis-ci.org/sentinel-hub/eo-learn)
+[![Docs status](https://readthedocs.org/projects/eo-learn/badge/?version=latest)](https://eo-learn.readthedocs.io)
 
 # eo-learn
 **`eo-learn` makes extraction of valuable information from satellite imagery easy.**
@@ -279,6 +280,12 @@ To install all packages at once you can download the repository and call
 ```bash
 python install_all.py
 ```
+
+---
+
+## Documentation
+
+For more information on the package content, visit [readthedocs](https://eo-learn.readthedocs.io/).
 
 ---
 
