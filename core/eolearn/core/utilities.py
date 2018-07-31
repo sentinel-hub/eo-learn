@@ -51,7 +51,12 @@ def deep_eq(fst_obj, snd_obj):
         return False
 
     if isinstance(fst_obj, np.ndarray):
-        return np.array_equal(fst_obj, snd_obj)
+        if fst_obj.dtype != snd_obj.dtype:
+            return False
+        fst_nan_mask = np.isnan(fst_obj)
+        snd_nan_mask = np.isnan(snd_obj)
+        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
+            np.array_equal(fst_nan_mask, snd_nan_mask)
 
     if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):
