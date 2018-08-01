@@ -13,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 import networkx as nx
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
-from pygments.formatters import HtmlFormatter
+from pygments.formatters.html import HtmlFormatter
 
 
 if os.environ.get('DISPLAY', '') == '':
@@ -94,7 +94,7 @@ class EOExecutor:
 
         try:
             _ = workflow.execute(input_args)
-        except:
+        except BaseException:
             info['error'] = traceback.format_exc()
 
         info['end_time'] = datetime.now()
