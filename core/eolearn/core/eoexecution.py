@@ -17,15 +17,15 @@ from pygments.formatters import HtmlFormatter
 
 
 class EOExecutor:
+    """
+    Simultaneously executes a workflow with different input arguments.
+
+    Can also create a html report.
+
+    :type workflow: Workflow
+    :type executions_args: List[Dict]
+    """
     def __init__(self, workflow, executions_args, out_dir=None):
-        """
-        Simultaneously executes a workflow with different input arguments.
-
-        Can also create a html report.
-
-        :type workflow: Workflow
-        :type executions_args: List[Dict]
-        """
         self.workflow = workflow
         self.executions_args = executions_args
 

@@ -29,7 +29,8 @@ from inspect import getfullargspec
 from copy import deepcopy
 from collections import OrderedDict
 
-from .eodata import FeatureType
+from .feature_types import FeatureType
+from .utilities import FeatureParser
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +63,20 @@ class EOTask(ABC):
         """ EOTask is callable like a function
         """
         return self.execute(*eopatches, **kwargs)
+
+    @staticmethod
+    def _parse_features(features, new_names=False):
+        """
+
+        :param features: A collection of features in one of the supported formats
+        :type features: object
+        :param new_names: `True` if a collection
+        :type new_names: bool
+        :return: An iterator
+        :rtype: FeatureParser
+        :raises: ValueError
+        """
+        return FeatureParser(features, new_names=new_names)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
