@@ -2,6 +2,9 @@
 A collection of most basic EOTasks
 """
 
+import os.path
+
+from .eodata import EOPatch
 from .eotask import EOTask, FeatureTask
 
 
@@ -89,4 +92,49 @@ class RemoveFeature(FeatureTask):
         """
         eopatch.remove_feature(self.feature_type, self.feature_name)
 
+        return eopatch
+
+
+class SaveToDisk(EOTask):
+    """ Saves EOPatch to disk.
+
+    :param folder: root directory where all EOPatches are saved
+    :type folder: str
+    """
+
+    def __init__(self, folder):
+        self.folder = folder.rstrip('/')
+
+    def execute(self, eopatch, *, eopatch_folder):
+        """ Saves the EOPatch to disk: `folder/eopatch_folder`.
+
+        :param eopatch: EOPatch which will be saved
+        :type eopatch: eolearn.core.EOPatch
+        :param eopatch_folder: name of EOPatch folder containing data
+        :type eopatch_folder: str
+        :return: The same EOPatch
+        :rtype: eolearn.core.EOPatch
+        """
+        eopatch.save(os.path.join(self.folder, eopatch_folder))
+        return eopatch
+
+
+class LoadFromDisk(EOTask):
+    """ Loads EOPatch from disk.
+
+    :param folder: root directory where all EOPatches are saved
+    :type folder: str
+    """
+    def __init__(self, folder):
+        self.folder = folder.rstrip('/')
+
+    def execute(self, *, eopatch_folder):
+        """ Loads the EOPatch from disk: `folder/eopatch_folder`.
+
+        :param eopatch_folder: name of EOPatch folder containing data
+        :type eopatch_folder: str
+        :return: EOPatch loaded from disk
+        :rtype: eolearn.core.EOPatch
+        """
+        eopatch = EOPatch.load(os.path.join(self.folder, eopatch_folder))
         return eopatch
