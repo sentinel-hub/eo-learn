@@ -8,12 +8,17 @@ from io import StringIO, BytesIO
 import base64
 import copy
 
+import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 import networkx as nx
-import matplotlib.pyplot as plt
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
+
+
+if os.environ.get('DISPLAY', '') == '':
+    print('no display found. Using non-interactive Agg backend')
+    plt.switch_backend('Agg')
 
 
 class EOExecutor:
@@ -67,8 +72,8 @@ class EOExecutor:
 
                 future2idx[future] = idx
 
-            self.executions_logs = [None for _ in range (len(self.executions_args))]
-            self.executions_info = [None for _ in range (len(self.executions_args))]
+            self.executions_logs = [None for _ in range(len(self.executions_args))]
+            self.executions_info = [None for _ in range(len(self.executions_args))]
 
         for future in concurrent.futures.as_completed(future2idx):
             idx = future2idx[future]
@@ -178,7 +183,7 @@ class EOExecutor:
 
             try:
                 source = inspect.getsource(task.__class__)
-            except TypeError as err:
+            except TypeError:
                 source = traceback.format_exc()
 
             sources[key] = highlight(source, lexer, formatter)
