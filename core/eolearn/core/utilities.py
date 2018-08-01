@@ -56,6 +56,7 @@ def deep_eq(fst_obj, snd_obj):
 
         fst_nan_mask = np.isnan(fst_obj)
         snd_nan_mask = np.isnan(snd_obj)
+
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
 
