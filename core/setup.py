@@ -25,6 +25,7 @@ setup(name='eo-learn-core',
       author_email='info@sinergise.com',
       license='MIT',
       packages=find_packages(),
+      package_data={'eolearn': ['eolearn/core/report_templates']},
       include_package_data=True,
       install_requires=parse_requirements("requirements.txt"),
       zip_safe=False)
