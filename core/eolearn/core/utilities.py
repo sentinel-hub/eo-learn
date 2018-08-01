@@ -47,11 +47,12 @@ def deep_eq(fst_obj, snd_obj):
     :return: `True` if objects are deeply equal, `False` otherwise
     """
     # pylint: disable=too-many-return-statements
+    if isinstance(fst_obj, (np.ndarray, np.memmap)) and \
+            isinstance(snd_obj, (np.ndarray, np.memmap)):
+        return np.array_equal(fst_obj, snd_obj)
+
     if not isinstance(fst_obj, type(snd_obj)):
         return False
-
-    if isinstance(fst_obj, np.ndarray):
-        return np.array_equal(fst_obj, snd_obj)
 
     if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):

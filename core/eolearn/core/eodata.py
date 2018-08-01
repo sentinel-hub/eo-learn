@@ -7,6 +7,7 @@ import logging
 import pickle
 import numpy as np
 import gzip
+import shutil
 
 from enum import Enum
 from copy import copy, deepcopy
@@ -592,18 +593,22 @@ class EOPatch:
             raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
         return np.concatenate((data1, data2), axis=0)
 
-    def save(self, path, feature_list=None, file_format='pickle', compress=False):
+    def save(self, path, feature_list=None, file_format='pickle',
+             compress=False, overwrite_format=False):
         """ Saves EOPatch to disk.
 
         :param path: Location on the disk
         :type path: str
-        :param feature_list: List of features types specifying features of which type will be saved. If set to `None`
+        :param feature_list: List of features types specifying features of
+                             which type will be saved. If set to `None`
         all features will be saved.
         :type feature_list: list(FeatureType) or None
         :param file_format: File format
         :type file_format: str or FileFormat
-        :param compress: Compress features. Can only be used with npy file_format
+        :param compress: Compress features. Only used with npy file_format
         :type compress: bool
+        :param overwrite_format: Overrides format if different
+        :type overwrite_format: bool
         """
         if not os.path.exists(path):
             os.makedirs(path)
@@ -611,14 +616,11 @@ class EOPatch:
             LOGGER.warning('Overwriting data in %s', path)
 
         file_format = FileFormat(file_format)
-        ftype_paths = self._get_file_paths(path, NPY_SUPPORTED_FTYPES)
 
-        if file_format == FileFormat.PICKLE and \
-                any([os.path.isdir(p) for p in ftype_paths]):
-            raise Exception("Cannot save in a different format")
-        elif file_format == FileFormat.NPY and \
-                any([os.path.isfile(p) for p in ftype_paths]):
-            raise Exception("Cannot save in a different format")
+        if overwrite_format:
+            self._remove_eopatch_files(path)
+        else:
+            self._assert_same_format(path, file_format)
 
         if feature_list is None:
             feature_list = list(FeatureType)
@@ -656,13 +658,37 @@ class EOPatch:
                     file_handle.close()
 
     @staticmethod
-    def load(path, feature_list=None):
+    def _remove_eopatch_files(path):
+        feature_list = list(FeatureType)
+        feature_paths = EOPatch._get_file_paths(path, feature_list)
+
+        for feature_path in feature_paths:
+            if os.path.isdir(feature_path):
+                shutil.rmtree(feature_path)
+            elif os.path.isfile(feature_path):
+                os.remove(feature_path)
+
+    @staticmethod
+    def _assert_same_format(path, file_format):
+        ftype_paths = EOPatch._get_file_paths(path, NPY_SUPPORTED_FTYPES)
+
+        if file_format == FileFormat.PICKLE and \
+                any([os.path.isdir(p) for p in ftype_paths]):
+            raise Exception("Cannot save in a different format")
+        elif file_format == FileFormat.NPY and \
+                any([os.path.isfile(p) for p in ftype_paths]):
+            raise Exception("Cannot save in a different format")
+
+    @staticmethod
+    def load(path, feature_list=None, mmap=True):
         """ Loads EOPatch from disk.
 
         :param path: Location on the disk
         :type path: str
         :param feature_list: List of features to be loaded. If set to None all features will be loaded.
         :type feature_list: list(FeatureType) or None
+        :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
+        :type path: bool
         :return: Loaded EOPatch
         :rtype: EOPatch
         """
@@ -688,25 +714,32 @@ class EOPatch:
                     with open(ftype_path, "rb") as infile:
                         eopatch_content[feature_type.value] = pickle.load(infile)
             else:
-                data = {}
-                for file_name in os.listdir(ftype_path):
-                    file_path = os.path.join(ftype_path, file_name)
-
-                    if file_name.endswith('.npy'):
-                        feature_name = file_name[:-4]
-                        file_handle = open(file_path, 'rb')
-                    elif file_name.endswith('.npy.gz'):
-                        feature_name = file_name[:-7]
-                        file_handle = gzip.open(file_path)
-                    else:
-                        continue
-
-                    data[feature_name] = np.load(file_handle)
-                    file_handle.close()
-
-                eopatch_content[feature_type.value] = data
+                eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, mmap)
 
         return EOPatch(**eopatch_content)
+
+    @staticmethod
+    def _load_npy_feature_type(ftype_path, mmap=True):
+        data = {}
+        for file_name in os.listdir(ftype_path):
+            file_path = os.path.join(ftype_path, file_name)
+
+            if file_name.endswith('.npy'):
+                feature_name = file_name[:-4]
+
+                if mmap:
+                    feature = np.load(file_path, mmap_mode='r')
+                else:
+                    feature = np.load(file_path)
+            elif file_name.endswith('.npy.gz'):
+                feature_name = file_name[:-7]
+                feature = np.load(gzip.open(file_path))
+            else:
+                continue
+
+            data[feature_name] = feature
+
+        return data
 
     @staticmethod
     def _get_file_format(path):
