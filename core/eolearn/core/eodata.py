@@ -7,187 +7,13 @@ import logging
 import pickle
 import numpy as np
 
-from enum import Enum
 from copy import copy, deepcopy
 
+from .feature_types import FeatureType
 from .utilities import deep_eq
 
 
 LOGGER = logging.getLogger(__name__)
-
-
-class FeatureType(Enum):
-    """
-    The Enum class of all possible feature types that can be included in EOPatch:
-     - DATA with shape t x n x m x d: time- and position-dependent remote sensing data (e.g. bands) of type float
-     - MASK with shape t x n x m x d': time- and position-dependent mask (e.g. ground truth, cloud/shadow mask,
-       super pixel identifier) of type int
-     - SCALAR with shape t x s: time-dependent and position-independent remote sensing data (e.g. weather data,) of type
-       float
-     - LABEL with shape t x s': time-dependent and position-independent label (e.g. ground truth) of type int
-     - VECTOR: a list of time-dependent vector shapes in shapely.geometry classes
-     - DATA_TIMELESS with shape n x m x d'': time-independent and position-dependent remote sensing data (e.g.
-       elevation model) of type float
-     - MASK_TIMELESS with shape n x m x d''': time-independent and position-dependent mask (e.g. ground truth,
-       region of interest mask) of type int
-     - SCALAR_TIMELESS with shape s'':  time-independent and position-independent remote sensing data of type float
-     - LABEL_TIMELESS with shape s''': time-independent and position-independent label of type int
-     - VECTOR_TIMELESS: time-independent vector shapes in shapely.geometry classes
-     - META_INFO: dictionary of additional info (e.g. resolution, time difference)
-     - BBOX: bounding box of the patch which is an instance of sentinelhub.BBox
-     - TIMESTAMP: list of dates which are instances of datetime.datetime
-    """
-    # IMPORTANT: these feature names must exactly match those in EOPatch constructor
-    DATA = 'data'
-    MASK = 'mask'
-    SCALAR = 'scalar'
-    LABEL = 'label'
-    VECTOR = 'vector'
-    DATA_TIMELESS = 'data_timeless'
-    MASK_TIMELESS = 'mask_timeless'
-    SCALAR_TIMELESS = 'scalar_timeless'
-    LABEL_TIMELESS = 'label_timeless'
-    VECTOR_TIMELESS = 'vector_timeless'
-    META_INFO = 'meta_info'
-    BBOX = 'bbox'
-    TIMESTAMP = 'timestamp'
-
-    @classmethod
-    def has_value(cls, value):
-        """ Checks if value is in FeatureType values
-        """
-        return any(value == item.value for item in cls)
-
-    def is_spatial(self):
-        """Tells if FeatureType has a spatial component
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: `True` if feature type has a spatial component and `False` otherwise.
-        :rtype: bool
-        """
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.DATA_TIMELESS,
-                                  FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS])
-
-    def is_time_dependent(self):
-        """Tells if FeatureType has a time component
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: `True` if feature type has a time component and `False` otherwise.
-        :rtype: bool
-        """
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                                  FeatureType.VECTOR])
-
-    def is_discrete(self):
-        """Tells if FeatureType should have discrete (integer) values
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: `True` if feature type should have discrete values and `False` otherwise.
-        :rtype: bool
-        """
-        return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
-                                  FeatureType.LABEL_TIMELESS])
-
-    def is_vector(self):
-        """Tells if FeatureType is vector feature type
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: `True` if feature type vector feature type and `False` otherwise.
-        :rtype: bool
-        """
-        return self in frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
-
-    def has_dict(self):
-        """Tells if FeatureType stores a dictionary
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: `True` if feature type stores a dictionary and `False` otherwise.
-        :rtype: bool
-        """
-        return self not in frozenset([FeatureType.TIMESTAMP, FeatureType.BBOX])
-
-    def contains_ndarrays(self):
-        """Tells if FeatureType stores a dictionary of numpy.ndarrays
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: `True` if feature type stores a dictionary of numpy.ndarrays and `False` otherwise.
-        :rtype: bool
-        """
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                                  FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
-                                  FeatureType.LABEL_TIMELESS])
-
-    def ndim(self):
-        """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays
-
-        :param self: A feature type
-        :type self: FeatureType
-        :return: Number of dimensions of numpy.ndarrays or None if FeatureType doesn't store numpy.ndarrays
-        :rtype: int or None
-        """
-        if self.contains_ndarrays():
-            return {
-                FeatureType.DATA: 4,
-                FeatureType.MASK: 4,
-                FeatureType.SCALAR: 2,
-                FeatureType.LABEL: 2,
-                FeatureType.DATA_TIMELESS: 3,
-                FeatureType.MASK_TIMELESS: 3,
-                FeatureType.SCALAR_TIMELESS: 1,
-                FeatureType.LABEL_TIMELESS: 1
-            }[self]
-        return None
-
-    def type(self):
-        """Provides type of the data for the given FeatureType
-
-        :return: A type of data
-        """
-        if self is FeatureType.TIMESTAMP:
-            return list
-        if self is FeatureType.BBOX:
-            return object
-        return dict
-
-
-class FeatureDict(dict):
-    """A dictionary structure that holds features of certain feature type. It also check that features have a correct
-    dimension
-
-    :param feature_dict: A dictionary of feature names and values
-    :type feature_dict: dict(str: object)
-    :param feature_type: Type of features
-    :type feature_type: FeatureType
-    """
-    def __init__(self, feature_dict, feature_type):
-        super(FeatureDict, self).__init__()
-
-        self.feature_type = feature_type
-        self.ndim = self.feature_type.ndim()
-
-        for feature_name, value in feature_dict.items():
-            self[feature_name] = value
-
-    def __setitem__(self, feature_name, value):
-        """ Before setting value to the dictionary it checks that value is of correct type and dimension
-        """
-        if self.ndim and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
-            raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
-        super(FeatureDict, self).__setitem__(feature_name, value)
-
-    def get_dict(self):
-        """ Returns a normal dictionary of features and value
-
-        :return: A normal dictionary class
-        :rtype: dict(str: object)
-        """
-        return dict(self)
 
 
 class EOPatch:
@@ -262,15 +88,15 @@ class EOPatch:
 
     def __setattr__(self, key, value):
         """Before attribute is set it is checked that feature type attributes are of correct type and in case they
-        are a dictionary they are cast to FeatureDict class
+        are a dictionary they are cast to _FeatureDict class
         """
         if FeatureType.has_value(key):
             feature_type = FeatureType(key)
             value_type = feature_type.type()
             if not isinstance(value, value_type):
                 raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
-            if feature_type.has_dict() and not isinstance(value, FeatureDict):
-                value = FeatureDict(value, feature_type)
+            if feature_type.has_dict() and not isinstance(value, _FeatureDict):
+                value = _FeatureDict(value, feature_type)
 
         super(EOPatch, self).__setattr__(key, value)
 
@@ -530,7 +356,12 @@ class EOPatch:
         """
         eopatch_content = {}
 
-        timestamps_match = eopatch1.timestamp and eopatch2.timestamp and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
+        timestamps_exist = eopatch1.timestamp and eopatch2.timestamp
+        timestamps_match = timestamps_exist and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
+
+        # if not timestamps_match and timestamps_exist and eopatch1.timestamp[-1] >= eopatch2.timestamp[0]:
+        #     raise ValueError('Could not merge timestamps because any timestamp of the first EOPatch must be before '
+        #                      'any timestamp of the second EOPatch')
 
         for feature_type in FeatureType:
             if feature_type.has_dict():
@@ -546,7 +377,7 @@ class EOPatch:
                         raise ValueError('Could not merge ({}, {}) feature because values differ'.format(feature_type,
                                                                                                          feature_name))
 
-            elif feature_type is FeatureType.TIMESTAMP and timestamps_match:
+            elif feature_type is FeatureType.TIMESTAMP and timestamps_exist and not timestamps_match:
                 eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
             else:
                 if not eopatch1[feature_type] or deep_eq(eopatch1[feature_type], eopatch2[feature_type]):
@@ -698,3 +529,37 @@ class EOPatch:
 
         self.timestamp = good_timestamps
         return remove_from_patch
+
+
+class _FeatureDict(dict):
+    """A dictionary structure that holds features of certain feature type. It also check that features have a correct
+    dimension
+
+    :param feature_dict: A dictionary of feature names and values
+    :type feature_dict: dict(str: object)
+    :param feature_type: Type of features
+    :type feature_type: FeatureType
+    """
+    def __init__(self, feature_dict, feature_type):
+        super(_FeatureDict, self).__init__()
+
+        self.feature_type = feature_type
+        self.ndim = self.feature_type.ndim()
+
+        for feature_name, value in feature_dict.items():
+            self[feature_name] = value
+
+    def __setitem__(self, feature_name, value):
+        """ Before setting value to the dictionary it checks that value is of correct type and dimension
+        """
+        if self.ndim and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
+            raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
+        super(_FeatureDict, self).__setitem__(feature_name, value)
+
+    def get_dict(self):
+        """ Returns a normal dictionary of features and value
+
+        :return: A normal dictionary class
+        :rtype: dict(str: object)
+        """
+        return dict(self)

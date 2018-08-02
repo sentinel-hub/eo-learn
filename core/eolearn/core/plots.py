@@ -5,7 +5,7 @@ Module for creating plots and visualisations
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .eodata import FeatureType
+from .feature_types import FeatureType
 from .eotask import EOTask
 
 
