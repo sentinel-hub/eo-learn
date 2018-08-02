@@ -1,23 +1,34 @@
+"""
+The module handles execution and monitoring of workflows. It enables executing a workflow multiple times and in
+parallel. It monitors execution times and handles any error that might occur in the process. At the end it generates a
+report which contains summary of the workflow and process of execution.
+
+All this is implemented in EOExecutor class.
+"""
+
 import os
 import logging
 import concurrent.futures
-from datetime import datetime
 import traceback
 import inspect
-from io import StringIO, BytesIO
-import base64
-import copy
 
 import matplotlib.pyplot as plt
-from jinja2 import Environment, FileSystemLoader
 import networkx as nx
+
+from base64 import b64encode
+from copy import deepcopy
+from datetime import datetime
+from io import StringIO, BytesIO
+from jinja2 import Environment, FileSystemLoader
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters.html import HtmlFormatter
 
 
+LOGGER = logging.getLogger(__file__)
+
 if os.environ.get('DISPLAY', '') == '':
-    print('no display found. Using non-interactive Agg backend')
+    LOGGER.info('No display found, using non-interactive Agg backend')
     plt.switch_backend('Agg')
 
 
@@ -148,7 +159,7 @@ class EOExecutor:
         nx.draw_spectral(graph, with_labels=True)
         plt.savefig(image, format='png')
 
-        return base64.b64encode(image.getvalue()).decode()
+        return b64encode(image.getvalue()).decode()
 
     def _get_tasks_info(self):
         infos = []
@@ -196,7 +207,7 @@ class EOExecutor:
         executions_info = []
 
         for info_orig in self.executions_info:
-            info = copy.deepcopy(info_orig)
+            info = deepcopy(info_orig)
 
             if 'error' in info:
                 info['error'] = highlight(info['error'], tb_lexer, formatter)
