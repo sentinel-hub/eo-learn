@@ -1,23 +1,34 @@
+"""
+The module handles execution and monitoring of workflows. It enables executing a workflow multiple times and in
+parallel. It monitors execution times and handles any error that might occur in the process. At the end it generates a
+report which contains summary of the workflow and process of execution.
+
+All this is implemented in EOExecutor class.
+"""
+
 import os
 import logging
 import concurrent.futures
-from datetime import datetime
 import traceback
 import inspect
-from io import StringIO, BytesIO
-import base64
-import copy
 
 import matplotlib.pyplot as plt
-from jinja2 import Environment, FileSystemLoader
 import networkx as nx
+
+from base64 import b64encode
+from copy import deepcopy
+from datetime import datetime
+from io import StringIO, BytesIO
+from jinja2 import Environment, FileSystemLoader
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters.html import HtmlFormatter
 
 
+LOGGER = logging.getLogger(__file__)
+
 if os.environ.get('DISPLAY', '') == '':
-    print('no display found. Using non-interactive Agg backend')
+    LOGGER.info('No display found, using non-interactive Agg backend')
     plt.switch_backend('Agg')
 
 
@@ -27,21 +38,22 @@ class EOExecutor:
 
     Can also create a html report.
 
-    :type workflow: Workflow
-    :type executions_args: List[Dict]
+    :param workflow:
+    :type workflow: EOWorkflow
+    :type executions_args: list(dict)
     """
-    def __init__(self, workflow, executions_args, out_dir=None):
+    REPORT_FILENAME = 'report.html'
+
+    def __init__(self, workflow, executions_args, save_logs=True, file_path='.'):
         self.workflow = workflow
         self.executions_args = executions_args
+        self.save_logs = save_logs  # TODO: include this in code
+        self.report_folder = self._get_report_folder(file_path)
 
-        if out_dir is None:
-            out_dir = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
-
-        self.out_dir = out_dir
         self.executions_logs = None
         self.executions_info = None
 
-    def run(self, workers=1):
+    def run(self, workers=1):  # TODO: don't parallelize if workers=1
         """
         Run the executor with n workers.
 
@@ -51,20 +63,15 @@ class EOExecutor:
 
         :type workers: int
         """
-        if not os.path.isdir(self.out_dir):
-            os.mkdir(self.out_dir)
+        if self.save_logs and not os.path.isdir(self.report_folder):
+            os.mkdir(self.report_folder)
 
-        log_paths = []
-
-        for idx in range(len(self.executions_args)):
-            log_paths.append(os.path.join(self.out_dir,
-                                          "execution-{}.log".format(idx)))
+        log_paths = [self._get_log_filename(idx) for idx in range(len(self.executions_args))]
 
         future2idx = {}
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-            for idx, (exec_args, log_path) in enumerate(zip(self.executions_args,
-                                                            log_paths)):
+            for idx, (exec_args, log_path) in enumerate(zip(self.executions_args, log_paths)):
                 future = executor.submit(self._execute_workflow,
                                          self.workflow,
                                          exec_args,
@@ -72,8 +79,8 @@ class EOExecutor:
 
                 future2idx[future] = idx
 
-            self.executions_logs = [None for _ in range(len(self.executions_args))]
-            self.executions_info = [None for _ in range(len(self.executions_args))]
+        self.executions_logs = [None] * len(self.executions_args)
+        self.executions_info = [None] * len(self.executions_args)
 
         for future in concurrent.futures.as_completed(future2idx):
             idx = future2idx[future]
@@ -86,6 +93,7 @@ class EOExecutor:
     @classmethod
     def _execute_workflow(cls, workflow, input_args, log_path):
         logger = logging.getLogger()
+
         logger.setLevel(logging.DEBUG)
         handler = cls._get_log_handler(log_path)
         logger.addHandler(handler)
@@ -109,7 +117,17 @@ class EOExecutor:
 
         return handler
 
-    def create_html_report(self):
+    @staticmethod
+    def _get_report_folder(file_path):
+        return os.path.join(file_path, 'eoexecution-report-{}'.format(datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
+
+    def _get_log_filename(self, value):
+        return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(value))
+
+    def _get_report_filename(self):
+        return os.path.join(self.report_folder, self.REPORT_FILENAME)
+
+    def make_report(self):
         """
         Make a html report in the dir where logs are stored.
         """
@@ -124,7 +142,7 @@ class EOExecutor:
         executions_info = self._render_executions_error(formatter)
 
         template = self._get_template()
-        html_fpath = os.path.join(self.out_dir, 'report.html')
+
         html = template.render(dependency_graph=dependency_graph,
                                tasks_info=tasks_info,
                                tasks_source=tasks_source,
@@ -132,7 +150,7 @@ class EOExecutor:
                                executions_logs=self.executions_logs,
                                code_css=formatter.get_style_defs())
 
-        with open(html_fpath, 'w') as fout:
+        with open(self._get_report_filename(), 'w') as fout:
             fout.write(html)
 
         return html
@@ -148,16 +166,15 @@ class EOExecutor:
         nx.draw_spectral(graph, with_labels=True)
         plt.savefig(image, format='png')
 
-        return base64.b64encode(image.getvalue()).decode()
+        return b64encode(image.getvalue()).decode()
 
     def _get_tasks_info(self):
         infos = []
 
         for task_id, task in self.workflow.id2task.items():
-            info = {}
-            info['title'] = "{}_{} ({})".format(task.__class__.__name__,
-                                                task_id[:6],
-                                                task.__module__)
+            info = {
+                'title': "{}_{} ({})".format(task.__class__.__name__, task_id[:6], task.__module__)
+            }
 
             if hasattr(task, 'init_args'):
                 info['args'] = task.init_args
@@ -175,8 +192,7 @@ class EOExecutor:
             if task.__module__.startswith("eolearn"):
                 continue
 
-            key = "{} ({})".format(task.__class__.__name__,
-                                   task.__module__)
+            key = "{} ({})".format(task.__class__.__name__, task.__module__)
 
             if key in sources:
                 continue
@@ -196,7 +212,7 @@ class EOExecutor:
         executions_info = []
 
         for info_orig in self.executions_info:
-            info = copy.deepcopy(info_orig)
+            info = deepcopy(info_orig)
 
             if 'error' in info:
                 info['error'] = highlight(info['error'], tb_lexer, formatter)
@@ -207,21 +223,21 @@ class EOExecutor:
 
     @classmethod
     def _get_template(cls):
-        templates_dir = os.path.join(os.path.dirname(__file__),
-                                     'report_templates')
+        templates_dir = os.path.join(os.path.dirname(__file__), 'report_templates')
+
         env = Environment(loader=FileSystemLoader(templates_dir))
 
-        env.filters['datetime'] = cls._datetimeformat
-        env.globals.update(timedelta=cls._timedeltaformat)
+        env.filters['datetime'] = cls._datetime_format
+        env.globals.update(timedelta=cls._timedelta_format)
 
-        template = env.get_template("report.html")
+        template = env.get_template(cls.REPORT_FILENAME)
 
         return template
 
     @staticmethod
-    def _datetimeformat(value):
+    def _datetime_format(value):
         return value.strftime('%X %x %Z')
 
     @staticmethod
-    def _timedeltaformat(value1, value2):
+    def _timedelta_format(value1, value2):
         return str(value2 - value1)
