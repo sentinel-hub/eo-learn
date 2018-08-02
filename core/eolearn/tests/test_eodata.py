@@ -173,7 +173,6 @@ class TestEOPatch(unittest.TestCase):
         self.assertTrue(np.array_equal(mask_timeless, eop.mask_timeless['MASK_TIMELESS']))
 
 
-
 class TestFileFormats(unittest.TestCase):
 
     @classmethod
