@@ -197,19 +197,6 @@ class FileFormat(Enum):
     NPY = 'npy'
 
 
-NPY_SUPPORTED_FTYPES = set([
-    FeatureType.DATA,
-    FeatureType.MASK,
-    FeatureType.SCALAR,
-    FeatureType.LABEL,
-    FeatureType.VECTOR,
-    FeatureType.DATA_TIMELESS,
-    FeatureType.MASK_TIMELESS,
-    FeatureType.SCALAR_TIMELESS,
-    FeatureType.LABEL_TIMELESS,
-    FeatureType.VECTOR_TIMELESS])
-
-
 class EOPatch:
     """
     This is the basic data object for multi-temporal remotely sensed data, such as satellite imagery and
@@ -593,8 +580,8 @@ class EOPatch:
             raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
         return np.concatenate((data1, data2), axis=0)
 
-    def save(self, path, feature_list=None, file_format='pickle',
-             compress=False, overwrite_format=False):
+    def save(self, path, feature_list=None, file_format=FileFormat.NPY, compress=False, overwrite_format=False):
+        # TODO: compress parameter can besides True/False also take a compression level
         """ Saves EOPatch to disk.
 
         :param path: Location on the disk
@@ -617,31 +604,29 @@ class EOPatch:
 
         file_format = FileFormat(file_format)
 
-        if overwrite_format:
+        if overwrite_format:  # TODO: remove files only after files in new format are saved
             self._remove_eopatch_files(path)
         else:
             self._assert_same_format(path, file_format)
 
         if feature_list is None:
-            feature_list = list(FeatureType)
+            feature_list = FeatureType
 
         for feature_type in feature_list:
             if not self[feature_type]:
                 LOGGER.debug("Attribute '%s' is None, nothing to serialize", str(feature_type))
                 continue
 
-            if file_format == FileFormat.PICKLE \
-                    or feature_type not in NPY_SUPPORTED_FTYPES:
+            if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
                 file_path = os.path.join(path, FeatureType(feature_type).value)
 
                 with open(file_path, 'wb') as outfile:
                     LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
 
-                    pickle.dump(self[feature_type].get_dict()
-                                if feature_type.has_dict()
-                                else self[feature_type], outfile)
+                    pickle.dump(self[feature_type].get_dict() if feature_type.has_dict() else self[feature_type],
+                                outfile)
 
-            elif file_format == FileFormat.NPY:
+            elif file_format is FileFormat.NPY:
                 dir_path = os.path.join(path, FeatureType(feature_type).value)
                 os.makedirs(dir_path, exist_ok=True)
 
@@ -649,9 +634,9 @@ class EOPatch:
                     file_path = os.path.join(dir_path, feature_name)
 
                     if compress:
-                        file_handle = gzip.GzipFile(file_path + '.npy.gz', 'w')
+                        file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w')
                     else:
-                        file_handle = open(file_path + '.npy', 'wb')
+                        file_handle = open('{}.npy'.format(file_path), 'wb')
 
                     LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
                     np.save(file_handle, feature)
@@ -659,8 +644,7 @@ class EOPatch:
 
     @staticmethod
     def _remove_eopatch_files(path):
-        feature_list = list(FeatureType)
-        feature_paths = EOPatch._get_file_paths(path, feature_list)
+        feature_paths = EOPatch._get_file_paths(path, FeatureType)
 
         for feature_path in feature_paths:
             if os.path.isdir(feature_path):
@@ -670,13 +654,13 @@ class EOPatch:
 
     @staticmethod
     def _assert_same_format(path, file_format):
-        ftype_paths = EOPatch._get_file_paths(path, NPY_SUPPORTED_FTYPES)
+        ftype_paths = EOPatch._get_file_paths(path, [feature_type for feature_type in FeatureType
+                                                     if feature_type.contains_ndarrays()])
 
-        if file_format == FileFormat.PICKLE and \
-                any([os.path.isdir(p) for p in ftype_paths]):
+        if file_format == FileFormat.PICKLE and any([os.path.isdir(p) for p in ftype_paths]):
             raise Exception("Cannot save in a different format")
-        elif file_format == FileFormat.NPY and \
-                any([os.path.isfile(p) for p in ftype_paths]):
+
+        elif file_format == FileFormat.NPY and any([os.path.isfile(p) for p in ftype_paths]):
             raise Exception("Cannot save in a different format")
 
     @staticmethod
@@ -697,9 +681,6 @@ class EOPatch:
 
         file_format = EOPatch._get_file_format(path)
 
-        if feature_list is None:
-            feature_list = [feature_type for feature_type in FeatureType]
-
         eopatch_content = {}
         for feature_type in FeatureType:
             ftype_path = os.path.join(path, FeatureType(feature_type).value)
@@ -707,8 +688,7 @@ class EOPatch:
             if not os.path.exists(ftype_path):
                 continue
 
-            if file_format == FileFormat.PICKLE or \
-                    feature_type not in NPY_SUPPORTED_FTYPES:
+            if file_format == FileFormat.PICKLE or not feature_type.contains_ndarrays():
 
                 if os.path.getsize(ftype_path):
                     with open(ftype_path, "rb") as infile:
@@ -725,14 +705,14 @@ class EOPatch:
             file_path = os.path.join(ftype_path, file_name)
 
             if file_name.endswith('.npy'):
-                feature_name = file_name[:-4]
+                feature_name = file_name.rsplit('.', 1)[0]
 
                 if mmap:
                     feature = np.load(file_path, mmap_mode='r')
                 else:
                     feature = np.load(file_path)
             elif file_name.endswith('.npy.gz'):
-                feature_name = file_name[:-7]
+                feature_name = file_name.rsplit('.', 1)[0]
                 feature = np.load(gzip.open(file_path))
             else:
                 continue
@@ -745,7 +725,8 @@ class EOPatch:
     def _get_file_format(path):
         file_format = None
 
-        file_paths = EOPatch._get_file_paths(path, NPY_SUPPORTED_FTYPES)
+        file_paths = EOPatch._get_file_paths(path, [feature_type for feature_type in FeatureType
+                                                    if feature_type.contains_ndarrays()])
 
         for file_path in file_paths:
             if os.path.isfile(file_path):
@@ -758,7 +739,7 @@ class EOPatch:
             if file_format is None:
                 file_format = ftype_file_format
             elif file_format != ftype_file_format:
-                raise Exception("Found multiple formats")
+                raise ValueError("Found multiple file formats of the same data in {}".format(path))
 
         return file_format
 
@@ -771,7 +752,7 @@ class EOPatch:
         :param feature_list: List of features types
         :type feature_list: list(FeatureType)
         :return: A list of file paths
-        :rtype: list(str)
+        :rtype: list(str) or FeatureType class
         """
         return [os.path.join(path, FeatureType(feature).value) for feature in feature_list]
 
