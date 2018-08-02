@@ -692,7 +692,6 @@ class EOPatch:
                 continue
 
             if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
-
                 if os.path.getsize(ftype_path):
                     with open(ftype_path, "rb") as infile:
                         eopatch_content[feature_type.value] = pickle.load(infile)
