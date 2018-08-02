@@ -121,10 +121,12 @@ class InterpolationTask(EOTask):
 
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
-        nan_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
-        if nan_res_indices.size:
+        nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
+        nan_col_res_indices = np.array([True if index is not None else False for index in ori2res[row_nans]],
+                                       dtype=np.bool)
+        if nan_row_res_indices.size:
             # mask out from output values the starting/ending NaNs
-            res_temp_values[nan_res_indices, col_nans] = np.nan
+            res_temp_values[nan_row_res_indices, col_nans[nan_col_res_indices]] = np.nan
         # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
         res_temp_values[~time_mask, :] = np.nan
 
