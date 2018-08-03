@@ -580,8 +580,8 @@ class EOPatch:
             raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
         return np.concatenate((data1, data2), axis=0)
 
-    def save(self, path, feature_list=None, file_format=FileFormat.NPY, compress=False, overwrite_format=False):
-        # TODO: compress parameter can besides True/False also take a compression level
+    def save(self, path, feature_list=None, file_format=FileFormat.NPY, overwrite=False, compress=False,
+             compresslevel=9):
         """ Saves EOPatch to disk.
 
         :param path: Location on the disk
@@ -592,22 +592,28 @@ class EOPatch:
         :type feature_list: list(FeatureType) or None
         :param file_format: File format
         :type file_format: str or FileFormat
+        :param overwrite: Remove files in the folder before save
+        :type overwrite: bool
         :param compress: Compress features. Only used with npy file_format
         :type compress: bool
-        :param overwrite_format: Overrides format if different
-        :type overwrite_format: bool
+        :type compresslevel: int
+        :param compresslevel: gzip compress level
         """
-        if not os.path.exists(path):
-            os.makedirs(path)
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                raise BaseException("File exists at the given path")
+            elif os.listdir(path):
+                if not overwrite:
+                    raise BaseException("Folder at the given path contains files. \
+                                         You can delete them with the overwrite flag.")
+                else:
+                    LOGGER.warning('Overwriting data in %s', path)
+                    shutil.rmtree(path)
+                    os.makedirs(path)
         else:
-            LOGGER.warning('Overwriting data in %s', path)
+            os.makedirs(path)
 
         file_format = FileFormat(file_format)
-
-        if overwrite_format:  # TODO: remove files only after files in new format are saved
-            self._remove_eopatch_files(path)
-        else:
-            self._assert_same_format(path, file_format)
 
         if feature_list is None:
             feature_list = FeatureType
@@ -627,41 +633,34 @@ class EOPatch:
                                 outfile)
 
             elif file_format is FileFormat.NPY:
-                dir_path = os.path.join(path, FeatureType(feature_type).value)
-                os.makedirs(dir_path, exist_ok=True)
+                self._save_npy_feature_type(path, feature_type, compress, compresslevel)
 
-                for feature_name, feature in self[feature_type].items():
-                    file_path = os.path.join(dir_path, feature_name)
+    def _save_npy_feature_type(self, path, feature_type, compress=False, compresslevel=9):
+        case_insensitive_feature_names = set()
+        for feature_name in self[feature_type]:
+            case_insensitive_feature_name = feature_name.lower()
 
-                    if compress:
-                        file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w')
-                    else:
-                        file_handle = open('{}.npy'.format(file_path), 'wb')
+            if case_insensitive_feature_name not in case_insensitive_feature_names:
+                case_insensitive_feature_names.add(case_insensitive_feature_name)
+            else:
+                raise BaseException("Features '{}' and '{}' differ only in casing"\
+                    .format(feature_name,
+                            case_insensitive_feature_name))
 
-                    LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
-                    np.save(file_handle, feature)
-                    file_handle.close()
+        dir_path = os.path.join(path, FeatureType(feature_type).value)
+        os.makedirs(dir_path, exist_ok=True)
 
-    @staticmethod
-    def _remove_eopatch_files(path):
-        feature_paths = EOPatch._get_file_paths(path, FeatureType)
+        for feature_name, feature in self[feature_type].items():
+            file_path = os.path.join(dir_path, feature_name)
 
-        for feature_path in feature_paths:
-            if os.path.isdir(feature_path):
-                shutil.rmtree(feature_path)
-            elif os.path.isfile(feature_path):
-                os.remove(feature_path)
+            if compress:
+                file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w', compresslevel)
+            else:
+                file_handle = open('{}.npy'.format(file_path), 'wb')
 
-    @staticmethod
-    def _assert_same_format(path, file_format):
-        ftype_paths = EOPatch._get_file_paths(path, [feature_type for feature_type in FeatureType
-                                                     if feature_type.contains_ndarrays()])
-
-        if file_format is FileFormat.PICKLE and any([os.path.isdir(p) for p in ftype_paths]):
-            raise Exception("Cannot save in a different format")
-
-        elif file_format is FileFormat.NPY and any([os.path.isfile(p) for p in ftype_paths]):
-            raise Exception("Cannot save in a different format")
+            LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
+            np.save(file_handle, feature)
+            file_handle.close()
 
     @staticmethod
     def load(path, feature_list=None, mmap=True):
@@ -692,9 +691,11 @@ class EOPatch:
                 continue
 
             if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
-                if os.path.getsize(ftype_path):
-                    with open(ftype_path, "rb") as infile:
-                        eopatch_content[feature_type.value] = pickle.load(infile)
+                if not os.path.getsize(ftype_path):
+                    continue
+
+                with open(ftype_path, "rb") as infile:
+                    eopatch_content[feature_type.value] = pickle.load(infile)
             else:
                 eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, mmap)
 
@@ -707,14 +708,14 @@ class EOPatch:
             file_path = os.path.join(ftype_path, file_name)
 
             if file_name.endswith('.npy'):
-                feature_name = file_name.rsplit('.', 1)[0]
+                feature_name = file_name[:-4]
 
                 if mmap:
                     feature = np.load(file_path, mmap_mode='r')
                 else:
                     feature = np.load(file_path)
             elif file_name.endswith('.npy.gz'):
-                feature_name = file_name.rsplit('.', 1)[0]
+                feature_name = file_name[:-7]
                 feature = np.load(gzip.open(file_path))
             else:
                 continue
@@ -726,14 +727,12 @@ class EOPatch:
     @staticmethod
     def _get_file_format(path):
         file_format = None
-
-        file_paths = EOPatch._get_file_paths(path, [feature_type for feature_type in FeatureType
-                                                    if feature_type.contains_ndarrays()])
-
-        for file_path in file_paths:
-            if os.path.isfile(file_path):
+        feature_paths = EOPatch._get_file_paths(path, [feature_type for feature_type in FeatureType
+                                                       if feature_type.contains_ndarrays()])
+        for feature_path in feature_paths:
+            if os.path.isfile(feature_path):
                 ftype_file_format = FileFormat.PICKLE
-            elif os.path.isdir(file_path):
+            elif os.path.isdir(feature_path):
                 ftype_file_format = FileFormat.NPY
             else:
                 continue

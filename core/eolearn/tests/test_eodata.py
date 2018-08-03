@@ -1,5 +1,6 @@
 import unittest
 import logging
+import os
 import datetime
 import numpy as np
 import tempfile
@@ -188,7 +189,7 @@ class TestEOPatch(unittest.TestCase):
         self.assertTrue(np.array_equal(mask_timeless, eop.mask_timeless['MASK_TIMELESS']))
 
 
-class TestFileFormats(unittest.TestCase):
+class TestSavingLoading(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -198,9 +199,45 @@ class TestFileFormats(unittest.TestCase):
 
         cls.eopatch = eopatch
 
-    def test_save_load_pickle(self):
+    def test_saving_at_exiting_file(self):
+        with tempfile.NamedTemporaryFile() as fp:
+            with self.assertRaises(BaseException):
+                self.eopatch.save(fp.name)
+
+    def test_saving_in_empty_folder(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            try:
+                self.eopatch.save(tmpdirname)
+            except BaseException as err:
+                self.fail(str(err))
+
+    def test_saving_in_non_empty_folder(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            with open(os.path.join(tmpdirname, 'foo.txt'), 'w'):
+                pass
+
+            with self.assertRaises(BaseException):
+                self.eopatch.save(tmpdirname)
+
+    def test_overwriting_non_empty_folder(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.eopatch.save(tmpdirname)
+
+            try:
+                self.eopatch.save(tmpdirname, overwrite=True)
+            except BaseException as err:
+                self.fail(str(err))
+
+    def test_save_load_default_format(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname)
+            eopatch2 = EOPatch.load(tmpdirname, mmap=False)
+
+            self.assertEqual(self.eopatch, eopatch2)
+
+    def test_save_load_pickle(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='pickle')
             eopatch2 = EOPatch.load(tmpdirname)
 
             self.assertEqual(self.eopatch, eopatch2)
@@ -219,23 +256,6 @@ class TestFileFormats(unittest.TestCase):
 
             self.assertEqual(self.eopatch, eopatch2)
 
-    def test_saving_different_format(self):
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            self.eopatch.save(tmpdirname, file_format='pickle')
-
-            with self.assertRaises(Exception):
-                self.eopatch.save(tmpdirname, file_format='npy')
-
-    def test_format_overwrite(self):
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            self.eopatch.save(tmpdirname, file_format='pickle')
-
-            try:
-                self.eopatch.save(tmpdirname, file_format='npy',
-                                  overwrite_format=True)
-            except Exception as e:
-                self.fail(str(e))
-
     def test_different_formats_equality(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.eopatch.save(tmpdirname, file_format='pickle')
@@ -253,6 +273,15 @@ class TestFileFormats(unittest.TestCase):
 
         for eopatch1, eopatch2 in itertools.combinations(patches, 2):
             self.assertEqual(eopatch1, eopatch2)
+
+    def test_feature_names_case_sensitivity(self):
+        eopatch = EOPatch()
+        mask = np.arange(3*3*2).reshape(3, 3, 2)
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'Mask', mask)
+
+        with tempfile.TemporaryDirectory() as tmpdirname, self.assertRaises(BaseException):
+            eopatch.save(tmpdirname, file_format='npy')
 
 
 if __name__ == '__main__':
