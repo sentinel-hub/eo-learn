@@ -27,10 +27,6 @@ from pygments.formatters.html import HtmlFormatter
 
 LOGGER = logging.getLogger(__file__)
 
-if os.environ.get('DISPLAY', '') == '':
-    LOGGER.info('No display found, using non-interactive Agg backend')
-    plt.switch_backend('Agg')
-
 
 class EOExecutor:
     """
@@ -129,6 +125,10 @@ class EOExecutor:
         """
         if self.execution_stats is None:
             raise Exception('First run the executor')
+
+        if os.environ.get('DISPLAY', '') == '':
+            LOGGER.info('No display found, using non-interactive Agg backend')
+            plt.switch_backend('Agg')
 
         dependency_graph = self._create_dependency_graph()
         task_descriptions = self._get_task_descriptions()
