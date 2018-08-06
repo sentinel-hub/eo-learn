@@ -17,7 +17,7 @@
 
     <h2>Tasks</h2>
 
-    {% for task in tasks_info %}
+    {% for task in task_descriptions %}
         <h3>{{ task['title'] }}</h3>
         <ul>
             {% for key, value in task['args'].items() %}
@@ -26,14 +26,14 @@
         </ul>
     {% endfor %}
 
-    {% for task_title, task_source in tasks_source.items() %}
+    {% for task_title, task_source in task_source.items() %}
         <h3>{{ task_title }}</h3>
         {{ task_source }}
    {% endfor %}
 
     <h2>Executions</h2>
 
-    {% for execution in executions_info %}
+    {% for execution in execution_stats %}
         <h3>Execution {{ loop.index }}</h3>
 
         Statistics<br/>
@@ -49,7 +49,7 @@
         {% endif %}
 
         Log<br/>
-        <pre>{{ executions_logs[loop.index - 1] }}</pre>
+        <pre>{{ execution_logs[loop.index - 1] }}</pre>
     {% endfor %}
 
 </body>

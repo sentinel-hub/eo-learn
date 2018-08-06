@@ -1,11 +1,8 @@
 import unittest
 import logging
-import os
-import shutil
+import tempfile
 
-from eolearn.core.eotask import EOTask
-from eolearn.core.eoworkflow import EOWorkflow, Dependency
-from eolearn.core.eoexecution import EOExecutor
+from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -32,74 +29,68 @@ class TestEOExecutor(unittest.TestCase):
             Dependency(task=task, inputs=[]),
         ])
 
-        executions_args = [
+        execution_args = [
             {'arg1': 1},
             {'arg1': 2}
         ]
 
-        out_dir = 'dir'
-        executor = EOExecutor(workflow, executions_args, out_dir)
-        executor.run()
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor.run()
 
-        self.assertEqual(len(executor.executions_logs), 2)
-        shutil.rmtree(out_dir)
+            self.assertEqual(len(executor.execution_logs), 2)
 
-    def test_execution_info(self):
+    def test_execution_stats(self):
         task = ExampleTask()
 
         workflow = EOWorkflow(dependencies=[
             Dependency(task=task, inputs=[]),
         ])
 
-        executions_args = [
+        execution_args = [
             {'arg1': 1},
             {'arg1': 2}
         ]
 
-        out_dir = 'dir'
-        executor = EOExecutor(workflow, executions_args, out_dir)
-        executor.run()
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor.run()
 
-        self.assertEqual(len(executor.executions_info), 2)
-        shutil.rmtree(out_dir)
+            self.assertEqual(len(executor.execution_stats), 2)
 
-    def test_execution_error(self):
+    def test_execution_errors(self):
         task = RaiserErrorTask()
 
         workflow = EOWorkflow(dependencies=[
             Dependency(task=task, inputs=[]),
         ])
 
-        executions_args = [
+        execution_args = [
             {'arg1': 1}
         ]
 
-        out_dir = 'dir'
-        executor = EOExecutor(workflow, executions_args, out_dir)
-        executor.run()
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor.run()
 
-        self.assertTrue('error' in executor.executions_info[0])
-        shutil.rmtree(out_dir)
+            self.assertTrue('error' in executor.execution_stats[0])
 
-    def test_report_making(self):
+    def test_report_creation(self):
         task = ExampleTask()
 
         workflow = EOWorkflow(dependencies=[
             Dependency(task=task, inputs=[]),
         ])
 
-        executions_args = [
+        execution_args = [
             {'arg1': 1}
         ]
 
-        out_dir = 'dir'
-        executor = EOExecutor(workflow, executions_args, out_dir)
-        executor.run()
-        executor.create_html_report()
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor.run()
 
-        report_path = os.path.join(out_dir, 'report.html')
-        self.assertTrue(os.path.exists(report_path))
-        shutil.rmtree(out_dir)
+            self.assertIsNotNone(executor.make_report())
 
 
 if __name__ == '__main__':
