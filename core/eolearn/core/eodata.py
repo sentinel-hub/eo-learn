@@ -494,7 +494,7 @@ class EOPatch:
             file_handle.close()
 
     @staticmethod
-    def load(path, feature_list=None, mmap=True):
+    def load(path, feature_list=None, mmap=True, lazy=True):
         """ Loads EOPatch from disk.
 
         :param path: Location on the disk
@@ -502,7 +502,9 @@ class EOPatch:
         :param feature_list: List of features to be loaded. If set to None all features will be loaded.
         :type feature_list: list(FeatureType) or None
         :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
-        :type path: bool
+        :type mmap: bool
+        :param lazy: If True, then compressed feature will be lazy loaded
+        :type lazy: bool
         :return: Loaded EOPatch
         :rtype: EOPatch
         """
@@ -528,12 +530,12 @@ class EOPatch:
                 with open(ftype_path, "rb") as infile:
                     eopatch_content[feature_type.value] = pickle.load(infile)
             else:
-                eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, mmap)
+                eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, mmap, lazy)
 
         return EOPatch(**eopatch_content)
 
     @staticmethod
-    def _load_npy_feature_type(ftype_path, mmap=True):
+    def _load_npy_feature_type(ftype_path, mmap=True, lazy=True):
         data = {}
         for file_name in os.listdir(ftype_path):
             file_path = os.path.join(ftype_path, file_name)
@@ -547,13 +549,21 @@ class EOPatch:
                     feature = np.load(file_path)
             elif file_name.endswith('.npy.gz'):
                 feature_name = file_name[:-7]
-                feature = np.load(gzip.open(file_path))
+                loader = EOPatch._get_npy_gzip_loader(file_path)
+                feature = loader if lazy else loader()
             else:
                 continue
 
             data[feature_name] = feature
 
         return data
+
+    @staticmethod
+    def _get_npy_gzip_loader(file_path):
+        def _loader():
+            return np.load(gzip.open(file_path))
+
+        return _loader
 
     @staticmethod
     def _get_file_format(path):
