@@ -1,0 +1,12 @@
+Sphinx==1.7.5
+sphinx-rtd-theme==0.4.0
+nbsphinx==0.3.3
+ipython==6.4.0
+
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=core
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=coregistration
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=features
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=geometry
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=io
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=mask
+git+https://github.com/sentinel-hub/eo-learn#subdirectory=ml_tools
