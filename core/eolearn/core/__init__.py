@@ -5,7 +5,7 @@ The following objects and functions are the core of eo-learn package
 from .feature_types import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask, CompositeTask, FeatureTask
-from .eoworkflow import EOWorkflow, Dependency, WorkflowResult
+from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
 from .eoexecution import EOExecutor
 
 from .core_tasks import CopyTask, DeepCopyTask, AddFeature, RemoveFeature, SaveToDisk, LoadFromDisk

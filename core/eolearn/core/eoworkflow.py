@@ -24,6 +24,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from graphviz import Digraph
 
+from copy import deepcopy
+
 from .eotask import EOTask
 from .graph import DirectedGraph
 
@@ -148,13 +150,7 @@ class EOWorkflow:
         """
         warnings.warn('This method will soon be removed. Use LinearWorkflow class instead', DeprecationWarning)
 
-        return EOWorkflow(dependencies=[
-            Dependency(
-                task=task,
-                inputs=[tasks[i - 1]] if i > 0 else []
-            )
-            for i, task in enumerate(tasks)
-        ], **kwargs)
+        return LinearWorkflow(*tasks, **kwargs)
 
     def execute(self, input_args=None):
         """
@@ -163,7 +159,7 @@ class EOWorkflow:
         :param input_args: External input arguments to the workflow.
         :type input_args: dict(EOTask: dict(str: object))
         :return: An immutable mapping containing results of terminal tasks
-        :rtype: WorkflowResult
+        :rtype: WorkflowResults
         """
         outdegs = dict(self.dag.get_outdegrees())
 
@@ -174,7 +170,7 @@ class EOWorkflow:
 
         _, intermediate_results = self._execute_tasks(input_args=input_args, outdegs=outdegs)
 
-        return WorkflowResult(intermediate_results)
+        return WorkflowResults(intermediate_results)
 
     def _execute_tasks(self, *, input_args, outdegs):
         """
@@ -186,7 +182,7 @@ class EOWorkflow:
         of tasks that depend on this task.)
         :type outdegs: Dict
         :return: An immutable mapping containing results of terminal tasks
-        :rtype: WorkflowResult
+        :rtype: WorkflowResults
         """
         done_tasks = set()
 
@@ -287,7 +283,23 @@ class EOWorkflow:
 
 class LinearWorkflow(EOWorkflow):
 
-    NotImplemented
+    def __init__(self, *tasks, **kwargs):
+        tasks = self._make_tasks_unique(tasks)
+        dependencies = [(task, [tasks[idx - 1]] if idx > 0 else []) for idx, task in enumerate(tasks)]
+
+        return super(LinearWorkflow, self).__init__(dependencies, **kwargs)
+
+    @staticmethod
+    def _make_tasks_unique(tasks):
+        unique_tasks = []
+        prev_tasks = set()
+
+        for task in tasks:
+            if task in prev_tasks:
+                task = deepcopy(task)
+            unique_tasks.append(task)
+
+        return unique_tasks
 
 
 class Dependency:
@@ -326,7 +338,7 @@ class Dependency:
         return task_name
 
 
-class WorkflowResult(collections.abc.Mapping):
+class WorkflowResults(collections.abc.Mapping):
     """
     The result of a workflow is an (immutable) dictionary mapping [1] from unique IDs (strings) to tuples.
 
@@ -391,7 +403,7 @@ class _UniqueIdGenerator:
     Generates a sequence of unique IDs. Should be used for the purposes of
     workflow class only.
     """
-    MAX_UUIDS = 2**20
+    MAX_UUIDS = 2 ** 20
 
     def __init__(self):
         self.uuids = set()

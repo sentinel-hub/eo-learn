@@ -5,7 +5,7 @@ import concurrent.futures
 
 from hypothesis import given, strategies as st
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResult
+from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults
 from eolearn.core.eoworkflow import CyclicDependencyError, _UniqueIdGenerator
 from eolearn.core.graph import DirectedGraph
 
@@ -116,7 +116,7 @@ class TestEOWorkflow(unittest.TestCase):
 
         result = workflow.execute()
 
-        self.assertTrue(isinstance(result, WorkflowResult))
+        self.assertTrue(isinstance(result, WorkflowResults))
         self.assertEqual(len(result), 1)
         self.assertEqual(len(result.keys()), 1)
         self.assertEqual(len(result.values()), 1)
@@ -151,7 +151,7 @@ class TestEOWorkflow(unittest.TestCase):
             ))
 
 
-class TestWorkflowResult(unittest.TestCase):
+class TestWorkflowResults(unittest.TestCase):
     pass
 
 
