@@ -1,9 +1,10 @@
 import unittest
 import logging
 import os
-import shutil
 import datetime
 import numpy as np
+import tempfile
+import itertools
 
 from eolearn.core import EOPatch, FeatureType
 
@@ -11,10 +12,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class TestEOPatch(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        os.mkdir('./test_outputs')
 
     def test_add_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
@@ -151,18 +148,6 @@ class TestEOPatch(unittest.TestCase):
         eop1.add_feature(FeatureType.DATA_TIMELESS, 'dem', np.arange(3 * 3 * 2).reshape(3, 3, 2))
         self.assertNotEqual(eop1, eop2)
 
-    def test_save_load(self):
-        eop1 = EOPatch()
-        mask1 = np.arange(3*3*2).reshape(3, 3, 2)
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'mask1', mask1)
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'mask', 5 * mask1)
-
-        eop1.save('./test_outputs/eop1/')
-
-        eop2 = EOPatch.load('./test_outputs/eop1')
-
-        self.assertEqual(eop1, eop2)
-
     def test_timestamp_consolidation(self):
         # 10 frames
         timestamps = [datetime.datetime(2017, 1, 1, 10, 4, 7),
@@ -203,9 +188,100 @@ class TestEOPatch(unittest.TestCase):
         self.assertTrue(np.array_equal(scalar[1:-1, ...], eop.scalar['SCALAR']))
         self.assertTrue(np.array_equal(mask_timeless, eop.mask_timeless['MASK_TIMELESS']))
 
+
+class TestSavingLoading(unittest.TestCase):
+
     @classmethod
-    def tearDown(cls):
-        shutil.rmtree('./test_outputs/', ignore_errors=True)
+    def setUpClass(cls):
+        eopatch = EOPatch()
+        mask = np.arange(3*3*2).reshape(3, 3, 2)
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
+
+        cls.eopatch = eopatch
+
+    def test_saving_at_exiting_file(self):
+        with tempfile.NamedTemporaryFile() as fp:
+            with self.assertRaises(BaseException):
+                self.eopatch.save(fp.name)
+
+    def test_saving_in_empty_folder(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            try:
+                self.eopatch.save(tmpdirname)
+            except BaseException as err:
+                self.fail(str(err))
+
+    def test_saving_in_non_empty_folder(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            with open(os.path.join(tmpdirname, 'foo.txt'), 'w'):
+                pass
+
+            with self.assertRaises(BaseException):
+                self.eopatch.save(tmpdirname)
+
+    def test_overwriting_non_empty_folder(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname)
+
+            try:
+                self.eopatch.save(tmpdirname, overwrite=True)
+            except BaseException as err:
+                self.fail(str(err))
+
+    def test_save_load_default_format(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname)
+            eopatch2 = EOPatch.load(tmpdirname, mmap=False)
+
+            self.assertEqual(self.eopatch, eopatch2)
+
+    def test_save_load_pickle(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='pickle')
+            eopatch2 = EOPatch.load(tmpdirname)
+
+            self.assertEqual(self.eopatch, eopatch2)
+
+    def test_save_load_npy(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='npy')
+            eopatch2 = EOPatch.load(tmpdirname, mmap=False)
+
+            self.assertEqual(self.eopatch, eopatch2)
+
+    def test_save_load_compressed_npy(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='npy', compress=True)
+            eopatch2 = EOPatch.load(tmpdirname)
+
+            self.assertEqual(self.eopatch, eopatch2)
+
+    def test_different_formats_equality(self):
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='pickle')
+            eopatch1 = EOPatch.load(tmpdirname)
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='npy')
+            eopatch2 = EOPatch.load(tmpdirname, mmap=False)
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            self.eopatch.save(tmpdirname, file_format='npy', compress=True)
+            eopatch3 = EOPatch.load(tmpdirname)
+
+        patches = [eopatch1, eopatch2, eopatch3]
+
+        for eopatch1, eopatch2 in itertools.combinations(patches, 2):
+            self.assertEqual(eopatch1, eopatch2)
+
+    def test_feature_names_case_sensitivity(self):
+        eopatch = EOPatch()
+        mask = np.arange(3*3*2).reshape(3, 3, 2)
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'Mask', mask)
+
+        with tempfile.TemporaryDirectory() as tmpdirname, self.assertRaises(BaseException):
+            eopatch.save(tmpdirname, file_format='npy')
 
 
 if __name__ == '__main__':

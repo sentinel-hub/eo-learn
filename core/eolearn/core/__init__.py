@@ -3,7 +3,7 @@ The following objects and functions are the core of eo-learn package
 """
 
 from .feature_types import FeatureType
-from .eodata import EOPatch
+from .eodata import EOPatch, FileFormat
 from .eotask import EOTask, CompositeTask, FeatureTask
 from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
 from .eoexecution import EOExecutor

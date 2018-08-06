@@ -25,6 +25,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters.html import HtmlFormatter
 
 
+
 LOGGER = logging.getLogger(__file__)
 
 
@@ -52,6 +53,10 @@ class EOExecutor:
     def run(self, workers=1):
         """
         Run the executor with n workers.
+
+        In a Jupyter Notebook on Windows it raises the following error:
+            BrokenProcessPool: A process in the process pool was terminated
+            abruptly while the future was running or pending.
 
         :type workers: int
         """
@@ -138,6 +143,7 @@ class EOExecutor:
         execution_stats = self._render_execution_errors(formatter)
 
         template = self._get_template()
+
         html = template.render(dependency_graph=dependency_graph,
                                task_descriptions=task_descriptions,
                                task_source=task_source,
