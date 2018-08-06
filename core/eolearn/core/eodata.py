@@ -670,9 +670,21 @@ class _FeatureDict(dict):
     def __setitem__(self, feature_name, value):
         """ Before setting value to the dictionary it checks that value is of correct type and dimension
         """
-        if self.ndim and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
+        if not hasattr(value, '__call__') and self.ndim \
+                and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
             raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
         super(_FeatureDict, self).__setitem__(feature_name, value)
+
+    def __getitem__(self, feature_name):
+        """ Implements lazy loading
+        """
+        value = super().__getitem__(feature_name)
+
+        if hasattr(value, '__call__'):
+            value = value()
+            self[feature_name] = value
+
+        return value
 
     def get_dict(self):
         """ Returns a normal dictionary of features and value
