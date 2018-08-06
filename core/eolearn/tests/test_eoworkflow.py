@@ -56,9 +56,9 @@ class TestEOWorkflow(unittest.TestCase):
         divide_task = DivideTask()
 
         workflow = EOWorkflow(dependencies=[
-            Dependency(transform=input_task1, inputs=[]),
-            Dependency(transform=input_task2, inputs=[]),
-            Dependency(transform=divide_task, inputs=[input_task1, input_task2])
+            Dependency(task=input_task1, inputs=[]),
+            Dependency(task=input_task2, inputs=[]),
+            Dependency(task=divide_task, inputs=[input_task1, input_task2])
         ])
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=5) as e:

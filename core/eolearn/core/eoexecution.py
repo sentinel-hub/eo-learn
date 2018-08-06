@@ -153,7 +153,8 @@ class EOExecutor:
     def _get_tasks_info(self):
         infos = []
 
-        for task_id, task in self.workflow.id2task.items():
+        for task_id, dependency in self.workflow.uuid_dict.items():
+            task = dependency.task
             info = {}
             info['title'] = "{}_{} ({})".format(task.__class__.__name__,
                                                 task_id[:6],
@@ -171,7 +172,8 @@ class EOExecutor:
 
         sources = {}
 
-        for task in self.workflow.id2task.values():
+        for dep in self.workflow.dependencies:
+            task = dep.task
             if task.__module__.startswith("eolearn"):
                 continue
 

@@ -72,14 +72,14 @@ class EOWorkflow:
         """
         parsed_dependencies = [dep if isinstance(dep, Dependency) else Dependency(*dep) for dep in dependencies]
         for dep in dependencies:
-            if task2id and dep.transform in task2id:
-                dep.set_name(task2id[dep.transform])
+            if task2id and dep.task in task2id:
+                dep.set_name(task2id[dep.task])
         return parsed_dependencies
 
     def _set_task_uuid(self, dependencies):
         uuid_dict = {}
         for dep in dependencies:
-            task = dep.transform
+            task = dep.task
             if task.uuid in uuid_dict:
                 raise ValueError('EOWorkflow cannot execute the same instance of EOTask multiple times')
 
@@ -150,7 +150,7 @@ class EOWorkflow:
 
         return EOWorkflow(dependencies=[
             Dependency(
-                transform=task,
+                task=task,
                 inputs=[tasks[i - 1]] if i > 0 else []
             )
             for i, task in enumerate(tasks)
@@ -219,7 +219,7 @@ class EOWorkflow:
         :return: The result of the task with ID ``task_id``
         :rtype: object
         """
-        task = dependency.transform
+        task = dependency.task
         kw_inputs = input_args.get(task, {})
         inputs = tuple(intermediate_results[self.uuid_dict[input_task.uuid]] for input_task in dependency.inputs)
         LOGGER.debug("Computing %s(*%s, **%s)", str(task), str(inputs), str(kw_inputs))
@@ -237,7 +237,7 @@ class EOWorkflow:
         :param out_degrees: Out-degrees of tasks
         :type out_degrees: dict
         """
-        current_task = dependency.transform
+        current_task = dependency.task
         for input_task in dependency.inputs:
             dep = self.uuid_dict[input_task.uuid]
             out_degrees[dep] -= 1
@@ -292,12 +292,19 @@ class LinearWorkflow(EOWorkflow):
 
 class Dependency:
 
-    def __init__(self, transform, inputs, name=None):
+    def __init__(self, task=None, inputs=None, name=None, transform=None):
+        if transform is not None:
+            warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed",
+                          DeprecationWarning)
+            if task is None:
+                task = transform
 
-        if not isinstance(transform, EOTask):
-            raise ValueError('Value {} should be an instance of {}'.format(transform, EOTask.__name__))
-        self.transform = transform
+        if not isinstance(task, EOTask):
+            raise ValueError('Value {} should be an instance of {}'.format(task, EOTask.__name__))
+        self.task = task
 
+        if inputs is None:
+            inputs = []
         if isinstance(inputs, EOTask):
             inputs = [inputs]
         if not isinstance(inputs, (list, tuple)):
@@ -313,7 +320,7 @@ class Dependency:
         self.name = name
 
     def get_task_name(self):
-        task_name = type(self.transform).__name__
+        task_name = type(self.task).__name__
         if self.name:
             return '{}_{}'.format(task_name, self.name)
         return task_name
@@ -331,7 +338,7 @@ class WorkflowResult(collections.abc.Mapping):
     """
     def __init__(self, results):
         self._result = dict(results)
-        self._uuid_dict = {dep.transform.uuid: dep for dep in results}
+        self._uuid_dict = {dep.task.uuid: dep for dep in results}
 
     def __getitem__(self, item):
         if isinstance(item, EOTask):
@@ -356,13 +363,13 @@ class WorkflowResult(collections.abc.Mapping):
         return self._result != other
 
     def keys(self):
-        return {dep.transform: None for dep in self._result}.keys()
+        return {dep.task: None for dep in self._result}.keys()
 
     def values(self):
         return self._result.values()
 
     def items(self):
-        return {dep.transform: value for dep, value in self._result.items()}.items()
+        return {dep.task: value for dep, value in self._result.items()}.items()
 
     def get(self, key, default=None):
         if isinstance(key, EOTask):

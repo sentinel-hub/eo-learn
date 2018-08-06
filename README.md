@@ -211,12 +211,12 @@ sum_all = Sum()
 
 # Define the workflow = algebraic operation
 dag = EOWorkflow(dependencies=[
-                    Dependency(transform=in_a, inputs=[]),
-                    Dependency(transform=in_b, inputs=[]),
-                    Dependency(transform=in_c, inputs=[]),
-                    Dependency(transform=multi_ab, inputs=[in_a, in_b]),
-                    Dependency(transform=add_2, inputs=[in_c]),
-                    Dependency(transform=sum_all, inputs=[multi_ab, add_2])],
+                    Dependency(task=in_a, inputs=[]),
+                    Dependency(task=in_b, inputs=[]),
+                    Dependency(task=in_c, inputs=[]),
+                    Dependency(task=multi_ab, inputs=[in_a, in_b]),
+                    Dependency(task=add_2, inputs=[in_c]),
+                    Dependency(task=sum_all, inputs=[multi_ab, add_2])],
                  task2id={in_a:'A', in_b:'B', in_c:'C',
                           multi_ab:'A*B', add_2:'C+2', sum_all:'Sum'}
                 )

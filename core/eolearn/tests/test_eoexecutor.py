@@ -29,7 +29,7 @@ class TestEOExecutor(unittest.TestCase):
         task = ExampleTask()
 
         workflow = EOWorkflow(dependencies=[
-            Dependency(transform=task, inputs=[]),
+            Dependency(task=task, inputs=[]),
         ])
 
         executions_args = [
@@ -48,7 +48,7 @@ class TestEOExecutor(unittest.TestCase):
         task = ExampleTask()
 
         workflow = EOWorkflow(dependencies=[
-            Dependency(transform=task, inputs=[]),
+            Dependency(task=task, inputs=[]),
         ])
 
         executions_args = [
@@ -67,7 +67,7 @@ class TestEOExecutor(unittest.TestCase):
         task = RaiserErrorTask()
 
         workflow = EOWorkflow(dependencies=[
-            Dependency(transform=task, inputs=[]),
+            Dependency(task=task, inputs=[]),
         ])
 
         executions_args = [
@@ -85,7 +85,7 @@ class TestEOExecutor(unittest.TestCase):
         task = ExampleTask()
 
         workflow = EOWorkflow(dependencies=[
-            Dependency(transform=task, inputs=[]),
+            Dependency(task=task, inputs=[]),
         ])
 
         executions_args = [
