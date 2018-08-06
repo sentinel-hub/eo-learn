@@ -217,7 +217,7 @@ dag = EOWorkflow(dependencies=[
                     Dependency(task=multi_ab, inputs=[in_a, in_b]),
                     Dependency(task=add_2, inputs=[in_c]),
                     Dependency(task=sum_all, inputs=[multi_ab, add_2])],
-                 task2id={in_a:'A', in_b:'B', in_c:'C',
+                 task_names={in_a:'A', in_b:'B', in_c:'C',
                           multi_ab:'A*B', add_2:'C+2', sum_all:'Sum'}
                 )
 
