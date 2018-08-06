@@ -53,6 +53,9 @@ extensions = [
     'IPython.sphinxext.ipython_console_highlighting'
 ]
 
+# Both the class’ and the __init__ method’s docstring are concatenated and inserted.
+autoclass_content = 'both'
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -210,7 +213,7 @@ def get_subclasses(cls):
     direct_subclasses = cls.__subclasses__()
     nested_subclasses = [ s for c in direct_subclasses
                           for s in get_subclasses(c) ]
-    
+
     return list(set(direct_subclasses).union(nested_subclasses))
 
 def get_eotasks():
@@ -238,24 +241,24 @@ with open('eotasks.rst', 'w') as f:
 
         if eopackage not in eopackage_tasks:
             eopackage_tasks[eopackage] = []
-        
+
         eopackage_tasks[eopackage].append(eotask)
 
     for eopackage in sorted(eopackage_tasks.keys()):
         f.write(eopackage + '\n')
         f.write('-' * len(eopackage) + '\n')
         f.write('\n')
-        
+
         f.write('.. currentmodule:: eolearn.' + eopackage + '\n')
         f.write('.. autosummary::\n')
         f.write('\t:nosignatures:\n')
         f.write('\n')
-    
+
         eotasks = eopackage_tasks[eopackage]
         eotasks.sort()
 
         for eotask in eotasks:
             # tilde is used to show only the class name without the module
             f.write('\t~' + eotask + '\n')
-        
+
         f.write('\n')
