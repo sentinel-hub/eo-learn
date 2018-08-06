@@ -52,6 +52,8 @@ class EOTask(ABC):
             if arg in kwargs:
                 self.init_args[arg] = deepcopy(kwargs[arg])
 
+        self.uuid = None
+
         return self
 
     def __mul__(self, other):

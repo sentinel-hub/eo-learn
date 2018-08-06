@@ -9,7 +9,6 @@ from .eoworkflow import EOWorkflow, Dependency, WorkflowResult
 from .eoexecution import EOExecutor
 
 from .core_tasks import CopyTask, DeepCopyTask, AddFeature, RemoveFeature, SaveToDisk, LoadFromDisk
-from .graph import DirectedGraph
 from .plots import bgr_to_rgb, IndexTracker, PatchShowTask
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps
 
