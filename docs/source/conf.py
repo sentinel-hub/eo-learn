@@ -48,9 +48,13 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.autosummary',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting'
 ]
+
+# Both the class’ and the __init__ method’s docstring are concatenated and inserted.
+autoclass_content = 'both'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -101,7 +105,7 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-# html_static_path = ['_static']
+html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -205,32 +209,58 @@ except FileExistsError:
 
 # Create a list of all EOTasks
 
+def get_subclasses(cls):
+    direct_subclasses = cls.__subclasses__()
+    nested_subclasses = [ s for c in direct_subclasses
+                          for s in get_subclasses(c) ]
+
+    return list(set(direct_subclasses).union(nested_subclasses))
+
+
 def get_eotasks():
     import eolearn.core
     import eolearn.coregistration
     import eolearn.features
-    # import eolearn.geometry
-    # import eolearn.io
-    # import eolearn.mask
+    import eolearn.geometry
+    import eolearn.io
+    import eolearn.mask
     import eolearn.ml_tools
 
-    return eolearn.core.EOTask.__subclasses__()
+    return get_subclasses(eolearn.core.EOTask)
 
+with open('eotasks.rst', 'w') as f:
+    f.write('********\n')
+    f.write('EO Tasks\n')
+    f.write('********\n')
+    f.write('\n')
 
-eotasks_str = " ".join([
-    eotask.__module__ + "." + eotask.__name__
-    for eotask in get_eotasks()
-])
+    eopackage_tasks = {}
 
-eotasks_file_content = '''
-********
-EO Tasks
-********
+    for eotask_cls in get_eotasks():
+        eopackage = eotask_cls.__module__.split('.')[1]
+        eotask = eotask_cls.__module__ + '.' + eotask_cls.__name__
 
-.. inheritance-diagram:: %s
-   :top-classes: eolearn.core.EOTask
-   :parts: 3
-'''
+        if eopackage not in eopackage_tasks:
+            eopackage_tasks[eopackage] = []
 
-with open("eotasks.rst", "w") as f:
-    f.write(eotasks_file_content % eotasks_str)
+        eopackage_tasks[eopackage].append(eotask)
+
+    for eopackage in sorted(eopackage_tasks.keys()):
+        f.write(eopackage + '\n')
+        f.write('-' * len(eopackage) + '\n')
+        f.write('\n')
+
+        f.write('.. currentmodule:: eolearn.' + eopackage + '\n')
+        f.write('.. autosummary::\n')
+        f.write('\t:nosignatures:\n')
+        f.write('\n')
+
+        eotasks = eopackage_tasks[eopackage]
+        eotasks.sort()
+
+        for eotask in eotasks:
+            # tilde is used to show only the class name without the module
+            f.write('\t~' + eotask + '\n')
+
+        f.write('\n')
+
