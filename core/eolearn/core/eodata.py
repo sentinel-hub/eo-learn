@@ -182,8 +182,10 @@ class EOPatch:
         :return: Copied EOPatch
         :rtype: EOPatch
         """
-        new_eopatch = EOPatch()
+        if not features:  # For some reason deepcopy and copy pass {} by default
+            features = ...
 
+        new_eopatch = EOPatch()
         for feature_type, feature_name in FeatureParser(features)(self):
             if feature_name is ...:
                 new_eopatch[feature_type] = copy(self[feature_type])
@@ -210,6 +212,9 @@ class EOPatch:
         :return: Deep copied EOPatch
         :rtype: EOPatch
         """
+        if not features:  # For some reason deepcopy and copy pass {} by default
+            features = ...
+
         new_eopatch = self.__copy__(features=features)
         for feature_type in FeatureType:
             new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type])
@@ -226,7 +231,7 @@ class EOPatch:
         """
         if isinstance(value, np.ndarray):
             return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
-        if isinstance(value, (list, tuple, dict)):
+        if isinstance(value, (list, tuple, dict)) and value:
             return '{}, length={}'.format(type(value), len(value))
         return repr(value)
 
