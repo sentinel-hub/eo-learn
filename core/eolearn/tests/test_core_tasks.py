@@ -56,24 +56,24 @@ class TestCoreTasks(unittest.TestCase):
                          'Data should be copied')
 
     def test_partial_copy(self):
-        partial_copy = DeepCopyTask(feature_list=[(FeatureType.MASK_TIMELESS, 'mask'),
-                                                  FeatureType.BBOX]).execute(self.patch)
+        partial_copy = DeepCopyTask(features=[(FeatureType.MASK_TIMELESS, 'mask'),
+                                              FeatureType.BBOX]).execute(self.patch)
         expected_patch = EOPatch(mask_timeless=self.patch.mask_timeless, bbox=self.patch.bbox)
         self.assertEqual(partial_copy, expected_patch, 'Partial copying was not successful')
 
-        partial_deepcopy = DeepCopyTask(feature_list=[FeatureType.TIMESTAMP,
-                                                      (FeatureType.SCALAR, 'values')]).execute(self.patch)
+        partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP,
+                                                  (FeatureType.SCALAR, 'values')]).execute(self.patch)
         expected_patch = EOPatch(scalar=self.patch.scalar, timestamp=self.patch.timestamp)
         self.assertEqual(partial_deepcopy, expected_patch, 'Partial deep copying was not successful')
 
     def test_add_remove_feature(self):
         cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
         feature_name = 'CLOUD MASK'
-        patch = AddFeature(FeatureType.MASK, feature_name)(self.patch, cloud_mask)
+        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, cloud_mask)
 
         self.assertTrue(np.array_equal(patch.mask[feature_name], cloud_mask), 'Feature was not added')
 
-        patch = RemoveFeature(FeatureType.MASK, feature_name)(patch)
+        patch = RemoveFeature((FeatureType.MASK, feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
 
 

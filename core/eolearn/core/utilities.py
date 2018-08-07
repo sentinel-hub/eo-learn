@@ -200,16 +200,14 @@ class FeatureParser:
             if feature_type is None:
                 for feature_name, new_feature_name in feature_dict.items():
                     if eopatch is None:
-                        yield self._return_feature(None, feature_name, new_feature_name)
+                        yield self._return_feature(..., feature_name, new_feature_name)
                     else:
                         for real_feature_type in FeatureType:
                             if feature_name in eopatch[real_feature_type]:
                                 yield self._return_feature(real_feature_type, feature_name, new_feature_name)
             elif feature_dict is ...:
-                if not feature_type.has_dict():
-                    yield self._return_feature(feature_type, None)
-                elif eopatch is None:
-                    raise ValueError('Cannot determine which features are specified with Ellipsis')
+                if not feature_type.has_dict() or eopatch is None:
+                    yield self._return_feature(feature_type, ...)
                 else:
                     for feature_name in eopatch[feature_type]:
                         yield self._return_feature(feature_type, feature_name)

@@ -13,7 +13,7 @@ from copy import copy, deepcopy
 from enum import Enum
 
 from .feature_types import FeatureType
-from .utilities import deep_eq
+from .utilities import deep_eq, FeatureParser
 
 
 LOGGER = logging.getLogger(__name__)
@@ -163,40 +163,54 @@ class EOPatch:
 
         return '\n  '.join(feature_repr_list) + '\n)'
 
-    def __copy__(self, feature_list=None):
-        """ Overwrites copy method
+    def __copy__(self, features=...):
+        """ Makes and returns a copy of existing EOPatch
 
-        :param feature_list: A list of features or feature types that will be copied into new EOPatch. If None, all
+        :param features: A collection of features or feature types that will be copied into new EOPatch. By default all
         features will be copied.
 
-        Example: feature_list=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
+        Example:
+            features={
+                FeatureType.Data: {'TRUE-COLOR'},
+                FeatureType.MASK: {'CLOUD-MASK'},
+                FeatureType.LABEL: ...
+            }
+            or
+            features=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
 
-        :type feature_list: list((FeatureType, str) or FeatureType) or None
+        :type features: dict(FeatureType: set(str)) or list((FeatureType, str) or FeatureType) or ...
         :return: Copied EOPatch
         :rtype: EOPatch
         """
         new_eopatch = EOPatch()
-        for feature_type, features in self._parse_to_dict(feature_list).items():
-            if features is True:
+
+        for feature_type, feature_name in FeatureParser(features)(self):
+            if feature_name is ...:
                 new_eopatch[feature_type] = copy(self[feature_type])
             else:
-                for feature_name in features:
-                    new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
+                new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
         return new_eopatch
 
-    def __deepcopy__(self, feature_list=None):
-        """ Overwrites deepcopy method
+    def __deepcopy__(self, features=...):
+        """ Makes and returns a deep copy of existing EOPatch and its data
 
-        :param feature_list: A list of features or feature types that will be copied into new EOPatch. If None, all
+        :param features: A collection of features or feature types that will be copied into new EOPatch. By default all
         features will be copied.
 
-        Example: feature_list=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
+        Example:
+            features={
+                FeatureType.Data: {'TRUE-COLOR'},
+                FeatureType.MASK: {'CLOUD-MASK'},
+                FeatureType.LABEL: ...
+            }
+            or
+            features=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
 
-        :type feature_list: list((FeatureType, str)) or None
+        :type features: dict(FeatureType: set(str)) or list((FeatureType, str) or FeatureType) or ...
         :return: Deep copied EOPatch
         :rtype: EOPatch
         """
-        new_eopatch = self.__copy__(feature_list=feature_list)
+        new_eopatch = self.__copy__(features=features)
         for feature_type in FeatureType:
             new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type])
 
@@ -215,42 +229,6 @@ class EOPatch:
         if isinstance(value, (list, tuple, dict)):
             return '{}, length={}'.format(type(value), len(value))
         return repr(value)
-
-    @staticmethod
-    def _parse_to_dict(feature_list):
-        """ Parses list of features to dictionary of sets
-
-        :param feature_list: A list of features or feature types that will be copied into new EOPatch. If None, all
-        features will be copied.
-
-        Example: feature_list=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
-
-        :type feature_list: list((FeatureType, str) or FeatureType) or None
-        :return: dictionary of sets
-        :rtype: dict(FeatureType: set(str))
-        """
-        if not feature_list:
-            feature_list = FeatureType
-
-        feature_dict = {}
-        for feature_item in feature_list:
-            if isinstance(feature_item, FeatureType):
-                feature_dict[feature_item] = True
-            elif isinstance(feature_item, (tuple, list)):
-                feature_type = feature_item[0]
-                if not isinstance(feature_type, FeatureType):
-                    raise ValueError('First element of {} must be of type {}'.format(feature_item, FeatureType))
-                if feature_type in [FeatureType.TIMESTAMP, FeatureType.BBOX]:
-                    raise ValueError('{} cannot be in a tuple'.format(FeatureType.TIMESTAMP))
-
-                feature_dict[feature_type] = feature_dict.get(feature_type, set())
-                if feature_dict[feature_type] is not True:
-                    for feature_name in feature_item[1:]:
-                        feature_dict[feature_type].add(feature_name)
-            else:
-                raise ValueError('Item {} in feature_list must be of type {} or {}'.format(feature_item, tuple,
-                                                                                           FeatureType))
-        return feature_dict
 
     def remove_feature(self, feature_type, feature_name):
         """ Removes the feature ``feature_name`` from dictionary of ``feature_type``
@@ -290,6 +268,20 @@ class EOPatch:
         feature_type = FeatureType(feature_type)
         if feature_type.type() is not dict:
             raise TypeError('{} does not contain a dictionary of features'.format(feature_type))
+
+    def reset_feature_type(self, feature_type):
+        """ Resets the values of given feature type
+
+        :param feature_type: Type of feature
+        :type feature_type: FeatureType
+        """
+        feature_type = FeatureType(feature_type)
+        if feature_type.has_dict():
+            self[feature_type] = {}
+        elif feature_type is FeatureType.BBOX:
+            self[feature_type] = None
+        else:
+            self[feature_type] = []
 
     def set_bbox(self, new_bbox):
         """ Method for setting a new bounding box
@@ -412,24 +404,23 @@ class EOPatch:
             raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
         return np.concatenate((data1, data2), axis=0)
 
-    def save(self, path, feature_list=None, file_format=FileFormat.NPY, overwrite=False, compress=False,
+    def save(self, path, features=..., file_format=FileFormat.NPY, overwrite=False, compress=False,
              compresslevel=9):
         """ Saves EOPatch to disk.
 
         :param path: Location on the disk
         :type path: str
-        :param feature_list: List of features types specifying features of
-                             which type will be saved. If set to `None`
+        :param features: A collection of features types specifying features of which type will be saved. By default
         all features will be saved.
-        :type feature_list: list(FeatureType) or None
+        :type features: list(FeatureType) or None
         :param file_format: File format
         :type file_format: str or FileFormat
         :param overwrite: Remove files in the folder before save
         :type overwrite: bool
         :param compress: Compress features. Only used with npy file_format
         :type compress: bool
+        :param compresslevel: gzip compress level, an integer from 0 to 9
         :type compresslevel: int
-        :param compresslevel: gzip compress level
         """
         if os.path.exists(path):
             if os.path.isfile(path):
@@ -447,27 +438,49 @@ class EOPatch:
 
         file_format = FileFormat(file_format)
 
-        if feature_list is None:
-            feature_list = FeatureType
-
-        for feature_type in feature_list:
+        saved_feature_types = set()
+        for feature_type, feature_name in FeatureParser(features)(self):
             if not self[feature_type]:
-                LOGGER.debug("Attribute '%s' is None, nothing to serialize", str(feature_type))
                 continue
 
             if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
-                file_path = os.path.join(path, FeatureType(feature_type).value)
+                if feature_type in saved_feature_types:
+                    continue
+
+                file_path = os.path.join(path, feature_type.value)
 
                 with open(file_path, 'wb') as outfile:
                     LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
 
                     pickle.dump(self[feature_type].get_dict() if feature_type.has_dict() else self[feature_type],
                                 outfile)
+                saved_feature_types.add(feature_type)
 
             elif file_format is FileFormat.NPY:
-                self._save_npy_feature_type(path, feature_type, compress, compresslevel)
+                dir_path = os.path.join(path, feature_type.value)
 
-    def _save_npy_feature_type(self, path, feature_type, compress=False, compresslevel=9):
+                if feature_type not in saved_feature_types:
+                    self._check_feature_case_matching(feature_type)
+                    os.makedirs(dir_path, exist_ok=True)
+
+                self._save_npy_feature(dir_path, feature_type, feature_name, compress, compresslevel)
+
+            saved_feature_types.add(feature_type)
+
+    def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compresslevel=9):
+
+        file_path = os.path.join(path, feature_name)
+
+        if compress:
+            file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w', compresslevel)
+        else:
+            file_handle = open('{}.npy'.format(file_path), 'wb')
+
+        with file_handle as outfile:
+            LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
+            np.save(outfile, self[feature_type][feature_name])
+
+    def _check_feature_case_matching(self, feature_type):
         case_insensitive_feature_names = set()
         for feature_name in self[feature_type]:
             case_insensitive_feature_name = feature_name.lower()
@@ -475,36 +488,21 @@ class EOPatch:
             if case_insensitive_feature_name not in case_insensitive_feature_names:
                 case_insensitive_feature_names.add(case_insensitive_feature_name)
             else:
-                raise BaseException("Features '{}' and '{}' differ only in "
-                                    "casing".format(feature_name, case_insensitive_feature_name))
-
-        dir_path = os.path.join(path, FeatureType(feature_type).value)
-        os.makedirs(dir_path, exist_ok=True)
-
-        for feature_name, feature in self[feature_type].items():
-            file_path = os.path.join(dir_path, feature_name)
-
-            if compress:
-                file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w', compresslevel)
-            else:
-                file_handle = open('{}.npy'.format(file_path), 'wb')
-
-            LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
-            np.save(file_handle, feature)
-            file_handle.close()
+                raise OSError("Features '{}' and '{}' differ only in casing and cannot be saved into separate "
+                              "files".format(feature_name, case_insensitive_feature_name))
 
     @staticmethod
-    def load(path, feature_list=None, mmap=True, lazy=True):
+    def load(path, features=..., lazy_loading=True, mmap=True,):
         """ Loads EOPatch from disk.
 
         :param path: Location on the disk
         :type path: str
-        :param feature_list: List of features to be loaded. If set to None all features will be loaded.
-        :type feature_list: list(FeatureType) or None
+        :param features: List of features to be loaded. If set to None all features will be loaded.
+        :type features: list(FeatureType) or None
+        :param lazy_loading: If True, then compressed feature will be lazy loaded
+        :type lazy_loading: bool
         :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
         :type mmap: bool
-        :param lazy: If True, then compressed feature will be lazy loaded
-        :type lazy: bool
         :return: Loaded EOPatch
         :rtype: EOPatch
         """
@@ -513,50 +511,62 @@ class EOPatch:
 
         file_format = EOPatch._get_file_format(path)
 
-        if feature_list is None:
-            feature_list = FeatureType
-
         eopatch_content = {}
-        for feature_type in feature_list:
-            ftype_path = os.path.join(path, FeatureType(feature_type).value)
+        loaded_feature_types = set()
+        for feature_type, feature_name in FeatureParser(features):
+            ftype_path = os.path.join(path, feature_type.value)
 
             if not os.path.exists(ftype_path):
                 continue
 
             if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
-                if not os.path.getsize(ftype_path):
+                if feature_type in loaded_feature_types or not os.path.getsize(ftype_path):
                     continue
 
                 with open(ftype_path, "rb") as infile:
                     eopatch_content[feature_type.value] = pickle.load(infile)
             else:
-                eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, mmap, lazy)
+                if feature_type not in loaded_feature_types:
+                    eopatch_content[feature_type.value] = {}
+
+                if feature_name is ...:
+                    eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, lazy_loading, mmap)
+                else:
+                    feature_path = os.path.join(ftype_path, feature_name)
+                    if not os.path.exists(feature_path):
+                        raise OSError('Feature path {} does not exist'.format(feature_path))
+
+                    eopatch_content[feature_type.value][feature_name] = EOPatch._load_npy_feature(feature_path,
+                                                                                                  lazy_loading, mmap)
+
+            loaded_feature_types.add(feature_type)
 
         return EOPatch(**eopatch_content)
 
     @staticmethod
-    def _load_npy_feature_type(ftype_path, mmap=True, lazy=True):
+    def _load_npy_feature_type(path, lazy_loading=True, mmap=True):
         data = {}
-        for file_name in os.listdir(ftype_path):
-            file_path = os.path.join(ftype_path, file_name)
+        for file_name in os.listdir(path):
+            feature_path = os.path.join(path, file_name)
+            feature_name = file_name.rsplit('.npy', 1)[0]  # works for both .npy and .npy.gz
 
-            if file_name.endswith('.npy'):
-                feature_name = file_name[:-4]
-
-                if mmap:
-                    feature = np.load(file_path, mmap_mode='r')
-                else:
-                    feature = np.load(file_path)
-            elif file_name.endswith('.npy.gz'):
-                feature_name = file_name[:-7]
-                loader = EOPatch._get_npy_gzip_loader(file_path)
-                feature = loader if lazy else loader()
-            else:
-                continue
-
-            data[feature_name] = feature
+            data[feature_name] = EOPatch._load_npy_feature(feature_path, lazy_loading, mmap)
 
         return data
+
+    @staticmethod
+    def _load_npy_feature(path, lazy_loading=True, mmap=True):
+
+        if path.endswith('.npy'):
+            if mmap:
+                return np.load(path, mmap_mode='r')
+            return np.load(path)
+        if path.endswith('.npy.gz'):
+
+            loader = EOPatch._get_npy_gzip_loader(path)
+            return loader if lazy_loading else loader()
+
+        raise ValueError('Unrecognized file type {}'.format(path))
 
     @staticmethod
     def _get_npy_gzip_loader(file_path):

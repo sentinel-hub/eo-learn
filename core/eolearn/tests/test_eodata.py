@@ -267,7 +267,7 @@ class TestSavingLoading(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.eopatch.save(tmpdirname, file_format='npy', compress=True)
-            eopatch3 = EOPatch.load(tmpdirname, lazy=False)
+            eopatch3 = EOPatch.load(tmpdirname, lazy_loading=False)
 
         patches = [eopatch1, eopatch2, eopatch3]
 

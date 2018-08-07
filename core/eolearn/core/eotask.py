@@ -29,7 +29,6 @@ from inspect import getfullargspec
 from copy import deepcopy
 from collections import OrderedDict
 
-from .feature_types import FeatureType
 from .utilities import FeatureParser
 
 LOGGER = logging.getLogger(__name__)
@@ -68,7 +67,7 @@ class EOTask(ABC):
 
     @staticmethod
     def _parse_features(features, new_names=False):
-        """
+        """Used for parsing input features
 
         :param features: A collection of features in one of the supported formats
         :type features: object
@@ -101,23 +100,3 @@ class CompositeTask(EOTask):
 
     def execute(self, *eopatches, **kwargs):
         return self.eotask2.execute(self.eotask1.execute(*eopatches, **kwargs))
-
-
-class FeatureTask(EOTask):
-    """ An abstract class of EOTask that manipulates a single feature
-
-    :param feature_type: Type of the feature
-    :type feature_type: FeatureType
-    :param feature_name: Name of the feature
-    :type feature_name: str
-    """
-    def __init__(self, feature_type, feature_name=None):
-        self.feature_type = FeatureType(feature_type)
-        self.feature_name = feature_name
-
-        if feature_name is not None and not feature_type.has_dict():
-            raise ValueError('{} does not store a dictionary of features'.format(feature_type))
-
-    @abstractmethod
-    def execute(self, *eopatches, **kwargs):
-        raise NotImplementedError
