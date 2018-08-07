@@ -1,0 +1,7 @@
+eo-learn-core
+eo-learn-coregistration
+eo-learn-features
+eo-learn-geometry
+eo-learn-io
+eo-learn-mask
+eo-learn-ml-tools
