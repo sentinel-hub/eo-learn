@@ -143,7 +143,7 @@ class RemoveFeature(EOTask):
         self.feature_gen = self._parse_features(features)
 
     def execute(self, eopatch):
-        """ Removes the feature and returns the EOPatch.
+        """ Removes feature and returns the EOPatch.
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
@@ -155,5 +155,46 @@ class RemoveFeature(EOTask):
                 eopatch.reset_feature_type(feature_type)
             else:
                 del eopatch[feature_type][feature_name]
+
+        return eopatch
+
+
+class RenameFeature(EOTask):
+    """
+    Renames one or multiple features from given EOPatch.
+
+    :param features: A collection of features to be renamed
+
+    Example:
+        features=(FeatureType.DATA, 'name', 'new_name')
+    or
+        features={
+            FeatureType.DATA: {
+                'name1': 'new_name1',
+                'name2': 'new_name2',
+            },
+            FeatureType.MASK: {
+                'name1': 'new_name1',
+                'name2': 'new_name2',
+                'name3': 'new_name3',
+            },
+        }
+
+    :type features: dict(FeatureType: set(str)) or list((FeatureType, str)) or (FeatureType, str)
+    """
+    def __init__(self, features):
+        self.feature_gen = self._parse_features(features, new_names=True)
+
+    def execute(self, eopatch):
+        """ Renames features and returns the EOPatch.
+
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        :return: input EOPatch without the specified feature
+        :rtype: EOPatch
+        """
+        for feature_type, feature_name, new_feature_name in self.feature_gen(eopatch):
+            eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
+            del eopatch[feature_type][feature_name]
 
         return eopatch

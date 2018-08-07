@@ -3,7 +3,7 @@ import logging
 import datetime
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature
+from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -66,14 +66,19 @@ class TestCoreTasks(unittest.TestCase):
         expected_patch = EOPatch(scalar=self.patch.scalar, timestamp=self.patch.timestamp)
         self.assertEqual(partial_deepcopy, expected_patch, 'Partial deep copying was not successful')
 
-    def test_add_remove_feature(self):
+    def test_add_rename_remove_feature(self):
         cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
         feature_name = 'CLOUD MASK'
-        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, cloud_mask)
+        new_feature_name = 'CLM'
 
+        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, cloud_mask)
         self.assertTrue(np.array_equal(patch.mask[feature_name], cloud_mask), 'Feature was not added')
 
-        patch = RemoveFeature((FeatureType.MASK, feature_name))(patch)
+        patch = RenameFeature((FeatureType.MASK, feature_name, new_feature_name))(self.patch)
+        self.assertTrue(np.array_equal(patch.mask[new_feature_name], cloud_mask), 'Feature was not renamed')
+        self.assertFalse(feature_name in patch[FeatureType.MASK], 'Old feature still exists')
+
+        patch = RemoveFeature((FeatureType.MASK, new_feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
 
 
