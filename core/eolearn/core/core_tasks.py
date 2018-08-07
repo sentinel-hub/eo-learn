@@ -37,7 +37,7 @@ class DeepCopyTask(CopyTask):
     :type feature_list: list((FeatureType, str)) or None
     """
     def __init__(self, **kwargs):
-        super(DeepCopyTask, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def execute(self, eopatch):
         return eopatch.__deepcopy__(self.feature_list)
@@ -53,7 +53,7 @@ class AddFeature(FeatureTask):
     :type feature_name: str
     """
     def __init__(self, feature_type, feature_name):
-        super(AddFeature, self).__init__(feature_type, feature_name)
+        super().__init__(feature_type, feature_name)
 
     def execute(self, eopatch, data):
         """Adds the feature and returns the EOPatch.
@@ -80,7 +80,7 @@ class RemoveFeature(FeatureTask):
     :type feature_name: str
     """
     def __init__(self, feature_type, feature_name):
-        super(RemoveFeature, self).__init__(feature_type, feature_name)
+        super().__init__(feature_type, feature_name)
 
     def execute(self, eopatch):
         """ Removes the feature and returns the EOPatch.

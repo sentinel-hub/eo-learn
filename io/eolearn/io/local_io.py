@@ -29,7 +29,7 @@ class ExportToTiff(SaveToDisk):
     """
 
     def __init__(self, feature_type, feature_name, folder='.', *, band_count=1, image_dtype=np.uint8, no_data_value=0):
-        super(ExportToTiff, self).__init__(folder)
+        super().__init__(folder)
 
         self.feature_type = feature_type
         self.feature_name = feature_name

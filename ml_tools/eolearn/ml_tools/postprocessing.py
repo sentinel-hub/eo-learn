@@ -127,7 +127,7 @@ class MorphologicalFilterTask(PostprocessingTask):
     :type struct_elem: numpy.ndarray
     """
     def __init__(self, feature_type, feature_name, morph_operation, struct_elem=None):
-        super(MorphologicalFilterTask, self).__init__(feature_type, feature_name)
+        super().__init__(feature_type, feature_name)
 
         if isinstance(morph_operation, MorphologicalOperations):
             self.morph_operation = MorphologicalOperations.get_operation(morph_operation)

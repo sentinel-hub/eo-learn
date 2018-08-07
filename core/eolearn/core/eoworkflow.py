@@ -298,7 +298,7 @@ class LinearWorkflow(EOWorkflow):
         tasks = self._make_tasks_unique(tasks)
         dependencies = [(task, [tasks[idx - 1]] if idx > 0 else []) for idx, task in enumerate(tasks)]
 
-        super(LinearWorkflow, self).__init__(dependencies, **kwargs)
+        super().__init__(dependencies, **kwargs)
 
     @staticmethod
     def _make_tasks_unique(tasks):

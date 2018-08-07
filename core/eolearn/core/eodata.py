@@ -106,7 +106,7 @@ class EOPatch:
             if feature_type.has_dict() and not isinstance(value, _FeatureDict):
                 value = _FeatureDict(value, feature_type)
 
-        super(EOPatch, self).__setattr__(key, value)
+        super().__setattr__(key, value)
 
     def __getitem__(self, feature_type):
         """Provides features of requested feature type from EOPatch
@@ -659,7 +659,7 @@ class _FeatureDict(dict):
     :type feature_type: FeatureType
     """
     def __init__(self, feature_dict, feature_type):
-        super(_FeatureDict, self).__init__()
+        super().__init__()
 
         self.feature_type = feature_type
         self.ndim = self.feature_type.ndim()
@@ -673,7 +673,7 @@ class _FeatureDict(dict):
         if not hasattr(value, '__call__') and self.ndim \
                 and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
             raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
-        super(_FeatureDict, self).__setitem__(feature_name, value)
+        super().__setitem__(feature_name, value)
 
     def __getitem__(self, feature_name):
         """ Implements lazy loading

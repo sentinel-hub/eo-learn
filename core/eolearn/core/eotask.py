@@ -43,7 +43,7 @@ class EOTask(ABC):
         """Here an instance of EOTask is created. All initialization parameters are deep copied and stored to a special
         instance attribute `init_args`. Order of arguments is also preserved.
         """
-        self = super(EOTask, cls).__new__(cls)
+        self = super().__new__(cls)
 
         self.init_args = OrderedDict()
         for arg, value in zip(getfullargspec(self.__init__).args[1: len(args) + 1], args):

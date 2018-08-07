@@ -199,12 +199,9 @@ class AddSen2CorClassificationFeature(AddSentinelHubOGCFeature):
 
         evalscript = 'return ['+sen2cor_classification+'];'
 
-        super(AddSen2CorClassificationFeature, self).__init__(feature_type=classification_types[sen2cor_classification],
-                                                              feature_name=sen2cor_classification,
-                                                              layer=layer,
-                                                              data_source=DataSource.SENTINEL2_L2A,
-                                                              custom_url_params={CustomUrlParam.EVALSCRIPT: evalscript},
-                                                              **kwargs)
+        super().__init__(feature_type=classification_types[sen2cor_classification],
+                         feature_name=sen2cor_classification, layer=layer, data_source=DataSource.SENTINEL2_L2A,
+                         custom_url_params={CustomUrlParam.EVALSCRIPT: evalscript}, **kwargs)
 
 
 class AddDEMFeature(AddSentinelHubOGCFeature):
@@ -212,8 +209,7 @@ class AddDEMFeature(AddSentinelHubOGCFeature):
     Adds DEM to DATA_TIMELESS EOPatch feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddDEMFeature, self).__init__(feature_type=FeatureType.DATA_TIMELESS, layer=layer,
-                                            data_source=DataSource.DEM, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA_TIMELESS, layer=layer, data_source=DataSource.DEM, **kwargs)
 
 
 class AddS2L1CFeature(AddSentinelHubOGCFeature):
@@ -221,8 +217,7 @@ class AddS2L1CFeature(AddSentinelHubOGCFeature):
     Adds Sentinel-2 L1C feature to EOPatch's DATA feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddS2L1CFeature, self).__init__(feature_type=FeatureType.DATA, layer=layer,
-                                              data_source=DataSource.SENTINEL2_L1C, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA, layer=layer, data_source=DataSource.SENTINEL2_L1C, **kwargs)
 
 
 class AddS2L2AFeature(AddSentinelHubOGCFeature):
@@ -230,8 +225,7 @@ class AddS2L2AFeature(AddSentinelHubOGCFeature):
     Adds Sentinel-2 L2A feature to EOPatch's DATA feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddS2L2AFeature, self).__init__(feature_type=FeatureType.DATA, layer=layer,
-                                              data_source=DataSource.SENTINEL2_L2A, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA, layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
 
 
 class AddL8Feature(AddSentinelHubOGCFeature):
@@ -239,8 +233,7 @@ class AddL8Feature(AddSentinelHubOGCFeature):
     Adds Landsat 8 feature to EOPatch's DATA feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddL8Feature, self).__init__(feature_type=FeatureType.DATA, layer=layer,
-                                           data_source=DataSource.LANDSAT8, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA, layer=layer, data_source=DataSource.LANDSAT8, **kwargs)
 
 
 class AddGeopediaFeature(EOTask):
