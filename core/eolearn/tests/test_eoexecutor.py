@@ -35,7 +35,7 @@ class TestEOExecutor(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
             executor.run()
 
             self.assertEqual(len(executor.execution_logs), 2)
@@ -53,7 +53,7 @@ class TestEOExecutor(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
             executor.run()
 
             self.assertEqual(len(executor.execution_stats), 2)
@@ -70,7 +70,7 @@ class TestEOExecutor(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
             executor.run()
 
             self.assertTrue('error' in executor.execution_stats[0])
@@ -87,7 +87,7 @@ class TestEOExecutor(unittest.TestCase):
         ]
 
         with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, tmpdirname)
+            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
             executor.run()
 
             self.assertIsNotNone(executor.make_report())

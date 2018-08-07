@@ -104,6 +104,9 @@ class EOExecutor:
 
         stats['end_time'] = datetime.now()
 
+        if log_path:
+            logger.removeHandler(handler)
+
         return stats
 
     @staticmethod
