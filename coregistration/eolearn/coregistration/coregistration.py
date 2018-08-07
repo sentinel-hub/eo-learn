@@ -1,7 +1,6 @@
 """
 This module implements the co-registration transformers.
 """
-# pylint: disable=invalid-name
 
 import logging
 import numpy as np
@@ -12,7 +11,7 @@ from copy import deepcopy
 from enum import Enum
 from registration import CrossCorr
 
-from eolearn.core import EOTask
+from eolearn.core import EOTask, FeatureType
 
 from .coregistration_utilities import ransac, EstimateEulerTransformModel
 
@@ -22,71 +21,66 @@ MAX_TRANSLATION = 20
 MAX_ROTATION = np.pi / 9
 
 
-class Interpolation(Enum):
+class InterpolationType(Enum):
+    """ Types of interpolation, available are NEAREST, LINEAR and CUBIC
+    """
     NEAREST = 0
     LINEAR = 1
     CUBIC = 3
 
 
-class RegistrationTask(EOTask):
-    """ Task that implements a temporal co-registration of an input eopatch """
+class RegistrationTask(EOTask, ABC):
+    """ Abstract class for multi-temporal image co-registration
 
-    def __init__(self, registration):
-        """ Registration to be performed
+    The task uses a temporal stack of images of the same location (i.e. a temporal-spatial feature in `EOPatch`).
+    Starting from the latest frame and proceeding backwards it calculates a transformation between two temporally
+    adjacent images. The transformation is used to correct the earlier image to best fit the later. The reason for
+    such reversed order is that the latest frames are supposed to be less affected by orthorectificational inaccuracies.
 
-        :param registration: Registration instance. Could be any of registration implemented in `registration` module
-        """
-        self.registration = registration
-
-    def get_registration(self):
-        """ Return the registration object """
-        return self.registration
-
-    def execute(self, eopatches):
-        """ Perform registration and return transformed EOPatch
-
-        :param eopatches: Input eopatch
-        """
-        return self.registration.execute(eopatches)
-
-
-class Registration(ABC):
-    """ Abstract class for registration
-
-        Abstract for Registration methods. Four registration methods are implemented, namely ThunderRegistration,
-        ECCRegistration, PointBasedRegistration and ElastixRegistration. Each registration estimates a series of
-        pair-wise transformation that map one source image to a target image. The pair-wise registrations start form the
-        latest frame proceeding backwards time-wise. This is because the latest frames are supposed to be least affected
-        by orthorectification inaccuracies. Each pair-wise registration uses a single channel to estimate the
-        transformation. The constructor takes two mandatory arguments specifying the attribute and feature of array to
-        use for registration, and three optional arguments specifying the index of the channel to use to
-        estimate the registration, a dictionary specifying the parameters of the registration and an interpolation
-        method used to generate the final warped images. If a ground-truth mask is present, it is warped using a nearest
-        neighbour interpolation to not alter the encoding.
-
-        :param feature_type: FeatureType specifying the attribute to use for transformation estimation
-        :type feature_type: FeatureType
-        :param feature_name: String specifying the name of the dictionary feature of the attribute
-        :type feature_name: string
-        :param valid_mask: String specifying the name of hte valid mask feature ot be used to mask pixels during
-                           registration. This feature is supposed to be stored in the `mask` attribute
-        :type valid_mask: string
-        :param channel: Index of channel to be used in estimating transformation
-        :type channel: int
-        :param params: Dictionary of registration settings. Varies depending on registration method
-        :type params: dict
-        :param interpolation: Enum type specifying interpolation method. Allowed types are NEAREST, LINEAR and CUBIC
-        :type interpolation: Interpolation enum
+    Each transformation is calculated using only a single channel of the images. If feature which contains masks of
+    valid pixels is specified it is used during the calculation. At the end the transformations are applied to each
+    of the specified features. Any additional registration parameters can be passed on to registration method class.
     """
+    def __init__(self, registration_feature, channel=0, valid_mask_feature=None, apply_to_features=...,
+                 interpolation_type=InterpolationType.CUBIC, **params):
+        """
+        :param registration_feature: A feature which will be used for co-registration,
+        e.g. feature=(FeatureType.DATA, 'bands'). By default this feature is of type FeatureType.DATA therefore also
+        only feature name can be given e.g. feature='bands'
+        :type registration_feature: (FeatureType, str) or str
+        :param channel: Index of `feature`'s channel to be used in co-registration
+        :type channel: int
+        :param valid_mask_feature: Feature containing a mask of valid pixels for `registration_feature`. By default no
+        mask is set. It can be set to e.g. valid_mask_feature=(FeatureType.MASK, 'IS_DATA') or
+        valid_mask_feature='IS_DATA' if the feature is of type FeatureType.MASK
+        :type valid_mask_name: str or (FeatureType, str) or None
+        :param apply_to_features: A collection of features to which co-registration will be applied to. By default this
+        is only `registration_feature` and `valid_mask_feature` if given. Note that each feature must have same
+        temporal dimension as `registration_feature`.
+        :type apply_to_features: dict(FeatureType: set(str) or dict(str: str))
+        :param interpolation_type: Type of interpolation used
+        :type interpolation_type: InterpolationType
+        :param params: Any other registration setting which will be passed to registration method
+        :type params: object
+        """
+        if isinstance(registration_feature, str):
+            registration_feature = (FeatureType.DATA, registration_feature)
+        self.registration_feature = self._parse_features(registration_feature)
 
-    def __init__(self, feature_type, feature_name, valid_mask=None, channel=0, params=None,
-                 interpolation=Interpolation.CUBIC):
-        self.feature_type = feature_type
-        self.feature_name = feature_name
         self.channel = channel
+
+        if isinstance(valid_mask_feature, str):
+            valid_mask_feature = (FeatureType.MASK, valid_mask_feature)
+        self.valid_mask_feature = None if valid_mask_feature is None else self._parse_features(valid_mask_feature)
+
+        if apply_to_features is ...:
+            apply_to_features = [registration_feature]
+            if valid_mask_feature:
+                apply_to_features.append(valid_mask_feature)
+        self.apply_to_features = self._parse_features(apply_to_features)
+
+        self.interpolation_type = interpolation_type
         self.params = params
-        self.interpolation = interpolation
-        self.valid_data_name = valid_mask
 
     @abstractmethod
     def register(self, src, trg, trg_mask=None, src_mask=None):
@@ -102,63 +96,60 @@ class Registration(ABC):
         """ Method to print out registration parameters used """
         raise NotImplementedError
 
-    # def execute(self, eopatches):
-    #     """ Method that performs registration on tuples """
-    #     return tuple(map(self.do_execute, eopatches))
+    @staticmethod
+    def _get_interpolation_flag(interpolation_type):
+        try:
+            return {
+                InterpolationType.CUBIC: cv2.INTER_CUBIC,
+                InterpolationType.NEAREST: cv2.INTER_NEAREST,
+                InterpolationType.LINEAR: cv2.INTER_LINEAR
+            }[interpolation_type]
+        except KeyError:
+            raise ValueError("Unsupported interpolation method specified")
 
     def execute(self, eopatch):
-        """ Method that estimates registrations and warps EOPatch objects """
-        # Check if params are given correctly
+        """ Method that estimates registrations and warps EOPatch objects
+        """
         self.check_params()
         self.get_params()
-        # Copy EOPatch and replace registered features
-        eopatch_new = deepcopy(eopatch)
-        # Extract channel for registration
-        sliced_data = deepcopy(eopatch[self.feature_type][self.feature_name][..., self.channel])
-        # Number of timeframes
-        dn = sliced_data.shape[0]
-        # Resolve interpolation
-        if self.interpolation == Interpolation.CUBIC:
-            iflag = cv2.INTER_CUBIC
-        elif self.interpolation == Interpolation.NEAREST:
-            iflag = cv2.INTER_NEAREST
-        elif self.interpolation == Interpolation.LINEAR:
-            iflag = cv2.INTER_LINEAR
-        else:
-            raise ValueError("Unsupported interpolation method specified")
-        # Pair-wise registration starting from the most recent frame
-        for idx in range(dn - 1, 0, -1):
+
+        new_eopatch = deepcopy(eopatch)
+
+        f_type, f_name = next(self.registration_feature(eopatch))
+        sliced_data = deepcopy(eopatch[f_type][f_name][..., self.channel])
+        time_frames = sliced_data.shape[0]
+
+        iflag = self._get_interpolation_flag(self.interpolation_type)
+
+        for idx in range(time_frames - 1, 0, -1):  # Pair-wise registration starting from the most recent frame
+
             src_mask, trg_mask = None, None
-            if (self.valid_data_name is not None) and (self.valid_data_name in eopatch_new.mask.keys()):
-                src_mask = eopatch_new.mask[self.valid_data_name][idx-1]
-                trg_mask = eopatch_new.mask[self.valid_data_name][idx]
+            if self.valid_mask_feature is not None:
+                f_type, f_name = next(self.valid_mask_feature(eopatch))
+                src_mask = new_eopatch[f_type][f_name][idx - 1]
+                trg_mask = new_eopatch[f_type][f_name][idx]
 
             # Estimate transformation
-            warp_matrix = self.register(sliced_data[idx-1], sliced_data[idx], src_mask=src_mask, trg_mask=trg_mask)
+            warp_matrix = self.register(sliced_data[idx - 1], sliced_data[idx], src_mask=src_mask, trg_mask=trg_mask)
 
             # Check amount of deformation
             rflag = self.is_registration_suspicious(warp_matrix)
 
             # Flag suspicious registrations and set them to the identity
             if rflag:
-                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__,
-                                                                                   idx - 1, idx))
+                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__, idx - 1,
+                                                                                   idx))
                 warp_matrix = np.eye(2, 3)
 
             # Transform and update sliced_data
-            sliced_data[idx-1] = self.warp(warp_matrix, sliced_data[idx-1], iflag)
+            sliced_data[idx - 1] = self.warp(warp_matrix, sliced_data[idx - 1], iflag)
 
-            # Warp corresponding image in every feature of data
-            for data_key in eopatch_new.data.keys():
-                eopatch_new.data[data_key][idx-1] = self.warp(warp_matrix, eopatch_new.data[data_key][idx-1], iflag)
+            # Apply tranformation to every given feature
+            for feature_type, feature_name in self.apply_to_features(eopatch):
+                new_eopatch[feature_type][feature_name][idx - 1] = \
+                    self.warp(warp_matrix, new_eopatch[feature_type][feature_name][idx - 1], iflag)
 
-            # Warp corresponding image in every feature of mask
-            for mask_key in eopatch_new.mask.keys():
-                eopatch_new.mask[mask_key][idx-1] = self.warp(warp_matrix, eopatch_new.mask[mask_key][idx-1], iflag)
-
-            del warp_matrix
-
-        return eopatch_new
+        return new_eopatch
 
     def warp(self, warp_matrix, img, iflag=cv2.INTER_NEAREST):
         """ Function to warp input image given an estimated 2D linear transformation
@@ -172,17 +163,17 @@ class Registration(ABC):
         :return: Warped image using the linear matrix
         """
 
-        h, w = img.shape[:2]
+        height, width = img.shape[:2]
         warped_img = np.zeros_like(img, dtype=img.dtype)
 
         # Check if image to warp is 2D or 3D. If 3D need to loop over channels
-        if (self.interpolation == Interpolation.LINEAR) or img.ndim == 2:
-            warped_img = cv2.warpAffine(img.astype(np.float32), warp_matrix, (w, h), flags=iflag).astype(img.dtype)
+        if (self.interpolation_type == InterpolationType.LINEAR) or img.ndim == 2:
+            warped_img = cv2.warpAffine(img.astype(np.float32), warp_matrix, (width, height),
+                                        flags=iflag).astype(img.dtype)
 
         elif img.ndim == 3:
             for idx in range(img.shape[-1]):
-                warped_img[..., idx] = cv2.warpAffine(img[..., idx].astype(np.float32),
-                                                      warp_matrix, (w, h),
+                warped_img[..., idx] = cv2.warpAffine(img[..., idx].astype(np.float32), warp_matrix, (width, height),
                                                       flags=iflag).astype(img.dtype)
         else:
             raise ValueError('Image has incorrect number of dimensions: {}'.format(img.ndim))
@@ -210,8 +201,10 @@ class Registration(ABC):
         return 1 if int((rot_angle > MAX_ROTATION) or (transl_norm > MAX_TRANSLATION)) else 0
 
 
-class ThunderRegistration(Registration):
-    """ Registration class implementing a translational registration using the thunder-registration package """
+class ThunderRegistration(RegistrationTask):
+    """ Registration task implementing a translational registration using the thunder-registration package
+    """
+
     def register(self, src, trg, trg_mask=None, src_mask=None):
         """ Implementation of pair-wise registration using thunder-registration
 
@@ -248,8 +241,10 @@ class ThunderRegistration(Registration):
         pass
 
 
-class ECCRegistration(Registration):
-    """ Registration class implementing an intensity-based method within opencv """
+class ECCRegistration(RegistrationTask):
+    """ Registration task implementing an intensity-based method from OpenCV
+    """
+
     def get_params(self):
         LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
         LOGGER.info("\t\t\t\tMaxIters: {:d}".format(self.params['MaxIters']))
@@ -288,8 +283,9 @@ class ECCRegistration(Registration):
         return warp_matrix
 
 
-class PointBasedRegistration(Registration):
-    """ Registration class implementing a point-based registration using opencv-contrib """
+class PointBasedRegistration(RegistrationTask):
+    """ Registration class implementing a point-based registration from OpenCV contrib package
+    """
     def get_params(self):
         LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
         LOGGER.info("\t\t\t\tModel: {:s}".format(self.params['Model']))
@@ -336,13 +332,13 @@ class PointBasedRegistration(Registration):
         # Initiate point detector
         ptdt = cv2.xfeatures2d.SIFT_create() if self.params['Descriptor'] == 'SIFT' else cv2.xfeatures2d.SURF_create()
         # create BFMatcher object
-        bf = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
+        bf_matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
         # find the keypoints and descriptors with SIFT
         kp1, des1 = ptdt.detectAndCompute(self.rescale_image(src), None)
         kp2, des2 = ptdt.detectAndCompute(self.rescale_image(trg), None)
         # Match descriptors if any are found
         if des1 is not None and des2 is not None:
-            matches = bf.match(des1, des2)
+            matches = bf_matcher.match(des1, des2)
             # Sort them in the order of their distance.
             matches = sorted(matches, key=lambda x: x.distance)
             src_pts = np.asarray([kp1[m.queryIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)

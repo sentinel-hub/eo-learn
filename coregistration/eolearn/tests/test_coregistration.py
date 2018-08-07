@@ -3,7 +3,7 @@ import logging
 
 from eolearn.core import EOPatch, FeatureType
 
-from eolearn.coregistration import Interpolation, ECCRegistration
+from eolearn.coregistration import InterpolationType, ECCRegistration
 
 import numpy as np
 
@@ -29,7 +29,12 @@ class TestEOPatch(unittest.TestCase):
         eop.add_feature(FeatureType.MASK, 'cm', value=mask)
         eop.add_feature(FeatureType.DATA_TIMELESS, 'dem', value=dem)
 
-        reg = ECCRegistration(FeatureType.DATA, 'bands', interpolation=Interpolation.NEAREST)
+        reg = ECCRegistration((FeatureType.DATA, 'bands'), valid_mask_feature='cm',
+                              interpolation_type=InterpolationType.NEAREST,
+                              apply_to_features={
+                                  FeatureType.DATA: {'bands', 'ndvi'},
+                                  FeatureType.MASK: {'cm'}
+                              })
         reop = reg.execute(eop)
 
         self.assertEqual(eop.data['bands'].shape, reop.data['bands'].shape,

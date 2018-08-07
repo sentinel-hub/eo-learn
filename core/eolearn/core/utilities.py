@@ -62,7 +62,7 @@ class FeatureParser:
         if isinstance(features, str):
             return OrderedDict([(None, OrderedDict([(features, ...)]))])
 
-        raise ValueError('Unknown format of input features')
+        raise ValueError('Unknown format of input features: {}'.format(features))
 
     @staticmethod
     def _parse_dict(features, new_names):

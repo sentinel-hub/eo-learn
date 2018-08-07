@@ -112,7 +112,7 @@ class AddFeature(EOTask):
     :type feature: (FeatureType, feature_name) or FeatureType
     """
     def __init__(self, feature):
-        self.feature_type, self.feature_name = list(self._parse_features(feature))[0]
+        self.feature_type, self.feature_name = next(iter(self._parse_features(feature)))
 
     def execute(self, eopatch, data):
         """Adds the feature and returns the EOPatch.
