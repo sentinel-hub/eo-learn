@@ -6,8 +6,11 @@
 Documentation for eo-learn Python packages
 ==========================================
 
+.. mdinclude:: README.md
+
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
+   :hidden:
    :caption: Contents:
 
    install
