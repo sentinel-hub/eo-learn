@@ -14,6 +14,7 @@
 #
 import os
 import shutil
+from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
@@ -50,7 +51,8 @@ extensions = [
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.autosummary',
     'nbsphinx',
-    'IPython.sphinxext.ipython_console_highlighting'
+    'IPython.sphinxext.ipython_console_highlighting',
+    'm2r'
 ]
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
