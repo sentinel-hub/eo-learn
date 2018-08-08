@@ -63,20 +63,17 @@ class RegistrationTask(EOTask, ABC):
         :param params: Any other registration setting which will be passed to registration method
         :type params: object
         """
-        if isinstance(registration_feature, str):
-            registration_feature = (FeatureType.DATA, registration_feature)
-        self.registration_feature = self._parse_features(registration_feature)
+        self.registration_feature = self._parse_features(registration_feature, default_feature_type=FeatureType.DATA)
 
         self.channel = channel
 
-        if isinstance(valid_mask_feature, str):
-            valid_mask_feature = (FeatureType.MASK, valid_mask_feature)
-        self.valid_mask_feature = None if valid_mask_feature is None else self._parse_features(valid_mask_feature)
+        self.valid_mask_feature = None if valid_mask_feature is None else \
+            self._parse_features(valid_mask_feature, default_feature_type=FeatureType.MASK)
 
         if apply_to_features is ...:
-            apply_to_features = [registration_feature]
+            apply_to_features = [next(self.registration_feature())]
             if valid_mask_feature:
-                apply_to_features.append(valid_mask_feature)
+                apply_to_features.append(next(self.valid_mask_feature()))
         self.apply_to_features = self._parse_features(apply_to_features)
 
         self.interpolation_type = interpolation_type

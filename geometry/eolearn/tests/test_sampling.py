@@ -75,9 +75,9 @@ class TestSampling(unittest.TestCase):
         eop.data['bands'] = np.arange(t*h*w*d).reshape(t, h, w, d)
         eop.mask_timeless['raster'] = self.raster.reshape(self.raster_size + (1,))
 
-        task = PointSamplingTask(n_samples=self.n_samples, ref_mask_name='raster', ref_labels=[0, 1],
-                                 sample_feature_list=[(FeatureType.DATA, 'bands', 'SAMPLED_DATA'),
-                                                      (FeatureType.MASK_TIMELESS, 'raster', 'SAMPLED_LABELS')],
+        task = PointSamplingTask(n_samples=self.n_samples, ref_mask_feature='raster', ref_labels=[0, 1],
+                                 sample_features=[(FeatureType.DATA, 'bands', 'SAMPLED_DATA'),
+                                                  (FeatureType.MASK_TIMELESS, 'raster', 'SAMPLED_LABELS')],
                                  even_sampling=True)
         task.execute(eop)
         # assert features, labels and sampled rows and cols are added to eopatch

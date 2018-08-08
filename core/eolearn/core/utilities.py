@@ -24,19 +24,28 @@ class FeatureParser:
     :type features: object
     :param new_names: `True` if a collection
     :type new_names: bool
+    :param default_feature_type: If feature type of any of the given features is not set this will be used
+    :type default_feature_type: FeatureType or None
+    :param rename_function: Default renaming function
+    :type rename_function: function or None
     """
-    def __init__(self, features, new_names=False):
-        self.feature_collection = self._parse_features(features, new_names)
+    def __init__(self, features, new_names=False, default_feature_type=None, rename_function=None):
+        self.feature_collection = self._parse_features(features, new_names, default_feature_type)
         self.new_names = new_names
+        self.default_feature_type = default_feature_type
+        self.rename_function = rename_function
 
-    def __call__(self, eopatch):
+        if rename_function is None:
+            self.rename_function = lambda x: x
+
+    def __call__(self, eopatch=None):
         return self._get_features(eopatch)
 
     def __iter__(self):
         return self._get_features()
 
     @staticmethod
-    def _parse_features(features, new_names):
+    def _parse_features(features, new_names, default_feature_type):
         """ Takes a collection of features structured in a various ways and parses them into one way. If input format
         is not recognized it raises an error.
 
@@ -60,7 +69,7 @@ class FeatureParser:
             return OrderedDict([(features, ...)])
 
         if isinstance(features, str):
-            return OrderedDict([(None, OrderedDict([(features, ...)]))])
+            return OrderedDict([(default_feature_type, OrderedDict([(features, ...)]))])
 
         raise ValueError('Unknown format of input features: {}'.format(features))
 
@@ -222,7 +231,8 @@ class FeatureParser:
         """ Helping function of `get_features`
         """
         if self.new_names:
-            return feature_type, feature_name, feature_name if new_feature_name is ... else new_feature_name
+            return feature_type, feature_name, (self.rename_function(feature_name) if new_feature_name is ... else
+                                                new_feature_name)
         return feature_type, feature_name
 
 
