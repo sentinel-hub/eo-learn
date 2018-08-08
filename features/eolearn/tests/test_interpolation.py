@@ -33,7 +33,8 @@ class TestInterpolation(unittest.TestCase):
         def execute(self):
             patch = EOPatch.load(self.TEST_PATCH_FILENAME)
             if self.nan_replace is not None:
-                patch.data[self.task.feature_name][np.isnan(patch.data[self.task.feature_name])] = self.nan_replace
+                feature_type, feature_name, _ = next(self.task.feature(patch))
+                patch[feature_type][feature_name][np.isnan(patch[feature_type][feature_name])] = self.nan_replace
             self.result = self.task.execute(patch)
 
     @classmethod

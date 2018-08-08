@@ -21,10 +21,8 @@ class InterpolationTask(EOTask):
     In the process the interpolated feature is overwritten and so are the timestamps. After the execution of the task
     the feature will contain interpolated and resampled values and corresponding new timestamps.
 
-    :param feature_type: FeatureType which will be processed. Default is `FeatureType.DATA`
-    :type feature_type: FeatureType
-    :param feature_name: Name of FeatureType which will be processed
-    :type feature_name: str
+    :param feature: A feature to be interpolated with optional new feature name
+    :type feature: (FeatureType, str) or (FeatureType, str, str)
     :param interpolation_object: Interpolation class which is initialized with
     :type interpolation_object: object
     :param resample_range: If None the data will be only interpolated over existing timestamps and NaN values will be
@@ -35,11 +33,10 @@ class InterpolationTask(EOTask):
     :type resample_range: (str, str, int) or None
     :param result_interval: Maximum and minimum of returned data
     :type result_interval: (float, float)
+    :param mask_feature: Feature that contains binary masks of interpolated feature
+    :type mask_feature: (FeatureType, str)
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
     :type unknown_value: float or numpy.nan
-    :param mask_data: Whether the data to be interpolated is masked using the `VALID_DATA` option or not. Default is
-        `True`
-    :type mask_data: bool
     :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Value
         has to be greater than 1. Default is `10`
     :type filling_factor: int
@@ -48,20 +45,22 @@ class InterpolationTask(EOTask):
     :type scale_time: int
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
-    def __init__(self, feature_name, interpolation_object, *, feature_type=FeatureType.DATA, resample_range=None,
-                 result_interval=None, unknown_value=np.nan, mask_data=True, filling_factor=10, scale_time=3600,
+    def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
+                 unknown_value=np.nan, filling_factor=10, scale_time=3600,
                  **interpolation_parameters):
-        self.feature_type = feature_type
-        self.feature_name = feature_name
+        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
         self.interpolation_object = interpolation_object
 
         self.resample_range = resample_range
         self.result_interval = result_interval
+
+        self.mask_feature = None if mask_feature is None else \
+            self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)
+
         self.unknown_value = unknown_value
         self.interpolation_parameters = interpolation_parameters
         self.scale_time = scale_time
         self.filling_factor = filling_factor
-        self.mask_data = mask_data
 
         self._resampled_times = None
 
@@ -178,16 +177,16 @@ class InterpolationTask(EOTask):
     def execute(self, eopatch):
         """ Execute method that processes EOPatch and returns EOPatch
         """
-        if self.feature_name not in eopatch[self.feature_type.value]:
-            raise ValueError('Feature {0} not found in {1}.'.format(self.feature_name, self.feature_type))
+        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
 
         # Make a copy not to change original numpy array
-        feature_data = eopatch[self.feature_type.value][self.feature_name].copy()
+        feature_data = eopatch[feature_type][feature_name].copy()
         time_num, height, width, band_num = feature_data.shape
 
         # Prepare mask of valid data
-        if self.mask_data and 'VALID_DATA' in eopatch.mask:
-            invalid_data = ~eopatch.mask['VALID_DATA'].squeeze()
+        if self.mask_feature:
+            mask_type, mask_name = next(self.mask_feature(eopatch))
+            invalid_data = ~eopatch[mask_type][mask_name].squeeze()
             feature_data[invalid_data, :] = np.nan
 
         # Flatten array
@@ -201,7 +200,7 @@ class InterpolationTask(EOTask):
         start_time = eopatch.timestamp[0]
         new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
         total_diff = int((new_eopatch.timestamp[0].date() - start_time.date()).total_seconds())
-        resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff//self.scale_time
+        resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff // self.scale_time
 
         # Add BBox to eopatch if it was created anew
         if new_eopatch.bbox is None:
@@ -221,8 +220,8 @@ class InterpolationTask(EOTask):
             feature_data[np.isnan(feature_data)] = self.unknown_value
 
         # Reshape back
-        new_eopatch[self.feature_type.value][self.feature_name] = np.reshape(feature_data, (feature_data.shape[0],
-                                                                                            height, width, band_num))
+        new_eopatch[feature_type][new_feature_name] = np.reshape(feature_data,
+                                                                 (feature_data.shape[0], height, width, band_num))
         return new_eopatch
 
 
@@ -230,52 +229,52 @@ class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature_name, **kwargs):
-        super().__init__(feature_name, interpolate.interp1d, kind='linear', **kwargs)
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, interpolate.interp1d, kind='linear', **kwargs)
 
 
 class CubicInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
-    def __init__(self, feature_name, **kwargs):
-        super().__init__(feature_name, interpolate.interp1d, kind='cubic', **kwargs)
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, interpolate.interp1d, kind='cubic', **kwargs)
 
 
 class SplineInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`
     """
-    def __init__(self, feature_name, *, spline_degree=3, smoothing_factor=0, **kwargs):
-        super().__init__(feature_name, interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
+    def __init__(self, feature, *, spline_degree=3, smoothing_factor=0, **kwargs):
+        super().__init__(feature, interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
 
 
 class BSplineInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`
     """
-    def __init__(self, feature_name, *, spline_degree=3, **kwargs):
-        super().__init__(feature_name, interpolate.make_interp_spline, k=spline_degree, **kwargs)
+    def __init__(self, feature, *, spline_degree=3, **kwargs):
+        super().__init__(feature, interpolate.make_interp_spline, k=spline_degree, **kwargs)
 
 
 class AkimaInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`
     """
-    def __init__(self, feature_name, **kwargs):
-        super().__init__(feature_name, interpolate.Akima1DInterpolator, **kwargs)
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, interpolate.Akima1DInterpolator, **kwargs)
 
 
 class ResamplingTask(InterpolationTask):
     """
-    A subclass of InterpolationTask task that works much faster however works only with data with no missing, masked or
+    A subclass of InterpolationTask task that works only with data with no missing, masked or
     invalid values. It always resamples timeseries to different timestamps.
     """
-    def __init__(self, feature_name, interpolation_object, resample_range, *, result_interval=None,
+    def __init__(self, feature, interpolation_object, resample_range, *, result_interval=None,
                  unknown_value=np.nan, **interpolation_parameters):
         if resample_range is None:
             raise ValueError("resample_range parameter must be in form ('start_date', 'end_date', step_days)")
-        super().__init__(feature_name, interpolation_object, resample_range=resample_range,
+        super().__init__(feature, interpolation_object, resample_range=resample_range,
                          result_interval=result_interval, unknown_value=unknown_value, **interpolation_parameters)
 
     def interpolate_data(self, data, times, resampled_times):
@@ -317,21 +316,21 @@ class NearestResampling(ResamplingTask):
     """
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
     """
-    def __init__(self, feature_name, resample_range, **kwargs):
-        super().__init__(feature_name, interpolate.interp1d, resample_range, kind='nearest', **kwargs)
+    def __init__(self, feature, resample_range, **kwargs):
+        super().__init__(feature, interpolate.interp1d, resample_range, kind='nearest', **kwargs)
 
 
 class LinearResampling(ResamplingTask):
     """
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature_name, resample_range, **kwargs):
-        super().__init__(feature_name, interpolate.interp1d, resample_range, kind='linear', **kwargs)
+    def __init__(self, feature, resample_range, **kwargs):
+        super().__init__(feature, interpolate.interp1d, resample_range, kind='linear', **kwargs)
 
 
 class CubicResampling(ResamplingTask):
     """
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
-    def __init__(self, feature_name, resample_range, **kwargs):
-        super().__init__(feature_name, interpolate.interp1d, resample_range, kind='cubic', **kwargs)
+    def __init__(self, feature, resample_range, **kwargs):
+        super().__init__(feature, interpolate.interp1d, resample_range, kind='cubic', **kwargs)

@@ -8,7 +8,7 @@ from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpol
     BSplineInterpolation, AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import SimpleFilterTask, FilterTimeSeries
-from .compute_haralick import AddHaralickTask
+from .haralick import HaralickTask
 
 
 __version__ = '0.2.0'
