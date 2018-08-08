@@ -66,7 +66,7 @@ class EOTask(ABC):
         return self.execute(*eopatches, **kwargs)
 
     @staticmethod
-    def _parse_features(features, new_names=False, default_feature_type=None):
+    def _parse_features(features, new_names=False, default_feature_type=None, rename_function=None):
         """Used for parsing input features
 
         :param features: A collection of features in one of the supported formats
@@ -75,11 +75,14 @@ class EOTask(ABC):
         :type new_names: bool
         :param default_feature_type: If feature type of any of the given features is not set this will be used
         :type default_feature_type: FeatureType or None
+        :param rename_function: Default renaming function
+        :type rename_function: function or None
         :return: A generator over feature types and feature names
         :rtype: FeatureParser
         :raises: ValueError
         """
-        return FeatureParser(features, new_names=new_names, default_feature_type=default_feature_type)
+        return FeatureParser(features, new_names=new_names, default_feature_type=default_feature_type,
+                             rename_function=rename_function)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):

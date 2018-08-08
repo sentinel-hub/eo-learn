@@ -71,9 +71,9 @@ class RegistrationTask(EOTask, ABC):
             self._parse_features(valid_mask_feature, default_feature_type=FeatureType.MASK)
 
         if apply_to_features is ...:
-            apply_to_features = [next(iter(self.registration_feature))]
+            apply_to_features = [next(self.registration_feature())]
             if valid_mask_feature:
-                apply_to_features.append(next(iter(self.valid_mask_feature)))
+                apply_to_features.append(next(self.valid_mask_feature()))
         self.apply_to_features = self._parse_features(apply_to_features)
 
         self.interpolation_type = interpolation_type

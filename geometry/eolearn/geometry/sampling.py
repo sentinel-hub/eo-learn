@@ -310,7 +310,7 @@ class PointSamplingTask(EOTask):
     output sample features and sampled labels.
     """
     # pylint: disable=too-many-arguments
-    def __init__(self, n_samples, ref_mask_name, ref_labels, sample_feature_list, return_new_eopatch=False,
+    def __init__(self, n_samples, ref_mask_feature, ref_labels, sample_features, return_new_eopatch=False,
                  **sampling_params):
         """ Initialise sampling task.
 
@@ -324,19 +324,18 @@ class PointSamplingTask(EOTask):
 
         :param n_samples: Number of random spatial points to be sampled from the time-series
         :type n_samples: int
-        :param ref_mask_name: Name of `MASK_TIMELESS` raster image to be used as a reference for sampling
-        :type ref_mask_name: str
-        :param ref_labels: List of labels of `ref_mask_name` mask which will be sampled
+        :param ref_mask_feature: Name of `MASK_TIMELESS` raster image to be used as a reference for sampling
+        :type ref_mask_feature: str
+        :param ref_labels: List of labels of `ref_mask_feature` mask which will be sampled
         :type ref_labels: list(int)
-        :param sample_feature_list: List of features that will be resampled. Each feature is represented by a tuple in a
-            form of `(eolearn.core.FeatureType, 'feature_name')` or
-            (eolearn.core.FeatureType, '<feature_name>', '<sampled feature name>'). If `sampled_feature_name` is not
+        :param sample_features: A collection of features that will be resampled. Each feature is represented by a tuple
+            in a form of `(FeatureType, 'feature_name')` or
+            (FeatureType, '<feature_name>', '<sampled feature name>'). If `sampled_feature_name` is not
             set the default name `'<feature_name>_SAMPLED'` will be used.
 
             Example: [(FeatureType.DATA, 'NDVI'), (FeatureType.MASK, 'cloud_mask', 'cloud_mask_1')]
 
-        :type sample_feature_list: list(tuple(eolearn.core.FeatureType, str, str) or
-            tuple(eolearn.core.FeatureType, str))
+        :type sample_features: list(tuple(FeatureType, str, str) or tuple(FeatureType, str))
         :param return_new_eopatch: If `True` the task will create new EOPatch, put sampled data and copy of timestamps
             and meta_info data in it and return it. If `False` it will just add sampled data to input EOPatch and
             return it.
@@ -344,76 +343,28 @@ class PointSamplingTask(EOTask):
         :param sampling_params: Any other parameter used by `PointRasterSampler` class
         """
         self.n_samples = n_samples
-        self.ref_mask_name = ref_mask_name
+        self.ref_mask_feature = self._parse_features(ref_mask_feature, default_feature_type=FeatureType.MASK_TIMELESS)
         self.ref_labels = list(ref_labels)
-        self.sample_feature_list = sample_feature_list
+        self.sample_features = self._parse_features(sample_features, new_names=True,
+                                                    rename_function=lambda name: '{}_SAMPLED'.format(name))
         self.return_new_eopatch = return_new_eopatch
         self.sampling_params = sampling_params
-
-        if not isinstance(self.sample_feature_list, (list, tuple)):
-            raise ValueError('sample_feature_list must be a list or a tuple')
-        for sample_feature in self.sample_feature_list:
-            if not isinstance(sample_feature, (tuple, list)):
-                raise ValueError('Each item of sample_feature_list must be a tuple or a list')
-            if len(sample_feature) < 2 or len(sample_feature) > 3:
-                raise ValueError('Each item of sample_feature_list must have a size of 2 or 3')
-
-    def _check_paramaters(self, eopatch):
-        """Checks if given EOPatch contains correct para
-
-        :param eopatch: EOPatch given in execute method that will be checked
-        :type eopatch: eolearn.core.EOPatch
-        :raises: ValueError
-        """
-        if self.ref_mask_name not in eopatch.mask_timeless:
-            raise ValueError('Reference mask feature {} does not exist in FeatureType.MASK_TIMELESS of given '
-                             'EOPatch'.format(self.ref_mask_name))
-        # Checking of self.sample_feature_list should also be done here
-        for sample_feature in self.sample_feature_list:
-            feature_type, feature_name = sample_feature[0], sample_feature[1]
-
-            if not isinstance(feature_type, FeatureType):
-                ValueError('First parameter of an item in sample_feature_list must be of type '
-                           '{}'.format(type(FeatureType)))
-
-            if not feature_type.is_spatial():
-                raise ValueError('{} type does not have a spatial component'.format(feature_type))
-
-            if feature_name not in eopatch[feature_type]:
-                raise ValueError('{} does not exist in {}'.format(feature_name, feature_type))
-
-            new_feature_name = self._get_new_feature_name(sample_feature)
-            if new_feature_name in eopatch[feature_type] and not self.return_new_eopatch:
-                raise ValueError('{} already exists in {} of given EOPatch'.format(new_feature_name, feature_type))
-
-    @staticmethod
-    def _get_new_feature_name(sample_feature):
-        """Takes an item from `sample_feature_list` an determines name of the resampled feature
-
-        :param sample_feature: An item from `sample_feature_list`
-        param sample_feature: eolearn.core.FeatureType, str, str) or tuple(eolearn.core.FeatureType, str)
-        :return: Name of sampled feature
-        :rtype: str
-        """
-        if len(sample_feature) != 3:
-            return '{}_SAMPLED'.format(sample_feature[1])
-        return sample_feature[2]
 
     def execute(self, eopatch, seed=None):
         """ Execute random spatial sampling of time-series stored in the input eopatch
 
         :param eopatch: Input eopatch to be sampled
-        :type eopatch: eolearn.core.EOPatch
+        :type eopatch: EOPatch
         :param seed: Setting seed of random sampling. If None no seed will be used.
         :type seed: int or None
         :return: An EOPatch with spatially sampled temporal features and associated labels
-        :type eopatch: eolearn.core.EOPatch
+        :type eopatch: EOPatch
         """
         np.random.seed(seed)
 
-        self._check_paramaters(eopatch)
         # Retrieve data and raster label image from eopatch
-        raster = eopatch.get_feature(FeatureType.MASK_TIMELESS, self.ref_mask_name)
+        f_type, f_name = next(self.ref_mask_feature(eopatch))
+        raster = eopatch[f_type][f_name]
 
         # Initialise sampler
         sampler = PointRasterSampler(self.ref_labels, **self.sampling_params)
@@ -429,9 +380,7 @@ class PointSamplingTask(EOTask):
             new_eopatch = eopatch
 
         # Add sampled features
-        for sample_feature in self.sample_feature_list:
-            feature_type, feature_name = sample_feature[0], sample_feature[1]
-            new_feature_name = self._get_new_feature_name(sample_feature)
+        for feature_type, feature_name, new_feature_name in self.sample_features(eopatch):
 
             if feature_type.is_time_dependent():
                 sampled_data = eopatch[feature_type][feature_name][:, rows, cols, :]
