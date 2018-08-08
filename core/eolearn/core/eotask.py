@@ -66,18 +66,20 @@ class EOTask(ABC):
         return self.execute(*eopatches, **kwargs)
 
     @staticmethod
-    def _parse_features(features, new_names=False):
+    def _parse_features(features, new_names=False, default_feature_type=None):
         """Used for parsing input features
 
         :param features: A collection of features in one of the supported formats
         :type features: object
         :param new_names: `True` if a collection
         :type new_names: bool
-        :return: An iterator
+        :param default_feature_type: If feature type of any of the given features is not set this will be used
+        :type default_feature_type: FeatureType or None
+        :return: A generator over feature types and feature names
         :rtype: FeatureParser
         :raises: ValueError
         """
-        return FeatureParser(features, new_names=new_names)
+        return FeatureParser(features, new_names=new_names, default_feature_type=default_feature_type)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
