@@ -27,5 +27,13 @@ setup(name='eo-learn',
       author_email='info@sinergise.com',
       license='MIT',
       packages=[],
-      install_requires=parse_requirements("requirements.txt"),
+      install_requires=[
+          'eo-learn-core',
+          'eo-learn-coregistration',
+          'eo-learn-features',
+          'eo-learn-geometry',
+          'eo-learn-io',
+          'eo-learn-mask',
+          'eo-learn-ml-tools'
+      ],
       zip_safe=False)
