@@ -10,7 +10,7 @@ B -> B01 | B02 | B03 | ... | B12
 [1] http://www.mdpi.com/2072-4292/8/8/666
 """
 # pylint: disable=invalid-name
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 
 import numpy as np
 import logging

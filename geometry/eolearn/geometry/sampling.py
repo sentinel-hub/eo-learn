@@ -346,7 +346,7 @@ class PointSamplingTask(EOTask):
         self.ref_mask_feature = self._parse_features(ref_mask_feature, default_feature_type=FeatureType.MASK_TIMELESS)
         self.ref_labels = list(ref_labels)
         self.sample_features = self._parse_features(sample_features, new_names=True,
-                                                    rename_function=lambda name: '{}_SAMPLED'.format(name))
+                                                    rename_function='{}_SAMPLED'.format)
         self.return_new_eopatch = return_new_eopatch
         self.sampling_params = sampling_params
 

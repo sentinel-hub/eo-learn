@@ -6,7 +6,7 @@ import numpy as np
 from rasterio import features, transform
 from shapely.geometry import Polygon
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 
 
 class VectorToRaster(EOTask):

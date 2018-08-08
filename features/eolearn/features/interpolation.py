@@ -186,8 +186,7 @@ class InterpolationTask(EOTask):
         # Prepare mask of valid data
         if self.mask_feature:
             mask_type, mask_name = next(self.mask_feature(eopatch))
-            invalid_data = ~eopatch[mask_type][mask_name].squeeze()
-            feature_data[invalid_data, :] = np.nan
+            feature_data[~eopatch[mask_type][mask_name].squeeze(), :] = np.nan
 
         # Flatten array
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
@@ -197,9 +196,8 @@ class InterpolationTask(EOTask):
 
         # Resample times
         times = eopatch.time_series(scale_time=self.scale_time)
-        start_time = eopatch.timestamp[0]
         new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
-        total_diff = int((new_eopatch.timestamp[0].date() - start_time.date()).total_seconds())
+        total_diff = int((new_eopatch.timestamp[0].date() - eopatch.timestamp[0].date()).total_seconds())
         resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff // self.scale_time
 
         # Add BBox to eopatch if it was created anew

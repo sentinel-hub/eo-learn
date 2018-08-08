@@ -49,7 +49,7 @@ class HaralickTask(EOTask):
         :type stride: int
         """
         self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
-                                            rename_function=lambda name: '{}_HARALICK'.format(name))
+                                            rename_function='{}_HARALICK'.format)
 
         self.texture_feature = texture_feature
         if self.texture_feature not in self.AVAILABLE_TEXTURES:
