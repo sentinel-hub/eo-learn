@@ -1,5 +1,5 @@
 import os
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 def get_long_description():
@@ -17,24 +17,23 @@ def parse_requirements(file):
     ) - set(''))
 
 
-def get_version():
-    for line in open(os.path.join(os.path.dirname(__file__), 'eolearn', 'geometry', '__init__.py')):
-        if line.find("__version__") >= 0:
-            version = line.split("=")[1].strip()
-            version = version.strip('"').strip("'")
-    return version
-
-
-setup(name='eo-learn-geometry',
-      version=get_version(),
-      description='A collection of geometry utilities and EOTasks',
+setup(name='eo-learn',
+      version='0.2.0',
+      description='Earth observation processing framework for machine learning in Python',
       long_description=get_long_description(),
       long_description_content_type='text/markdown',
       url='https://github.com/sentinel-hub/eo-learn',
       author='Sinergise EO research team',
       author_email='info@sinergise.com',
       license='MIT',
-      packages=find_packages(),
-      include_package_data=True,
-      install_requires=parse_requirements("requirements.txt"),
+      packages=[],
+      install_requires=[
+          'eo-learn-core',
+          'eo-learn-coregistration',
+          'eo-learn-features',
+          'eo-learn-geometry',
+          'eo-learn-io',
+          'eo-learn-mask',
+          'eo-learn-ml-tools'
+      ],
       zip_safe=False)
