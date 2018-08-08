@@ -10,12 +10,6 @@ def get_long_description():
 
     return long_description
 
-def parse_requirements(file):
-    return sorted(set(
-        line.partition('#')[0].strip()
-        for line in open(os.path.join(os.path.dirname(__file__), file))
-    ) - set(''))
-
 
 setup(name='eo-learn',
       version='0.2.0',
