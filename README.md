@@ -57,7 +57,7 @@ python install_all.py
 
 ## Documentation
 
-For more information on the package content, visit readthedocs.
+For more information on the package content, visit [readthedocs](https://eo-learn.readthedocs.io/).
 
 ## License
 
