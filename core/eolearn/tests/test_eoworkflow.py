@@ -10,7 +10,7 @@ from eolearn.core.eoworkflow import CyclicDependencyError, _UniqueIdGenerator
 from eolearn.core.graph import DirectedGraph
 
 
-logging.basicConfig(level=logging.INFO)#DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 class InputTask(EOTask):
@@ -61,9 +61,9 @@ class TestEOWorkflow(unittest.TestCase):
             Dependency(task=divide_task, inputs=[input_task1, input_task2])
         ])
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=5) as e:
-            r = {
-                k: e.submit(
+        with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
+            k2future = {
+                k: executor.submit(
                     workflow.execute,
                     {
                         input_task1: {'val': k ** 3},
@@ -71,10 +71,10 @@ class TestEOWorkflow(unittest.TestCase):
                     }
                 ) for k in range(2, 100)
             }
-            e.shutdown()
+            executor.shutdown()
             for k in range(2, 100):
-                # print("ID {}: t({}, {}) = {}".format(k, k**3, k**2, r[k].result()[divide_task]))
-                self.assertEqual(r[k].result()[divide_task], k)
+                future = k2future[k]
+                self.assertEqual(future.result()[divide_task], k)
 
         result1 = workflow.execute({
             input_task1: {'val': 15},
@@ -99,19 +99,19 @@ class TestEOWorkflow(unittest.TestCase):
 
     def test_linear_workflow(self):
         in_task = InputTask()
-        inc = Inc()
-        pow = Pow()
-        eow = EOWorkflow.make_linear_workflow(in_task, inc, pow)
+        inc_task = Inc()
+        pow_task = Pow()
+        eow = EOWorkflow.make_linear_workflow(in_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
-            inc: {'d': 2},
-            pow: {'n': 3}
+            inc_task: {'d': 2},
+            pow_task: {'n': 3}
         })
-        self.assertEqual(res[pow], (2+2)**3)
+        self.assertEqual(res[pow_task], (2+2)**3)
 
     def test_trivial_workflow(self):
-        t = DummyTask()
-        dep = Dependency(t, [])
+        task = DummyTask()
+        dep = Dependency(task, [])
         workflow = EOWorkflow([dep])
 
         result = workflow.execute()
@@ -156,7 +156,7 @@ class TestWorkflowResults(unittest.TestCase):
 
 
 class TestUniqueIdGenerator(unittest.TestCase):
-    def test_fails_after_exceeding_max_uuids(self):
+    def test_exceeding_max_uuids(self):
         _UniqueIdGenerator.MAX_UUIDS = 10
 
         id_gen = _UniqueIdGenerator()
