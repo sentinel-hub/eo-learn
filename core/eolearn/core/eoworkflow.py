@@ -252,10 +252,35 @@ class EOWorkflow:
         :rtype: Digraph
         """
         dot = Digraph()
+        dep_to_dot_name = self._get_dep_to_dot_name_mapping(self.ordered_dependencies)
+
         for dep in self.ordered_dependencies:
             for input_task in dep.inputs:
-                dot.edge(self._get_dot_name(self.uuid_dict[input_task.uuid]), self._get_dot_name(dep))
+                dot.edge(dep_to_dot_name[self.uuid_dict[input_task.uuid]],
+                         dep_to_dot_name[dep])
         return dot
+
+    @staticmethod
+    def _get_dep_to_dot_name_mapping(dependencies):
+        dot_name_to_deps = {}
+        for dep in dependencies:
+            dot_name = EOWorkflow._get_dot_name(dep)
+
+            if dot_name not in dot_name_to_deps:
+                dot_name_to_deps[dot_name] = [dep]
+            else:
+                dot_name_to_deps[dot_name].append(dep)
+
+        dep_to_dot_name = {}
+        for dot_name, deps in dot_name_to_deps.items():
+            if len(deps) == 1:
+                dep_to_dot_name[deps[0]] = dot_name
+                continue
+
+            for idx, dep in enumerate(deps):
+                dep_to_dot_name[dep] = dot_name + str(idx)
+
+        return dep_to_dot_name
 
     @staticmethod
     def _get_dot_name(dependency):

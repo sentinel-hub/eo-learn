@@ -2,8 +2,10 @@ import unittest
 import logging
 import functools
 import concurrent.futures
+from io import StringIO
 
 from hypothesis import given, strategies as st
+import networkx as nx
 
 from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults
 from eolearn.core.eoworkflow import CyclicDependencyError, _UniqueIdGenerator
@@ -149,6 +151,31 @@ class TestEOWorkflow(unittest.TestCase):
                 lambda P, Q: P and Q,
                 [ver2pos[u] < ver2pos[v] for u, v in edges]
             ))
+
+
+class TestGraph(unittest.TestCase):
+
+    def setUp(self):
+        input_task1 = InputTask()
+        input_task2 = InputTask()
+        divide_task = DivideTask()
+
+        self.workflow = EOWorkflow(dependencies=[
+            Dependency(task=input_task1, inputs=[]),
+            Dependency(task=input_task2, inputs=[]),
+            Dependency(task=divide_task, inputs=[input_task1, input_task2])
+        ])
+
+    def test_graph_nodes_and_edges(self):
+        dot = self.workflow.get_dot()
+        dot_file = StringIO()
+        dot_file.write(dot.source)
+        dot_file.seek(0)
+
+        graph = nx.drawing.nx_pydot.read_dot(dot_file)
+
+        self.assertEqual(graph.number_of_nodes(), 3)
+        self.assertEqual(graph.number_of_edges(), 2)
 
 
 class TestWorkflowResults(unittest.TestCase):
