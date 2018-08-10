@@ -1,7 +1,7 @@
-eolearn.features.compute\_haralick
+eolearn.features.haralick
 ==================================
 
-.. automodule:: eolearn.features.compute_haralick
+.. automodule:: eolearn.features.haralick
     :members:
     :undoc-members:
     :show-inheritance:
