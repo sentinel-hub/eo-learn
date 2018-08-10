@@ -10,10 +10,11 @@ B -> B01 | B02 | B03 | ... | B12
 [1] http://www.mdpi.com/2072-4292/8/8/666
 """
 # pylint: disable=invalid-name
-from eolearn.core import EOTask, FeatureType
-
 import numpy as np
 import logging
+
+from eolearn.core import EOTask
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ class FeatureExtendedExtractor:
         if nxt.isdigit():
             lexer.popleft()
             return lambda x: x[10 * int(num) + int(nxt)]
-        elif nxt.lower() == 'a':
+        if nxt.lower() == 'a':
             lexer.popleft()
             return lambda x: x[8]
         nr = int(num) - 1
@@ -125,21 +126,33 @@ class FeatureExtendedExtractor:
 
 
 class FeatureExtractionTask(EOTask):
-    def __init__(self, expr, source_field, target_field):
-        self.fee = FeatureExtendedExtractor(expr)
-        self.src_field = source_field
-        self.tgt_field = target_field
+    """ Task that applies an algebraic expression on each value of the feature
+    """
+    def __init__(self, feature, expression):
+        """
+        :param feature: A feature which will be transformed. If specified it will be saved under new feature name
+
+        Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'transformed_bands')
+
+        :type feature: (FeatureType, str) or (FeatureType, str, str)
+        :param expression: Algebraic expression that works on each value of the feature
+        :type expression: str
+        """
+        self.feature = self._parse_features(feature, new_names=True)
+        self.fee = FeatureExtendedExtractor(expression)
 
     def execute(self, eopatch):
-        shp = eopatch.data[self.src_field].shape
 
-        LOGGER.debug("Input array shape: %s", shp)
+        for feature_type, feature_name, new_feature_name in self.feature:  # Can transform multiple features
+            shp = eopatch[feature_type][feature_name].shape
 
-        value = np.apply_along_axis(lambda x: np.asarray(self.fee(x)), arr=eopatch.data[self.src_field],
-                                    axis=len(shp)-1)
+            LOGGER.debug("Input array shape: %s", shp)
 
-        LOGGER.debug("Feature array shape: %s", value.shape)
+            value = np.apply_along_axis(lambda x: np.asarray(self.fee(x)), arr=eopatch[feature_type][feature_name],
+                                        axis=len(shp) - 1)
 
-        eopatch.add_feature(attr_type=FeatureType.DATA, field=self.tgt_field, value=value)
+            LOGGER.debug("Feature array shape: %s", value.shape)
+
+            eopatch[feature_type][new_feature_name] = value
 
         return eopatch

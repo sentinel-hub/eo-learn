@@ -91,14 +91,11 @@ class MorphologicalStructFactory:
 class PostprocessingTask(EOTask):
     """ Base class for all post-processing tasks
 
-    :param feature_type: Type of the vector feature which will be added to EOPatch
-    :type feature_type: eolearn.core.FeatureType
-    :param feature_name: Name of the vector feature which will be added to EOPatch
-    :type feature_name: str
+    :param feature: A feature to be processed
+    :type feature: (FeatureType, str)
     """
-    def __init__(self, feature_type, feature_name):
-        self.feature_type = feature_type
-        self.feature_name = feature_name
+    def __init__(self, feature):
+        self.feature = self._parse_features(feature)
 
     @abstractmethod
     def process(self, raster):
@@ -107,27 +104,26 @@ class PostprocessingTask(EOTask):
     def execute(self, eopatch):
         """ Execute method takes EOPatch and changes the specified feature
         """
+        feature_type, feature_name = next(self.feature(eopatch))
 
-        if not eopatch.feature_exists(self.feature_type, self.feature_name):
-            raise ValueError('Unknown feature {}, {}'.format(self.feature_type, self.feature_name))
+        eopatch[feature_type][feature_name] = self.process(eopatch[feature_type][feature_name])
 
-        new_raster = self.process(eopatch.get_feature(self.feature_type, self.feature_name))
-
-        eopatch.add_feature(self.feature_type, self.feature_name, new_raster)
         return eopatch
 
 
 class MorphologicalFilterTask(PostprocessingTask):
     """ EOTask that performs morphological operations on masks.
 
+    :param feature: A feature to be processed
+    :type feature: (FeatureType, str)
     :param morph_operation: Morphological operation
     :type morph_operation: MorphologicalOperations or function that operates on image
     :param struct_elem: The structuring element to be used with the morphological operation; usually generated with a
                         factory method from MorphologicalStructElements
     :type struct_elem: numpy.ndarray
     """
-    def __init__(self, feature_type, feature_name, morph_operation, struct_elem=None):
-        super(MorphologicalFilterTask, self).__init__(feature_type, feature_name)
+    def __init__(self, feature, morph_operation, struct_elem=None):
+        super().__init__(feature)
 
         if isinstance(morph_operation, MorphologicalOperations):
             self.morph_operation = MorphologicalOperations.get_operation(morph_operation)

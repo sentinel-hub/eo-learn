@@ -8,7 +8,7 @@ EO task might take as input an EOPatch containing cloud mask and return as a res
 
 Beside the base EOTask the hierarchy provides several additional general-purpose tasks that deserve a mention:
 
- - EOChainedTask class represents a compositum of EO tasks. It takes as input to the constructor a list of EOTask
+ - ChainedTask class represents a compositum of EO tasks. It takes as input to the constructor a list of EOTask
  instances, say [t1,t2,...,tn]. The result of invoking the execute (or __call__) on the chained task is, by definition,
  the same as invoking tn(...(t2(t1(*args, **kwargs)))...). The chained task does lazy evaluation: it performs no
  work until execute has been invoked.
@@ -22,55 +22,86 @@ Beside the base EOTask the hierarchy provides several additional general-purpose
  eolearn.registration
 """
 
-import functools
 import logging
+
 from abc import ABC, abstractmethod
+from inspect import getfullargspec
+from copy import deepcopy
+from collections import OrderedDict
+
+from .utilities import FeatureParser
 
 LOGGER = logging.getLogger(__name__)
 
 
 class EOTask(ABC):
     """
-    Base class for task.
+    Base class for EOTask.
     """
+    def __new__(cls, *args, **kwargs):
+        """Here an instance of EOTask is created. All initialization parameters are deep copied and stored to a special
+        instance attribute `init_args`. Order of arguments is also preserved.
+        """
+        self = super().__new__(cls)
+
+        self.init_args = OrderedDict()
+        for arg, value in zip(getfullargspec(self.__init__).args[1: len(args) + 1], args):
+            self.init_args[arg] = deepcopy(value)
+        for arg in getfullargspec(self.__init__).args[len(args) + 1:]:
+            if arg in kwargs:
+                self.init_args[arg] = deepcopy(kwargs[arg])
+
+        self.uuid = None
+
+        return self
+
+    def __mul__(self, other):
+        """ Composite of EOTasks
+        """
+        return CompositeTask(other, self)
+
+    def __call__(self, *eopatches, **kwargs):
+        """ EOTask is callable like a function
+        """
+        return self.execute(*eopatches, **kwargs)
+
+    @staticmethod
+    def _parse_features(features, new_names=False, default_feature_type=None, rename_function=None):
+        """Used for parsing input features
+
+        :param features: A collection of features in one of the supported formats
+        :type features: object
+        :param new_names: `True` if a collection
+        :type new_names: bool
+        :param default_feature_type: If feature type of any of the given features is not set this will be used
+        :type default_feature_type: FeatureType or None
+        :param rename_function: Default renaming function
+        :type rename_function: function or None
+        :return: A generator over feature types and feature names
+        :rtype: FeatureParser
+        :raises: ValueError
+        """
+        return FeatureParser(features, new_names=new_names, default_feature_type=default_feature_type,
+                             rename_function=rename_function)
+
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
         raise NotImplementedError
 
-    def __call__(self, *eopatches, **kwargs):
-        return self.execute(*eopatches, **kwargs)
 
+class CompositeTask(EOTask):
+    """ Creates a task that is composite of two tasks
 
-class EOChainedTask(EOTask):
+    :param eotask1: Task which will be executed first
+    :type eotask1: EOTask
+    :param eotask2: Task which will be executed on results of first task
+    :type eotask2: EOTask
     """
-    A sequence of tasks  is a task: Tn(...T2(T1(eopatch))...) = T(eopatch) for T = Tn o ... o T2 o T1.
+    def __init__(self, eotask1, eotask2):
+        self.eotask1 = eotask1
+        self.eotask2 = eotask2
 
-    This class represents a composite of a sequence of tasks.
-    """
-    def __init__(self, tasks):
-        """
-        :param tasks: A list of tasks to be chained together.
-        :type tasks: List[EOTask]
-        """
-        # pylint: disable=undefined-variable
-        self.tasks = list(reversed(tasks))
-        self.compositum = functools.reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), self.tasks)
+        self.init_args = OrderedDict(list(eotask1.init_args.items()) + list(eotask2.init_args.items()))
 
-    def get_tasks(self):
-        """
-        Returns the list of tasks whose compositum we're applying.
-        :return: The list of tasks the chain is composed of
-        :rtype: List[EOTask]
-        """
-        return self.tasks
-
-    def execute(self, *eopatch, **kwargs):
-        """
-        Applies the composition of tasks to ``eopatch``.
-        :param eopatch: Input EOpatch.
-        :type eopatch: positional EOPatch arguments
-        :param kwargs: keyword arguments (used i.e. with workflow)
-        :return: Transformed tuple of patches. To each EOPatch we apply: ``Tn(...T2(T1(eopatch))...)``
-        :rtype: EOPatch
-        """
-        return self.compositum(*eopatch, **kwargs)
+    def execute(self, *eopatches, **kwargs):
+        return self.eotask2.execute(self.eotask1.execute(*eopatches, **kwargs))

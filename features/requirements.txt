@@ -1,4 +1,5 @@
 eo-learn-core
+numpy
 scipy
 python-dateutil
 scikit-image

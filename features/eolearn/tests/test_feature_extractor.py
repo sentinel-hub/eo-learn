@@ -22,11 +22,11 @@ class TestFeatureExtendedExtractor(unittest.TestCase):
 
 class TestFeatureExtractionTask(unittest.TestCase):
     def test_add_ndvi(self):
-        a = np.arange(2*3*3*13).reshape(2, 3, 3, 13)
+        a = np.arange(2 * 3 * 3 * 13).reshape(2, 3, 3, 13)
         eop = EOPatch()
-        eop.add_feature(attr_type=FeatureType.DATA, field='bands', value=a)
+        eop[FeatureType.DATA]['bands'] = a
 
-        eotask_ndvi = FeatureExtractionTask('I(B4, B8A)', 'bands', 'ndvi')
+        eotask_ndvi = FeatureExtractionTask((FeatureType.DATA, 'bands', 'ndvi'), 'I(B4, B8A)')
 
         eop_ndvi = eotask_ndvi(eop)
 

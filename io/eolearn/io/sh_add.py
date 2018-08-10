@@ -58,7 +58,7 @@ class AddSentinelHubOGCFeature(EOTask):
     """
 
     def __init__(self, feature_type, layer, feature_name=None, data_source=None,
-                 image_format=MimeType.TIFF_d32f, instance_id=None, custom_url_params=None):
+                 image_format=MimeType.TIFF_d32f, instance_id=None, custom_url_params=None, raise_download_error=False):
 
         self.feature_type = feature_type
         self.layer = layer
@@ -66,6 +66,7 @@ class AddSentinelHubOGCFeature(EOTask):
         self.data_source = data_source
         self.image_format = image_format
         self.instance_id = instance_id
+        self.raise_download_error = raise_download_error
 
         custom_params = {CustomUrlParam.SHOWLOGO: False,
                          CustomUrlParam.TRANSPARENT: False}
@@ -105,29 +106,17 @@ class AddSentinelHubOGCFeature(EOTask):
                           data_source=self.data_source,
                           instance_id=self.instance_id)
 
-    def _reshape_array(self, array, dims_dict):
-        """ Reshape array if dimensions do not match requirements
-
-        :param array: Input array
-        :param dims_dict: Dictionary with target dimensionality for the feature types
-        :return: Reshaped array with additional channel
-        """
-        if array.ndim == dims_dict[self.feature_type.value] - 1:
-            return array.reshape(array.shape + (1,))
-        return array
-
-    def _check_dimensionality(self, array, dims_dict):
+    def _fix_dimensionality(self, array):
         """ Method to ensure array has the dimensionality required by the feature type
 
         :param array: Input array
         :param dims_dict: Dictionary with target dimensionality for the feature types
         :return: Reshaped array with additional channel
         """
-        if self.feature_type in [FeatureType.DATA, FeatureType.MASK]:
-            return self._reshape_array(array, dims_dict)
-        elif self.feature_type in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS]:
+        if not self.feature_type.is_time_dependent():
             array = array.squeeze(axis=0)
-            return self._reshape_array(array, dims_dict)
+        if array.ndim == self.feature_type.ndim() - 1:
+            return array.reshape(array.shape + (1,))
         return array
 
     def execute(self, eopatch):
@@ -139,7 +128,13 @@ class AddSentinelHubOGCFeature(EOTask):
         maxcc = eopatch.meta_info['maxcc']
         time_difference = eopatch.meta_info['time_difference']
         service_type = eopatch.meta_info['service_type']
-        time_interval = (eopatch.timestamp[0].isoformat(), eopatch.timestamp[-1].isoformat())
+
+        if eopatch.timestamp:
+            time_interval = (eopatch.timestamp[0].isoformat(), eopatch.timestamp[-1].isoformat())
+        elif eopatch.meta_info['time_interval']:
+            time_interval = eopatch.meta_info['time_interval']
+        else:
+            raise ValueError('Failed to determine time range')
 
         request = {ServiceType.WMS: self._get_wms_request,
                    ServiceType.WCS: self._get_wcs_request}[service_type](eopatch.bbox, time_interval, size_x, size_y,
@@ -147,9 +142,12 @@ class AddSentinelHubOGCFeature(EOTask):
 
         # check timestamp consistency between request and this eopatch
         request_dates = request.get_dates()
+        if not eopatch.timestamp:
+            eopatch.timestamp = request_dates
+
         download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
 
-        request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
+        request_return = request.get_data(raise_download_errors=self.raise_download_error, data_filter=download_frames)
         bad_data = [idx for idx, value in enumerate(request_return) if value is None]
         for idx in reversed(sorted(bad_data)):
             LOGGER.warning('Data from %s could not be downloaded for %s!', str(request_dates[idx]), self.layer)
@@ -163,7 +161,7 @@ class AddSentinelHubOGCFeature(EOTask):
             LOGGER.warning('Removed data for frame %s from eopatch '
                            'due to unavailability of %s!', str(rm_frame), self.layer)
 
-        request_data = self._check_dimensionality(request_data, eopatch.ndims)
+        request_data = self._fix_dimensionality(request_data)
 
         eopatch.add_feature(self.feature_type, self.feature_name, request_data)
 
@@ -201,12 +199,9 @@ class AddSen2CorClassificationFeature(AddSentinelHubOGCFeature):
 
         evalscript = 'return ['+sen2cor_classification+'];'
 
-        super(AddSen2CorClassificationFeature, self).__init__(feature_type=classification_types[sen2cor_classification],
-                                                              feature_name=sen2cor_classification,
-                                                              layer=layer,
-                                                              data_source=DataSource.SENTINEL2_L2A,
-                                                              custom_url_params={CustomUrlParam.EVALSCRIPT: evalscript},
-                                                              **kwargs)
+        super().__init__(feature_type=classification_types[sen2cor_classification],
+                         feature_name=sen2cor_classification, layer=layer, data_source=DataSource.SENTINEL2_L2A,
+                         custom_url_params={CustomUrlParam.EVALSCRIPT: evalscript}, **kwargs)
 
 
 class AddDEMFeature(AddSentinelHubOGCFeature):
@@ -214,8 +209,7 @@ class AddDEMFeature(AddSentinelHubOGCFeature):
     Adds DEM to DATA_TIMELESS EOPatch feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddDEMFeature, self).__init__(feature_type=FeatureType.DATA_TIMELESS, layer=layer,
-                                            data_source=DataSource.DEM, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA_TIMELESS, layer=layer, data_source=DataSource.DEM, **kwargs)
 
 
 class AddS2L1CFeature(AddSentinelHubOGCFeature):
@@ -223,8 +217,7 @@ class AddS2L1CFeature(AddSentinelHubOGCFeature):
     Adds Sentinel-2 L1C feature to EOPatch's DATA feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddS2L1CFeature, self).__init__(feature_type=FeatureType.DATA, layer=layer,
-                                              data_source=DataSource.SENTINEL2_L1C, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA, layer=layer, data_source=DataSource.SENTINEL2_L1C, **kwargs)
 
 
 class AddS2L2AFeature(AddSentinelHubOGCFeature):
@@ -232,8 +225,7 @@ class AddS2L2AFeature(AddSentinelHubOGCFeature):
     Adds Sentinel-2 L2A feature to EOPatch's DATA feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddS2L2AFeature, self).__init__(feature_type=FeatureType.DATA, layer=layer,
-                                              data_source=DataSource.SENTINEL2_L2A, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA, layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
 
 
 class AddL8Feature(AddSentinelHubOGCFeature):
@@ -241,8 +233,7 @@ class AddL8Feature(AddSentinelHubOGCFeature):
     Adds Landsat 8 feature to EOPatch's DATA feature.
     """
     def __init__(self, layer, **kwargs):
-        super(AddL8Feature, self).__init__(feature_type=FeatureType.DATA, layer=layer,
-                                           data_source=DataSource.LANDSAT8, **kwargs)
+        super().__init__(feature_type=FeatureType.DATA, layer=layer, data_source=DataSource.LANDSAT8, **kwargs)
 
 
 class AddGeopediaFeature(EOTask):

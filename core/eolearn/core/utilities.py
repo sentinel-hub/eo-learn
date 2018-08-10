@@ -1,13 +1,239 @@
 """
-The utilities module is a collection of methods used across the eolearn package, such as checking whether two objects
-are deeply equal, padding of an image, etc.
+The utilities module is a collection of classes and functions used across the eolearn package, such as checking whether
+two objects are deeply equal, padding of an image, etc.
 """
 
 import logging
-
 import numpy as np
 
+from collections import OrderedDict
+
+from .feature_types import FeatureType
+
 LOGGER = logging.getLogger(__name__)
+
+
+class FeatureParser:
+    """ Takes a collection of features structured in a various ways and parses them into one way. If input format
+    is not recognized it raises an error. The class is a generator therefore parsed features can be obtained by
+    iterating over it.
+
+    Supported input formats: TODO
+
+    :param features: A collection of features in one of the supported formats
+    :type features: object
+    :param new_names: `True` if a collection
+    :type new_names: bool
+    :param default_feature_type: If feature type of any of the given features is not set this will be used
+    :type default_feature_type: FeatureType or None
+    :param rename_function: Default renaming function
+    :type rename_function: function or None
+    """
+    def __init__(self, features, new_names=False, default_feature_type=None, rename_function=None):
+        self.feature_collection = self._parse_features(features, new_names, default_feature_type)
+        self.new_names = new_names
+        self.default_feature_type = default_feature_type
+        self.rename_function = rename_function
+
+        if rename_function is None:
+            self.rename_function = lambda x: x
+
+    def __call__(self, eopatch=None):
+        return self._get_features(eopatch)
+
+    def __iter__(self):
+        return self._get_features()
+
+    @staticmethod
+    def _parse_features(features, new_names, default_feature_type):
+        """ Takes a collection of features structured in a various ways and parses them into one way. If input format
+        is not recognized it raises an error.
+
+        :return: A collection of features
+        :rtype: OrderedDict(FeatureType: OrderedDict(str: str or Ellipsis) or Ellipsis)
+        :raises: ValueError
+        """
+        if isinstance(features, dict):
+            return FeatureParser._parse_dict(features, new_names)
+
+        if isinstance(features, list):
+            return FeatureParser._parse_list(features, new_names)
+
+        if isinstance(features, tuple):
+            return FeatureParser._parse_tuple(features, new_names)
+
+        if features is ...:
+            return OrderedDict([(feature_type, ...) for feature_type in FeatureType])
+
+        if isinstance(features, FeatureType):
+            return OrderedDict([(features, ...)])
+
+        if isinstance(features, str):
+            return OrderedDict([(default_feature_type, OrderedDict([(features, ...)]))])
+
+        raise ValueError('Unknown format of input features: {}'.format(features))
+
+    @staticmethod
+    def _parse_dict(features, new_names):
+        """ Helping function of `_parse_features` that parses a list
+        """
+        feature_collection = OrderedDict()
+        for feature_type, feature_names in features.items():
+            try:
+                feature_type = FeatureType(feature_type)
+            except ValueError:
+                ValueError('Failed to parse {}, keys of the dictionary have to be instances '
+                           'of {}'.format(features, FeatureType.__name__))
+
+            feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
+
+            if feature_names is ...:
+                feature_collection[feature_type] = ...
+
+            if feature_type.has_dict() and feature_collection[feature_type] is not ...:
+                feature_collection[feature_type].update(FeatureParser._parse_feature_names(feature_names, new_names))
+
+        return feature_collection
+
+    @staticmethod
+    def _parse_list(features, new_names):
+        """ Helping function of `_parse_features` that parses a list
+        """
+        feature_collection = OrderedDict()
+        for feature in features:
+            if isinstance(feature, FeatureType):
+                feature_collection[feature] = ...
+
+            elif isinstance(feature, (tuple, list)):
+                for feature_type, feature_dict in FeatureParser._parse_tuple(feature, new_names).items():
+                    feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
+
+                    if feature_dict is ...:
+                        feature_collection[feature_type] = ...
+
+                    if feature_collection[feature_type] is not ...:
+                        feature_collection[feature_type].update(feature_dict)
+            else:
+                raise ValueError('Failed to parse {}, expected a tuple'.format(feature))
+        return feature_collection
+
+    @staticmethod
+    def _parse_tuple(features, new_names):
+        """ Helping function of `_parse_features` that parses a tuple
+        """
+        name_idx = 1
+        try:
+            feature_type = FeatureType(features[0])
+        except ValueError:
+            feature_type = None
+            name_idx = 0
+
+        if feature_type and not feature_type.has_dict():
+            return OrderedDict([(feature_type, ...)])
+        return OrderedDict([(feature_type, FeatureParser._parse_names_tuple(features[name_idx:], new_names))])
+
+    @staticmethod
+    def _parse_feature_names(feature_names, new_names):
+        """ Helping function of `_parse_features` that parses a collection of feature names
+        """
+        if isinstance(feature_names, set):
+            return FeatureParser._parse_names_set(feature_names)
+
+        if isinstance(feature_names, dict):
+            return FeatureParser._parse_names_dict(feature_names)
+
+        if isinstance(feature_names, (tuple, list)):
+            return FeatureParser._parse_names_tuple(feature_names, new_names)
+
+        raise ValueError('Failed to parse {}, expected dictionary, set or tuple'.format(feature_names))
+
+    @staticmethod
+    def _parse_names_set(feature_names):
+        """ Helping function of `_parse_feature_names` that parses a set of feature names
+        """
+        feature_collection = OrderedDict()
+        for feature_name in feature_names:
+            if isinstance(feature_name, str):
+                feature_collection[feature_name] = ...
+            else:
+                raise ValueError('Failed to parse {}, expected string'.format(feature_name))
+        return feature_collection
+
+    @staticmethod
+    def _parse_names_dict(feature_names):
+        """ Helping function of `_parse_feature_names` that parses a dictionary of feature names
+        """
+        feature_collection = OrderedDict()
+        for feature_name, new_feature_name in feature_names.items():
+            if isinstance(feature_name, str) and (isinstance(new_feature_name, str) or
+                                                  new_feature_name is ...):
+                feature_collection[feature_name] = new_feature_name
+            else:
+                if not isinstance(feature_name, str):
+                    raise ValueError('Failed to parse {}, expected string'.format(feature_name))
+                else:
+                    raise ValueError('Failed to parse {}, expected string or Ellipsis'.format(new_feature_name))
+        return feature_collection
+
+    @staticmethod
+    def _parse_names_tuple(feature_names, new_names):
+        """ Helping function of `_parse_feature_names` that parses a tuple or a list of feature names
+        """
+        for feature in feature_names:
+            if not isinstance(feature, str) and feature is not ...:
+                raise ValueError('Failed to parse {}, expected a string'.format(feature))
+
+        if feature_names[0] is ...:
+            return ...
+
+        if new_names:
+            if len(feature_names) == 1:
+                return OrderedDict([(feature_names[0], ...)])
+            if len(feature_names) == 2:
+                return OrderedDict([(feature_names[0], feature_names[1])])
+            raise ValueError("Failed to parse {}, it should contain at most two strings".format(feature_names))
+
+        if ... in feature_names:
+            return ...
+        return OrderedDict([(feature_name, ...) for feature_name in feature_names])
+
+    def _get_features(self, eopatch=None):
+        """ A generator of parsed features
+
+        :param eopatch: A given EOPatch
+        :type eopatch: EOPatch or None
+        :return: One by one feature
+        :rtype: tuple(FeatureType, str) or tuple(FeatureType, str, str)
+        """
+        for feature_type, feature_dict in self.feature_collection.items():
+            if feature_type is None:
+                for feature_name, new_feature_name in feature_dict.items():
+                    if eopatch is None:
+                        yield self._return_feature(..., feature_name, new_feature_name)
+                    else:
+                        for real_feature_type in FeatureType:
+                            if feature_name in eopatch[real_feature_type]:
+                                yield self._return_feature(real_feature_type, feature_name, new_feature_name)
+            elif feature_dict is ...:
+                if not feature_type.has_dict() or eopatch is None:
+                    yield self._return_feature(feature_type, ...)
+                else:
+                    for feature_name in eopatch[feature_type]:
+                        yield self._return_feature(feature_type, feature_name)
+            else:
+                for feature_name, new_feature_name in feature_dict.items():
+                    if eopatch is not None and feature_name not in eopatch[feature_type]:
+                        raise ValueError('Feature {} of type {} was not found in EOPatch'.format(feature_name,
+                                                                                                 feature_type))
+                    yield self._return_feature(feature_type, feature_name, new_feature_name)
+
+    def _return_feature(self, feature_type, feature_name, new_feature_name=...):
+        """ Helping function of `get_features`
+        """
+        if self.new_names:
+            return feature_type, feature_name, (self.rename_function(feature_name) if new_feature_name is ... else
+                                                new_feature_name)
+        return feature_type, feature_name
 
 
 def get_common_timestamps(source, target):
@@ -47,13 +273,31 @@ def deep_eq(fst_obj, snd_obj):
     :return: `True` if objects are deeply equal, `False` otherwise
     """
     # pylint: disable=too-many-return-statements
+    if isinstance(fst_obj, (np.ndarray, np.memmap)):
+        if not isinstance(snd_obj, (np.ndarray, np.memmap)):
+            return False
+
+        if fst_obj.dtype != snd_obj.dtype:
+            return False
+
+        fst_nan_mask = np.isnan(fst_obj)
+        snd_nan_mask = np.isnan(snd_obj)
+
+        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
+            np.array_equal(fst_nan_mask, snd_nan_mask)
+
     if not isinstance(fst_obj, type(snd_obj)):
         return False
 
     if isinstance(fst_obj, np.ndarray):
-        return np.array_equal(fst_obj, snd_obj)
+        if fst_obj.dtype != snd_obj.dtype:
+            return False
+        fst_nan_mask = np.isnan(fst_obj)
+        snd_nan_mask = np.isnan(snd_obj)
+        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
+            np.array_equal(fst_nan_mask, snd_nan_mask)
 
-    elif isinstance(fst_obj, (list, tuple)):
+    if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):
             return False
 
@@ -62,7 +306,7 @@ def deep_eq(fst_obj, snd_obj):
                 return False
         return True
 
-    elif isinstance(fst_obj, dict):
+    if isinstance(fst_obj, dict):
         if fst_obj.keys() != snd_obj.keys():
             return False
 

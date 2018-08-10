@@ -2,21 +2,21 @@
 Tasks for spatial sampling of points for building training/validation samples for example.
 """
 
+import collections
+import functools
 import numpy as np
+import logging
 
+from math import sqrt
 from shapely.geometry import Polygon, Point
 from shapely.geometry import LinearRing
 from shapely.ops import triangulate
-
 from rasterio.features import shapes
-
-from eolearn.core import EOTask, FeatureType
-
 from skimage.morphology import binary_erosion, disk
 
-import collections
-import functools
-import math
+from eolearn.core import EOTask, EOPatch, FeatureType
+
+LOGGER = logging.getLogger(__name__)
 
 
 class PointSampler:
@@ -171,11 +171,9 @@ class PointSampler:
         xs, ys = triangle.exterior.coords.xy
         A, B, C = zip(xs[:-1], ys[:-1])
         r1, r2 = np.random.rand(), np.random.rand()
-        rx, ry = (1 - math.sqrt(r1)) * np.asarray(A) \
-                 + math.sqrt(r1) * (1 - r2) * np.asarray(B) \
-                 + math.sqrt(r1) * r2 * np.asarray(C)
+        rx, ry = (1 - sqrt(r1)) * np.asarray(A) + sqrt(r1) * (1 - r2) * np.asarray(B) + sqrt(r1) * r2 * np.asarray(C)
         if use_int_coords:
-            rx, ry = math.round(rx), math.round(ry)
+            rx, ry = round(rx), round(ry)
             return Point(int(rx), int(ry))
         return Point(rx, ry)
 
@@ -192,46 +190,35 @@ class PointRasterSampler:
          * sampling based on label frequency in raster or even sampling of labels (i.e. over-sampling)
 
     """
-    def __init__(self, disk_radius=None, even_sampling=False, no_data_value=None, ignore_labels=None):
+    def __init__(self, labels, disk_radius=None, even_sampling=False):
         """ Initialisation of sampler parameters
 
+        :param labels: A list of labels that will be sampled
+        :type labels: list(int)
         :param disk_radius: Radius of disk used as structure element for erosion. If `None`, no erosion is performed.
                             Default is `None`
-        :type disk_radius: uint8 or None
+        :type disk_radius: int or None
         :param even_sampling: Whether to sample class labels evenly or not. If `True`, labels will have the same number
                                 samples, with less frequent labels being over-sampled (i.e. same observation is sampled
                                 multiple times). If `False`, sampling follows the label distribution in raster.
                                 Default is `False`
         :type even_sampling: bool
-        :param no_data_value: Label value denoting no data. This value will not be sampled. Default is `None`
-        :type no_data_value: None or uint8
-        :param ignore_labels: List of label values to ignore during sampling. Default is `None`
-        :type ignore_labels: None or list of uint8
         """
+        self.labels = labels
         self.disk_radius = disk_radius
-        self.ignore_labels = [] if ignore_labels is None else ignore_labels
         self.even_sampling = even_sampling
-        self.no_data_value = no_data_value
 
-    @staticmethod
-    def _erosion(image, label, struct_elem):
-        """ Perform erosion of the binary mask corresponding to `label`
+    def _get_unknown_value(self):
+        """ Finds the smallest integer value >=0 that is not in `labels`
 
-        If `struct_elem` is defined, erosion of the binary mask corresponding to `label` is returned, otherwise
-        the un-eroded binary mask is returned
-
-        :param image: Input 2D raster label image
-        :type image: uint8 numpy array
-        :param label: Scalar value of label to consider
-        :type label: uint8
-        :param struct_elem: Structuring element used for erosion
-        :type struct_elem: uint8 numpy array
-        :return: Binary mask corresponding to label. If `struct_elem` is defined, the binary mask is eroded
-        :rtype: uint8 numpy array
+        :return: Value that is not in the labels
+        :rtype: int
         """
-        if struct_elem is not None:
-            return binary_erosion(image == label, struct_elem).astype(np.uint16)
-        return (image == label).astype(np.uint16)
+        label_set = set(self.labels)
+        value = 0
+        while value in label_set:
+            value += 1
+        return value
 
     @staticmethod
     def _binary_sample(image, label, n_samples_per_label, label_count):
@@ -252,9 +239,10 @@ class PointRasterSampler:
         """
         h_idx, w_idx = np.where(image == label)
         replace = True if label_count < n_samples_per_label else False
-        rand_idx = np.random.choice(len(h_idx), size=n_samples_per_label, replace=replace)
-        # Here we rescale the labels as per input
-        return image[h_idx[rand_idx], w_idx[rand_idx]] - 1, h_idx[rand_idx], w_idx[rand_idx]
+
+        rand_idx = np.random.choice(h_idx.size, size=n_samples_per_label, replace=replace)
+
+        return h_idx[rand_idx], w_idx[rand_idx]
 
     def sample(self, raster, n_samples=1000):
         """ Sample `nsamples` points form raster
@@ -263,96 +251,141 @@ class PointRasterSampler:
         :type raster: uint8 numpy array
         :param n_samples: Number of points to sample in total
         :type n_samples: uint32
-        :return: Sampled label values, row index of samples, col index of samples
+        :return: List of row indices of samples, list of column indices of samples
+        :rtype: numpy.array, numpy.array
         """
-        # check dimensionality and reshape to 2D
+        # Check dimensionality and reshape to 2D
+        raster = raster.copy()
         if raster.ndim == 3 and raster.shape[-1] == 1:
             raster = raster.squeeze()
-        elif raster.ndim == 2:
-            pass
-        else:
+        elif raster.ndim != 2:
             raise ValueError('Class operates on 2D or 3D single-channel raster images')
 
-        # trick to deal with label of value 0. Raster is casted to uint16 not to overflow incase 255 classes are used
-        raster = raster.astype(np.uint16) + 1
-        no_data_value = self.no_data_value + 1 if self.no_data_value is not None else self.no_data_value
-        ignore_labels = [il + 1 for il in self.ignore_labels] if self.ignore_labels else self.ignore_labels
+        # Calculate mask of all pixels which can be sampled
+        mask = np.zeros(raster.shape, dtype=np.bool)
+        for label in self.labels:
+            label_mask = (raster == label)
+            if self.disk_radius is not None:
+                label_mask = binary_erosion(label_mask, disk(self.disk_radius))
+            mask |= label_mask
 
-        # find unique labels
-        unique_labels = np.unique(raster)
+        unique_labels, label_count = np.unique(raster[mask], return_counts=True)
+        if not unique_labels.size:
+            LOGGER.warning('No samples matching given parameters found in EOPatch')
+            return np.empty((0,), dtype=np.uint32), np.empty((0,), dtype=np.uint32)
 
-        # structured element for binary erosion
-        struct_elem = disk(self.disk_radius) if self.disk_radius is not None else None
-
-        # filter out unwanted labels and no data values and apply erosion if required
-        raster_filtered = np.sum(np.asarray([lbl * self._erosion(raster, lbl, struct_elem)
-                                             for lbl in unique_labels
-                                             if (lbl != no_data_value) and (lbl not in ignore_labels)]),
-                                 axis=0)
-
-        # update unique labels and compute counts for each filtered label
-        unique_labels, label_count = np.unique(raster_filtered, return_counts=True)
-
-        # 0 now has all pixels to ignore due to erosion or no_data_value or ignore labels
-        zero_index, = np.where(unique_labels == 0)
-        zero_index = 0 if zero_index.size == 0 else zero_index[0] + 1
-
-        # define number of samples per filtered label
-        n_valid_labels = len(unique_labels[zero_index:])
         if self.even_sampling:
-            # valid labels have the same number of samples
-            n_samples_per_label = np.diff(np.round(np.linspace(0, n_samples, num=n_valid_labels + 1))).astype(np.uint32)
+            # Valid labels have the same (or off by one) number of samples
+            n_samples_per_label = np.diff(np.round(np.linspace(0, n_samples,
+                                                               num=label_count.size + 1))).astype(np.uint32)
         else:
-            # number of samples per label is proportional to label frequency
-            label_ratio = label_count[zero_index:] / np.sum(label_count[zero_index:])
+            # Number of samples per label is proportional to label frequency
+            label_ratio = label_count / np.sum(label_count)
             n_samples_per_label = (np.ceil(n_samples * label_ratio)).astype(np.uint32)
 
-        # sample raster
-        samples = np.concatenate([self._binary_sample(raster, lbl, n_sample_lbl, lbl_count)
-                                  for lbl, n_sample_lbl, lbl_count in
-                                  zip(unique_labels[zero_index:], n_samples_per_label, label_count[zero_index:])],
-                                 axis=1).T
+        # Apply mask to raster
+        unknown_value = self._get_unknown_value()
+        raster[~mask] = unknown_value
+        if not np.array_equal(~mask, raster == unknown_value):
+            raise ValueError('Failed to set unknown value. Too many labels for sampling reference mask of type '
+                             '{}'.format(raster.dtype))
 
-        # shuffle to mix labels in case they are fed directly to train a ML model
+        # Sample raster
+        samples = np.concatenate([self._binary_sample(raster, label, n_sample_label, label_count)
+                                  for label, n_sample_label, label_count in zip(unique_labels, n_samples_per_label,
+                                                                                label_count)], axis=1).T
+
+        # Shuffle to mix labels in case they are fed directly to train a ML model
         np.random.shuffle(samples)
 
-        # return value, row index and col index. Return exactly `n_sample` values
-        return samples[:n_samples, 0].astype(np.uint8), samples[:n_samples, 1], samples[:n_samples, 2]
+        # Return row index and col index. Return exactly `n_sample` values
+        return samples[:n_samples, 0], samples[:n_samples, 1]
 
 
 class PointSamplingTask(EOTask):
-    """
-    Task for sampling points.
+    """ Task for spatially sampling points from a time-series.
+
+    This task performs random spatial sampling of a time-series based on a label mask. The user specifies the number of
+    points to be sampled, the name of the `DATA` time-series, the name of the label raster image, and the name of the
+    output sample features and sampled labels.
     """
     # pylint: disable=too-many-arguments
-    def __init__(self, nsamples,
-                 out_feature_type, out_feature_name, out_truth_name,
-                 sample_raster_feature_type, sample_raster_name,
-                 data_feature_type, data_feature_name,
-                 no_data_value=None, ignore_labels=None):
-        self.nsamples = nsamples
-        self.out_feature_type = out_feature_type
-        self.out_feature_name = out_feature_name
-        self.out_truth_name = out_truth_name
-        self.sample_raster_feature_type = sample_raster_feature_type
-        self.sample_raster_name = sample_raster_name
-        self.data_feature_type = data_feature_type
-        self.data_feature_name = data_feature_name
-        self.no_data_value = no_data_value
-        self.ignore_labels = ignore_labels
+    def __init__(self, n_samples, ref_mask_feature, ref_labels, sample_features, return_new_eopatch=False,
+                 **sampling_params):
+        """ Initialise sampling task.
 
-    def execute(self, eopatch):
-        raster = eopatch.get_feature(self.sample_raster_feature_type, self.sample_raster_name)
-        data = eopatch.get_feature(self.data_feature_type, self.data_feature_name)
+        The data to be sampled is supposed to be a time-series stored in `DATA` type of the eopatch, while the raster
+        image is supposed to be stored in `MASK_TIMELESS`. The output sampled features are stored in `DATA` and have
+        shape T x N_SAMPLES x 1 x D, where T is the number of time-frames, N_SAMPLES the number of random samples, and D
+        is the number of channels of the input time-series.
 
-        sampler = PointSampler(raster, no_data_value=self.no_data_value, ignore_labels=self.ignore_labels)
+        The row and column index of sampled points can also be stored in the eopatch, to allow the same random sampling
+        of other masks.
 
-        labels, rows, cols = sampler.sample(self.nsamples)
-        labels = np.asarray(labels)
+        :param n_samples: Number of random spatial points to be sampled from the time-series
+        :type n_samples: int
+        :param ref_mask_feature: Name of `MASK_TIMELESS` raster image to be used as a reference for sampling
+        :type ref_mask_feature: str
+        :param ref_labels: List of labels of `ref_mask_feature` mask which will be sampled
+        :type ref_labels: list(int)
+        :param sample_features: A collection of features that will be resampled. Each feature is represented by a tuple
+            in a form of `(FeatureType, 'feature_name')` or
+            (FeatureType, '<feature_name>', '<sampled feature name>'). If `sampled_feature_name` is not
+            set the default name `'<feature_name>_SAMPLED'` will be used.
 
-        sampled_points = data[:, rows, cols, :]
+            Example: [(FeatureType.DATA, 'NDVI'), (FeatureType.MASK, 'cloud_mask', 'cloud_mask_1')]
 
-        eopatch.add_feature(self.out_feature_type, self.out_feature_name, sampled_points[:, :, np.newaxis, :])
-        eopatch.add_feature(FeatureType.LABEL_TIMELESS, self.out_truth_name, labels[:, np.newaxis])
+        :type sample_features: list(tuple(FeatureType, str, str) or tuple(FeatureType, str))
+        :param return_new_eopatch: If `True` the task will create new EOPatch, put sampled data and copy of timestamps
+            and meta_info data in it and return it. If `False` it will just add sampled data to input EOPatch and
+            return it.
+        :type return_new_eopatch: bool
+        :param sampling_params: Any other parameter used by `PointRasterSampler` class
+        """
+        self.n_samples = n_samples
+        self.ref_mask_feature = self._parse_features(ref_mask_feature, default_feature_type=FeatureType.MASK_TIMELESS)
+        self.ref_labels = list(ref_labels)
+        self.sample_features = self._parse_features(sample_features, new_names=True,
+                                                    rename_function='{}_SAMPLED'.format)
+        self.return_new_eopatch = return_new_eopatch
+        self.sampling_params = sampling_params
 
-        return eopatch
+    def execute(self, eopatch, seed=None):
+        """ Execute random spatial sampling of time-series stored in the input eopatch
+
+        :param eopatch: Input eopatch to be sampled
+        :type eopatch: EOPatch
+        :param seed: Setting seed of random sampling. If None no seed will be used.
+        :type seed: int or None
+        :return: An EOPatch with spatially sampled temporal features and associated labels
+        :type eopatch: EOPatch
+        """
+        np.random.seed(seed)
+
+        # Retrieve data and raster label image from eopatch
+        f_type, f_name = next(self.ref_mask_feature(eopatch))
+        raster = eopatch[f_type][f_name]
+
+        # Initialise sampler
+        sampler = PointRasterSampler(self.ref_labels, **self.sampling_params)
+        # Perform sampling
+        rows, cols = sampler.sample(raster, n_samples=self.n_samples)
+
+        if self.return_new_eopatch:
+            new_eopatch = EOPatch()
+            new_eopatch.timestamp = eopatch.timestamp[:]
+            new_eopatch.bbox = eopatch.bbox  # Should be copied
+            new_eopatch.meta_info = eopatch.meta_info.copy()  # Should be deep copied - implement this in core
+        else:
+            new_eopatch = eopatch
+
+        # Add sampled features
+        for feature_type, feature_name, new_feature_name in self.sample_features(eopatch):
+
+            if feature_type.is_time_dependent():
+                sampled_data = eopatch[feature_type][feature_name][:, rows, cols, :]
+            else:
+                sampled_data = eopatch[feature_type][feature_name][rows, cols, :]
+            new_eopatch[feature_type][new_feature_name] = sampled_data[..., np.newaxis, :]
+
+        return new_eopatch
