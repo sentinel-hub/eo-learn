@@ -152,7 +152,7 @@ class EOWorkflow:
 
         return LinearWorkflow(*tasks, **kwargs)
 
-    def execute(self, input_args=None):
+    def execute(self, input_args=None, monitor=False):
         """
         Execute the current workflow.
 
@@ -168,11 +168,11 @@ class EOWorkflow:
             if not isinstance(task, EOTask):
                 raise ValueError('Invalid input argument {}, should be an instance of EOTask'.format(task))
 
-        _, intermediate_results = self._execute_tasks(input_args=input_args, out_degs=out_degs)
+        _, intermediate_results = self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor)
 
         return WorkflowResults(intermediate_results)
 
-    def _execute_tasks(self, *, input_args, out_degs):
+    def _execute_tasks(self, *, input_args, out_degs, monitor):
         """
         Executes tasks comprising the workflow in the predetermined order.
 
@@ -191,7 +191,8 @@ class EOWorkflow:
         for dep in self.ordered_dependencies:
             result = self._execute_task(dependency=dep,
                                         input_args=input_args,
-                                        intermediate_results=intermediate_results)
+                                        intermediate_results=intermediate_results,
+                                        monitor=monitor)
 
             intermediate_results[dep] = result
 
@@ -201,7 +202,7 @@ class EOWorkflow:
 
         return done_tasks, intermediate_results
 
-    def _execute_task(self, *, dependency, input_args, intermediate_results):
+    def _execute_task(self, *, dependency, input_args, intermediate_results, monitor):
         """
         Executes a task of the workflow.
 
@@ -219,7 +220,7 @@ class EOWorkflow:
         kw_inputs = input_args.get(task, {})
         inputs = tuple(intermediate_results[self.uuid_dict[input_task.uuid]] for input_task in dependency.inputs)
         LOGGER.debug("Computing %s(*%s, **%s)", str(task), str(inputs), str(kw_inputs))
-        return task(*inputs, **kw_inputs)
+        return task(*inputs, **kw_inputs, monitor=monitor)
 
     def _relax_dependencies(self, *, dependency, out_degrees, intermediate_results):
         """
