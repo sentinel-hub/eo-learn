@@ -14,7 +14,6 @@
 #
 import os
 import shutil
-from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
