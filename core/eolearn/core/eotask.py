@@ -28,6 +28,7 @@ from abc import ABC, abstractmethod
 from inspect import getfullargspec
 from copy import deepcopy
 from collections import OrderedDict
+import datetime
 
 from .utilities import FeatureParser
 
@@ -60,9 +61,12 @@ class EOTask(ABC):
         """
         return CompositeTask(other, self)
 
-    def __call__(self, *eopatches, **kwargs):
+    def __call__(self, *eopatches, monitor=False, **kwargs):
         """ EOTask is callable like a function
         """
+        if monitor:
+            return self.execute_and_monitor(*eopatches, **kwargs)
+
         return self.execute(*eopatches, **kwargs)
 
     @staticmethod
@@ -87,6 +91,13 @@ class EOTask(ABC):
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
         raise NotImplementedError
+
+    def execute_and_monitor(self, *eopatches, **kwargs):
+        setattr(self, 'start_time', datetime.datetime.now())
+        retval = self.execute(*eopatches, **kwargs)
+        setattr(self, 'end_time', datetime.datetime.now())
+
+        return retval
 
 
 class CompositeTask(EOTask):

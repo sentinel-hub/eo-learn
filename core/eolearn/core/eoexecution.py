@@ -98,7 +98,7 @@ class EOExecutor:
         stats = {'start_time': datetime.now()}
 
         try:
-            _ = workflow.execute(input_args)
+            _ = workflow.execute(input_args, monitor=True)
         except BaseException:
             stats['error'] = traceback.format_exc()
 
