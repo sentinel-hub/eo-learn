@@ -1,10 +1,9 @@
 """ Module handling processing of temporal features """
 
-from eolearn.core import EOTask, FeatureType
-
+import itertools
 import numpy as np
 
-import itertools
+from eolearn.core import EOTask, FeatureType
 
 
 class AddSpatioTemporalFeaturesTask(EOTask):
@@ -86,7 +85,7 @@ class AddSpatioTemporalFeaturesTask(EOTask):
         hh, ww = np.ogrid[:h, :w]
         stf = np.concatenate([bands[ii.squeeze(), hh, ww] for ii in stf_idx if ii is not None], axis=-1)
 
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.feats_feature, stf)
+        eopatch.data_timeless[self.feats_feature] = stf
 
         return eopatch
 
@@ -151,8 +150,8 @@ class AddMaxMinTemporalIndicesTask(EOTask):
         if argmin_data.ndim == 2:
             argmin_data = argmin_data.reshape(argmin_data.shape + (1,))
 
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.amax_feature, argmax_data)
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.amin_feature, argmin_data)
+        eopatch.data_timeless[self.amax_feature] = argmax_data
+        eopatch.data_timeless[self.amin_feature] = argmin_data
 
         return eopatch
 
@@ -221,8 +220,8 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
             ndvi_curve = ndvi_curve[valid_idx]
             valid_dates = all_dates[valid_idx]
 
-            ndvi_slope = np.convolve(ndvi_curve.squeeze(), [1, 0, -1], 'valid') / \
-                         np.convolve(valid_dates, [1, 0, -1], 'valid')
+            ndvi_slope = np.convolve(ndvi_curve.squeeze(), [1, 0, -1], 'valid') / np.convolve(valid_dates, [1, 0, -1],
+                                                                                              'valid')
 
             # +1 to compensate for the 'valid' convolution which eliminates first and last
             argmax_ndvi_slope[ih, iw] = valid_idx[np.argmax(ndvi_slope) + 1]
@@ -230,7 +229,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
             del ndvi_curve, valid_idx, valid_dates, ndvi_slope
 
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.argmax_feature, argmax_ndvi_slope)
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.argmin_feature, argmin_ndvi_slope)
+        eopatch.data_timeless[self.argmax_feature] = argmax_ndvi_slope
+        eopatch.data_timeless[self.argmin_feature] = argmin_ndvi_slope
 
         return eopatch
