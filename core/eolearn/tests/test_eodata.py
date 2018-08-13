@@ -17,7 +17,7 @@ class TestEOPatch(unittest.TestCase):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
 
         eop = EOPatch()
-        eop.add_feature(FeatureType.DATA, 'bands', bands)
+        eop.data['bands'] = bands
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
 
@@ -25,7 +25,7 @@ class TestEOPatch(unittest.TestCase):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
 
         eop = EOPatch()
-        eop.add_feature(FeatureType.DATA, 'bands', bands)
+        eop.data['bands'] = bands
 
         eop_bands = eop.get_feature(FeatureType.DATA, 'bands')
 
@@ -68,11 +68,11 @@ class TestEOPatch(unittest.TestCase):
     def test_concatenate(self):
         eop1 = EOPatch()
         bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
-        eop1.add_feature(FeatureType.DATA, 'bands', bands1)
+        eop1.data['bands'] = bands1
 
         eop2 = EOPatch()
         bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
-        eop2.add_feature(FeatureType.DATA, 'bands', bands2)
+        eop2.data['bands'] = bands2
 
         eop = eop1 + eop2
 
@@ -82,11 +82,11 @@ class TestEOPatch(unittest.TestCase):
     def test_concatenate_different_key(self):
         eop1 = EOPatch()
         bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
-        eop1.add_feature(FeatureType.DATA, 'bands', bands1)
+        eop1.data['bands'] = bands1
 
         eop2 = EOPatch()
         bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
-        eop2.add_feature(FeatureType.DATA, 'measurements', bands2)
+        eop2.data['measurements'] = bands2
 
         eop = eop1 + eop2
         self.assertTrue('bands' in eop.data and 'measurements' in eop.data, "Failed to concatenate different features")
@@ -94,13 +94,13 @@ class TestEOPatch(unittest.TestCase):
     def test_concatenate_timeless(self):
         eop1 = EOPatch()
         mask1 = np.arange(3*3*2).reshape(3, 3, 2)
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'mask1', mask1)
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'mask', 5 * mask1)
+        eop1.data_timeless['mask1'] = mask1
+        eop1.data_timeless['mask'] = 5 * mask1
 
         eop2 = EOPatch()
         mask2 = np.arange(3*3*2).reshape(3, 3, 2)
-        eop2.add_feature(FeatureType.DATA_TIMELESS, 'mask2', mask2)
-        eop2.add_feature(FeatureType.DATA_TIMELESS, 'mask', 5 * mask1)  # add mask1 to eop2
+        eop2.data_timeless['mask2'] = mask2
+        eop2.data_timeless['mask'] = 5 * mask1  # add mask1 to eop2
 
         eop = EOPatch.concatenate(eop1, eop2)
 
@@ -113,12 +113,12 @@ class TestEOPatch(unittest.TestCase):
         mask = np.arange(3*3*2).reshape(3, 3, 2)
 
         eop1 = EOPatch()
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'nask', 3 * mask)
+        eop1.data_timeless['mask'] = mask
+        eop1.data_timeless['nask'] = 3 * mask
 
         eop2 = EOPatch()
-        eop2.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
-        eop2.add_feature(FeatureType.DATA_TIMELESS, 'nask', 5 * mask)
+        eop2.data_timeless['mask'] = mask
+        eop2.data_timeless['nask'] = 5 * mask
 
         with self.assertRaises(ValueError):
             eop = eop1 + eop2
@@ -145,7 +145,8 @@ class TestEOPatch(unittest.TestCase):
         del eop2.data['bands']
         self.assertEqual(eop1, eop2)
 
-        eop1.add_feature(FeatureType.DATA_TIMELESS, 'dem', np.arange(3 * 3 * 2).reshape(3, 3, 2))
+        eop1.data_timeless['dem'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+
         self.assertNotEqual(eop1, eop2)
 
     def test_timestamp_consolidation(self):
@@ -195,7 +196,7 @@ class TestSavingLoading(unittest.TestCase):
     def setUpClass(cls):
         eopatch = EOPatch()
         mask = np.arange(3*3*2).reshape(3, 3, 2)
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
+        eopatch.data_timeless['mask'] = mask
 
         cls.eopatch = eopatch
 
@@ -277,11 +278,51 @@ class TestSavingLoading(unittest.TestCase):
     def test_feature_names_case_sensitivity(self):
         eopatch = EOPatch()
         mask = np.arange(3*3*2).reshape(3, 3, 2)
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'mask', mask)
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'Mask', mask)
+        eopatch.data_timeless['mask'] = mask
+        eopatch.data_timeless['Mask'] = mask
 
         with tempfile.TemporaryDirectory() as tmpdirname, self.assertRaises(BaseException):
             eopatch.save(tmpdirname, file_format='npy')
+
+    def test_overwrite_failure(self):
+        # basic patch
+        eopatch = EOPatch()
+        mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+        eopatch.data_timeless['mask'] = mask
+
+        with tempfile.TemporaryDirectory() as tmpdirname, self.assertRaises(BaseException):
+            eopatch.save(tmpdirname, file_format='npy')
+
+            # load original patch
+            eopatch_before = EOPatch.load(tmpdirname)
+
+            # force exception during saving (case sensitivity), backup is reloaded
+            eopatch.data_timeless['Mask'] = mask
+            eopatch.save(tmpdirname, file_format='npy', overwrite=True)
+            eopatch_after = EOPatch.load(tmpdirname)
+
+            # should be equal
+            self.assertEqual(eopatch_before, eopatch_after)
+
+    def test_overwrite_success(self):
+        # basic patch
+        eopatch = EOPatch()
+        mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+        eopatch.data_timeless['mask1'] = mask
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            eopatch.save(tmpdirname, file_format='npy')
+
+            # load original patch
+            eopatch_before = EOPatch.load(tmpdirname)
+
+            # update original patch
+            eopatch.data_timeless['mask2'] = mask
+            eopatch.save(tmpdirname, file_format='npy', overwrite=True)
+            eopatch_after = EOPatch.load(tmpdirname)
+
+            # should be different
+            self.assertNotEqual(eopatch_before, eopatch_after)
 
 
 if __name__ == '__main__':
