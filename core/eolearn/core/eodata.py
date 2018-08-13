@@ -652,7 +652,8 @@ class EOPatch:
         good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
         good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
 
-        for feature_type in [feature_type for feature_type in FeatureType if feature_type.is_time_dependent()]:
+        for feature_type in [feature_type for feature_type in FeatureType if (feature_type.is_time_dependent() and
+                                                                              feature_type.has_dict())]:
 
             for feature_name, value in self[feature_type].items():
                 if isinstance(value, np.ndarray):
