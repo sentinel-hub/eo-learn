@@ -67,7 +67,7 @@ class FeatureType(Enum):
         :rtype: bool
         """
         return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                                  FeatureType.VECTOR])
+                                  FeatureType.VECTOR, FeatureType.TIMESTAMP])
 
     def is_discrete(self):
         """Tells if FeatureType should have discrete (integer) values

@@ -3,69 +3,83 @@ Module for basic feature manipulations, i.e. removing a feature from EOPatch, or
 the time-dependent features.
 """
 
-from eolearn.core import EOTask, FeatureType
+import logging
 import numpy as np
 
 from datetime import datetime
 
-import logging
+from eolearn.core import EOTask, FeatureType
+
+
 LOGGER = logging.getLogger(__name__)
 
 
 class SimpleFilterTask(EOTask):
     """
     Transforms an eopatch of shape [n, w, h, d] into [m, w, h, d] for m <= n. It removes all slices which don't
-    conform to the predicate.
+    conform to the filter_func.
 
-    A predicate is a callable which takes an numpy array and returns a bool.
+    A filter_func is a callable which takes an numpy array and returns a bool.
     """
-    def __init__(self, predicate, feature_type, feature_name):
+    def __init__(self, feature, filter_func, filter_features=...):
         """
-        :param predicate: A callable that takes an eopatch instance and evaluates to bool.
-        :param feature_type: A constant from FeatureType
-        :param feature_name: The name of the feature_name in the dictionary corresponding to feature_type
+        :param feature: Feature in the EOPatch , e.g. feature=(FeatureType.DATA, 'bands')
+        :type feature: (FeatureType, str)
+        :param filter_func: A callable that takes a numpy evaluates to bool.
+        :type filter_func: object
+        :param filter_features: A collection of features which will be filtered
+        :type filter_features: dict(FeatureType: set(str))
         """
-        self.predicate = predicate
-        self.feature_type = feature_type
-        self.feature_name = feature_name
+        self.feature = self._parse_features(feature)
+        self.filter_func = filter_func
+        self.filter_features = self._parse_features(filter_features)
+
+    def _get_filtered_indices(self, feature_data):
+        return [idx for idx, img in enumerate(feature_data) if self.filter_func(img)]
+
+    def _update_other_data(self, eopatch):
+        pass
 
     def execute(self, eopatch):
         """
-        :param eopatch: Input eopatch.
+        :param eopatch: Input EOPatch.
         :type eopatch: EOPatch
         :return: Transformed eo patch
         :rtype: EOPatch
         """
-        return self.do_transform(eopatch, self.feature_type.value, self.feature_name)
+        feature_type, feature_name = next(self.feature(eopatch))
 
-    def do_transform(self, eopatch, feature_type, feature_name):
-        good_idxs = [idx for idx, img in enumerate(eopatch[feature_type][feature_name]) if self.predicate(img)]
+        good_idxs = self._get_filtered_indices(eopatch[feature_type][feature_name] if feature_name is not None else
+                                               eopatch[feature_type])
 
-        LOGGER.debug("good_idxs: %s", good_idxs)
+        for feature_type, feature_name in self.filter_features(eopatch):
+            if feature_type.is_time_dependent():
+                if feature_type.has_dict():
+                    if feature_type.contains_ndarrays():
+                        eopatch[feature_type][feature_name] = np.asarray([eopatch[feature_type][feature_name][idx] for
+                                                                          idx in good_idxs])
+                    # else:
+                    #     NotImplemented
+                else:
+                    eopatch[feature_type] = [eopatch[feature_type][idx] for idx in good_idxs]
 
-        eopatch.timestamp = [eopatch.timestamp[idx] for idx in good_idxs]
-
-        for temp_feature_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]:
-            attr = getattr(eopatch, temp_feature_type.value)
-            assert isinstance(attr, dict)
-            for target_feature in attr:
-                value = attr[target_feature]
-                eopatch.add_feature(temp_feature_type, target_feature,
-                                    value=np.asarray([value[idx] for idx in good_idxs]))
+        self._update_other_data(eopatch)
 
         return eopatch
 
 
-class FilterTimeSeries(EOTask):
+class FilterTimeSeries(SimpleFilterTask):
     """
     Removes all frames in the time-series with dates outside the user specified time interval.
     """
-    def __init__(self, start_date, end_date):
+    def __init__(self, start_date, end_date, filter_features=...):
         """
         :param start_date: Start date. All frames within the time-series taken after this date will be kept.
         :type start_date: datetime.datetime
         :param end_date: End date. All frames within the time-series taken before this date will be kept.
         :type end_date: datetime.datetime
+        :param filter_features: A collection of features which will be filtered
+        :type filter_features: dict(FeatureType: set(str))
         """
         self.start_date = start_date
         self.end_date = end_date
@@ -76,27 +90,14 @@ class FilterTimeSeries(EOTask):
         if not isinstance(end_date, datetime):
             raise ValueError('End date is not of correct type. Please provide the end_date as datetime.datetime.')
 
-    def execute(self, eopatch):
-        good_idxs = []
-        for idx, date in enumerate(eopatch.timestamp):
-            diff_to_begin = (date - self.start_date)
-            diff_to_end = (date - self.end_date)
+        super().__init__(FeatureType.TIMESTAMP, lambda date: start_date <= date <= end_date, filter_features)
 
-            if diff_to_begin.total_seconds() > 0 > diff_to_end.total_seconds():
-                good_idxs.append(idx)
+    def _update_other_data(self, eopatch):
 
-        LOGGER.debug("good_idxs: %s", good_idxs)
+        if 'time_interval' in eopatch.meta_info:
+            start_time, end_time = eopatch.meta_info['time_interval']
 
-        time_dependent = [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL]
-
-        eopatch.timestamp = [eopatch.timestamp[idx] for idx in good_idxs]
-
-        for feature_type in time_dependent:
-            attr = getattr(eopatch, feature_type.value)
-            assert isinstance(attr, dict)
-            for target_feature in attr:
-                value = attr[target_feature]
-                eopatch.add_feature(feature_type, target_feature,
-                                    value=np.asarray([value[idx] for idx in good_idxs]))
+            eopatch.meta_info['time_interval'] = (max(start_time, self.start_date.isoformat().split('.')[0]),
+                                                  min(end_time, self.end_date.isoformat().split('.')[0]))
 
         return eopatch
