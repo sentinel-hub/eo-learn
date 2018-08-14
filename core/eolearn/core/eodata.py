@@ -8,6 +8,7 @@ import pickle
 import numpy as np
 import gzip
 import shutil
+import datetime
 
 from copy import copy, deepcopy
 from enum import Enum
@@ -410,7 +411,7 @@ class EOPatch:
         return np.concatenate((data1, data2), axis=0)
 
     def save(self, path, features=..., file_format=FileFormat.NPY, overwrite=False, compress=False,
-             compresslevel=9):
+             compress_level=1):
         """ Saves EOPatch to disk.
 
         :param path: Location on the disk
@@ -420,64 +421,78 @@ class EOPatch:
         :type features: list(FeatureType) or None
         :param file_format: File format
         :type file_format: str or FileFormat
-        :param overwrite: Remove files in the folder before save
+        :param overwrite: If successful, old files are overwritten
         :type overwrite: bool
         :param compress: Compress features. Only used with npy file_format
         :type compress: bool
-        :param compresslevel: gzip compress level, an integer from 0 to 9
-        :type compresslevel: int
+        :param compress_level: gzip compress level, an integer from 0 to 9
+        :type compress_level: int
         """
+        tmp_path = None
         if os.path.exists(path):
             if os.path.isfile(path):
-                raise BaseException("File exists at the given path")
-            elif os.listdir(path):
+                raise NotADirectoryError("A file exists at the given path, expected a directory")
+            if os.listdir(path):
                 if not overwrite:
-                    raise BaseException("Folder at the given path contains files. \
-                                         You can delete them with the overwrite flag.")
-                else:
-                    LOGGER.warning('Overwriting data in %s', path)
-                    shutil.rmtree(path)
-                    os.makedirs(path)
-        else:
-            os.makedirs(path)
+                    raise IOError("Folder at the given path contains files. "
+                                  "You can delete them by setting overwrite=True")
 
-        file_format = FileFormat(file_format)
+                LOGGER.warning('Overwriting data in %s', path)
 
-        saved_feature_types = set()
-        for feature_type, feature_name in FeatureParser(features)(self):
-            if not self[feature_type]:
-                continue
+                tmp_path = '{}_backup_{}'.format(path, datetime.datetime.now().timestamp())
+                os.rename(path, tmp_path)
 
-            if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
-                if feature_type in saved_feature_types:
+                LOGGER.debug('Making temporary path %s', tmp_path)
+
+        os.makedirs(path, exist_ok=True)
+
+        # try to perform save
+        # if overwrite == False and save failed, delete path
+        # if overwrite == True and save failed, delete path and reinstate backup
+        try:
+            file_format = FileFormat(file_format)
+
+            saved_feature_types = set()
+            for feature_type, feature_name in FeatureParser(features)(self):
+                if not self[feature_type]:
                     continue
 
-                file_path = os.path.join(path, feature_type.value)
+                if file_format is FileFormat.PICKLE or not feature_type.contains_ndarrays():
+                    if feature_type in saved_feature_types:
+                        continue
 
-                with open(file_path, 'wb') as outfile:
-                    LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
+                    file_path = os.path.join(path, feature_type.value)
 
-                    pickle.dump(self[feature_type].get_dict() if feature_type.has_dict() else self[feature_type],
-                                outfile)
+                    with open(file_path, 'wb') as outfile:
+                        LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
+
+                        pickle.dump(self[feature_type].get_dict() if feature_type.has_dict() else self[feature_type],
+                                    outfile)
+                    saved_feature_types.add(feature_type)
+
+                elif file_format is FileFormat.NPY:
+                    dir_path = os.path.join(path, feature_type.value)
+
+                    if feature_type not in saved_feature_types:
+                        self._check_feature_case_matching(feature_type)
+                        os.makedirs(dir_path, exist_ok=True)
+
+                    self._save_npy_feature(dir_path, feature_type, feature_name, compress, compress_level)
+
                 saved_feature_types.add(feature_type)
+            if tmp_path:
+                shutil.rmtree(tmp_path)
+        except BaseException:
+            if tmp_path:
+                os.rename(tmp_path, path)
+            raise IOError("Failed to save EOPatch to path {}".format(path))
 
-            elif file_format is FileFormat.NPY:
-                dir_path = os.path.join(path, feature_type.value)
-
-                if feature_type not in saved_feature_types:
-                    self._check_feature_case_matching(feature_type)
-                    os.makedirs(dir_path, exist_ok=True)
-
-                self._save_npy_feature(dir_path, feature_type, feature_name, compress, compresslevel)
-
-            saved_feature_types.add(feature_type)
-
-    def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compresslevel=9):
+    def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compress_level=1):
 
         file_path = os.path.join(path, feature_name)
 
         if compress:
-            file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w', compresslevel)
+            file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w', compress_level)
         else:
             file_handle = open('{}.npy'.format(file_path), 'wb')
 
