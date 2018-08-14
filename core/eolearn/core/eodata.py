@@ -428,23 +428,23 @@ class EOPatch:
         :param compress_level: gzip compress level, an integer from 0 to 9
         :type compress_level: int
         """
+        tmp_path = None
         if os.path.exists(path):
             if os.path.isfile(path):
-                raise BaseException("File exists at the given path")
-            elif os.listdir(path):
+                raise NotADirectoryError("A file exists at the given path, expected a directory")
+            if os.listdir(path):
                 if not overwrite:
-                    raise BaseException("Folder at the given path contains files. \
-                                         You can delete them with the overwrite flag.")
-                else:
-                    LOGGER.warning('Overwriting data in %s', path)
+                    raise IOError("Folder at the given path contains files. "
+                                  "You can delete them by setting overwrite=True")
 
-                    tmp_name = '/backup_%f' % datetime.datetime.now().timestamp()
-                    tmp_path = os.path.dirname(os.path.normpath(path))+tmp_name
-                    os.rename(path, tmp_path)
-                    os.makedirs(path)
-                    print(tmp_path)
-        else:
-            os.makedirs(path)
+                LOGGER.warning('Overwriting data in %s', path)
+
+                tmp_path = '{}_backup_{}'.format(path, datetime.datetime.now().timestamp())
+                os.rename(path, tmp_path)
+
+                LOGGER.debug('Making temporal path %s', tmp_path)
+
+        os.makedirs(path, exist_ok=True)
 
         # try to perform save
         # if overwrite == False and save failed, delete path
@@ -480,12 +480,12 @@ class EOPatch:
                     self._save_npy_feature(dir_path, feature_type, feature_name, compress, compress_level)
 
                 saved_feature_types.add(feature_type)
-            if overwrite:
+            if tmp_path:
                 shutil.rmtree(tmp_path)
         except BaseException:
-            if overwrite:
+            if tmp_path:
                 os.rename(tmp_path, path)
-            raise BaseException("Saving of the EO-patch failed!")
+            raise IOError("Failed to save EOPatch to path {}".format(path))
 
     def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compress_level=9):
 
