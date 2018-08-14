@@ -57,8 +57,8 @@ class SentinelHubOGCInput(EOTask):
     """
 
     def __init__(self, layer, feature=None, valid_data_mask_feature='IS_DATA', service_type=None, data_source=None,
-                 size_x=None, size_y=None, maxcc=1.0, image_format=MimeType.TIFF_d32f, instance_id=None,
-                 custom_url_params=None, time_difference=datetime.timedelta(seconds=-1), raise_download_errors=True):
+                 size_x=None, size_y=None, maxcc=None, image_format=MimeType.TIFF_d32f, instance_id=None,
+                 custom_url_params=None, time_difference=None, raise_download_errors=True):
         # pylint: disable=too-many-arguments
         self.layer = layer
         self.feature_type, self.feature_name = next(self._parse_features(layer if feature is None else feature,
@@ -91,6 +91,10 @@ class SentinelHubOGCInput(EOTask):
             return eopatch.bbox
         if name in eopatch.meta_info:
             return eopatch.meta_info[name]
+        if name == 'maxcc':
+            return 1.0
+        if name == 'time_difference':
+            return datetime.timedelta(seconds=-1)
         raise ValueError('Parameter {} was neither defined in initialization of {} nor is contained in '
                          'EOPatch'.format(name, self.__class__.__name__))
 
@@ -300,7 +304,7 @@ class DEMWCSInput(SentinelHubWCSInput):
                          **kwargs)
 
 
-class AddSen2CorClassificationFeature(AddSentinelHubOGCFeature):
+class AddSen2CorClassificationFeature(SentinelHubOGCInput):
     """
     Adds SCL (scene classification), CLD (cloud probability) or SNW (snow probability)
     Sen2Cor classification results to EOPatch's MASK or DATA feature. The feature is added to MASK (SCL) or
