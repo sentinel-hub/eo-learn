@@ -26,4 +26,5 @@ script:
 - radon cc io/eolearn/io/*.py -a -nb
 - radon cc mask/eolearn/mask/*.py -a -nb
 - radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
-- pytest
+- 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then pytest --ignore io/eolearn/tests; fi'
+- 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest ; fi'
