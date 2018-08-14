@@ -4,9 +4,8 @@ the time-dependent features.
 """
 
 import logging
-import numpy as np
-
 from datetime import datetime
+import numpy as np
 
 from eolearn.core import EOTask, FeatureType
 
@@ -49,7 +48,7 @@ class SimpleFilterTask(EOTask):
         """
         feature_type, feature_name = next(self.feature(eopatch))
 
-        good_idxs = self._get_filtered_indices(eopatch[feature_type][feature_name] if feature_name is not None else
+        good_idxs = self._get_filtered_indices(eopatch[feature_type][feature_name] if feature_name is not ... else
                                                eopatch[feature_type])
 
         for feature_type, feature_name in self.filter_features(eopatch):
@@ -97,7 +96,7 @@ class FilterTimeSeries(SimpleFilterTask):
         if 'time_interval' in eopatch.meta_info:
             start_time, end_time = eopatch.meta_info['time_interval']
 
-            eopatch.meta_info['time_interval'] = (max(start_time, self.start_date.isoformat().split('.')[0]),
-                                                  min(end_time, self.end_date.isoformat().split('.')[0]))
+            eopatch.meta_info['time_interval'] = (max(start_time, self.start_date),
+                                                  min(end_time, self.end_date))
 
         return eopatch
