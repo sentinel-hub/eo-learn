@@ -442,7 +442,7 @@ class EOPatch:
                 tmp_path = '{}_backup_{}'.format(path, datetime.datetime.now().timestamp())
                 os.rename(path, tmp_path)
 
-                LOGGER.debug('Making temporal path %s', tmp_path)
+                LOGGER.debug('Making temporary path %s', tmp_path)
 
         os.makedirs(path, exist_ok=True)
 
@@ -487,7 +487,7 @@ class EOPatch:
                 os.rename(tmp_path, path)
             raise IOError("Failed to save EOPatch to path {}".format(path))
 
-    def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compress_level=9):
+    def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compress_level=1):
 
         file_path = os.path.join(path, feature_name)
 
