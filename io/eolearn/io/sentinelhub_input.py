@@ -8,7 +8,7 @@ import logging
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
 
-from eolearn.core import EOPatch, EOTask
+from eolearn.core import EOPatch, EOTask, FeatureType
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,8 +19,8 @@ class SentinelHubOGCInput(EOTask):
 
     :param layer: the preconfigured layer to be added to EOPatch's DATA feature. Required.
     :type layer: str
-    :param feature_name: user specified name (key) for this feature. Optional.
-    :type feature_name: str or None. Default is the same as layer.
+    :param feature: user specified name (key) for this feature. Optional.
+    :type feature: str or None. Default is the same as layer.
     :param valid_data_mask_name: user specified name (key) for the valid data mask returned by the OGC request.
                                  Optional.
     :type valid_data_mask_name: str. Default is `'IS_DATA'`.
@@ -53,13 +53,13 @@ class SentinelHubOGCInput(EOTask):
     :type time_difference: datetime.timedelta
     """
 
-    def __init__(self, layer, feature_name=None, valid_data_mask_name='IS_DATA',
-                 service_type=None, data_source=None,
-                 size_x=None, size_y=None, maxcc=1.0, image_format=MimeType.TIFF_d32f,
-                 instance_id=None, custom_url_params=None, time_difference=datetime.timedelta(seconds=-1)):
+    def __init__(self, layer, feature=None, valid_data_mask_name='IS_DATA', service_type=None, data_source=None,
+                 size_x=None, size_y=None, maxcc=1.0, image_format=MimeType.TIFF_d32f, instance_id=None,
+                 custom_url_params=None, time_difference=datetime.timedelta(seconds=-1), raise_download_errors=True):
         # pylint: disable=too-many-arguments
         self.layer = layer
-        self.feature_name = layer if feature_name is None else feature_name
+        self.feature_type, self.feature_name = next(self._parse_features(layer if feature is None else feature,
+                                                                         default_feature_type=FeatureType.DATA)())
         self.valid_data_mask_name = valid_data_mask_name
         self.service_type = service_type
         self.data_source = data_source
@@ -69,14 +69,14 @@ class SentinelHubOGCInput(EOTask):
         self.image_format = image_format
         self.instance_id = instance_id
 
-        custom_params = {CustomUrlParam.SHOWLOGO: False,
-                         CustomUrlParam.TRANSPARENT: True}
         if custom_url_params is None:
-            self.custom_url_params = custom_params
-        else:
-            self.custom_url_params = {**custom_params, **custom_url_params}
+            custom_url_params = {}
+        self.custom_url_params = {**{CustomUrlParam.SHOWLOGO: False,
+                                     CustomUrlParam.TRANSPARENT: True},
+                                  **custom_url_params}
 
         self.time_difference = time_difference
+        self.raise_download_errors = raise_download_errors
 
     def _get_wms_request(self, bbox, time_interval):
         """
@@ -108,7 +108,31 @@ class SentinelHubOGCInput(EOTask):
                           data_source=self.data_source,
                           instance_id=self.instance_id)
 
-    def execute(self, bbox, time_interval):
+    def _get_parameter(self, name, eopatch):
+        if getattr(self, name) is not None:
+            return getattr(self, name)
+        if name in eopatch.meta_info:
+            return eopatch.meta_info[name]
+        raise ValueError('Parameter {} was neither defined in initialization of {} nor is contained in given '
+                         'EOPatch'.format(name, self.__class__.__name__))
+
+    def _get_request(self, eopatch, bbox, time_interval):
+
+
+        request_class =  {ServiceType.WMS: WmsRequest,
+                          ServiceType.WCS: WcsRequest}[ServiceType(self._get_parameter('service_type', eopatch))]
+        return request_class(layer=self.layer,
+                             bbox=bbox,
+                             time=time_interval,
+                             resx=self._get_parameter('size_x'), resy=self._get_parameter('size_y'),  # TODO
+                             maxcc=self._get_parameter('maxcc'),
+                             image_format=self.image_format,
+                             custom_url_params=self.custom_url_params,
+                             time_difference=self._get_parameter('time_difference'),
+                             data_source=self.data_source,
+                             instance_id=self.instance_id)
+
+    def execute(self, eopatch=None, bbox=None, time_interval=None):
         """
         Creates OGC (WMS or WCS) request, downloads requested data and stores it together
         with valid data mask in newly created EOPatch. Returns the EOPatch.
@@ -125,8 +149,10 @@ class SentinelHubOGCInput(EOTask):
                               ``latest``. Examples: ``latest``, ``'2016-01-01'``, or ``('2016-01-01', ' 2016-01-31')``
          :type time_interval: str, or tuple of str
         """
-        request = {ServiceType.WMS: self._get_wms_request,
-                   ServiceType.WCS: self._get_wcs_request}[self.service_type](bbox, time_interval)
+        if eopatch is None:
+            eopatch = EOPatch()
+
+        request = self._get_request(eopatch, bbox, time_interval)
 
         request_return = request.get_data(raise_download_errors=False)
         timestamps = request.get_dates()
