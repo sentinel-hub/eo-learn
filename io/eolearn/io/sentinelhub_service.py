@@ -85,7 +85,7 @@ class SentinelHubOGCInput(EOTask):
     def _get_parameter(self, name, eopatch):
         """ Collects the parameter either from initialization parameters or from EOPatch
         """
-        if getattr(self, name) is not None:
+        if hasattr(self, name) and getattr(self, name) is not None:
             return getattr(self, name)
         if name == 'bbox' and eopatch.bbox:
             return eopatch.bbox
@@ -193,7 +193,7 @@ class SentinelHubOGCInput(EOTask):
             eopatch.timestamp = request_dates
         download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
 
-        images = request.get_data(raise_download_errors=self.raise_download_error, data_filter=download_frames)
+        images = request.get_data(raise_download_errors=self.raise_download_errors, data_filter=download_frames)
 
         if not self.raise_download_errors:
             bad_data = [idx for idx, value in enumerate(images) if value is None]
@@ -235,7 +235,7 @@ class S2L1CWMSInput(SentinelHubWMSInput):
     Task for creating EOPatches and filling them with Sentinel-2 L1C data using Sentinel Hub's WMS request.
     """
     def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L1C, service_type=ServiceType.WMS, **kwargs)
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L1C, **kwargs)
 
 
 class S2L1CWCSInput(SentinelHubWCSInput):
@@ -243,7 +243,7 @@ class S2L1CWCSInput(SentinelHubWCSInput):
     Task for creating EOPatches and filling them with Sentinel-2 L1C data using Sentinel Hub's WCS request.
     """
     def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L1C, service_type=ServiceType.WCS, **kwargs)
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L1C, **kwargs)
 
 
 class L8L1CWMSInput(SentinelHubWMSInput):
@@ -251,7 +251,7 @@ class L8L1CWMSInput(SentinelHubWMSInput):
     Task for creating EOPatches and filling them with Landsat-8 L1C data using Sentinel Hub's WMS request.
     """
     def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.LANDSAT8, service_type=ServiceType.WMS, **kwargs)
+        super().__init__(layer=layer, data_source=DataSource.LANDSAT8, **kwargs)
 
 
 class L8L1CWCSInput(SentinelHubWCSInput):
@@ -259,7 +259,7 @@ class L8L1CWCSInput(SentinelHubWCSInput):
     Task for creating EOPatches and filling them with Landsat-8 L1C data using Sentinel Hub's WCS request.
     """
     def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.LANDSAT8, service_type=ServiceType.WCS, **kwargs)
+        super().__init__(layer=layer, data_source=DataSource.LANDSAT8, **kwargs)
 
 
 class S2L2AWMSInput(SentinelHubWMSInput):
@@ -267,7 +267,7 @@ class S2L2AWMSInput(SentinelHubWMSInput):
     Task for creating EOPatches and filling them with Sentinel-2 L2A data using Sentinel Hub's WMS request.
     """
     def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, service_type=ServiceType.WMS, **kwargs)
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
 
 
 class S2L2AWCSInput(SentinelHubWCSInput):
@@ -275,7 +275,7 @@ class S2L2AWCSInput(SentinelHubWCSInput):
     Task for creating EOPatches and filling them with Sentinel-2 L2A data using Sentinel Hub's WCS request.
     """
     def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, service_type=ServiceType.WCS, **kwargs)
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
 
 
 class DEMWMSInput(SentinelHubWMSInput):
@@ -287,8 +287,7 @@ class DEMWMSInput(SentinelHubWMSInput):
             feature = (FeatureType.DATA_TIMELESS, layer)
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
-        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, service_type=ServiceType.WMS,
-                         **kwargs)
+        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, **kwargs)
 
 
 class DEMWCSInput(SentinelHubWCSInput):
@@ -300,8 +299,7 @@ class DEMWCSInput(SentinelHubWCSInput):
             feature = (FeatureType.DATA_TIMELESS, layer)
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
-        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, service_type=ServiceType.WCS,
-                         **kwargs)
+        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, **kwargs)
 
 
 class AddSen2CorClassificationFeature(SentinelHubOGCInput):
