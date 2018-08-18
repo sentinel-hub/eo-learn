@@ -1,12 +1,9 @@
-import pytest
-
 import unittest
 import os
-
-from eolearn.mask.cloud_mask import AddCloudMaskTask, get_s2_pixel_cloud_detector
-from eolearn.core.eodata import EOPatch
-
 import numpy as np
+
+from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector
+from eolearn.core import EOPatch
 
 
 class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
