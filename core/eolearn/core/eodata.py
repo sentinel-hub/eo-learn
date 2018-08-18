@@ -530,14 +530,14 @@ class EOPatch:
                               "files".format(feature_name, case_insensitive_feature_name))
 
     @staticmethod
-    def load(path, features=..., lazy_loading=True, mmap=True):
+    def load(path, features=..., lazy_loading=False, mmap=True):
         """ Loads EOPatch from disk.
 
         :param path: Location on the disk
         :type path: str
         :param features: List of features to be loaded. If set to None all features will be loaded.
         :type features: list(FeatureType) or None
-        :param lazy_loading: If True, then compressed feature will be lazy loaded
+        :param lazy_loading: If `True` features will be lazy loaded.
         :type lazy_loading: bool
         :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
         :type mmap: bool
