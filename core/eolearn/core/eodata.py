@@ -23,6 +23,14 @@ LOGGER = logging.getLogger(__name__)
 class FileFormat(Enum):
     PICKLE = 'pickle'
     NPY = 'npy'
+    NPY_GZ = 'npy.gz'
+
+    def extension(self):
+        """ Returns file extension of file format
+        """
+        if self is FileFormat.PICKLE:
+            return ''
+        return '{}'.format(self.value)
 
 
 class EOPatch:
@@ -99,15 +107,26 @@ class EOPatch:
         """Before attribute is set it is checked that feature type attributes are of correct type and in case they
         are a dictionary they are cast to _FeatureDict class
         """
-        if FeatureType.has_value(key):
+        if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
             value_type = feature_type.type()
-            if not isinstance(value, value_type):
+            if not isinstance(value, value_type,):
                 raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
             if feature_type.has_dict() and not isinstance(value, _FeatureDict):
                 value = _FeatureDict(value, feature_type)
 
         super().__setattr__(key, value)
+
+    def __getattribute__(self, key, load=True):
+        """ Handles lazy loading
+        """
+        value = super().__getattribute__(key)
+
+        if isinstance(value, _FileLoader) and load:
+            value = value.load()
+            setattr(self, key, value)
+
+        return value
 
     def __getitem__(self, feature_type):
         """Provides features of requested feature type from EOPatch
@@ -425,10 +444,9 @@ class EOPatch:
         :type overwrite: bool
         :param compress: Compress features. Only used with npy file_format
         :type compress: bool
-        :param compress_level: gzip compress level, an integer from 0 to 9
+        :param compress_level: gzip compress level, an integer from 0 to 9, default is 1
         :type compress_level: int
         """
-        tmp_path = None
         if os.path.exists(path):
             if os.path.isfile(path):
                 raise NotADirectoryError("A file exists at the given path, expected a directory")
@@ -439,17 +457,13 @@ class EOPatch:
 
                 LOGGER.warning('Overwriting data in %s', path)
 
-                tmp_path = '{}_backup_{}'.format(path, datetime.datetime.now().timestamp())
-                os.rename(path, tmp_path)
+        tmp_path = '{}_tmp_{}'.format(path, datetime.datetime.now().timestamp())
+        if os.path.exists(tmp_path):  # Almost impossible case
+            raise OSError('Path {} already exists, try again'.format(tmp_path))
 
-                LOGGER.debug('Making temporary path %s', tmp_path)
-
-        os.makedirs(path, exist_ok=True)
-
-        # try to perform save
-        # if overwrite == False and save failed, delete path
-        # if overwrite == True and save failed, delete path and reinstate backup
         try:
+            LOGGER.debug('Making temporary path %s', tmp_path)
+            os.makedirs(tmp_path, exist_ok=True)
             file_format = FileFormat(file_format)
 
             saved_feature_types = set()
@@ -461,7 +475,7 @@ class EOPatch:
                     if feature_type in saved_feature_types:
                         continue
 
-                    file_path = os.path.join(path, feature_type.value)
+                    file_path = os.path.join(tmp_path, feature_type.value)
 
                     with open(file_path, 'wb') as outfile:
                         LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
@@ -471,7 +485,7 @@ class EOPatch:
                     saved_feature_types.add(feature_type)
 
                 elif file_format is FileFormat.NPY:
-                    dir_path = os.path.join(path, feature_type.value)
+                    dir_path = os.path.join(tmp_path, feature_type.value)
 
                     if feature_type not in saved_feature_types:
                         self._check_feature_case_matching(feature_type)
@@ -480,24 +494,28 @@ class EOPatch:
                     self._save_npy_feature(dir_path, feature_type, feature_name, compress, compress_level)
 
                 saved_feature_types.add(feature_type)
-            if tmp_path:
-                shutil.rmtree(tmp_path)
+
+            if os.path.exists(path):
+                shutil.rmtree(path)
+            os.rename(tmp_path, path)
+
         except BaseException:
-            if tmp_path:
-                os.rename(tmp_path, path)
+            if os.path.exists(tmp_path):
+                shutil.rmtree(tmp_path)
             raise IOError("Failed to save EOPatch to path {}".format(path))
 
     def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compress_level=1):
 
-        file_path = os.path.join(path, feature_name)
+        filename = '{}.{}'.format(os.path.join(path, feature_name),
+                                  (FileFormat.NPY_GZ if compress else FileFormat.NPY).extension())
 
         if compress:
-            file_handle = gzip.GzipFile('{}.npy.gz'.format(file_path), 'w', compress_level)
+            file_handle = gzip.GzipFile(filename, 'w', compress_level)
         else:
-            file_handle = open('{}.npy'.format(file_path), 'wb')
+            file_handle = open(filename, 'wb')
 
         with file_handle as outfile:
-            LOGGER.debug("Saving %s to %s", str(feature_type), file_path)
+            LOGGER.debug("Saving %s to %s", str(feature_type), filename)
             np.save(outfile, self[feature_type][feature_name])
 
     def _check_feature_case_matching(self, feature_type):
@@ -512,14 +530,14 @@ class EOPatch:
                               "files".format(feature_name, case_insensitive_feature_name))
 
     @staticmethod
-    def load(path, features=..., lazy_loading=True, mmap=True,):
+    def load(path, features=..., lazy_loading=False, mmap=True):
         """ Loads EOPatch from disk.
 
         :param path: Location on the disk
         :type path: str
         :param features: List of features to be loaded. If set to None all features will be loaded.
         :type features: list(FeatureType) or None
-        :param lazy_loading: If True, then compressed feature will be lazy loaded
+        :param lazy_loading: If `True` features will be lazy loaded.
         :type lazy_loading: bool
         :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
         :type mmap: bool
@@ -543,57 +561,34 @@ class EOPatch:
                 if feature_type in loaded_feature_types or not os.path.getsize(ftype_path):
                     continue
 
-                with open(ftype_path, "rb") as infile:
-                    eopatch_content[feature_type.value] = pickle.load(infile)
+                file_loader = _FileLoader(path, feature_type.value)
+                eopatch_content[feature_type.value] = file_loader if lazy_loading else file_loader.load()
             else:
                 if feature_type not in loaded_feature_types:
                     eopatch_content[feature_type.value] = {}
 
-                if feature_name is ...:
-                    eopatch_content[feature_type.value] = EOPatch._load_npy_feature_type(ftype_path, lazy_loading, mmap)
-                else:
-                    feature_path = os.path.join(ftype_path, feature_name)
-                    if not os.path.exists(feature_path):
-                        raise OSError('Feature path {} does not exist'.format(feature_path))
+                feature_exists = feature_name is ...
+                for filename in os.listdir(ftype_path):
+                    found_feature_name = filename.rsplit('.npy', 1)[0]  # works for both .npy and .npy.gz
+                    if feature_name is ... or feature_name == found_feature_name:
+                        eopatch_content[feature_type.value][found_feature_name] = \
+                            EOPatch._load_npy_feature(path, os.path.join(feature_type.value, filename),
+                                                      lazy_loading, mmap)
+                        feature_exists = True
 
-                    eopatch_content[feature_type.value][feature_name] = EOPatch._load_npy_feature(feature_path,
-                                                                                                  lazy_loading, mmap)
+                if not feature_exists:
+                    raise OSError('Feature {} does not exist in given EOPatch'.format(feature_name))
 
             loaded_feature_types.add(feature_type)
 
         return EOPatch(**eopatch_content)
 
     @staticmethod
-    def _load_npy_feature_type(path, lazy_loading=True, mmap=True):
-        data = {}
-        for file_name in os.listdir(path):
-            feature_path = os.path.join(path, file_name)
-            feature_name = file_name.rsplit('.npy', 1)[0]  # works for both .npy and .npy.gz
-
-            data[feature_name] = EOPatch._load_npy_feature(feature_path, lazy_loading, mmap)
-
-        return data
-
-    @staticmethod
-    def _load_npy_feature(path, lazy_loading=True, mmap=True):
-
-        if path.endswith('.npy'):
-            if mmap:
-                return np.load(path, mmap_mode='r')
-            return np.load(path)
-        if path.endswith('.npy.gz'):
-
-            loader = EOPatch._get_npy_gzip_loader(path)
-            return loader if lazy_loading else loader()
-
-        raise ValueError('Unrecognized file type {}'.format(path))
-
-    @staticmethod
-    def _get_npy_gzip_loader(file_path):
-        def _loader():
-            return np.load(gzip.open(file_path))
-
-        return _loader
+    def _load_npy_feature(patch_path, filename, lazy_loading=True, mmap=True):
+        """ For loading numpy formats
+        """
+        file_loader = _FileLoader(patch_path, filename, mmap=mmap)
+        return file_loader if lazy_loading else file_loader.load()
 
     @staticmethod
     def _get_file_format(path):
@@ -701,18 +696,18 @@ class _FeatureDict(dict):
     def __setitem__(self, feature_name, value):
         """ Before setting value to the dictionary it checks that value is of correct type and dimension
         """
-        if not hasattr(value, '__call__') and self.ndim \
+        if not isinstance(value, _FileLoader) and self.ndim \
                 and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
             raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
         super().__setitem__(feature_name, value)
 
-    def __getitem__(self, feature_name):
+    def __getitem__(self, feature_name, load=True):
         """ Implements lazy loading
         """
         value = super().__getitem__(feature_name)
 
-        if hasattr(value, '__call__'):
-            value = value()
+        if isinstance(value, _FileLoader) and load:
+            value = value.load()
             self[feature_name] = value
 
         return value
@@ -724,3 +719,60 @@ class _FeatureDict(dict):
         :rtype: dict(str: object)
         """
         return dict(self)
+
+
+class _FileLoader:
+    """ Class taking care for loading objects from disk. Its purpose is to support lazy loading
+
+    :param patch_path: Location of EOPatch on disk
+    :type patch_path: str
+    :param filename: Location of file inside the EOPatch, extension should be included
+    :type filename: str
+    :param mmap: In case of npy files the tile can be loaded as memory map
+    :type mmap: bool
+    """
+    def __init__(self, patch_path, filename, mmap=False):
+        self.patch_path = patch_path
+        self.filename = filename
+        self.mmap = mmap
+
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__, self.get_file_path())
+
+    def set_new_patch_path(self, new_patch_path):
+        """ Sets new patch location on disk
+        """
+        self.patch_path = new_patch_path
+
+    def get_file_path(self):
+        return os.path.join(self.patch_path, self.filename)
+
+    def get_file_format(self):
+        for file_format in FileFormat:
+            if file_format is not FileFormat.PICKLE and self.filename.endswith(file_format.extension()):
+                return file_format
+        return FileFormat.PICKLE
+
+    def load(self):
+        if not os.path.isdir(self.patch_path):
+            raise OSError('EOPatch does not exist in path {} anymore'.format(self.patch_path))
+
+        path = self.get_file_path()
+        if not os.path.exists(path):
+            raise OSError('Feature in path {} does not exist anymore'.format(path))
+
+        file_format = self.get_file_format()
+
+        if file_format is FileFormat.NPY:
+            if self.mmap:
+                return np.load(path, mmap_mode='r')
+            return np.load(path)
+
+        if file_format is FileFormat.NPY_GZ:
+            return np.load(gzip.open(path))
+
+        if file_format is FileFormat.PICKLE:
+            with open(path, "rb") as infile:
+                return pickle.load(infile)
+
+        raise ValueError('Could not load data from unsupported file format {}'.format(self.file_format))
