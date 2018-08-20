@@ -10,23 +10,20 @@ from .eotask import EOTask
 
 
 def bgr_to_rgb(bgr):
-    """
-    Converts Blue, Green, Red to Red, Green, Blue
-    """
+    """Converts Blue, Green, Red to Red, Green, Blue."""
     return bgr[..., [2, 1, 0]]
 
 
 class IndexTracker:
-    """ Class to handle slicing of the eopatch """
+    """Handles slicing of the eopatch.
+
+    :param ax: Axes handle of the plot
+    :param im_seq: 2D single channel or RGB temporal sequence to be displayed
+    :param single_channel: Flag to indicate whether the images are grayscale or RGB
+    :param msg: Message to be displayed as title of the plot
+    """
     # pylint: disable=invalid-name
     def __init__(self, ax, im_seq, single_channel=False, msg=None, colorbar=False):
-        """ Class to handle slicing of the eopatch
-
-        :param ax: Axes handle of the plot
-        :param im_seq: 2D single channel or RGB temporal sequence to be displayed
-        :param single_channel: Flag to indicate whether the images are grayscale or RGB
-        :param msg: Message to be displayed as title of the plot
-        """
         self.ax = ax
         title = msg if msg is not None else "use scroll wheel to navigate images"
         self.ax.set_title(title)
@@ -45,7 +42,7 @@ class IndexTracker:
         self.update()
 
     def onscroll(self, event):
-        """ Action to be taken when an event is triggered
+        """Action to be taken when an event is triggered.
 
         Event is scroll of the mouse's wheel. This leads to changing the temporal frame displayed.
 
@@ -58,7 +55,7 @@ class IndexTracker:
         self.update()
 
     def update(self):
-        """ Update image to be displayed with new time frame """
+        """Updates image to be displayed with new time frame."""
         if self.single_channel:
             self.im.set_data(self.data[self.ind, :, :])
         else:
@@ -68,29 +65,28 @@ class IndexTracker:
 
 
 class PatchShowTask(EOTask):
-    """ Task to display sequence of 2D images """
+    """Displays sequence of 2D images.
+
+    This task allows to visualise and slice through an eopatch along the temporal dimension. The data to display is
+    supposed to have the following dimensions: n_timeframes x n_rows x n_cols (x n_chan). If the array is 3D, the
+    sequence is supposed to be single channel. If the array is 4D, the last dimension is either equal to 3 (RGB) or
+    the length of indices must be equal to 1 or 3.
+
+    :param feature_type: Type of feature to display from eopatch. Default is `Featuretype.DATA`
+    :type feature_type: FeatureType
+    :param feature_name: Name of feature to display. Default is `TRUE_COLOR`
+    :type feature_name: str
+    :param indices: Indices of channels to be displayed in multi-channel EOPatches. Length of indices must be either
+                    1 or 3. Default is `None`
+    :type indices: list
+    """
     def __init__(self, feature_type=FeatureType.DATA, feature_name='TRUE_COLOR', indices=None):
-        """ This task allows to visualise and slice through an eopatch along the temporal dimension.
-
-        The data to display is supposed to have the following dimensions: n_timeframes x n_rows x n_cols (x n_chan).
-        If the array is 3D, the sequence is supposed to be single channel.
-        If the array is 4D, the last dimension is either equal to 3 (RGB) or the length of indices must be equal to 1
-        or 3.
-
-        :param feature_type: Type of feature to display from eopatch. Default is `Featuretype.DATA`
-        :type feature_type: FeatureType
-        :param feature_name: Name of feature to display. Default is `TRUE_COLOR`
-        :type feature_name: str
-        :param indices: Indices of channels to be displayed in multi-channel EOPatches. Length of indices must be either
-                        1 or 3. Default is `None`
-        :type indices: list
-        """
         self.feature_type = feature_type
         self.feature_name = feature_name
         self.indices = indices
 
     def _get_data_to_display(self, eopatch):
-        """ Perform checks on dimensionality of data to make it suitable for display
+        """Performs checks on dimensionality of data to makes it suitable for display.
 
         :param eopatch: Input eopatch
         :return: Array to display and whether it is single channel or not
@@ -121,7 +117,7 @@ class PatchShowTask(EOTask):
         return image_seq, single_channel
 
     def execute(self, eopatch, title=None, colorbar=False):
-        """ Show data and scroll through. Currently not working from Jupyter notebooks
+        """Shows data and scrolls through. Currently not working from Jupyter notebooks.
 
         :param eopatch: Image sequence to display. Can be single channel, RGB or multi-channel. If multi-channel,
                         indices must be specified.

@@ -5,21 +5,6 @@ instance invokes the execute method. EO tasks are meant primarily to operate on 
 
 EO task classes are generally lightweight (i.e. not too complicated), short, and do one thing well. For example, an
 EO task might take as input an EOPatch containing cloud mask and return as a result the cloud coverage for that mask.
-
-Beside the base EOTask the hierarchy provides several additional general-purpose tasks that deserve a mention:
-
- - ChainedTask class represents a compositum of EO tasks. It takes as input to the constructor a list of EOTask
- instances, say [t1,t2,...,tn]. The result of invoking the execute (or __call__) on the chained task is, by definition,
- the same as invoking tn(...(t2(t1(*args, **kwargs)))...). The chained task does lazy evaluation: it performs no
- work until execute has been invoked.
-
- - EOSimpleFilterTask takes a predicate---a callable t that maps EOPatch to bool---and additional EOPatch-specific
- parameters, and filters all slices of the input EOPatch that don't conform to the predicate.
-
- - EOFeatureExtractionTask adds a feature to EOPatch by executing a function over a field of an EOPatch.
-
- - EORegistration task is specific to image registration algorithms implemented in a separate package
- eolearn.registration
 """
 
 import logging
@@ -35,13 +20,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class EOTask(ABC):
-    """
-    Base class for EOTask.
-    """
+    """Base class for EOTask."""
     def __new__(cls, *args, **kwargs):
-        """Here an instance of EOTask is created. All initialization parameters are deep copied and stored to a special
-        instance attribute `init_args`. Order of arguments is also preserved.
-        """
+        """Stores initialization parameters in the same order to the instance attribute `init_args`."""
         self = super().__new__(cls)
 
         self.init_args = OrderedDict()
@@ -56,31 +37,16 @@ class EOTask(ABC):
         return self
 
     def __mul__(self, other):
-        """ Composite of EOTasks
-        """
+        """Creates a composite task of this and passed task."""
         return CompositeTask(other, self)
 
     def __call__(self, *eopatches, **kwargs):
-        """ EOTask is callable like a function
-        """
+        """Executes the task."""
         return self.execute(*eopatches, **kwargs)
 
     @staticmethod
     def _parse_features(features, new_names=False, default_feature_type=None, rename_function=None):
-        """Used for parsing input features
-
-        :param features: A collection of features in one of the supported formats
-        :type features: object
-        :param new_names: `True` if a collection
-        :type new_names: bool
-        :param default_feature_type: If feature type of any of the given features is not set this will be used
-        :type default_feature_type: FeatureType or None
-        :param rename_function: Default renaming function
-        :type rename_function: function or None
-        :return: A generator over feature types and feature names
-        :rtype: FeatureParser
-        :raises: ValueError
-        """
+        """See FeatureParser class."""
         return FeatureParser(features, new_names=new_names, default_feature_type=default_feature_type,
                              rename_function=rename_function)
 
@@ -90,7 +56,12 @@ class EOTask(ABC):
 
 
 class CompositeTask(EOTask):
-    """ Creates a task that is composite of two tasks
+    """Creates a task that is composite of two tasks.
+
+    It takes as input to the constructor a list of EOTask instances, say [t1,t2,...,tn]. The result of invoking the
+    execute (or __call__) on the chained task is, by definition, the same as invoking
+    tn(...(t2(t1(*args, **kwargs)))...). The chained task does lazy evaluation: it performs no work until execute
+    has been invoked.
 
     :param eotask1: Task which will be executed first
     :type eotask1: EOTask

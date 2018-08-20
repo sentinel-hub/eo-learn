@@ -30,12 +30,10 @@ LOGGER = logging.getLogger(__file__)
 
 
 class EOExecutor:
-    """
-    Simultaneously executes a workflow with different input arguments.
+    """Simultaneously executes a workflow with different input arguments.
 
-    Can also create a html report.
+    Can also create a html report on executions.
 
-    :param workflow:
     :type workflow: EOWorkflow
     :type execution_args: list(dict)
     """
@@ -51,12 +49,7 @@ class EOExecutor:
         self.execution_stats = None
 
     def run(self, workers=1):
-        """
-        Run the executor with n workers.
-
-        In a Jupyter Notebook on Windows it raises the following error:
-            BrokenProcessPool: A process in the process pool was terminated
-            abruptly while the future was running or pending.
+        """Runs the executor with n workers.
 
         :type workers: int
         """
@@ -128,9 +121,7 @@ class EOExecutor:
         return os.path.join(self.report_folder, self.REPORT_FILENAME)
 
     def make_report(self):
-        """
-        Make a html report in the dir where logs are stored.
-        """
+        """Makes a html report in the dir where logs are stored."""
         if self.execution_stats is None:
             raise Exception('First run the executor')
 
