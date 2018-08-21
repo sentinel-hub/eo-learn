@@ -114,8 +114,9 @@ class AddCloudMaskTask(EOTask):
         # Figure out resampling size
         height, width = reference_shape
 
+        service_type = ServiceType(meta_info['service_type'])
         rescale = None
-        if meta_info['service_type'] == ServiceType.WMS:
+        if service_type == ServiceType.WMS:
 
             if (self.cm_size_x is None) and (self.cm_size_y is not None):
                 rescale = (self.cm_size_y / height, self.cm_size_y / height)
@@ -124,7 +125,7 @@ class AddCloudMaskTask(EOTask):
             else:
                 rescale = (self.cm_size_y / height, self.cm_size_x / width)
 
-        elif meta_info['service_type'] == ServiceType.WCS:
+        elif service_type == ServiceType.WCS:
             # Case where only one resolution for cloud masks is specified in WCS
             if self.cm_size_y is None:
                 self.cm_size_y = self.cm_size_x

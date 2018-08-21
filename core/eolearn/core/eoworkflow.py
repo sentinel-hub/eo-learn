@@ -289,8 +289,6 @@ class EOWorkflow:
         """
         dot = self.get_dot()
 
-        if not outfile.endswith('.png'):
-            raise ValueError('Filename {} has to have png file extension'.format(outfile))
         with open(outfile, 'w') as fout:
             fout.write(dot.source)
 
@@ -363,6 +361,9 @@ class Dependency:
         if self.name:
             return self.name
         return type(self.task).__name__
+
+    def __repr__(self):
+        return self.get_task_name()
 
 
 class WorkflowResults(collections.Mapping):
