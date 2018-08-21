@@ -10,6 +10,7 @@ def get_long_description():
 
     return long_description
 
+
 def parse_requirements(file):
     return sorted(set(
         line.partition('#')[0].strip()
@@ -26,6 +27,7 @@ def get_version():
 
 
 setup(name='eo-learn-features',
+      python_requires='>=3.5',
       version=get_version(),
       description='A collection of feature manipulation utilities and EOTasks',
       long_description=get_long_description(),
