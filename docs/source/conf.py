@@ -14,7 +14,6 @@
 #
 import os
 import shutil
-from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
@@ -48,8 +47,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.inheritance_diagram',
     'sphinx.ext.autosummary',
+    'sphinx.ext.viewcode',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting',
     'm2r'
@@ -265,4 +264,3 @@ with open('eotasks.rst', 'w') as f:
             f.write('\t~' + eotask + '\n')
 
         f.write('\n')
-
