@@ -79,6 +79,16 @@ upload-ml-tools: build-ml-tools
 upload-abstract-package: build-abstract-package
 	twine upload dist/*
 
+upload-all: \
+ 	upload-core \
+	upload-coregistration \
+	upload-features \
+	upload-geometry \
+	upload-io \
+	upload-mask \
+	upload-ml-tools \
+	upload-abstract-package
+
 # For testing:
 
 test-upload-core: build-core
@@ -104,3 +114,13 @@ test-upload-ml-tools: build-ml-tools
 
 test-upload-abstract-package: build-abstract-package
 	twine upload --repository testpypi dist/*
+
+test-upload-all: \
+ 	test-upload-core \
+	test-upload-coregistration \
+	test-upload-features \
+	test-upload-geometry \
+	test-upload-io \
+	test-upload-mask \
+	test-upload-ml-tools \
+	test-upload-abstract-package
