@@ -9,22 +9,11 @@ from .eotask import EOTask
 
 
 class CopyTask(EOTask):
-    """ A task that makes a copy of given EOPatch. This is not a deep copy, therefore it will make a copy of feature
-    type dictionaries and not the data itself.
+    """Makes a shallow copy of the given EOPatch.
 
-    :param features: A collection of features or feature types that will be copied into new EOPatch. By default all
-    features will be copied.
+    It copies feature type dictionaries but not the data itself.
 
-    Example:
-        features={
-            FeatureType.Data: {'TRUE-COLOR'},
-            FeatureType.MASK: {'CLOUD-MASK'},
-            FeatureType.LABEL: ...
-        }
-        or
-        features=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
-
-    :type features: dict(FeatureType: set(str)) or list((FeatureType, str) or FeatureType) or ...
+    :param features: A collection of features or feature types that will be copied into new EOPatch. See FeatureParser.
     """
     def __init__(self, features=...):
         self.features = features
@@ -34,41 +23,24 @@ class CopyTask(EOTask):
 
 
 class DeepCopyTask(CopyTask):
-    """ A task that makes a deep copy of given EOPatch.
-
-    :param features: A collection of features or feature types that will be copied into new EOPatch. By default all
-    features will be copied.
-
-    Example:
-        features={
-            FeatureType.Data: {'TRUE-COLOR'},
-            FeatureType.MASK: {'CLOUD-MASK'},
-            FeatureType.LABEL: ...
-        }
-        or
-        features=[(FeatureType.DATA, 'TRUE-COLOR'), (FeatureType.MASK, 'CLOUD-MASK'), FeatureType.LABEL]
-
-    :type features: dict(FeatureType: set(str)) or list((FeatureType, str) or FeatureType) or ...
-    """
-
+    """Makes a deep copy of the given EOPatch."""
     def execute(self, eopatch):
         return eopatch.__deepcopy__(self.features)
 
 
 class SaveToDisk(EOTask):
-    """ Saves EOPatch to disk.
+    """Saves the given EOPatch to disk.
 
     :param folder: root directory where all EOPatches are saved
     :type folder: str
     """
-
     def __init__(self, folder, *args, **kwargs):
         self.folder = folder
         self.args = args
         self.kwargs = kwargs
 
     def execute(self, eopatch, *, eopatch_folder):
-        """ Saves the EOPatch to disk: `folder/eopatch_folder`.
+        """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
         :type eopatch: EOPatch
@@ -82,7 +54,7 @@ class SaveToDisk(EOTask):
 
 
 class LoadFromDisk(EOTask):
-    """ Loads EOPatch from disk.
+    """Loads the given EOPatch from disk.
 
     :param folder: root directory where all EOPatches are saved
     :type folder: str
@@ -93,7 +65,7 @@ class LoadFromDisk(EOTask):
         self.kwargs = kwargs
 
     def execute(self, *, eopatch_folder):
-        """ Loads the EOPatch from disk: `folder/eopatch_folder`.
+        """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch_folder: name of EOPatch folder containing data
         :type eopatch_folder: str
@@ -105,8 +77,7 @@ class LoadFromDisk(EOTask):
 
 
 class AddFeature(EOTask):
-    """
-    Adds a feature to given EOPatch.
+    """Adds a feature to the given EOPatch.
 
     :param feature: Feature to be added
     :type feature: (FeatureType, feature_name) or FeatureType
@@ -115,7 +86,7 @@ class AddFeature(EOTask):
         self.feature_type, self.feature_name = next(self._parse_features(feature)())
 
     def execute(self, eopatch, data):
-        """Adds the feature and returns the EOPatch.
+        """Returns the EOPatch with added features.
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
@@ -133,17 +104,15 @@ class AddFeature(EOTask):
 
 
 class RemoveFeature(EOTask):
-    """
-    Removes one or multiple features from given EOPatch.
+    """Removes one or multiple features from the given EOPatch.
 
-    :param features: A collection of features to be removed
-    :type features: dict(FeatureType: set(str)) or list((FeatureType, str)) or (FeatureType, str)
+    :param features: A collection of features to be removed. See FeatureParser class.
     """
     def __init__(self, features):
         self.feature_gen = self._parse_features(features)
 
     def execute(self, eopatch):
-        """ Removes feature and returns the EOPatch.
+        """Returns the EOPatch with removed features.
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
@@ -160,37 +129,19 @@ class RemoveFeature(EOTask):
 
 
 class RenameFeature(EOTask):
-    """
-    Renames one or multiple features from given EOPatch.
+    """Renames one or multiple features from the given EOPatch.
 
-    :param features: A collection of features to be renamed
-
-    Example:
-        features=(FeatureType.DATA, 'name', 'new_name')
-    or
-        features={
-            FeatureType.DATA: {
-                'name1': 'new_name1',
-                'name2': 'new_name2',
-            },
-            FeatureType.MASK: {
-                'name1': 'new_name1',
-                'name2': 'new_name2',
-                'name3': 'new_name3',
-            },
-        }
-
-    :type features: dict(FeatureType: set(str)) or list((FeatureType, str)) or (FeatureType, str)
+    :param features: A collection of features to be renamed. See FeatureParser.
     """
     def __init__(self, features):
         self.feature_gen = self._parse_features(features, new_names=True)
 
     def execute(self, eopatch):
-        """ Renames features and returns the EOPatch.
+        """Returns the EOPatch with renamed features.
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
-        :return: input EOPatch without the specified feature
+        :return: input EOPatch with the renamed features
         :rtype: EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature_gen(eopatch):

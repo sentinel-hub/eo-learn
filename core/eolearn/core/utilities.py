@@ -14,9 +14,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class FeatureParser:
-    """ Takes a collection of features structured in a various ways and parses them into one way. If input format
-    is not recognized it raises an error. The class is a generator therefore parsed features can be obtained by
-    iterating over it.
+    """Takes a collection of features structured in a various ways and parses them into one way.
+
+    It raises an error If input format is not recognized.
+
+    The class is a generator therefore parsed features can be obtained by iterating over it.
 
     Supported input formats: TODO
 
@@ -28,6 +30,7 @@ class FeatureParser:
     :type default_feature_type: FeatureType or None
     :param rename_function: Default renaming function
     :type rename_function: function or None
+    :raises: ValueError
     """
     def __init__(self, features, new_names=False, default_feature_type=None, rename_function=None):
         self.feature_collection = self._parse_features(features, new_names, default_feature_type)
@@ -46,8 +49,9 @@ class FeatureParser:
 
     @staticmethod
     def _parse_features(features, new_names, default_feature_type):
-        """ Takes a collection of features structured in a various ways and parses them into one way. If input format
-        is not recognized it raises an error.
+        """Takes a collection of features structured in a various ways and parses them into one way.
+
+        If input format is not recognized it raises an error.
 
         :return: A collection of features
         :rtype: OrderedDict(FeatureType: OrderedDict(str: str or Ellipsis) or Ellipsis)
@@ -75,8 +79,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_dict(features, new_names):
-        """ Helping function of `_parse_features` that parses a list
-        """
+        """Helping function of `_parse_features` that parses a list."""
         feature_collection = OrderedDict()
         for feature_type, feature_names in features.items():
             try:
@@ -97,8 +100,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_list(features, new_names):
-        """ Helping function of `_parse_features` that parses a list
-        """
+        """Helping function of `_parse_features` that parses a list."""
         feature_collection = OrderedDict()
         for feature in features:
             if isinstance(feature, FeatureType):
@@ -119,8 +121,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_tuple(features, new_names):
-        """ Helping function of `_parse_features` that parses a tuple
-        """
+        """Helping function of `_parse_features` that parses a tuple."""
         name_idx = 1
         try:
             feature_type = FeatureType(features[0])
@@ -134,8 +135,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_feature_names(feature_names, new_names):
-        """ Helping function of `_parse_features` that parses a collection of feature names
-        """
+        """Helping function of `_parse_features` that parses a collection of feature names."""
         if isinstance(feature_names, set):
             return FeatureParser._parse_names_set(feature_names)
 
@@ -149,8 +149,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_names_set(feature_names):
-        """ Helping function of `_parse_feature_names` that parses a set of feature names
-        """
+        """Helping function of `_parse_feature_names` that parses a set of feature names."""
         feature_collection = OrderedDict()
         for feature_name in feature_names:
             if isinstance(feature_name, str):
@@ -161,8 +160,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_names_dict(feature_names):
-        """ Helping function of `_parse_feature_names` that parses a dictionary of feature names
-        """
+        """Helping function of `_parse_feature_names` that parses a dictionary of feature names."""
         feature_collection = OrderedDict()
         for feature_name, new_feature_name in feature_names.items():
             if isinstance(feature_name, str) and (isinstance(new_feature_name, str) or
@@ -177,8 +175,7 @@ class FeatureParser:
 
     @staticmethod
     def _parse_names_tuple(feature_names, new_names):
-        """ Helping function of `_parse_feature_names` that parses a tuple or a list of feature names
-        """
+        """Helping function of `_parse_feature_names` that parses a tuple or a list of feature names."""
         for feature in feature_names:
             if not isinstance(feature, str) and feature is not ...:
                 raise ValueError('Failed to parse {}, expected a string'.format(feature))
@@ -198,7 +195,7 @@ class FeatureParser:
         return OrderedDict([(feature_name, ...) for feature_name in feature_names])
 
     def _get_features(self, eopatch=None):
-        """ A generator of parsed features
+        """A generator of parsed features.
 
         :param eopatch: A given EOPatch
         :type eopatch: EOPatch or None
@@ -237,8 +234,7 @@ class FeatureParser:
 
 
 def get_common_timestamps(source, target):
-    """
-    Return indices of timestamps from source that are also found in target.
+    """Return indices of timestamps from source that are also found in target.
 
     :param source: timestamps from source
     :type source: list of datetime objects
@@ -253,17 +249,13 @@ def get_common_timestamps(source, target):
 
 
 def deep_eq(fst_obj, snd_obj):
-    """
-    Compares whether fst_obj and snd_obj are deeply equal. In case when both fst_obj and snd_obj are of type np.ndarray,
-    they are compared using np.array_equal(fst_obj, snd_obj).
+    """Compares whether fst_obj and snd_obj are deeply equal.
 
-    Otherwise, when they are lists or tuples, they are compared for length and then
-    deep_eq is applied component-wise.
-
-    When they are dict, they are compared for key set equality, and then deep_eq is applied value-wise.
-
-    For all other data types that are not list, tuple, dict, or np.ndarray, the method falls back to the
-    good old __eq__.
+    In case when both fst_obj and snd_obj are of type np.ndarray or either np.memmap, they are compared using
+    np.array_equal(fst_obj, snd_obj). Otherwise, when they are lists or tuples, they are compared for length and then
+    deep_eq is applied component-wise. When they are dict, they are compared for key set equality, and then deep_eq is
+    applied value-wise. For all other data types that are not list, tuple, dict, or np.ndarray, the method falls back
+    to the __eq__ method.
 
     Because np.ndarray is not a hashable object, it is impossible to form a set of numpy arrays, hence deep_eq works
     correctly.
@@ -319,20 +311,15 @@ def deep_eq(fst_obj, snd_obj):
 
 
 def negate_mask(mask):
-    """
-    Returns the negated mask. If elements of input mask have 0 and non-zero values, then
-    the returned matrix will have all elements 0 (1) where the original one has non-zero (0).
+    """Returns the negated mask.
 
-    Parameters:
-    -----------
+    If elements of input mask have 0 and non-zero values, then the returned matrix will have all elements 0 (1) where
+    the original one has non-zero (0).
 
-    mask: array, any shape
-        Input mask
-
-    Returns:
-    -----------
-
-    array of same shape and dtype=int8 as input array
+    :param mask: Input mask
+    :type mask: np.array
+    :return: array of same shape and dtype=int8 as input array
+    :rtype: np.array
     """
     res = np.ones(mask.shape, dtype=np.int8)
     res[mask > 0] = 0
@@ -341,31 +328,22 @@ def negate_mask(mask):
 
 
 def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pad_value=0):
-    """
-    Function pads an image of shape (rows, columns, channels) with zeros so that the shape
-    becomes (rows + padded_rows, columns + padded_columns, channels), where
+    """Function pads an image of shape (rows, columns, channels) with zeros.
 
-    padded_rows = (int(rows/multiple_of[0]) + 1)*multiple_of[0] - rows
+    It pads an image so that the shape becomes (rows + padded_rows, columns + padded_columns, channels), where
+    padded_rows = (int(rows/multiple_of[0]) + 1) * multiple_of[0] - rows
 
     Same rule is applied to columns.
 
-
-    Parameters:
-    -----------
-
-    X: array of shape (rows, columns, channels) or (rows, columns)
-
-    multiple_of: tuple (rows, columns)
-        make X' rows and columns multiple of this tuple
-
-    up_down_rule: string, (even, up, down)
-        Add padded rows evenly to the top/bottom of the image, or up (top) / down (bottom) only
-
-    up_down_rule: string, (even, left, right)
-        Add padded columns evenly to the left/right of the image, or left / right only
-
-    pad_value: int,
-        Value to be assigned to padded rows and columns
+    :type X: array of shape (rows, columns, channels) or (rows, columns)
+    :param multiple_of: make X' rows and columns multiple of this tuple
+    :type multiple_of: tuple (rows, columns)
+    :param up_down_rule: Add padded rows evenly to the top/bottom of the image, or up (top) / down (bottom) only
+    :type up_down_rule: up_down_rule: string, (even, up, down)
+    :param up_down_rule: Add padded columns evenly to the left/right of the image, or left / right only
+    :type up_down_rule: up_down_rule: string, (even, left, right)
+    :param pad_value: Value to be assigned to padded rows and columns
+    :type pad_value: int
     """
     # pylint: disable=invalid-name
     shape = X.shape

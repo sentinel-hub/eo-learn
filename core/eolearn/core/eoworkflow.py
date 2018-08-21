@@ -2,7 +2,6 @@
 The eoworkflow module, together with eotask and eodata, provides core building blocks for specifying and executing
 workflows.
 
--- Summary --
 A workflow is a directed (acyclic) graph composed of instances of EOTask objects. Each task may take as input the
 results of other tasks and external arguments. The external arguments are passed anew each time the workflow is
 executed. The workflow builds the computational graph, performs dependency resolution, and executes the tasks.
@@ -38,15 +37,14 @@ class CyclicDependencyError(ValueError):
 
 
 class EOWorkflow:
-    def __init__(self, dependencies, task_names=None):
-        """
-        The constructor to instantiate a workflow from a list of dependencies.
+    """The constructor to instantiate a workflow from a list of dependencies.
 
-        :param dependencies: A list of dependencies between tasks, specifying the computational graph.
-        :type dependencies: list(tuple or Dependency)
-        :param task_names: A dictionary providing human-readable names to EOTask's, defaults to ``None``
-        :type task_names: dict(EOTask: str) or None
-        """
+    :param dependencies: A list of dependencies between tasks, specifying the computational graph.
+    :type dependencies: list(tuple or Dependency)
+    :param task_names: A dictionary providing human-readable names to EOTask's, defaults to ``None``
+    :type task_names: dict(EOTask: str) or None
+    """
+    def __init__(self, dependencies, task_names=None):
         self.id_gen = _UniqueIdGenerator()
 
         self.dependencies = self._parse_dependencies(dependencies, task_names)
@@ -56,8 +54,7 @@ class EOWorkflow:
 
     @staticmethod
     def _parse_dependencies(dependencies, task_names):
-        """
-        Parses dependecies and adds names of task_names
+        """Parses dependencies and adds names of task_names.
 
         :param dependencies: Input of dependency parameter
         :type dependencies: list(tuple or Dependency)
@@ -73,7 +70,7 @@ class EOWorkflow:
         return parsed_dependencies
 
     def _set_task_uuid(self, dependencies):
-        """Adds universally unique user ids (UUID) to each task of the workflow
+        """Adds universally unique user ids (UUID) to each task of the workflow.
 
         :param dependencies: The list of dependencies between tasks defining the computational graph
         :type dependencies: list(Dependency)
@@ -92,8 +89,7 @@ class EOWorkflow:
         return uuid_dict
 
     def create_dag(self, dependencies):
-        """
-        Creates a directed graph from dependencies.
+        """Creates a directed graph from dependencies.
 
         :param dependencies: A list of Dependency objects
         :type dependencies: list(Dependency)
@@ -140,8 +136,7 @@ class EOWorkflow:
 
     @staticmethod
     def make_linear_workflow(*tasks, **kwargs):
-        """
-        Factory method for creating linear workflows.
+        """Factory method for creating linear workflows.
 
         :param tasks: EOTask's t1,t2,...,tk with dependencies t1->t2->...->tk
         :param kwargs: Optional keyword arguments (such as workflow name) forwarded to the constructor
@@ -153,8 +148,7 @@ class EOWorkflow:
         return LinearWorkflow(*tasks, **kwargs)
 
     def execute(self, input_args=None, monitor=False):
-        """
-        Execute the current workflow.
+        """Executes the workflow.
 
         :param input_args: External input arguments to the workflow.
         :type input_args: dict(EOTask: dict(str: object))
@@ -173,8 +167,7 @@ class EOWorkflow:
         return WorkflowResults(intermediate_results)
 
     def _execute_tasks(self, *, input_args, out_degs, monitor):
-        """
-        Executes tasks comprising the workflow in the predetermined order.
+        """Executes tasks comprising the workflow in the predetermined order.
 
         :param input_args: External input arguments to the workflow.
         :type input_args: Dict
@@ -203,8 +196,7 @@ class EOWorkflow:
         return done_tasks, intermediate_results
 
     def _execute_task(self, *, dependency, input_args, intermediate_results, monitor):
-        """
-        Executes a task of the workflow.
+        """Executes a task of the workflow.
 
         :param dependency: A workflow dependecy
         :type dependency: Dependency
@@ -246,8 +238,7 @@ class EOWorkflow:
                 del intermediate_results[dep]
 
     def get_dot(self):
-        """
-        Generate the DOT description of the underlying computational graph.
+        """Generates the DOT description of the underlying computational graph.
 
         :return: The DOT representation of the computational graph
         :rtype: Digraph
@@ -285,13 +276,11 @@ class EOWorkflow:
 
     @staticmethod
     def _get_dot_name(dependency):
-        """ Generates names of tasks used in dot graph
-        """
+        """Generates names of tasks used in dot graph."""
         return dependency.get_task_name()
 
     def dependency_graph(self, outfile, view=False):
-        """
-        Visualize the computational graph.
+        """Visualize the computational graph.
 
         :param outfile: The name of the output image of the graph.
         :type outfile: str
@@ -312,8 +301,7 @@ class EOWorkflow:
 
 
 class LinearWorkflow(EOWorkflow):
-    """
-    A linear version of EOWorkflow where each tasks only gets results of the previous task
+    """A linear version of EOWorkflow where each tasks only gets results of the previous task.
 
     :param tasks: Tasks in the order of execution
     :type tasks: *EOTask
@@ -328,8 +316,7 @@ class LinearWorkflow(EOWorkflow):
 
     @staticmethod
     def _make_tasks_unique(tasks):
-        """ If some tasks of the workflow are the same they are deep copied
-        """
+        """If some tasks of the workflow are the same they are deep copied."""
         unique_tasks = []
         prev_tasks = set()
 
@@ -342,8 +329,7 @@ class LinearWorkflow(EOWorkflow):
 
 
 class Dependency:
-    """ Class representing a node in EOWorkflow graph
-    """
+    """Class representing a node in EOWorkflow graph."""
     def __init__(self, task=None, inputs=None, name=None, transform=None):
         if transform is not None:
             warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed",
@@ -369,21 +355,18 @@ class Dependency:
         self.name = name
 
     def set_name(self, name):
-        """Sets a new name
-        """
+        """Sets a new name."""
         self.name = name
 
     def get_task_name(self):
-        """ Returns a name of the task in dependency
-        """
+        """Returns a name of the task in dependency."""
         if self.name:
             return self.name
         return type(self.task).__name__
 
 
 class WorkflowResults(collections.Mapping):
-    """
-    The result of a workflow is an (immutable) dictionary mapping [1] from EOTasks to results of the workflow.
+    """The result of a workflow is an (immutable) dictionary mapping [1] from EOTasks to results of the workflow.
 
     When an EOTask is passed as an index, its UUID, assigned during workflow execution, is used as the key (as opposed
     to the result of invoking __repr__ on the EO task). This ensures that indexing by task works even after pickling,
@@ -442,10 +425,8 @@ class WorkflowResults(collections.Mapping):
 
 
 class _UniqueIdGenerator:
-    """
-    Generates a sequence of unique IDs. Should be used for the purposes of
-    workflow class only.
-    """
+    """Generator of unique IDs, which is used in workflows only."""
+
     MAX_UUIDS = 2 ** 20
 
     def __init__(self):
@@ -462,4 +443,5 @@ class _UniqueIdGenerator:
                 return uid
 
     def next(self):
+        """Generates an ID."""
         return self._next().hex
