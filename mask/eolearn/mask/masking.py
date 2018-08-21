@@ -15,11 +15,11 @@ class AddValidDataMaskTask(EOTask):
 
         :param predicate: Function used to generate a `valid_data` mask
         :type predicate: func
-        :param valid_data_feature: Name of `FeatureType.MASK` feature storing the result of the predicate function
+        :param valid_data_feature: Feature which will store valid data mask
         :type valid_data_feature: str
         """
         self.predicate = predicate
-        self.valid_data_feature = valid_data_feature
+        self.valid_data_feature = self._parse_features(valid_data_feature, default_feature_type=FeatureType.MASK)
 
     def execute(self, eopatch):
         """ Execute predicate on input eopatch
@@ -27,5 +27,6 @@ class AddValidDataMaskTask(EOTask):
         :param eopatch: Input `eopatch` instance
         :return: The same `eopatch` instance with a `mask.valid_data` array computed according to the predicate
         """
-        eopatch.add_feature(FeatureType.MASK, self.valid_data_feature, self.predicate(eopatch))
+        feature_type, feature_name = next(self.valid_data_feature())
+        eopatch[feature_type][feature_name] = self.predicate(eopatch)
         return eopatch

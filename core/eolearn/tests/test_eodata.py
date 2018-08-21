@@ -260,17 +260,17 @@ class TestSavingLoading(unittest.TestCase):
     def test_different_formats_equality(self):
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.eopatch.save(tmpdirname, file_format='pickle')
-            eopatch1 = EOPatch.load(tmpdirname)
+            eopatch1 = EOPatch.load(tmpdirname, lazy_loading=False)
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.eopatch.save(tmpdirname, file_format='npy')
-            eopatch2 = EOPatch.load(tmpdirname, mmap=False)
+            eopatch2 = EOPatch.load(tmpdirname, lazy_loading=False, mmap=False)
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             self.eopatch.save(tmpdirname, file_format='npy', compress=True)
             eopatch3 = EOPatch.load(tmpdirname, lazy_loading=False)
 
-        patches = [eopatch1, eopatch2, eopatch3]
+        patches = [self.eopatch, eopatch1, eopatch2, eopatch3]
 
         for eopatch1, eopatch2 in itertools.combinations(patches, 2):
             self.assertEqual(eopatch1, eopatch2)

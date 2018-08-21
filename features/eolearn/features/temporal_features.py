@@ -3,7 +3,7 @@
 import itertools
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 
 
 class AddSpatioTemporalFeaturesTask(EOTask):

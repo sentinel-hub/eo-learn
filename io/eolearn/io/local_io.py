@@ -14,10 +14,8 @@ from eolearn.core import SaveToDisk
 class ExportToTiff(SaveToDisk):
     """ Task exports specified feature to Geo-Tiff.
 
-    :param feature_type: Type of the raster feature which will be exported
-    :type feature_type: eolearn.core.FeatureType
-    :param feature_name: Name of the raster feature which will be exported
-    :type feature_name: str
+    :param feature: Feature which will be exported
+    :type feature: (FeatureType, str)
     :param folder: root directory where all Geo-Tiff images will be saved
     :type folder: str
     :param band_count: Number of bands to be added to tiff image
@@ -28,17 +26,18 @@ class ExportToTiff(SaveToDisk):
     :type no_data_value: int or float
     """
 
-    def __init__(self, feature_type, feature_name, folder='.', *, band_count=1, image_dtype=np.uint8, no_data_value=0):
+    def __init__(self, feature, folder='.', *, band_count=1, image_dtype=np.uint8, no_data_value=0):
         super().__init__(folder)
 
-        self.feature_type = feature_type
-        self.feature_name = feature_name
+        self.feature = self._parse_features(feature)
         self.band_count = band_count
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
     def execute(self, eopatch, *, filename):
-        array = eopatch.get_feature(self.feature_type, self.feature_name)
+
+        feature_type, feature_name = next(self.feature(eopatch))
+        array = eopatch[feature_type][feature_name]
 
         if self.band_count == 1:
             array = array[..., 0]
