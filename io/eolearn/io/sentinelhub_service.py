@@ -9,6 +9,7 @@ import logging
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
+from .utilities import parse_time_interval
 
 LOGGER = logging.getLogger(__name__)
 
@@ -137,19 +138,23 @@ class SentinelHubOGCInput(EOTask):
         mask_feature_type, mask_feature_name = next(self.valid_data_mask_feature())
 
         max_value = 1  # This should be calculated according to self.image_format (in sentinelhub)
-        valid_data = (valid_mask[..., -1] == max_value).astype(np.uint8).reshape(valid_mask[..., -1].shape + (1,))
-        if mask_feature_name in eopatch[mask_feature_type]:
-            eopatch[mask_feature_type][mask_feature_name][valid_data == 0] = 0
-        else:
+        valid_data = (valid_mask == max_value).astype(np.uint8).reshape(valid_mask.shape + (1,))
+
+        if mask_feature_name not in eopatch[mask_feature_type]:
             eopatch[mask_feature_type][mask_feature_name] = valid_data
 
         eopatch[self.feature_type][self.feature_name] = data
 
     def _add_meta_info(self, eopatch, request_params, service_type):
         """ Adds any missing metadata info to EOPatch """
-        for param in ['time_interval', 'time_difference', 'maxcc']:
+
+        for param in ['time','time_difference', 'maxcc']:
             if param not in eopatch.meta_info:
-                eopatch.meta_info[param] = request_params[param]
+                if param == 'time':
+                    t_interval = parse_time_interval(request_params[param])
+                    eopatch.meta_info['time_interval'] = t_interval
+                else:
+                    eopatch.meta_info[param] = request_params[param]
 
         if 'service_type' not in eopatch.meta_info:
             eopatch.meta_info['service_type'] = service_type.value
@@ -189,7 +194,7 @@ class SentinelHubOGCInput(EOTask):
 
         request_dates = request.get_dates()
 
-        if not eopatch.timestamp:
+        if not eopatch.timestamp or (len(request_dates) == 1 and request_dates[0] is None):
             eopatch.timestamp = request_dates
         download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
 
@@ -208,7 +213,6 @@ class SentinelHubOGCInput(EOTask):
 
         self._add_data(eopatch, np.asarray(images))
         self._add_meta_info(eopatch, request_params, service_type)
-
         return eopatch
 
 
