@@ -1,6 +1,7 @@
 import unittest
 import logging
 
+import os
 import numpy
 
 from sentinelhub import BBox, CRS
@@ -46,12 +47,16 @@ class TestEOPatch(unittest.TestCase):
         resx = '53m'
         resy = '78m'
 
+        instance_id = os.environ.get('INSTANCE_ID')
+
         # existing eopatch
         cls.eeop = SentinelHubWMSInput(
             layer='BANDS-S2-L1C',
             height=img_height,
             width=img_width,
-            data_source=DataSource.SENTINEL2_L1C).execute(bbox=bbox, time_interval=time_interval)
+            data_source=DataSource.SENTINEL2_L1C,
+            instance_id=instance_id
+        ).execute(bbox=bbox, time_interval=time_interval)
 
         cls.create_patches = [
 
@@ -63,7 +68,9 @@ class TestEOPatch(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     height=img_height,
                     width=img_width,
-                    data_source=DataSource.SENTINEL2_L1C),
+                    data_source=DataSource.SENTINEL2_L1C,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=None
@@ -77,7 +84,9 @@ class TestEOPatch(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     resx=resx,
                     resy=resy,
-                    data_source=DataSource.SENTINEL2_L1C),
+                    data_source=DataSource.SENTINEL2_L1C,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
@@ -90,7 +99,9 @@ class TestEOPatch(unittest.TestCase):
                 request=S2L1CWMSInput(
                     layer='BANDS-S2-L1C',
                     height=img_height,
-                    width=img_width),
+                    width=img_width,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
@@ -103,7 +114,9 @@ class TestEOPatch(unittest.TestCase):
                 request=S2L1CWCSInput(
                     layer='BANDS-S2-L1C',
                     resx=resx,
-                    resy=resy),
+                    resy=resy,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
@@ -116,20 +129,24 @@ class TestEOPatch(unittest.TestCase):
                 request=L8L1CWMSInput(
                     layer='TRUE-COLOR-L8',
                     height=img_height,
-                    width=img_width),
+                    width=img_width,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
             ),
 
             cls.TaskTestCase(
-                name='L8 L1C WMS',
+                name='L8 L1C WCS',
                 layer='TRUE-COLOR-L8',
                 data_size=3,
-                request=L8L1CWMSInput(
+                request=L8L1CWCSInput(
                     layer='TRUE-COLOR-L8',
-                    height=img_height,
-                    width=img_width),
+                    resx=resx,
+                    resy=resy,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
@@ -142,7 +159,9 @@ class TestEOPatch(unittest.TestCase):
                 request=S2L2AWMSInput(
                     layer='BANDS-S2-L2A',
                     height=img_height,
-                    width=img_width),
+                    width=img_width,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
@@ -155,7 +174,9 @@ class TestEOPatch(unittest.TestCase):
                 request=S2L2AWCSInput(
                     layer='BANDS-S2-L2A',
                     resx=resx,
-                    resy=resy),
+                    resy=resy,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=EOPatch()
@@ -168,7 +189,9 @@ class TestEOPatch(unittest.TestCase):
                 request=DEMWMSInput(
                     layer='DEM',
                     height=img_height,
-                    width=img_width),
+                    width=img_width,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=None,
@@ -181,7 +204,9 @@ class TestEOPatch(unittest.TestCase):
                 request=DEMWCSInput(
                     layer='DEM',
                     resx=resx,
-                    resy=resy),
+                    resy=resy,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
                 eop=None,
@@ -198,7 +223,9 @@ class TestEOPatch(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     height=img_height,
                     width=img_width,
-                    data_source=DataSource.SENTINEL2_L1C),
+                    data_source=DataSource.SENTINEL2_L1C,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
             ),
@@ -211,7 +238,9 @@ class TestEOPatch(unittest.TestCase):
                 request=DEMWCSInput(
                     layer='DEM',
                     resx=resx,
-                    resy=resy),
+                    resy=resy,
+                    instance_id=instance_id
+                ),
                 bbox=bbox,
                 time_interval=time_interval,
             ),
