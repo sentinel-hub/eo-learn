@@ -148,7 +148,7 @@ class SentinelHubOGCInput(EOTask):
     def _add_meta_info(self, eopatch, request_params, service_type):
         """ Adds any missing metadata info to EOPatch """
 
-        for param in ['time','time_difference', 'maxcc']:
+        for param in ['time', 'time_difference', 'maxcc']:
             if param not in eopatch.meta_info:
                 if param == 'time':
                     t_interval = parse_time_interval(request_params[param])
