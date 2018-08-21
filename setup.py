@@ -12,7 +12,7 @@ def get_long_description():
 
 
 setup(name='eo-learn',
-      version='0.2.0',
+      version='0.3.0',
       description='Earth observation processing framework for machine learning in Python',
       long_description=get_long_description(),
       long_description_content_type='text/markdown',
