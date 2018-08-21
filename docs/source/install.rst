@@ -2,16 +2,16 @@
 Installation
 ************
 
-Packages requires Python 3 and can be installed separately::
+The package requires Python version `>=3.5`. It can be installed with::
 
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=core --upgrade
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=coregistration --upgrade
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=features --upgrade
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=geometry --upgrade
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=io --upgrade
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=mask --upgrade
-$ pip install git+https://github.com/sentinel-hub/eo-learn#subdirectory=ml_tools --upgrade
+$ pip install eo-learn
 
-To install all packages at once you can download the repository and call::
+however it is also possible to install each subpackage separately::
 
-$ python install_all.py
+$ pip install eo-learn-core
+$ pip install eo-learn-coregistration
+$ pip install eo-learn-features
+$ pip install eo-learn-geometry
+$ pip install eo-learn-io
+$ pip install eo-learn-mask
+$ pip install eo-learn-ml-tools
