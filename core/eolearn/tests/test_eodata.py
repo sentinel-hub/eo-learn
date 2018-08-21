@@ -294,7 +294,7 @@ class TestSavingLoading(unittest.TestCase):
             eopatch.save(tmpdirname, file_format='npy')
 
             # load original patch
-            eopatch_before = EOPatch.load(tmpdirname)
+            eopatch_before = EOPatch.load(tmpdirname, mmap=False)
 
             # force exception during saving (case sensitivity), backup is reloaded
             eopatch.data_timeless['Mask'] = mask
@@ -314,12 +314,12 @@ class TestSavingLoading(unittest.TestCase):
             eopatch.save(tmpdirname, file_format='npy')
 
             # load original patch
-            eopatch_before = EOPatch.load(tmpdirname)
+            eopatch_before = EOPatch.load(tmpdirname, mmap=False)
 
             # update original patch
             eopatch.data_timeless['mask2'] = mask
             eopatch.save(tmpdirname, file_format='npy', overwrite=True)
-            eopatch_after = EOPatch.load(tmpdirname)
+            eopatch_after = EOPatch.load(tmpdirname, mmap=False)
 
             # should be different
             self.assertNotEqual(eopatch_before, eopatch_after)
