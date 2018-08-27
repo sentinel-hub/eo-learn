@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType
+from sentinelhub.time_utils import iso_to_datetime, datetime_to_iso
 
 
 LOGGER = logging.getLogger(__name__)
@@ -94,8 +95,8 @@ class FilterTimeSeries(SimpleFilterTask):
     def _update_other_data(self, eopatch):
 
         if 'time_interval' in eopatch.meta_info:
-            start_time, end_time = eopatch.meta_info['time_interval']
 
+            start_time, end_time = [iso_to_datetime(x) if isinstance(x, str) else x for x in eopatch.meta_info['time_interval']]
             eopatch.meta_info['time_interval'] = (max(start_time, self.start_date),
                                                   min(end_time, self.end_date))
 
