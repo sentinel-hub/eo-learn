@@ -7,9 +7,9 @@ import numpy as np
 import logging
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
+from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime, parse_time
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
-from .utilities import parse_time_interval
 
 LOGGER = logging.getLogger(__name__)
 
@@ -103,6 +103,7 @@ class SentinelHubOGCInput(EOTask):
         """ Collects all parameters used for DataRequest, each one is taken either from initialization parameters or
         from EOPatch
         """
+
         service_type = ServiceType(self._get_parameter('service_type', eopatch))
         if service_type is ServiceType.WMS:
             size_x_name, size_y_name = 'width', 'height'
@@ -111,7 +112,9 @@ class SentinelHubOGCInput(EOTask):
         return {
             'layer': self.layer,
             'bbox': bbox if bbox is not None else self._get_parameter('bbox', eopatch),
-            'time': time_interval if time_interval is not None else self._get_parameter('time_interval', eopatch),
+            'time': time_interval if time_interval is not None else[
+                datetime_to_iso(x) if not isinstance(x, str) else x
+                for x in self._get_parameter('time_interval', eopatch)],
             'time_difference': self._get_parameter('time_difference', eopatch),
             'maxcc': self._get_parameter('maxcc', eopatch),
             'image_format': self.image_format,
@@ -148,13 +151,13 @@ class SentinelHubOGCInput(EOTask):
     def _add_meta_info(self, eopatch, request_params, service_type):
         """ Adds any missing metadata info to EOPatch """
 
-        for param in ['time', 'time_difference', 'maxcc']:
-            if param not in eopatch.meta_info:
+        for param, eoparam in zip(['time', 'time_difference', 'maxcc'], ['time_interval', 'time_difference', 'maxcc']):
+            if eoparam not in eopatch.meta_info:
                 if param == 'time':
-                    t_interval = parse_time_interval(request_params[param])
-                    eopatch.meta_info['time_interval'] = t_interval
+                    eopatch.meta_info[eoparam] = [iso_to_datetime(parse_time(x)) if isinstance(x, str)
+                                                  else x for x in request_params[param]]
                 else:
-                    eopatch.meta_info[param] = request_params[param]
+                    eopatch.meta_info[eoparam] = request_params[param]
 
         if 'service_type' not in eopatch.meta_info:
             eopatch.meta_info['service_type'] = service_type.value
