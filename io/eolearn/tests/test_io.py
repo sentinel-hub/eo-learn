@@ -6,9 +6,9 @@ import numpy
 
 from sentinelhub import BBox, CRS
 from sentinelhub import DataSource, ServiceType
+from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.io import *
-from eolearn.io.utilities import parse_time_interval
 from eolearn.core import EOPatch
 
 logging.basicConfig(level=logging.DEBUG)
@@ -258,7 +258,7 @@ class TestEOPatch(unittest.TestCase):
         for task in self.task_cases:
             with self.subTest(msg='Test case {}'.format(task.name)):
                 self.assertEqual(task.eop.meta_info['time_interval'],
-                                 parse_time_interval(('2017-1-1', '2018-1-1')))
+                                 [iso_to_datetime(x) for x in ('2017-1-1', '2018-1-1')])
 
     def test_auto_feature_presence(self):
         for task in self.task_cases:
