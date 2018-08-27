@@ -7,9 +7,9 @@ import numpy as np
 import logging
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
+from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime, parse_time
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
-from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime, parse_time
 
 LOGGER = logging.getLogger(__name__)
 
@@ -112,7 +112,9 @@ class SentinelHubOGCInput(EOTask):
         return {
             'layer': self.layer,
             'bbox': bbox if bbox is not None else self._get_parameter('bbox', eopatch),
-            'time': time_interval if time_interval is not None else [datetime_to_iso(x) if not isinstance(x, str) else x for x in self._get_parameter('time_interval', eopatch)],
+            'time': time_interval if time_interval is not None else[
+                datetime_to_iso(x) if not isinstance(x, str) else x
+                for x in self._get_parameter('time_interval', eopatch)],
             'time_difference': self._get_parameter('time_difference', eopatch),
             'maxcc': self._get_parameter('maxcc', eopatch),
             'image_format': self.image_format,
@@ -152,7 +154,8 @@ class SentinelHubOGCInput(EOTask):
         for param, eoparam in zip(['time', 'time_difference', 'maxcc'], ['time_interval', 'time_difference', 'maxcc']):
             if eoparam not in eopatch.meta_info:
                 if param == 'time':
-                    eopatch.meta_info[eoparam] = [iso_to_datetime(parse_time(x)) if isinstance(x, str) else x for x in request_params[param]]
+                    eopatch.meta_info[eoparam] = [iso_to_datetime(parse_time(x)) if isinstance(x, str)
+                                                  else x for x in request_params[param]]
                 else:
                     eopatch.meta_info[eoparam] = request_params[param]
 
