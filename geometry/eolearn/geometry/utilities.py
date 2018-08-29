@@ -56,7 +56,10 @@ class VectorToRaster(EOTask):
         if isinstance(self.raster_shape, (tuple, list)) and len(self.raster_shape) == 2:
             if isinstance(self.raster_shape[0], int) and isinstance(self.raster_shape[1], int):
                 return self.raster_shape
-            return next(self._parse_features(self.raster_shape)(eopatch))
+            else:
+                feature_type, feature_name = next(self._parse_features(self.raster_shape)(eopatch))
+                return eopatch.get_spatial_dimension(feature_type, feature_name)
+
         raise ValueError('Could not determine shape of the raster image')
 
     def execute(self, eopatch):
@@ -69,7 +72,6 @@ class VectorToRaster(EOTask):
         """
         bbox_map = self._get_submap(eopatch)
         height, width = self._get_shape(eopatch)
-
         dst_transform = transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
         if self.feature_name in eopatch[self.feature_type]:
