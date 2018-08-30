@@ -96,6 +96,10 @@ class SentinelHubOGCInput(EOTask):
             return 1.0
         if name == 'time_difference':
             return datetime.timedelta(seconds=-1)
+        if name == 'size_x':
+            return None
+        if name == 'size_y':
+            return None
         raise ValueError('Parameter {} was neither defined in initialization of {} nor is contained in '
                          'EOPatch'.format(name, self.__class__.__name__))
 
