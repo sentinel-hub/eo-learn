@@ -94,6 +94,7 @@ class EOPatch:
         if isinstance(value, _FileLoader) and load:
             value = value.load()
             setattr(self, key, value)
+            return getattr(self, key)
 
         return value
 
@@ -721,4 +722,4 @@ class _FileLoader:
             with open(path, "rb") as infile:
                 return pickle.load(infile)
 
-        raise ValueError('Could not load data from unsupported file format {}'.format(self.file_format))
+        raise ValueError('Could not load data from unsupported file format {}'.format(file_format))
