@@ -96,7 +96,7 @@ class SentinelHubOGCInput(EOTask):
             return 1.0
         if name == 'time_difference':
             return datetime.timedelta(seconds=-1)
-        if (name == 'size_x') or (name == 'size_y'):
+        if name in ('size_x', 'size_y'):
             return None
 
         raise ValueError('Parameter {} was neither defined in initialization of {} nor is contained in '
