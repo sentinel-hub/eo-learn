@@ -204,7 +204,7 @@ class AddCloudMaskTask(EOTask):
         :param meta_info: Meta-info dictionary of input eopatch
         :return: Requested data
         """
-        service_type = meta_info['service_type']
+        service_type = ServiceType(meta_info['service_type'])
 
         # Raise error if resolutions are not specified
         if self.cm_size_x is None and self.cm_size_y is None:

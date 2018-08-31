@@ -282,6 +282,24 @@ class EOPatch:
 
         return feature_dict
 
+    def get_spatial_dimension(self, feature_type, feature_name):
+        """
+        Returns a tuple of spatial dimension (height, width) of a feature.
+
+        The feature has to be spatial or time dependent.
+
+        :param feature_type: Enum of the attribute
+        :type feature_type: FeatureType
+        :param feature_name: Name of the feature
+        :type feature_name: str
+        """
+        if feature_type.is_time_dependent() or feature_type.is_spatial():
+            shape = self[feature_type][feature_name].shape
+            return shape[1:3] if feature_type.is_time_dependent() else shape[0:2]
+
+        raise ValueError('FeatureType used to determine the width and height of raster must be'
+                         ' time dependent or spatial.')
+
     def get_feature_list(self):
         """Returns a list of all non-empty features of EOPatch.
 
