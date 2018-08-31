@@ -56,9 +56,9 @@ class VectorToRaster(EOTask):
         if isinstance(self.raster_shape, (tuple, list)) and len(self.raster_shape) == 2:
             if isinstance(self.raster_shape[0], int) and isinstance(self.raster_shape[1], int):
                 return self.raster_shape
-            else:
-                feature_type, feature_name = next(self._parse_features(self.raster_shape)(eopatch))
-                return eopatch.get_spatial_dimension(feature_type, feature_name)
+
+            feature_type, feature_name = next(self._parse_features(self.raster_shape)(eopatch))
+            return eopatch.get_spatial_dimension(feature_type, feature_name)
 
         raise ValueError('Could not determine shape of the raster image')
 

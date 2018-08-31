@@ -296,9 +296,9 @@ class EOPatch:
         if feature_type.is_time_dependent() or feature_type.is_spatial():
             shape = self[feature_type][feature_name].shape
             return shape[1:3] if feature_type.is_time_dependent() else shape[0:2]
-        else:
-            raise ValueError('FeatureType used to determine the width and height of raster must be'
-                             ' time dependent or spatial.')
+
+        raise ValueError('FeatureType used to determine the width and height of raster must be'
+                         ' time dependent or spatial.')
 
     def get_feature_list(self):
         """Returns a list of all non-empty features of EOPatch.
