@@ -46,11 +46,11 @@ class VectorToRaster(EOTask):
         :rtype: EOPatch
         """
         bbox = Polygon(eopatch.bbox.get_polygon())
-        orig_idxs = self.vector_data.index[self.vector_data.geometry.intersects(bbox)]
-        copy = self.vector_data.iloc[orig_idxs].copy(deep=True)
-        copy.geometry = copy.loc[orig_idxs].intersection(bbox)
 
-        return copy
+        filtered_data = self.vector_data[self.vector_data.geometry.intersects(bbox)].copy(deep=True)
+        filtered_data.geometry = filtered_data.geometry.intersection(bbox)
+
+        return filtered_data
 
     def _get_shape(self, eopatch):
         if isinstance(self.raster_shape, (tuple, list)) and len(self.raster_shape) == 2:
