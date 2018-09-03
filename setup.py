@@ -13,7 +13,7 @@ def get_long_description():
 
 setup(name='eo-learn',
       python_requires='>=3.5,<3.7',
-      version='0.3.0',
+      version='0.3.1',
       description='Earth observation processing framework for machine learning in Python',
       long_description=get_long_description(),
       long_description_content_type='text/markdown',
@@ -23,12 +23,12 @@ setup(name='eo-learn',
       license='MIT',
       packages=[],
       install_requires=[
-          'eo-learn-core',
+          'eo-learn-core>=0.3.1',
           'eo-learn-coregistration',
-          'eo-learn-features',
-          'eo-learn-geometry',
-          'eo-learn-io',
-          'eo-learn-mask',
+          'eo-learn-features>=0.3.1',
+          'eo-learn-geometrys>=0.3.1',
+          'eo-learn-ios>=0.3.1',
+          'eo-learn-masks>=0.3.1',
           'eo-learn-ml-tools'
       ],
       zip_safe=False)
