@@ -13,4 +13,4 @@ from .plots import bgr_to_rgb, IndexTracker, PatchShowTask
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps
 
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
