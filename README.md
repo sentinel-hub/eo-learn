@@ -1,5 +1,7 @@
+[![Package version](https://badge.fury.io/py/eo-learn.svg)](https://pypi.org/project/eo-learn/)
 [![Build Status](https://travis-ci.org/sentinel-hub/eo-learn.svg?branch=master)](https://travis-ci.org/sentinel-hub/eo-learn)
 [![Docs status](https://readthedocs.org/projects/eo-learn/badge/?version=latest)](https://eo-learn.readthedocs.io)
+[![License](https://img.shields.io/pypi/l/eo-learn.svg)](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE)
 
 # eo-learn
 **`eo-learn` makes extraction of valuable information from satellite imagery easy.**
