@@ -24,11 +24,11 @@ setup(name='eo-learn',
       packages=[],
       install_requires=[
           'eo-learn-core>=0.3.1',
-          'eo-learn-coregistration',
+          'eo-learn-coregistration>=0.3.0',
           'eo-learn-features>=0.3.1',
           'eo-learn-geometry>=0.3.1',
           'eo-learn-io>=0.3.1',
           'eo-learn-mask>=0.3.1',
-          'eo-learn-ml-tools'
+          'eo-learn-ml-tools>=0.3.0'
       ],
       zip_safe=False)
