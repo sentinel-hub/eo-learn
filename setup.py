@@ -26,9 +26,9 @@ setup(name='eo-learn',
           'eo-learn-core>=0.3.1',
           'eo-learn-coregistration',
           'eo-learn-features>=0.3.1',
-          'eo-learn-geometrys>=0.3.1',
-          'eo-learn-ios>=0.3.1',
-          'eo-learn-masks>=0.3.1',
+          'eo-learn-geometry>=0.3.1',
+          'eo-learn-io>=0.3.1',
+          'eo-learn-mask>=0.3.1',
           'eo-learn-ml-tools'
       ],
       zip_safe=False)
