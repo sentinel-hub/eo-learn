@@ -1,3 +1,3 @@
 eo-learn-core
-sentinelhub
+sentinelhub>=2.4.0
 rasterio

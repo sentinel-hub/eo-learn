@@ -4,14 +4,11 @@ A collection of EOTasks for feature manipulation
 
 from .temporal_features import AddSpatioTemporalFeaturesTask, AddMaxMinTemporalIndicesTask, \
     AddMaxMinNDVISlopeIndicesTask
-from .interp_smooth import BSplineInterpolation
+from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, \
+    BSplineInterpolation, AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
-from .feature_manipulation import RemoveFeature, SimpleFilterTask, FilterTimeSeries
-from .compute_haralick import AddHaralickTask
-from .local_binary_pattern import AddLocalBinaryPatternTask
-from .hog import AddHOGTask
-from .blob import AddBlobTask
+from .feature_manipulation import SimpleFilterTask, FilterTimeSeries
+from .haralick import HaralickTask
 
 
-__version__ = '0.1.0'
-1
+__version__ = '0.3.1'

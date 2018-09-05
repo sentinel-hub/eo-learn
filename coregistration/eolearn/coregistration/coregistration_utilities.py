@@ -11,47 +11,19 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def ransac(npts, model, n, k, t, d, debug=False):
-    """fit model parameters to data using the RANSAC algorithm
+def ransac(npts, model, n, k, t, d):
+    """ Fit model parameters to data using the RANSAC algorithm
 
-    This implementation written from pseudocode found at
+    This implementation is written from pseudo-code found at
     http://en.wikipedia.org/w/index.php?title=RANSAC&oldid=116358182
 
-    {{{
-    Given:
-        data - a set of observed data points
-        model - a model that can be fitted to data points
-        n - the minimum number of data values required to fit the model
-        k - the maximum number of iterations allowed in the algorithm
-        t - a threshold value for determining when a data point fits a model
-        d - the number of close data values required to assert that a model fits well to data
-    Return:
-        bestfit - model parameters which best fit the data (or nil if no good model is found)
-    iterations = 0
-    bestfit = nil
-    besterr = something really large
-    while iterations < k {
-        maybeinliers = n randomly selected values from data
-        maybemodel = model parameters fitted to maybeinliers
-        alsoinliers = empty set
-        for every point in data not in maybeinliers {
-            if point fits maybemodel with an error smaller than t
-                 add point to alsoinliers
-        }
-        if the number of elements in alsoinliers is > d {
-            % this implies that we may have found a good model
-            % now test how good it is
-            bettermodel = model parameters fitted to all points in maybeinliers and alsoinliers
-            thiserr = a measure of how well model fits these points
-            if thiserr < besterr {
-                bestfit = bettermodel
-                besterr = thiserr
-            }
-        }
-        increment iterations
-    }
-    return bestfit
-    }}}
+    :param npts: A set of observed data points
+    :param model: A model that can be fitted to data points
+    :param n: The minimum number of data values required to fit the model
+    :param k: The maximum number of iterations allowed in the algorithm
+    :param t: A threshold value for determining when a data point fits a model
+    :param d: The number of close data values required to assert that a model fits well to data
+    :return: Model parameters which best fit the data (or None if no good model is found)
     """
     iterations = 0
     bestfit = None
@@ -62,11 +34,12 @@ def ransac(npts, model, n, k, t, d, debug=False):
         maybemodel = model.fit(maybe_idxs)
         test_err = model.score(test_idxs, maybemodel)
         also_idxs = test_idxs[test_err < t]  # select indices of rows with accepted points
-        if debug:
-            LOGGER.debug('test_err.min() %f', test_err.min())
-            LOGGER.debug('test_err.max() %f', test_err.max())
-            LOGGER.debug('numpy.mean(test_err) %f', np.mean(test_err))
-            LOGGER.debug('iteration %d, len(alsoinliers) = %d', iterations, len(also_idxs))
+
+        LOGGER.debug('test_err.min() %f', test_err.min() if test_err.size else None)
+        LOGGER.debug('test_err.max() %f', test_err.max() if test_err.size else None)
+        LOGGER.debug('numpy.mean(test_err) %f', np.mean(test_err) if test_err.size else None)
+        LOGGER.debug('iteration %d, len(alsoinliers) = %d', iterations, len(also_idxs))
+
         if len(also_idxs) > d:
             betteridxs = np.concatenate((maybe_idxs, also_idxs))
             bettermodel = model.fit(betteridxs)

@@ -1,12 +1,10 @@
 import pytest
-
 import unittest
 import os
-
-from eolearn.mask.cloud_mask import AddCloudMaskTask, get_s2_pixel_cloud_detector
-from eolearn.core.eodata import EOPatch
-
 import numpy as np
+
+from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector
+from eolearn.core import EOPatch
 
 
 class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
@@ -16,13 +14,13 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
 
     def test_raises_errors(self):
         classifier = get_s2_pixel_cloud_detector(all_bands=True)
-        add_cm = AddCloudMaskTask(classifier, 'bands', cmask_field='clm')
+        add_cm = AddCloudMaskTask(classifier, 'bands', cmask_feature='clm')
         self.assertRaises(ValueError, add_cm, self.eop)
 
     def test_cloud_coverage(self):
         classifier = get_s2_pixel_cloud_detector(all_bands=True)
         # Classifier is run on same resolution as data array
-        add_cm = AddCloudMaskTask(classifier, 'ALL_BANDS', cmask_field='clm', cprobs_field='clp')
+        add_cm = AddCloudMaskTask(classifier, 'ALL_BANDS', cmask_feature='clm', cprobs_feature='clp')
         eop_clm = add_cm(self.eop)
         _, h, w, _ = eop_clm.mask['clm'].shape
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)
@@ -32,7 +30,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         self.assertAlmostEqual(ps, 0.521114510213301, places=4)
         del add_cm, eop_clm
         # Classifier is run on downscaled version of data array
-        add_cm = AddCloudMaskTask(classifier, 'ALL_BANDS', cm_size_y=50, cmask_field='clm', cprobs_field='clp')
+        add_cm = AddCloudMaskTask(classifier, 'ALL_BANDS', cm_size_y=50, cmask_feature='clm', cprobs_feature='clp')
         eop_clm = add_cm(self.eop)
         _, h, w, _ = eop_clm.mask['clm'].shape
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)
@@ -45,7 +43,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
     def test_wms_request(self):
         classifier = get_s2_pixel_cloud_detector(all_bands=False)
         # Classifier is run on new request of data array
-        add_cm = AddCloudMaskTask(classifier, 'BANDS-S2-L1C', cm_size_y=50, cmask_field='clm', cprobs_field='clp')
+        add_cm = AddCloudMaskTask(classifier, 'BANDS-S2-L1C', cm_size_y=50, cmask_feature='clm', cprobs_feature='clp')
         eop_clm = add_cm(self.eop)
         _, h, w, _ = eop_clm.mask['clm'].shape
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)

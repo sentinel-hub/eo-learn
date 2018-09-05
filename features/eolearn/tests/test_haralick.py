@@ -3,8 +3,8 @@ import unittest
 import os.path
 import numpy as np
 
-from eolearn.core import EOPatch
-from eolearn.features import AddHaralickTask
+from eolearn.core import EOPatch, FeatureType
+from eolearn.features import HaralickTask
 
 
 class TestHaralick(unittest.TestCase):
@@ -16,8 +16,8 @@ class TestHaralick(unittest.TestCase):
         cls.patch = EOPatch.load(cls.TEST_PATCH_FILENAME)
         cls._prepare_patch(cls.patch)
 
-        AddHaralickTask('ndvi', 'haralick', texture_feature='contrast', distance=1, angle=0, levels=255,
-                        window_size=3, stride=1).execute(cls.patch)
+        HaralickTask((FeatureType.DATA, 'ndvi', 'haralick'), texture_feature='contrast', distance=1, angle=0,
+                     levels=255, window_size=3, stride=1).execute(cls.patch)
 
         cls.initial_patch = EOPatch.load(cls.TEST_PATCH_FILENAME)
         cls._prepare_patch(cls.initial_patch)

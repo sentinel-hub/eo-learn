@@ -17,36 +17,38 @@ class AddCloudMaskTask(EOTask):
     """ Task to add a cloud mask and cloud probability map to an EOPatch
 
     This task computes a cloud probability map and corresponding cloud binary mask for the input EOPatch. The classifier
-    to be used to compute such maps must be provided at declaration. The `data_field` to be used as input to the
-    classifier is also a mandatory argument. If `data_field` exists already, downscaling to the given (lower) cloud mask
-    resolution is performed, the classifier is run, and upsampling returns the cloud maps to the original resolution.
-    Otherwise, if `data_field` does not exist, a new OGC request at the given cloud mask resolution is made, the
+    to be used to compute such maps must be provided at declaration. The `data_feature` to be used as input to the
+    classifier is also a mandatory argument. If `data_feature` exists already, downscaling to the given (lower) cloud
+    mask resolution is performed, the classifier is run, and upsampling returns the cloud maps to the original
+    resolution.
+    Otherwise, if `data_feature` does not exist, a new OGC request at the given cloud mask resolution is made, the
     classifier is run, and upsampling returns the cloud masks to original resolution. This design should allow faster
     execution of the classifier, and reduce the number of requests. `linear` interpolation is used for resampling of
-    the `data_field` and cloud probability map, while `nearest` interpolation is used to upsample the binary cloud mask.
+    the `data_feature` and cloud probability map, while `nearest` interpolation is used to upsample the binary cloud
+    mask.
 
     This implementation should allow usage with any cloud detector implemented for different data sources (S2, L8, ..).
     """
-    def __init__(self, classifier, data_field, cm_size_x=None, cm_size_y=None, cmask_field='CLM', cprobs_field=None,
-                 instance_id=None, data_source=DataSource.SENTINEL2_L1C, image_format=MimeType.TIFF_d32f,
-                 model_evalscript=MODEL_EVALSCRIPT):
+    def __init__(self, classifier, data_feature, cm_size_x=None, cm_size_y=None, cmask_feature='CLM',
+                 cprobs_feature=None, instance_id=None, data_source=DataSource.SENTINEL2_L1C,
+                 image_format=MimeType.TIFF_d32f, model_evalscript=MODEL_EVALSCRIPT):
         """ Constructor
 
-        If both `cm_size_x` and `cm_size_y` are `None` and `data_field` exists, cloud detection is computed at same
-        resolution of `data_field`.
+        If both `cm_size_x` and `cm_size_y` are `None` and `data_feature` exists, cloud detection is computed at same
+        resolution of `data_feature`.
 
         :param classifier: Cloud detector classifier. This object implements a `get_cloud_probability_map` and
                             `get_cloud_masks` functions to generate probability maps and binary masks
-        :param data_field: Name of key in eopatch.data dictionary to be used as input to the classifier. If the
-                           `data_field` does not exist, a new OGC request at the given cloud mask resolution is made
-                           with layer name set to `data_field` parameter.
+        :param data_feature: Name of key in eopatch.data dictionary to be used as input to the classifier. If the
+                           `data_feature` does not exist, a new OGC request at the given cloud mask resolution is made
+                           with layer name set to `data_feature` parameter.
         :param cm_size_x: Resolution to be used for computation of cloud mask. Allowed values are number of column
                             pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
         :param cm_size_y: Resolution to be used for computation of cloud mask. Allowed values are number of row
                             pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
-        :param cmask_field: Name of key to be used for the cloud mask to add. The cloud binary mask is added to the
+        :param cmask_feature: Name of key to be used for the cloud mask to add. The cloud binary mask is added to the
                             `eopatch.mask` attribute dictionary. Default is `'clm'`.
-        :param cprobs_field: Name of key to be used for the cloud probability map to add. The cloud probability map is
+        :param cprobs_feature: Name of key to be used for the cloud probability map to add. The cloud probability map is
                             added to the `eopatch.data` attribute dictionary. Default is `None`, so no cloud
                             probability map will be computed.
         :param instance_id: Instance ID to be used for OGC request. Default is `None`
@@ -58,11 +60,11 @@ class AddCloudMaskTask(EOTask):
                             bands. Default is `MODEL_EVALSCRIPT`
         """
         self.classifier = classifier
-        self.data_field = data_field
-        self.cm_field = cmask_field
+        self.data_feature = data_feature
+        self.cm_feature = cmask_feature
         self.cm_size_x = cm_size_x
         self.cm_size_y = cm_size_y
-        self.cprobs_field = cprobs_field
+        self.cprobs_feature = cprobs_feature
         self.instance_id = instance_id
         self.data_source = data_source
         self.image_format = image_format
@@ -72,7 +74,7 @@ class AddCloudMaskTask(EOTask):
         """
         Returns WMS request.
         """
-        return WmsRequest(layer=self.data_field,
+        return WmsRequest(layer=self.data_feature,
                           bbox=bbox,
                           time=time_interval,
                           width=size_x,
@@ -88,7 +90,7 @@ class AddCloudMaskTask(EOTask):
         """
         Returns WCS request.
         """
-        return WcsRequest(layer=self.data_field,
+        return WcsRequest(layer=self.data_feature,
                           bbox=bbox,
                           time=time_interval,
                           resx=size_x, resy=size_y,
@@ -112,8 +114,9 @@ class AddCloudMaskTask(EOTask):
         # Figure out resampling size
         height, width = reference_shape
 
+        service_type = ServiceType(meta_info['service_type'])
         rescale = None
-        if meta_info['service_type'] == ServiceType.WMS:
+        if service_type == ServiceType.WMS:
 
             if (self.cm_size_x is None) and (self.cm_size_y is not None):
                 rescale = (self.cm_size_y / height, self.cm_size_y / height)
@@ -122,7 +125,7 @@ class AddCloudMaskTask(EOTask):
             else:
                 rescale = (self.cm_size_y / height, self.cm_size_x / width)
 
-        elif meta_info['service_type'] == ServiceType.WCS:
+        elif service_type == ServiceType.WCS:
             # Case where only one resolution for cloud masks is specified in WCS
             if self.cm_size_y is None:
                 self.cm_size_y = self.cm_size_x
@@ -201,7 +204,7 @@ class AddCloudMaskTask(EOTask):
         :param meta_info: Meta-info dictionary of input eopatch
         :return: Requested data
         """
-        service_type = meta_info['service_type']
+        service_type = ServiceType(meta_info['service_type'])
 
         # Raise error if resolutions are not specified
         if self.cm_size_x is None and self.cm_size_y is None:
@@ -233,7 +236,7 @@ class AddCloudMaskTask(EOTask):
         request_return = request.get_data(raise_download_errors=False, data_filter=download_frames)
         bad_data = [idx for idx, value in enumerate(request_return) if value is None]
         for idx in reversed(sorted(bad_data)):
-            LOGGER.warning('Data from %s could not be downloaded for %s!', str(request_dates[idx]), self.data_field)
+            LOGGER.warning('Data from %s could not be downloaded for %s!', str(request_dates[idx]), self.data_feature)
             del request_return[idx]
             del request_dates[idx]
 
@@ -248,15 +251,15 @@ class AddCloudMaskTask(EOTask):
         # Downsample or make request
         if not eopatch.data:
             raise ValueError('EOPatch must contain some data feature')
-        if self.data_field in eopatch.data:
-            new_data, rescale = self._downscaling(eopatch.data[self.data_field], eopatch.meta_info)
-            reference_shape = eopatch.data[self.data_field].shape[:3]
+        if self.data_feature in eopatch.data:
+            new_data, rescale = self._downscaling(eopatch.data[self.data_feature], eopatch.meta_info)
+            reference_shape = eopatch.data[self.data_feature].shape[:3]
         else:
             new_data, new_dates = self._make_request(eopatch.bbox, eopatch.meta_info, eopatch.timestamp)
             removed_frames = eopatch.consolidate_timestamps(new_dates)
             for rm_frame in removed_frames:
                 LOGGER.warning('Removed data for frame %s from '
-                               'eopatch due to unavailability of %s!', str(rm_frame), self.data_field)
+                               'eopatch due to unavailability of %s!', str(rm_frame), self.data_feature)
 
             # Get reference shape from first item in data dictionary
             reference_shape = next(iter(eopatch.data.values())).shape[:3]
@@ -264,20 +267,19 @@ class AddCloudMaskTask(EOTask):
 
         # Raise error if last channel dimension is less than required
         if new_data.shape[-1] < len(self.classifier.band_idxs):
-            raise ValueError("Data field has less than the required 10 bands")
+            raise ValueError("Data feature has less than the required 10 bands")
 
         clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
         clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
 
         # Add cloud mask as a feature to EOPatch
         clf_mask_hr = self._upsampling(clf_mask_lr, rescale, reference_shape, interp='nearest')
-        eopatch.add_feature(attr_type=FeatureType.MASK, field=self.cm_field, value=clf_mask_hr.astype(np.uint8))
+        eopatch.add_feature(FeatureType.MASK, self.cm_feature, clf_mask_hr.astype(np.uint8))
 
-        # If the field name for cloud probability maps is specified, add as feature
-        if self.cprobs_field is not None:
+        # If the feature name for cloud probability maps is specified, add as feature
+        if self.cprobs_feature is not None:
             clf_probs_hr = self._upsampling(clf_probs_lr, rescale, reference_shape, interp='linear')
-            eopatch.add_feature(attr_type=FeatureType.DATA, field=self.cprobs_field,
-                                value=clf_probs_hr.astype(np.float32))
+            eopatch.add_feature(FeatureType.DATA, self.cprobs_feature, clf_probs_hr.astype(np.float32))
 
         return eopatch
 

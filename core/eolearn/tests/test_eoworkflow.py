@@ -1,15 +1,18 @@
 import unittest
 import logging
 import functools
+import concurrent.futures
+from io import StringIO
 
 from hypothesis import given, strategies as st
+import networkx as nx
 
-from eolearn.core.eotask import EOTask
-from eolearn.core.eoworkflow import EOWorkflow, Dependency, _UniqueIdGenerator, CyclicDependencyError
+from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults
+from eolearn.core.eoworkflow import CyclicDependencyError, _UniqueIdGenerator
 from eolearn.core.graph import DirectedGraph
 
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 class InputTask(EOTask):
@@ -48,21 +51,21 @@ class DummyTask(EOTask):
 
 
 class TestEOWorkflow(unittest.TestCase):
+
     def test_workflow_arguments(self):
         input_task1 = InputTask()
         input_task2 = InputTask()
         divide_task = DivideTask()
 
         workflow = EOWorkflow(dependencies=[
-            Dependency(transform=input_task1, inputs=[]),
-            Dependency(transform=input_task2, inputs=[]),
-            Dependency(transform=divide_task, inputs=[input_task1, input_task2])
+            Dependency(task=input_task1, inputs=[]),
+            Dependency(task=input_task2, inputs=[]),
+            Dependency(task=divide_task, inputs=[input_task1, input_task2])
         ])
 
-        import concurrent.futures
-        with concurrent.futures.ProcessPoolExecutor(max_workers=5) as e:
-            r = {
-                k: e.submit(
+        with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
+            k2future = {
+                k: executor.submit(
                     workflow.execute,
                     {
                         input_task1: {'val': k ** 3},
@@ -70,10 +73,10 @@ class TestEOWorkflow(unittest.TestCase):
                     }
                 ) for k in range(2, 100)
             }
-            e.shutdown()
+            executor.shutdown()
             for k in range(2, 100):
-                print("ID {}: t({}, {}) = {}".format(k, k**3, k**2, r[k].result()[divide_task]))
-                self.assertEqual(r[k].result()[divide_task], k)
+                future = k2future[k]
+                self.assertEqual(future.result()[divide_task], k)
 
         result1 = workflow.execute({
             input_task1: {'val': 15},
@@ -86,7 +89,7 @@ class TestEOWorkflow(unittest.TestCase):
             input_task1: {'val': 6},
             input_task2: {'val': 3}
         })
-        self.assertEqual(result2[divide_task.uuid], 2)
+        self.assertEqual(result2[divide_task], 2)
 
         result3 = workflow.execute({
             input_task1: {'val': 6},
@@ -94,29 +97,36 @@ class TestEOWorkflow(unittest.TestCase):
             divide_task: {'z': 1}
         })
 
-        self.assertEqual(result3[divide_task.uuid], 3)
+        self.assertEqual(result3[divide_task], 3)
 
     def test_linear_workflow(self):
         in_task = InputTask()
-        inc = Inc()
-        pow = Pow()
-        eow = EOWorkflow.make_linear_workflow(in_task, inc, pow)
+        inc_task = Inc()
+        pow_task = Pow()
+        eow = EOWorkflow.make_linear_workflow(in_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
-            inc: {'d': 2},
-            pow: {'n': 3}
+            inc_task: {'d': 2},
+            pow_task: {'n': 3}
         })
-
-        self.assertEqual(res[pow.uuid], (2+2)**3)
+        self.assertEqual(res[pow_task], (2+2)**3)
 
     def test_trivial_workflow(self):
-        t = DummyTask()
-        workflow = EOWorkflow(dependencies=[
-            Dependency(transform=t, inputs=[])
-        ])
+        task = DummyTask()
+        dep = Dependency(task, [])
+        workflow = EOWorkflow([dep])
 
         result = workflow.execute()
-        self.assertEqual(result[t.uuid], 42)
+
+        self.assertTrue(isinstance(result, WorkflowResults))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(len(result.keys()), 1)
+        self.assertEqual(len(result.values()), 1)
+        items = list(result.items())
+        self.assertEqual(len(items), 1)
+        self.assertTrue(isinstance(items[0][0], EOTask))
+        self.assertEqual(items[0][1], 42)
+        self.assertEqual(result[dep], 42)
 
     @given(
         st.lists(
@@ -134,21 +144,46 @@ class TestEOWorkflow(unittest.TestCase):
         dag = DirectedGraph.from_edges(edges)
         if DirectedGraph._is_cyclic(dag):
             with self.assertRaises(CyclicDependencyError):
-                _ = EOWorkflow._resolve_dependencies(dag)
+                _ = EOWorkflow._schedule_dependencies(dag)
         else:
-            ver2pos = {u: i for i, u in enumerate(EOWorkflow._resolve_dependencies(dag))}
+            ver2pos = {u: i for i, u in enumerate(EOWorkflow._schedule_dependencies(dag))}
             self.assertTrue(functools.reduce(
                 lambda P, Q: P and Q,
                 [ver2pos[u] < ver2pos[v] for u, v in edges]
             ))
 
 
-class TestWorkflowResult(unittest.TestCase):
+class TestGraph(unittest.TestCase):
+
+    def setUp(self):
+        input_task1 = InputTask()
+        input_task2 = InputTask()
+        divide_task = DivideTask()
+
+        self.workflow = EOWorkflow(dependencies=[
+            Dependency(task=input_task1, inputs=[]),
+            Dependency(task=input_task2, inputs=[]),
+            Dependency(task=divide_task, inputs=[input_task1, input_task2])
+        ])
+
+    def test_graph_nodes_and_edges(self):
+        dot = self.workflow.get_dot()
+        dot_file = StringIO()
+        dot_file.write(dot.source)
+        dot_file.seek(0)
+
+        graph = nx.drawing.nx_pydot.read_dot(dot_file)
+
+        self.assertEqual(graph.number_of_nodes(), 3)
+        self.assertEqual(graph.number_of_edges(), 2)
+
+
+class TestWorkflowResults(unittest.TestCase):
     pass
 
 
 class TestUniqueIdGenerator(unittest.TestCase):
-    def test_fails_after_exceeding_max_uuids(self):
+    def test_exceeding_max_uuids(self):
         _UniqueIdGenerator.MAX_UUIDS = 10
 
         id_gen = _UniqueIdGenerator()
