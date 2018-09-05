@@ -44,7 +44,7 @@ class HaralickTask(EOTask):
 
         Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'haralick_values')
 
-        :param feature: (FeatureType, str) or (FeatureType, str, str)
+        :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param texture_feature: Type of Haralick textural feature to be calculated
         :type texture_feature: str
         :param distance: Distance between pairs of pixels used for GLCM
@@ -78,8 +78,71 @@ class HaralickTask(EOTask):
         if self.stride >= self.window_size + 1:
             warn('Haralick stride is superior to the window size; some pixel values will be ignored')
 
-    def _calculate_haralick(self, data):
+    def _custom_texture(self, glcm):
+        # Sum of square: Variance
+        if self.texture_feature == 'sum_of_square_variance':
+            i_raw = np.empty_like(glcm)
+            i_raw[...] = np.asarray(range(glcm.shape[0]))
+            i_raw = np.transpose(i_raw)
+            i_minus_mean = (i_raw - glcm.mean()) ** 2
+            res = np.apply_over_axes(np.sum, i_minus_mean * glcm, axes=(0, 1))[0][0]
+        elif self.texture_feature == 'inverse_difference_moment':
+            # np.meshgrid
+            j_cols = np.empty_like(glcm)
+            j_cols[...] = np.asarray(range(glcm.shape[1]))
+            i_minus_j = ((j_cols - np.transpose(j_cols)) ** 2) + 1
+            res = np.apply_over_axes(np.sum, glcm / i_minus_j, axes=(0, 1))[0][0]
+        elif self.texture_feature == 'sum_average':
+            # Slow
+            tuple_array = np.array(
+                list(product(list(range(self.levels)), list(range(self.levels)))),
+                dtype=(int, 2))
+            index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in
+                     range(self.levels)]
+            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            res = np.array(p_x_y * np.array(range(len(index)))).sum()
+        elif self.texture_feature == 'sum_variance':
+            # Slow
+            tuple_array = np.array(
+                list(product(list(range(self.levels)), list(range(self.levels)))),
+                dtype=(int, 2))
+            index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in
+                     range(self.levels)]
+            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
+            res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
+        elif self.texture_feature == 'sum_entropy':
+            # Slow
+            tuple_array = np.array(
+                list(product(list(range(self.levels)), list(range(self.levels)))),
+                dtype=(int, 2))
+            index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in
+                     range(self.levels)]
+            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.
+        elif self.texture_feature == 'difference_variance':
+            # Slow
+            tuple_array = np.array(
+                list(product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
+                dtype=(int, 2))
+            index = [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in
+                     range(self.levels)]
+            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
+            res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
+        else:
+            # self.texture_feature == 'difference_entropy':
+            # Slow
+            tuple_array = np.array(
+                list(product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
+                dtype=(int, 2))
+            index = [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in
+                     range(self.levels)]
+            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.
+        return res
 
+    def _calculate_haralick(self, data):
         result = np.empty(data.shape, dtype=np.float)
         # For each date and each band
         for time in range(data.shape[0]):
@@ -101,60 +164,10 @@ class HaralickTask(EOTask):
 
                         if self.texture_feature in self.AVAILABLE_TEXTURES_SKIMAGE:
                             res = greycoprops(glcm, self.texture_feature)[0][0]
-
                         else:
-                            glcm = glcm[:,:,0,0]
-                            #Sum of square: Variance
-                            if self.texture_feature == 'sum_of_square_variance':
-                                i_raw = np.empty_like(glcm)
-                                i_raw[...] = np.asarray(range(glcm.shape[0]))
-                                i_raw = np.transpose(i_raw)
-                                i_minus_mean = (i_raw - glcm.mean()) ** 2
-                                res = np.apply_over_axes(np.sum, i_minus_mean * glcm, axes=(0, 1))[0][0]
-                            elif self.texture_feature == 'inverse_difference_moment':
-                                #np.meshgrid
-                                j_cols = np.empty_like(glcm)
-                                j_cols[...] = np.asarray(range(glcm.shape[1]))
-                                i_minus_j = ((j_cols - np.transpose(j_cols)) ** 2) + 1
-                                res = np.apply_over_axes(np.sum, glcm / i_minus_j, axes=(0, 1))[0][0]
-                            elif self.texture_feature == 'sum_average':
-                                #Slow
-                                tu = np.array(list(product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-                                index = [list(map(tuple, tu[tu.sum(axis=1) == x])) for x in range(self.levels)]
-                                p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
-                                res = np.array(p_x_y * np.array(range(len(index)))).sum()
-                            elif self.texture_feature == 'sum_variance':
-                                # Slow
-                                tu = np.array(list(product(list(range(self.levels)), list(range(self.levels)))),
-                                              dtype=(int, 2))
-                                index = [list(map(tuple, tu[tu.sum(axis=1) == x])) for x in range(self.levels)]
-                                p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
-                                sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
-                                res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
-                            elif self.texture_feature == 'sum_entropy':
-                                # Slow
-                                tu = np.array(list(product(list(range(self.levels)), list(range(self.levels)))),
-                                              dtype=(int, 2))
-                                index = [list(map(tuple, tu[tu.sum(axis=1) == x])) for x in range(self.levels)]
-                                p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
-                                res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.
-                            elif self.texture_feature == 'difference_variance':
-                                # Slow
-                                tu = np.array(list(product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
-                                              dtype=(int, 2))
-                                index = [list(map(tuple, tu[np.abs(tu.sum(axis=1)) == x])) for x in range(self.levels)]
-                                p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
-                                sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
-                                res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
-                            elif self.texture_feature == 'difference_entropy':
-                                # Slow
-                                tu = np.array(list(product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
-                                              dtype=(int, 2))
-                                index = [list(map(tuple, tu[np.abs(tu.sum(axis=1)) == x])) for x in range(self.levels)]
-                                p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
-                                res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.
-                        result[time, i, j, band] = res
+                            res = self._custom_texture(glcm[:, :, 0, 0])
 
+                        result[time, i, j, band] = res
         return result
 
     def execute(self, eopatch):
