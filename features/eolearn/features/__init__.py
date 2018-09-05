@@ -8,6 +8,9 @@ from .interp_smooth import BSplineInterpolation
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import RemoveFeature, SimpleFilterTask, FilterTimeSeries
 from .compute_haralick import AddHaralickTask
+from .local_binary_pattern import AddLocalBinaryPatternTask
+from .hog import AddHOGTask
+from .blob import AddBlobTask
 
 
 __version__ = '0.1.0'
