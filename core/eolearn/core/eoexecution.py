@@ -151,8 +151,6 @@ class EOExecutor:
         with open(self._get_report_filename(), 'w') as fout:
             fout.write(html)
 
-        return html
-
     def _create_dependency_graph(self):
         dot = self.workflow.get_dot()
         dot_file = StringIO()
