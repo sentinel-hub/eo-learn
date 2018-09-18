@@ -11,5 +11,5 @@ Submodules:
 .. toctree::
 
    eolearn.io.local_io
-   eolearn.io.sh_add
-   eolearn.io.sh_input
+   eolearn.io.sentinelhub_service
+   eolearn.io.geopedia
