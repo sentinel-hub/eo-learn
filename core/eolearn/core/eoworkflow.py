@@ -152,6 +152,8 @@ class EOWorkflow:
 
         :param input_args: External input arguments to the workflow.
         :type input_args: dict(EOTask: dict(str: object))
+        :param monitor: If True workflow execution will be monitored
+        :type monitor: bool
         :return: An immutable mapping containing results of terminal tasks
         :rtype: WorkflowResults
         """

@@ -1,6 +1,8 @@
 import unittest
+import os
 import logging
 import tempfile
+import datetime
 
 from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor
 
@@ -10,87 +12,69 @@ logging.basicConfig(level=logging.DEBUG)
 
 class ExampleTask(EOTask):
 
-    def execute(self):
-        pass
+    def execute(self, *args, **kwargs):
+        my_logger = logging.getLogger(__file__)
+        my_logger.info('Info statement of Example task with kwargs: %s', kwargs)
+        my_logger.warning('Warning statement of Example task with kwargs: %s', kwargs)
+        my_logger.debug('Debug statement of Example task with kwargs: %s', kwargs)
 
-
-class RaiserErrorTask(EOTask):
-
-    def execute(self):
-        raise Exception()
+        if 'arg1' in kwargs and kwargs['arg1'] is None:
+            raise Exception
 
 
 class TestEOExecutor(unittest.TestCase):
 
-    def test_execution_logs(self):
+    @classmethod
+    def setUpClass(cls):
         task = ExampleTask()
+        cls.workflow = EOWorkflow([(task, []),
+                                   Dependency(task=ExampleTask(), inputs=[task, task])])
 
-        workflow = EOWorkflow(dependencies=[
-            Dependency(task=task, inputs=[]),
-        ])
-
-        execution_args = [
-            {'arg1': 1},
-            {'arg1': 2}
+        cls.execution_args = [
+            {task: {'arg1': 1}},
+            {},
+            {task: {'arg1': 3, 'arg3': 10}},
+            {task: {'arg1': None}}
         ]
 
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
+    def test_execution_logs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
             executor.run()
 
-            self.assertEqual(len(executor.execution_logs), 2)
+            self.assertEqual(len(executor.execution_logs), 4)
+            for log in executor.execution_logs:
+                self.assertTrue(len(log.split()) >= 3)
 
     def test_execution_stats(self):
-        task = ExampleTask()
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor.run(workers=2)
 
-        workflow = EOWorkflow(dependencies=[
-            Dependency(task=task, inputs=[]),
-        ])
-
-        execution_args = [
-            {'arg1': 1},
-            {'arg1': 2}
-        ]
-
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
-            executor.run()
-
-            self.assertEqual(len(executor.execution_stats), 2)
+            self.assertEqual(len(executor.execution_stats), 4)
+            for stats in executor.execution_stats:
+                for time_stat in ['start_time', 'end_time']:
+                    self.assertTrue(time_stat in stats and isinstance(stats[time_stat], datetime.datetime))
 
     def test_execution_errors(self):
-        task = RaiserErrorTask()
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor.run(workers=5)
 
-        workflow = EOWorkflow(dependencies=[
-            Dependency(task=task, inputs=[]),
-        ])
-
-        execution_args = [
-            {'arg1': 1}
-        ]
-
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
-            executor.run()
-
-            self.assertTrue('error' in executor.execution_stats[0])
+            for idx, stats in enumerate(executor.execution_stats):
+                if idx != 3:
+                    self.assertFalse('error' in stats, 'Workflow {} should be executed without errors'.format(idx))
+                else:
+                    self.assertTrue('error' in stats and len(stats['error']) > 0,
+                                    'This workflow should be executed with an error')
 
     def test_report_creation(self):
-        task = ExampleTask()
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor.run(workers=10)
+            executor.make_report()
 
-        workflow = EOWorkflow(dependencies=[
-            Dependency(task=task, inputs=[]),
-        ])
-
-        execution_args = [
-            {'arg1': 1}
-        ]
-
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            executor = EOExecutor(workflow, execution_args, file_path=tmpdirname)
-            executor.run()
-
-            self.assertIsNotNone(executor.make_report())
+            self.assertTrue(os.path.exists(executor._get_report_filename()), 'Execution report was not created')
 
 
 if __name__ == '__main__':
