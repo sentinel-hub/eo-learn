@@ -6,7 +6,7 @@ from datetime import datetime
 
 from eolearn.core import EOPatch
 from eolearn.features import LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation, \
-    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling
+    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling, KrigingInterpolation
 
 
 class TestInterpolation(unittest.TestCase):
@@ -63,6 +63,11 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('akima', AkimaInterpolation('ndvi', unknown_value=0),
                                       result_len=180, img_min=-0.4821199, img_max=0.2299331, img_mean=-0.20141865,
                                       img_median=-0.213559),
+            cls.InterpolationTestCase('kriging interpolation',
+                                      KrigingInterpolation('ndvi',result_interval=(-10, 10),
+                                                           resample_range=('2016-01-01','2018-01-01', 5)),
+                                      result_len=147, img_min=-0.28672469, img_max=-0.115864, img_mean=-0.199121,
+                                      img_median=-0.20007),
             cls.InterpolationTestCase('nearest resample', NearestResampling('ndvi', result_interval=(-0.3, -0.1),
                                                                             resample_range=('2016-01-01',
                                                                                             '2018-01-01', 5)),

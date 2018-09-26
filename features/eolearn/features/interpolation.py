@@ -7,6 +7,7 @@ from datetime import timedelta
 from scipy import interpolate
 
 from eolearn.core import EOTask, EOPatch, FeatureType
+from sklearn.gaussian_process import GaussianProcessRegressor
 
 
 class InterpolationTask(EOTask):
@@ -261,6 +262,78 @@ class AkimaInterpolation(InterpolationTask):
     """
     def __init__(self, feature, **kwargs):
         super().__init__(feature, interpolate.Akima1DInterpolator, **kwargs)
+
+
+class PixelWiseInterpolationTask(InterpolationTask):
+
+    def interpolate_data(self, data, times, resampled_times):
+        """ Interpolates data feature for each pixel independently across time axis
+        Useful for methods, that take into account whole dataset globally
+
+        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times relative to the first timestamp
+        :type times: numpy.array
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
+        """
+        # get size of 2d array t x nobs
+        _, nobs = data.shape
+
+        # initialise array of interpolated values
+        new_data = data if self.resample_range is None else np.full((len(resampled_times), nobs),
+                                                                    np.nan, dtype=data.dtype)
+
+        # Interpolate for each pixel, could be easily parallelized
+        for obs in range(nobs):
+            valid = ~np.isnan(data[:, obs])
+            cur_x = times[valid]
+            cur_y = data[valid, obs]
+
+            obs_interpolating_func = self.get_interpolation_function(cur_x, cur_y)
+
+            res = obs_interpolating_func(resampled_times[:, np.newaxis])
+            new_data[:, obs] = res
+
+        # return interpolated values
+        return new_data
+
+
+class KrigingObject:
+    """
+    Interpolation function like object for Kriging
+    """
+    def __init__(self, times, series, **kwargs):
+        self.regressor = GaussianProcessRegressor(**kwargs)
+
+        # Since most of data is close to zero (relatively to time points), first get time data in [0,1] range
+        # to ensure nonzero results
+
+        # Should normalize by max in resample time to be totally consistent,
+        # but this works fine (0.03% error in testing)
+        self.normalizing_factor = max(times) - min(times)
+
+        self.regressor.fit(times.reshape(-1, 1)/self.normalizing_factor, series)
+        self.call_args = kwargs.get("call_args", {})
+
+    def __call__(self, new_times, **kwargs):
+        call_args = self.call_args.copy()
+        call_args.update(kwargs)
+        return self.regressor.predict(new_times.reshape(-1, 1)/self.normalizing_factor, **call_args)
+
+
+class KrigingInterpolation(PixelWiseInterpolationTask):
+    """
+    Implements `eolearn.features.InterpolationTask` by using `sklearn.gaussian_process.GaussianProcessRegressor`
+    Gaussian processes (superset of kriging) are especially used in geological missing data estimation.
+    Compared to spline interpolation, gaussian processes produce much more smoothed results
+    (which may or may not be desirable).
+
+    """
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, KrigingObject, **kwargs)
 
 
 class ResamplingTask(InterpolationTask):
