@@ -1,7 +1,7 @@
-eolearn.mask.eotask\_mask
+eolearn.mask.masking
 =========================
 
-.. automodule:: eolearn.mask.eotask_mask
+.. automodule:: eolearn.mask.masking
     :members:
     :undoc-members:
     :show-inheritance:
