@@ -384,8 +384,7 @@ class EOPatch:
             raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
         return np.concatenate((data1, data2), axis=0)
 
-    def save(self, path, features=..., file_format=FileFormat.NPY, overwrite=False, compress=False,
-             compress_level=1):
+    def save(self, path, features=..., file_format=FileFormat.NPY, overwrite=False, compress_level=0):
         """Saves EOPatch to disk.
 
         :param path: Location on the disk
@@ -397,9 +396,8 @@ class EOPatch:
         :type file_format: str or FileFormat
         :param overwrite: If successful, old files are overwritten
         :type overwrite: bool
-        :param compress: Compress features. Only used with npy file_format
-        :type compress: bool
-        :param compress_level: gzip compress level, an integer from 0 to 9, default is 1
+        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
+            to 9 (highest compression).
         :type compress_level: int
         """
         if os.path.exists(path):
@@ -446,7 +444,7 @@ class EOPatch:
                         self._check_feature_case_matching(feature_type)
                         os.makedirs(dir_path, exist_ok=True)
 
-                    self._save_npy_feature(dir_path, feature_type, feature_name, compress, compress_level)
+                    self._save_npy_feature(dir_path, feature_type, feature_name, compress_level)
 
                 saved_feature_types.add(feature_type)
 
@@ -459,12 +457,12 @@ class EOPatch:
                 shutil.rmtree(tmp_path)
             raise IOError("Failed to save EOPatch to path {}".format(path))
 
-    def _save_npy_feature(self, path, feature_type, feature_name, compress=False, compress_level=1):
+    def _save_npy_feature(self, path, feature_type, feature_name, compress_level=0):
 
         filename = '{}.{}'.format(os.path.join(path, feature_name),
-                                  (FileFormat.NPY_GZ if compress else FileFormat.NPY).extension())
+                                  (FileFormat.NPY_GZ if compress_level else FileFormat.NPY).extension())
 
-        if compress:
+        if compress_level:
             file_handle = gzip.GzipFile(filename, 'w', compress_level)
         else:
             file_handle = open(filename, 'wb')
