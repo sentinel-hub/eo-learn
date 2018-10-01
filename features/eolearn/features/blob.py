@@ -63,7 +63,7 @@ class BlobTask(EOTask):
     def _compute_blob(self, data):
         result = np.zeros(data.shape, dtype=np.float)
         for time in range(data.shape[0]):
-            for band in range(data.shape[3]):
+            for band in range(data.shape[-1]):
                 image = data[time, :, :, band]
                 res = np.asarray(self.blob_object(image, **self.blob_parameters))
                 x_coord = res[:, 0].astype(np.int)
