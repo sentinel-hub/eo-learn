@@ -442,6 +442,8 @@ class EOPatch:
             raise ex
 
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
+        """ Creates a list of _FileSaver classes for each feature which will have to be saved
+        """
         save_file_list = []
         saved_feature_types = set()
         for feature_type, feature_name in FeatureParser(features)(self):
@@ -611,7 +613,7 @@ class EOPatch:
                                   feature_type_path)
                 elif feature_type_str in eopatch_content:
                     warnings.warn('There are multiple files containing data about %s', FeatureType(feature_type_str))
-                else:
+                elif os.path.getsize(feature_type_path):
                     eopatch_content[feature_type_str] = _FileLoader(path, feature_type_name, mmap)
 
         return eopatch_content
