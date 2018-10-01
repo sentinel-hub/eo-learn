@@ -62,6 +62,10 @@ class FeatureType(Enum):
         return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
                                   FeatureType.LABEL_TIMELESS])
 
+    def is_meta(self):
+        """ True if FeatureType is for storing metadata info and False otherwise. """
+        return self in frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
+
     def is_vector(self):
         """True if FeatureType is vector feature type. False otherwise. """
         return self in frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
@@ -98,3 +102,52 @@ class FeatureType(Enum):
         if self is FeatureType.BBOX:
             return object
         return dict
+
+
+class FileFormat(Enum):
+    """ Enum class for file formats used for saving and loading EOPatches
+    """
+    PICKLE = ''
+    NPY = 'npy'
+    GZIP = 'gz'
+
+    def extension(self):
+        """ Returns file extension of file format
+        """
+        if self is FileFormat.PICKLE:
+            return ''
+        return '.{}'.format(self.value)
+
+    @staticmethod
+    def split_by_extensions(filename):
+        parts = filename.split('.')
+        idx = len(parts) - 1
+        while FileFormat.is_file_format(parts[idx]):
+            parts[idx] = FileFormat(parts[idx])
+            idx -= 1
+        return ['.'.join(parts[:idx + 1])] + parts[idx + 1:]
+
+    @classmethod
+    def is_file_format(cls, value):
+        """ Tests whether value represents one of the supported file formats
+
+        :param value: The string representation of the enum constant
+        :type value: str
+        :return: `True` if string is file format and `False` otherwise
+        :rtype: bool
+        """
+        return any(value == item.value for item in cls)
+
+
+class OverwritePermission(Enum):
+    """ Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
+
+    Permissions are in the following hierarchy:
+    - `ADD_ONLY` - Only new features can be added, anything that is already saved cannot be changed.
+    - `OVERWRITE_NEW` - Overwrite only data for features which have to be saved. The remaining content of saved
+        EOPatch will stay unchanged.
+    - `OVERWRITE_ALL` - Overwrite entire content of saved EOPatch and replace it with the new content.
+    """
+    ADD_ONLY = 0
+    OVERWRITE_NEW = 1
+    OVERWRITE_ALL = 2
