@@ -8,7 +8,7 @@ import numpy as np
 
 from collections import OrderedDict
 
-from .feature_types import FeatureType
+from .constants import FeatureType
 
 LOGGER = logging.getLogger(__name__)
 

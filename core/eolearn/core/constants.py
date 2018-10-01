@@ -107,15 +107,13 @@ class FeatureType(Enum):
 class FileFormat(Enum):
     """ Enum class for file formats used for saving and loading EOPatches
     """
-    PICKLE = ''
+    PICKLE = 'pkl'
     NPY = 'npy'
     GZIP = 'gz'
 
     def extension(self):
         """ Returns file extension of file format
         """
-        if self is FileFormat.PICKLE:
-            return ''
         return '.{}'.format(self.value)
 
     @staticmethod
