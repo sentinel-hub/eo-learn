@@ -15,3 +15,6 @@ Submodules:
    eolearn.features.haralick
    eolearn.features.interpolation
    eolearn.features.temporal_features
+   eolearn.features.hog
+   eolearn.features.blob
+   eolearn.features.local_binary_pattern
