@@ -1,6 +1,7 @@
 language: python
 notifications:
   email: false
+dist: xenial
 python:
 - "3.5"
 - "3.6"
