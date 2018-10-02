@@ -408,7 +408,7 @@ class EOPatch:
         self._check_forbidden_characters(save_file_list)
 
         existing_content = self._get_eopatch_content(path) if \
-            os.path.exists(path) and overwrite_permission is not OverwritePermission.OVERWRITE_ALL else {}
+            os.path.exists(path) and overwrite_permission is not OverwritePermission.OVERWRITE_PATCH else {}
 
         self._check_feature_case_matching(save_file_list, existing_content)
 
@@ -420,7 +420,7 @@ class EOPatch:
                 file_saver.save(self)
 
             if os.path.exists(path):
-                if overwrite_permission is OverwritePermission.OVERWRITE_ALL:
+                if overwrite_permission is OverwritePermission.OVERWRITE_PATCH:
                     shutil.rmtree(path)
                     os.renames(tmp_path, path)
                 else:

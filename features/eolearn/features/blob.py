@@ -81,7 +81,8 @@ class BlobTask(EOTask):
         :rtype: eolearn.core.EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature:
-            eopatch[feature_type][new_feature_name] = self._compute_blob(eopatch[feature_type][feature_name])
+            eopatch[feature_type][new_feature_name] = self._compute_blob(
+                eopatch[feature_type][feature_name].astype(np.float64)).astype(np.float32)
 
         return eopatch
 

@@ -220,13 +220,13 @@ class TestSavingLoading(unittest.TestCase):
             with self.assertRaises(BaseException):
                 self.eopatch.save(tmp_dir_name)
 
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_ALL)
+            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
     def test_overwriting_non_empty_folder(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             self.eopatch.save(tmp_dir_name)
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_NEW)
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_ALL)
+            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
+            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
             add_eopatch = EOPatch()
             add_eopatch.data['some data'] = np.empty((2, 3, 3, 2))
