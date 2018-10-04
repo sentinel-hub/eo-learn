@@ -582,11 +582,10 @@ class EOPatch:
 
             if os.path.isdir(feature_type_path):
                 if not FeatureType.has_value(feature_type_name) or FeatureType(feature_type_name).is_meta():
-                    warnings.warn('Folder %s is not recognized in EOPatch folder structure, will be skipped',
-                                  feature_type_path)
+                    warnings.warn('Folder {} is not recognized in EOPatch folder structure, will be skipped'.format(feature_type_path))
                     continue
                 if feature_type_name in eopatch_content:
-                    warnings.warn('There are multiple files containing data about %s', FeatureType(feature_type_name))
+                    warnings.warn('There are multiple files containing data about {}'.format(FeatureType(feature_type_name)))
                     if not isinstance(eopatch_content[feature_type_name], dict):
                         eopatch_content[feature_type_name] = {}
                 else:
@@ -595,13 +594,11 @@ class EOPatch:
                 for feature in os.listdir(feature_type_path):
                     feature_path = os.path.join(feature_type_path, feature)
                     if os.path.isdir(feature_path):
-                        warnings.warn('Folder %s is not recognized in EOPatch folder structure, will be skipped',
-                                      feature_path)
+                        warnings.warn('Folder {} is not recognized in EOPatch folder structure, will be skipped'.format(feature_path))
                         continue
                     feature_name = FileFormat.split_by_extensions(feature)[0]
                     if feature_name in eopatch_content[feature_type_name]:
-                        warnings.warn('There are multiple files containing data about (%s, %s)',
-                                      FeatureType(feature_type_name), feature_name)
+                        warnings.warn('There are multiple files containing data about ({}, {})'.format(FeatureType(feature_type_name), feature_name))
                         continue
 
                     eopatch_content[feature_type_name][feature_name] = \
@@ -609,10 +606,9 @@ class EOPatch:
             else:
                 feature_type_str = FileFormat.split_by_extensions(feature_type_name)[0]
                 if not FeatureType.has_value(feature_type_str):
-                    warnings.warn('File %s is not recognized in EOPatch folder structure, will be skipped',
-                                  feature_type_path)
+                    warnings.warn('File {} is not recognized in EOPatch folder structure, will be skipped'.format(feature_type_path))
                 elif feature_type_str in eopatch_content:
-                    warnings.warn('There are multiple files containing data about %s', FeatureType(feature_type_str))
+                    warnings.warn('There are multiple files containing data about {}'.format(FeatureType(feature_type_str)))
                 elif os.path.getsize(feature_type_path):
                     eopatch_content[feature_type_str] = _FileLoader(path, feature_type_name, mmap)
 
