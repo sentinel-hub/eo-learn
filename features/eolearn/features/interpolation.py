@@ -101,7 +101,7 @@ class InterpolationTask(EOTask):
         :rtype: numpy.ndarray
         """
         # get size of 2d array t x nobs
-        ntimes, nobs = data.shape
+        nobs = data.shape[-1]
 
         # mask representing overlap between reference and resampled times
         time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
