@@ -106,18 +106,17 @@ class InterpolationTask(EOTask):
         # mask representing overlap between reference and resampled times
         time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
 
-        # define time values as linear mono-tonically increasing over the observations
+        # define time values as linear monotonically increasing over the observations
         const = int(self.filling_factor * (np.max(times) - np.min(times)))
         temp_values = (times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
         res_temp_values = (resampled_times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
 
         # initialise array of interpolated values
-        new_data = data if self.resample_range is None else np.full((len(resampled_times), nobs),
-                                                                    np.nan, dtype=data.dtype)
+        new_data = np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
+
         # array defining index correspondence between reference times and resampled times
-        ori2res = np.arange(ntimes, dtype=np.int32) if self.resample_range is None else np.array(
-            [np.abs(resampled_times - o).argmin()
-             if np.min(resampled_times) <= o <= np.max(resampled_times) else None for o in times])
+        ori2res = np.array([np.abs(resampled_times - o).argmin()
+                            if np.min(resampled_times) <= o <= np.max(resampled_times) else None for o in times])
 
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
@@ -220,6 +219,17 @@ class InterpolationTask(EOTask):
         # Add BBox to eopatch if it was created anew
         if new_eopatch.bbox is None:
             new_eopatch.bbox = eopatch.bbox
+
+        # Replace duplicate acquisitions which have same values on the chosen time scale with nanmean
+        seen = set()
+        dup_ids = [idx for idx, item in enumerate(times) if item in seen or seen.add(item)]
+
+        for did in dup_ids:
+            nmsk = (np.isnan(feature_data[did-1]) == np.isnan(feature_data[did]))
+            feature_data[did-1, ~nmsk] = np.nanmean([feature_data[did-1, ~nmsk], feature_data[did, ~nmsk]], axis=0)
+
+        times = np.delete(times, dup_ids, axis=0)
+        feature_data = np.delete(feature_data, dup_ids, axis=0)
 
         # Interpolate
         feature_data = self.interpolate_data(feature_data, times, resampled_times)
