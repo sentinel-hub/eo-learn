@@ -93,7 +93,14 @@ class TestInterpolation(unittest.TestCase):
                                                                         resample_range=('2015-01-01', '2018-01-01', 16),
                                                                         unknown_value=5),
                                       result_len=69, img_min=-0.2, img_max=5.0, img_mean=1.2348738,
-                                      img_median=0.4656453, nan_replace=-0.2)
+                                      img_median=0.4656453, nan_replace=-0.2),
+
+            cls.InterpolationTestCase('linear custom list', LinearInterpolation(
+                'NDVI', result_interval=(-0.2, 1.0),
+                resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
+                unknown_value=-2),
+                                      result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417,
+                                      img_median=0.5042224)
 
         ]
 
