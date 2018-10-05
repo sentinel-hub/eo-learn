@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 class ExampleTask(EOTask):
 
-    def execute(self, *args, **kwargs):
+    def execute(self, *_, **kwargs):
         my_logger = logging.getLogger(__file__)
         my_logger.info('Info statement of Example task with kwargs: %s', kwargs)
         my_logger.warning('Warning statement of Example task with kwargs: %s', kwargs)
@@ -65,7 +65,7 @@ class TestEOExecutor(unittest.TestCase):
                 if idx != 3:
                     self.assertFalse('error' in stats, 'Workflow {} should be executed without errors'.format(idx))
                 else:
-                    self.assertTrue('error' in stats and len(stats['error']) > 0,
+                    self.assertTrue('error' in stats and stats['error'],
                                     'This workflow should be executed with an error')
 
     def test_report_creation(self):

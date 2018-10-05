@@ -217,7 +217,7 @@ class TestSavingLoading(unittest.TestCase):
             with open(os.path.join(tmp_dir_name, 'foo.txt'), 'w'):
                 pass
 
-            with self.assertRaises(BaseException):
+            with self.assertWarns(UserWarning):
                 self.eopatch.save(tmp_dir_name)
 
             self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)

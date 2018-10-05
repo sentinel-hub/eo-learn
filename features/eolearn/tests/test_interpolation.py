@@ -104,24 +104,24 @@ class TestInterpolation(unittest.TestCase):
             if test_case.img_min is not None:
                 min_val = np.amin(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                        self.assertAlmostEqual(test_case.img_min, min_val, delta=delta,
-                                               msg="Expected min {}, got {}".format(test_case.img_min, min_val))
+                    self.assertAlmostEqual(test_case.img_min, min_val, delta=delta,
+                                           msg="Expected min {}, got {}".format(test_case.img_min, min_val))
             if test_case.img_max is not None:
                 max_val = np.amax(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                        self.assertAlmostEqual(test_case.img_max, max_val, delta=delta,
-                                               msg="Expected max {}, got {}".format(test_case.img_max, max_val))
+                    self.assertAlmostEqual(test_case.img_max, max_val, delta=delta,
+                                           msg="Expected max {}, got {}".format(test_case.img_max, max_val))
             if test_case.img_mean is not None:
                 mean_val = np.mean(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                        self.assertAlmostEqual(test_case.img_mean, mean_val, delta=delta,
-                                               msg="Expected mean {}, got {}".format(test_case.img_mean, mean_val))
+                    self.assertAlmostEqual(test_case.img_mean, mean_val, delta=delta,
+                                           msg="Expected mean {}, got {}".format(test_case.img_mean, mean_val))
             if test_case.img_median is not None:
                 median_val = np.median(test_case.result.data['ndvi'])
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
-                        self.assertAlmostEqual(test_case.img_median, median_val, delta=delta,
-                                               msg="Expected median {}, got {}".format(test_case.img_median,
-                                                                                       median_val))
+                    self.assertAlmostEqual(test_case.img_median, median_val, delta=delta,
+                                           msg="Expected median {}, got {}".format(test_case.img_median,
+                                                                                   median_val))
 
 
 if __name__ == '__main__':
