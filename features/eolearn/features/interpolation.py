@@ -88,6 +88,32 @@ class InterpolationTask(EOTask):
 
         return np.logical_or(start_nan, end_nan)
 
+    @staticmethod
+    def _get_unique_times(data, times):
+        """ Replace duplicate acquisitions which have same values on the chosen time scale with their average.
+        The average is calculated with nanmean, meaning that NaN values are ignored when calculating the average.
+
+        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times relative to the first timestamp
+        :type times: numpy.array
+        :return: cleaned versions of data input
+        :rtype: numpy.ndarray
+        :return: cleaned versions of times input
+        :rtype: numpy.array
+        """
+        seen = set()
+        dup_ids = [idx for idx, item in enumerate(times) if item in seen or seen.add(item)]
+
+        for did in dup_ids:
+            nmsk = (np.isnan(data[did - 1]) == np.isnan(data[did]))
+            data[did - 1, ~nmsk] = np.nanmean([data[did - 1, ~nmsk], data[did, ~nmsk]], axis=0)
+
+        times = np.delete(times, dup_ids, axis=0)
+        data = np.delete(data, dup_ids, axis=0)
+
+        return data, times
+
     def interpolate_data(self, data, times, resampled_times):
         """ Interpolates data feature
 
@@ -101,7 +127,7 @@ class InterpolationTask(EOTask):
         :rtype: numpy.ndarray
         """
         # get size of 2d array t x nobs
-        ntimes, nobs = data.shape
+        nobs = data.shape[-1]
 
         # mask representing overlap between reference and resampled times
         time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
@@ -220,16 +246,8 @@ class InterpolationTask(EOTask):
         if new_eopatch.bbox is None:
             new_eopatch.bbox = eopatch.bbox
 
-        # Replace duplicate acquisitions which have same values on the chosen time scale with nanmean
-        seen = set()
-        dup_ids = [idx for idx, item in enumerate(times) if item in seen or seen.add(item)]
-
-        for did in dup_ids:
-            nmsk = (np.isnan(feature_data[did-1]) == np.isnan(feature_data[did]))
-            feature_data[did-1, ~nmsk] = np.nanmean([feature_data[did-1, ~nmsk], feature_data[did, ~nmsk]], axis=0)
-
-        times = np.delete(times, dup_ids, axis=0)
-        feature_data = np.delete(feature_data, dup_ids, axis=0)
+        # Replace duplicate acquisitions which have same values on the chosen time scale with their average
+        feature_data, times = self._get_unique_times(feature_data, times)
 
         # Interpolate
         feature_data = self.interpolate_data(feature_data, times, resampled_times)
