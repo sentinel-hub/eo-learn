@@ -22,6 +22,7 @@ setup(name='eo-learn',
       author_email='info@sinergise.com',
       license='MIT',
       packages=[],
+      include_package_data=True,
       install_requires=[
           'eo-learn-core>=0.3.2',
           'eo-learn-coregistration>=0.3.2',
