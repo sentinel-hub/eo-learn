@@ -31,7 +31,7 @@ class InterpolationTask(EOTask):
         create a new EOPatch with resampled values for times start_date, start_date + step_days,
         start_date + 2 * step_days, ... . End date is excluded from timestamps. Additionally, ``resample_range`` can
         be a list of dates or date-strings where the interpolation will be evaluated.
-    :type resample_range: (str, str, int) or (str, ...) or (date, ...) or None
+    :type resample_range: (str, str, int) or list(str) or list(datetime.datetime) or None
     :param result_interval: Maximum and minimum of returned data
     :type result_interval: (float, float)
     :param mask_feature: Feature that contains binary masks of interpolated feature
@@ -91,7 +91,7 @@ class InterpolationTask(EOTask):
     @staticmethod
     def _get_unique_times(data, times):
         """ Replace duplicate acquisitions which have same values on the chosen time scale with their average.
-        The average is calculated with nanmean, meaning that NaN values are ignored when calculating the average.
+        The average is calculated with numpy.nanmean, meaning that NaN values are ignored when calculating the average.
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
         :type data: numpy.ndarray
@@ -103,14 +103,14 @@ class InterpolationTask(EOTask):
         :rtype: numpy.array
         """
         seen = set()
-        dup_ids = [idx for idx, item in enumerate(times) if item in seen or seen.add(item)]
+        duplicated_ids = [idx for idx, item in enumerate(times) if item in seen or seen.add(item)]
 
-        for did in dup_ids:
-            nmsk = (np.isnan(data[did - 1]) == np.isnan(data[did]))
-            data[did - 1, ~nmsk] = np.nanmean([data[did - 1, ~nmsk], data[did, ~nmsk]], axis=0)
+        for idx in duplicated_ids:
+            nan_mask = (np.isnan(data[idx - 1]) == np.isnan(data[idx]))
+            data[idx - 1, ~nan_mask] = np.nanmean([data[idx - 1, ~nan_mask], data[idx, ~nan_mask]], axis=0)
 
-        times = np.delete(times, dup_ids, axis=0)
-        data = np.delete(data, dup_ids, axis=0)
+        times = np.delete(times, duplicated_ids, axis=0)
+        data = np.delete(data, duplicated_ids, axis=0)
 
         return data, times
 
@@ -194,22 +194,17 @@ class InterpolationTask(EOTask):
         if not isinstance(self.resample_range, (tuple, list)):
             raise ValueError('Invalid resample_range {}, expected tuple'.format(self.resample_range))
 
-        if (len(self.resample_range) == 3 and
-                isinstance(self.resample_range[0], str) and
-                isinstance(self.resample_range[1], str) and
-                isinstance(self.resample_range[2], int)):
-
+        if tuple(map(type, self.resample_range)) == (str, str, int):
             start_date = parser.parse(self.resample_range[0])
             end_date = parser.parse(self.resample_range[1])
             step = timedelta(days=self.resample_range[2])
             days = [start_date]
             while days[-1] + step < end_date:
                 days.append(days[-1] + step)
-        elif (self.resample_range and
-              np.all([isinstance(date, str) for date in self.resample_range])):
+
+        elif self.resample_range and np.all([isinstance(date, str) for date in self.resample_range]):
             days = [parser.parse(date) for date in self.resample_range]
-        elif (self.resample_range and
-              np.all([isinstance(date, datetime) for date in self.resample_range])):
+        elif self.resample_range and np.all([isinstance(date, datetime) for date in self.resample_range]):
             days = [date for date in self.resample_range]
         else:
             raise ValueError('Invalid format in {}, expected strings or datetimes'.format(self.resample_range))
