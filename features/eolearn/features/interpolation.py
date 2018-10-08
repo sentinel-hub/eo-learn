@@ -103,14 +103,16 @@ class InterpolationTask(EOTask):
         :rtype: numpy.array
         """
         seen = set()
-        duplicated_ids = [idx for idx, item in enumerate(times) if item in seen or seen.add(item)]
+        duplicated_indices = np.array([idx for idx, item in enumerate(times) if item in seen or seen.add(item)])
+        duplicated_times = np.unique(times[duplicated_indices])
 
-        for idx in duplicated_ids:
-            nan_mask = (np.isnan(data[idx - 1]) == np.isnan(data[idx]))
-            data[idx - 1, ~nan_mask] = np.nanmean([data[idx - 1, ~nan_mask], data[idx, ~nan_mask]], axis=0)
+        for time in duplicated_times:
+            indices = np.where(times == time)[0]
+            nan_mask = np.all(np.isnan(data[indices]), axis=0)
+            data[indices[0], ~nan_mask] = np.nanmean(data[indices][:, ~nan_mask], axis=0)
 
-        times = np.delete(times, duplicated_ids, axis=0)
-        data = np.delete(data, duplicated_ids, axis=0)
+        times = np.delete(times, duplicated_indices, axis=0)
+        data = np.delete(data, duplicated_indices, axis=0)
 
         return data, times
 
