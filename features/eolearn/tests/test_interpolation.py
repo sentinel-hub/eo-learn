@@ -50,6 +50,12 @@ class TestInterpolation(unittest.TestCase):
                                       result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
                                       img_median=0.59765935),
 
+            cls.InterpolationTestCase('linear_change_timescale', LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
+                                                                    mask_feature=(FeatureType.MASK, 'IS_VALID'),
+                                                                    unknown_value=10, scale_time=1),
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
+                                      img_median=0.59765935),
+
             cls.InterpolationTestCase('cubic', CubicInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                                   mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                                   resample_range=('2015-01-01', '2018-01-01', 16),

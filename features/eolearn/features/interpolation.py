@@ -103,7 +103,8 @@ class InterpolationTask(EOTask):
         :rtype: numpy.array
         """
         seen = set()
-        duplicated_indices = np.array([idx for idx, item in enumerate(times) if item in seen or seen.add(item)])
+        duplicated_indices = np.array([idx for idx, item in enumerate(times) if item in seen or seen.add(item)],
+                                      dtype=int)
         duplicated_times = np.unique(times[duplicated_indices])
 
         for time in duplicated_times:
