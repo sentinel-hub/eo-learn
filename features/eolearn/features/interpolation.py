@@ -5,6 +5,7 @@ import numpy as np
 from dateutil import parser
 from datetime import timedelta, datetime
 from scipy import interpolate
+import warnings
 
 from eolearn.core import EOTask, EOPatch, FeatureType
 
@@ -36,6 +37,10 @@ class InterpolationTask(EOTask):
     :type result_interval: (float, float)
     :param mask_feature: Feature that contains binary masks of interpolated feature
     :type mask_feature: (FeatureType, str)
+    :param copy_features: List of tuples of type (FeatureType, str) or (FeatureType, str, str) that are copied
+        over into the new EOPatch. The first string is the feature name, and the second one (optional) is a new name
+        to be used for the feature
+    :type copy_features: list((FeatureType, str) or (FeatureType, str, str))
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
     :type unknown_value: float or numpy.nan
     :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Value
@@ -47,7 +52,7 @@ class InterpolationTask(EOTask):
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
-                 unknown_value=np.nan, filling_factor=10, scale_time=3600,
+                 copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
                  **interpolation_parameters):
         self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
         self.interpolation_object = interpolation_object
@@ -57,6 +62,12 @@ class InterpolationTask(EOTask):
 
         self.mask_feature = None if mask_feature is None else \
             self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)
+
+        if resample_range is None and copy_features is not None:
+            self.copy_features = None
+            warnings.warn('Argument "copy_features" will be ignored if "resample_range" is None. Nothing to copy.')
+        else:
+            self.copy_features = None if copy_features is None else self._parse_features(copy_features, new_names=True)
 
         self.unknown_value = unknown_value
         self.interpolation_parameters = interpolation_parameters
@@ -116,6 +127,32 @@ class InterpolationTask(EOTask):
         data = np.delete(data, duplicated_indices, axis=0)
 
         return data, times
+
+    @staticmethod
+    def _copy_old_features(new_eopatch, old_eopatch, copy_features):
+        """ Copy features from old EOPatch
+
+        :param new_eopatch: New EOPatch container where the old features will be copied to
+        :type new_eopatch: EOPatch
+        :param old_eopatch: Old EOPatch container where the old features are located
+        :type old_eopatch: EOPatch
+        :param copy_features: List of tuples of type (FeatureType, str) or (FeatureType, str, str) that are copied
+            over into the new EOPatch. The first string is the feature name, and the second one (optional) is a new name
+            to be used for the feature
+        :type copy_features: list((FeatureType, str) or (FeatureType, str, str))
+        """
+        if copy_features:
+            for copy_feature_type, copy_feature_name, copy_feature_new_name in copy_features:
+                if (copy_feature_type, copy_feature_new_name) in new_eopatch.get_feature_list():
+                    raise ValueError('Feature {} of {} already exists in the new EOPatch! '
+                                     'Use a different name!'.format(copy_feature_new_name, copy_feature_type))
+                else:
+                    new_eopatch.add_feature(
+                        copy_feature_type,
+                        copy_feature_new_name,
+                        old_eopatch[copy_feature_type][copy_feature_name]
+                    )
+        return new_eopatch
 
     def interpolate_data(self, data, times, resampled_times):
         """ Interpolates data feature
@@ -263,6 +300,10 @@ class InterpolationTask(EOTask):
         # Reshape back
         new_eopatch[feature_type][new_feature_name] = np.reshape(feature_data,
                                                                  (feature_data.shape[0], height, width, band_num))
+
+        # append features from old patch
+        new_eopatch = self._copy_old_features(new_eopatch, eopatch, self.copy_features)
+
         return new_eopatch
 
 
