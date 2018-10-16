@@ -191,7 +191,7 @@ class TestInterpolation(unittest.TestCase):
                                            msg="Expected median {}, got {}".format(test_case.img_median,
                                                                                    median_val))
 
-    def test2(self):
+    def test_copied_fields(self):
         for test_case in self.copy_feature_cases:
             with self.subTest(msg='Test case {}'.format(test_case.name)):
                 if test_case.result is not None:
