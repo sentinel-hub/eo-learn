@@ -97,6 +97,8 @@ todo_include_todos = True
 #
 html_theme = 'sphinx_rtd_theme'
 
+html_logo = './figures/eo-learn-logo-white.png'
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
@@ -208,12 +210,12 @@ try:
 except FileExistsError:
     pass
 
-# Create a list of all EOTasks
 
+# Create a list of all EOTasks
 def get_subclasses(cls):
     direct_subclasses = cls.__subclasses__()
-    nested_subclasses = [ s for c in direct_subclasses
-                          for s in get_subclasses(c) ]
+    nested_subclasses = [s for c in direct_subclasses
+                         for s in get_subclasses(c)]
 
     return list(set(direct_subclasses).union(nested_subclasses))
 
@@ -228,6 +230,7 @@ def get_eotasks():
     import eolearn.ml_tools
 
     return get_subclasses(eolearn.core.EOTask)
+
 
 with open('eotasks.rst', 'w') as f:
     f.write('********\n')

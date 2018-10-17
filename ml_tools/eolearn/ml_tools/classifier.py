@@ -454,27 +454,29 @@ class ImageClassificationMaskTask(EOTask):
     and appends to each image the classification mask.
     """
     def __init__(self, input_feature, output_feature, classifier):
-        """
-        Classifier is an instance of the ImageBaseClassifier that maps [w, h, d] numpy arrays (d-channel images) into
-        [w, h, 1] numpy arrays (classification masks).
-        :param input_feature: Feature which will be classified
-        :type input_feature: (FeatureType, str)
-        :param output_feature: Feature where classification results will be saved
-        :type output_feature: (FeatureType, str)
-        :param classifier: A classifier that works over [n, w, h, d]-dimensional numpy arrays.
-        :type classifier: ImageBaseClassifier
+        """ Run a classification task on a EOPatch feature
+
+            Classifier is an instance of the ImageBaseClassifier that maps [w, h, d] numpy arrays (d-channel images)
+            into [w, h, 1] numpy arrays (classification masks).
+
+            :param input_feature: Feature which will be classified
+            :type input_feature: (FeatureType, str)
+            :param output_feature: Feature where classification results will be saved
+            :type output_feature: (FeatureType, str)
+            :param classifier: A classifier that works over [n, w, h, d]-dimensional numpy arrays.
+            :type classifier: ImageBaseClassifier
         """
         self.input_feature = self._parse_features(input_feature)
         self.output_feature = self._parse_features(output_feature)
         self.classifier = classifier
 
     def execute(self, eopatch):
-        """
-        Transforms [n, w, h, d] eopatch into a [n, w, h, d+1] eopatch, adding it the classification mask.
-        :param eopatch: An input EOPatch
-        :type eopatch: EOPatch
-        :return: Outputs EOPatch with n classification masks appended to out_feature_type with out_feature_name key
-        :rtype: EOPatch
+        """ Transforms [n, w, h, d] eopatch into a [n, w, h, 1] eopatch, adding it the classification mask.
+
+            :param eopatch: An input EOPatch
+            :type eopatch: EOPatch
+            :return: Outputs EOPatch with n classification masks appended to out_feature_type with out_feature_name key
+            :rtype: EOPatch
         """
         in_type, in_name = next(self.input_feature(eopatch))
         out_type, out_name = next(self.input_feature())

@@ -28,7 +28,7 @@ class TestEOPatch(unittest.TestCase):
         for morph_operation in MorphologicalOperations:
             with self.subTest(msg='Test case {}'.format(morph_operation.name)):
                 for feature_type, feature_name in [(FeatureType.MASK, self.mask_name),
-                                                (FeatureType.MASK_TIMELESS, self.timeless_mask_name)]:
+                                                   (FeatureType.MASK_TIMELESS, self.timeless_mask_name)]:
                     for struct_elem in [None, MorphologicalStructFactory.get_disk(5),
                                         MorphologicalStructFactory.get_rectangle(5, 6)]:
 

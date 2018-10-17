@@ -7,7 +7,7 @@ from io import StringIO
 from hypothesis import given, strategies as st
 import networkx as nx
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults
+from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults, LinearWorkflow
 from eolearn.core.eoworkflow import CyclicDependencyError, _UniqueIdGenerator
 from eolearn.core.graph import DirectedGraph
 
@@ -103,7 +103,7 @@ class TestEOWorkflow(unittest.TestCase):
         in_task = InputTask()
         inc_task = Inc()
         pow_task = Pow()
-        eow = EOWorkflow.make_linear_workflow(in_task, inc_task, pow_task)
+        eow = LinearWorkflow(in_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
             inc_task: {'d': 2},
