@@ -142,16 +142,20 @@ class InterpolationTask(EOTask):
         :type copy_features: list((FeatureType, str) or (FeatureType, str, str))
         """
         if copy_features:
-            for copy_feature_type, copy_feature_name, copy_feature_new_name in copy_features:
-                if (copy_feature_type, copy_feature_new_name) in new_eopatch.get_feature_list():
+            existing_features = set(new_eopatch.get_feature_list())
+
+            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features:
+                new_feature = copy_feature_type, copy_new_feature_name
+
+                if new_feature in existing_features:
                     raise ValueError('Feature {} of {} already exists in the new EOPatch! '
-                                     'Use a different name!'.format(copy_feature_new_name, copy_feature_type))
+                                     'Use a different name!'.format(copy_new_feature_name, copy_feature_type))
                 else:
-                    new_eopatch.add_feature(
-                        copy_feature_type,
-                        copy_feature_new_name,
+                    existing_features.add(new_feature)
+
+                    new_eopatch[copy_feature_type][copy_new_feature_name] = \
                         old_eopatch[copy_feature_type][copy_feature_name]
-                    )
+
         return new_eopatch
 
     def interpolate_data(self, data, times, resampled_times):

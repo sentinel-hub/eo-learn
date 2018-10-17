@@ -205,7 +205,5 @@ class TestInterpolation(unittest.TestCase):
                                         msg="Expected feature {} is not present in EOPatch".format(feature))
 
 
-
-
 if __name__ == '__main__':
     unittest.main()
