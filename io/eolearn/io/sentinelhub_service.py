@@ -226,6 +226,7 @@ class SentinelHubWMSInput(SentinelHubOGCInput):
     """
     Task for creating EOPatches and filling them with data using Sentinel Hub's WMS request.
     """
+
     def __init__(self, layer, data_source=None, width=None, height=None, **kwargs):
         super().__init__(layer=layer, data_source=data_source, service_type=ServiceType.WMS,
                          size_x=width, size_y=height, **kwargs)
@@ -286,7 +287,20 @@ class S2L2AWCSInput(SentinelHubWCSInput):
     """
     def __init__(self, layer, **kwargs):
         super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
-
+        
+class S1IWWMSInput(SentinelHubWMSInput):
+    """
+    Task for creating EOPatches and filling them with Sentinel-1 IW GRD data using Sentinel Hub's WMS request.
+    """
+    def __init__(self, layer, **kwargs):
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL1_IW, **kwargs)
+        
+class S1IWWCSInput(SentinelHubWCSInput):
+    """
+    Task for creating EOPatches and filling them with Sentinel-1 IW GRD data using Sentinel Hub's WCS request.
+    """
+    def __init__(self, layer, **kwargs):
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL1_IW, **kwargs)
 
 class DEMWMSInput(SentinelHubWMSInput):
     """
