@@ -111,8 +111,45 @@ class TestInterpolation(unittest.TestCase):
 
         ]
 
+        cls.copy_feature_cases = [
+            cls.InterpolationTestCase('cubic_copy_success',
+                                      CubicInterpolation('NDVI', result_interval=(0.0, 1.0),
+                                                         mask_feature=(
+                                                             FeatureType.MASK, 'IS_VALID'),
+                                                         resample_range=(
+                                                             '2015-01-01', '2018-01-01', 16),
+                                                         unknown_value=5, bounds_error=False,
+                                                         copy_features=[
+                                                             (FeatureType.MASK, 'IS_VALID'),
+                                                             (FeatureType.DATA, 'NDVI', 'NDVI_OLD'),
+                                                             (FeatureType.MASK_TIMELESS, 'LULC'),
+                                                         ]),
+                                      result_len=69, img_min=0.0, img_max=5.0, img_mean=1.3592644,
+                                      img_median=0.6174331),
+
+            cls.InterpolationTestCase('cubic_copy_fail',
+                                      CubicInterpolation('NDVI', result_interval=(0.0, 1.0),
+                                                         mask_feature=(FeatureType.MASK, 'IS_VALID'),
+                                                         resample_range=(
+                                                             '2015-01-01', '2018-01-01', 16),
+                                                         unknown_value=5, bounds_error=False,
+                                                         copy_features=[
+                                                             (FeatureType.MASK, 'IS_VALID'),
+                                                             (FeatureType.DATA, 'NDVI'),
+                                                             (FeatureType.MASK_TIMELESS, 'LULC'),
+                                                         ]),
+                                      result_len=69, img_min=0.0, img_max=5.0, img_mean=1.3592644,
+                                      img_median=0.6174331),
+        ]
+
         for test_case in cls.test_cases:
             test_case.execute()
+
+        for test_case in cls.copy_feature_cases:
+            try:
+                test_case.execute()
+            except ValueError:
+                pass
 
     def test_output_type(self):
         for test_case in self.test_cases:
@@ -153,6 +190,19 @@ class TestInterpolation(unittest.TestCase):
                     self.assertAlmostEqual(test_case.img_median, median_val, delta=delta,
                                            msg="Expected median {}, got {}".format(test_case.img_median,
                                                                                    median_val))
+
+    def test_copied_fields(self):
+        for test_case in self.copy_feature_cases:
+            with self.subTest(msg='Test case {}'.format(test_case.name)):
+                if test_case.result is not None:
+                    copied_features = [
+                        (FeatureType.MASK, 'IS_VALID'),
+                        (FeatureType.DATA, 'NDVI_OLD'),
+                        (FeatureType.MASK_TIMELESS, 'LULC')
+                    ]
+                    for feature in copied_features:
+                        self.assertTrue(feature in test_case.result.get_feature_list(),
+                                        msg="Expected feature {} is not present in EOPatch".format(feature))
 
 
 if __name__ == '__main__':
