@@ -200,12 +200,13 @@ class SentinelHubOGCInput(EOTask):
 
         request_dates = request.get_dates()
 
-        download_frames = request_dates
         if not eopatch.timestamp:
             eopatch.timestamp = request_dates
+
+        if self.feature_type.is_time_dependent():
+            download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
         else:
-            if self.feature_type.is_time_dependent():
-                download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
+            download_frames = None
 
         images = request.get_data(raise_download_errors=self.raise_download_errors, data_filter=download_frames)
 
