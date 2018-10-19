@@ -5,7 +5,7 @@ import os
 import numpy
 
 from sentinelhub import BBox, CRS
-from sentinelhub import DataSource, ServiceType
+from sentinelhub import DataSource
 from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.io import *
@@ -22,11 +22,12 @@ class TestEOPatch(unittest.TestCase):
         """
 
         def __init__(self, name, request, bbox, time_interval,
-                     eop=None, layer=None, data_size=None):
+                     eop=None, layer=None, data_size=None, timestamp_length=None):
             self.name = name
             self.request = request
             self.layer = layer
             self.data_size = data_size
+            self.timestamp_length = timestamp_length
 
             if eop is None:
                 self.eop = request.execute(bbox=bbox, time_interval=time_interval)
@@ -64,6 +65,7 @@ class TestEOPatch(unittest.TestCase):
                 name='generalWmsTask',
                 layer='BANDS-S2-L1C',
                 data_size=13,
+                timestamp_length=55,
                 request=SentinelHubWMSInput(
                     layer='BANDS-S2-L1C',
                     height=img_height,
@@ -80,6 +82,7 @@ class TestEOPatch(unittest.TestCase):
                 name='generalWcsTask',
                 layer='BANDS-S2-L1C',
                 data_size=13,
+                timestamp_length=55,
                 request=SentinelHubWCSInput(
                     layer='BANDS-S2-L1C',
                     resx=resx,
@@ -96,6 +99,7 @@ class TestEOPatch(unittest.TestCase):
                 name='S2 L1C WMS',
                 layer='BANDS-S2-L1C',
                 data_size=13,
+                timestamp_length=55,
                 request=S2L1CWMSInput(
                     layer='BANDS-S2-L1C',
                     height=img_height,
@@ -111,6 +115,7 @@ class TestEOPatch(unittest.TestCase):
                 name='S2 L1C WCS',
                 layer='BANDS-S2-L1C',
                 data_size=13,
+                timestamp_length=55,
                 request=S2L1CWCSInput(
                     layer='BANDS-S2-L1C',
                     resx=resx,
@@ -126,6 +131,7 @@ class TestEOPatch(unittest.TestCase):
                 name='L8 L1C WMS',
                 layer='TRUE-COLOR-L8',
                 data_size=3,
+                timestamp_length=67,
                 request=L8L1CWMSInput(
                     layer='TRUE-COLOR-L8',
                     height=img_height,
@@ -141,6 +147,7 @@ class TestEOPatch(unittest.TestCase):
                 name='L8 L1C WCS',
                 layer='TRUE-COLOR-L8',
                 data_size=3,
+                timestamp_length=67,
                 request=L8L1CWCSInput(
                     layer='TRUE-COLOR-L8',
                     resx=resx,
@@ -156,6 +163,7 @@ class TestEOPatch(unittest.TestCase):
                 name='S2 L2A WMS',
                 layer='BANDS-S2-L2A',
                 data_size=12,
+                timestamp_length=29,
                 request=S2L2AWMSInput(
                     layer='BANDS-S2-L2A',
                     height=img_height,
@@ -171,6 +179,7 @@ class TestEOPatch(unittest.TestCase):
                 name='S2 L2A WCS',
                 layer='BANDS-S2-L2A',
                 data_size=12,
+                timestamp_length=29,
                 request=S2L2AWCSInput(
                     layer='BANDS-S2-L2A',
                     resx=resx,
@@ -181,36 +190,6 @@ class TestEOPatch(unittest.TestCase):
                 time_interval=time_interval,
                 eop=EOPatch()
             ),
-
-            cls.TaskTestCase(
-                name='DEM_wms',
-                layer='DEM',
-                data_size=1,
-                request=DEMWMSInput(
-                    layer='DEM',
-                    height=img_height,
-                    width=img_width,
-                    instance_id=instance_id
-                ),
-                bbox=bbox,
-                time_interval=time_interval,
-                eop=None,
-            ),
-
-            cls.TaskTestCase(
-                name='DEM_wcs',
-                layer='DEM',
-                data_size=1,
-                request=DEMWCSInput(
-                    layer='DEM',
-                    resx=resx,
-                    resy=resy,
-                    instance_id=instance_id
-                ),
-                bbox=bbox,
-                time_interval=time_interval,
-                eop=None,
-            ),
         ]
 
         cls.update_patches = [
@@ -218,6 +197,7 @@ class TestEOPatch(unittest.TestCase):
                 name='generalWmsTask_to_empty',
                 layer='BANDS-S2-L1C',
                 data_size=13,
+                timestamp_length=55,
                 eop=EOPatch(),
                 request=SentinelHubWMSInput(
                     layer='BANDS-S2-L1C',
@@ -234,6 +214,7 @@ class TestEOPatch(unittest.TestCase):
                 name='DEM_to_existing_patch',
                 layer='DEM',
                 data_size=1,
+                timestamp_length=55,
                 eop=cls.eeop.__deepcopy__(),
                 request=DEMWCSInput(
                     layer='DEM',
@@ -259,6 +240,11 @@ class TestEOPatch(unittest.TestCase):
             with self.subTest(msg='Test case {}'.format(task.name)):
                 self.assertEqual(task.eop.meta_info['time_interval'],
                                  [iso_to_datetime(x) for x in ('2017-1-1', '2018-1-1')])
+
+    def test_timestamps_size(self):
+        for task in self.task_cases:
+            with self.subTest(msg='Test case {}'.format(task.name)):
+                self.assertEqual(len(task.eop.timestamp), task.timestamp_length)
 
     def test_auto_feature_presence(self):
         for task in self.task_cases:
