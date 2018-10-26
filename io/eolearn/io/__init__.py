@@ -8,4 +8,4 @@ from .sentinelhub_service import SentinelHubOGCInput, SentinelHubWMSInput, Senti
 from .geopedia import AddGeopediaFeature
 from .local_io import ExportToTiff
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'

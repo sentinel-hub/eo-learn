@@ -10,6 +10,7 @@ Land Use and Land Cover
     examples/land-cover-map/1_split-AOI.ipynb
     examples/land-cover-map/2_eopatch-L1C.ipynb
     examples/land-cover-map/2_eopatch-L2A.ipynb
+    examples/land-cover-map/SI_LULC_pipeline.ipynb
 
 Water Monitor
 -------------
