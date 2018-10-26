@@ -408,7 +408,7 @@ class KrigingInterpolation(InterpolationTask):
 
     """
     def __init__(self, feature, **kwargs):
-        super().__init__(feature, KrigingObject, interpolate_pixel_wise=False, **kwargs)
+        super().__init__(feature, KrigingObject, interpolate_pixel_wise=True, **kwargs)
 
 
 class ResamplingTask(InterpolationTask):
