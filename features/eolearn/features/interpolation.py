@@ -194,48 +194,48 @@ class InterpolationTask(EOTask):
 
             # return interpolated values
             return new_data
-        else:
-            # mask representing overlap between reference and resampled times
-            time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
 
-            # define time values as linear monotonically increasing over the observations
-            const = int(self.filling_factor * (np.max(times) - np.min(times)))
-            temp_values = (times[:, np.newaxis] +
+        # mask representing overlap between reference and resampled times
+        time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
+
+        # define time values as linear monotonically increasing over the observations
+        const = int(self.filling_factor * (np.max(times) - np.min(times)))
+        temp_values = (times[:, np.newaxis] +
+                       const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+        res_temp_values = (resampled_times[:, np.newaxis] +
                            const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
-            res_temp_values = (resampled_times[:, np.newaxis] +
-                               const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
 
-            # initialise array of interpolated values
-            new_data = np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
+        # initialise array of interpolated values
+        new_data = np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
 
-            # array defining index correspondence between reference times and resampled times
-            ori2res = np.array([np.abs(resampled_times - o).argmin()
-                                if np.min(resampled_times) <= o <= np.max(resampled_times) else None for o in times])
+        # array defining index correspondence between reference times and resampled times
+        ori2res = np.array([np.abs(resampled_times - o).argmin()
+                            if np.min(resampled_times) <= o <= np.max(resampled_times) else None for o in times])
 
-            # find NaNs that start or end a time-series
-            row_nans, col_nans = np.where(self._get_start_end_nans(data))
-            nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
-            nan_col_res_indices = np.array([True if index is not None else False for index in ori2res[row_nans]],
-                                           dtype=np.bool)
-            if nan_row_res_indices.size:
-                # mask out from output values the starting/ending NaNs
-                res_temp_values[nan_row_res_indices, col_nans[nan_col_res_indices]] = np.nan
-            # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
-            res_temp_values[~time_mask, :] = np.nan
+        # find NaNs that start or end a time-series
+        row_nans, col_nans = np.where(self._get_start_end_nans(data))
+        nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
+        nan_col_res_indices = np.array([True if index is not None else False for index in ori2res[row_nans]],
+                                       dtype=np.bool)
+        if nan_row_res_indices.size:
+            # mask out from output values the starting/ending NaNs
+            res_temp_values[nan_row_res_indices, col_nans[nan_col_res_indices]] = np.nan
+        # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
+        res_temp_values[~time_mask, :] = np.nan
 
-            # build 1d array for interpolation. Spline functions require monotonically increasing values of x,
-            # so .T is used
-            input_x = temp_values.T[~np.isnan(data).T]
-            input_y = data.T[~np.isnan(data).T]
+        # build 1d array for interpolation. Spline functions require monotonically increasing values of x,
+        # so .T is used
+        input_x = temp_values.T[~np.isnan(data).T]
+        input_y = data.T[~np.isnan(data).T]
 
-            # build interpolation function
-            if len(input_x) > 1:
-                interp_func = self.get_interpolation_function(input_x, input_y)
+        # build interpolation function
+        if len(input_x) > 1:
+            interp_func = self.get_interpolation_function(input_x, input_y)
 
-                # interpolate non-NaN values in resampled time values
-                new_data[~np.isnan(res_temp_values)] = interp_func(res_temp_values[~np.isnan(res_temp_values)])
+            # interpolate non-NaN values in resampled time values
+            new_data[~np.isnan(res_temp_values)] = interp_func(res_temp_values[~np.isnan(res_temp_values)])
 
-            # return interpolated values
+        # return interpolated values
         return new_data
 
     def get_interpolation_function(self, times, series):
