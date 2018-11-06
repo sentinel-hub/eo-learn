@@ -157,8 +157,10 @@ class SentinelHubOGCInput(EOTask):
         for param, eoparam in zip(['time', 'time_difference', 'maxcc'], ['time_interval', 'time_difference', 'maxcc']):
             if eoparam not in eopatch.meta_info:
                 if param == 'time':
-                    eopatch.meta_info[eoparam] = [iso_to_datetime(parse_time(x)) if isinstance(x, str)
-                                                  else x for x in request_params[param]]
+                    value = request_params[param]
+                    eopatch.meta_info[eoparam] = value if isinstance(value, str) else [iso_to_datetime(parse_time(x)) if isinstance(x, str)
+                                                  else x for x in value]
+
                 else:
                     eopatch.meta_info[eoparam] = request_params[param]
 
