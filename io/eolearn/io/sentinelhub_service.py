@@ -109,7 +109,7 @@ class SentinelHubOGCInput(EOTask):
 
         service_type = ServiceType(self._get_parameter('service_type', eopatch))
         if time_interval is None:
-            time_interval =  self._get_parameter('time_interval', eopatch)
+            time_interval = self._get_parameter('time_interval', eopatch)
         if service_type is ServiceType.WMS:
             size_x_name, size_y_name = 'width', 'height'
         else:
