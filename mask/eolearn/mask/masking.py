@@ -1,4 +1,5 @@
 from eolearn.core import EOTask, FeatureType
+import numpy as np
 
 
 class AddValidDataMaskTask(EOTask):
