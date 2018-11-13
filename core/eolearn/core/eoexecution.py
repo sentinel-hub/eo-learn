@@ -25,7 +25,6 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters.html import HtmlFormatter
 
 
-
 LOGGER = logging.getLogger(__file__)
 
 
@@ -61,7 +60,7 @@ class EOExecutor:
         self.execution_logs = [None] * len(self.execution_args)
         self.execution_stats = [None] * len(self.execution_args)
 
-        if workers > 1:
+        if workers is None or workers > 1:
             future2idx = {}
             with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
                 for idx, fn_args in enumerate(zip(self.execution_args, log_paths)):
@@ -98,6 +97,7 @@ class EOExecutor:
         stats['end_time'] = datetime.now()
 
         if log_path:
+            handler.close()
             logger.removeHandler(handler)
 
         return stats
@@ -150,8 +150,6 @@ class EOExecutor:
 
         with open(self._get_report_filename(), 'w') as fout:
             fout.write(html)
-
-        return html
 
     def _create_dependency_graph(self):
         dot = self.workflow.get_dot()

@@ -1,5 +1,6 @@
 eo-learn-core
 shapely
 geopandas
+descartes
 rasterio
 scikit-image

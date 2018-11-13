@@ -4,7 +4,7 @@ from eolearn.core import EOPatch, FeatureType
 from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask,\
     AddSpatioTemporalFeaturesTask
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import numpy as np
 
@@ -74,7 +74,7 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         timestamp = perdelta(date(2018, 3, 1), date(2018, 3, 11), timedelta(days=1))
         # EOPatch
         eopatch = EOPatch(timestamp=list(timestamp))
-        t, h, w, c = 10, 3, 3, 2
+        t, h, w, = 10, 3, 3
         # NDVI is a sinusoid where max slope is at index 1 and min slope at index 8
         ndvi_shape = (t, h, w, 1)
         xx = np.zeros(ndvi_shape, np.float32)

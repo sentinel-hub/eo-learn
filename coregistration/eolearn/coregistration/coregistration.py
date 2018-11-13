@@ -32,37 +32,40 @@ class InterpolationType(Enum):
 class RegistrationTask(EOTask, ABC):
     """ Abstract class for multi-temporal image co-registration
 
-    The task uses a temporal stack of images of the same location (i.e. a temporal-spatial feature in `EOPatch`).
-    Starting from the latest frame and proceeding backwards it calculates a transformation between two temporally
-    adjacent images. The transformation is used to correct the earlier image to best fit the later. The reason for
-    such reversed order is that the latest frames are supposed to be less affected by orthorectificational inaccuracies.
+        The task uses a temporal stack of images of the same location (i.e. a temporal-spatial feature in `EOPatch`).
+        Starting from the latest frame and proceeding backwards it calculates a transformation between two temporally
+        adjacent images. The transformation is used to correct the earlier image to best fit the later. The reason for
+        such reversed order is that the latest frames are supposed to be less affected by orthorectificational
+        inaccuracies.
 
-    Each transformation is calculated using only a single channel of the images. If feature which contains masks of
-    valid pixels is specified it is used during the calculation. At the end the transformations are applied to each
-    of the specified features. Any additional registration parameters can be passed on to registration method class.
-    """
-    def __init__(self, registration_feature, channel=0, valid_mask_feature=None, apply_to_features=...,
-                 interpolation_type=InterpolationType.CUBIC, **params):
-        """
+        Each transformation is calculated using only a single channel of the images. If feature which contains masks of
+        valid pixels is specified it is used during the calculation. At the end the transformations are applied to each
+        of the specified features. Any additional registration parameters can be passed on to registration method class.
+
+        Parameters:
+
         :param registration_feature: A feature which will be used for co-registration,
-        e.g. feature=(FeatureType.DATA, 'bands'). By default this feature is of type FeatureType.DATA therefore also
-        only feature name can be given e.g. feature='bands'
+                                        e.g. feature=(FeatureType.DATA, 'bands'). By default this feature is of type
+                                        FeatureType.DATA therefore also only feature name can be given e.g.
+                                        feature='bands'
         :type registration_feature: (FeatureType, str) or str
         :param channel: Index of `feature`'s channel to be used in co-registration
         :type channel: int
         :param valid_mask_feature: Feature containing a mask of valid pixels for `registration_feature`. By default no
-        mask is set. It can be set to e.g. valid_mask_feature=(FeatureType.MASK, 'IS_DATA') or
-        valid_mask_feature='IS_DATA' if the feature is of type FeatureType.MASK
-        :type valid_mask_name: str or (FeatureType, str) or None
+                                    mask is set. It can be set to e.g. valid_mask_feature=(FeatureType.MASK, 'IS_DATA')
+                                    or valid_mask_feature='IS_DATA' if the feature is of type FeatureType.MASK
+        :type valid_mask_feature: str or (FeatureType, str) or None
         :param apply_to_features: A collection of features to which co-registration will be applied to. By default this
-        is only `registration_feature` and `valid_mask_feature` if given. Note that each feature must have same
-        temporal dimension as `registration_feature`.
+                                    is only `registration_feature` and `valid_mask_feature` if given. Note that each
+                                    feature must have same temporal dimension as `registration_feature`.
         :type apply_to_features: dict(FeatureType: set(str) or dict(str: str))
-        :param interpolation_type: Type of interpolation used
+        :param interpolation_type: Type of interpolation used. Default is `InterpolationType.CUBIC`
         :type interpolation_type: InterpolationType
         :param params: Any other registration setting which will be passed to registration method
         :type params: object
-        """
+    """
+    def __init__(self, registration_feature, channel=0, valid_mask_feature=None, apply_to_features=...,
+                 interpolation_type=InterpolationType.CUBIC, **params):
         self.registration_feature = self._parse_features(registration_feature, default_feature_type=FeatureType.DATA)
 
         self.channel = channel

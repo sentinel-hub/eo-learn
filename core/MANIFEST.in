@@ -1,1 +1,3 @@
 include requirements.txt
+include eolearn/core/report_templates/report.html
+include LICENSE

@@ -1,7 +1,7 @@
 import unittest
 import logging
 
-from eolearn.core import EOPatch, FeatureType, EOTask
+from eolearn.core import EOTask
 
 
 logging.basicConfig(level=logging.DEBUG)

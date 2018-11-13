@@ -108,6 +108,8 @@ class SentinelHubOGCInput(EOTask):
         """
 
         service_type = ServiceType(self._get_parameter('service_type', eopatch))
+        if time_interval is None:
+            time_interval = self._get_parameter('time_interval', eopatch)
         if service_type is ServiceType.WMS:
             size_x_name, size_y_name = 'width', 'height'
         else:
@@ -115,9 +117,8 @@ class SentinelHubOGCInput(EOTask):
         return {
             'layer': self.layer,
             'bbox': bbox if bbox is not None else self._get_parameter('bbox', eopatch),
-            'time': time_interval if time_interval is not None else[
-                datetime_to_iso(x) if not isinstance(x, str) else x
-                for x in self._get_parameter('time_interval', eopatch)],
+            'time': datetime_to_iso(time_interval) if isinstance(time_interval, str) else [
+                datetime_to_iso(x) if not isinstance(x, str) else x for x in time_interval],
             'time_difference': self._get_parameter('time_difference', eopatch),
             'maxcc': self._get_parameter('maxcc', eopatch),
             'image_format': self.image_format,
@@ -157,8 +158,9 @@ class SentinelHubOGCInput(EOTask):
         for param, eoparam in zip(['time', 'time_difference', 'maxcc'], ['time_interval', 'time_difference', 'maxcc']):
             if eoparam not in eopatch.meta_info:
                 if param == 'time':
-                    eopatch.meta_info[eoparam] = [iso_to_datetime(parse_time(x)) if isinstance(x, str)
-                                                  else x for x in request_params[param]]
+                    value = request_params[param]
+                    eopatch.meta_info[eoparam] = value if isinstance(value, str) else [
+                        iso_to_datetime(parse_time(x)) if isinstance(x, str) else x for x in value]
                 else:
                     eopatch.meta_info[eoparam] = request_params[param]
 
@@ -200,9 +202,12 @@ class SentinelHubOGCInput(EOTask):
 
         request_dates = request.get_dates()
 
-        if not eopatch.timestamp or (len(request_dates) == 1 and request_dates[0] is None):
+        if not eopatch.timestamp:
             eopatch.timestamp = request_dates
-        download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
+
+        download_frames = None
+        if self.feature_type.is_time_dependent():
+            download_frames = get_common_timestamps(request_dates, eopatch.timestamp)
 
         images = request.get_data(raise_download_errors=self.raise_download_errors, data_filter=download_frames)
 
@@ -226,6 +231,7 @@ class SentinelHubWMSInput(SentinelHubOGCInput):
     """
     Task for creating EOPatches and filling them with data using Sentinel Hub's WMS request.
     """
+
     def __init__(self, layer, data_source=None, width=None, height=None, **kwargs):
         super().__init__(layer=layer, data_source=data_source, service_type=ServiceType.WMS,
                          size_x=width, size_y=height, **kwargs)
@@ -286,6 +292,22 @@ class S2L2AWCSInput(SentinelHubWCSInput):
     """
     def __init__(self, layer, **kwargs):
         super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
+
+
+class S1IWWMSInput(SentinelHubWMSInput):
+    """
+    Task for creating EOPatches and filling them with Sentinel-1 IW GRD data using Sentinel Hub's WMS request.
+    """
+    def __init__(self, layer, **kwargs):
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL1_IW, **kwargs)
+
+
+class S1IWWCSInput(SentinelHubWCSInput):
+    """
+    Task for creating EOPatches and filling them with Sentinel-1 IW GRD data using Sentinel Hub's WCS request.
+    """
+    def __init__(self, layer, **kwargs):
+        super().__init__(layer=layer, data_source=DataSource.SENTINEL1_IW, **kwargs)
 
 
 class DEMWMSInput(SentinelHubWMSInput):

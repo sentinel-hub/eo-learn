@@ -2,10 +2,7 @@ import unittest
 import logging
 import numpy as np
 
-from eolearn.core.eodata import EOPatch, FeatureType
-
-from eolearn.ml_tools import ImagePatchClassifier, ImagePixelClassifier, ImagePixel2PatchClassifier, \
-    ImageClassificationMaskTask
+from eolearn.ml_tools import ImagePatchClassifier, ImagePixelClassifier, ImagePixel2PatchClassifier
 
 
 logging.basicConfig(level=logging.DEBUG)
