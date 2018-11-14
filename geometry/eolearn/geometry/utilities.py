@@ -21,6 +21,10 @@ class ErosionTask(EOTask):
     :type mask_feature: (FeatureType, str)
     :param disk_radius: Radius of the erosion disk (in pixels)
     :type disk_radius: int
+    :param erode_labels: labels to erode
+    :type erode_labels: list(int)
+    :param no_data_label: value of the no_data label
+    :type no_data_label: int
     """
 
     def __init__(self, mask_feature, disk_radius=1, erode_labels=None, no_data_label=0):
