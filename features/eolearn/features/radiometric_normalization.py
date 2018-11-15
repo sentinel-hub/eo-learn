@@ -10,18 +10,22 @@ class ReferenceScenes(EOTask):
     Creates a layer of reference scenes which have the highest fraction of valid pixels.
     The number of reference scenes is limited to a definable number.
     """
-    def __init__(self, number, layer):
+    def __init__(self, number, layer, valid_fraction_layer):
         """
         :param number: Maximum number of reference scenes taken for the creation of the composite.
         :type number: int
-        :param layer: Name of the eopatch data layer. Needs to be of the FeatureType "DATA"
+        :param layer: Name of the eopatch data layer. Needs to be of the FeatureType "DATA".
         :type layer: str
+        :param valid_fraction_layer: Name of the layer containing the valid fraction obtained with the EOTask
+        'AddValidDataFraction'. Needs to be of the FeatureType "SCALAR".
+        :type valid_fraction_layer: str
         """
         self.number = number
         self.layer = layer
+        self.valid_fraction_layer = valid_fraction_layer
 
     def execute(self, eopatch):
-        valid_frac = list(eopatch.scalar["VALID_FRAC"].flatten())
+        valid_frac = list(eopatch.scalar[self.valid_fraction_layer].flatten())
         data_layers = eopatch.data[self.layer]
         out = np.array([data_layers[x] for _, x in sorted(zip(valid_frac, range(data_layers.shape[0])), reverse=True)
                         if x <= self.number-1])
@@ -30,7 +34,7 @@ class ReferenceScenes(EOTask):
         return eopatch
 
 
-class CompositeReferenceScenes(EOTask):
+class Compositing(EOTask):
     """
     Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
     Creates a composite of reference scenes.

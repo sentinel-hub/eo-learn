@@ -9,7 +9,7 @@ from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpol
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import SimpleFilterTask, FilterTimeSeries
 from .haralick import HaralickTask
-from .radiometric_normalization import ReferenceScenes, CompositeReferenceScenes, HistogramMatching
+from .radiometric_normalization import ReferenceScenes, Compositing, HistogramMatching
 from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
 from .hog import HOGTask
 from .local_binary_pattern import LocalBinaryPatternTask
