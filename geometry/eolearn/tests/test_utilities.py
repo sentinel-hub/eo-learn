@@ -19,11 +19,14 @@ class TestErosion(unittest.TestCase):
     def test_point_raster_sampler(self):
         # test erosion on all classes
         eopatch = EOPatch.load(self.TEST_PATCH_FILENAME, lazy_loading=True)
-        mask_before = eopatch.mask_timeless['LULC']
+        mask_before = eopatch.mask_timeless['LULC'].copy()
 
-        erosion_task = ErosionTask((FeatureType.MASK_TIMELESS, 'LULC'), 1)
+        erosion_task = ErosionTask((FeatureType.MASK_TIMELESS, 'LULC', 'LULC_ERODED'), 1)
         eopatch = erosion_task.execute(eopatch)
-        mask_after = eopatch.mask_timeless['LULC']
+
+        mask_after = eopatch.mask_timeless['LULC_ERODED'].copy()
+
+        self.assertFalse(np.all(mask_before == mask_after))
 
         for label in self.classes:
             if label == 0:

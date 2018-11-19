@@ -28,7 +28,8 @@ class ErosionTask(EOTask):
     """
 
     def __init__(self, mask_feature, disk_radius=1, erode_labels=None, no_data_label=0):
-        self.mask_type, self.mask_name = next(iter(self._parse_features(mask_feature)))
+        self.mask_type, self.mask_name, self.new_mask_name = next(iter(self._parse_features(mask_feature,
+                                                                                            new_names=True)))
         self.disk_radius = disk_radius
         self.erode_labels = erode_labels
         self.no_data_label = no_data_label
@@ -40,7 +41,7 @@ class ErosionTask(EOTask):
             LOGGER.warning('Disk radius should be an integer larger than 0! Ignoring erosion task.')
             return eopatch
 
-        labels = eopatch[self.mask_type][self.mask_name].squeeze()
+        labels = eopatch[self.mask_type][self.mask_name].squeeze().copy()
         if self.erode_labels is None:
             self.erode_labels = np.unique(labels)
 
@@ -51,7 +52,7 @@ class ErosionTask(EOTask):
             mask_values |= label_mask
 
         labels[~mask_values] = self.no_data_label
-        eopatch[self.mask_type][self.mask_name] = np.expand_dims(labels, axis=-1)
+        eopatch[self.mask_type][self.new_mask_name] = np.expand_dims(labels, axis=-1)
         return eopatch
 
 
