@@ -19,11 +19,11 @@ class ErosionTask(EOTask):
 
     :param mask_feature: The mask which is to be eroded
     :type mask_feature: (FeatureType, str)
-    :param disk_radius: Radius of the erosion disk (in pixels)
+    :param disk_radius: Radius of the erosion disk (in pixels). Default is set to `1`
     :type disk_radius: int
-    :param erode_labels: labels to erode
+    :param erode_labels: List of labels to erode. If `None`, all unique labels are eroded. Default is `None`
     :type erode_labels: list(int)
-    :param no_data_label: value of the no_data label
+    :param no_data_label: Value used to replace eroded pixels. Default is set to `0`
     :type no_data_label: int
     """
 
@@ -33,7 +33,6 @@ class ErosionTask(EOTask):
         self.disk_radius = disk_radius
         self.erode_labels = erode_labels
         self.no_data_label = no_data_label
-
 
     def execute(self, eopatch):
 
@@ -67,7 +66,7 @@ class VectorToRaster(EOTask):
     :param raster_value: Value of raster pixels which are contained inside of vector polygons
     :type raster_value: int or float
     :param raster_shape: Can be a tuple in form of (height, width) of an existing feature from which the shape will be
-    taken e.g. (FeatureType.MASK, 'IS_DATA')
+                            taken e.g. (FeatureType.MASK, 'IS_DATA')
     :type raster_shape: (int, int) or (FeatureType, str)
     :param raster_dtype: `numpy` data type of the obtained raster array
     :type raster_dtype: numpy.dtype

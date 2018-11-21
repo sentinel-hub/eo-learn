@@ -36,5 +36,6 @@ class TestErosion(unittest.TestCase):
                 self.assertLessEqual(np.sum(mask_after == label), np.sum(mask_before == label),
                                      msg="error in the erosion process")
 
+
 if __name__ == '__main__':
     unittest.main()
