@@ -39,7 +39,7 @@ class FeatureParser:
         self.rename_function = rename_function
 
         if rename_function is None:
-            self.rename_function = lambda x: x
+            self.rename_function = self._identity_rename_function  # <- didn't use lambda function - it can't be pickled
 
     def __call__(self, eopatch=None):
         return self._get_features(eopatch)
@@ -231,6 +231,10 @@ class FeatureParser:
             return feature_type, feature_name, (self.rename_function(feature_name) if new_feature_name is ... else
                                                 new_feature_name)
         return feature_type, feature_name
+
+    @staticmethod
+    def _identity_rename_function(name):
+        return name
 
 
 def get_common_timestamps(source, target):
