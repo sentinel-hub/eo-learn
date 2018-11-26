@@ -68,6 +68,7 @@ For more information on the package content, visit [readthedocs](https://eo-lear
 # Blog posts
 
  * [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c)
+ * [Land Cover Classification with eo-learn: Part 1 - Mastering Satellite Image Data in an Open-Source Python Environment](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-1-2471e8098195)
 
 
 ## License
