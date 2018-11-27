@@ -12,7 +12,6 @@ from shapely.geometry import Polygon, Point
 from shapely.geometry import LinearRing
 from shapely.ops import triangulate
 from rasterio.features import shapes
-from skimage.morphology import binary_erosion, disk
 
 from eolearn.core import EOTask, EOPatch, FeatureType
 
@@ -185,19 +184,15 @@ class PointRasterSampler:
         encoded as `uint8` and the raster is a 2D or single-channel 3D array.
 
         Supported operations include:
-         * erosion of label classes to remove border effects
          * exclusion of some labels from sampling
          * sampling based on label frequency in raster or even sampling of labels (i.e. over-sampling)
 
     """
-    def __init__(self, labels, disk_radius=None, even_sampling=False):
+    def __init__(self, labels, even_sampling=False):
         """ Initialisation of sampler parameters
 
         :param labels: A list of labels that will be sampled
         :type labels: list(int)
-        :param disk_radius: Radius of disk used as structure element for erosion. If `None`, no erosion is performed.
-                            Default is `None`
-        :type disk_radius: int or None
         :param even_sampling: Whether to sample class labels evenly or not. If `True`, labels will have the same number
                                 samples, with less frequent labels being over-sampled (i.e. same observation is sampled
                                 multiple times). If `False`, sampling follows the label distribution in raster.
@@ -205,7 +200,6 @@ class PointRasterSampler:
         :type even_sampling: bool
         """
         self.labels = labels
-        self.disk_radius = disk_radius
         self.even_sampling = even_sampling
 
     def _get_unknown_value(self):
@@ -265,8 +259,6 @@ class PointRasterSampler:
         mask = np.zeros(raster.shape, dtype=np.bool)
         for label in self.labels:
             label_mask = (raster == label)
-            if self.disk_radius is not None:
-                label_mask = binary_erosion(label_mask, disk(self.disk_radius))
             mask |= label_mask
 
         unique_labels, label_count = np.unique(raster[mask], return_counts=True)
