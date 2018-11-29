@@ -56,7 +56,7 @@ class HOGTask(EOTask):
         if self.visualize:
             im_visu = np.empty(data.shape[0:3] + (1,))
         for time in range(data.shape[0]):
-            multi_channel = False if data.shape[-1] == 1 else True
+            multi_channel = data.shape[-1] != 1
             image = data[time] if multi_channel else data[time, :, :, 0]
             res, image = hog(image, orientations=self.n_orientations, pixels_per_cell=self.pixels_per_cell,
                              visualize=self.visualize,
