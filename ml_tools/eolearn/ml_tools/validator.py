@@ -69,7 +69,6 @@ class SGMLBaseValidator(ABC):
 
         patch: EOPatch containing ground truth
         """
-        pass
 
     def reset_counters(self):
         """
@@ -124,7 +123,6 @@ class SGMLBaseValidator(ABC):
 
         The classification results should be collected in self.classification_masks
         """
-        pass
 
     def add_validation_patch(self, patch):
         """

@@ -191,7 +191,7 @@ class InterpolationTask(EOTask):
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
         nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
-        nan_col_res_indices = np.array([True if index is not None else False for index in ori2res[row_nans]],
+        nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]],
                                        dtype=np.bool)
         if nan_row_res_indices.size:
             # mask out from output values the starting/ending NaNs

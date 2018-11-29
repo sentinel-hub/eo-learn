@@ -232,9 +232,8 @@ class PointRasterSampler:
         :return: Sampled label value, row index of samples, col index of samples
         """
         h_idx, w_idx = np.where(image == label)
-        replace = True if label_count < n_samples_per_label else False
 
-        rand_idx = np.random.choice(h_idx.size, size=n_samples_per_label, replace=replace)
+        rand_idx = np.random.choice(h_idx.size, size=n_samples_per_label, replace=label_count < n_samples_per_label)
 
         return h_idx[rand_idx], w_idx[rand_idx]
 
