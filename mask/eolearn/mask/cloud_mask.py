@@ -265,10 +265,6 @@ class AddCloudMaskTask(EOTask):
             reference_shape = next(iter(eopatch.data.values())).shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
-        # Raise error if last channel dimension is less than required
-        if new_data.shape[-1] < len(self.classifier.band_idxs):
-            raise ValueError("Data feature has less than the required 10 bands")
-
         clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
         clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
 
