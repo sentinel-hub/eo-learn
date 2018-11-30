@@ -12,6 +12,7 @@ import datetime
 import warnings
 
 from copy import copy, deepcopy
+from geopandas import GeoDataFrame, GeoSeries
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
@@ -67,7 +68,7 @@ class EOPatch:
         if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
             value_type = feature_type.type()
-            if not isinstance(value, value_type,):
+            if not isinstance(value, value_type):
                 raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
             if feature_type.has_dict() and not isinstance(value, _FeatureDict):
                 value = _FeatureDict(value, feature_type)
@@ -685,15 +686,16 @@ class _FeatureDict(dict):
 
         self.feature_type = feature_type
         self.ndim = self.feature_type.ndim()
+        self.is_vector = self.feature_type.is_vector()
 
         for feature_name, value in feature_dict.items():
             self[feature_name] = value
 
     def __setitem__(self, feature_name, value):
-        """Before setting value to the dictionary it checks that value is of correct type and dimension."""
-        if not isinstance(value, _FileLoader) and self.ndim \
-                and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
-            raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
+        """ Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
+        transform value in correct form.
+        """
+        value = self._parse_feature_value(value)
         super().__setitem__(feature_name, value)
 
     def __getitem__(self, feature_name, load=True):
@@ -709,6 +711,34 @@ class _FeatureDict(dict):
     def get_dict(self):
         """Returns a Python dictionary of features and value."""
         return dict(self)
+
+    def _parse_feature_value(self, value):
+        """ Checks if value fits the feature type. If not it tries to fix it or raise an error
+
+        :raises: ValueError
+        """
+        if isinstance(value, _FileLoader):
+            return value
+
+        if self.ndim:
+            if not isinstance(value, np.ndarray):
+                raise ValueError('{} feature has to be a numpy array'.format(self.feature_type))
+            if value.ndim != self.ndim:
+                raise ValueError('Numpy array of {} feature has to have {} '
+                                 'dimension{}'.format(self.feature_type, self.ndim, 's' if self.ndim > 1 else ''))
+            return value
+
+        if self.is_vector:
+            if isinstance(value, GeoDataFrame):
+                return value
+            if isinstance(value, GeoSeries):
+                return GeoDataFrame(value)
+            # Something else should be added
+
+            raise ValueError('{} feature works with data of type {}, parsing data type {} is not supported'
+                             'given'.format(self.feature_type, GeoDataFrame.__name__, type(value)))
+
+        return value
 
 
 class _FileLoader:

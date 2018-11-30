@@ -1,4 +1,5 @@
 numpy
+geopandas
 networkx
 pydot
 graphviz
