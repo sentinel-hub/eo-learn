@@ -23,6 +23,8 @@ from .utilities import deep_eq, FeatureParser
 
 LOGGER = logging.getLogger(__name__)
 
+MAX_DATA_REPR_LEN = 100
+
 
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
@@ -172,7 +174,22 @@ class EOPatch:
             return '{}(columns={}, length={}, crs={})'.format(EOPatch._repr_value_class(value), list(value),
                                                               len(value), value.crs['init'])
         if isinstance(value, (list, tuple, dict)) and value:
-            return '{}, length={}'.format(type(value), len(value))
+            repr_str = str(value)
+            if len(repr_str) <= MAX_DATA_REPR_LEN:
+                return repr_str
+
+            bracket_str = '[{}]' if isinstance(value, list) else '({})'
+            if isinstance(value, (list, tuple)) and len(value) > 2:
+                repr_str = bracket_str.format('{}, ..., {}'.format(value[0], value[-1]))
+
+            if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
+                repr_str = bracket_str.format('{}, ...'.format(value[0]))
+
+            if len(repr_str) > MAX_DATA_REPR_LEN:
+                repr_str = str(type(value))
+
+            return '{}, length={}'.format(repr_str, len(value))
+
         return repr(value)
 
     @staticmethod
