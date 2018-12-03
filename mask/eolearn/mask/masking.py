@@ -1,4 +1,5 @@
 from eolearn.core import EOTask, FeatureType
+import numpy as np
 
 
 class AddValidDataMaskTask(EOTask):
@@ -29,4 +30,24 @@ class AddValidDataMaskTask(EOTask):
         """
         feature_type, feature_name = next(self.valid_data_feature())
         eopatch[feature_type][feature_name] = self.predicate(eopatch)
+        return eopatch
+
+
+class SCLmask(EOTask):
+    """
+    Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
+    Masks out a layer using defined values (mask_values) from the Sen2cor Scene Classification Layer (SCL)
+    """
+    def __init__(self, mask_values, layer):
+        self.mask_values = mask_values
+        self.layer = layer
+        self.replacement = np.nan
+
+    def execute(self, eopatch):
+        data = np.copy(eopatch.data[self.layer])
+        mask = eopatch.mask['SCL']
+        for band in range(data.shape[3]):
+            for mvalue in self.mask_values:
+                data[:, :, :, band][mask[:, :, :, 0] == mvalue] = self.replacement
+        eopatch.add_feature(FeatureType.DATA, 'masked', data)
         return eopatch
