@@ -180,10 +180,10 @@ class EOPatch:
 
             bracket_str = '[{}]' if isinstance(value, list) else '({})'
             if isinstance(value, (list, tuple)) and len(value) > 2:
-                repr_str = bracket_str.format('{}, ..., {}'.format(value[0], value[-1]))
+                repr_str = bracket_str.format('{}, ..., {}'.format(repr(value[0]), repr(value[-1])))
 
             if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
-                repr_str = bracket_str.format('{}, ...'.format(value[0]))
+                repr_str = bracket_str.format('{}, ...'.format(repr(value[0])))
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
