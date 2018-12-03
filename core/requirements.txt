@@ -1,8 +1,10 @@
 numpy
-geopandas
+python-dateutil
 networkx
 pydot
 graphviz
 matplotlib
 jinja2
 pygments
+sentinelhub>=2.4.0
+geopandas

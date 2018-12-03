@@ -4,6 +4,8 @@ This module implements feature types used in EOPatch objects
 
 from enum import Enum
 
+from sentinelhub import BBox
+
 
 class FeatureType(Enum):
     """The Enum class of all possible feature types that can be included in EOPatch.
@@ -100,7 +102,7 @@ class FeatureType(Enum):
         if self is FeatureType.TIMESTAMP:
             return list
         if self is FeatureType.BBOX:
-            return object
+            return BBox
         return dict
 
 

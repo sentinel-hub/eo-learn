@@ -8,11 +8,14 @@ import pickle
 import numpy as np
 import gzip
 import shutil
-import datetime
 import warnings
+import datetime
+import dateutil.parser
 
 from copy import copy, deepcopy
 from geopandas import GeoDataFrame, GeoSeries
+
+from sentinelhub import BBox
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
@@ -67,13 +70,33 @@ class EOPatch:
         """
         if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
-            value_type = feature_type.type()
-            if not isinstance(value, value_type):  # TODO: handle parsing other types
-                raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
-            if feature_type.has_dict() and not isinstance(value, _FeatureDict):
-                value = _FeatureDict(value, feature_type)
+            value = self._parse_feature_type_value(feature_type, value)
 
         super().__setattr__(key, value)
+
+    @staticmethod
+    def _parse_feature_type_value(feature_type, value):
+        """ Checks or parses value which will be assigned to a feature type attribute of `EOPatch`. If the value
+        cannot be parsed correctly it raises an error.
+
+        :raises: TypeError, ValueError
+        """
+        if feature_type.has_dict() and isinstance(value, dict):
+            return value if isinstance(value, _FeatureDict) else _FeatureDict(value, feature_type)
+
+        if feature_type is FeatureType.BBOX:
+            if isinstance(value, BBox):
+                return value
+            if isinstance(value, (tuple, list)) and len(value) == 5:
+                return BBox(value[:4], crs=value[4])
+
+        if feature_type is FeatureType.TIMESTAMP:
+            if isinstance(value, (tuple, list)):
+                return [timestamp if isinstance(timestamp, datetime.datetime) else dateutil.parser.parse(timestamp)
+                        for timestamp in value]
+
+        raise TypeError('Attribute {} requires value of type {} - '
+                        'failed to parse given value'.format(feature_type, feature_type.type()))
 
     def __getattribute__(self, key, load=True):
         """ Handles lazy loading
@@ -154,6 +177,8 @@ class EOPatch:
 
     @staticmethod
     def _repr_value_class(value):
+        """ A representation of a class of a given value
+        """
         cls = value.__class__
         return '.'.join([cls.__module__.split('.')[0], cls.__name__])
 
@@ -857,6 +882,9 @@ class _FileSaver:
             data = eopatch[self.feature_type]
             if self.feature_type.has_dict():
                 data = data.get_dict()
+
+            if self.feature_type is FeatureType.BBOX:
+                data = tuple(data) + (int(data.crs.value),)
         else:
             data = eopatch[self.feature_type][self.feature_name]
 
