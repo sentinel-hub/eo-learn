@@ -5,32 +5,41 @@ import numpy as np
 
 
 class ReferenceScenes(EOTask):
+    """ Creates a layer of reference scenes which have the highest fraction of valid pixels.
+
+        The number of reference scenes is limited to a definable number.
+
+        Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
+
+        :param feature: Name of the eopatch data layer. Needs to be of the FeatureType "DATA".
+        :type feature: (FeatureType, str) or (FeatureType, str, str)
+        :param valid_fraction_feature: Name of the layer containing the valid fraction obtained with the EOTask
+                                        'AddValidDataFraction'. Needs to be of the FeatureType "SCALAR".
+        :type valid_fraction_feature: (FeatureType, str)
+        :param max_scene_number: Maximum number of reference scenes taken for the creation of the composite. By default,
+                                the maximum number of scenes equals the number of time frames
+        :type max_scene_number: int
+
     """
-    Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
-    Creates a layer of reference scenes which have the highest fraction of valid pixels.
-    The number of reference scenes is limited to a definable number.
-    """
-    def __init__(self, number, layer, valid_fraction_layer):
-        """
-        :param number: Maximum number of reference scenes taken for the creation of the composite.
-        :type number: int
-        :param layer: Name of the eopatch data layer. Needs to be of the FeatureType "DATA".
-        :type layer: str
-        :param valid_fraction_layer: Name of the layer containing the valid fraction obtained with the EOTask
-        'AddValidDataFraction'. Needs to be of the FeatureType "SCALAR".
-        :type valid_fraction_layer: str
-        """
-        self.number = number
-        self.layer = layer
-        self.valid_fraction_layer = valid_fraction_layer
+    def __init__(self, feature, valid_fraction_feature, max_scene_number=None):
+        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
+        self.valid_fraction_feature = self._parse_features(valid_fraction_feature,
+                                                           default_feature_type=FeatureType.SCALAR)
+        self.number = max_scene_number
 
     def execute(self, eopatch):
-        valid_frac = list(eopatch.scalar[self.valid_fraction_layer].flatten())
-        data_layers = eopatch.data[self.layer]
-        out = np.array([data_layers[x] for _, x in sorted(zip(valid_frac, range(data_layers.shape[0])), reverse=True)
-                        if x <= self.number-1])
+        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
+        valid_fraction_feature_type, valid_fraction_feature_name = next(self.valid_fraction_feature(eopatch))
 
-        eopatch.add_feature(FeatureType.DATA, 'reference_scenes', out)
+        valid_frac = list(eopatch[valid_fraction_feature_type][valid_fraction_feature_name].flatten())
+        data = eopatch[feature_type][feature_name]
+
+        self.number = data.shape[0] if self.number is None else self.number
+
+        eopatch[feature_type][new_feature_name] = np.array([data[x] for _, x in
+                                                            sorted(zip(valid_frac, range(data.shape[0])), reverse=True)
+                                                            if x <= self.number-1])
+
         return eopatch
 
 
