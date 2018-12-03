@@ -68,7 +68,7 @@ class EOPatch:
         if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
             value_type = feature_type.type()
-            if not isinstance(value, value_type):
+            if not isinstance(value, value_type):  # TODO: handle parsing other types
                 raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
             if feature_type.has_dict() and not isinstance(value, _FeatureDict):
                 value = _FeatureDict(value, feature_type)
@@ -144,10 +144,18 @@ class EOPatch:
         :rtype: str
         """
         if isinstance(value, np.ndarray):
-            return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
+            return '{}(shape={}, dtype={})'.format(EOPatch._repr_value_class(value), value.shape, value.dtype)
+        if isinstance(value, GeoDataFrame):
+            return '{}(columns={}, length={}, crs={})'.format(EOPatch._repr_value_class(value), list(value),
+                                                              len(value), value.crs['init'])
         if isinstance(value, (list, tuple, dict)) and value:
             return '{}, length={}'.format(type(value), len(value))
         return repr(value)
+
+    @staticmethod
+    def _repr_value_class(value):
+        cls = value.__class__
+        return '.'.join([cls.__module__.split('.')[0], cls.__name__])
 
     def __copy__(self, features=...):
         """Returns a new EOPatch with shallow copies of given features.
