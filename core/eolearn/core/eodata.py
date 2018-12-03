@@ -779,11 +779,16 @@ class _FeatureDict(dict):
             return value
 
         if self.is_vector:
-            if isinstance(value, GeoDataFrame):
-                return value
             if isinstance(value, GeoSeries):
-                return GeoDataFrame(value)
-            # Something else should be added
+                value = GeoDataFrame(value)
+
+            if isinstance(value, GeoDataFrame):
+                if self.feature_type is FeatureType.VECTOR:
+                    pass
+                    # if not FeatureType.TIMESTAMP.value.upper() in value:
+                    #     raise ValueError("{} feature has to contain a column 'TIMESTAMP' with timestamps")
+
+                return value
 
             raise ValueError('{} feature works with data of type {}, parsing data type {} is not supported'
                              'given'.format(self.feature_type, GeoDataFrame.__name__, type(value)))
