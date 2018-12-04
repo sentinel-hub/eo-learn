@@ -59,6 +59,10 @@ class FeatureType(Enum):
         return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
                                   FeatureType.VECTOR, FeatureType.TIMESTAMP])
 
+    def is_timeless(self):
+        """True if FeatureType doesn't have a time component. False otherwise."""
+        return not self.is_time_dependent()
+
     def is_discrete(self):
         """True if FeatureType should have discrete (integer) values. False otherwise."""
         return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
