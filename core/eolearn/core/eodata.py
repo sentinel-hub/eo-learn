@@ -785,7 +785,8 @@ class _FeatureDict(dict):
             if isinstance(value, GeoDataFrame):
                 if self.feature_type is FeatureType.VECTOR:
                     if not FeatureType.TIMESTAMP.value.upper() in value:
-                        raise ValueError("{} feature has to contain a column 'TIMESTAMP' with timestamps")
+                        raise ValueError("{} feature has to contain a column 'TIMESTAMP' with "
+                                         "timestamps".format(self.feature_type))
 
                 return value
 
