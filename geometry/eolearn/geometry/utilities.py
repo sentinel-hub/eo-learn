@@ -158,7 +158,7 @@ class RasterToVector(EOTask):
 
             features=[(FeatureType.MASK_TIMELESS, 'CLASSIFICATION'), (FeatureType.MASK, 'MONOTEMPORAL_CLASSIFICATION')]
 
-        :type features: tuple(FeatureType, str, str) or list(tuple(FeatureType, str, str))
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
         :param values: List of values which will be vectorized. By default is set to ``None`` and all values will be
             vectorized
         :type values: list(int) or None
@@ -168,11 +168,11 @@ class RasterToVector(EOTask):
             value of the parameter is ``None`` and no casting is done.
         :type raster_dtype: numpy.dtype or None
         """
-        self.features = self._parse_features(features, new_names=True)
+        self.feature_gen = self._parse_features(features, new_names=True)
         self.values = values
         self.raster_dtype = raster_dtype
 
-        for feature_type, _, _ in self.features:
+        for feature_type, _, _ in self.feature_gen:
             if not (feature_type.is_spatial() and feature_type.is_discrete()):
                 raise ValueError('Input features should be a spatial mask, but {} found'.format(feature_type))
 
@@ -221,7 +221,7 @@ class RasterToVector(EOTask):
         :return: New EOPatch with added vector layer
         :rtype: EOPatch
         """
-        for raster_ft, raster_fn, vector_fn in self.features(eopatch):
+        for raster_ft, raster_fn, vector_fn in self.feature_gen(eopatch):
             vector_ft = FeatureType.VECTOR_TIMELESS if raster_ft.is_timeless() else FeatureType.VECTOR
 
             raster = eopatch[raster_ft][raster_fn]
