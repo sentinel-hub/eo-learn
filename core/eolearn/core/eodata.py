@@ -776,6 +776,17 @@ class _FeatureDict(dict):
             if value.ndim != self.ndim:
                 raise ValueError('Numpy array of {} feature has to have {} '
                                  'dimension{}'.format(self.feature_type, self.ndim, 's' if self.ndim > 1 else ''))
+
+            if self.feature_type.is_discrete():
+                if not issubclass(value.dtype.type, (np.integer, np.bool, np.bool_, np.bool8)):
+                    raise ValueError('{} is a discrete feature type therefore dtype of data has to be a subtype of '
+                                     'numpy.integer or numpy.bool, found type {}'.format(self.feature_type,
+                                                                                         value.dtype.type))
+            else:
+                if not issubclass(value.dtype.type, (np.floating, np.float)):
+                    raise ValueError('{} is a floating feature type therefore dtype of data has to be a subtype of '
+                                     'numpy.floating or numpy.float, found type {}'.format(self.feature_type,
+                                                                                           value.dtype.type))
             return value
 
         if self.is_vector:
