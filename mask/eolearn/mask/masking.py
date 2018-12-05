@@ -36,7 +36,7 @@ class AddValidDataMaskTask(EOTask):
 class MaskFeature(EOTask):
     """ Masks out values of a feature using defined values of a given mask feature.
 
-        AS an example, it can be used to mask the data feature using values from the Sen2cor Scene Classification
+        As an example, it can be used to mask the data feature using values from the Sen2cor Scene Classification
         Layer (SCL).
 
         Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
@@ -72,10 +72,8 @@ class MaskFeature(EOTask):
         if not isinstance(self.mask_values, list):
             raise ValueError('Incorrect format or values of argument `mask_values`')
 
-        for mvalue in self.mask_values:
-            to_be_masked = mask.squeeze() == mvalue
-            data[to_be_masked] = self.no_data_value
-            del to_be_masked
+        for value in self.mask_values:
+            data[mask.squeeze() == value] = self.no_data_value
 
         eopatch.add_feature(feature_type, new_feature_name, data)
 

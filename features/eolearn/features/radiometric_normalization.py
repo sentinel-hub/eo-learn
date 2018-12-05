@@ -199,40 +199,49 @@ class Compositing(EOTask):
 
 
 class HistogramMatching(EOTask):
-    """
-    Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
-    Histogram match of each band of each scene with the band of the respective reference composite.
-    """
-    def __init__(self, source, reference):
-        """
-        :param source: Name of the eopatch data layer that will undergo a histogram match.
-        Needs to be of the FeatureType "DATA".
-        :type source: str
+    """ Histogram match of each band of each scene within a time-series with respect to the corresponding band of a
+        reference composite.
+
+        Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
+
+        :param feature: Name of the eopatch data layer that will undergo a histogram match.
+                        Should be of the FeatureType "DATA".
+        :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param reference: Name of the eopatch data layer that represents the reference for the histogram match.
-        Needs to be of the FeatureType "DATA_TIMELESS".
-        :type reference: str
+                            Should be of the FeatureType "DATA_TIMELESS".
+        :type reference: (FeatureType, str)
         """
-        self.source_layer = source
-        self.reference_layer = reference
+
+    def __init__(self, feature, reference):
+        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
+        self.reference = self._parse_features(reference, default_feature_type=FeatureType.DATA_TIMELESS)
 
     def execute(self, eopatch):
+        """ Perform histogram matching of the time-series with respect to a reference scene
 
-        source_scenes = eopatch.data[self.source_layer]
-        reference_scene = eopatch.data_timeless[self.reference_layer]
+        :param eopatch: eopatch holding the time-series and reference data
+        :return: The same eopatch instance with the normalised time-series
+        """
+        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
+        reference_type, reference_name = next(self.reference(eopatch))
 
-        eopatch.add_feature(FeatureType.DATA, 'radiometric_normalized', np.zeros(source_scenes.shape))
-        for sce_id, sce in enumerate(list(source_scenes)):
-            for band in range(source_scenes[0].shape[2]):
+        reference_scene = eopatch[reference_type][reference_name]
+        # check if band dimension matches
+        if reference_scene.shape[-1] != eopatch[feature_type][feature_name].shape[-1]:
+            raise ValueError('Time-series and reference scene must have corresponding bands')
 
-                source_band = np.where(np.isnan(reference_scene[:, :, band]), np.nan, sce[:, :, band])
-                reference_band = np.where(np.isnan(sce[:, :, band]), np.nan, reference_scene[:, :, band])
-
-                std_src = np.nanstd(source_band)
-                std_ref = np.nanstd(reference_band)
-                mean_src = np.nanmean(source_band)
-                mean_ref = np.nanmean(reference_band)
-
-                eopatch.data['radiometric_normalized'][sce_id, :, :, band] = \
-                    sce[:, :, band] * (std_ref / std_src) + (mean_ref - (mean_src * (std_ref / std_src)))
+        eopatch[feature_type][new_feature_name] = np.zeros_like(eopatch[feature_type][feature_name])
+        for source_id, source in enumerate(eopatch[feature_type][feature_name]):
+            # mask-out same invalid pixels
+            src_masked = np.where(np.isnan(reference_scene), np.nan, source)
+            ref_masked = np.where(np.isnan(source), np.nan, reference_scene)
+            # compute statistics
+            std_ref = np.nanstd(ref_masked, axis=(0, 1), dtype=np.float64)
+            std_src = np.nanstd(src_masked, axis=(0, 1), dtype=np.float64)
+            mean_ref = np.nanmean(ref_masked, axis=(0, 1), dtype=np.float64)
+            mean_src = np.nanmean(src_masked, axis=(0, 1), dtype=np.float64)
+            # normalise values
+            eopatch[feature_type][new_feature_name][source_id] = \
+                source * (std_ref / std_src) + (mean_ref - (mean_src * (std_ref / std_src)))
 
         return eopatch
