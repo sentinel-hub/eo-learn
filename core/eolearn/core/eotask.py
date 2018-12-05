@@ -49,10 +49,11 @@ class EOTask(ABC):
         return self.execute(*eopatches, **kwargs)
 
     @staticmethod
-    def _parse_features(features, new_names=False, default_feature_type=None, rename_function=None):
-        """See FeatureParser class."""
-        return FeatureParser(features, new_names=new_names, default_feature_type=default_feature_type,
-                             rename_function=rename_function)
+    def _parse_features(features, new_names=False, rename_function=None, default_feature_type=None):
+        """ See eolearn.core.utilities.FeatureParser class.
+        """
+        return FeatureParser(features, new_names=new_names, rename_function=rename_function,
+                             default_feature_type=default_feature_type)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):

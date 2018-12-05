@@ -431,9 +431,9 @@ class EOPatch:
         :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default
         all features will be saved.
-        :type features: list(FeatureType) or None
+        :type features: list(FeatureType) or list((FeatureType, str)) or ...
         :param file_format: File format
-        :type file_format: str or FileFormat
+        :type file_format: FileFormat or str
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
@@ -581,7 +581,7 @@ class EOPatch:
 
         :param path: Location on the disk
         :type path: str
-        :param features: A collection of features to be loaded. If set to None all features will be loaded.
+        :param features: A collection of features to be loaded. By default all features will be loaded.
         :type features: object
         :param lazy_loading: If `True` features will be lazy loaded.
         :type lazy_loading: bool
@@ -784,7 +784,7 @@ class _FeatureDict(dict):
 
             if isinstance(value, GeoDataFrame):
                 if self.feature_type is FeatureType.VECTOR:
-                    if not FeatureType.TIMESTAMP.value.upper() in value:
+                    if FeatureType.TIMESTAMP.value.upper() not in value:
                         raise ValueError("{} feature has to contain a column 'TIMESTAMP' with "
                                          "timestamps".format(self.feature_type))
 

@@ -14,29 +14,70 @@ LOGGER = logging.getLogger(__name__)
 
 
 class FeatureParser:
-    """Takes a collection of features structured in a various ways and parses them into one way.
+    """ Takes a collection of features structured in a various ways and parses them into one way. It can parse features
+    straight away or it can parse them only if they exist in a given `EOPatch`. If input format is not recognized or
+    feature don't exist in a given `EOPatch` it raises an error. The class is a generator therefore parsed features
+    can be obtained by iterating over an instance of the class. An `EOPatch` is given as a parameter of the generator.
 
-    It raises an error If input format is not recognized.
+    General guidelines:
+        - Almost all `EOTask`s have take as a parameter some information about features. The purpose of this class is
+        to unite and generalize parsing of such parameter over entire eo-learn package
+        - The idea for this class is that it should support more or less any logical way how to describe a collection
+        of features.
+        - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
+        way how to specify certain parts of feature collection.
+        - Supports formats defined with lists, tuples, sets and dictionaries.
 
-    The class is a generator therefore parsed features can be obtained by iterating over it.
+    Supported input formats:
+        - `...` - Anything that exists in a given `EOPatch`
+        - A feature type describing all features of that type. E.g. `FeatureType.DATA` or `FeatureType.BBOX`
+        - A single feature as a tuple. E.g. (FeatureType.DATA, 'BANDS')
+        - A single feature as a tuple with new name. E.g. (FeatureType.DATA, 'BANDS', 'NEW_BANDS')
+        - A list of features (new names or not).
+        E.g. [(FeatureType.DATA, 'BANDS'), (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK')]
+        - A dictionary with feature types as keys and lists, sets, single feature or `...` of feature names as values.
+        E.g. {
+            FeatureType.DATA: ['S2-BANDS', 'L8-BANDS'],
+            FeatureType.MASK: {'IS_VALID', 'IS_DATA'},
+            FeatureType.MASK_TIMELESS: 'LULC',
+            FeatureType.TIMESTAMP: ...
+        }
+        - A dictionary with feature types as keys and dictionaries, where feature names are mapped into new names, as
+          values.
+        E.g. {
+            FeatureType.DATA: {
+                'S2-BANDS': 'INTERPOLATED_S2_BANDS',
+                'L8-BANDS': 'INTERPOLATED_L8_BANDS',
+                'NDVI': ...
+            },
+        }
 
-    Supported input formats: TODO
+    Note: Therese are most general input formats, but even more are supported or might be supported in the future.
 
-    :param features: A collection of features in one of the supported formats
-    :type features: object
-    :param new_names: `True` if a collection
-    :type new_names: bool
-    :param default_feature_type: If feature type of any of the given features is not set this will be used
-    :type default_feature_type: FeatureType or None
-    :param rename_function: Default renaming function
-    :type rename_function: function or None
-    :raises: ValueError
+    Outputs of the generator:
+        - tuples in form of (feature type, feature name) if parameter `new_names=False`
+        - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
     """
-    def __init__(self, features, new_names=False, default_feature_type=None, rename_function=None):
+    def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None):
+        """
+        :param features: A collection of features in one of the supported formats
+        :type features: object
+        :param new_names: If `False` the generator will only return tuples with in form of
+            (feature type, feature name). If `True` it will return tuples
+            (feature type, feature name, new feature name) which can be used for renaming
+            features or creating new features out of old ones.
+        :type new_names: bool
+        :param rename_function: A function which transforms feature name into a new feature name, default is identity
+            function. This parameter is only applied if `new_names` is set to `True`.
+        :type rename_function: function or None
+        :param default_feature_type: If feature type of any of the given features is not set this will be used
+        :type default_feature_type: FeatureType or None
+        :raises: ValueError
+        """
         self.feature_collection = self._parse_features(features, new_names, default_feature_type)
         self.new_names = new_names
-        self.default_feature_type = default_feature_type
         self.rename_function = rename_function
+        self.default_feature_type = default_feature_type
 
         if rename_function is None:
             self.rename_function = self._identity_rename_function  # <- didn't use lambda function - it can't be pickled
