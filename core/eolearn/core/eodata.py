@@ -782,16 +782,17 @@ class _FeatureDict(dict):
                     raise ValueError('{} is a discrete feature type therefore dtype of data has to be a subtype of '
                                      'numpy.integer or numpy.bool, found type {}'.format(self.feature_type,
                                                                                          value.dtype.type))
-            else:
-                if not issubclass(value.dtype.type, (np.floating, np.float)):
-                    raise ValueError('{} is a floating feature type therefore dtype of data has to be a subtype of '
-                                     'numpy.floating or numpy.float, found type {}'.format(self.feature_type,
-                                                                                           value.dtype.type))
+            # This checking is disabled for now
+            # else:
+            #     if not issubclass(value.dtype.type, (np.floating, np.float)):
+            #         raise ValueError('{} is a floating feature type therefore dtype of data has to be a subtype of '
+            #                          'numpy.floating or numpy.float, found type {}'.format(self.feature_type,
+            #                                                                                value.dtype.type))
             return value
 
         if self.is_vector:
             if isinstance(value, GeoSeries):
-                value = GeoDataFrame(value)
+                value = GeoDataFrame(dict(geometry=value), crs=value.crs)
 
             if isinstance(value, GeoDataFrame):
                 if self.feature_type is FeatureType.VECTOR:
