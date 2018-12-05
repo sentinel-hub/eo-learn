@@ -1,4 +1,5 @@
 numpy
+attrs>=18.2.0
 python-dateutil
 networkx
 pydot

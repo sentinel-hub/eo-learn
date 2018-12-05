@@ -9,6 +9,7 @@ import numpy as np
 import gzip
 import shutil
 import warnings
+import attr
 import datetime
 import dateutil.parser
 
@@ -26,6 +27,7 @@ LOGGER = logging.getLogger(__name__)
 MAX_DATA_REPR_LEN = 100
 
 
+@attr.s(repr=False, cmp=False, kw_only=True)
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
 
@@ -46,24 +48,19 @@ class EOPatch:
     arrays in other attributes.
     """
 
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, *, data=None, mask=None, scalar=None, label=None, vector=None, data_timeless=None,
-                 mask_timeless=None, scalar_timeless=None, label_timeless=None, vector_timeless=None, meta_info=None,
-                 bbox=None, timestamp=None):
-
-        self.data = data if data is not None else {}
-        self.mask = mask if mask is not None else {}
-        self.scalar = scalar if scalar is not None else {}
-        self.label = label if label is not None else {}
-        self.vector = vector if vector is not None else {}
-        self.data_timeless = data_timeless if data_timeless is not None else {}
-        self.mask_timeless = mask_timeless if mask_timeless is not None else {}
-        self.scalar_timeless = scalar_timeless if scalar_timeless is not None else {}
-        self.label_timeless = label_timeless if label_timeless is not None else {}
-        self.vector_timeless = vector_timeless if vector_timeless is not None else {}
-        self.meta_info = meta_info if meta_info is not None else {}
-        self.bbox = bbox
-        self.timestamp = timestamp if timestamp is not None else []
+    data = attr.ib(factory=dict)
+    mask = attr.ib(factory=dict)
+    scalar = attr.ib(factory=dict)
+    label = attr.ib(factory=dict)
+    vector = attr.ib(factory=dict)
+    data_timeless = attr.ib(factory=dict)
+    mask_timeless = attr.ib(factory=dict)
+    scalar_timeless = attr.ib(factory=dict)
+    label_timeless = attr.ib(factory=dict)
+    vector_timeless = attr.ib(factory=dict)
+    meta_info = attr.ib(factory=dict)
+    bbox = attr.ib(default=None)
+    timestamp = attr.ib(factory=list)
 
     def __setattr__(self, key, value):
         """Raises TypeError if feature type attributes are not of correct type.
