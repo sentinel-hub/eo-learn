@@ -87,14 +87,14 @@ class EOPatch:
             return value if isinstance(value, _FeatureDict) else _FeatureDict(value, feature_type)
 
         if feature_type is FeatureType.BBOX:
-            if isinstance(value, BBox):
+            if value is None or isinstance(value, BBox):
                 return value
             if isinstance(value, (tuple, list)) and len(value) == 5:
                 return BBox(value[:4], crs=value[4])
 
         if feature_type is FeatureType.TIMESTAMP:
             if isinstance(value, (tuple, list)):
-                return [timestamp if isinstance(timestamp, datetime.datetime) else dateutil.parser.parse(timestamp)
+                return [timestamp if isinstance(timestamp, datetime.date) else dateutil.parser.parse(timestamp)
                         for timestamp in value]
 
         raise TypeError('Attribute {} requires value of type {} - '
