@@ -22,7 +22,9 @@ class ReferenceScenes(EOTask):
 
     """
     def __init__(self, feature, valid_fraction_feature, max_scene_number=None):
-        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
+        self.feature = self._parse_features(feature, new_names=True,
+                                            default_feature_type=FeatureType.DATA,
+                                            rename_function='{}_REFERENCE'.format)
         self.valid_fraction_feature = self._parse_features(valid_fraction_feature,
                                                            default_feature_type=FeatureType.SCALAR)
         self.number = max_scene_number
@@ -43,12 +45,14 @@ class ReferenceScenes(EOTask):
         return eopatch
 
 
-class Compositing(EOTask):
+class BaseCompositing(EOTask):
     """
     Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
     Creates a composite of reference scenes.
     """
-    def __init__(self, method, layer):
+
+    def __init__(self, feature, feature_composite, blue_idx=None, red_idx=None, nir_idx=None, swir1_idx=None,
+                 method=None, percentile=None, max_index=255, interpolation='lower', no_data_value=-32768):
         """
         :param method: Different compositing methods can be chosen:
           - blue     (25th percentile of the blue band)
@@ -60,142 +64,156 @@ class Compositing(EOTask):
         :param layer: Name of the eopatch data layer. Needs to be of the FeatureType "DATA"
         :type layer: str
         """
+        self.feature = self._parse_features(feature,
+                                            default_feature_type=FeatureType.DATA,
+                                            rename_function='{}_COMPOSITE'.format)
+        self.composite_type, self.composite_name = next(
+            self._parse_features(feature_composite, default_feature_type=FeatureType.DATA_TIMELESS)())
+        self.blue_idx = blue_idx
+        self.red_idx = red_idx
+        self.nir_idx = nir_idx
+        self.swir1_idx = swir1_idx
         self.method = method
-        self.layer = layer
-        self.perc_no = 25
-        self.ref_stack = None
+        self.percentile = percentile
+        self.max_index = max_index
+        self.interpolation = interpolation
+        self._index_by_percentile = self._geoville_index_by_percentile \
+            if self.interpolation.lower() == 'geoville' else self._numpy_index_by_percentile
+        self.no_data_value = no_data_value
 
-    def index_by_percentile(self, quant):
+    def _numpy_index_by_percentile(self, data, percentile):
         """Calculate percentile of numpy stack and return the index of the chosen pixel. """
-        # valid (non NaN) observations along the first axis
-        arr_tmp = np.array(self.ref_stack, copy=True)
+        data_perc_low = np.nanpercentile(data, percentile, axis=0, interpolation=self.interpolation)
 
+        indices = np.empty(data_perc_low.shape, dtype=np.uint8)
+        indices[:] = np.nan
+
+        abs_diff = np.where(np.isnan(data_perc_low), np.inf, abs(data - data_perc_low))
+
+        indices = np.where(np.isnan(data_perc_low), self.max_index, np.nanargmin(abs_diff, axis=0))
+
+        return indices
+
+    def _geoville_index_by_percentile(self, data, percentile):
+        """Calculate percentile of numpy stack and return the index of the chosen pixel. """
         # no_obs = bn.allnan(arr_tmp["data"], axis=0)
-        valid_obs = np.sum(np.isfinite(arr_tmp["data"]), axis=0)
+        data_tmp = np.array(data, copy=True)
+        valid_obs = np.sum(np.isfinite(data_tmp), axis=0)
         # replace NaN with maximum
-        max_val = np.nanmax(arr_tmp["data"]) + 1
-        arr_tmp["data"][np.isnan(arr_tmp["data"])] = max_val
+        max_val = np.nanmax(data_tmp) + 1
+        data_tmp[np.isnan(data_tmp)] = max_val
         # sort - former NaNs will move to the end
-        arr_tmp = np.sort(arr_tmp, kind="mergesort", order="data", axis=0)
-        arr_tmp["data"] = np.where(arr_tmp["data"] == max_val, np.nan, arr_tmp["data"])
+        ind_tmp = np.argsort(data_tmp, kind="mergesort", axis=0)
 
         # desired position as well as floor and ceiling of it
-        k_arr = (valid_obs - 1) * (quant / 100.0)
+        k_arr = (valid_obs - 1) * (percentile / 100.0)
         k_arr = np.where(k_arr < 0, 0, k_arr)
         f_arr = np.floor(k_arr + 0.5)
         f_arr = f_arr.astype(np.int)
 
         # get floor value of reference band and index band
         ind = f_arr.astype("int16")
-        y_val = arr_tmp.shape[1]
-        x_val = arr_tmp.shape[2]
+        y_val = ind_tmp.shape[1]
+        x_val = ind_tmp.shape[2]
         y_val, x_val = np.ogrid[0:y_val, 0:x_val]
-        floor_val = arr_tmp[ind, y_val, x_val]
+        floor_val = ind_tmp[ind, y_val, x_val]
 
-        idx = np.where(valid_obs == 0, 255, floor_val["ID"])
+        idx = np.where(valid_obs == 0, 255, floor_val)
 
-        quant_arr = floor_val["data"]
+        return idx
 
-        del arr_tmp
+    def _get_reference_band(self, data):
+        raise NotImplementedError
 
-        return quant_arr, idx, valid_obs
-
-    def get_band(self, sce):
-        success = False
-        ref = None
-        if self.method == "blue":
-            ref = sce[:, :, 0].astype("float32")
-            success = True
-        elif self.method == "maxNDVI":
-            nir = sce[:, :, 7].astype("float32")
-            red = sce[:, :, 2].astype("float32")
-            ref = (nir - red) / (nir + red)
-            del nir, red
-            success = True
-        elif self.method == "HOT":
-            blue = sce[:, :, 0].astype("float32")
-            red = sce[:, :, 2].astype("float32")
-            ref = blue - 0.5 * red - 800.
-            del blue, red
-            success = True
-        elif self.method == "maxRatio":
-            blue = sce[:, :, 0].astype("float32")
-            nir = sce[:, :, 6].astype("float32")
-            swir1 = sce[:, :, 8].astype("float32")
-            ref = np.nanmax(np.array([nir, swir1]), axis=0) / blue
-            del blue, nir, swir1
-            success = True
-        elif self.method == "maxNDWI":
-            nir = sce[:, :, 6].astype("float32")
-            swir1 = sce[:, :, 8].astype("float32")
-            ref = (nir - swir1) / (nir + swir1)
-            del nir, swir1
-            success = True
-
-        return success, ref
+    def _get_indices(self, data):
+        indices = self._index_by_percentile(data, self.percentile)
+        return indices
 
     def execute(self, eopatch):
-        # Dictionary connecting sceneIDs and composite index number
-        data_layers = eopatch.data[self.layer]
-        scene_lookup = {}
-        for j, dlayer in enumerate(data_layers):
-            scene_lookup[j] = dlayer
+        feature_type, feature_name = next(self.feature(eopatch))
+        data = eopatch[feature_type][feature_name].copy()
 
-        # Stack scenes with data and scene index number
-        dims = (data_layers.shape[0], data_layers.shape[1], data_layers.shape[2])
-        self.ref_stack = np.zeros(dims, dtype=[("data", "f4"), ("ID", "u1")])
-        self.ref_stack["ID"] = 255
+        reference_bands = self._get_reference_band(data)
 
-        # Reference bands
-        for j, sce in enumerate(data_layers):  # for each scene/time
+        indices = self._get_indices(reference_bands)
 
-            # Read in bands depending on composite method
-            success, ref = self.get_band(sce)
-            if self.method not in ["blue", "maxNDVI", "HOT", "maxRatio", "maxNDWI"]:
-                raise ValueError("{} is not a valid compositing method!".format(self.method))
-            if not success:
-                raise NameError("Bands for composite method {} were not found!".format(self.method))
+        composite_image = np.empty((data.shape[1:]), np.float32)
+        composite_image[:] = self.no_data_value
+        for scene_id, scene in enumerate(data):
+            composite_image = np.where(np.dstack([indices]) == scene_id, scene, composite_image)
 
-            # Write data to stack
-            self.ref_stack["data"][j] = ref
-            self.ref_stack["ID"][j] = j
-            del ref
-
-        # Calculate composite index (which scene is used for the composite per pixel)
-        valid_obs = None
-        index = None
-        if self.method == "blue":
-            index, valid_obs = self.index_by_percentile(self.perc_no)[1:3]
-        elif self.method == "maxNDVI":
-            median = np.nanmedian(self.ref_stack["data"], axis=0)
-            index_max, valid_obs = self.index_by_percentile(100)[1:3]
-            index_min, valid_obs = self.index_by_percentile(0)[1:3]
-            index = np.where(median < -0.05, index_min, index_max)
-        elif self.method == "HOT":
-            index, valid_obs = self.index_by_percentile(25)[1:3]
-        elif self.method == "maxRatio":
-            index, valid_obs = self.index_by_percentile(100)[1:3]
-        elif self.method == "maxNDWI":
-            index, valid_obs = self.index_by_percentile(100)[1:3]
-
-        try:
-            del self.ref_stack, valid_obs
-            index_scenes = [scene_lookup[idx] for idx in np.unique(index) if idx != 255]
-        except IndexError:
-            raise IndexError("ID not in scene_lookup.")
-
-        # Create Output
-        composite_image = np.empty(shape=(data_layers.shape[1], data_layers.shape[2],
-                                          data_layers.shape[3]), dtype="float32")
-        composite_image[:] = np.nan
-        for j, sce in zip(range(len(data_layers)), index_scenes):
-            composite_image = np.where(np.dstack([index]) == j, sce, composite_image)
-
-        composite_image = np.where(np.isnan(composite_image), -32768, composite_image)
-
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'reference_composite', composite_image)
+        eopatch[self.composite_type][self.composite_name] = composite_image
 
         return eopatch
+
+
+class BlueCompositing(BaseCompositing):
+    def __init__(self, feature, feature_composite, blue_idx, interpolation='lower'):
+        super().__init__(feature, feature_composite, blue_idx=blue_idx, method='blue', percentile=25,
+                         interpolation=interpolation)
+        if self.blue_idx is None:
+            raise ValueError('Index of blue band must be specified')
+
+    def _get_reference_band(self, data):
+        return data[..., self.blue_idx].astype("float32")
+
+
+class HOTCompositing(BaseCompositing):
+    def __init__(self, feature, feature_composite, blue_idx, red_idx, interpolation='lower'):
+        super().__init__(feature, feature_composite, blue_idx=blue_idx, red_idx=red_idx, method='HOT', percentile=25,
+                         interpolation=interpolation)
+        if self.blue_idx is None or self.red_idx is None:
+            raise ValueError('Index of blue band and red band must be specified')
+
+    def _get_reference_band(self, data):
+        return data[..., self.blue_idx] - 0.5 * data[..., self.red_idx] - 0.08
+
+
+class MaxNDVICompositing(BaseCompositing):
+    def __init__(self, feature, feature_composite, red_idx, nir_idx, interpolation='lower'):
+        super().__init__(feature, feature_composite, red_idx=red_idx, nir_idx=nir_idx, method='maxNDVI',
+                         percentile=[0, 100], interpolation=interpolation)
+        if self.red_idx is None or self.nir_idx is None:
+            raise ValueError('Index of NIR band and red band must be specified')
+
+    def _get_reference_band(self, data):
+        nir = data[..., self.nir_idx].astype("float32")
+        red = data[..., self.red_idx].astype("float32")
+        return (nir - red) / (nir + red)
+
+    def _get_indices(self, data):
+        median = np.nanmedian(data, axis=0)
+        indices_min = self._index_by_percentile(data, self.percentile[0])
+        indices_max = self._index_by_percentile(data, self.percentile[1])
+        indices = np.where(median < -0.05, indices_min, indices_max)
+        return indices
+
+
+class MaxNDWICompositing(BaseCompositing):
+    def __init__(self, feature, feature_composite, nir_idx, swir1_idx, interpolation='lower'):
+        super().__init__(feature, feature_composite, nir_idx=nir_idx, swir1_idx=swir1_idx, method='maxNDWI',
+                         percentile=100, interpolation=interpolation)
+        if self.nir_idx is None or self.swir1_idx is None:
+            raise ValueError('Index of NIR band and SWIR1 band must be specified')
+
+    def _get_reference_band(self, data):
+        nir = data[..., self.nir_idx].astype("float32")
+        swir1 = data[..., self.swir1_idx].astype("float32")
+        return (nir - swir1) / (nir + swir1)
+
+
+class MaxRatioCompositing(BaseCompositing):
+    def __init__(self, feature, feature_composite, blue_idx, nir_idx, swir1_idx, interpolation='lower'):
+        super().__init__(feature, feature_composite, blue_idx=blue_idx, nir_idx=nir_idx, method='maxRatio',
+                         percentile=100, interpolation=interpolation)
+        if self.blue_idx is None or self.nir_idx is None or self.swir1_idx is None:
+            raise ValueError('Index of blue band, NIR band and SWIR1 band must be specified')
+
+    def _get_reference_band(self, data):
+        blue = data[..., self.blue_idx].astype("float32")
+        nir = data[..., self.nir_idx].astype("float32")
+        swir1 = data[..., self.swir1_idx].astype("float32")
+        return np.nanmax(np.array([nir, swir1]), axis=0) / blue
 
 
 class HistogramMatching(EOTask):
@@ -213,7 +231,9 @@ class HistogramMatching(EOTask):
         """
 
     def __init__(self, feature, reference):
-        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
+        self.feature = self._parse_features(feature, new_names=True,
+                                            default_feature_type=FeatureType.DATA,
+                                            rename_function='{}_NORMALISED'.format)
         self.reference = self._parse_features(reference, default_feature_type=FeatureType.DATA_TIMELESS)
 
     def execute(self, eopatch):

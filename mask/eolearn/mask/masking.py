@@ -52,7 +52,9 @@ class MaskFeature(EOTask):
         :return: The same `eopatch` instance with a masked array
     """
     def __init__(self, feature, mask_feature, mask_values, no_data_value=np.nan):
-        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
+        self.feature = self._parse_features(feature, new_names=True,
+                                            default_feature_type=FeatureType.DATA,
+                                            rename_function='{}_MASKED'.format)
         self.mask_feature = self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)
         self.mask_values = mask_values
         self.no_data_value = no_data_value
