@@ -47,7 +47,6 @@ class EOPatch:
     Currently the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
     arrays in other attributes.
     """
-
     data = attr.ib(factory=dict)
     mask = attr.ib(factory=dict)
     scalar = attr.ib(factory=dict)
