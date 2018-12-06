@@ -112,10 +112,8 @@ class _PrivateTaskConfig:
 class CompositeTask(EOTask):
     """Creates a task that is composite of two tasks.
 
-    It takes as input to the constructor a list of EOTask instances, say [t1,t2,...,tn]. The result of invoking the
-    execute (or __call__) on the chained task is, by definition, the same as invoking
-    tn(...(t2(t1(*args, **kwargs)))...). The chained task does lazy evaluation: it performs no work until execute
-    has been invoked.
+    Note: Instead of directly using this task it might be more convenient to use `'*'` operation between tasks.
+    Example: `composite_task = task1 * task2`
 
     :param eotask1: Task which will be executed first
     :type eotask1: EOTask
