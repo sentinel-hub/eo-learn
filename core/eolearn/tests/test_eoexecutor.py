@@ -39,7 +39,7 @@ class TestEOExecutor(unittest.TestCase):
 
     def test_execution_logs(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, save_logs=True, file_path=tmp_dir_name)
             executor.run()
 
             self.assertEqual(len(executor.execution_logs), 4)

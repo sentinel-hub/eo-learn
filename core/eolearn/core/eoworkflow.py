@@ -155,8 +155,9 @@ class EOWorkflow:
     def execute(self, input_args=None, monitor=False):
         """Executes the workflow.
 
-        :param input_args: External input arguments to the workflow.
-        :type input_args: dict(EOTask: dict(str: object))
+        :param input_args: External input arguments to the workflow. They have to be in a form of a dictionary where
+            each key is an EOTask used in the workflow and each value is a dictionary or a tuple of arguments.
+        :type input_args: dict(EOTask: dict(str: object) or tuple(object))
         :param monitor: If True workflow execution will be monitored
         :type monitor: bool
         :return: An immutable mapping containing results of terminal tasks
@@ -164,14 +165,27 @@ class EOWorkflow:
         """
         out_degs = dict(self.dag.get_outdegrees())
 
-        input_args = input_args if input_args else {}
-        for task in input_args:
-            if not isinstance(task, EOTask):
-                raise ValueError('Invalid input argument {}, should be an instance of EOTask'.format(task))
+        input_args = self.parse_input_args(input_args)
 
         _, intermediate_results = self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor)
 
         return WorkflowResults(intermediate_results)
+
+    @staticmethod
+    def parse_input_args(input_args):
+        """ Parses EOWorkflow input arguments provided by user and raises an error if something is wrong. This is
+        done automatically in the process of workflow execution
+        """
+        input_args = input_args if input_args else {}
+        for task, args in input_args.items():
+            if not isinstance(task, EOTask):
+                raise ValueError('Invalid input argument {}, should be an instance of EOTask'.format(task))
+
+            if not isinstance(args, (tuple, dict)):
+                raise ValueError('Execution input arguments of each task should be a dictionary or a tuple, for task '
+                                 '{} got arguments of type {}'.format(task.__class__.__name__, type(args)))
+
+        return input_args
 
     def _execute_tasks(self, *, input_args, out_degs, monitor):
         """Executes tasks comprising the workflow in the predetermined order.
@@ -220,11 +234,9 @@ class EOWorkflow:
                        for input_task in dependency.inputs)
 
         kw_inputs = input_args.get(task, {})
-        if isinstance(kw_inputs, (list, tuple)):
-            inputs += tuple(kw_inputs)
+        if isinstance(kw_inputs, tuple):
+            inputs += kw_inputs
             kw_inputs = {}
-        if not isinstance(kw_inputs, dict):
-            raise ValueError('Execution input arguments of task {} should be a dictionary'.format(dependency.name))
 
         LOGGER.debug("Computing %s(*%s, **%s)", str(task), str(inputs), str(kw_inputs))
         return task(*inputs, **kw_inputs, monitor=monitor)
@@ -289,7 +301,7 @@ class EOWorkflow:
 
         return dep_to_dot_name
 
-    def dependency_graph(self, outfile, view=False):
+    def dependency_graph(self, outfile=None, view=False):
         """Visualize the computational graph.
 
         :param outfile: The name of the output image of the graph.
