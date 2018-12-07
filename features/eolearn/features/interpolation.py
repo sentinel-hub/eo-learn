@@ -8,6 +8,7 @@ from scipy import interpolate
 import warnings
 
 from eolearn.core import EOTask, EOPatch, FeatureType
+from sklearn.gaussian_process import GaussianProcessRegressor
 
 
 class InterpolationTask(EOTask):
@@ -49,11 +50,14 @@ class InterpolationTask(EOTask):
     :param scale_time: Factor used to scale the time difference in seconds between acquisitions. If `scale_time=60`,
         returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
     :type scale_time: int
+    :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
+    interpolation object for the whole image
+    :type interpolate_pixel_wise : bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
                  copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
-                 **interpolation_parameters):
+                 interpolate_pixel_wise=False, **interpolation_parameters):
         self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
         self.interpolation_object = interpolation_object
 
@@ -73,6 +77,7 @@ class InterpolationTask(EOTask):
         self.interpolation_parameters = interpolation_parameters
         self.scale_time = scale_time
         self.filling_factor = filling_factor
+        self.interpolate_pixel_wise = interpolate_pixel_wise
 
         self._resampled_times = None
 
@@ -170,16 +175,35 @@ class InterpolationTask(EOTask):
         :return: Array of interpolated values
         :rtype: numpy.ndarray
         """
+        # pylint: disable=too-many-locals
         # get size of 2d array t x nobs
         nobs = data.shape[-1]
+        if self.interpolate_pixel_wise:
+            # initialise array of interpolated values
+            new_data = data if self.resample_range is None else np.full(
+                (len(resampled_times), nobs),
+                np.nan, dtype=data.dtype)
+
+            # Interpolate for each pixel, could be easily parallelized
+            for obs in range(nobs):
+                valid = ~np.isnan(data[:, obs])
+
+                obs_interpolating_func = self.get_interpolation_function(times[valid], data[valid, obs])
+
+                new_data[:, obs] = obs_interpolating_func(resampled_times[:, np.newaxis])
+
+            # return interpolated values
+            return new_data
 
         # mask representing overlap between reference and resampled times
         time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
 
         # define time values as linear monotonically increasing over the observations
         const = int(self.filling_factor * (np.max(times) - np.min(times)))
-        temp_values = (times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
-        res_temp_values = (resampled_times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+        temp_values = (times[:, np.newaxis] +
+                       const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+        res_temp_values = (resampled_times[:, np.newaxis] +
+                           const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
 
         # initialise array of interpolated values
         new_data = np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
@@ -191,7 +215,7 @@ class InterpolationTask(EOTask):
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
         nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
-        nan_col_res_indices = np.array([True if index is not None else False for index in ori2res[row_nans]],
+        nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]],
                                        dtype=np.bool)
         if nan_row_res_indices.size:
             # mask out from output values the starting/ending NaNs
@@ -199,7 +223,8 @@ class InterpolationTask(EOTask):
         # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
         res_temp_values[~time_mask, :] = np.nan
 
-        # build 1d array for interpolation. Spline functions require monotonically increasing values of x, so .T is used
+        # build 1d array for interpolation. Spline functions require monotonically increasing values of x,
+        # so .T is used
         input_x = temp_values.T[~np.isnan(data).T]
         input_y = data.T[~np.isnan(data).T]
 
@@ -349,6 +374,41 @@ class AkimaInterpolation(InterpolationTask):
     """
     def __init__(self, feature, **kwargs):
         super().__init__(feature, interpolate.Akima1DInterpolator, **kwargs)
+
+
+class KrigingObject:
+    """
+    Interpolation function like object for Kriging
+    """
+    def __init__(self, times, series, **kwargs):
+        self.regressor = GaussianProcessRegressor(**kwargs)
+
+        # Since most of data is close to zero (relatively to time points), first get time data in [0,1] range
+        # to ensure nonzero results
+
+        # Should normalize by max in resample time to be totally consistent,
+        # but this works fine (0.03% error in testing)
+        self.normalizing_factor = max(times) - min(times)
+
+        self.regressor.fit(times.reshape(-1, 1)/self.normalizing_factor, series)
+        self.call_args = kwargs.get("call_args", {})
+
+    def __call__(self, new_times, **kwargs):
+        call_args = self.call_args.copy()
+        call_args.update(kwargs)
+        return self.regressor.predict(new_times.reshape(-1, 1)/self.normalizing_factor, **call_args)
+
+
+class KrigingInterpolation(InterpolationTask):
+    """
+    Implements `eolearn.features.InterpolationTask` by using `sklearn.gaussian_process.GaussianProcessRegressor`
+    Gaussian processes (superset of kriging) are especially used in geological missing data estimation.
+    Compared to spline interpolation, gaussian processes produce much more smoothed results
+    (which may or may not be desirable).
+
+    """
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, KrigingObject, interpolate_pixel_wise=True, **kwargs)
 
 
 class ResamplingTask(InterpolationTask):

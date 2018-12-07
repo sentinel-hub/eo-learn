@@ -1,5 +1,5 @@
 from .cloud_mask import AddCloudMaskTask, get_s2_pixel_cloud_detector
-from .masking import AddValidDataMaskTask, SCLmask
+from .masking import AddValidDataMaskTask, MaskFeature
 
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'
