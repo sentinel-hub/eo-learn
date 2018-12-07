@@ -151,7 +151,8 @@ class EOExecutor:
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         if self.execution_stats is None:
-            raise Exception('First run the executor')  # TODO
+            raise RuntimeError('Cannot produce a report without running the executor first, check EOExecutor.run '
+                               'method')
 
         if os.environ.get('DISPLAY', '') == '':
             LOGGER.info('No display found, using non-interactive Agg backend')
@@ -208,7 +209,6 @@ class EOExecutor:
 
     def _render_task_source(self, formatter):
         lexer = get_lexer_by_name("python", stripall=True)
-
         sources = {}
 
         for dep in self.workflow.dependencies:
@@ -217,16 +217,19 @@ class EOExecutor:
                 continue
 
             key = "{} ({})".format(task.__class__.__name__, task.__module__)
-
             if key in sources:
                 continue
 
             try:
                 source = inspect.getsource(task.__class__)
+                source = highlight(source, lexer, formatter)
             except TypeError:
-                source = traceback.format_exc()
+                # Jupyter notebook does not have __file__ method to collect source code
+                # StackOverflow provides no solutions
+                # Could be investigated further by looking into Jupyter Notebook source code
+                source = 'Cannot collect source code of a task which is not defined in a .py file'
 
-            sources[key] = highlight(source, lexer, formatter)
+            sources[key] = source
 
         return sources
 
