@@ -366,8 +366,8 @@ class Dependency:
 
     def __attrs_post_init__(self):
         if self.transform is not None:
-            warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed",
-                          DeprecationWarning)
+            warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed. Please use "
+                          "parameter 'task' instead.", DeprecationWarning)
             if self.task is None:
                 self.task = self.transform
 

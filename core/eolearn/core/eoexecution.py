@@ -11,6 +11,7 @@ import logging
 import concurrent.futures
 import traceback
 import inspect
+import warnings
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -42,17 +43,22 @@ class EOExecutor:
     :type execution_args: list(dict(EOTask: dict(str: object) or tuple(object)))
     :param save_logs: Flag used to specify if execution log files should be saved locally on disk
     :type save_logs: bool
-    :param file_path: A folder where logs and execution report should be saved
-    :type file_path: str
+    :param logs_folder: A folder where logs and execution report should be saved
+    :type logs_folder: str
     """
     REPORT_FILENAME = 'report.html'
 
-    def __init__(self, workflow, execution_args, save_logs=False, file_path='.'):
+    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', file_path=None):
         self.workflow = workflow
         self.execution_args = self._parse_execution_args(execution_args)
         self.save_logs = save_logs
-        self.report_folder = self._get_report_folder(file_path)
+        self.logs_folder = logs_folder
+        if file_path is not None:
+            warnings.warn("Parameter 'file_path' has been renamed to 'logs_folder' and will soon be removed. Please "
+                          "use parameter 'logs_folder' instead.", DeprecationWarning)
+            self.logs_folder = file_path
 
+        self.report_folder = None
         self.execution_logs = None
         self.execution_stats = None
 
@@ -66,10 +72,12 @@ class EOExecutor:
         return [EOWorkflow.parse_input_args(input_args) for input_args in execution_args]
 
     def run(self, workers=1):
-        """Runs the executor with n workers.
+        """ Runs the executor with n workers.
 
+        :param workers: Number of parallel processes used in the execution. Default is a single process.
         :type workers: int
         """
+        self.report_folder = self._get_report_folder()
         if self.save_logs and not os.path.isdir(self.report_folder):
             os.mkdir(self.report_folder)
 
@@ -129,9 +137,9 @@ class EOExecutor:
 
         return handler
 
-    @staticmethod
-    def _get_report_folder(file_path):
-        return os.path.join(file_path, 'eoexecution-report-{}'.format(datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
+    def _get_report_folder(self):
+        return os.path.join(self.logs_folder,
+                            'eoexecution-report-{}'.format(datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
 
     def _get_log_filename(self, execution_nb):
         return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
@@ -140,9 +148,10 @@ class EOExecutor:
         return os.path.join(self.report_folder, self.REPORT_FILENAME)
 
     def make_report(self):
-        """Makes a html report in the dir where logs are stored."""
+        """ Makes a html report and saves it into the same folder where logs are stored.
+        """
         if self.execution_stats is None:
-            raise Exception('First run the executor')
+            raise Exception('First run the executor')  # TODO
 
         if os.environ.get('DISPLAY', '') == '':
             LOGGER.info('No display found, using non-interactive Agg backend')
