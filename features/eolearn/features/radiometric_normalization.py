@@ -46,34 +46,34 @@ class ReferenceScenes(EOTask):
 
 
 class BaseCompositing(EOTask):
-    """
-    Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
-    Creates a composite of reference scenes.
+    """ Base class to create a composite of reference scenes
+
+        Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
+
+        :param feature: Feature holding the input time-series. Default type is FeatureType.DATA
+        :type feature: (FeatureType, str)
+        :param feature_composite: Type and name of output composite image. Default type is FeatureType.DATA_TIMELESS
+        :type feature_composite: (FeatureType, str)
+        :param percentile: Percentile along the time dimension used for compositing. Methods use different percentiles
+        :type percentile: int or list
+        :param max_index: Value used to flag indices with NaNs. Could be integer or NaN. Default is 255
+        :type max_index: int or NaN
+        :param interpolation: Method used to compute percentile. Allowed values are {'geoville', 'linear', 'lower',
+                                'higher', 'midpoint', 'nearest'}. 'geoville' interpolation performs a custom
+                                implementation, while the other methods use the numpy `percentile` function. Default is
+                                'lower'
+        :type interpolation: str
+        :param no_data_value: Value in the composite assigned to non valid data points. Default is NaN
+        :type no_data_value: float or NaN
     """
 
-    def __init__(self, feature, feature_composite, blue_idx=None, red_idx=None, nir_idx=None, swir1_idx=None,
-                 method=None, percentile=None, max_index=255, interpolation='lower', no_data_value=-32768):
-        """
-        :param method: Different compositing methods can be chosen:
-          - blue     (25th percentile of the blue band)
-          - HOT      (Index using bands blue and red)
-          - maxNDVI  (temporal maximum of NDVI)
-          - maxNDWI  (temporal maximum of NDWI)
-          - maxRatio (temporal maximum of a ratio using bands blue, NIR and SWIR)
-        :type method: str
-        :param layer: Name of the eopatch data layer. Needs to be of the FeatureType "DATA"
-        :type layer: str
-        """
+    def __init__(self, feature, feature_composite, percentile=None, max_index=255, interpolation='lower',
+                 no_data_value=np.nan):
         self.feature = self._parse_features(feature,
                                             default_feature_type=FeatureType.DATA,
                                             rename_function='{}_COMPOSITE'.format)
         self.composite_type, self.composite_name = next(
             self._parse_features(feature_composite, default_feature_type=FeatureType.DATA_TIMELESS)())
-        self.blue_idx = blue_idx
-        self.red_idx = red_idx
-        self.nir_idx = nir_idx
-        self.swir1_idx = swir1_idx
-        self.method = method
         self.percentile = percentile
         self.max_index = max_index
         self.interpolation = interpolation
@@ -82,7 +82,11 @@ class BaseCompositing(EOTask):
         self.no_data_value = no_data_value
 
     def _numpy_index_by_percentile(self, data, percentile):
-        """Calculate percentile of numpy stack and return the index of the chosen pixel. """
+        """ Calculate percentile of numpy stack and return the index of the chosen pixel.
+
+            numpy percentile function is used with one of the following interpolations {'linear', 'lower', 'higher',
+            'midpoint', 'nearest'}
+        """
         data_perc_low = np.nanpercentile(data, percentile, axis=0, interpolation=self.interpolation)
 
         indices = np.empty(data_perc_low.shape, dtype=np.uint8)
@@ -95,7 +99,7 @@ class BaseCompositing(EOTask):
         return indices
 
     def _geoville_index_by_percentile(self, data, percentile):
-        """Calculate percentile of numpy stack and return the index of the chosen pixel. """
+        """ Calculate percentile of numpy stack and return the index of the chosen pixel. """
         # no_obs = bn.allnan(arr_tmp["data"], axis=0)
         data_tmp = np.array(data, copy=True)
         valid_obs = np.sum(np.isfinite(data_tmp), axis=0)
@@ -104,39 +108,53 @@ class BaseCompositing(EOTask):
         data_tmp[np.isnan(data_tmp)] = max_val
         # sort - former NaNs will move to the end
         ind_tmp = np.argsort(data_tmp, kind="mergesort", axis=0)
-
         # desired position as well as floor and ceiling of it
         k_arr = (valid_obs - 1) * (percentile / 100.0)
         k_arr = np.where(k_arr < 0, 0, k_arr)
         f_arr = np.floor(k_arr + 0.5)
         f_arr = f_arr.astype(np.int)
-
         # get floor value of reference band and index band
         ind = f_arr.astype("int16")
-        y_val = ind_tmp.shape[1]
-        x_val = ind_tmp.shape[2]
+        y_val, x_val = ind_tmp.shape[1], ind_tmp.shape[2]
         y_val, x_val = np.ogrid[0:y_val, 0:x_val]
-        floor_val = ind_tmp[ind, y_val, x_val]
-
-        idx = np.where(valid_obs == 0, 255, floor_val)
-
+        idx = np.where(valid_obs == 0, self.max_index, ind_tmp[ind, y_val, x_val])
         return idx
 
     def _get_reference_band(self, data):
+        """ Extract reference band from input 4D data according to compositing method
+
+        :param data: 4D array from which to extract reference band (e.g. blue, maxNDVI, ..)
+        :type data: numpy array
+        :return: 3D array containing reference band according to compositing method
+        """
         raise NotImplementedError
 
     def _get_indices(self, data):
+        """ Compute indices along temporal dimension corresponding to the sought percentile
+
+        :param data: Input 3D array holding the reference band
+        :type data: numpy array
+        :return: 2D array holding the temporal index corresponding to percentile
+        """
         indices = self._index_by_percentile(data, self.percentile)
         return indices
 
     def execute(self, eopatch):
+        """ Compute composite array merging temporal frames according to the compositing method
+
+        :param eopatch: eopatch holding time-series
+        :return: eopatch with composite image of time-series
+        """
         feature_type, feature_name = next(self.feature(eopatch))
         data = eopatch[feature_type][feature_name].copy()
 
+        # compute band according to compositing method (e.g. blue, maxNDVI, maxNDWI)
         reference_bands = self._get_reference_band(data)
 
+        # find temporal indices corresponding to pre-defined percentile
         indices = self._get_indices(reference_bands)
 
+        # compute composite image selecting values along temporal dimension corresponding to percentile indices
         composite_image = np.empty((data.shape[1:]), np.float32)
         composite_image[:] = self.no_data_value
         for scene_id, scene in enumerate(data):
@@ -148,35 +166,84 @@ class BaseCompositing(EOTask):
 
 
 class BlueCompositing(BaseCompositing):
+    """ Blue band compositing method
+
+        - blue     (25th percentile of the blue band)
+
+        :param blue_idx: Index of blue band in `feature` array
+        :type blue_idx: int
+    """
     def __init__(self, feature, feature_composite, blue_idx, interpolation='lower'):
-        super().__init__(feature, feature_composite, blue_idx=blue_idx, method='blue', percentile=25,
-                         interpolation=interpolation)
-        if self.blue_idx is None:
-            raise ValueError('Index of blue band must be specified')
+        super().__init__(feature, feature_composite, percentile=25, interpolation=interpolation)
+        self.blue_idx = blue_idx
+        if not isinstance(blue_idx, int):
+            raise ValueError('Incorrect value of blue band index specified')
 
     def _get_reference_band(self, data):
+        """ Extract the blue band from time-series
+
+        :param data: 4D array from which to extract the blue reference band
+        :type data: numpy array
+        :return: 3D array containing the blue reference band
+        """
         return data[..., self.blue_idx].astype("float32")
 
 
 class HOTCompositing(BaseCompositing):
+    """ HOT compositing method
+
+        - HOT      (Index using bands blue and red)
+
+        The HOT index is defined as per
+                Zhu, Z., & Woodcock, C. E. (2012). "Object-based cloud and cloud shadow detection in Landsat imagery."
+                Remote Sensing of Environment, 118, 83-94.
+
+        :param blue_idx: Index of blue band in `feature` array
+        :type blue_idx: int
+        :param red_idx: Index of red band in `feature` array
+        :type red_idx: int
+    """
     def __init__(self, feature, feature_composite, blue_idx, red_idx, interpolation='lower'):
-        super().__init__(feature, feature_composite, blue_idx=blue_idx, red_idx=red_idx, method='HOT', percentile=25,
-                         interpolation=interpolation)
-        if self.blue_idx is None or self.red_idx is None:
-            raise ValueError('Index of blue band and red band must be specified')
+        super().__init__(feature, feature_composite, percentile=25, interpolation=interpolation)
+        self.blue_idx = blue_idx
+        self.red_idx = red_idx
+        if not isinstance(blue_idx, int) or not isinstance(red_idx, int):
+            raise ValueError('Incorrect values of blue and red band indices specified')
 
     def _get_reference_band(self, data):
+        """ Extract the HOT band from time-series
+
+        :param data: 4D array from which to extract the HOT reference band
+        :type data: numpy array
+        :return: 3D array containing the HOT reference band
+        """
         return data[..., self.blue_idx] - 0.5 * data[..., self.red_idx] - 0.08
 
 
 class MaxNDVICompositing(BaseCompositing):
+    """ maxNDVI compositing method
+
+        - maxNDVI  (temporal maximum of NDVI)
+
+        :param red_idx: Index of red band in `feature` array
+        :type red_idx: int
+        :param nir_idx: Index of NIR band in `feature` array
+        :type nir_idx: int
+    """
     def __init__(self, feature, feature_composite, red_idx, nir_idx, interpolation='lower'):
-        super().__init__(feature, feature_composite, red_idx=red_idx, nir_idx=nir_idx, method='maxNDVI',
-                         percentile=[0, 100], interpolation=interpolation)
-        if self.red_idx is None or self.nir_idx is None:
-            raise ValueError('Index of NIR band and red band must be specified')
+        super().__init__(feature, feature_composite, percentile=[0, 100], interpolation=interpolation)
+        self.red_idx = red_idx
+        self.nir_idx = nir_idx
+        if not isinstance(nir_idx, int) or not isinstance(red_idx, int):
+            raise ValueError('Incorrect values of red and NIR band indices specified')
 
     def _get_reference_band(self, data):
+        """ Extract the NDVI band from time-series
+
+        :param data: 4D array from which to compute the NDVI reference band
+        :type data: numpy array
+        :return: 3D array containing the NDVI reference band
+        """
         nir = data[..., self.nir_idx].astype("float32")
         red = data[..., self.red_idx].astype("float32")
         return (nir - red) / (nir + red)
@@ -190,26 +257,63 @@ class MaxNDVICompositing(BaseCompositing):
 
 
 class MaxNDWICompositing(BaseCompositing):
+    """ maxNDWI compositing method
+
+        - maxNDWI  (temporal maximum of NDWI)
+
+        :param nir_idx: Index of NIR band in `feature` array
+        :type nir_idx: int
+        :param swir1_idx: Index of SWIR1 band in `feature` array
+        :type swir1_idx: int
+    """
     def __init__(self, feature, feature_composite, nir_idx, swir1_idx, interpolation='lower'):
-        super().__init__(feature, feature_composite, nir_idx=nir_idx, swir1_idx=swir1_idx, method='maxNDWI',
-                         percentile=100, interpolation=interpolation)
-        if self.nir_idx is None or self.swir1_idx is None:
-            raise ValueError('Index of NIR band and SWIR1 band must be specified')
+        super().__init__(feature, feature_composite, percentile=100, interpolation=interpolation)
+        self.nir_idx = nir_idx
+        self.swir1_idx = swir1_idx
+        if not isinstance(nir_idx, int) or not isinstance(swir1_idx, int):
+            raise ValueError('Incorrect values of NIR and SWIR1 band indices specified')
 
     def _get_reference_band(self, data):
+        """ Extract the NDWI band from time-series
+
+        :param data: 4D array from which to compute the NDWI reference band
+        :type data: numpy array
+        :return: 3D array containing the NDWI reference band
+        """
         nir = data[..., self.nir_idx].astype("float32")
         swir1 = data[..., self.swir1_idx].astype("float32")
         return (nir - swir1) / (nir + swir1)
 
 
 class MaxRatioCompositing(BaseCompositing):
+    """ maxRatio compositing method
+
+        - maxRatio (temporal maximum of a ratio using bands blue, NIR and SWIR)
+
+        :param blue_idx: Index of blue band in `feature` array
+        :type blue_idx: int
+        :param nir_idx: Index of NIR band in `feature` array
+        :type nir_idx: int
+        :param swir1_idx: Index of SWIR1 band in `feature` array
+        :type swir1_idx: int
+    """
     def __init__(self, feature, feature_composite, blue_idx, nir_idx, swir1_idx, interpolation='lower'):
-        super().__init__(feature, feature_composite, blue_idx=blue_idx, nir_idx=nir_idx, method='maxRatio',
-                         percentile=100, interpolation=interpolation)
-        if self.blue_idx is None or self.nir_idx is None or self.swir1_idx is None:
-            raise ValueError('Index of blue band, NIR band and SWIR1 band must be specified')
+        super().__init__(feature, feature_composite, percentile=100, interpolation=interpolation)
+        self.blue_idx = blue_idx
+        self.nir_idx = nir_idx
+        self.swir1_idx = swir1_idx
+        if not isinstance(blue_idx, int) or not isinstance(nir_idx, int) or not isinstance(swir1_idx, int):
+            raise ValueError('Incorrect values for either blue, NIR or SWIR1 band indices specified')
 
     def _get_reference_band(self, data):
+        """ Extract the max-ratio band from time-series
+
+            The max-ratio is defined as max(NIR,SWIR1)/BLUE
+
+        :param data: 4D array from which to compute the max-ratio reference band
+        :type data: numpy array
+        :return: 3D array containing the max-ratio reference band
+        """
         blue = data[..., self.blue_idx].astype("float32")
         nir = data[..., self.nir_idx].astype("float32")
         swir1 = data[..., self.swir1_idx].astype("float32")
