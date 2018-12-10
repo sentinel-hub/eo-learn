@@ -19,9 +19,6 @@ import warnings
 import uuid
 import attr
 
-# the next are needed for DAG visualization only
-import networkx as nx
-import matplotlib.pyplot as plt
 from graphviz import Digraph
 
 from copy import deepcopy
@@ -271,6 +268,7 @@ class EOWorkflow:
         :rtype: Digraph
         """
         dot = Digraph()
+
         dep_to_dot_name = self._get_dep_to_dot_name_mapping(self.ordered_dependencies)
 
         for dep in self.ordered_dependencies:
@@ -301,23 +299,24 @@ class EOWorkflow:
 
         return dep_to_dot_name
 
-    def dependency_graph(self, outfile=None, view=False):
+    def dependency_graph(self, filename=None):
         """Visualize the computational graph.
 
-        :param outfile: The name of the output image of the graph.
-        :type outfile: str
-        :param view: A flag indicating whether to view the image of the graph
-        :type view: bool
+        :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
+            `pdf`, ... . Check `graphviz` Python package for more options
+        :type filename: str
+        :return: The DOT representation of the computational graph, with some more formatting
+        :rtype: Digraph
         """
         dot = self.get_dot()
+        dot.attr(rankdir='LR')  # Show graph from left to right
 
-        with open(outfile, 'w') as fout:
-            fout.write(dot.source)
+        if filename is not None:
+            file_name, file_format = filename.rsplit('.', 1)
 
-        if view:
-            graph = nx.drawing.nx_pydot.read_dot(outfile)
-            nx.draw(graph, with_labels=True)
-            plt.show()
+            dot.render(filename=file_name, format=file_format, cleanup=True)
+
+        return dot
 
 
 class LinearWorkflow(EOWorkflow):
