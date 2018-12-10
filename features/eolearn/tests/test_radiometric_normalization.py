@@ -5,7 +5,7 @@ from datetime import datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.mask import MaskFeature
-from eolearn.features import ReferenceScenes, BaseCompositing, BlueCompositing, HOTCompositing, MaxNDVICompositing, \
+from eolearn.features import ReferenceScenes, BlueCompositing, HOTCompositing, MaxNDVICompositing, \
     MaxNDWICompositing, MaxRatioCompositing, HistogramMatching
 
 
