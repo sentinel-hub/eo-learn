@@ -8,10 +8,10 @@ All this is implemented in EOExecutor class.
 
 import os
 import logging
-import concurrent.futures
 import traceback
 import inspect
 import warnings
+import multiprocessing
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -74,8 +74,9 @@ class EOExecutor:
     def run(self, workers=1):
         """ Runs the executor with n workers.
 
-        :param workers: Number of parallel processes used in the execution. Default is a single process.
-        :type workers: int
+        :param workers: Number of parallel processes used in the execution. Default is a single process. If set to
+            `None` the number of workers will be the number of processors of the system.
+        :type workers: int or None
         """
         self.report_folder = self._get_report_folder()
         if self.save_logs and not os.path.isdir(self.report_folder):
@@ -84,30 +85,28 @@ class EOExecutor:
         execution_num = len(self.execution_args)
         log_paths = [self._get_log_filename(idx) if self.save_logs else None
                      for idx in range(execution_num)]
-        self.execution_logs = [None] * execution_num
-        self.execution_stats = [None] * execution_num
+
+        processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
+                                                                                               log_paths)]
 
         if workers is None or workers > 1:
-            future2idx = {}
-            with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-                for idx, fn_args in enumerate(zip(self.execution_args, log_paths)):
-                    future = executor.submit(self._execute_workflow, self.workflow, *fn_args)
-                    future2idx[future] = idx
-
-            for future in concurrent.futures.as_completed(future2idx):
-                idx = future2idx[future]
-                self.execution_stats[idx] = future.result()
+            with multiprocessing.Pool(processes=workers) as pool:
+                self.execution_stats = pool.map(self._execute_workflow, processing_args)
         else:
-            for idx, fn_args in enumerate(zip(self.execution_args, log_paths)):
-                self.execution_stats[idx] = self._execute_workflow(self.workflow, *fn_args)
+            self.execution_stats = [self._execute_workflow(process_args) for process_args in processing_args]
 
+        self.execution_logs = [None] * execution_num
         if self.save_logs:
             for idx, log_path in enumerate(log_paths):
                 with open(log_path) as fin:
                     self.execution_logs[idx] = fin.read()
 
     @classmethod
-    def _execute_workflow(cls, workflow, input_args, log_path):
+    def _execute_workflow(cls, process_args):
+        """ Handles a single execution of a workflow
+        """
+        workflow, input_args, log_path = process_args
+
         if log_path:
             logger = logging.getLogger()
             logger.setLevel(logging.DEBUG)
@@ -115,12 +114,10 @@ class EOExecutor:
             logger.addHandler(handler)
 
         stats = {'start_time': datetime.now()}
-
         try:
             _ = workflow.execute(input_args, monitor=True)
         except BaseException:
             stats['error'] = traceback.format_exc()
-
         stats['end_time'] = datetime.now()
 
         if log_path:

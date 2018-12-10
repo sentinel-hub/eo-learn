@@ -199,7 +199,7 @@ class EOPatch:
         """Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-                         See FeatureParser.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
@@ -212,18 +212,20 @@ class EOPatch:
                 new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
         return new_eopatch
 
-    def __deepcopy__(self, features=...):
+    def __deepcopy__(self, memo=None, features=...):
         """Returns a new EOPatch with deep copies of given features.
 
+        :param memo: built-in parameter for memoization
+        :type memo: dict
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-                         See FeatureParser.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
 
         new_eopatch = self.__copy__(features=features)
         for feature_type in FeatureType:
-            new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type])
+            new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type], memo)
 
         return new_eopatch
 
@@ -764,6 +766,8 @@ class _FeatureDict(dict):
         :raises: ValueError
         """
         if isinstance(value, _FileLoader):
+            return value
+        if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
             return value
 
         if self.ndim:

@@ -20,7 +20,7 @@ class CopyTask(EOTask):
         self.features = features
 
     def execute(self, eopatch):
-        return eopatch.__copy__(self.features)
+        return eopatch.__copy__(features=self.features)
 
 
 class DeepCopyTask(CopyTask):
@@ -30,7 +30,7 @@ class DeepCopyTask(CopyTask):
     :type features: object supported by eolearn.core.utilities.FeatureParser class
     """
     def execute(self, eopatch):
-        return eopatch.__deepcopy__(self.features)
+        return eopatch.__deepcopy__(features=self.features)
 
 
 class SaveToDisk(EOTask):
