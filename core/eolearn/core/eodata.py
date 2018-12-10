@@ -595,6 +595,8 @@ class EOPatch:
             feature_type_str = feature_type.value
             if feature_type_str not in entire_content:
                 continue
+            if feature_type_str not in requested_content:
+                requested_content[feature_type_str] = {}
             content = entire_content[feature_type_str]
 
             if isinstance(content, _FileLoader) or (isinstance(content, dict) and feature_name is ...):
