@@ -335,9 +335,10 @@ class TestSavingLoading(unittest.TestCase):
             eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=False, mmap=False)
             self.assertEqual(self.eopatch, eopatch2)
 
-            eopatch2.save(tmp_dir_name, file_format=FileFormat.NPY, features={FeatureType.DATA_TIMELESS: {'mask'},
-                                                                              FeatureType.TIMESTAMP: ...},
+            features = {FeatureType.DATA_TIMELESS: {'mask'}, FeatureType.TIMESTAMP: ...}
+            eopatch2.save(tmp_dir_name, file_format=FileFormat.NPY, features=features,
                           compress_level=3, overwrite_permission=1)
+            _ = EOPatch.load(tmp_dir_name, lazy_loading=True, mmap=False, features=features)
             eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=True, mmap=False)
             self.assertEqual(self.eopatch, eopatch2)
 
