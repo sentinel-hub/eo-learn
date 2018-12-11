@@ -15,7 +15,7 @@ Introduction
 
    self
    install
-   examples/eolearn-core-overview.ipynb
+   examples/core/CoreOverview.ipynb
    eotasks
    examples
    eolearn
