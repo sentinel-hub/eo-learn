@@ -43,7 +43,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
                     except ValueError:
                         pass
 
-                self.assertEqual(valid_count, 3 * (2 - feature_type.is_discrete()),
+                self.assertEqual(valid_count, 6,  # 3 * (2 - feature_type.is_discrete()),
                                  msg='Feature type {} should take only a specific type of data'.format(feature_type))
 
     def test_vector_feature_types(self):

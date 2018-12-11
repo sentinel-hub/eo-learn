@@ -74,7 +74,7 @@ class TestEOExecutor(unittest.TestCase):
             executor.run(workers=10)
             executor.make_report()
 
-            self.assertTrue(os.path.exists(executor._get_report_filename()), 'Execution report was not created')
+            self.assertTrue(os.path.exists(executor.get_report_filename()), 'Execution report was not created')
 
 
 if __name__ == '__main__':
