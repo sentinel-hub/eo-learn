@@ -2,6 +2,38 @@
 Examples
 ********
 
+IO Examples
+-----------
+
+.. toctree::
+
+    examples/io/SentinelHubIO.ipynb
+
+
+Data masks
+----------
+
+.. toctree::
+
+    examples/mask/ValidDataMask.ipynb
+
+
+Timelapse
+---------
+
+.. toctree::
+
+    examples/core/TimeLapse.ipynb
+
+
+Water Monitor
+-------------
+
+.. toctree::
+
+    examples/water-monitor/WaterMonitorWorkflow.ipynb
+
+
 Land Use and Land Cover
 -----------------------
 
@@ -12,9 +44,3 @@ Land Use and Land Cover
     examples/land-cover-map/2_eopatch-L2A.ipynb
     examples/land-cover-map/SI_LULC_pipeline.ipynb
 
-Water Monitor
--------------
-
-.. toctree::
-
-    examples/water-monitor/WaterMonitorWorkflow
