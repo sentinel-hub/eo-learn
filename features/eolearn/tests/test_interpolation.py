@@ -6,7 +6,7 @@ from datetime import datetime
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation, \
-    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling
+    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling, KrigingInterpolation
 
 
 class TestInterpolation(unittest.TestCase):
@@ -83,6 +83,12 @@ class TestInterpolation(unittest.TestCase):
                                                                   mask_feature=(FeatureType.MASK, 'IS_VALID')),
                                       result_len=68, img_min=-0.13793105, img_max=0.860242, img_mean=0.53159297,
                                       img_median=0.59087014),
+
+            cls.InterpolationTestCase('kriging interpolation',
+                                      KrigingInterpolation('NDVI', result_interval=(-10, 10),
+                                                           resample_range=('2016-01-01', '2018-01-01', 5)),
+                                      result_len=147, img_min=-0.2525029, img_max=0.65908, img_mean=0.3825493,
+                                      img_median=0.39931053),
 
             cls.InterpolationTestCase('nearest resample', NearestResampling('NDVI', result_interval=(0.0, 1.0),
                                                                             resample_range=('2016-01-01',
