@@ -145,7 +145,8 @@ class EOWorkflow:
         :return: A new EO workflow instance
         :rtype: EOWorkflow
         """
-        warnings.warn('This method will soon be removed. Use LinearWorkflow class instead', DeprecationWarning)
+        warnings.warn("Method 'make_linear_workflow' will soon be removed. Use LinearWorkflow class instead",
+                      DeprecationWarning, stacklevel=2)
 
         return LinearWorkflow(*tasks, **kwargs)
 
@@ -366,7 +367,7 @@ class Dependency:
     def __attrs_post_init__(self):
         if self.transform is not None:
             warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed. Please use "
-                          "parameter 'task' instead.", DeprecationWarning)
+                          "parameter 'task' instead.", DeprecationWarning, stacklevel=3)
             if self.task is None:
                 self.task = self.transform
 
@@ -446,7 +447,7 @@ class WorkflowResults(collections.Mapping):
         repr_list = ['{}('.format(self.__class__.__name__)]
 
         for _, dep in self._uuid_dict.items():
-            repr_list.append('{}({}): {}'.format(Dependency.__name__, dep.get_task_name(),
+            repr_list.append('{}({}): {}'.format(Dependency.__name__, dep.name,
                                                  repr(self._result[dep])))
 
         return '\n  '.join(repr_list) + '\n)'

@@ -55,7 +55,7 @@ class EOExecutor:
         self.logs_folder = logs_folder
         if file_path is not None:
             warnings.warn("Parameter 'file_path' has been renamed to 'logs_folder' and will soon be removed. Please "
-                          "use parameter 'logs_folder' instead.", DeprecationWarning)
+                          "use parameter 'logs_folder' instead.", DeprecationWarning, stacklevel=2)
             self.logs_folder = file_path
 
         self.report_folder = None
@@ -141,7 +141,12 @@ class EOExecutor:
     def _get_log_filename(self, execution_nb):
         return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
 
-    def _get_report_filename(self):
+    def get_report_filename(self):
+        """ Returns the filename and file path of the report
+
+        :return: Report filename
+        :rtype: str
+        """
         return os.path.join(self.report_folder, self.REPORT_FILENAME)
 
     def make_report(self):
@@ -174,7 +179,7 @@ class EOExecutor:
         if not os.path.isdir(self.report_folder):
             os.mkdir(self.report_folder)
 
-        with open(self._get_report_filename(), 'w') as fout:
+        with open(self.get_report_filename(), 'w') as fout:
             fout.write(html)
 
     def _create_dependency_graph(self):

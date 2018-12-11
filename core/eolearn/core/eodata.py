@@ -781,9 +781,14 @@ class _FeatureDict(dict):
 
             if self.feature_type.is_discrete():
                 if not issubclass(value.dtype.type, (np.integer, np.bool, np.bool_, np.bool8)):
-                    raise ValueError('{} is a discrete feature type therefore dtype of data has to be a subtype of '
-                                     'numpy.integer or numpy.bool, found type {}'.format(self.feature_type,
-                                                                                         value.dtype.type))
+                    msg = '{} is a discrete feature type therefore dtype of data should be a subtype of ' \
+                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because' \
+                          'of this'.format(self.feature_type, value.dtype.type)
+                    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+
+                    # raise ValueError('{} is a discrete feature type therefore dtype of data has to be a subtype of '
+                    #                  'numpy.integer or numpy.bool, found type {}'.format(self.feature_type,
+                    #                                                                      value.dtype.type))
             # This checking is disabled for now
             # else:
             #     if not issubclass(value.dtype.type, (np.floating, np.float)):
