@@ -37,43 +37,43 @@ class TestRadiometricNormalization(unittest.TestCase):
         cls.test_cases = [
             cls.RadiometricNormalizationTestCase('mask feature', MaskFeature(
                 (FeatureType.DATA, 'S2-L1C-10-BANDS', 'TEST'), (FeatureType.MASK, 'SCL'),
-                mask_values=[0, 1, 2, 3, 8, 9, 10, 11]), img_min=0.0084, img_max=1.0503, img_mean=0.19780958,
-                img_median=0.1597),
+                mask_values=[0, 1, 2, 3, 8, 9, 10, 11]), img_min=0.0004, img_max=1.0678, img_mean=0.12345793,
+                img_median=0.1028),
 
             cls.RadiometricNormalizationTestCase('reference scene', ReferenceScenes(
                 (FeatureType.DATA, 'MASKED', 'TEST'), (FeatureType.SCALAR, 'VALID_FRAC'),
-                max_scene_number=5), img_min=0.0084, img_max=1.0503, img_mean=0.19995609,
-                img_median=0.161),
+                max_scene_number=5), img_min=0.0006, img_max=0.982, img_mean=0.11606364,
+                img_median=0.1053),
 
             cls.RadiometricNormalizationTestCase('blue compositing', BlueCompositing(
                 (FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA_TIMELESS, 'TEST'),
-                blue_idx=0, interpolation='geoville'), img_min=0.0086, img_max=1.0503, img_mean=0.18888658,
-                img_median=0.1475),
+                blue_idx=0, interpolation='geoville'), img_min=0.0006, img_max=0.6152, img_mean=0.09875322,
+                img_median=0.095),
 
             cls.RadiometricNormalizationTestCase('hot compositing', HOTCompositing(
                 (FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA_TIMELESS, 'TEST'),
-                blue_idx=0, red_idx=2, interpolation='geoville'), img_min=0.0084, img_max=0.8064, img_mean=0.18883,
-                img_median=0.147),
+                blue_idx=0, red_idx=2, interpolation='geoville'), img_min=0.0006, img_max=0.8131, img_mean=0.09900281,
+                img_median=0.0952),
 
             cls.RadiometricNormalizationTestCase('max ndvi compositing', MaxNDVICompositing(
                 (FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA_TIMELESS, 'TEST'),
-                red_idx=2, nir_idx=7, interpolation='geoville'), img_min=0.0091, img_max=0.9463,
-                img_mean=0.20268114, img_median=0.1602),
+                red_idx=2, nir_idx=7, interpolation='geoville'), img_min=0.0006, img_max=0.6152,
+                img_mean=0.10077792, img_median=0.0966),
 
             cls.RadiometricNormalizationTestCase('max ndwi compositing', MaxNDWICompositing(
                 (FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA_TIMELESS, 'TEST'),
-                nir_idx=6, swir1_idx=8, interpolation='geoville'), img_min=0.0084, img_max=0.8064,
-                img_mean=0.19160628, img_median=0.1465),
+                nir_idx=6, swir1_idx=8, interpolation='geoville'), img_min=0.0006, img_max=0.982,
+                img_mean=0.12849501, img_median=0.1096),
 
             cls.RadiometricNormalizationTestCase('max ratio compositing', MaxRatioCompositing(
                 (FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA_TIMELESS, 'TEST'),
-                blue_idx=0, nir_idx=6, swir1_idx=8, interpolation='geoville'), img_min=0.0093, img_max=0.9463,
-                img_mean=0.20803407, img_median=0.1654),
+                blue_idx=0, nir_idx=6, swir1_idx=8, interpolation='geoville'), img_min=0.0006, img_max=0.9385,
+                img_mean=0.111010134, img_median=0.1045),
 
             cls.RadiometricNormalizationTestCase('histogram matching', HistogramMatching(
                 (FeatureType.DATA, 'MASKED', 'TEST'),
                 (FeatureType.DATA_TIMELESS, 'REFERENCE_COMPOSITE_BLUE')),
-                img_min=-0.1530194, img_max=1.1012005, img_mean=0.1901219, img_median=0.14299975)
+                img_min=-0.13022107, img_max=0.5565749, img_mean=0.09766118, img_median=0.09366062)
         ]
 
         for test_case in cls.test_cases:
