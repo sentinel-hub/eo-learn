@@ -16,7 +16,7 @@ class TestRadiometricNormalization(unittest.TestCase):
         Container for each interpolation test case
         """
         TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
-                                           'radiometricNormalization_TestEOPatch')
+                                           'TestEOPatch')
 
         def __init__(self, name, task, img_min=None, img_max=None, img_mean=None, img_median=None):
             self.name = name
