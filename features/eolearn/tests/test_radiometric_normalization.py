@@ -36,7 +36,7 @@ class TestRadiometricNormalization(unittest.TestCase):
 
         cls.test_cases = [
             cls.RadiometricNormalizationTestCase('mask feature', MaskFeature(
-                (FeatureType.DATA, 'S2-L1C-10-BANDS', 'TEST'), (FeatureType.MASK, 'SCL'),
+                (FeatureType.DATA, 'BANDS-S2-L1C', 'TEST'), (FeatureType.MASK, 'SCL'),
                 mask_values=[0, 1, 2, 3, 8, 9, 10, 11]), img_min=0.0004, img_max=1.0678, img_mean=0.12345793,
                 img_median=0.1028),
 
