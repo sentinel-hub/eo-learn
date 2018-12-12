@@ -564,14 +564,19 @@ class EOPatch:
             if file_saver.feature_type.value not in existing_content:
                 continue
             content = existing_content[file_saver.feature_type.value]
-            if file_saver.feature_name in content:
-                file_path = content[file_saver.feature_name].get_file_path()
-                alternative_permissions = tuple(op for op in OverwritePermission if
-                                                op is not OverwritePermission.ADD_ONLY)
-                raise ValueError("Feature ({}, {}) already exists in {}\n"
+
+            is_joined_feature = isinstance(content, _FileLoader)
+            if is_joined_feature or file_saver.feature_name in content:
+                existing_feature = (file_saver.feature_type, file_saver.feature_name) if not is_joined_feature \
+                    else file_saver.feature_type
+
+                file_path = content[file_saver.feature_name].get_file_path() if not is_joined_feature \
+                    else content.get_file_path()
+
+                alternative_permissions = OverwritePermission.OVERWRITE_FEATURES, OverwritePermission.OVERWRITE_PATCH
+                raise ValueError("{} already exists: {}\n"
                                  "In order to overwrite it set 'overwrite_permission' parameter to one of the "
-                                 "options {}".format(file_saver.feature_type, file_saver.feature_name, file_path,
-                                                     alternative_permissions))
+                                 "options {}".format(existing_feature, file_path, alternative_permissions))
 
     @staticmethod
     def load(path, features=..., lazy_loading=False, mmap=False):
