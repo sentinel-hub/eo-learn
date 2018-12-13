@@ -292,6 +292,8 @@ class InterpolationTask(EOTask):
         # Prepare mask of valid data
         if self.mask_feature:
             mask_type, mask_name = next(self.mask_feature(eopatch))
+            if feature_data.shape[0] == 1:
+                feature_data = np.squeeze(feature_data,axis=0)
             feature_data[~eopatch[mask_type][mask_name].squeeze(), :] = np.nan
 
         # Flatten array
