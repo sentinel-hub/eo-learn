@@ -4,7 +4,7 @@ The following objects and functions are the core of eo-learn package
 
 from sentinelhub import BBox, CRS
 
-from .constants import FeatureType, FileFormat, OverwritePermission
+from .constants import FeatureType, FeatureTypeSet, FileFormat, OverwritePermission
 from .eodata import EOPatch
 from .eotask import EOTask, CompositeTask
 from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
