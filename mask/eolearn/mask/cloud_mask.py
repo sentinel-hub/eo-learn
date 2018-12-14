@@ -1,12 +1,18 @@
-from eolearn.core import EOTask, FeatureType, get_common_timestamps
-from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+"""
+Module for cloud masking
+"""
 
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
-
-import numpy as np
 import logging
+import numpy as np
+
 from scipy.ndimage.interpolation import zoom
 from scipy.ndimage import gaussian_filter
+
+from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
+from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+
+from eolearn.core import EOTask, get_common_timestamps
+
 
 INTERP_METHODS = ['nearest', 'linear']
 
@@ -270,12 +276,12 @@ class AddCloudMaskTask(EOTask):
 
         # Add cloud mask as a feature to EOPatch
         clf_mask_hr = self._upsampling(clf_mask_lr, rescale, reference_shape, interp='nearest')
-        eopatch.add_feature(FeatureType.MASK, self.cm_feature, clf_mask_hr.astype(np.uint8))
+        eopatch.mask[self.cm_feature] = clf_mask_hr.astype(np.bool)
 
         # If the feature name for cloud probability maps is specified, add as feature
         if self.cprobs_feature is not None:
             clf_probs_hr = self._upsampling(clf_probs_lr, rescale, reference_shape, interp='linear')
-            eopatch.add_feature(FeatureType.DATA, self.cprobs_feature, clf_probs_hr.astype(np.float32))
+            eopatch.data[self.cprobs_feature] = clf_probs_hr.astype(np.float32)
 
         return eopatch
 
