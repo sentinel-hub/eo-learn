@@ -58,7 +58,8 @@ class FeatureParser:
         - tuples in form of (feature type, feature name) if parameter `new_names=False`
         - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
     """
-    def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None):
+    def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None,
+                 required_feature_types=None):
         """
         :param features: A collection of features in one of the supported formats
         :type features: object
@@ -70,17 +71,28 @@ class FeatureParser:
         :param rename_function: A function which transforms feature name into a new feature name, default is identity
             function. This parameter is only applied if `new_names` is set to `True`.
         :type rename_function: function or None
-        :param default_feature_type: If feature type of any of the given features is not set this will be used
+        :param default_feature_type: If feature type of any given feature is not set, this will be used. By default this
+            is set to `None`. In this case if feature type of any feature is not given the following will happen:
+                - if iterated over `EOPatch` - It will try to find a feature with matching name in EOPatch. If such
+                    features exist, it will return any of them. Otherwise it will raise an error.
+                - if iterated without `EOPatch` - It will return `...` instead of a feature type.
         :type default_feature_type: FeatureType or None
+        :param required_feature_types: Makes sure that only features of these feature types will be returned, otherwise
+            an error is raised
+        :type: set(FeatureType) or None
         :raises: ValueError
         """
-        self.feature_collection = self._parse_features(features, new_names, default_feature_type)
+        self.feature_collection = self._parse_features(features, new_names)
         self.new_names = new_names
         self.rename_function = rename_function
         self.default_feature_type = default_feature_type
+        self.required_feature_types = FeatureType if required_feature_types is None else set(required_feature_types)
 
         if rename_function is None:
             self.rename_function = self._identity_rename_function  # <- didn't use lambda function - it can't be pickled
+
+        if required_feature_types is not None:
+            self._check_feature_types()
 
     def __call__(self, eopatch=None):
         return self._get_features(eopatch)
@@ -89,7 +101,7 @@ class FeatureParser:
         return self._get_features()
 
     @staticmethod
-    def _parse_features(features, new_names, default_feature_type):
+    def _parse_features(features, new_names):
         """Takes a collection of features structured in a various ways and parses them into one way.
 
         If input format is not recognized it raises an error.
@@ -114,7 +126,7 @@ class FeatureParser:
             return OrderedDict([(features, ...)])
 
         if isinstance(features, str):
-            return OrderedDict([(default_feature_type, OrderedDict([(features, ...)]))])
+            return OrderedDict([(None, OrderedDict([(features, ...)]))])
 
         raise ValueError('Unknown format of input features: {}'.format(features))
 
@@ -235,6 +247,19 @@ class FeatureParser:
             return ...
         return OrderedDict([(feature_name, ...) for feature_name in feature_names])
 
+    def _check_feature_types(self):
+        """ Checks that feature types are a subset of required feature types. (`None` is handled
+
+        :raises: ValueError
+        """
+        if self.default_feature_type is not None and self.default_feature_type not in self.required_feature_types:
+            raise ValueError('Default feature type parameter must be one of the required feature types')
+
+        for feature_type in self.feature_collection:
+            if feature_type is not None and feature_type not in self.required_feature_types:
+                raise ValueError('Feature type has to be one of {}, but {} found'.format(self.required_feature_types,
+                                                                                         feature_type))
+
     def _get_features(self, eopatch=None):
         """A generator of parsed features.
 
@@ -244,14 +269,25 @@ class FeatureParser:
         :rtype: tuple(FeatureType, str) or tuple(FeatureType, str, str)
         """
         for feature_type, feature_dict in self.feature_collection.items():
+            if feature_type is None and self.default_feature_type is not None:
+                feature_type = self.default_feature_type
+
             if feature_type is None:
                 for feature_name, new_feature_name in feature_dict.items():
                     if eopatch is None:
                         yield self._return_feature(..., feature_name, new_feature_name)
                     else:
-                        for real_feature_type in FeatureType:
-                            if feature_name in eopatch[real_feature_type]:
-                                yield self._return_feature(real_feature_type, feature_name, new_feature_name)
+                        found_feature_type = None
+                        for any_feature_type in self.required_feature_types:
+                            if any_feature_type.has_dict() and feature_name in eopatch[any_feature_type]:
+                                found_feature_type = any_feature_type
+                                break
+                        if found_feature_type:
+                            yield self._return_feature(found_feature_type, feature_name, new_feature_name)
+                        else:
+                            raise ValueError("Feature with name '{}' does not exist among features of required feature"
+                                             " types in given EOPatch. Required feature types are "
+                                             "{}".format(feature_name, self.required_feature_types))
             elif feature_dict is ...:
                 if not feature_type.has_dict() or eopatch is None:
                     yield self._return_feature(feature_type, ...)

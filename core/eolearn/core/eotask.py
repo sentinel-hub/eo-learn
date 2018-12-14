@@ -80,11 +80,12 @@ class EOTask(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def _parse_features(features, new_names=False, rename_function=None, default_feature_type=None):
+    def _parse_features(features, new_names=False, rename_function=None, default_feature_type=None,
+                        required_featue_types=None):
         """ See eolearn.core.utilities.FeatureParser class.
         """
         return FeatureParser(features, new_names=new_names, rename_function=rename_function,
-                             default_feature_type=default_feature_type)
+                             default_feature_type=default_feature_type, required_feature_types=required_featue_types)
 
 
 @attr.s(cmp=False)
