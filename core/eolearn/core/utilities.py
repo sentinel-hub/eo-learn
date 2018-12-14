@@ -59,7 +59,7 @@ class FeatureParser:
         - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
     """
     def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None,
-                 required_feature_types=None):
+                 allowed_feature_types=None):
         """
         :param features: A collection of features in one of the supported formats
         :type features: object
@@ -77,7 +77,7 @@ class FeatureParser:
                     features exist, it will return any of them. Otherwise it will raise an error.
                 - if iterated without `EOPatch` - It will return `...` instead of a feature type.
         :type default_feature_type: FeatureType or None
-        :param required_feature_types: Makes sure that only features of these feature types will be returned, otherwise
+        :param allowed_feature_types: Makes sure that only features of these feature types will be returned, otherwise
             an error is raised
         :type: set(FeatureType) or None
         :raises: ValueError
@@ -86,12 +86,12 @@ class FeatureParser:
         self.new_names = new_names
         self.rename_function = rename_function
         self.default_feature_type = default_feature_type
-        self.required_feature_types = FeatureType if required_feature_types is None else set(required_feature_types)
+        self.allowed_feature_types = FeatureType if allowed_feature_types is None else set(allowed_feature_types)
 
         if rename_function is None:
             self.rename_function = self._identity_rename_function  # <- didn't use lambda function - it can't be pickled
 
-        if required_feature_types is not None:
+        if allowed_feature_types is not None:
             self._check_feature_types()
 
     def __call__(self, eopatch=None):
@@ -248,16 +248,16 @@ class FeatureParser:
         return OrderedDict([(feature_name, ...) for feature_name in feature_names])
 
     def _check_feature_types(self):
-        """ Checks that feature types are a subset of required feature types. (`None` is handled
+        """ Checks that feature types are a subset of allowed feature types. (`None` is handled
 
         :raises: ValueError
         """
-        if self.default_feature_type is not None and self.default_feature_type not in self.required_feature_types:
-            raise ValueError('Default feature type parameter must be one of the required feature types')
+        if self.default_feature_type is not None and self.default_feature_type not in self.allowed_feature_types:
+            raise ValueError('Default feature type parameter must be one of the allowed feature types')
 
         for feature_type in self.feature_collection:
-            if feature_type is not None and feature_type not in self.required_feature_types:
-                raise ValueError('Feature type has to be one of {}, but {} found'.format(self.required_feature_types,
+            if feature_type is not None and feature_type not in self.allowed_feature_types:
+                raise ValueError('Feature type has to be one of {}, but {} found'.format(self.allowed_feature_types,
                                                                                          feature_type))
 
     def _get_features(self, eopatch=None):
@@ -281,9 +281,9 @@ class FeatureParser:
                         if found_feature_type:
                             yield self._return_feature(found_feature_type, feature_name, new_feature_name)
                         else:
-                            raise ValueError("Feature with name '{}' does not exist among features of required feature"
-                                             " types in given EOPatch. Required feature types are "
-                                             "{}".format(feature_name, self.required_feature_types))
+                            raise ValueError("Feature with name '{}' does not exist among features of allowed feature"
+                                             " types in given EOPatch. Allowed feature types are "
+                                             "{}".format(feature_name, self.allowed_feature_types))
             elif feature_dict is ...:
                 if not feature_type.has_dict() or eopatch is None:
                     yield self._return_feature(feature_type, ...)
@@ -298,13 +298,13 @@ class FeatureParser:
                     yield self._return_feature(feature_type, feature_name, new_feature_name)
 
     def _find_feature_type(self, feature_name, eopatch):
-        """ Iterates over required feature types of given EOPatch and tries to find a feature type for which there
+        """ Iterates over allowed feature types of given EOPatch and tries to find a feature type for which there
         exists a feature with given name
 
         :return: A feature type or `None` if such feature type does not exist
         :rtype: FeatureType or None
         """
-        for feature_type in self.required_feature_types:
+        for feature_type in self.allowed_feature_types:
             if feature_type.has_dict() and feature_name in eopatch[feature_type]:
                 return feature_type
         return None

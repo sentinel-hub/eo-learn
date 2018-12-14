@@ -7,7 +7,7 @@ from datetime import timedelta, datetime
 from scipy import interpolate
 import warnings
 
-from eolearn.core import EOTask, EOPatch, FeatureType
+from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 
@@ -58,23 +58,17 @@ class InterpolationTask(EOTask):
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
                  copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
                  interpolate_pixel_wise=False, **interpolation_parameters):
-        # TODO: allow multiple mask features
-        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
-        feature_type, _, _ = next(iter(self.feature))
-        if feature_type not in [FeatureType.DATA, FeatureType.MASK]:  # TODO: move to FeatureParser
-            raise ValueError("Parameter 'feature' cannot be of type {}".format(feature_type))
+
+        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA,
+                                            allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
 
         self.interpolation_object = interpolation_object
-
         self.resample_range = resample_range
         self.result_interval = result_interval
 
         self.mask_feature = None if mask_feature is None else \
-            self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)
-        if self.mask_feature is not None:
-            mask_type, _ = next(iter(self.mask_feature))
-            if mask_type not in [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL]:  # TODO: move to FeatureParser
-                raise ValueError("Parameter 'mask_feature' cannot be of type {}".format(mask_type))
+            self._parse_features(mask_feature, default_feature_type=FeatureType.MASK,
+                                 allowed_feature_types={FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL})
 
         if resample_range is None and copy_features is not None:
             self.copy_features = None
