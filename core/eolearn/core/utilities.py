@@ -277,11 +277,7 @@ class FeatureParser:
                     if eopatch is None:
                         yield self._return_feature(..., feature_name, new_feature_name)
                     else:
-                        found_feature_type = None
-                        for any_feature_type in self.required_feature_types:
-                            if any_feature_type.has_dict() and feature_name in eopatch[any_feature_type]:
-                                found_feature_type = any_feature_type
-                                break
+                        found_feature_type = self._find_feature_type(feature_name, eopatch)
                         if found_feature_type:
                             yield self._return_feature(found_feature_type, feature_name, new_feature_name)
                         else:
@@ -300,6 +296,18 @@ class FeatureParser:
                         raise ValueError('Feature {} of type {} was not found in EOPatch'.format(feature_name,
                                                                                                  feature_type))
                     yield self._return_feature(feature_type, feature_name, new_feature_name)
+
+    def _find_feature_type(self, feature_name, eopatch):
+        """ Iterates over required feature types of given EOPatch and tries to find a feature type for which there
+        exists a feature with given name
+
+        :return: A feature type or `None` if such feature type does not exist
+        :rtype: FeatureType or None
+        """
+        for feature_type in self.required_feature_types:
+            if feature_type.has_dict() and feature_name in eopatch[feature_type]:
+                return feature_type
+        return None
 
     def _return_feature(self, feature_type, feature_name, new_feature_name=...):
         """ Helping function of `get_features`
