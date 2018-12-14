@@ -36,7 +36,7 @@ class InterpolationTask(EOTask):
     :type resample_range: (str, str, int) or list(str) or list(datetime.datetime) or None
     :param result_interval: Maximum and minimum of returned data
     :type result_interval: (float, float)
-    :param mask_feature: Feature that contains binary masks of interpolated feature
+    :param mask_feature: A mask feature which will be used to mask certain features
     :type mask_feature: (FeatureType, str)
     :param copy_features: List of tuples of type (FeatureType, str) or (FeatureType, str, str) that are copied
         over into the new EOPatch. The first string is the feature name, and the second one (optional) is a new name
@@ -58,7 +58,12 @@ class InterpolationTask(EOTask):
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
                  copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
                  interpolate_pixel_wise=False, **interpolation_parameters):
+        # TODO: allow multiple mask features
         self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA)
+        feature_type, _, _ = next(iter(self.feature))
+        if feature_type not in [FeatureType.DATA, FeatureType.MASK]:  # TODO: move to FeatureParser
+            raise ValueError("Parameter 'feature' cannot be of type {}".format(feature_type))
+
         self.interpolation_object = interpolation_object
 
         self.resample_range = resample_range
@@ -66,6 +71,10 @@ class InterpolationTask(EOTask):
 
         self.mask_feature = None if mask_feature is None else \
             self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)
+        if self.mask_feature is not None:
+            mask_type, _ = next(iter(self.mask_feature))
+            if mask_type not in [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL]:  # TODO: move to FeatureParser
+                raise ValueError("Parameter 'mask_feature' cannot be of type {}".format(mask_type))
 
         if resample_range is None and copy_features is not None:
             self.copy_features = None
@@ -80,6 +89,38 @@ class InterpolationTask(EOTask):
         self.interpolate_pixel_wise = interpolate_pixel_wise
 
         self._resampled_times = None
+
+    def _mask_feature_data(self, feature_data, eopatch):
+        if self.mask_feature is None:
+            return feature_data
+
+        mask_type, mask_name = next(self.mask_feature(eopatch))
+        negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
+
+        if mask_type.is_spatial() and feature_data.shape[1: 3] != negated_mask.shape[-3: -1]:
+            raise ValueError('Spatial dimensions of interpolation and mask feature do not match: '
+                             '{} {}'.format(feature_data.shape, negated_mask.shape))
+
+        if mask_type.is_time_dependent() and feature_data.shape[0] != negated_mask.shape[0]:
+            raise ValueError('Time dimension of interpolation and mask feature do not match: '
+                             '{} {}'.format(feature_data.shape, negated_mask.shape))
+
+        # This allows masking each channel differently but causes some complications while masking with label
+        if negated_mask.shape[-1] == feature_data.shape[-1]:
+            negated_mask = negated_mask[..., 0]
+
+        if mask_type is FeatureType.MASK:
+            feature_data[negated_mask, ...] = np.nan
+
+        elif mask_type is FeatureType.MASK_TIMELESS:
+            feature_data[:, negated_mask, ...] = np.nan
+
+        elif mask_type is FeatureType.LABEL:
+            np.swapaxes(feature_data, 1, 3)
+            feature_data[negated_mask, ..., :, :] = np.nan
+            np.swapaxes(feature_data, 1, 3)
+
+        return feature_data
 
     @staticmethod
     def _get_start_end_nans(data):
@@ -288,13 +329,12 @@ class InterpolationTask(EOTask):
         # Make a copy not to change original numpy array
         feature_data = eopatch[feature_type][feature_name].copy()
         time_num, height, width, band_num = feature_data.shape
+        if time_num <= 1:
+            raise ValueError('Feature {} has time dimension of size {}, required at least size '
+                             '2'.format((feature_type, feature_name), time_num))
 
-        # Prepare mask of valid data
-        if self.mask_feature:
-            mask_type, mask_name = next(self.mask_feature(eopatch))
-            if feature_data.shape[0] == 1:
-                feature_data = np.squeeze(feature_data,axis=0)
-            feature_data[~eopatch[mask_type][mask_name].squeeze(), :] = np.nan
+        # Apply a mask on data
+        feature_data = self._mask_feature_data(feature_data, eopatch)
 
         # Flatten array
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
