@@ -316,6 +316,7 @@ class InterpolationTask(EOTask):
     def execute(self, eopatch):
         """ Execute method that processes EOPatch and returns EOPatch
         """
+        # pylint: disable=too-many-locals
         feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
 
         # Make a copy not to change original numpy array
