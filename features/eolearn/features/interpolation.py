@@ -1,11 +1,11 @@
 """ Module for interpolating, smoothing and re-sampling features in EOPatch """
 
+import warnings
 import numpy as np
 
 from dateutil import parser
 from datetime import timedelta, datetime
 from scipy import interpolate
-import warnings
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -84,34 +84,32 @@ class InterpolationTask(EOTask):
 
         self._resampled_times = None
 
-    def _mask_feature_data(self, feature_data, eopatch):
-        if self.mask_feature is None:
-            return feature_data
+    @staticmethod
+    def _mask_feature_data(feature_data, mask, mask_type):
+        """ Masks values of data feature with a given mask of given mask type
+        """
 
-        mask_type, mask_name = next(self.mask_feature(eopatch))
-        negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
-
-        if mask_type.is_spatial() and feature_data.shape[1: 3] != negated_mask.shape[-3: -1]:
+        if mask_type.is_spatial() and feature_data.shape[1: 3] != mask.shape[-3: -1]:
             raise ValueError('Spatial dimensions of interpolation and mask feature do not match: '
-                             '{} {}'.format(feature_data.shape, negated_mask.shape))
+                             '{} {}'.format(feature_data.shape, mask.shape))
 
-        if mask_type.is_time_dependent() and feature_data.shape[0] != negated_mask.shape[0]:
+        if mask_type.is_time_dependent() and feature_data.shape[0] != mask.shape[0]:
             raise ValueError('Time dimension of interpolation and mask feature do not match: '
-                             '{} {}'.format(feature_data.shape, negated_mask.shape))
+                             '{} {}'.format(feature_data.shape, mask.shape))
 
         # This allows masking each channel differently but causes some complications while masking with label
-        if negated_mask.shape[-1] == feature_data.shape[-1]:
-            negated_mask = negated_mask[..., 0]
+        if mask.shape[-1] != feature_data.shape[-1]:
+            mask = mask[..., 0]
 
         if mask_type is FeatureType.MASK:
-            feature_data[negated_mask, ...] = np.nan
+            feature_data[mask, ...] = np.nan
 
         elif mask_type is FeatureType.MASK_TIMELESS:
-            feature_data[:, negated_mask, ...] = np.nan
+            feature_data[:, mask, ...] = np.nan
 
         elif mask_type is FeatureType.LABEL:
             np.swapaxes(feature_data, 1, 3)
-            feature_data[negated_mask, ..., :, :] = np.nan
+            feature_data[mask, ..., :, :] = np.nan
             np.swapaxes(feature_data, 1, 3)
 
         return feature_data
@@ -328,7 +326,10 @@ class InterpolationTask(EOTask):
                              '2'.format((feature_type, feature_name), time_num))
 
         # Apply a mask on data
-        feature_data = self._mask_feature_data(feature_data, eopatch)
+        if self.mask_feature is not None:
+            for mask_type, mask_name in self.mask_feature(eopatch):
+                negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
+                feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
 
         # Flatten array
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
