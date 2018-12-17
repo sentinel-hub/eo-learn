@@ -4,6 +4,8 @@ This module implements feature types used in EOPatch objects
 
 from enum import Enum
 
+from sentinelhub import BBox
+
 
 class FeatureType(Enum):
     """The Enum class of all possible feature types that can be included in EOPatch.
@@ -57,6 +59,10 @@ class FeatureType(Enum):
         return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
                                   FeatureType.VECTOR, FeatureType.TIMESTAMP])
 
+    def is_timeless(self):
+        """True if FeatureType doesn't have a time component. False otherwise."""
+        return not self.is_time_dependent()
+
     def is_discrete(self):
         """True if FeatureType should have discrete (integer) values. False otherwise."""
         return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
@@ -100,7 +106,7 @@ class FeatureType(Enum):
         if self is FeatureType.TIMESTAMP:
             return list
         if self is FeatureType.BBOX:
-            return object
+            return BBox
         return dict
 
 

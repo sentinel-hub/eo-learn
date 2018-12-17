@@ -19,7 +19,7 @@ class TestEOPatch(unittest.TestCase):
         bands[0] = bands[1]
         bands[1, 5:15, 5:15, :] = .5
         bands[0, 7:17, 5:15, :] = .5
-        mask = np.ones((2, 20, 20, 1))
+        mask = np.ones((2, 20, 20, 1), dtype=np.int16)
         ndvi = np.ones((2, 20, 20, 1))
         dem = np.ones((20, 20, 1))
 

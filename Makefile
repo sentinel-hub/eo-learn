@@ -7,6 +7,16 @@ PACKAGES = core coregistration features geometry io mask ml_tools
 
 help:
 	@echo "Use 'make upload-<package>' to upload the package to PyPi"
+	@echo "Use 'make pylint' to run pylint on the code of all subpackages"
+
+pylint:
+	pylint core/eolearn/core/*.py
+	pylint coregistration/eolearn/coregistration/*.py
+	pylint features/eolearn/features/*.py
+	pylint geometry/eolearn/geometry/*.py
+	pylint io/eolearn/io/*.py
+	pylint mask/eolearn/mask/*.py
+	pylint ml_tools/eolearn/ml_tools/*.py
 
 .ONESHELL:
 build-core:

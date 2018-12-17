@@ -8,10 +8,15 @@ import pickle
 import numpy as np
 import gzip
 import shutil
-import datetime
 import warnings
+import attr
+import datetime
+import dateutil.parser
 
 from copy import copy, deepcopy
+from geopandas import GeoDataFrame, GeoSeries
+
+from sentinelhub import BBox
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
@@ -19,7 +24,10 @@ from .utilities import deep_eq, FeatureParser
 
 LOGGER = logging.getLogger(__name__)
 
+MAX_DATA_REPR_LEN = 100
 
+
+@attr.s(repr=False, cmp=False, kw_only=True)
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
 
@@ -39,25 +47,19 @@ class EOPatch:
     Currently the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
     arrays in other attributes.
     """
-
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self, *, data=None, mask=None, scalar=None, label=None, vector=None, data_timeless=None,
-                 mask_timeless=None, scalar_timeless=None, label_timeless=None, vector_timeless=None, meta_info=None,
-                 bbox=None, timestamp=None):
-
-        self.data = data if data is not None else {}
-        self.mask = mask if mask is not None else {}
-        self.scalar = scalar if scalar is not None else {}
-        self.label = label if label is not None else {}
-        self.vector = vector if vector is not None else {}
-        self.data_timeless = data_timeless if data_timeless is not None else {}
-        self.mask_timeless = mask_timeless if mask_timeless is not None else {}
-        self.scalar_timeless = scalar_timeless if scalar_timeless is not None else {}
-        self.label_timeless = label_timeless if label_timeless is not None else {}
-        self.vector_timeless = vector_timeless if vector_timeless is not None else {}
-        self.meta_info = meta_info if meta_info is not None else {}
-        self.bbox = bbox
-        self.timestamp = timestamp if timestamp is not None else []
+    data = attr.ib(factory=dict)
+    mask = attr.ib(factory=dict)
+    scalar = attr.ib(factory=dict)
+    label = attr.ib(factory=dict)
+    vector = attr.ib(factory=dict)
+    data_timeless = attr.ib(factory=dict)
+    mask_timeless = attr.ib(factory=dict)
+    scalar_timeless = attr.ib(factory=dict)
+    label_timeless = attr.ib(factory=dict)
+    vector_timeless = attr.ib(factory=dict)
+    meta_info = attr.ib(factory=dict)
+    bbox = attr.ib(default=None)
+    timestamp = attr.ib(factory=list)
 
     def __setattr__(self, key, value):
         """Raises TypeError if feature type attributes are not of correct type.
@@ -66,13 +68,33 @@ class EOPatch:
         """
         if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
-            value_type = feature_type.type()
-            if not isinstance(value, value_type,):
-                raise TypeError('Attribute {} only takes items of type {}'.format(feature_type, value_type))
-            if feature_type.has_dict() and not isinstance(value, _FeatureDict):
-                value = _FeatureDict(value, feature_type)
+            value = self._parse_feature_type_value(feature_type, value)
 
         super().__setattr__(key, value)
+
+    @staticmethod
+    def _parse_feature_type_value(feature_type, value):
+        """ Checks or parses value which will be assigned to a feature type attribute of `EOPatch`. If the value
+        cannot be parsed correctly it raises an error.
+
+        :raises: TypeError, ValueError
+        """
+        if feature_type.has_dict() and isinstance(value, dict):
+            return value if isinstance(value, _FeatureDict) else _FeatureDict(value, feature_type)
+
+        if feature_type is FeatureType.BBOX:
+            if value is None or isinstance(value, BBox):
+                return value
+            if isinstance(value, (tuple, list)) and len(value) == 5:
+                return BBox(value[:4], crs=value[4])
+
+        if feature_type is FeatureType.TIMESTAMP:
+            if isinstance(value, (tuple, list)):
+                return [timestamp if isinstance(timestamp, datetime.date) else dateutil.parser.parse(timestamp)
+                        for timestamp in value]
+
+        raise TypeError('Attribute {} requires value of type {} - '
+                        'failed to parse given value'.format(feature_type, feature_type.type()))
 
     def __getattribute__(self, key, load=True):
         """ Handles lazy loading
@@ -143,16 +165,41 @@ class EOPatch:
         :rtype: str
         """
         if isinstance(value, np.ndarray):
-            return '{}, shape={}, dtype={}'.format(type(value), value.shape, value.dtype)
+            return '{}(shape={}, dtype={})'.format(EOPatch._repr_value_class(value), value.shape, value.dtype)
+        if isinstance(value, GeoDataFrame):
+            return '{}(columns={}, length={}, crs={})'.format(EOPatch._repr_value_class(value), list(value),
+                                                              len(value), value.crs['init'])
         if isinstance(value, (list, tuple, dict)) and value:
-            return '{}, length={}'.format(type(value), len(value))
+            repr_str = str(value)
+            if len(repr_str) <= MAX_DATA_REPR_LEN:
+                return repr_str
+
+            bracket_str = '[{}]' if isinstance(value, list) else '({})'
+            if isinstance(value, (list, tuple)) and len(value) > 2:
+                repr_str = bracket_str.format('{}, ..., {}'.format(repr(value[0]), repr(value[-1])))
+
+            if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
+                repr_str = bracket_str.format('{}, ...'.format(repr(value[0])))
+
+            if len(repr_str) > MAX_DATA_REPR_LEN:
+                repr_str = str(type(value))
+
+            return '{}, length={}'.format(repr_str, len(value))
+
         return repr(value)
+
+    @staticmethod
+    def _repr_value_class(value):
+        """ A representation of a class of a given value
+        """
+        cls = value.__class__
+        return '.'.join([cls.__module__.split('.')[0], cls.__name__])
 
     def __copy__(self, features=...):
         """Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-                         See FeatureParser.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
@@ -165,18 +212,20 @@ class EOPatch:
                 new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
         return new_eopatch
 
-    def __deepcopy__(self, features=...):
+    def __deepcopy__(self, memo=None, features=...):
         """Returns a new EOPatch with deep copies of given features.
 
+        :param memo: built-in parameter for memoization
+        :type memo: dict
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-                         See FeatureParser.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
 
         new_eopatch = self.__copy__(features=features)
         for feature_type in FeatureType:
-            new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type])
+            new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type], memo)
 
         return new_eopatch
 
@@ -380,9 +429,9 @@ class EOPatch:
         :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default
         all features will be saved.
-        :type features: list(FeatureType) or None
+        :type features: list(FeatureType) or list((FeatureType, str)) or ...
         :param file_format: File format
-        :type file_format: str or FileFormat
+        :type file_format: FileFormat or str
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
@@ -515,14 +564,19 @@ class EOPatch:
             if file_saver.feature_type.value not in existing_content:
                 continue
             content = existing_content[file_saver.feature_type.value]
-            if file_saver.feature_name in content:
-                file_path = content[file_saver.feature_name].get_file_path()
-                alternative_permissions = tuple(op for op in OverwritePermission if
-                                                op is not OverwritePermission.ADD_ONLY)
-                raise ValueError("Feature ({}, {}) already exists in {}\n"
+
+            is_joined_feature = isinstance(content, _FileLoader)
+            if is_joined_feature or file_saver.feature_name in content:
+                existing_feature = (file_saver.feature_type, file_saver.feature_name) if not is_joined_feature \
+                    else file_saver.feature_type
+
+                file_path = content[file_saver.feature_name].get_file_path() if not is_joined_feature \
+                    else content.get_file_path()
+
+                alternative_permissions = OverwritePermission.OVERWRITE_FEATURES, OverwritePermission.OVERWRITE_PATCH
+                raise ValueError("{} already exists: {}\n"
                                  "In order to overwrite it set 'overwrite_permission' parameter to one of the "
-                                 "options {}".format(file_saver.feature_type, file_saver.feature_name, file_path,
-                                                     alternative_permissions))
+                                 "options {}".format(existing_feature, file_path, alternative_permissions))
 
     @staticmethod
     def load(path, features=..., lazy_loading=False, mmap=False):
@@ -530,7 +584,7 @@ class EOPatch:
 
         :param path: Location on the disk
         :type path: str
-        :param features: A collection of features to be loaded. If set to None all features will be loaded.
+        :param features: A collection of features to be loaded. By default all features will be loaded.
         :type features: object
         :param lazy_loading: If `True` features will be lazy loaded.
         :type lazy_loading: bool
@@ -548,11 +602,13 @@ class EOPatch:
             feature_type_str = feature_type.value
             if feature_type_str not in entire_content:
                 continue
-            content = entire_content[feature_type_str]
 
+            content = entire_content[feature_type_str]
             if isinstance(content, _FileLoader) or (isinstance(content, dict) and feature_name is ...):
                 requested_content[feature_type_str] = content
             else:
+                if feature_type_str not in requested_content:
+                    requested_content[feature_type_str] = {}
                 requested_content[feature_type_str][feature_name] = content[feature_name]
 
         if not lazy_loading:
@@ -685,15 +741,16 @@ class _FeatureDict(dict):
 
         self.feature_type = feature_type
         self.ndim = self.feature_type.ndim()
+        self.is_vector = self.feature_type.is_vector()
 
         for feature_name, value in feature_dict.items():
             self[feature_name] = value
 
     def __setitem__(self, feature_name, value):
-        """Before setting value to the dictionary it checks that value is of correct type and dimension."""
-        if not isinstance(value, _FileLoader) and self.ndim \
-                and (not isinstance(value, np.ndarray) or value.ndim != self.ndim):
-            raise ValueError('{} feature has to be {} of dimension {}'.format(self.feature_type, np.ndarray, self.ndim))
+        """ Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
+        transform value in correct form.
+        """
+        value = self._parse_feature_value(value)
         super().__setitem__(feature_name, value)
 
     def __getitem__(self, feature_name, load=True):
@@ -709,6 +766,58 @@ class _FeatureDict(dict):
     def get_dict(self):
         """Returns a Python dictionary of features and value."""
         return dict(self)
+
+    def _parse_feature_value(self, value):
+        """ Checks if value fits the feature type. If not it tries to fix it or raise an error
+
+        :raises: ValueError
+        """
+        if isinstance(value, _FileLoader):
+            return value
+        if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
+            return value
+
+        if self.ndim:
+            if not isinstance(value, np.ndarray):
+                raise ValueError('{} feature has to be a numpy array'.format(self.feature_type))
+            if value.ndim != self.ndim:
+                raise ValueError('Numpy array of {} feature has to have {} '
+                                 'dimension{}'.format(self.feature_type, self.ndim, 's' if self.ndim > 1 else ''))
+
+            if self.feature_type.is_discrete():
+                if not issubclass(value.dtype.type, (np.integer, np.bool, np.bool_, np.bool8)):
+                    msg = '{} is a discrete feature type therefore dtype of data should be a subtype of ' \
+                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because' \
+                          'of this'.format(self.feature_type, value.dtype.type)
+                    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+
+                    # raise ValueError('{} is a discrete feature type therefore dtype of data has to be a subtype of '
+                    #                  'numpy.integer or numpy.bool, found type {}'.format(self.feature_type,
+                    #                                                                      value.dtype.type))
+            # This checking is disabled for now
+            # else:
+            #     if not issubclass(value.dtype.type, (np.floating, np.float)):
+            #         raise ValueError('{} is a floating feature type therefore dtype of data has to be a subtype of '
+            #                          'numpy.floating or numpy.float, found type {}'.format(self.feature_type,
+            #                                                                                value.dtype.type))
+            return value
+
+        if self.is_vector:
+            if isinstance(value, GeoSeries):
+                value = GeoDataFrame(dict(geometry=value), crs=value.crs)
+
+            if isinstance(value, GeoDataFrame):
+                if self.feature_type is FeatureType.VECTOR:
+                    if FeatureType.TIMESTAMP.value.upper() not in value:
+                        raise ValueError("{} feature has to contain a column 'TIMESTAMP' with "
+                                         "timestamps".format(self.feature_type))
+
+                return value
+
+            raise ValueError('{} feature works with data of type {}, parsing data type {} is not supported'
+                             'given'.format(self.feature_type, GeoDataFrame.__name__, type(value)))
+
+        return value
 
 
 class _FileLoader:
@@ -819,6 +928,9 @@ class _FileSaver:
             data = eopatch[self.feature_type]
             if self.feature_type.has_dict():
                 data = data.get_dict()
+
+            if self.feature_type is FeatureType.BBOX:
+                data = tuple(data) + (int(data.crs.value),)
         else:
             data = eopatch[self.feature_type][self.feature_name]
 

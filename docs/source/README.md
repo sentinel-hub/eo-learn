@@ -42,6 +42,8 @@ The design of the **eo-learn** library follows the dataflow programing paradigm 
     * each **EOTask** takes an **EOPatch** as an input and returns a modified **EOPatch**
 3. **EOWorkflow**
     * a collection of **EOTask**s that together represent an _EO-value-adding-processing_ chain
+4. **EOExecutor**
+    * Handles execution of a **EOWorkflow** multiple times at once with different input data.
 
 ### EOPatch
 
@@ -59,3 +61,7 @@ biophysical indices, ground truth reference data, weather data, etc. **EOPatch**
 **EOWorkflow** represents the entire EO processing chain or EO-value-extraction pipeline by chaining or connecting sequence of **EOTask**s. The **EOWorkflow** takes care that the **EOTask**s are executed in the correct order and with correct parameters. **EOWorkflow** is executed on a single **EOPatch** at a time, but the same **EOWorkflow** can be executed on multiple **EOTask**s.
 
 Under the hood the **EOWorkflow** builds a directed acyclic graph (in case user tries to build a cyclic graph the **EOWorkflow** will complain). There's no limitation on the number of nodes (**EOTask**s with inputs) or the graph's topology. The **EOWorkflow** first names the input tasks that persist over executions, determines the ordering of the tasks, executes the task in that order, and finally returns the results of tasks with no outgoing edge.
+
+### EOExecutor
+
+**EOExecutor** wraps the entire pipeline process together by executing a **EOWorkflow** as many times as required, each time with different user-defined input parameters. The executions can be parallel or consecutive. During each execution process **EOExecutor** monitors the progress, saves log files and catches any possible pipeline breaking errors. At the end it can produce a report with all information about executions. It provides an easy way to track when something was processed and how to repeat the process with exactly the same parameters.

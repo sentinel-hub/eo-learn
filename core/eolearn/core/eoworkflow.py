@@ -17,10 +17,8 @@ import collections
 import logging
 import warnings
 import uuid
+import attr
 
-# the next are needed for DAG visualization only
-import networkx as nx
-import matplotlib.pyplot as plt
 from graphviz import Digraph
 
 from copy import deepcopy
@@ -33,7 +31,8 @@ LOGGER = logging.getLogger(__file__)
 
 
 class CyclicDependencyError(ValueError):
-    pass
+    """ This error is raised when trying to initialize `EOWorkflow` with a cyclic dependency graph
+    """
 
 
 class EOWorkflow:
@@ -80,11 +79,11 @@ class EOWorkflow:
         uuid_dict = {}
         for dep in dependencies:
             task = dep.task
-            if task.uuid in uuid_dict:
+            if task.private_task_config.uuid in uuid_dict:
                 raise ValueError('EOWorkflow cannot execute the same instance of EOTask multiple times')
 
-            task.uuid = self.id_gen.next()
-            uuid_dict[task.uuid] = dep
+            task.private_task_config.uuid = self.id_gen.next()
+            uuid_dict[task.private_task_config.uuid] = dep
 
         return uuid_dict
 
@@ -97,10 +96,13 @@ class EOWorkflow:
         :rtype: DirectedGraph
         """
         dag = DirectedGraph()
-
         for dep in dependencies:
             for vertex in dep.inputs:
-                dag.add_edge(self.uuid_dict[vertex.uuid], dep)
+                task_uuid = vertex.private_task_config.uuid
+                if task_uuid not in self.uuid_dict:
+                    raise ValueError('Task {}, which is an input of a task {}, is not part of the defined '
+                                     'workflow'.format(vertex.__class__.__name__, dep.name))
+                dag.add_edge(self.uuid_dict[task_uuid], dep)
             if not dep.inputs:
                 dag.add_vertex(dep)
         return dag
@@ -143,15 +145,17 @@ class EOWorkflow:
         :return: A new EO workflow instance
         :rtype: EOWorkflow
         """
-        warnings.warn('This method will soon be removed. Use LinearWorkflow class instead', DeprecationWarning)
+        warnings.warn("Method 'make_linear_workflow' will soon be removed. Use LinearWorkflow class instead",
+                      DeprecationWarning, stacklevel=2)
 
         return LinearWorkflow(*tasks, **kwargs)
 
     def execute(self, input_args=None, monitor=False):
         """Executes the workflow.
 
-        :param input_args: External input arguments to the workflow.
-        :type input_args: dict(EOTask: dict(str: object))
+        :param input_args: External input arguments to the workflow. They have to be in a form of a dictionary where
+            each key is an EOTask used in the workflow and each value is a dictionary or a tuple of arguments.
+        :type input_args: dict(EOTask: dict(str: object) or tuple(object))
         :param monitor: If True workflow execution will be monitored
         :type monitor: bool
         :return: An immutable mapping containing results of terminal tasks
@@ -159,14 +163,27 @@ class EOWorkflow:
         """
         out_degs = dict(self.dag.get_outdegrees())
 
-        input_args = input_args if input_args else {}
-        for task in input_args:
-            if not isinstance(task, EOTask):
-                raise ValueError('Invalid input argument {}, should be an instance of EOTask'.format(task))
+        input_args = self.parse_input_args(input_args)
 
         _, intermediate_results = self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor)
 
         return WorkflowResults(intermediate_results)
+
+    @staticmethod
+    def parse_input_args(input_args):
+        """ Parses EOWorkflow input arguments provided by user and raises an error if something is wrong. This is
+        done automatically in the process of workflow execution
+        """
+        input_args = input_args if input_args else {}
+        for task, args in input_args.items():
+            if not isinstance(task, EOTask):
+                raise ValueError('Invalid input argument {}, should be an instance of EOTask'.format(task))
+
+            if not isinstance(args, (tuple, dict)):
+                raise ValueError('Execution input arguments of each task should be a dictionary or a tuple, for task '
+                                 '{} got arguments of type {}'.format(task.__class__.__name__, type(args)))
+
+        return input_args
 
     def _execute_tasks(self, *, input_args, out_degs, monitor):
         """Executes tasks comprising the workflow in the predetermined order.
@@ -200,7 +217,7 @@ class EOWorkflow:
     def _execute_task(self, *, dependency, input_args, intermediate_results, monitor):
         """Executes a task of the workflow.
 
-        :param dependency: A workflow dependecy
+        :param dependency: A workflow dependency
         :type dependency: Dependency
         :param input_args: External task parameters.
         :type input_args: dict
@@ -211,8 +228,14 @@ class EOWorkflow:
         :rtype: object
         """
         task = dependency.task
+        inputs = tuple(intermediate_results[self.uuid_dict[input_task.private_task_config.uuid]]
+                       for input_task in dependency.inputs)
+
         kw_inputs = input_args.get(task, {})
-        inputs = tuple(intermediate_results[self.uuid_dict[input_task.uuid]] for input_task in dependency.inputs)
+        if isinstance(kw_inputs, tuple):
+            inputs += kw_inputs
+            kw_inputs = {}
+
         LOGGER.debug("Computing %s(*%s, **%s)", str(task), str(inputs), str(kw_inputs))
         return task(*inputs, **kw_inputs, monitor=monitor)
 
@@ -232,7 +255,7 @@ class EOWorkflow:
         """
         current_task = dependency.task
         for input_task in dependency.inputs:
-            dep = self.uuid_dict[input_task.uuid]
+            dep = self.uuid_dict[input_task.private_task_config.uuid]
             out_degrees[dep] -= 1
 
             if out_degrees[dep] == 0:
@@ -246,11 +269,12 @@ class EOWorkflow:
         :rtype: Digraph
         """
         dot = Digraph()
+
         dep_to_dot_name = self._get_dep_to_dot_name_mapping(self.ordered_dependencies)
 
         for dep in self.ordered_dependencies:
             for input_task in dep.inputs:
-                dot.edge(dep_to_dot_name[self.uuid_dict[input_task.uuid]],
+                dot.edge(dep_to_dot_name[self.uuid_dict[input_task.private_task_config.uuid]],
                          dep_to_dot_name[dep])
         return dot
 
@@ -258,7 +282,7 @@ class EOWorkflow:
     def _get_dep_to_dot_name_mapping(dependencies):
         dot_name_to_deps = {}
         for dep in dependencies:
-            dot_name = EOWorkflow._get_dot_name(dep)
+            dot_name = dep.name
 
             if dot_name not in dot_name_to_deps:
                 dot_name_to_deps[dot_name] = [dep]
@@ -276,28 +300,24 @@ class EOWorkflow:
 
         return dep_to_dot_name
 
-    @staticmethod
-    def _get_dot_name(dependency):
-        """Generates names of tasks used in dot graph."""
-        return dependency.get_task_name()
-
-    def dependency_graph(self, outfile, view=False):
+    def dependency_graph(self, filename=None):
         """Visualize the computational graph.
 
-        :param outfile: The name of the output image of the graph.
-        :type outfile: str
-        :param view: A flag indicating whether to view the image of the graph
-        :type view: bool
+        :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
+            `pdf`, ... . Check `graphviz` Python package for more options
+        :type filename: str
+        :return: The DOT representation of the computational graph, with some more formatting
+        :rtype: Digraph
         """
         dot = self.get_dot()
+        dot.attr(rankdir='LR')  # Show graph from left to right
 
-        with open(outfile, 'w') as fout:
-            fout.write(dot.source)
+        if filename is not None:
+            file_name, file_format = filename.rsplit('.', 1)
 
-        if view:
-            graph = nx.drawing.nx_pydot.read_dot(outfile)
-            nx.draw(graph, with_labels=True)
-            plt.show()
+            dot.render(filename=file_name, format=file_format, cleanup=True)
+
+        return dot
 
 
 class LinearWorkflow(EOWorkflow):
@@ -328,44 +348,50 @@ class LinearWorkflow(EOWorkflow):
         return unique_tasks
 
 
+@attr.s(cmp=False)  # cmp=False preserves the original hash
 class Dependency:
-    """Class representing a node in EOWorkflow graph."""
-    def __init__(self, task=None, inputs=None, name=None, transform=None):
-        if transform is not None:
-            warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed",
-                          DeprecationWarning)
-            if task is None:
-                task = transform
+    """ Class representing a node in EOWorkflow graph.
 
-        if not isinstance(task, EOTask):
-            raise ValueError('Value {} should be an instance of {}'.format(task, EOTask.__name__))
-        self.task = task
+    :param task:
+    :type task: EOTask
+    :param inputs:
+    :type inputs: list(EOTask) or EOTask
+    :param name: Name of the Dependency node
+    :type name: str or None
+    """
+    task = attr.ib(default=None)  # validator parameter could be used, but its error msg is ugly
+    inputs = attr.ib(factory=list)
+    name = attr.ib(default=None)
+    transform = attr.ib(default=None)
 
-        if inputs is None:
-            inputs = []
-        if isinstance(inputs, EOTask):
-            inputs = [inputs]
-        if not isinstance(inputs, (list, tuple)):
-            raise ValueError('Value {} should be a list'.format(inputs))
-        for input_task in inputs:
+    def __attrs_post_init__(self):
+        if self.transform is not None:
+            warnings.warn("Parameter 'transform' has been renamed to 'task' and will soon be removed. Please use "
+                          "parameter 'task' instead.", DeprecationWarning, stacklevel=3)
+            if self.task is None:
+                self.task = self.transform
+
+        if not isinstance(self.task, EOTask):
+            raise ValueError('Value {} should be an instance of {}'.format(self.task, EOTask.__name__))
+        self.task = self.task
+
+        if isinstance(self.inputs, EOTask):
+            self.inputs = [self.inputs]
+        if not isinstance(self.inputs, (list, tuple)):
+            raise ValueError('Value {} should be a list'.format(self.inputs))
+        for input_task in self.inputs:
             if not isinstance(input_task, EOTask):
                 raise ValueError('Value {} should be an instance of {}'.format(input_task, EOTask.__name__))
-        self.inputs = inputs
 
-        self.name = name
+        if self.name is None:
+            self.name = self.task.__class__.__name__
 
     def set_name(self, name):
         """Sets a new name."""
         self.name = name
 
-    def get_task_name(self):
-        """Returns a name of the task in dependency."""
-        if self.name:
-            return self.name
-        return type(self.task).__name__
-
     def __repr__(self):
-        return self.get_task_name()
+        return self.name
 
 
 class WorkflowResults(collections.Mapping):
@@ -379,11 +405,11 @@ class WorkflowResults(collections.Mapping):
     """
     def __init__(self, results):
         self._result = dict(results)
-        self._uuid_dict = {dep.task.uuid: dep for dep in results}
+        self._uuid_dict = {dep.task.private_task_config.uuid: dep for dep in results}
 
     def __getitem__(self, item):
         if isinstance(item, EOTask):
-            item = self._uuid_dict[item.uuid]
+            item = self._uuid_dict[item.private_task_config.uuid]
         return self._result[item]
 
     def __len__(self):
@@ -394,7 +420,7 @@ class WorkflowResults(collections.Mapping):
 
     def __contains__(self, item):
         if isinstance(item, EOTask):
-            item = self._uuid_dict[item.uuid]
+            item = self._uuid_dict[item.private_task_config.uuid]
         return item in self._result
 
     def __eq__(self, other):
@@ -414,14 +440,14 @@ class WorkflowResults(collections.Mapping):
 
     def get(self, key, default=None):
         if isinstance(key, EOTask):
-            key = self._uuid_dict[key.uuid]
+            key = self._uuid_dict[key.private_task_config.uuid]
         return self._result.get(key, default)
 
     def __repr__(self):
         repr_list = ['{}('.format(self.__class__.__name__)]
 
         for _, dep in self._uuid_dict.items():
-            repr_list.append('{}({}): {}'.format(Dependency.__name__, dep.get_task_name(),
+            repr_list.append('{}({}): {}'.format(Dependency.__name__, dep.name,
                                                  repr(self._result[dep])))
 
         return '\n  '.join(repr_list) + '\n)'

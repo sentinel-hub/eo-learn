@@ -140,17 +140,18 @@ class SentinelHubOGCInput(EOTask):
             if data.shape[0] > 1:
                 raise ValueError('Cannot save time dependent data to time independent feature')
             data = data.squeeze(axis=0)
+        if self.feature_type.is_discrete():
+            data = data.astype(np.int32)
+
         eopatch[self.feature_type][self.feature_name] = data
 
         mask_feature_type, mask_feature_name = next(self.valid_data_mask_feature())
 
-        max_value = 1  # This should be calculated according to self.image_format (in sentinelhub)
+        max_value = self.image_format.get_expected_max_value()
         valid_data = (valid_mask == max_value).astype(np.uint8).reshape(valid_mask.shape + (1,))
 
         if mask_feature_name not in eopatch[mask_feature_type]:
             eopatch[mask_feature_type][mask_feature_name] = valid_data
-
-        eopatch[self.feature_type][self.feature_name] = data
 
     def _add_meta_info(self, eopatch, request_params, service_type):
         """ Adds any missing metadata info to EOPatch """
@@ -355,15 +356,17 @@ class AddSen2CorClassificationFeature(SentinelHubOGCInput):
     """
     def __init__(self, sen2cor_classification, layer, **kwargs):
         # definition of possible types and target features
-        classification_types = {'SCL': FeatureType.MASK,
-                                'CLD': FeatureType.DATA,
-                                'SNW': FeatureType.DATA}
+        classification_types = {
+            'SCL': FeatureType.MASK,
+            'CLD': FeatureType.DATA,
+            'SNW': FeatureType.DATA
+        }
 
         if sen2cor_classification not in classification_types:
             raise ValueError('Unsupported Sen2Cor classification type: {}.'
                              ' Possible types are: {}'.format(sen2cor_classification, classification_types))
 
-        evalscript = 'return ['+sen2cor_classification+'];'
+        evalscript = 'return [{}];'.format(sen2cor_classification)
 
         super().__init__(feature=(classification_types[sen2cor_classification], sen2cor_classification),
                          layer=layer, data_source=DataSource.SENTINEL2_L2A,
