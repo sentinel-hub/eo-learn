@@ -86,7 +86,17 @@ class InterpolationTask(EOTask):
 
     @staticmethod
     def _mask_feature_data(feature_data, mask, mask_type):
-        """ Masks values of data feature with a given mask of given mask type
+        """ Masks values of data feature with a given mask of given mask type. The masking is done by assigning
+        `numpy.nan` value.
+
+        :param feature_data: Data array which will be masked
+        :type feature_data: numpy.ndarray
+        :param mask: Mask array
+        :type mask: numpy.ndarray
+        :param mask_type: Feature type of mask
+        :type mask_type: FeatureType
+        :return: Masked data array
+        :rtype: numpy.ndarray
         """
 
         if mask_type.is_spatial() and feature_data.shape[1: 3] != mask.shape[-3: -1]:
