@@ -20,17 +20,20 @@ class ExportToTiff(SaveToDisk):
     :type folder: str
     :param band_count: Number of bands to be added to tiff image
     :type band_count: int
+    :param date_count: Number of dates to be added to tiff image
+    :type date_count: tiff
     :param image_dtype: Type of data to be saved into tiff image
     :type image_dtype: numpy.dtype
     :param no_data_value: Value of pixels of tiff image with no data in EOPatch
     :type no_data_value: int or float
     """
 
-    def __init__(self, feature, folder='.', *, band_count=1, image_dtype=np.uint8, no_data_value=0):
+    def __init__(self, feature, folder='.', *, band_count=1, date_count=1, image_dtype=np.uint8, no_data_value=0):
         super().__init__(folder)
 
         self.feature = self._parse_features(feature)
         self.band_count = band_count
+        self.date_count = date_count
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
@@ -39,18 +42,44 @@ class ExportToTiff(SaveToDisk):
         feature_type, feature_name = next(self.feature(eopatch))
         array = eopatch[feature_type][feature_name]
 
-        if self.band_count == 1:
-            array = array[..., 0]
+       # if self.band_count == 1:
+       #     array = array[..., 0]
 
         dst_shape = array.shape
-        dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=dst_shape[1], height=dst_shape[0])
+        filename_list = []
+        print(self.date_count)
+
+        if str(feature_type) in ['FeatureType.DATA','FeatureType.MASK']:
+            date_timestamp = eopatch.timestamp
+            width = dst_shape[2]
+            height = dst_shape[1]
+            print("test1")
+            for d in range(self.date_count):
+                for b in range(self.band_count):
+                    date_lyr = array[d,...,b]
+                    print(date_lyr.shape)
+                    filename_list.append(date_lyr)
+
+        else:
+            print("test 2")
+            self.date_count=1
+            width = dst_shape[1]
+            height = dst_shape[0]
+            for b in range(self.band_count):
+                date_lyr = array[...,b]
+                print(date_lyr.shape)
+                filename_list.append(date_lyr)
+
+        dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
         dst_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
 
         # Write it out to a file.
         with rasterio.open(os.path.join(self.folder, filename), 'w', driver='GTiff',
-                           width=dst_shape[1], height=dst_shape[0],
-                           count=self.band_count, dtype=self.image_dtype, nodata=self.no_data_value,
+                           width=width, height=height,
+                           count=self.date_count*self.band_count,
+                           dtype=self.image_dtype, nodata=self.no_data_value,
                            transform=dst_transform, crs=dst_crs) as dst:
-            dst.write(array.astype(self.image_dtype), indexes=self.band_count)
+            for id in range(self.date_count*self.band_count):
+                dst.write_band(id+1, filename_list[id].astype(self.image_dtype))
 
         return eopatch
