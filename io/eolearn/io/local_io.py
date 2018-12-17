@@ -21,7 +21,7 @@ class ExportToTiff(SaveToDisk):
     :param band_count: Number of bands to be added to tiff image
     :type band_count: int
     :param date_count: Number of dates to be added to tiff image
-    :type date_count: tiff
+    :type date_count: int
     :param image_dtype: Type of data to be saved into tiff image
     :type image_dtype: numpy.dtype
     :param no_data_value: Value of pixels of tiff image with no data in EOPatch
@@ -42,9 +42,6 @@ class ExportToTiff(SaveToDisk):
         feature_type, feature_name = next(self.feature(eopatch))
         array = eopatch[feature_type][feature_name]
 
-       # if self.band_count == 1:
-       #     array = array[..., 0]
-
         dst_shape = array.shape
         filename_list = []
         print(self.date_count)
@@ -53,7 +50,6 @@ class ExportToTiff(SaveToDisk):
             date_timestamp = eopatch.timestamp
             width = dst_shape[2]
             height = dst_shape[1]
-            print("test1")
             for d in range(self.date_count):
                 for b in range(self.band_count):
                     date_lyr = array[d,...,b]
@@ -61,7 +57,6 @@ class ExportToTiff(SaveToDisk):
                     filename_list.append(date_lyr)
 
         else:
-            print("test 2")
             self.date_count=1
             width = dst_shape[1]
             height = dst_shape[0]
