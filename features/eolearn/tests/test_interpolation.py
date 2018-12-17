@@ -183,7 +183,7 @@ class TestInterpolation(unittest.TestCase):
 
     def test_stats(self):
         for test_case in self.test_cases:
-            delta = 1e-6
+            delta = 1e-5  # Can't be higher accuracy because of Kriging interpolation
             data = test_case.result[test_case.feature_type][test_case.feature_name]
 
             if test_case.img_min is not None:
