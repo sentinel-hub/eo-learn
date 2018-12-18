@@ -307,8 +307,8 @@ class InterpolationTask(EOTask):
             raise ValueError('Invalid resample_range {}, expected tuple'.format(self.resample_range))
 
         if tuple(map(type, self.resample_range)) == (str, str, int):
-            start_date = parser.parse(self.resample_range[0])
-            end_date = parser.parse(self.resample_range[1])
+            start_date = parser.parse(self.resample_range[0]) if parser.parse(self.resample_range[0]) > timestamp[0] else timestamp[0]
+            end_date = parser.parse(self.resample_range[1]) if parser.parse(self.resample_range[1]) < timestamp[-1] else timestamp[-1]
             step = timedelta(days=self.resample_range[2])
             days = [start_date]
             while days[-1] + step < end_date:
