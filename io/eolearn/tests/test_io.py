@@ -2,7 +2,7 @@ import unittest
 import logging
 
 import os
-import numpy
+import numpy as np
 
 from sentinelhub import BBox, CRS, DataSource, ServiceType
 from sentinelhub.time_utils import iso_to_datetime
@@ -279,20 +279,23 @@ class TestEOPatch(unittest.TestCase):
                 masks = [task.layer]
                 for mask in masks:
                     if task.eop.data and mask in task.eop.data:
-                        self.assertTrue(isinstance(task.eop.data[mask], numpy.ndarray))
+                        self.assertTrue(isinstance(task.eop.data[mask], np.ndarray))
                         self.assertEqual(task.eop.data[mask].shape[-1], task.data_size)
 
                 masks = ['DEM']
                 for mask in masks:
                     if task.eop.data_timeless and mask in task.eop.data_timeless:
-                        self.assertTrue(isinstance(task.eop.data_timeless[mask], numpy.ndarray))
+                        self.assertTrue(isinstance(task.eop.data_timeless[mask], np.ndarray))
                         self.assertEqual(task.eop.data_timeless[mask].shape[-1], task.data_size)
 
                 masks = ['IS_DATA']
                 for mask in masks:
                     if task.eop.mask and mask in task.eop.mask:
-                        self.assertTrue(isinstance(task.eop.mask[mask], numpy.ndarray))
+                        self.assertTrue(isinstance(task.eop.mask[mask], np.ndarray))
                         self.assertEqual(task.eop.mask[mask].shape[-1], 1)
+                        mask_dtype = task.eop.mask[mask].dtype
+                        self.assertEqual(mask_dtype, np.dtype(np.bool),
+                                         msg='Valid data mask should be boolean type, found {}'.format(mask_dtype))
 
 
 if __name__ == '__main__':

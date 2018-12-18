@@ -148,7 +148,7 @@ class SentinelHubOGCInput(EOTask):
         mask_feature_type, mask_feature_name = next(self.valid_data_mask_feature())
 
         max_value = self.image_format.get_expected_max_value()
-        valid_data = (valid_mask == max_value).astype(np.uint8).reshape(valid_mask.shape + (1,))
+        valid_data = (valid_mask == max_value).astype(np.bool).reshape(valid_mask.shape + (1,))
 
         if mask_feature_name not in eopatch[mask_feature_type]:
             eopatch[mask_feature_type][mask_feature_name] = valid_data

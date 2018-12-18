@@ -30,15 +30,19 @@ class TestInterpolation(unittest.TestCase):
             self.nan_replace = nan_replace
 
             self.result = None
+            self.feature_type = None
+            self.feature_name = None
 
         def execute(self):
             patch = EOPatch.load(self.TEST_PATCH_FILENAME)
+            self.feature_type, self.feature_name, _ = next(self.task.feature(patch))
+
             self.result = self.task.execute(patch)
-            patch = self.result
 
             if self.nan_replace is not None:
-                feature_type, feature_name, _ = next(self.task.feature(patch))
-                patch[feature_type][feature_name][np.isnan(patch[feature_type][feature_name])] = self.nan_replace
+                data = self.result[self.feature_type][self.feature_name]
+                data[np.isnan(data)] = self.nan_replace
+                self.result[self.feature_type][self.feature_name] = data
 
     @classmethod
     def setUpClass(cls):
@@ -55,7 +59,7 @@ class TestInterpolation(unittest.TestCase):
                                                           mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                           unknown_value=10, scale_time=1),
                                       result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
-                                      img_median=0.59765935),
+                                      img_median=0.597656965),
 
             cls.InterpolationTestCase('cubic', CubicInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                                   mask_feature=(FeatureType.MASK, 'IS_VALID'),
@@ -87,7 +91,7 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('kriging interpolation',
                                       KrigingInterpolation('NDVI', result_interval=(-10, 10),
                                                            resample_range=('2016-01-01', '2018-01-01', 5)),
-                                      result_len=147, img_min=-0.2525029, img_max=0.65908, img_mean=0.3825493,
+                                      result_len=147, img_min=-0.252500534, img_max=0.659086704, img_mean=0.3825493,
                                       img_median=0.39931053),
 
             cls.InterpolationTestCase('nearest resample', NearestResampling('NDVI', result_interval=(0.0, 1.0),
@@ -105,16 +109,22 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('cubic resample', CubicResampling('NDVI', result_interval=(-0.2, 1.0),
                                                                         resample_range=('2015-01-01', '2018-01-01', 16),
                                                                         unknown_value=5),
-                                      result_len=69, img_min=-0.2, img_max=5.0, img_mean=1.2348738,
-                                      img_median=0.4656453, nan_replace=-0.2),
+                                      result_len=69, img_min=-0.2, img_max=5.0, img_mean=1.234881997,
+                                      img_median=0.465670556, nan_replace=-0.2),
 
             cls.InterpolationTestCase('linear custom list', LinearInterpolation(
                 'NDVI', result_interval=(-0.2, 1.0),
                 resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
                 unknown_value=-2),
                                       result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417,
-                                      img_median=0.5042224)
-
+                                      img_median=0.5042224),
+            cls.InterpolationTestCase('linear with bands and multiple masks',
+                                      LinearInterpolation('BANDS-S2-L1C', result_interval=(0.0, 1.0), unknown_value=10,
+                                                          mask_feature=[(FeatureType.MASK, 'IS_VALID'),
+                                                                        (FeatureType.MASK_TIMELESS, 'RANDOM_UINT8'),
+                                                                        (FeatureType.LABEL, 'RANDOM_DIGIT')]),
+                                      result_len=68, img_min=0.000200, img_max=10.0, img_mean=0.34815648,
+                                      img_median=0.1003600)
         ]
 
         cls.copy_feature_cases = [
@@ -173,29 +183,29 @@ class TestInterpolation(unittest.TestCase):
 
     def test_stats(self):
         for test_case in self.test_cases:
-            delta = 1e-3
+            delta = 1e-5  # Can't be higher accuracy because of Kriging interpolation
+            data = test_case.result[test_case.feature_type][test_case.feature_name]
 
             if test_case.img_min is not None:
-                min_val = np.amin(test_case.result.data['NDVI'])
+                min_val = np.amin(data)
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
                     self.assertAlmostEqual(test_case.img_min, min_val, delta=delta,
                                            msg="Expected min {}, got {}".format(test_case.img_min, min_val))
             if test_case.img_max is not None:
-                max_val = np.amax(test_case.result.data['NDVI'])
+                max_val = np.amax(data)
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
                     self.assertAlmostEqual(test_case.img_max, max_val, delta=delta,
                                            msg="Expected max {}, got {}".format(test_case.img_max, max_val))
             if test_case.img_mean is not None:
-                mean_val = np.mean(test_case.result.data['NDVI'])
+                mean_val = np.mean(data)
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
                     self.assertAlmostEqual(test_case.img_mean, mean_val, delta=delta,
                                            msg="Expected mean {}, got {}".format(test_case.img_mean, mean_val))
             if test_case.img_median is not None:
-                median_val = np.median(test_case.result.data['NDVI'])
+                median_val = np.median(data)
                 with self.subTest(msg='Test case {}'.format(test_case.name)):
                     self.assertAlmostEqual(test_case.img_median, median_val, delta=delta,
-                                           msg="Expected median {}, got {}".format(test_case.img_median,
-                                                                                   median_val))
+                                           msg="Expected median {}, got {}".format(test_case.img_median, median_val))
 
     def test_copied_fields(self):
         for test_case in self.copy_feature_cases:
