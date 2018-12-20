@@ -17,4 +17,4 @@ from .hog import HOGTask
 from .local_binary_pattern import LocalBinaryPatternTask
 
 
-__version__ = '0.4.0'
+__version__ = '0.4.1'
