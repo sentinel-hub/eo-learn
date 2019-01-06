@@ -123,18 +123,18 @@ class BaseCompositing(EOTask):
     def _get_reference_band(self, data):
         """ Extract reference band from input 4D data according to compositing method
 
-        :param data: 4D array from which to extract reference band (e.g. blue, maxNDVI, ..)
-        :type data: numpy array
-        :return: 3D array containing reference band according to compositing method
+            :param data: 4D array from which to extract reference band (e.g. blue, maxNDVI, ..)
+            :type data: numpy array
+            :return: 3D array containing reference band according to compositing method
         """
         raise NotImplementedError
 
     def _get_indices(self, data):
         """ Compute indices along temporal dimension corresponding to the sought percentile
 
-        :param data: Input 3D array holding the reference band
-        :type data: numpy array
-        :return: 2D array holding the temporal index corresponding to percentile
+            :param data: Input 3D array holding the reference band
+            :type data: numpy array
+            :return: 2D array holding the temporal index corresponding to percentile
         """
         indices = self._index_by_percentile(data, self.percentile)
         return indices
@@ -142,8 +142,8 @@ class BaseCompositing(EOTask):
     def execute(self, eopatch):
         """ Compute composite array merging temporal frames according to the compositing method
 
-        :param eopatch: eopatch holding time-series
-        :return: eopatch with composite image of time-series
+            :param eopatch: eopatch holding time-series
+            :return: eopatch with composite image of time-series
         """
         feature_type, feature_name = next(self.feature(eopatch))
         data = eopatch[feature_type][feature_name].copy()
@@ -310,9 +310,9 @@ class MaxRatioCompositing(BaseCompositing):
 
             The max-ratio is defined as max(NIR,SWIR1)/BLUE
 
-        :param data: 4D array from which to compute the max-ratio reference band
-        :type data: numpy array
-        :return: 3D array containing the max-ratio reference band
+            :param data: 4D array from which to compute the max-ratio reference band
+            :type data: numpy array
+            :return: 3D array containing the max-ratio reference band
         """
         blue = data[..., self.blue_idx].astype("float32")
         nir = data[..., self.nir_idx].astype("float32")
@@ -343,8 +343,9 @@ class HistogramMatching(EOTask):
     def execute(self, eopatch):
         """ Perform histogram matching of the time-series with respect to a reference scene
 
-        :param eopatch: eopatch holding the time-series and reference data
-        :return: The same eopatch instance with the normalised time-series
+            :param eopatch: eopatch holding the time-series and reference data
+            :type eopatch: EOPatch
+            :return: The same eopatch instance with the normalised time-series
         """
         feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
         reference_type, reference_name = next(self.reference(eopatch))
