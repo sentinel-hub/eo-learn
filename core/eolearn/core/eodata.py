@@ -257,7 +257,7 @@ class EOPatch:
         self[feature_type][feature_name] = value
     
     def rename_feature(self,feature_type,feature_name,new_feature_name):
-        """Renames the feature ``feature_name`` from dictionary of ``feature_type``.
+        """Renames the feature ``feature_name`` to ``new_feature_name`` from dictionary of ``feature_type``.
 
         :param feature_type: Enum of the attribute we're about to modify
         :type feature_type: FeatureType
