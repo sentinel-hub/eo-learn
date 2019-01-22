@@ -244,9 +244,9 @@ class InterpolationTask(EOTask):
         # define time values as linear monotonically increasing over the observations
         const = int(self.filling_factor * (np.max(times) - np.min(times)))
         temp_values = (times[:, np.newaxis] +
-                       const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+                       const * np.arange(nobs)[np.newaxis, :].astype(np.float64))
         res_temp_values = (resampled_times[:, np.newaxis] +
-                           const * np.arange(nobs)[np.newaxis, :]).astype(np.float64)
+                           const * np.arange(nobs)[np.newaxis, :].astype(np.float64))
 
         # initialise array of interpolated values
         new_data = np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
