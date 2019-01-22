@@ -11,7 +11,8 @@ import logging
 import traceback
 import inspect
 import warnings
-import multiprocessing
+import concurrent.futures
+from tqdm import tqdm_notebook as tqdm
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -89,11 +90,9 @@ class EOExecutor:
         processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
                                                                                                log_paths)]
 
-        if workers is None or workers > 1:
-            with multiprocessing.Pool(processes=workers) as pool:
-                self.execution_stats = pool.map(self._execute_workflow, processing_args)
-        else:
-            self.execution_stats = [self._execute_workflow(process_args) for process_args in processing_args]
+        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+            self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
+                                             total=len(processing_args)))
 
         self.execution_logs = [None] * execution_num
         if self.save_logs:
