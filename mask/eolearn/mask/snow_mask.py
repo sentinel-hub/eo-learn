@@ -56,5 +56,4 @@ class CalculateSnowMaskTask(EOTask):
         else:
             eopatch.add_feature(FeatureType.MASK, 'SNOW',
                                 calc_truth.reshape(list(calc_truth.shape) + [1]).astype('uint8'))
-
         return eopatch
