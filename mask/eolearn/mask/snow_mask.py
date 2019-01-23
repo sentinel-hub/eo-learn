@@ -73,10 +73,10 @@ class TheiaSnowMask(EOTask):
         self.r2 = r2
         self.f_s = f_s
         self.f_t = f_t
-        self.bands = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
+        self.bands = list(self._parse_features(data_feature, default_feature_type=FeatureType.DATA))[0]
         self.band_indices = band_indices
-        self.DEM = self._parse_features(DEM_feature, default_feature_type=FeatureType.DATA_TIMELESS)
-        self.CLM = self._parse_features(cloud_mask_feature, default_feature_type=FeatureType.MASK)
+        self.DEM = list(self._parse_features(DEM_feature, default_feature_type=FeatureType.DATA_TIMELESS))[0]
+        self.CLM = list(self._parse_features(cloud_mask_feature, default_feature_type=FeatureType.MASK))[0]
         self.dilation_size = dilation_size
 
 
@@ -89,7 +89,7 @@ class TheiaSnowMask(EOTask):
     def execute(self, eopatch):
         bands = eopatch[self.bands[0]][self.bands[1]][:, :, :, self.band_indices[:-1]]
         dates = bands.shape[0]
-        B10 = bands[:, :, :, self.band_indices[-1]]
+        B10 = eopatch[self.bands[0]][self.bands[1]][:, :, :, self.band_indices[-1]]
         DEM = eopatch[self.DEM[0]][self.DEM[1]][:, :, 0]
         clm = eopatch[self.CLM[0]][self.CLM[1]]
 
@@ -102,7 +102,7 @@ class TheiaSnowMask(EOTask):
             clm_temp[date] = np.logical_or(np.where(
                 np.logical_and(clm[date, :, :, 0] == 1,
                                self.resample_red(bands[date, :, :, 1]) > self.r_d),
-                1, 0), cirrus_mask[date])
+                1, 0), cirrus_mask[date]).astype(int).reshape(clm_temp[date].shape)
 
         pass1 = np.where(np.logical_and(np.logical_not(clm_temp[:, :, :, 0]),
                                         np.logical_and(NDSI > self.n1, bands[:, :, :, 1] > self.r1)), 1, 0)
@@ -126,9 +126,9 @@ class TheiaSnowMask(EOTask):
         for date in range(dates):
             for bn in range(nbins):
                 if cloud_free_pixels[date, bn] > 0:
-                    in_range = np.where((DEM[:, :, 0] >= DEM_edges[bn]) & (DEM[:, :, 0] < int(DEM_edges[bn + 1])))
+                    in_range = np.where((DEM >= DEM_edges[bn]) & (DEM < int(DEM_edges[bn + 1])))
                     in_range_clm = np.where(
-                        np.logical_and((DEM[:, :, 0] >= DEM_edges[bn]) & (DEM[:, :, 0] < int(DEM_edges[bn + 1])),
+                        np.logical_and((DEM >= DEM_edges[bn]) & (DEM < int(DEM_edges[bn + 1])),
                                        np.logical_not(clm_pass1[date])))
                     snow_frac[date, bn] = np.sum(pass1[date][in_range_clm]) / cloud_free_pixels[date, bn]
                     cloud_frac[date, bn] = np.sum(clm_pass1[date][in_range]) / cloud_free_pixels[date, bn]
