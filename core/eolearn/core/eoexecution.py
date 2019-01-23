@@ -12,7 +12,7 @@ import traceback
 import inspect
 import warnings
 import concurrent.futures
-from tqdm import tqdm_notebook as tqdm
+from tqdm.auto import tqdm
 
 import matplotlib.pyplot as plt
 import networkx as nx
