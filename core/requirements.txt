@@ -9,4 +9,4 @@ jinja2
 pygments
 sentinelhub>=2.4.7
 geopandas
-tqdm
+tqdm>=4.27
