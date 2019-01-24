@@ -2,18 +2,18 @@
 Module containing various geometrical tasks
 """
 
-import pandas
-import numpy as np
+import logging
+
+import shapely.geometry
 import rasterio.features
 import rasterio.transform
-import shapely.geometry
-
+import skimage.morphology
+import numpy as np
+import pandas as pd
 from geopandas import GeoSeries, GeoDataFrame
-from skimage.morphology import binary_erosion, disk
 
 from eolearn.core import EOTask, FeatureType
 
-import logging
 LOGGER = logging.getLogger(__name__)
 
 
@@ -51,7 +51,7 @@ class ErosionTask(EOTask):
         mask_values = np.zeros(labels.shape, dtype=np.bool)
         for label in self.erode_labels:
             label_mask = (labels == label)
-            label_mask = binary_erosion(label_mask, disk(self.disk_radius))
+            label_mask = skimage.morphology.binary_erosion(label_mask, skimage.morphology.disk(self.disk_radius))
             mask_values |= label_mask
 
         labels[~mask_values] = self.no_data_label
@@ -241,7 +241,7 @@ class RasterToVector(EOTask):
                                                           timestamp=eopatch.timestamp[time_idx])
                             for time_idx in range(raster.shape[0])]
 
-                eopatch[vector_ft][vector_fn] = GeoDataFrame(pandas.concat(gpd_list, ignore_index=True),
+                eopatch[vector_ft][vector_fn] = GeoDataFrame(pd.concat(gpd_list, ignore_index=True),
                                                              crs=gpd_list[0].crs)
 
         return eopatch
