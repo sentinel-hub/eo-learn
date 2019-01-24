@@ -12,7 +12,7 @@ import logging
 import datetime
 import inspect
 import copy
-import collections
+from collections import OrderedDict
 from abc import ABC, abstractmethod
 
 import attr
@@ -29,7 +29,7 @@ class EOTask(ABC):
         """Stores initialization parameters and the order to the instance attribute `init_args`."""
         self = super().__new__(cls)
 
-        init_args = collections.OrderedDict()
+        init_args = OrderedDict()
         for arg, value in zip(inspect.getfullargspec(self.__init__).args[1: len(args) + 1], args):
             init_args[arg] = copy.deepcopy(value)
         for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1:]:
@@ -109,8 +109,7 @@ class _PrivateTaskConfig:
     end_time = attr.ib(default=None)
 
     def __add__(self, other):
-        return _PrivateTaskConfig(init_args=collections.OrderedDict(list(self.init_args.items()) +
-                                                                    list(other.init_args.items())))
+        return _PrivateTaskConfig(init_args=OrderedDict(list(self.init_args.items()) + list(other.init_args.items())))
 
 
 class CompositeTask(EOTask):

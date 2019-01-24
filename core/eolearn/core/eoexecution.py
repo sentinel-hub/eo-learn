@@ -17,13 +17,13 @@ import io
 import concurrent.futures
 import datetime as dt
 
-import jinja2
+import matplotlib.pyplot as plt
+import networkx as nx
 import pygments
 import pygments.lexers
 from pygments.formatters.html import HtmlFormatter
 from tqdm.auto import tqdm
-import matplotlib.pyplot as plt
-import networkx as nx
+from jinja2 import Environment, FileSystemLoader
 
 from .eoworkflow import EOWorkflow
 
@@ -251,7 +251,7 @@ class EOExecutor:
     @classmethod
     def _get_template(cls):
         templates_dir = os.path.join(os.path.dirname(__file__), 'report_templates')
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(templates_dir))
+        env = Environment(loader=FileSystemLoader(templates_dir))
         env.filters['datetime'] = cls._format_datetime
         env.globals.update(timedelta=cls._format_timedelta)
         template = env.get_template(cls.REPORT_FILENAME)

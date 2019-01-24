@@ -18,10 +18,9 @@ import logging
 import warnings
 import uuid
 import copy
-from graphviz import Digraph
 
 import attr
-
+from graphviz import Digraph
 
 from .eotask import EOTask
 from .graph import DirectedGraph

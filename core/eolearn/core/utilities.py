@@ -4,7 +4,8 @@ two objects are deeply equal, padding of an image, etc.
 """
 
 import logging
-import collections
+from collections import OrderedDict
+
 import numpy as np
 
 from .constants import FeatureType
@@ -119,20 +120,20 @@ class FeatureParser:
             return FeatureParser._parse_tuple(features, new_names)
 
         if features is ...:
-            return collections.OrderedDict([(feature_type, ...) for feature_type in FeatureType])
+            return OrderedDict([(feature_type, ...) for feature_type in FeatureType])
 
         if isinstance(features, FeatureType):
-            return collections.OrderedDict([(features, ...)])
+            return OrderedDict([(features, ...)])
 
         if isinstance(features, str):
-            return collections.OrderedDict([(None, collections.OrderedDict([(features, ...)]))])
+            return OrderedDict([(None, OrderedDict([(features, ...)]))])
 
         raise ValueError('Unknown format of input features: {}'.format(features))
 
     @staticmethod
     def _parse_dict(features, new_names):
         """Helping function of `_parse_features` that parses a list."""
-        feature_collection = collections.OrderedDict()
+        feature_collection = OrderedDict()
         for feature_type, feature_names in features.items():
             try:
                 feature_type = FeatureType(feature_type)
@@ -140,7 +141,7 @@ class FeatureParser:
                 ValueError('Failed to parse {}, keys of the dictionary have to be instances '
                            'of {}'.format(features, FeatureType.__name__))
 
-            feature_collection[feature_type] = feature_collection.get(feature_type, collections.OrderedDict())
+            feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
 
             if feature_names is ...:
                 feature_collection[feature_type] = ...
@@ -153,14 +154,14 @@ class FeatureParser:
     @staticmethod
     def _parse_list(features, new_names):
         """Helping function of `_parse_features` that parses a list."""
-        feature_collection = collections.OrderedDict()
+        feature_collection = OrderedDict()
         for feature in features:
             if isinstance(feature, FeatureType):
                 feature_collection[feature] = ...
 
             elif isinstance(feature, (tuple, list)):
                 for feature_type, feature_dict in FeatureParser._parse_tuple(feature, new_names).items():
-                    feature_collection[feature_type] = feature_collection.get(feature_type, collections.OrderedDict())
+                    feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
 
                     if feature_dict is ...:
                         feature_collection[feature_type] = ...
@@ -182,9 +183,8 @@ class FeatureParser:
             name_idx = 0
 
         if feature_type and not feature_type.has_dict():
-            return collections.OrderedDict([(feature_type, ...)])
-        return collections.OrderedDict([(feature_type,
-                                         FeatureParser._parse_names_tuple(features[name_idx:], new_names))])
+            return OrderedDict([(feature_type, ...)])
+        return OrderedDict([(feature_type, FeatureParser._parse_names_tuple(features[name_idx:], new_names))])
 
     @staticmethod
     def _parse_feature_names(feature_names, new_names):
@@ -203,7 +203,7 @@ class FeatureParser:
     @staticmethod
     def _parse_names_set(feature_names):
         """Helping function of `_parse_feature_names` that parses a set of feature names."""
-        feature_collection = collections.OrderedDict()
+        feature_collection = OrderedDict()
         for feature_name in feature_names:
             if isinstance(feature_name, str):
                 feature_collection[feature_name] = ...
@@ -214,7 +214,7 @@ class FeatureParser:
     @staticmethod
     def _parse_names_dict(feature_names):
         """Helping function of `_parse_feature_names` that parses a dictionary of feature names."""
-        feature_collection = collections.OrderedDict()
+        feature_collection = OrderedDict()
         for feature_name, new_feature_name in feature_names.items():
             if isinstance(feature_name, str) and (isinstance(new_feature_name, str) or
                                                   new_feature_name is ...):
@@ -238,14 +238,14 @@ class FeatureParser:
 
         if new_names:
             if len(feature_names) == 1:
-                return collections.OrderedDict([(feature_names[0], ...)])
+                return OrderedDict([(feature_names[0], ...)])
             if len(feature_names) == 2:
-                return collections.OrderedDict([(feature_names[0], feature_names[1])])
+                return OrderedDict([(feature_names[0], feature_names[1])])
             raise ValueError("Failed to parse {}, it should contain at most two strings".format(feature_names))
 
         if ... in feature_names:
             return ...
-        return collections.OrderedDict([(feature_name, ...) for feature_name in feature_names])
+        return OrderedDict([(feature_name, ...) for feature_name in feature_names])
 
     def _check_feature_types(self):
         """ Checks that feature types are a subset of allowed feature types. (`None` is handled

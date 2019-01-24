@@ -14,8 +14,8 @@ class DirectedGraph:
     :param adjacency_dict: A dictionary mapping vertices to lists neighbors
     """
     def __init__(self, adjacency_dict=None):
-        self.adj_dict = collections.defaultdict(list, adjacency_dict) if adjacency_dict else collections.defaultdict(
-            list)
+        self.adj_dict = collections.defaultdict(list, adjacency_dict) if adjacency_dict else \
+            collections.defaultdict(list)
         self.indegrees = DirectedGraph._get_indegrees(self.adj_dict)
         self._vertices = set(self.adj_dict.keys()) | {v for neighs in self.adj_dict.values() for v in neighs}
 
