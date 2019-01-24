@@ -7,15 +7,15 @@ EO task classes are generally lightweight (i.e. not too complicated), short, and
 EO task might take as input an EOPatch containing cloud mask and return as a result the cloud coverage for that mask.
 """
 
+import sys
 import logging
 import datetime
-import attr
-
-from sys import exc_info
+import inspect
+import copy
+import collections
 from abc import ABC, abstractmethod
-from inspect import getfullargspec
-from copy import deepcopy
-from collections import OrderedDict
+
+import attr
 
 from .utilities import FeatureParser
 
@@ -29,12 +29,12 @@ class EOTask(ABC):
         """Stores initialization parameters and the order to the instance attribute `init_args`."""
         self = super().__new__(cls)
 
-        init_args = OrderedDict()
-        for arg, value in zip(getfullargspec(self.__init__).args[1: len(args) + 1], args):
-            init_args[arg] = deepcopy(value)
-        for arg in getfullargspec(self.__init__).args[len(args) + 1:]:
+        init_args = collections.OrderedDict()
+        for arg, value in zip(inspect.getfullargspec(self.__init__).args[1: len(args) + 1], args):
+            init_args[arg] = copy.deepcopy(value)
+        for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1:]:
             if arg in kwargs:
-                init_args[arg] = deepcopy(kwargs[arg])
+                init_args[arg] = copy.deepcopy(kwargs[arg])
 
         self.private_task_config = _PrivateTaskConfig(init_args=init_args)
 
@@ -65,7 +65,7 @@ class EOTask(ABC):
         try:
             return_value = self.execute(*eopatches, **kwargs)
         except BaseException as exception:
-            caught_exception = exception, exc_info()[2]
+            caught_exception = exception, sys.exc_info()[2]
 
         if caught_exception is not None:  # Exception is not raised in except statement to prevent duplicated traceback
             exception, traceback = caught_exception
@@ -77,6 +77,8 @@ class EOTask(ABC):
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
+        """ Implement execute function
+        """
         raise NotImplementedError
 
     @staticmethod
@@ -107,7 +109,8 @@ class _PrivateTaskConfig:
     end_time = attr.ib(default=None)
 
     def __add__(self, other):
-        return _PrivateTaskConfig(init_args=OrderedDict(list(self.init_args.items()) + list(other.init_args.items())))
+        return _PrivateTaskConfig(init_args=collections.OrderedDict(list(self.init_args.items()) +
+                                                                    list(other.init_args.items())))
 
 
 class CompositeTask(EOTask):

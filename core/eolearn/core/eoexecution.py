@@ -11,20 +11,19 @@ import logging
 import traceback
 import inspect
 import warnings
+import base64
+import copy
+import io
 import concurrent.futures
-from tqdm.auto import tqdm
+import datetime as dt
 
+import jinja2
+import pygments
+import pygments.lexers
+from pygments.formatters.html import HtmlFormatter
+from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import networkx as nx
-
-from base64 import b64encode
-from copy import deepcopy
-from datetime import datetime
-from io import StringIO, BytesIO
-from jinja2 import Environment, FileSystemLoader
-from pygments import highlight
-from pygments.lexers import get_lexer_by_name
-from pygments.formatters.html import HtmlFormatter
 
 from .eoworkflow import EOWorkflow
 
@@ -112,12 +111,12 @@ class EOExecutor:
             handler = cls._get_log_handler(log_path)
             logger.addHandler(handler)
 
-        stats = {'start_time': datetime.now()}
+        stats = {'start_time': dt.datetime.now()}
         try:
             _ = workflow.execute(input_args, monitor=True)
         except BaseException:
             stats['error'] = traceback.format_exc()
-        stats['end_time'] = datetime.now()
+        stats['end_time'] = dt.datetime.now()
 
         if log_path:
             handler.close()
@@ -135,7 +134,7 @@ class EOExecutor:
 
     def _get_report_folder(self):
         return os.path.join(self.logs_folder,
-                            'eoexecution-report-{}'.format(datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
+                            'eoexecution-report-{}'.format(dt.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
 
     def _get_log_filename(self, execution_nb):
         return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
@@ -183,16 +182,16 @@ class EOExecutor:
 
     def _create_dependency_graph(self):
         dot = self.workflow.get_dot()
-        dot_file = StringIO()
+        dot_file = io.StringIO()
         dot_file.write(dot.source)
         dot_file.seek(0)
 
         graph = nx.drawing.nx_pydot.read_dot(dot_file)
-        image = BytesIO()
+        image = io.BytesIO()
         nx.draw_spectral(graph, with_labels=True)
         plt.savefig(image, format='png')
 
-        return b64encode(image.getvalue()).decode()
+        return base64.b64encode(image.getvalue()).decode()
 
     def _get_task_descriptions(self):
         descriptions = []
@@ -209,7 +208,7 @@ class EOExecutor:
         return descriptions
 
     def _render_task_source(self, formatter):
-        lexer = get_lexer_by_name("python", stripall=True)
+        lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
         sources = {}
 
         for dep in self.workflow.dependencies:
@@ -223,7 +222,7 @@ class EOExecutor:
 
             try:
                 source = inspect.getsource(task.__class__)
-                source = highlight(source, lexer, formatter)
+                source = pygments.highlight(source, lexer, formatter)
             except TypeError:
                 # Jupyter notebook does not have __file__ method to collect source code
                 # StackOverflow provides no solutions
@@ -235,15 +234,15 @@ class EOExecutor:
         return sources
 
     def _render_execution_errors(self, formatter):
-        tb_lexer = get_lexer_by_name("py3tb", stripall=True)
+        tb_lexer = pygments.lexers.get_lexer_by_name("py3tb", stripall=True)
 
         executions = []
 
         for orig_execution in self.execution_stats:
-            execution = deepcopy(orig_execution)
+            execution = copy.deepcopy(orig_execution)
 
             if 'error' in execution:
-                execution['error'] = highlight(execution['error'], tb_lexer, formatter)
+                execution['error'] = pygments.highlight(execution['error'], tb_lexer, formatter)
 
             executions.append(execution)
 
@@ -252,7 +251,7 @@ class EOExecutor:
     @classmethod
     def _get_template(cls):
         templates_dir = os.path.join(os.path.dirname(__file__), 'report_templates')
-        env = Environment(loader=FileSystemLoader(templates_dir))
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(templates_dir))
         env.filters['datetime'] = cls._format_datetime
         env.globals.update(timedelta=cls._format_timedelta)
         template = env.get_template(cls.REPORT_FILENAME)

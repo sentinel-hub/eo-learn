@@ -17,11 +17,11 @@ import collections
 import logging
 import warnings
 import uuid
-import attr
-
+import copy
 from graphviz import Digraph
 
-from copy import deepcopy
+import attr
+
 
 from .eotask import EOTask
 from .graph import DirectedGraph
@@ -342,7 +342,7 @@ class LinearWorkflow(EOWorkflow):
 
         for task in tasks:
             if task in prev_tasks:
-                task = deepcopy(task)
+                task = copy.deepcopy(task)
             unique_tasks.append(task)
 
         return unique_tasks

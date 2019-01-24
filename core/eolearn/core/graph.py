@@ -6,10 +6,6 @@ eoworkflow module.
 import collections
 
 
-class NoSuchVertexError(ValueError):
-    pass
-
-
 class DirectedGraph:
     """A directed graph using adjacency-list representation.
 
@@ -71,9 +67,15 @@ class DirectedGraph:
         return len(self.adj_dict[vertex])
 
     def get_adj_dict(self):
+        """
+        :return: adj_dict
+        """
         return self.adj_dict
 
     def get_outdegrees(self):
+        """
+        :return: dictionary of out-degrees, see get_outdegree
+        """
         return {vertex: len(self.adj_dict[vertex]) for vertex in self.adj_dict}
 
     def add_edge(self, u_vertex, v_vertex):
@@ -162,6 +164,10 @@ class DirectedGraph:
 
     @staticmethod
     def from_edges(edges):
+        """ Return DirectedGraph created from edges
+        :param edges:
+        :return: DirectedGraph
+        """
         dag = DirectedGraph()
         for _u, _v in edges:
             dag.add_edge(_u, _v)
