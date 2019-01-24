@@ -1,7 +1,10 @@
-""" Module for computing the Histogram of gradient in EOPatch """
+"""
+Module for computing the Histogram of gradient in EOPatch
+"""
 
+import skimage.feature
 import numpy as np
-from skimage.feature import hog
+
 from eolearn.core import EOTask, FeatureType
 
 
@@ -58,10 +61,10 @@ class HOGTask(EOTask):
         for time in range(data.shape[0]):
             multi_channel = data.shape[-1] != 1
             image = data[time] if multi_channel else data[time, :, :, 0]
-            res, image = hog(image, orientations=self.n_orientations, pixels_per_cell=self.pixels_per_cell,
-                             visualize=self.visualize,
-                             cells_per_block=self.cells_per_block, feature_vector=self.hog_feature_vector,
-                             block_norm=self.block_norm, multichannel=multi_channel)
+            res, image = skimage.feature.hog(image, orientations=self.n_orientations,
+                                             pixels_per_cell=self.pixels_per_cell, visualize=self.visualize,
+                                             cells_per_block=self.cells_per_block, block_norm=self.block_norm,
+                                             feature_vector=self.hog_feature_vector, multichannel=multi_channel)
             if self.visualize:
                 im_visu[time, :, :, 0] = image
             for block_row in range(res.shape[0]):

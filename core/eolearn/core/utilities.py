@@ -4,9 +4,9 @@ two objects are deeply equal, padding of an image, etc.
 """
 
 import logging
-import numpy as np
-
 from collections import OrderedDict
+
+import numpy as np
 
 from .constants import FeatureType
 
@@ -107,7 +107,7 @@ class FeatureParser:
         If input format is not recognized it raises an error.
 
         :return: A collection of features
-        :rtype: OrderedDict(FeatureType: OrderedDict(str: str or Ellipsis) or Ellipsis)
+        :rtype: collections.OrderedDict(FeatureType: collections.OrderedDict(str: str or Ellipsis) or Ellipsis)
         :raises: ValueError
         """
         if isinstance(features, dict):

@@ -1,3 +1,7 @@
+"""
+Module for transforming reference labels
+"""
+
 import numpy as np
 
 # pylint: disable=invalid-name

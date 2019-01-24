@@ -5,22 +5,20 @@ The eodata module provides core objects for handling remotely sensing multi-temp
 import os
 import logging
 import pickle
-import numpy as np
 import gzip
 import shutil
 import warnings
-import attr
+import copy
 import datetime
+import attr
 import dateutil.parser
+import numpy as np
+import geopandas as gpd
 
-from copy import copy, deepcopy
-from geopandas import GeoDataFrame, GeoSeries
-
-from sentinelhub import BBox
+import sentinelhub
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -83,10 +81,10 @@ class EOPatch:
             return value if isinstance(value, _FeatureDict) else _FeatureDict(value, feature_type)
 
         if feature_type is FeatureType.BBOX:
-            if value is None or isinstance(value, BBox):
+            if value is None or isinstance(value, sentinelhub.BBox):
                 return value
             if isinstance(value, (tuple, list)) and len(value) == 5:
-                return BBox(value[:4], crs=value[4])
+                return sentinelhub.BBox(value[:4], crs=value[4])
 
         if feature_type is FeatureType.TIMESTAMP:
             if isinstance(value, (tuple, list)):
@@ -166,7 +164,7 @@ class EOPatch:
         """
         if isinstance(value, np.ndarray):
             return '{}(shape={}, dtype={})'.format(EOPatch._repr_value_class(value), value.shape, value.dtype)
-        if isinstance(value, GeoDataFrame):
+        if isinstance(value, gpd.GeoDataFrame):
             return '{}(columns={}, length={}, crs={})'.format(EOPatch._repr_value_class(value), list(value),
                                                               len(value), value.crs['init'])
         if isinstance(value, (list, tuple, dict)) and value:
@@ -207,7 +205,7 @@ class EOPatch:
         new_eopatch = EOPatch()
         for feature_type, feature_name in FeatureParser(features)(self):
             if feature_name is ...:
-                new_eopatch[feature_type] = copy(self[feature_type])
+                new_eopatch[feature_type] = copy.copy(self[feature_type])
             else:
                 new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
         return new_eopatch
@@ -225,7 +223,7 @@ class EOPatch:
 
         new_eopatch = self.__copy__(features=features)
         for feature_type in FeatureType:
-            new_eopatch[feature_type] = deepcopy(new_eopatch[feature_type], memo)
+            new_eopatch[feature_type] = copy.deepcopy(new_eopatch[feature_type], memo)
 
         return new_eopatch
 
@@ -283,6 +281,10 @@ class EOPatch:
             self[feature_type] = []
 
     def set_bbox(self, new_bbox):
+        """
+        :param new_bbox: new bbox
+        :type: new_bbox: BBox
+        """
         self.bbox = new_bbox
 
     def set_timestamp(self, new_timestamp):
@@ -398,9 +400,9 @@ class EOPatch:
                 eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
             else:
                 if not eopatch1[feature_type] or deep_eq(eopatch1[feature_type], eopatch2[feature_type]):
-                    eopatch_content[feature_type.value] = copy(eopatch2[feature_type])
+                    eopatch_content[feature_type.value] = copy.copy(eopatch2[feature_type])
                 elif not eopatch2[feature_type]:
-                    eopatch_content[feature_type.value] = copy(eopatch1[feature_type])
+                    eopatch_content[feature_type.value] = copy.copy(eopatch1[feature_type])
                 else:
                     raise ValueError('Could not merge {} feature because values differ'.format(feature_type))
 
@@ -803,10 +805,10 @@ class _FeatureDict(dict):
             return value
 
         if self.is_vector:
-            if isinstance(value, GeoSeries):
-                value = GeoDataFrame(dict(geometry=value), crs=value.crs)
+            if isinstance(value, gpd.GeoSeries):
+                value = gpd.GeoDataFrame(dict(geometry=value), crs=value.crs)
 
-            if isinstance(value, GeoDataFrame):
+            if isinstance(value, gpd.GeoDataFrame):
                 if self.feature_type is FeatureType.VECTOR:
                     if FeatureType.TIMESTAMP.value.upper() not in value:
                         raise ValueError("{} feature has to contain a column 'TIMESTAMP' with "
@@ -815,7 +817,7 @@ class _FeatureDict(dict):
                 return value
 
             raise ValueError('{} feature works with data of type {}, parsing data type {} is not supported'
-                             'given'.format(self.feature_type, GeoDataFrame.__name__, type(value)))
+                             'given'.format(self.feature_type, gpd.GeoDataFrame.__name__, type(value)))
 
         return value
 

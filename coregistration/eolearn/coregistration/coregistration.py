@@ -3,13 +3,13 @@ This module implements the co-registration transformers.
 """
 
 import logging
-import numpy as np
-import cv2
+import copy
 
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from enum import Enum
-from registration import CrossCorr
+import registration
+import cv2
+import numpy as np
 
 from eolearn.core import EOTask, FeatureType
 
@@ -84,6 +84,13 @@ class RegistrationTask(EOTask, ABC):
 
     @abstractmethod
     def register(self, src, trg, trg_mask=None, src_mask=None):
+        """ Method for registration
+
+        :param src: src
+        :param trg: trg
+        :param trg_mask: trg_mask
+        :param src_mask: src_mask
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -113,10 +120,10 @@ class RegistrationTask(EOTask, ABC):
         self.check_params()
         self.get_params()
 
-        new_eopatch = deepcopy(eopatch)
+        new_eopatch = copy.deepcopy(eopatch)
 
         f_type, f_name = next(self.registration_feature(eopatch))
-        sliced_data = deepcopy(eopatch[f_type][f_name][..., self.channel])
+        sliced_data = copy.deepcopy(eopatch[f_type][f_name][..., self.channel])
         time_frames = sliced_data.shape[0]
 
         iflag = self._get_interpolation_flag(self.interpolation_type)
@@ -221,7 +228,7 @@ class ThunderRegistration(RegistrationTask):
         :return: Estimated 2D transformation matrix of shape 2x3
         """
         # Initialise instance of CrossCorr object
-        ccreg = CrossCorr()
+        ccreg = registration.CrossCorr()
         # padding_value = 0
         # Compute translation between pair of images
         model = ccreg.fit(src, reference=trg)

@@ -1,10 +1,12 @@
-""" Module for computing Haralick textures in EOPatch """
+"""
+Module for computing Haralick textures in EOPatch
+"""
 
+import warnings
+import itertools as it
+
+import skimage.feature
 import numpy as np
-
-from warnings import warn
-from skimage.feature import greycomatrix, greycoprops
-from itertools import product
 
 from eolearn.core import EOTask, FeatureType
 
@@ -76,26 +78,26 @@ class HaralickTask(EOTask):
 
         self.stride = stride
         if self.stride >= self.window_size + 1:
-            warn('Haralick stride is superior to the window size; some pixel values will be ignored')
+            warnings.warn('Haralick stride is superior to the window size; some pixel values will be ignored')
 
     def _custom_texture(self, glcm):
         # Sum of square: Variance
         if self.texture_feature == 'sum_of_square_variance':
             i_raw = np.empty_like(glcm)
-            i_raw[...] = np.asarray(range(glcm.shape[0]))
+            i_raw[...] = np.arange(glcm.shape[0])
             i_raw = np.transpose(i_raw)
             i_minus_mean = (i_raw - glcm.mean()) ** 2
             res = np.apply_over_axes(np.sum, i_minus_mean * glcm, axes=(0, 1))[0][0]
         elif self.texture_feature == 'inverse_difference_moment':
             # np.meshgrid
             j_cols = np.empty_like(glcm)
-            j_cols[...] = np.asarray(range(glcm.shape[1]))
+            j_cols[...] = np.arange(glcm.shape[1])
             i_minus_j = ((j_cols - np.transpose(j_cols)) ** 2) + 1
             res = np.apply_over_axes(np.sum, glcm / i_minus_j, axes=(0, 1))[0][0]
         elif self.texture_feature == 'sum_average':
             # Slow
             tuple_array = np.array(
-                list(product(list(range(self.levels)), list(range(self.levels)))),
+                list(it.product(list(range(self.levels)), list(range(self.levels)))),
                 dtype=(int, 2))
             index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in
                      range(self.levels)]
@@ -104,7 +106,7 @@ class HaralickTask(EOTask):
         elif self.texture_feature == 'sum_variance':
             # Slow
             tuple_array = np.array(
-                list(product(list(range(self.levels)), list(range(self.levels)))),
+                list(it.product(list(range(self.levels)), list(range(self.levels)))),
                 dtype=(int, 2))
             index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in
                      range(self.levels)]
@@ -114,7 +116,7 @@ class HaralickTask(EOTask):
         elif self.texture_feature == 'sum_entropy':
             # Slow
             tuple_array = np.array(
-                list(product(list(range(self.levels)), list(range(self.levels)))),
+                list(it.product(list(range(self.levels)), list(range(self.levels)))),
                 dtype=(int, 2))
             index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in
                      range(self.levels)]
@@ -123,7 +125,7 @@ class HaralickTask(EOTask):
         elif self.texture_feature == 'difference_variance':
             # Slow
             tuple_array = np.array(
-                list(product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
+                list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
                 dtype=(int, 2))
             index = [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in
                      range(self.levels)]
@@ -134,7 +136,7 @@ class HaralickTask(EOTask):
             # self.texture_feature == 'difference_entropy':
             # Slow
             tuple_array = np.array(
-                list(product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
+                list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))),
                 dtype=(int, 2))
             index = [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in
                      range(self.levels)]
@@ -159,11 +161,11 @@ class HaralickTask(EOTask):
                 for i in range(0, image.shape[0], self.stride):
                     for j in range(0, image.shape[1], self.stride):
                         window = digitized_image[i: i + self.window_size, j: j + self.window_size]
-                        glcm = greycomatrix(window, [self.distance], [self.angle], levels=self.levels, normed=True,
-                                            symmetric=True)
+                        glcm = skimage.feature.greycomatrix(window, [self.distance], [self.angle], levels=self.levels,
+                                                            normed=True, symmetric=True)
 
                         if self.texture_feature in self.AVAILABLE_TEXTURES_SKIMAGE:
-                            res = greycoprops(glcm, self.texture_feature)[0][0]
+                            res = skimage.feature.greycoprops(glcm, self.texture_feature)[0][0]
                         else:
                             res = self._custom_texture(glcm[:, :, 0, 0])
 

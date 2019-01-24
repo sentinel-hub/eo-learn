@@ -4,14 +4,13 @@ Tasks for spatial sampling of points for building training/validation samples fo
 
 import collections
 import functools
-import numpy as np
 import logging
-
 from math import sqrt
-from shapely.geometry import Polygon, Point
-from shapely.geometry import LinearRing
-from shapely.ops import triangulate
-from rasterio.features import shapes
+
+import numpy as np
+import rasterio.features
+import shapely.ops
+from shapely.geometry import Polygon, Point, LinearRing
 
 from eolearn.core import EOTask, EOPatch, FeatureType
 
@@ -40,11 +39,11 @@ class PointSampler:
         self.geometries = [{'label': int(label),
                             'polygon': Polygon(LinearRing(shp['coordinates'][0]),
                                                [LinearRing(pts) for pts in shp['coordinates'][1:]])}
-                           for index, (shp, label) in enumerate(shapes(raster_mask, mask=None))
+                           for index, (shp, label) in enumerate(rasterio.features.shapes(raster_mask, mask=None))
                            if (int(label) is not no_data_value) and (int(label) not in ignore_labels)]
 
         self.areas = np.asarray([entry['polygon'].area for entry in self.geometries])
-        self.decomposition = [triangulate(entry['polygon']) for entry in self.geometries]
+        self.decomposition = [shapely.ops.triangulate(entry['polygon']) for entry in self.geometries]
 
         self.label2cc = collections.defaultdict(list)
         for index, entry in enumerate(self.geometries):
