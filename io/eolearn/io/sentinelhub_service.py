@@ -2,10 +2,10 @@
 Module for creating new EOPatches with data obtained from sentinelhub package
 """
 
-import datetime
-import numpy as np
 import logging
+import datetime as dt
 
+import numpy as np
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
 from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime, parse_time
 
@@ -95,7 +95,7 @@ class SentinelHubOGCInput(EOTask):
         if name == 'maxcc':
             return 1.0
         if name == 'time_difference':
-            return datetime.timedelta(seconds=-1)
+            return dt.timedelta(seconds=-1)
         if name in ('size_x', 'size_y'):
             return None
 
