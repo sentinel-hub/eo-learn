@@ -1,5 +1,10 @@
-from eolearn.core import EOTask, FeatureType
+"""
+Module for creating mask features
+"""
+
 import numpy as np
+
+from eolearn.core import EOTask, FeatureType
 
 
 class AddValidDataMaskTask(EOTask):

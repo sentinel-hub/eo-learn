@@ -1,14 +1,16 @@
-""" Module for interpolating, smoothing and re-sampling features in EOPatch """
+"""
+Module for interpolating, smoothing and re-sampling features in EOPatch
+"""
 
 import warnings
-import numpy as np
+import datetime as dt
 
-from dateutil import parser
-from datetime import timedelta, datetime
-from scipy import interpolate
+import dateutil
+import scipy.interpolate
+import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
-from sklearn.gaussian_process import GaussianProcessRegressor
 
 
 class InterpolationTask(EOTask):
@@ -139,7 +141,7 @@ class InterpolationTask(EOTask):
         # find NaNs that start a time-series
         start_nan = np.isnan(data)
         for idx, row in enumerate(start_nan[:-1]):
-            start_nan[idx+1] = np.logical_and(row, start_nan[idx+1])
+            start_nan[idx + 1] = np.logical_and(row, start_nan[idx + 1])
         # find NaNs that end a time-series
         end_nan = np.isnan(data)
         for idx, row in enumerate(end_nan[-2::-1]):
@@ -307,16 +309,16 @@ class InterpolationTask(EOTask):
             raise ValueError('Invalid resample_range {}, expected tuple'.format(self.resample_range))
 
         if tuple(map(type, self.resample_range)) == (str, str, int):
-            start_date = parser.parse(self.resample_range[0])
-            end_date = parser.parse(self.resample_range[1])
-            step = timedelta(days=self.resample_range[2])
+            start_date = dateutil.parser.parse(self.resample_range[0])
+            end_date = dateutil.parser.parse(self.resample_range[1])
+            step = dt.timedelta(days=self.resample_range[2])
             days = [start_date]
             while days[-1] + step < end_date:
                 days.append(days[-1] + step)
 
         elif self.resample_range and np.all([isinstance(date, str) for date in self.resample_range]):
-            days = [parser.parse(date) for date in self.resample_range]
-        elif self.resample_range and np.all([isinstance(date, datetime) for date in self.resample_range]):
+            days = [dateutil.parser.parse(date) for date in self.resample_range]
+        elif self.resample_range and np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
             days = [date for date in self.resample_range]
         else:
             raise ValueError('Invalid format in {}, expected strings or datetimes'.format(self.resample_range))
@@ -389,7 +391,7 @@ class LinearInterpolation(InterpolationTask):
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
     def __init__(self, feature, **kwargs):
-        super().__init__(feature, interpolate.interp1d, kind='linear', **kwargs)
+        super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
 
 
 class CubicInterpolation(InterpolationTask):
@@ -397,7 +399,7 @@ class CubicInterpolation(InterpolationTask):
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
     def __init__(self, feature, **kwargs):
-        super().__init__(feature, interpolate.interp1d, kind='cubic', **kwargs)
+        super().__init__(feature, scipy.interpolate.interp1d, kind='cubic', **kwargs)
 
 
 class SplineInterpolation(InterpolationTask):
@@ -405,7 +407,7 @@ class SplineInterpolation(InterpolationTask):
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`
     """
     def __init__(self, feature, *, spline_degree=3, smoothing_factor=0, **kwargs):
-        super().__init__(feature, interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
+        super().__init__(feature, scipy.interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
 
 
 class BSplineInterpolation(InterpolationTask):
@@ -413,7 +415,7 @@ class BSplineInterpolation(InterpolationTask):
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`
     """
     def __init__(self, feature, *, spline_degree=3, **kwargs):
-        super().__init__(feature, interpolate.make_interp_spline, k=spline_degree, **kwargs)
+        super().__init__(feature, scipy.interpolate.make_interp_spline, k=spline_degree, **kwargs)
 
 
 class AkimaInterpolation(InterpolationTask):
@@ -421,7 +423,7 @@ class AkimaInterpolation(InterpolationTask):
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`
     """
     def __init__(self, feature, **kwargs):
-        super().__init__(feature, interpolate.Akima1DInterpolator, **kwargs)
+        super().__init__(feature, scipy.interpolate.Akima1DInterpolator, **kwargs)
 
 
 class KrigingObject:
@@ -511,7 +513,7 @@ class NearestResampling(ResamplingTask):
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
     """
     def __init__(self, feature, resample_range, **kwargs):
-        super().__init__(feature, interpolate.interp1d, resample_range, kind='nearest', **kwargs)
+        super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='nearest', **kwargs)
 
 
 class LinearResampling(ResamplingTask):
@@ -519,7 +521,7 @@ class LinearResampling(ResamplingTask):
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
     def __init__(self, feature, resample_range, **kwargs):
-        super().__init__(feature, interpolate.interp1d, resample_range, kind='linear', **kwargs)
+        super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='linear', **kwargs)
 
 
 class CubicResampling(ResamplingTask):
@@ -527,4 +529,4 @@ class CubicResampling(ResamplingTask):
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
     def __init__(self, feature, resample_range, **kwargs):
-        super().__init__(feature, interpolate.interp1d, resample_range, kind='cubic', **kwargs)
+        super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='cubic', **kwargs)

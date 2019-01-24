@@ -2,6 +2,7 @@
 
 PYTHON = python3
 PACKAGES = core coregistration features geometry io mask ml_tools
+PYLINT = pylint
 
 .PHONY: $(PACKAGES:test)
 
@@ -10,13 +11,13 @@ help:
 	@echo "Use 'make pylint' to run pylint on the code of all subpackages"
 
 pylint:
-	pylint core/eolearn/core/*.py
-	pylint coregistration/eolearn/coregistration/*.py
-	pylint features/eolearn/features/*.py
-	pylint geometry/eolearn/geometry/*.py
-	pylint io/eolearn/io/*.py
-	pylint mask/eolearn/mask/*.py
-	pylint ml_tools/eolearn/ml_tools/*.py
+	$(PYLINT) core/eolearn/core/*.py
+	$(PYLINT) coregistration/eolearn/coregistration/*.py
+	$(PYLINT) features/eolearn/features/*.py
+	$(PYLINT) geometry/eolearn/geometry/*.py
+	$(PYLINT) io/eolearn/io/*.py
+	$(PYLINT) mask/eolearn/mask/*.py
+	$(PYLINT) ml_tools/eolearn/ml_tools/*.py
 
 .ONESHELL:
 build-core:

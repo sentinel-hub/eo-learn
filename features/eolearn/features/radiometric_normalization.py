@@ -1,7 +1,10 @@
-# Basic EOLearn libraries
-from eolearn.core import EOTask, FeatureType
+"""
+Module for radiometric normalization
+"""
 
 import numpy as np
+
+from eolearn.core import EOTask, FeatureType
 
 
 class ReferenceScenes(EOTask):

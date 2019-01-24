@@ -149,6 +149,8 @@ class FileFormat(Enum):
 
     @staticmethod
     def split_by_extensions(filename):
+        """ Splits the filename string by the extension of the file
+        """
         parts = filename.split('.')
         idx = len(parts) - 1
         while FileFormat.is_file_format(parts[idx]):
