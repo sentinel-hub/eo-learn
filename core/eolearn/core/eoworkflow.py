@@ -280,6 +280,8 @@ class EOWorkflow:
 
     @staticmethod
     def _get_dep_to_dot_name_mapping(dependencies):
+        """ Creates mapping between Dependency classes and names used in DOT graph
+        """
         dot_name_to_deps = {}
         for dep in dependencies:
             dot_name = dep.name
@@ -391,6 +393,7 @@ class Dependency:
         self.name = name
 
     def __repr__(self):
+        """ Class is represented with dependency name """
         return self.name
 
 
@@ -430,15 +433,19 @@ class WorkflowResults(collections.Mapping):
         return self._result != other
 
     def keys(self):
+        """ Returns dictionary keys """
         return {dep.task: None for dep in self._result}.keys()
 
     def values(self):
+        """ Returns dictionary values """
         return self._result.values()
 
     def items(self):
+        """ Returns dictionary items """
         return {dep.task: value for dep, value in self._result.items()}.items()
 
     def get(self, key, default=None):
+        """ Dictionary get method """
         if isinstance(key, EOTask):
             key = self._uuid_dict[key.private_task_config.uuid]
         return self._result.get(key, default)
