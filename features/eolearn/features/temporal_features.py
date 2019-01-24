@@ -193,7 +193,6 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         :return: eopatch with NDVI slope argmin/argmax features
         """
         # pylint: disable=invalid-name
-        # pylint: disable=unpacking-non-sequence
         if self.mask_data:
             valid_data_mask = eopatch.mask['VALID_DATA']
         else:
@@ -206,7 +205,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
 
         if ndvi.ndim == 4:
-            _, h, w, _ = ndvi.shape
+            h, w = ndvi.shape[1: 3]
         else:
             raise ValueError('{} feature has incorrect number of dimensions'.format(self.data_feature))
 

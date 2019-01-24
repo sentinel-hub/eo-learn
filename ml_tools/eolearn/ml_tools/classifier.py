@@ -2,8 +2,6 @@
 Module for classification helper classes and classification task.
 """
 # pylint: disable=invalid-name
-# pylint: disable=no-name-in-module
-# pylint: disable=import-error
 
 import numpy as np
 import itertools
