@@ -27,7 +27,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/sentinel-hub/eo-learn',
     author='Sinergise EO research team',
-    author_email='info@sinergise.com',
+    author_email='eoresearch@sinergise.com',
     license='MIT',
     packages=[],
     include_package_data=True,
