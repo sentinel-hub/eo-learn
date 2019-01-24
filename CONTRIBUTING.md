@@ -5,28 +5,29 @@ to the library is very much appreciated.
 
 Here is how you can contribute:
 
- * [Bug Reports][bug-reports]
- * [Feature Requests][feature-requests]
- * [Pull Requests][pull-requests]
+ * [Bug Reports](#bug-reports)
+ * [Feature Requests](#feature-requests)
+ * [Pull Requests](#pull-requests)
 
-All contributors agree to follow our [Code of Conduct](code-of-conduct).
+All contributors agree to follow our [Code of Conduct][code-of-conduct].
 
-**eo-learn** is distributed under the [MIT license](LICENSE). When contributing
+**eo-learn** is distributed under the [MIT license][license]. When contributing
 code to the library, you agree to its terms and conditions. If you would like to
 keep parts of your contribution private, you can contact us to discuss about
 the best solution.
 
-For any question, feel free to contact us at _eoresearch@sinergise.com_ or through our [Forum][sh-forum].
+For any question, feel free to contact us at [eoresearch@sinergise.com](eoresearch@sinergise.com) or through our [Forum][sh-forum].
 
+[code-of-conduct]: https://github.com/sentinel-hub/eo-learn/blob/master/CODE_OF_CONDUCT.md
+[license]: https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE
 [sh-forum]: https://forum.sentinel-hub.com/
 
 ## Bug Reports
-[bug-reports]: #bug-reports
 
 We strive to provide high-quality working code, but bugs happen nevertheless.
 
 When reporting a bug, please check [here][open-bug-list] whether
-the bug was already reported. If not, open an issue with the **_bug_** label and
+the bug was already reported. If not, open an issue with the **bug** label and
 report the following information:
 
  * Issue description
@@ -43,11 +44,10 @@ an issue and clarify.
 [open-bug-list]: https://github.com/sentinel-hub/eo-learn/issues?q=state:open+type:issue+label:"bug"
 
 ## Feature Requests
-[feature-requests]: #feature-requests
 
 Existing feature requests can be found [here][existing-feature-requests].
 
-A new feature request can be created by opening a new issue with the **_enhancement_** label,
+A new feature request can be created by opening a new issue with the **enhancement** label,
 and describing how the feature would benefit the **eo-learn** community.
 Providing an example use-case would help assessing the scope of the
 feature request.
@@ -55,7 +55,6 @@ feature request.
 [existing-feature-requests]: https://github.com/sentinel-hub/eo-learn/issues?q=state:open+type:issue+label:"enhancement"
 
 ## Pull Requests
-[pull-requests]: #pull-requests
 
 The GitHub Pull Request (PR) mechanism is the best option to contribute code
 to the library. Users can fork the repository, make their contribution to their
@@ -67,7 +66,7 @@ Existing PRs can be found [here][existing-prs]. Before creating new PRs, you sho
 whether someone else has contributed a similar feature, and if so, you can add your
 input to the existing code review.
 
-The follwoing guidelines should be observed when creating a PR.
+The following guidelines should be observed when creating a PR.
 
 [fork-and-pull]: https://help.github.com/articles/creating-a-pull-request-from-a-fork
 [create-pr]: https://help.github.com/articles/creating-a-pull-request/
@@ -80,7 +79,7 @@ The follwoing guidelines should be observed when creating a PR.
    completion of the code review, the branch will be merged into `develop` and, at
    the next package release, into `master`.
 
- * Document your PR to help mantainers understand and review your contribution. The PR
+ * Document your PR to help maintainers understand and review your contribution. The PR
    should include:
 
    * Description of contribution;
@@ -88,8 +87,8 @@ The follwoing guidelines should be observed when creating a PR.
    * Link to issue/feature request.
 
  * Your contribution should include unit tests, to test correct behaviour of the new feature
-   and to lower the mantainance effort. Bug fixes as well as new features should include unit tests.
-   When submitting the PR, check whether the travis CI testing returns any errors, and if it does,
+   and to lower the maintenance effort. Bug fixes as well as new features should include unit tests.
+   When submitting the PR, check whether the Travis CI testing returns any errors, and if it does,
    please try to fix the issues causing failure. A test `EOPatch` is made available [here][test-eo-patch]
    with data for each `FeatureType`. Unit tests evaluating the correctness of new tasks should use data
    available in this `EOPatch`. New fields useful for testing purposes can be added, but should
@@ -108,8 +107,7 @@ The follwoing guidelines should be observed when creating a PR.
    Therefore please run `pylint` from the the main folder, which contains the `pylintrc` file, to make sure your
    contribution is scored `10.0/10.0`.
 
-#### Contribute an `EOTask`
-[create-eo-task]: #create-eo-task
+### Contribute an `EOTask`
 
 `EOTask`s allow to apply **eo-learn** workflows to different use-cases, adapting to imaging sources and
 processing chain. If you think a task is general enough to be useful to the community, then we would
@@ -141,14 +139,13 @@ When creating a new task, bear in mind the following:
    and pass task parameters as arguments, either in the constructor, or at run-time.
  * If in doubt on whether a task is general enough to be of interest to the community, or you are not
    sure to which sub-package to contribute your task to, send us an email or open a
-   [feature request][feature-requests].
+   [feature request](#feature-requests).
 
 Looking forward to include your contributions into **eo-learn**.
 
 
-[pypi]: https://pypi.org/
+[pypi]: https://pypi.org/project/eo-learn/
 [pep-8]: https://www.python.org/dev/peps/pep-0008/
 [pylint]: https://www.pylint.org/
 [existing-eo-tasks]: https://eo-learn.readthedocs.io/en/latest/eotasks.html
-[code-of-conduct][https://github.com/sentinel-hub/eo-learn/blob/master/CODE_OF_CONDUCT.md]
 [test-eo-patch]: https://github.com/sentinel-hub/eo-learn/tree/master/example_data/TestEOPatch
