@@ -19,6 +19,7 @@ Introduction
    eotasks
    examples
    eolearn
+   contribute
 
 Indices and tables
 ==================
