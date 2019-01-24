@@ -1,6 +1,9 @@
-""" Module handling processing of temporal features """
+"""
+Module handling processing of temporal features
+"""
 
-import itertools
+import itertools as it
+
 import numpy as np
 
 from eolearn.core import EOTask
@@ -211,7 +214,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
         argmax_ndvi_slope, argmin_ndvi_slope = np.zeros((h, w, 1), dtype=np.uint8), np.zeros((h, w, 1), dtype=np.uint8)
 
-        for ih, iw in itertools.product(range(h), range(w)):
+        for ih, iw in it.product(range(h), range(w)):
 
             ndvi_curve = ndvi[:, ih, iw, :]
             valid_idx = np.where(~ndvi.mask[:, ih, iw])[0]
