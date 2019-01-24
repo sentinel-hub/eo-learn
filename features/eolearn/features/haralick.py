@@ -82,14 +82,14 @@ class HaralickTask(EOTask):
         # Sum of square: Variance
         if self.texture_feature == 'sum_of_square_variance':
             i_raw = np.empty_like(glcm)
-            i_raw[...] = np.asarray(range(glcm.shape[0]))
+            i_raw[...] = np.arange(glcm.shape[0])
             i_raw = np.transpose(i_raw)
             i_minus_mean = (i_raw - glcm.mean()) ** 2
             res = np.apply_over_axes(np.sum, i_minus_mean * glcm, axes=(0, 1))[0][0]
         elif self.texture_feature == 'inverse_difference_moment':
             # np.meshgrid
             j_cols = np.empty_like(glcm)
-            j_cols[...] = np.asarray(range(glcm.shape[1]))
+            j_cols[...] = np.arange(glcm.shape[1])
             i_minus_j = ((j_cols - np.transpose(j_cols)) ** 2) + 1
             res = np.apply_over_axes(np.sum, glcm / i_minus_j, axes=(0, 1))[0][0]
         elif self.texture_feature == 'sum_average':

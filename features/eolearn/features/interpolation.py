@@ -139,7 +139,7 @@ class InterpolationTask(EOTask):
         # find NaNs that start a time-series
         start_nan = np.isnan(data)
         for idx, row in enumerate(start_nan[:-1]):
-            start_nan[idx+1] = np.logical_and(row, start_nan[idx+1])
+            start_nan[idx + 1] = np.logical_and(row, start_nan[idx + 1])
         # find NaNs that end a time-series
         end_nan = np.isnan(data)
         for idx, row in enumerate(end_nan[-2::-1]):
