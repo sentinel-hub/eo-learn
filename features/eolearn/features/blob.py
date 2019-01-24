@@ -1,8 +1,13 @@
-""" Module for computing blobs in EOPatch """
-from skimage.feature import blob_dog, blob_doh, blob_log
-from eolearn.core import EOTask, FeatureType
+"""
+Module for computing blobs in EOPatch
+"""
+
 from math import sqrt
+
+import skimage.feature
 import numpy as np
+
+from eolearn.core import EOTask, FeatureType
 
 
 class BlobTask(EOTask):
@@ -88,20 +93,26 @@ class BlobTask(EOTask):
 
 
 class DoGBlobTask(BlobTask):
+    """ Task to compute blobs with Difference of Gaussian (DoG) method
+    """
     def __init__(self, feature, *, sigma_ratio=1.6, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs):
-        super().__init__(feature, blob_dog, sigma_ratio=sigma_ratio, min_sigma=min_sigma, max_sigma=max_sigma,
-                         threshold=threshold, overlap=overlap, **kwargs)
+        super().__init__(feature, skimage.feature.blob_dog, sigma_ratio=sigma_ratio, min_sigma=min_sigma,
+                         max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
 
 
 class DoHBlobTask(BlobTask):
+    """ Task to compute blobs with Laplacian of Gaussian (LoG) method
+    """
     def __init__(self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5,
                  **kwargs):
-        super().__init__(feature, blob_doh, num_sigma=num_sigma, log_scale=log_scale, min_sigma=min_sigma,
-                         max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
+        super().__init__(feature, skimage.feature.blob_doh, num_sigma=num_sigma, log_scale=log_scale,
+                         min_sigma=min_sigma, max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
 
 
 class LoGBlobTask(BlobTask):
+    """ Task to compute blobs with Laplacian of Gaussian (LoG) method
+    """
     def __init__(self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5,
                  **kwargs):
-        super().__init__(feature, blob_log, num_sigma=num_sigma, log_scale=log_scale, min_sigma=min_sigma,
-                         max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
+        super().__init__(feature, skimage.feature.blob_log, num_sigma=num_sigma, log_scale=log_scale,
+                         min_sigma=min_sigma, max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)

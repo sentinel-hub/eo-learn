@@ -3,9 +3,9 @@ Module containing tasks used for reading and writing to disk
 """
 
 import os.path
+
 import rasterio
 import numpy as np
-
 from sentinelhub import CRS
 
 from eolearn.core import SaveToDisk

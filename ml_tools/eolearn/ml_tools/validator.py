@@ -1,11 +1,14 @@
+"""
+Module for validating results obtained from any ML classifier
+"""
+
+import pickle
+import itertools
 from abc import ABC, abstractmethod
 
 import numpy as np
 import seaborn as sns
 import pandas as pd
-import itertools
-
-from pickle import dump, HIGHEST_PROTOCOL
 
 
 class SGMLBaseValidator(ABC):
@@ -155,7 +158,7 @@ class SGMLBaseValidator(ABC):
         Save validator object to pickle.
         """
         with open(filename, 'wb') as output:
-            dump(self, output, protocol=HIGHEST_PROTOCOL)
+            pickle.dump(self, output, protocol=pickle.HIGHEST_PROTOCOL)
 
     def pandas_df(self):
         """
