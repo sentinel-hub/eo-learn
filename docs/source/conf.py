@@ -202,13 +202,54 @@ epub_exclude_files = ['search.html']
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/3.6/': None}
 
+
+EXAMPLES_FOLDER = './examples'
+MARKDOWNS_FOLDER = './markdowns'
+
 # copy examples
-shutil.rmtree('./examples', ignore_errors=True)
+shutil.rmtree(EXAMPLES_FOLDER, ignore_errors=True)
+shutil.rmtree(MARKDOWNS_FOLDER, ignore_errors=True)
 
 try:
-    shutil.copytree('../../examples', './examples')
+    shutil.copytree('../../examples', EXAMPLES_FOLDER)
+    os.mkdir(MARKDOWNS_FOLDER)
+    shutil.copyfile('../../CONTRIBUTING.md', os.path.join(MARKDOWNS_FOLDER, 'CONTRIBUTING.md'))
 except FileExistsError:
     pass
+
+
+def process_readme():
+    """ Function which will process README.md file and divide it into INTRO.md and INSTALL.md, which will be used in
+    documentation
+    """
+    with open('../../README.md', 'r') as file:
+        readme = file.read()
+
+    readme = readme.replace('# eo-learn', '# Introduction').replace('docs/source/', '')
+    readme = readme.replace('**`', '**').replace('`**', '**')
+
+    chapters = [[]]
+    for line in readme.split('\n'):
+        if line.strip().startswith('## '):
+            chapters.append([])
+        if line.startswith('<img'):
+            line = '<p></p>'
+
+        chapters[-1].append(line)
+
+    chapters = ['\n'.join(chapter) for chapter in chapters]
+
+    intro = '\n'.join([chapter for chapter in chapters if not (chapter.startswith('## Install') or
+                                                               chapter.startswith('## Documentation'))])
+    install = '\n'.join([chapter for chapter in chapters if chapter.startswith('## Install')])
+
+    with open(os.path.join(MARKDOWNS_FOLDER, 'INTRO.md'), 'w') as file:
+        file.write(intro)
+    with open(os.path.join(MARKDOWNS_FOLDER, 'INSTALL.md'), 'w') as file:
+        file.write(install)
+
+
+process_readme()
 
 
 # Create a list of all EOTasks

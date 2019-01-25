@@ -1,1 +1,1 @@
-.. mdinclude:: CONTRIBUTING.md
+.. mdinclude:: markdowns/CONTRIBUTING.md
