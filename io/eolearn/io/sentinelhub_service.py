@@ -7,7 +7,6 @@ import datetime as dt
 
 import numpy as np
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
-from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime, parse_time
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 
@@ -95,7 +94,7 @@ class SentinelHubOGCInput(EOTask):
         if name == 'maxcc':
             return 1.0
         if name == 'time_difference':
-            return dt.timedelta(seconds=-1)
+            return dt.timedelta(0)
         if name in ('size_x', 'size_y'):
             return None
 
@@ -117,8 +116,7 @@ class SentinelHubOGCInput(EOTask):
         return {
             'layer': self.layer,
             'bbox': bbox if bbox is not None else self._get_parameter('bbox', eopatch),
-            'time': datetime_to_iso(time_interval) if isinstance(time_interval, str) else [
-                datetime_to_iso(x) if not isinstance(x, str) else x for x in time_interval],
+            'time': time_interval,
             'time_difference': self._get_parameter('time_difference', eopatch),
             'maxcc': self._get_parameter('maxcc', eopatch),
             'image_format': self.image_format,
@@ -158,12 +156,7 @@ class SentinelHubOGCInput(EOTask):
 
         for param, eoparam in zip(['time', 'time_difference', 'maxcc'], ['time_interval', 'time_difference', 'maxcc']):
             if eoparam not in eopatch.meta_info:
-                if param == 'time':
-                    value = request_params[param]
-                    eopatch.meta_info[eoparam] = value if isinstance(value, str) else [
-                        iso_to_datetime(parse_time(x)) if isinstance(x, str) else x for x in value]
-                else:
-                    eopatch.meta_info[eoparam] = request_params[param]
+                eopatch.meta_info[eoparam] = request_params[param]
 
         if 'service_type' not in eopatch.meta_info:
             eopatch.meta_info['service_type'] = service_type.value
@@ -186,13 +179,13 @@ class SentinelHubOGCInput(EOTask):
                      the specified coordinate reference system. Required.
         :type bbox: BBox
         :param time_interval: time or time range for which to return the results, in ISO8601 format
-                              (year-month-date, for example: ``2016-01-01``, or year-month-dateThours:minuts:seconds
+                              (year-month-date, for example: ``2016-01-01``, or year-month-dateThours:minutes:seconds
                               format, i.e. ``2016-01-01T16:31:21``). When a single time is specified the request will
                               return data for that specific date, if it exists. If a time range is specified the result
                               is a list of all scenes between the specified dates conforming to the cloud coverage
                               criteria. Most recent acquisition being first in the list. For the latest acquisition use
                               ``latest``. Examples: ``latest``, ``'2016-01-01'``, or ``('2016-01-01', ' 2016-01-31')``
-         :type time_interval: str, or tuple of str
+         :type time_interval: datetime, str, or tuple of datetime/str
         """
         if eopatch is None:
             eopatch = EOPatch()

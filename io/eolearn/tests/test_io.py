@@ -5,7 +5,6 @@ import os
 import numpy as np
 
 from sentinelhub import BBox, CRS, DataSource, ServiceType
-from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.io import *
 from eolearn.core import EOPatch, FeatureType
@@ -257,8 +256,7 @@ class TestEOPatch(unittest.TestCase):
     def test_time_interval(self):
         for task in self.task_cases:
             with self.subTest(msg='Test case {}'.format(task.name)):
-                self.assertEqual(task.eop.meta_info['time_interval'],
-                                 [iso_to_datetime(x) for x in ('2017-1-1', '2018-1-1')])
+                self.assertEqual(task.eop.meta_info['time_interval'], ('2017-1-1', '2018-1-1'))
 
     def test_timestamps_size(self):
         for task in self.task_cases:
