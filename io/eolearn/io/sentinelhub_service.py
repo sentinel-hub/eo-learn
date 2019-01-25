@@ -94,7 +94,7 @@ class SentinelHubOGCInput(EOTask):
         if name == 'maxcc':
             return 1.0
         if name == 'time_difference':
-            return dt.timedelta(0)
+            return dt.timedelta(seconds=-1)
         if name in ('size_x', 'size_y'):
             return None
 
@@ -185,7 +185,7 @@ class SentinelHubOGCInput(EOTask):
                               is a list of all scenes between the specified dates conforming to the cloud coverage
                               criteria. Most recent acquisition being first in the list. For the latest acquisition use
                               ``latest``. Examples: ``latest``, ``'2016-01-01'``, or ``('2016-01-01', ' 2016-01-31')``
-         :type time_interval: datetime, str, or tuple of datetime/str
+         :type time_interval: datetime.datetime, str, or tuple of datetime.datetime/str
         """
         if eopatch is None:
             eopatch = EOPatch()
