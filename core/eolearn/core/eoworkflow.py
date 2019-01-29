@@ -62,7 +62,7 @@ class EOWorkflow:
         :rtype: list(Dependency)
         """
         parsed_dependencies = [dep if isinstance(dep, Dependency) else Dependency(*dep) for dep in dependencies]
-        for dep in dependencies:
+        for dep in parsed_dependencies:
             if task_names and dep.task in task_names:
                 dep.set_name(task_names[dep.task])
         return parsed_dependencies
