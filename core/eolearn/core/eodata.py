@@ -275,7 +275,7 @@ class EOPatch:
                 self[feature_type][new_feature_name] = self[feature_type][feature_name]
                 del self[feature_type][feature_name]
         else:
-            LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name, feature_type.value)
+            LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name)
             
     @staticmethod
     def _check_if_dict(feature_type):
