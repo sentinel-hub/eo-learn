@@ -261,6 +261,19 @@ class EOWorkflow:
                 LOGGER.debug("Removing intermediate result for %s", str(current_task))
                 del intermediate_results[dep]
 
+    def get_tasks(self):
+        """Returns an ordered dictionary {task_name: task} of all tasks within this workflow.
+
+        :return: Ordered dictionary with key being task_name (str) and an instance of a corresponding task from this
+        workflow
+        :rtype: OrderedDict
+        """
+        tasks = collections.OrderedDict()
+        for dep in self.ordered_dependencies:
+            tasks[dep.name] = dep.task
+
+        return tasks
+
     def get_dot(self):
         """Generates the DOT description of the underlying computational graph.
 
