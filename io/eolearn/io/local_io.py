@@ -103,6 +103,6 @@ class ExportToTiff(SaveToDisk):
                            count=index,
                            dtype=self.image_dtype, nodata=self.no_data_value,
                            transform=dst_transform, crs=dst_crs) as dst:
-            dst.write(array.astype(self.image_dtype).reshape(index, width, height).squeeze(), indexes=index)
+            dst.write(array.astype(self.image_dtype).reshape(index, width, height).squeeze())
 
         return eopatch
