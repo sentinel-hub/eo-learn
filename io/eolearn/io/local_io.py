@@ -42,18 +42,15 @@ class ExportToTiff(SaveToDisk):
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
-    def execute(self, eopatch, *, filename):
+    def _get_bands_subset(self, array):
 
-        feature_type, feature_name = next(self.feature(eopatch))
-        array = eopatch[feature_type][feature_name]
-        dates = np.array(eopatch.timestamp)
         bands = np.array(range(array.shape[-1]))
 
-        if type(self.band_indices) is list:
-            if [band for band in self.band_indices if type(band) != int]:
+        if isinstance(self.band_indices, list):
+            if [band for band in self.band_indices if not isinstance(band, int)]:
                 raise ValueError('Invalid format in {} list, expected integers'.format(self.band_indices))
             array_sub = array[..., np.array(self.band_indices)]
-        elif type(self.band_indices) is tuple:
+        elif isinstance(self.band_indices, tuple):
             if tuple(map(type, self.band_indices)) != (int, int):
                 raise ValueError('Invalid format in {} tuple, expected integers'.format(self.band_indices))
             array_sub = array[..., np.nonzero(np.where(
@@ -61,27 +58,45 @@ class ExportToTiff(SaveToDisk):
         else:
             raise ValueError('Invalid format in {}, expected tuple or list'.format(self.band_indices))
 
-        if feature_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR]:
-            if type(self.date_indices) == list:
-                if [date for date in self.date_indices if type(date) != int]:
-                    raise ValueError('Invalid format in {} list, expected integers'.format(self.date_indices))
-                array_sub = array_sub[np.array(self.date_indices)]
-            elif type(self.date_indices) == tuple:
-                if tuple(map(type, self.date_indices)) == (int, int):
-                    start_date = dates[self.date_indices[0]]
-                    end_date = dates[self.date_indices[1]]
-                elif tuple(map(type, self.date_indices)) == (str, str):
-                    start_date = iso_to_datetime(self.date_indices[0])
-                    end_date = iso_to_datetime(self.date_indices[1])
-                elif tuple(map(type, self.date_indices)) == (datetime.datetime, datetime.datetime):
-                    start_date = self.date_indices[0]
-                    end_date = self.date_indices[1]
-                else:
-                    raise ValueError('Invalid format in {} tuple, expected ints, strings, or datetimes'.format(
-                        self.date_indices))
-                array_sub = array_sub[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))]
+        return array_sub
+
+    def _get_dates_subset(self, array, dates):
+
+        dates = np.array(dates)
+
+        if isinstance(self.date_indices, list):
+            if [date for date in self.date_indices if not isinstance(date, int)]:
+                raise ValueError('Invalid format in {} list, expected integers'.format(self.date_indices))
+            array_sub = array[np.array(self.date_indices)]
+        elif isinstance(self.date_indices, tuple):
+            if tuple(map(type, self.date_indices)) == (int, int):
+                start_date = dates[self.date_indices[0]]
+                end_date = dates[self.date_indices[1]]
+            elif tuple(map(type, self.date_indices)) == (str, str):
+                start_date = iso_to_datetime(self.date_indices[0])
+                end_date = iso_to_datetime(self.date_indices[1])
+            elif tuple(map(type, self.date_indices)) == (datetime.datetime, datetime.datetime):
+                start_date = self.date_indices[0]
+                end_date = self.date_indices[1]
             else:
-                raise ValueError('Invalid format in {}, expected tuple or list'.format(self.date_indices))
+                raise ValueError('Invalid format in {} tuple, expected ints, strings, or datetimes'.format(
+                    self.date_indices))
+            array_sub = array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))]
+        else:
+            raise ValueError('Invalid format in {}, expected tuple or list'.format(self.date_indices))
+
+        return array_sub
+
+    def execute(self, eopatch, *, filename):
+
+        feature_type, feature_name = next(self.feature(eopatch))
+        array = eopatch[feature_type][feature_name]
+
+        array_sub = self._get_bands_subset(array)
+
+        if feature_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR]:
+
+            array_sub = self._get_dates_subset(array_sub, eopatch.timestamp)
 
             if feature_type is FeatureType.SCALAR:
                 time_dim = array_sub.shape[0]
