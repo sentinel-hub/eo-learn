@@ -254,6 +254,30 @@ class EOPatch:
         self._check_if_dict(feature_type)
         self[feature_type][feature_name] = value
 
+    def rename_feature(self, feature_type, feature_name, new_feature_name):
+        """Renames the feature ``feature_name`` to ``new_feature_name`` from dictionary of ``feature_type``.
+
+        :param feature_type: Enum of the attribute we're about to rename
+        :type feature_type: FeatureType
+        :param feature_name: Name of the feature of the attribute
+        :type feature_name: str
+        :param new_feature_name : New Name of the feature of the attribute
+        :type feature_name: str
+        """
+
+        self._check_if_dict(feature_type)
+        if feature_name != new_feature_name:
+            if feature_name in self[feature_type]:
+                LOGGER.debug("Renaming feature '%s' from attribute '%s' to '%s'",
+                             feature_name, feature_type.value, new_feature_name)
+                self[feature_type][new_feature_name] = self[feature_type][feature_name]
+                del self[feature_type][feature_name]
+            else:
+                raise BaseException("Feature {} from attribute {} does not exist!".format(
+                    feature_name, feature_type.value))
+        else:
+            LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name)
+
     @staticmethod
     def _check_if_dict(feature_type):
         """Checks if the given feature type contains a dictionary and raises an error if it doesn't.
