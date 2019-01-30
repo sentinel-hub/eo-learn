@@ -113,6 +113,26 @@ class TestEOPatch(unittest.TestCase):
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
 
+    def test_rename_feature(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+
+        eop = EOPatch()
+        eop.data['bands'] = bands
+
+        eop.rename_feature(FeatureType.DATA, 'bands', 'new_bands')
+
+        self.assertTrue('new_bands' in eop.data)
+
+    def test_rename_feature_missing(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+
+        eop = EOPatch()
+        eop.data['bands'] = bands
+
+        with self.assertRaises(BaseException,
+                               msg='Should fail because there is no `missing_bands` feature in the EOPatch.'):
+            eop.rename_feature(FeatureType.DATA, 'missing_bands', 'new_bands')
+
     def test_get_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
 
