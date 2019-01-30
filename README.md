@@ -76,6 +76,9 @@ One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. If havin
 
 For more information on the package content, visit [readthedocs](https://eo-learn.readthedocs.io/).
 
+## Contributions
+
+If you would like to contribute to `eo-learn`, check out our [contribution guidelines](./CONTRIBUTING.md).
 
 ## Blog posts
 
