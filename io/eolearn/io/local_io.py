@@ -30,7 +30,7 @@ class ExportToTiff(SaveToDisk):
     :type no_data_value: int or float
     """
 
-    def __init__(self, feature, folder='.', *, band_indices=0, time_indices=0, image_dtype=np.uint8, no_data_value=0):
+    def __init__(self, feature, folder='.', *, band_indices=[0], time_indices=[0], image_dtype=np.uint8, no_data_value=0):
         super().__init__(folder)
 
         self.feature = self._parse_features(feature)
