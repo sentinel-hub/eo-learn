@@ -16,6 +16,14 @@ from eolearn.core import SaveToDisk, FeatureType
 class ExportToTiff(SaveToDisk):
     """ Task exports specified feature to Geo-Tiff.
 
+    When exporting multiple times OR bands, the Geo-Tiff `band` counts are in the expected order.
+    However, when exporting multiple times AND bands, the order obeys the following pattern:
+
+    T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
+
+    where T and B are the time and band indices of the array,
+    and M and N are the lengths of these indices, respectively/
+
     :param feature: Feature which will be exported
     :type feature: (FeatureType, str)
     :param folder: root directory where all Geo-Tiff images will be saved
@@ -54,7 +62,7 @@ class ExportToTiff(SaveToDisk):
             if tuple(map(type, self.band_indices)) != (int, int):
                 raise ValueError('Invalid format in {} tuple, expected integers'.format(self.band_indices))
             array_sub = array[..., np.nonzero(np.where(
-                (bands >= self.band_indices[0]) & (bands <= self.band_indices[1]), bands, 0))]
+                (bands >= self.band_indices[0]) & (bands <= self.band_indices[1]), bands, 0))[0]]
         else:
             raise ValueError('Invalid format in {}, expected tuple or list'.format(self.band_indices))
 
@@ -81,7 +89,7 @@ class ExportToTiff(SaveToDisk):
             else:
                 raise ValueError('Invalid format in {} tuple, expected ints, strings, or datetimes'.format(
                     self.date_indices))
-            array_sub = array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))]
+            array_sub = array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
         else:
             raise ValueError('Invalid format in {}, expected tuple or list'.format(self.date_indices))
 
@@ -95,24 +103,20 @@ class ExportToTiff(SaveToDisk):
         array_sub = self._get_bands_subset(array)
 
         if feature_type in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR]:
-
             array_sub = self._get_dates_subset(array_sub, eopatch.timestamp)
 
             if feature_type is FeatureType.SCALAR:
-                time_dim = array_sub.shape[0]
-                band_dim = 1
-                width = array_sub.shape[2]
-                height = array_sub.shape[1]
-            else:
-                time_dim = array_sub.shape[0]
-                band_dim = array_sub.shape[-1]
-                width = array_sub.shape[2]
-                height = array_sub.shape[1]
+                # add height and width dimensions
+                array_sub = np.expand_dims(np.expand_dims(array_sub, axis=1), axis=1)
+
         else:
-            time_dim = 1
-            band_dim = array_sub.shape[-1]
-            width = array_sub.shape[1]
-            height = array_sub.shape[0]
+            # add temporal dimension
+            array_sub = np.expand_dims(array_sub, axis=0)
+            if feature_type is FeatureType.SCALAR_TIMELESS:
+                # add height and width dimensions
+                array_sub = np.expand_dims(np.expand_dims(array_sub, axis=1), axis=1)
+
+        time_dim, height, width, band_dim = array_sub.shape
 
         index = time_dim * band_dim
         dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
@@ -125,7 +129,7 @@ class ExportToTiff(SaveToDisk):
                            dtype=self.image_dtype, nodata=self.no_data_value,
                            transform=dst_transform, crs=dst_crs) as dst:
             output_array = array_sub.astype(self.image_dtype)
-            output_array = np.moveaxis(output_array, -1, 0).reshape(index, height, width)
+            output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
             dst.write(output_array)
 
         return eopatch

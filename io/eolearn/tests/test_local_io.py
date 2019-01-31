@@ -4,10 +4,10 @@ import logging
 import tempfile
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType
-from eolearn.io import ExportToTiff
 from sentinelhub.io_utils import read_data
 from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime
+from eolearn.core import EOPatch, FeatureType
+from eolearn.io import ExportToTiff
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -15,6 +15,124 @@ logging.basicConfig(level=logging.DEBUG)
 class TestEOPatch(unittest.TestCase):
 
     PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+
+    def test_export2tiff_scalar_timeless_single(self):
+        scalar_timeless = np.arange(3)
+        bands = [1]
+        subset = scalar_timeless[bands]
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.scalar_timeless['scalar_timeless'] = scalar_timeless
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.SCALAR_TIMELESS, 'scalar_timeless'), folder=tmp_dir_name,
+                                band_indices=bands)
+            task.execute(eop, filename=tmp_file_name)
+
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+            self.assertTrue(np.all(subset == raster))
+
+    def test_export2tiff_scalar_timeless_list(self):
+        scalar_timeless = np.arange(5)
+        bands = [3, 0, 2]
+        subset = scalar_timeless[bands]
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.scalar_timeless['scalar_timeless'] = scalar_timeless
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.SCALAR_TIMELESS, 'scalar_timeless'), folder=tmp_dir_name,
+                                band_indices=bands)
+            task.execute(eop, filename=tmp_file_name)
+
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+            self.assertTrue(np.all(subset == raster))
+
+    def test_export2tiff_scalar_timeless_tuple(self):
+        scalar_timeless = np.arange(6)
+        bands = (1, 4)
+        bands_selection = np.arange(bands[0], bands[1]+1)
+        subset = scalar_timeless[bands_selection]
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.scalar_timeless['scalar_timeless'] = scalar_timeless
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.SCALAR_TIMELESS, 'scalar_timeless'), folder=tmp_dir_name,
+                                band_indices=bands)
+            task.execute(eop, filename=tmp_file_name)
+
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+            self.assertTrue(np.all(subset == raster))
+
+    def test_export2tiff_scalar_band_single_time_single(self):
+        scalar = np.arange(10 * 6, dtype=float).reshape(10, 6)
+        bands = [3]
+        times = [7]
+
+        subset = scalar[times][..., bands].squeeze()
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.scalar['scalar'] = scalar
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.SCALAR, 'scalar'), folder=tmp_dir_name,
+                                band_indices=bands, date_indices=times, image_dtype=scalar.dtype)
+            task.execute(eop, filename=tmp_file_name)
+
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+
+            self.assertTrue(np.all(subset == raster))
+
+    def test_export2tiff_scalar_band_list_time_list(self):
+        scalar = np.arange(10 * 6, dtype=float).reshape(10, 6)
+        bands = [2, 4, 1, 0]
+        times = [1, 7, 0, 2, 3]
+
+        subset = scalar[times][..., bands].squeeze()
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.scalar['scalar'] = scalar
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.SCALAR, 'scalar'), folder=tmp_dir_name,
+                                band_indices=bands, date_indices=times, image_dtype=scalar.dtype)
+            task.execute(eop, filename=tmp_file_name)
+
+            # split times and bands in raster and mimic the initial shape
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+            raster = raster.reshape(len(times), len(bands))
+
+            self.assertTrue(np.all(subset == raster))
+
+    def test_export2tiff_data_band_tuple_time_tuple(self):
+        scalar = np.arange(10 * 6, dtype=float).reshape(10, 6)
+        bands = (1, 4)
+        times = (2, 8)
+        bands_selection = np.arange(bands[0], bands[1] + 1)
+        times_selection = np.arange(times[0], times[1] + 1)
+
+        subset = scalar[times_selection][..., bands_selection].squeeze()
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.scalar['scalar'] = scalar
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.SCALAR, 'scalar'), folder=tmp_dir_name,
+                                band_indices=bands, date_indices=times, image_dtype=scalar.dtype)
+            task.execute(eop, filename=tmp_file_name)
+
+            # split times and bands in raster and mimic the initial shape
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+            raster = raster.reshape(len(times_selection), len(bands_selection))
+
+            self.assertTrue(np.all(subset == raster))
 
     def test_export2tiff_mask_timeless(self):
         mask_timeless = np.arange(3*3*1).reshape(3, 3, 1)
@@ -176,7 +294,7 @@ class TestEOPatch(unittest.TestCase):
 
     def test_export2tiff_data_timeless_band_tuple(self):
         data_timeless = np.arange(3*2*5, dtype=float).reshape(3, 2, 5)
-        bands = (1, 3)
+        bands = (1, 4)
         selection = np.arange(bands[0], bands[1] + 1)
         subset = data_timeless[..., selection].squeeze()
 
@@ -198,7 +316,7 @@ class TestEOPatch(unittest.TestCase):
         bands = [3]
         times = [7]
 
-        subset = data[times, ..., bands].squeeze()
+        subset = data[times][..., bands].squeeze()
 
         eop = EOPatch.load(self.PATCH_FILENAME)
         eop.data['data'] = data
@@ -212,6 +330,7 @@ class TestEOPatch(unittest.TestCase):
             raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
 
             self.assertTrue(np.all(subset == raster))
+
 
     def test_export2tiff_data_band_list_time_list(self):
         data = np.arange(10*3*2*6, dtype=float).reshape(10, 3, 2, 6)
@@ -231,8 +350,8 @@ class TestEOPatch(unittest.TestCase):
 
             # split times and bands in raster and mimic the initial shape
             raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
-            raster = raster.reshape(raster.shape[0], raster.shape[1], len(bands), len(times))
-            raster = np.moveaxis(raster, -1, 0)
+            raster = raster.reshape(raster.shape[0], raster.shape[1], len(times), len(bands))
+            raster = np.moveaxis(raster, -2, 0)
 
             self.assertTrue(np.all(subset == raster))
 
@@ -256,8 +375,8 @@ class TestEOPatch(unittest.TestCase):
 
             # split times and bands in raster and mimic the initial shape
             raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
-            raster = raster.reshape(raster.shape[0], raster.shape[1], len(bands_selection), len(times_selection))
-            raster = np.moveaxis(raster, -1, 0)
+            raster = raster.reshape(raster.shape[0], raster.shape[1], len(times_selection), len(bands_selection))
+            raster = np.moveaxis(raster, -2, 0)
 
             self.assertTrue(np.all(subset == raster))
 
@@ -289,7 +408,30 @@ class TestEOPatch(unittest.TestCase):
                                 band_indices=bands, date_indices=times, image_dtype=data.dtype)
             task.execute(eop, filename=tmp_file_name)
 
+    def test_export2tiff_order(self):
+        data = np.arange(10*3*2*6, dtype=float).reshape(10, 3, 2, 6)
+        bands = [2, 3, 0]
+        times = [1, 7]
 
+        # create ordered subset
+        ordered_subset = []
+        for t in times:
+            for b in bands:
+                ordered_subset.append(data[t][..., b])
+        ordered_subset = np.array(ordered_subset)
+        ordered_subset = np.moveaxis(ordered_subset, 0, -1)
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.data['data'] = data
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.DATA, 'data'), folder=tmp_dir_name,
+                                band_indices=bands, date_indices=times, image_dtype=data.dtype)
+            task.execute(eop, filename=tmp_file_name)
+
+            raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
+            self.assertTrue(np.all(ordered_subset == raster))
 
 
 if __name__ == '__main__':
