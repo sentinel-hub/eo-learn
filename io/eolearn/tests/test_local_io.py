@@ -87,11 +87,11 @@ class TestEOPatch(unittest.TestCase):
             self.assertTrue(np.all(subset == raster))
 
     def test_export2tiff_mask_tuple_datetime(self):
-        mask = np.arange(5*3*2*1).reshape(5, 3, 2, 1)
-
         eop = EOPatch.load(self.PATCH_FILENAME)
-        eop.mask['mask'] = mask
         dates = np.array(eop.timestamp)
+
+        mask = np.arange(len(dates)*3*2*1).reshape(len(dates), 3, 2, 1)
+        eop.mask['mask'] = mask
 
         indices = [2, 4]
         times = (dates[indices[0]], dates[indices[1]])
@@ -110,11 +110,11 @@ class TestEOPatch(unittest.TestCase):
             self.assertTrue(np.all(subset == raster))
 
     def test_export2tiff_mask_tuple_string(self):
-        mask = np.arange(5*3*2*1).reshape(5, 3, 2, 1)
-
         eop = EOPatch.load(self.PATCH_FILENAME)
-        eop.mask['mask'] = mask
         dates = np.array(eop.timestamp)
+
+        mask = np.arange(len(dates) * 3 * 2 * 1).reshape(len(dates), 3, 2, 1)
+        eop.mask['mask'] = mask
 
         indices = [2, 4]
 
@@ -260,6 +260,36 @@ class TestEOPatch(unittest.TestCase):
             raster = np.moveaxis(raster, -1, 0)
 
             self.assertTrue(np.all(subset == raster))
+
+    def test_export2tiff_wrong_bands_format(self):
+        data = np.arange(10*3*2*6, dtype=float).reshape(10, 3, 2, 6)
+        bands = [2, 'string', 1, 0]
+        times = [1, 7, 0, 2, 3]
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.data['data'] = data
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(ValueError):
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.DATA, 'data'), folder=tmp_dir_name,
+                                band_indices=bands, date_indices=times, image_dtype=data.dtype)
+            task.execute(eop, filename=tmp_file_name)
+
+    def test_export2tiff_wrong_dates_format(self):
+        data = np.arange(10*3*2*6, dtype=float).reshape(10, 3, 2, 6)
+        bands = [2, 3, 1, 0]
+        times = [1, 7, 'string', 2, 3]
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.data['data'] = data
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(ValueError):
+            tmp_file_name = 'temp_file.tiff'
+            task = ExportToTiff((FeatureType.DATA, 'data'), folder=tmp_dir_name,
+                                band_indices=bands, date_indices=times, image_dtype=data.dtype)
+            task.execute(eop, filename=tmp_file_name)
+
+
 
 
 if __name__ == '__main__':
