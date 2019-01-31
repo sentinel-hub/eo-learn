@@ -8,7 +8,7 @@ import itertools
 
 from geopandas import GeoSeries, GeoDataFrame
 
-from eolearn.core import EOPatch, FeatureType, OverwritePermission, FileFormat, BBox, CRS
+from eolearn.core import EOPatch, FeatureType, FeatureTypeSet, OverwritePermission, FileFormat, BBox, CRS
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -32,19 +32,18 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
             for dtype in [np.float32, np.float64, np.float, np.uint8, np.int64, np.bool]:
                 data_examples.append(np.zeros((2, ) * size, dtype=dtype))
 
-        for feature_type in FeatureType:
-            if feature_type.contains_ndarrays():
-                valid_count = 0
+        for feature_type in FeatureTypeSet.RASTER_TYPES:
+            valid_count = 0
 
-                for data in data_examples:
-                    try:
-                        eop[feature_type]['TEST'] = data
-                        valid_count += 1
-                    except ValueError:
-                        pass
+            for data in data_examples:
+                try:
+                    eop[feature_type]['TEST'] = data
+                    valid_count += 1
+                except ValueError:
+                    pass
 
-                self.assertEqual(valid_count, 6,  # 3 * (2 - feature_type.is_discrete()),
-                                 msg='Feature type {} should take only a specific type of data'.format(feature_type))
+            self.assertEqual(valid_count, 6,  # 3 * (2 - feature_type.is_discrete()),
+                             msg='Feature type {} should take only a specific type of data'.format(feature_type))
 
     def test_vector_feature_types(self):
         eop = EOPatch()
@@ -53,13 +52,11 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
             {}, [], 0, None
         ]
 
-        for feature_type in FeatureType:
-            if feature_type.is_vector():
-                for entry in invalid_entries:
-                    with self.assertRaises(ValueError,
-                                           msg='Invalid entry {} for {} should raise an error'.format(entry,
-                                                                                                      feature_type)):
-                        eop[feature_type]['TEST'] = entry
+        for feature_type in FeatureTypeSet.VECTOR_TYPES:
+            for entry in invalid_entries:
+                with self.assertRaises(ValueError,
+                                       msg='Invalid entry {} for {} should raise an error'.format(entry, feature_type)):
+                    eop[feature_type]['TEST'] = entry
 
         crs_test = {'init': 'epsg:4326'}
         geo_test = GeoSeries([BBox((1, 2, 3, 4), crs=CRS.WGS84).get_geometry()], crs=crs_test)
@@ -115,6 +112,26 @@ class TestEOPatch(unittest.TestCase):
         eop.data['bands'] = bands
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
+
+    def test_rename_feature(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+
+        eop = EOPatch()
+        eop.data['bands'] = bands
+
+        eop.rename_feature(FeatureType.DATA, 'bands', 'new_bands')
+
+        self.assertTrue('new_bands' in eop.data)
+
+    def test_rename_feature_missing(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+
+        eop = EOPatch()
+        eop.data['bands'] = bands
+
+        with self.assertRaises(BaseException,
+                               msg='Should fail because there is no `missing_bands` feature in the EOPatch.'):
+            eop.rename_feature(FeatureType.DATA, 'missing_bands', 'new_bands')
 
     def test_get_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)

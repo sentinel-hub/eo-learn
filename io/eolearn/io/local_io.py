@@ -3,10 +3,10 @@ Module containing tasks used for reading and writing to disk
 """
 
 import os.path
+
 import rasterio
 import datetime
 import numpy as np
-
 from sentinelhub import CRS
 from sentinelhub.time_utils import iso_to_datetime
 

@@ -5,8 +5,8 @@ are deeply equal, padding of an image, etc.
 
 import logging
 import itertools
-import numpy as np
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 

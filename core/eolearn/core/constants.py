@@ -51,44 +51,43 @@ class FeatureType(Enum):
 
     def is_spatial(self):
         """True if FeatureType has a spatial component. False otherwise."""
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.DATA_TIMELESS,
-                                  FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS])
+        return self in FeatureTypeSet.SPATIAL_TYPES
 
     def is_time_dependent(self):
         """True if FeatureType has a time component. False otherwise."""
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                                  FeatureType.VECTOR, FeatureType.TIMESTAMP])
+        return self in FeatureTypeSet.TIME_DEPENDENT_TYPES
 
     def is_timeless(self):
-        """True if FeatureType doesn't have a time component. False otherwise."""
-        return not self.is_time_dependent()
+        """True if FeatureType doesn't have a time component and is not a meta feature. False otherwise."""
+        return self in FeatureTypeSet.TIMELESS_TYPES
 
     def is_discrete(self):
         """True if FeatureType should have discrete (integer) values. False otherwise."""
-        return self in frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
-                                  FeatureType.LABEL_TIMELESS])
+        return self in FeatureTypeSet.DISCRETE_TYPES
 
     def is_meta(self):
         """ True if FeatureType is for storing metadata info and False otherwise. """
-        return self in frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
+        return self in FeatureTypeSet.META_TYPES
 
     def is_vector(self):
         """True if FeatureType is vector feature type. False otherwise. """
-        return self in frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
+        return self in FeatureTypeSet.VECTOR_TYPES
 
     def has_dict(self):
         """True if FeatureType stores a dictionary. False otherwise."""
-        return self not in frozenset([FeatureType.TIMESTAMP, FeatureType.BBOX])
+        return self in FeatureTypeSet.DICT_TYPES
+
+    def is_raster(self):
+        """True if FeatureType stores a dictionary with raster data. False otherwise."""
+        return self in FeatureTypeSet.RASTER_TYPES
 
     def contains_ndarrays(self):
         """True if FeatureType stores a dictionary of numpy.ndarrays. False otherwise."""
-        return self in frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                                  FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
-                                  FeatureType.LABEL_TIMELESS])
+        return self in FeatureTypeSet.RASTER_TYPES
 
     def ndim(self):
         """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays."""
-        if self.contains_ndarrays():
+        if self.is_raster():
             return {
                 FeatureType.DATA: 4,
                 FeatureType.MASK: 4,
@@ -110,6 +109,32 @@ class FeatureType(Enum):
         return dict
 
 
+class FeatureTypeSet:
+    """ A collection of immutable sets of feature types, grouped together by certain properties.
+    """
+    SPATIAL_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.DATA_TIMELESS,
+                               FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS])
+    TIME_DEPENDENT_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
+                                      FeatureType.VECTOR, FeatureType.TIMESTAMP])
+    TIMELESS_TYPES = frozenset([FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
+                                FeatureType.LABEL_TIMELESS, FeatureType.VECTOR_TIMELESS])
+    DISCRETE_TYPES = frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
+                                FeatureType.LABEL_TIMELESS])
+    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
+    VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
+    RASTER_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
+                              FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
+                              FeatureType.LABEL_TIMELESS])
+    DICT_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
+                            FeatureType.VECTOR, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS,
+                            FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS, FeatureType.VECTOR_TIMELESS,
+                            FeatureType.META_INFO])
+    RASTER_TYPES_4D = frozenset([FeatureType.DATA, FeatureType.MASK])
+    RASTER_TYPES_3D = frozenset([FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS])
+    RASTER_TYPES_2D = frozenset([FeatureType.SCALAR, FeatureType.LABEL])
+    RASTER_TYPES_1D = frozenset([FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS])
+
+
 class FileFormat(Enum):
     """ Enum class for file formats used for saving and loading EOPatches
     """
@@ -124,6 +149,8 @@ class FileFormat(Enum):
 
     @staticmethod
     def split_by_extensions(filename):
+        """ Splits the filename string by the extension of the file
+        """
         parts = filename.split('.')
         idx = len(parts) - 1
         while FileFormat.is_file_format(parts[idx]):

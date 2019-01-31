@@ -4,11 +4,12 @@ the time-dependent features.
 """
 
 import logging
-from datetime import datetime
+import datetime as dt
+
 import numpy as np
+from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOTask, FeatureType
-from sentinelhub.time_utils import iso_to_datetime
 
 
 LOGGER = logging.getLogger(__name__)
@@ -84,10 +85,10 @@ class FilterTimeSeries(SimpleFilterTask):
         self.start_date = start_date
         self.end_date = end_date
 
-        if not isinstance(start_date, datetime):
+        if not isinstance(start_date, dt.datetime):
             raise ValueError('Start date is not of correct type. Please provide the start_date as datetime.datetime.')
 
-        if not isinstance(end_date, datetime):
+        if not isinstance(end_date, dt.datetime):
             raise ValueError('End date is not of correct type. Please provide the end_date as datetime.datetime.')
 
         super().__init__(FeatureType.TIMESTAMP, lambda date: start_date <= date <= end_date, filter_features)
