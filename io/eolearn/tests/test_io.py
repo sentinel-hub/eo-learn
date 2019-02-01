@@ -2,10 +2,10 @@ import unittest
 import logging
 
 import os
+import datetime
 import numpy as np
 
 from sentinelhub import BBox, CRS, DataSource, ServiceType
-from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.io import *
 from eolearn.core import EOPatch, FeatureType
@@ -43,6 +43,7 @@ class TestEOPatch(unittest.TestCase):
 
         bbox = BBox(bbox=(-5.05, 48.0, -5.00, 48.05), crs=CRS.WGS84)
         time_interval = ('2017-1-1', '2018-1-1')
+        time_interval_datetime = (datetime.datetime(2017, 1, 1), datetime.datetime(2018, 1, 1))
         img_width = 100
         img_height = 100
         resx = '53m'
@@ -192,6 +193,26 @@ class TestEOPatch(unittest.TestCase):
             )
         ]
 
+        cls.create_patches_datetime = [
+
+            cls.TaskTestCase(
+                name='generalWmsTask',
+                layer='BANDS-S2-L1C',
+                data_size=13,
+                timestamp_length=55,
+                request=SentinelHubWMSInput(
+                    layer='BANDS-S2-L1C',
+                    height=img_height,
+                    width=img_width,
+                    data_source=DataSource.SENTINEL2_L1C,
+                    instance_id=instance_id
+                ),
+                bbox=bbox,
+                time_interval=time_interval_datetime,
+                eop=None
+            )
+        ]
+
         cls.update_patches = [
             cls.TaskTestCase(
                 name='generalWmsTask_to_empty',
@@ -247,6 +268,7 @@ class TestEOPatch(unittest.TestCase):
         ]
 
         cls.task_cases = cls.create_patches + cls.update_patches
+        cls.task_cases_datetime = cls.create_patches_datetime
 
     def test_return_type(self):
         for task in self.task_cases:
@@ -257,8 +279,7 @@ class TestEOPatch(unittest.TestCase):
     def test_time_interval(self):
         for task in self.task_cases:
             with self.subTest(msg='Test case {}'.format(task.name)):
-                self.assertEqual(task.eop.meta_info['time_interval'],
-                                 [iso_to_datetime(x) for x in ('2017-1-1', '2018-1-1')])
+                self.assertEqual(task.eop.meta_info['time_interval'], ('2017-1-1', '2018-1-1'))
 
     def test_timestamps_size(self):
         for task in self.task_cases:
@@ -296,6 +317,12 @@ class TestEOPatch(unittest.TestCase):
                         mask_dtype = task.eop.mask[mask].dtype
                         self.assertEqual(mask_dtype, np.dtype(np.bool),
                                          msg='Valid data mask should be boolean type, found {}'.format(mask_dtype))
+
+    def test_time_interval_datetime(self):
+        for task in self.task_cases_datetime:
+            with self.subTest(msg='Test case {}'.format(task.name)):
+                self.assertEqual(task.eop.meta_info['time_interval'], (datetime.datetime(2017, 1, 1),
+                                                                       datetime.datetime(2018, 1, 1)))
 
 
 if __name__ == '__main__':
