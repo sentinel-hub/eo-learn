@@ -23,6 +23,7 @@ import sentinelhub
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
 
+# pylint: disable=too-many-lines
 LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
@@ -913,6 +914,7 @@ class _FileLoader:
     def load(self):
         """ Method which loads data from the file
         """
+        # pylint: disable=too-many-return-statements
         if not os.path.isdir(self.patch_path):
             raise OSError('EOPatch does not exist in path {} anymore'.format(self.patch_path))
 
@@ -935,7 +937,7 @@ class _FileLoader:
                 return np.load(path, mmap_mode='r')
             return np.load(path)
 
-        if file_formats[-1] is FileFormat.GZIP:  # TODO
+        if file_formats[-1] is FileFormat.GZIP:
             if file_formats[-2] is FileFormat.NPY:
                 return np.load(gzip.open(path))
 
