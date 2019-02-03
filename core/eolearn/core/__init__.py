@@ -15,4 +15,4 @@ from .plots import bgr_to_rgb, IndexTracker, PatchShowTask
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps
 
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'

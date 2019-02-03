@@ -9,4 +9,4 @@ from .validator import SGMLBaseValidator
 from .postprocessing import MorphologicalOperations, MorphologicalStructFactory, PostprocessingTask,\
     MorphologicalFilterTask
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'
