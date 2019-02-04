@@ -3,6 +3,7 @@ The eodata module provides core objects for handling remotely sensing multi-temp
 """
 
 import os
+import sys
 import logging
 import pickle
 import gzip
@@ -10,6 +11,8 @@ import shutil
 import warnings
 import copy
 import datetime
+import pickletools
+
 import attr
 import dateutil.parser
 import numpy as np
@@ -20,9 +23,14 @@ import sentinelhub
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
 
+# pylint: disable=too-many-lines
 LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
+
+
+if sentinelhub.__version__ >= '2.5.0':
+    sys.modules['sentinelhub.common'] = sentinelhub.geometry
 
 
 @attr.s(repr=False, cmp=False, kw_only=True)
@@ -875,9 +883,38 @@ class _FileLoader:
         """
         return os.path.join(self.patch_path, self.filename)
 
+    @staticmethod
+    def _correctly_load_bbox(bbox, path, is_zipped=False):
+        """ Helper method for loading old version of pickled BBox object
+
+        :param bbox: BBox object which was incorrectly loaded with pickle
+        :type bbox: sentinelhub.BBox
+        :param path: Path to file where BBox object is stored
+        :type path: str
+        :param is_zipped: `True` if file is zipped and `False` otherwise
+        :type is_zipped: bool
+        :return: Correctly loaded BBox object
+        :rtype: sentinelhub.BBox
+        """
+        warnings.warn("Bounding box of your EOPatch is saved in old format which in the future won't be supported "
+                      "anymore. Please save bounding box again, you can overwrite the existing one", DeprecationWarning,
+                      stacklevel=4)
+
+        with open(gzip.open(path) if is_zipped else path, 'rb') as pickle_file:
+            crs_cnt = -1
+            for _, arg, _ in pickletools.genops(pickle_file):
+                if arg == 'sentinelhub.constants CRS':
+                    crs_cnt = 2
+                if crs_cnt == 0:
+                    return sentinelhub.BBox(tuple(bbox), sentinelhub.CRS(arg))
+                crs_cnt -= 1
+
+        raise ValueError('Failed to correctly load BBox object, try downgrading sentinelhub package to <=2.4.7')
+
     def load(self):
         """ Method which loads data from the file
         """
+        # pylint: disable=too-many-return-statements
         if not os.path.isdir(self.patch_path):
             raise OSError('EOPatch does not exist in path {} anymore'.format(self.patch_path))
 
@@ -889,7 +926,11 @@ class _FileLoader:
 
         if not file_formats or file_formats[-1] is FileFormat.PICKLE:
             with open(path, "rb") as infile:
-                return pickle.load(infile)
+                data = pickle.load(infile)
+
+                if isinstance(data, sentinelhub.BBox) and not hasattr(data, 'crs'):
+                    return self._correctly_load_bbox(data, path)
+                return data
 
         if file_formats[-1] is FileFormat.NPY:
             if self.mmap:
@@ -901,7 +942,11 @@ class _FileLoader:
                 return np.load(gzip.open(path))
 
             if len(file_formats) == 1 or file_formats[-2] is FileFormat.PICKLE:
-                return pickle.load(gzip.open(path))
+                data = pickle.load(gzip.open(path))
+
+                if isinstance(data, sentinelhub.BBox) and not hasattr(data, 'crs'):
+                    return self._correctly_load_bbox(data, path, is_zipped=True)
+                return data
 
         raise ValueError('Could not load data from unsupported file format {}'.format(file_formats[-1]))
 

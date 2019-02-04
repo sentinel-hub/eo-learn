@@ -7,6 +7,6 @@ graphviz>=0.10.1
 matplotlib
 jinja2
 pygments
-sentinelhub>=2.4.7
+sentinelhub>=2.5.0
 geopandas
 tqdm>=4.27
