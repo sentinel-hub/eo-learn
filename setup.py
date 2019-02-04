@@ -41,8 +41,7 @@ setup(
         'eo-learn-ml-tools>=0.4.2'
     ],
     extras_require={
-        'DEV': parse_requirements('requirements-dev.txt'),
-        'DOCS': parse_requirements('requirements-docs.txt')
+        'DEV': parse_requirements('requirements-dev.txt')
     },
     zip_safe=False,
     classifiers=[
