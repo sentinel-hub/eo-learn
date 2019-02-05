@@ -45,11 +45,10 @@ class ErosionTask(EOTask):
             return eopatch
 
         labels = eopatch[self.mask_type][self.mask_name].squeeze().copy()
-        if self.erode_labels is None:
-            self.erode_labels = np.unique(labels)
+        erode_labels = np.unique(labels) if self.erode_labels is None else self.erode_labels
 
         mask_values = np.zeros(labels.shape, dtype=np.bool)
-        for label in self.erode_labels:
+        for label in erode_labels:
             label_mask = (labels == label)
             label_mask = skimage.morphology.binary_erosion(label_mask, skimage.morphology.disk(self.disk_radius))
             mask_values |= label_mask
