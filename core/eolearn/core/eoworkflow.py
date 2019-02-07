@@ -280,7 +280,7 @@ class EOWorkflow:
         :return: The DOT representation of the computational graph
         :rtype: Digraph
         """
-        dot = Digraph()
+        dot = Digraph(format='png')
 
         dep_to_dot_name = self._get_dep_to_dot_name_mapping(self.ordered_dependencies)
 
