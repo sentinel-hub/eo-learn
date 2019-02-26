@@ -900,7 +900,7 @@ class _FileLoader:
                       "anymore. Please save bounding box again, you can overwrite the existing one", DeprecationWarning,
                       stacklevel=4)
 
-        with open(gzip.open(path) if is_zipped else path, 'rb') as pickle_file:
+        with gzip.open(path) if is_zipped else open(path, 'rb') as pickle_file:
             crs_cnt = -1
             for _, arg, _ in pickletools.genops(pickle_file):
                 if arg == 'sentinelhub.constants CRS':
