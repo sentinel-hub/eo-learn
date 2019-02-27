@@ -146,11 +146,6 @@ class EOExecutor:
         """
         return os.path.join(self.report_folder, self.REPORT_FILENAME)
 
-    def dependency_graph(self):
-        """ Plots the dependency graph of the workflow
-        """
-        return self.workflow.dependency_graph()
-
     def make_report(self):
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
