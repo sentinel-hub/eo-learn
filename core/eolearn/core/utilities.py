@@ -222,8 +222,7 @@ class FeatureParser:
             else:
                 if not isinstance(feature_name, str):
                     raise ValueError('Failed to parse {}, expected string'.format(feature_name))
-                else:
-                    raise ValueError('Failed to parse {}, expected string or Ellipsis'.format(new_feature_name))
+                raise ValueError('Failed to parse {}, expected string or Ellipsis'.format(new_feature_name))
         return feature_collection
 
     @staticmethod

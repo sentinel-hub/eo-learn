@@ -13,12 +13,11 @@ import inspect
 import warnings
 import base64
 import copy
-import io
 import concurrent.futures
 import datetime as dt
 
+import graphviz
 import matplotlib.pyplot as plt
-import networkx as nx
 import pygments
 import pygments.lexers
 from pygments.formatters.html import HtmlFormatter
@@ -158,7 +157,14 @@ class EOExecutor:
             LOGGER.info('No display found, using non-interactive Agg backend')
             plt.switch_backend('Agg')
 
-        dependency_graph = self._create_dependency_graph()
+        try:
+            dependency_graph = self._create_dependency_graph()
+        except graphviz.backend.ExecutableNotFound as ex:
+            dependency_graph = None
+            warnings.warn("{}.\nPlease install the system package 'graphviz' (in addition "
+                          "to the python package) to have the dependency graph in the final report!".format(ex),
+                          Warning, stacklevel=2)
+
         task_descriptions = self._get_task_descriptions()
 
         formatter = HtmlFormatter(linenos=True)
@@ -180,18 +186,11 @@ class EOExecutor:
         with open(self.get_report_filename(), 'w') as fout:
             fout.write(html)
 
+        return self.workflow.dependency_graph()
+
     def _create_dependency_graph(self):
-        dot = self.workflow.get_dot()
-        dot_file = io.StringIO()
-        dot_file.write(dot.source)
-        dot_file.seek(0)
-
-        graph = nx.drawing.nx_pydot.read_dot(dot_file)
-        image = io.BytesIO()
-        nx.draw_spectral(graph, with_labels=True)
-        plt.savefig(image, format='png')
-
-        return base64.b64encode(image.getvalue()).decode()
+        dot = self.workflow.dependency_graph()
+        return base64.b64encode(dot.pipe()).decode()
 
     def _get_task_descriptions(self):
         descriptions = []
