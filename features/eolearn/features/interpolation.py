@@ -200,11 +200,10 @@ class InterpolationTask(EOTask):
                 if new_feature in existing_features:
                     raise ValueError('Feature {} of {} already exists in the new EOPatch! '
                                      'Use a different name!'.format(copy_new_feature_name, copy_feature_type))
-                else:
-                    existing_features.add(new_feature)
+                existing_features.add(new_feature)
 
-                    new_eopatch[copy_feature_type][copy_new_feature_name] = \
-                        old_eopatch[copy_feature_type][copy_feature_name]
+                new_eopatch[copy_feature_type][copy_new_feature_name] = \
+                    old_eopatch[copy_feature_type][copy_feature_name]
 
         return new_eopatch
 
