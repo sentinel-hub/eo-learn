@@ -52,14 +52,6 @@ class TestSampling(unittest.TestCase):
         # test sampling is correct
         self.assertEqual((labels == self.raster[rows, cols]).all(), True, msg="incorrect sampling")
         del ps
-        # test erosion of both classes (0 and 1)
-        ps = PointRasterSampler([0, 1], disk_radius=2)
-        rows, cols = ps.sample(self.raster, n_samples=self.n_samples)
-        labels = self.raster[rows, cols]
-        self.assertLessEqual(np.sum(labels == 1), 3, msg="incorrect sampling distribution")
-        self.assertGreaterEqual(np.sum(labels == 0), 97, msg="incorrect sampling distribution")
-        self.assertEqual((labels == self.raster[rows, cols]).all(), True, msg="incorrect sampling")
-        del ps
         # test even sampling of classes
         ps = PointRasterSampler([0, 1], even_sampling=True)
         rows, cols = ps.sample(self.raster, n_samples=self.n_samples)

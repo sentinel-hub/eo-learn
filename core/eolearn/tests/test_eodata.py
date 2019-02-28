@@ -6,9 +6,101 @@ import numpy as np
 import tempfile
 import itertools
 
-from eolearn.core import EOPatch, FeatureType, OverwritePermission, FileFormat
+from geopandas import GeoSeries, GeoDataFrame
+
+from eolearn.core import EOPatch, FeatureType, FeatureTypeSet, OverwritePermission, FileFormat, BBox, CRS
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+class TestEOPatchFeatureTypes(unittest.TestCase):
+
+    PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+
+    def test_loading_valid(self):
+        eop = EOPatch.load(self.PATCH_FILENAME)
+
+        repr_str = eop.__repr__()
+        self.assertTrue(isinstance(repr_str, str) and len(repr_str) > 0,
+                        msg='EOPatch __repr__ must return non-empty string')
+
+    def test_numpy_feature_types(self):
+        eop = EOPatch()
+
+        data_examples = []
+        for size in range(6):
+            for dtype in [np.float32, np.float64, np.float, np.uint8, np.int64, np.bool]:
+                data_examples.append(np.zeros((2, ) * size, dtype=dtype))
+
+        for feature_type in FeatureTypeSet.RASTER_TYPES:
+            valid_count = 0
+
+            for data in data_examples:
+                try:
+                    eop[feature_type]['TEST'] = data
+                    valid_count += 1
+                except ValueError:
+                    pass
+
+            self.assertEqual(valid_count, 6,  # 3 * (2 - feature_type.is_discrete()),
+                             msg='Feature type {} should take only a specific type of data'.format(feature_type))
+
+    def test_vector_feature_types(self):
+        eop = EOPatch()
+
+        invalid_entries = [
+            {}, [], 0, None
+        ]
+
+        for feature_type in FeatureTypeSet.VECTOR_TYPES:
+            for entry in invalid_entries:
+                with self.assertRaises(ValueError,
+                                       msg='Invalid entry {} for {} should raise an error'.format(entry, feature_type)):
+                    eop[feature_type]['TEST'] = entry
+
+        crs_test = {'init': 'epsg:4326'}
+        geo_test = GeoSeries([BBox((1, 2, 3, 4), crs=CRS.WGS84).get_geometry()], crs=crs_test)
+
+        eop.vector_timeless['TEST'] = geo_test
+        self.assertTrue(isinstance(eop.vector_timeless['TEST'], GeoDataFrame),
+                        'GeoSeries should be parsed into GeoDataFrame')
+        self.assertTrue(hasattr(eop.vector_timeless['TEST'], 'geometry'), 'Feature should have geometry attribute')
+        self.assertEqual(eop.vector_timeless['TEST'].crs, crs_test, 'GeoDataFrame should still contain the crs')
+
+        with self.assertRaises(ValueError, msg='Should fail because there is no TIMESTAMP column'):
+            eop.vector['TEST'] = geo_test
+
+    def test_bbox_feature_type(self):
+        eop = EOPatch()
+        invalid_entries = [
+            0, list(range(4)), tuple(range(5)), {}, set(), [1, 2, 4, 3, 4326, 3], 'BBox'
+        ]
+
+        for entry in invalid_entries:
+            with self.assertRaises((ValueError, TypeError),
+                                   msg='Invalid bbox entry {} should raise an error'.format(entry)):
+                eop.bbox = entry
+
+    def test_timestamp_feature_type(self):
+        eop = EOPatch()
+        invalid_entries = [
+            [datetime.datetime(2017, 1, 1, 10, 4, 7), None, datetime.datetime(2017, 1, 11, 10, 3, 51)],
+            'something',
+            datetime.datetime(2017, 1, 1, 10, 4, 7)
+        ]
+
+        valid_entries = [
+            ['2018-01-01', '15.2.1992'],
+            (datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.date(2017, 1, 11))
+        ]
+
+        for entry in invalid_entries:
+            with self.assertRaises((ValueError, TypeError),
+                                   msg='Invalid timestamp entry {} should raise an error'.format(entry)):
+                eop.timestamp = entry
+
+        for entry in valid_entries:
+            eop.timestamp = entry
 
 
 class TestEOPatch(unittest.TestCase):
@@ -20,6 +112,26 @@ class TestEOPatch(unittest.TestCase):
         eop.data['bands'] = bands
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
+
+    def test_rename_feature(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+
+        eop = EOPatch()
+        eop.data['bands'] = bands
+
+        eop.rename_feature(FeatureType.DATA, 'bands', 'new_bands')
+
+        self.assertTrue('new_bands' in eop.data)
+
+    def test_rename_feature_missing(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+
+        eop = EOPatch()
+        eop.data['bands'] = bands
+
+        with self.assertRaises(BaseException,
+                               msg='Should fail because there is no `missing_bands` feature in the EOPatch.'):
+            eop.rename_feature(FeatureType.DATA, 'missing_bands', 'new_bands')
 
     def test_get_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
@@ -52,18 +164,6 @@ class TestEOPatch(unittest.TestCase):
             self.assertFalse(feature_name in eop.data, msg="Feature {} should be deleted from "
                                                            "EOPatch".format(feature_name))
 
-    def test_check_dims(self):
-        bands_2d = np.arange(3*3).reshape(3, 3)
-
-        with self.assertRaises(ValueError):
-            EOPatch(data={'bands': bands_2d})
-
-        eop = EOPatch()
-        for feature_type in FeatureType:
-            if feature_type.is_spatial() and not feature_type.is_vector():
-                with self.assertRaises(ValueError):
-                    eop[feature_type][feature_type.value] = bands_2d
-
     def test_concatenate(self):
         eop1 = EOPatch()
         bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
@@ -88,7 +188,8 @@ class TestEOPatch(unittest.TestCase):
         eop2.data['measurements'] = bands2
 
         eop = eop1 + eop2
-        self.assertTrue('bands' in eop.data and 'measurements' in eop.data, "Failed to concatenate different features")
+        self.assertTrue('bands' in eop.data and 'measurements' in eop.data,
+                        'Failed to concatenate different features')
 
     def test_concatenate_timeless(self):
         eop1 = EOPatch()
@@ -194,7 +295,7 @@ class TestSavingLoading(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         eopatch = EOPatch()
-        mask = np.arange(3*3*2).reshape(3, 3, 2)
+        mask = np.zeros((3, 3, 2), dtype=np.int16)
         eopatch.data_timeless['mask'] = mask
         eopatch.timestamp = [datetime.datetime(2017, 1, 1, 10, 4, 7),
                              datetime.datetime(2017, 1, 4, 10, 14, 5)]
@@ -251,9 +352,10 @@ class TestSavingLoading(unittest.TestCase):
             eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=False, mmap=False)
             self.assertEqual(self.eopatch, eopatch2)
 
-            eopatch2.save(tmp_dir_name, file_format=FileFormat.NPY, features={FeatureType.DATA_TIMELESS: {'mask'},
-                                                                              FeatureType.TIMESTAMP: ...},
+            features = {FeatureType.DATA_TIMELESS: {'mask'}, FeatureType.TIMESTAMP: ...}
+            eopatch2.save(tmp_dir_name, file_format=FileFormat.NPY, features=features,
                           compress_level=3, overwrite_permission=1)
+            _ = EOPatch.load(tmp_dir_name, lazy_loading=True, mmap=False, features=features)
             eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=True, mmap=False)
             self.assertEqual(self.eopatch, eopatch2)
 

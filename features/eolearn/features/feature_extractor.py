@@ -9,14 +9,18 @@ B -> B01 | B02 | B03 | ... | B12
 
 [1] http://www.mdpi.com/2072-4292/8/8/666
 """
-# pylint: disable=invalid-name
-import numpy as np
+
 import logging
+
+import numpy as np
 
 from eolearn.core import EOTask
 
 
 LOGGER = logging.getLogger(__name__)
+
+# pylint: disable=invalid-name
+# pylint: disable=missing-docstring
 
 
 class Lexer(list):
