@@ -22,14 +22,12 @@ class SnowMask(EOTask):
     def __init__(self, data_feature, band_indices, dilation_size=0, ndsi_threshold=0.4, brightness_threshold=0.3):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
-            containing the bands 2, 3, 7, 11
-
-            Example: (FeatureType.DATA, 'ALL-BANDS')
+            containing the bands 2, 3, 7, 11, i.e. (FeatureType.DATA, 'BANDS')
         :type data_feature: tuple(FeatureType, str)
-        :param band_indices: A list containing the indices at which the required bands can be found the feature
+        :param band_indices: A list containing the indices at which the required bands can be found in the data_feature
         :type band_indices: list(int)
         :param dilation_size: Size of the disk in pixels for performing dilation. Value 0 means do not perform
-                          this post-processing step.
+                              this post-processing step.
         :type dilation_size: int
         :param ndsi_threshold: Minimum value of the NDSI required to classify the pixel as snow
         :type ndsi_threshold: float
@@ -195,19 +193,18 @@ class TheiaSnowMask(EOTask):
         pass2 = np.zeros(pass1.shape)
         for date in range(dates):
             if total_snow_frac[date] > self.f_s:
-                try:
+                if np.any(snow_frac[date] > self.f_t):
                     izs = np.argmax(snow_frac[date] > self.f_t)
-                    zs = dem_edges[max(izs - 2, 0)]
+                    z_s = dem_edges[max(izs - 2, 0)]
                     pass2[date, :, :] = np.where(
-                        np.logical_and(dem[:, :, 0] > zs, np.logical_and(
+                        np.logical_and(dem[:, :, 0] > z_s, np.logical_and(
                             np.logical_not(clm_temp[date, :, :, 0]),
                             np.logical_and(ndsi[date] > self.n_2, bands[date, :, :, 1] > self.r_2))), 1, 0)
-                except BaseException:
+                else:
                     pass2[date] = np.zeros(pass1.shape[1:])
             if self.dilation_size:
                 snowmask[date, :, :, :] = dilation(np.logical_or(pass1[date], pass2[date]),
-                                                   disk(self.dilation_size))\
-                    .reshape(list(pass1.shape[1:]) + [1])
+                                                   disk(self.dilation_size)).reshape(list(pass1.shape[1:]) + [1])
             else:
                 snowmask[date, :, :, :] = np.logical_or(pass1[date], pass2[date]).reshape(list(pass1.shape[1:]) + [1])
 
