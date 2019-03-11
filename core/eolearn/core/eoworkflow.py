@@ -462,6 +462,10 @@ class WorkflowResults(collections.Mapping):
             key = self._uuid_dict[key.private_task_config.uuid]
         return self._result.get(key, default)
 
+    def eopatch(self):
+        """ Return the EOPatch from the workflow result """
+        return list(self.values())[-1]
+
     def __repr__(self):
         repr_list = ['{}('.format(self.__class__.__name__)]
 
