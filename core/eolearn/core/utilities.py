@@ -7,6 +7,7 @@ import logging
 from collections import OrderedDict
 
 import numpy as np
+import xarray as xr
 
 from .constants import FeatureType
 
@@ -470,3 +471,142 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
 
     return np.lib.pad(X, ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
                       'constant', constant_values=((pad_value, pad_value), (pad_value, pad_value)))
+
+
+def get_spatial_coordinates(bbox, data, feature_type):
+    """ Returns coordinates dictionary for building
+
+
+    :param bbox:
+    :param data:
+    :param feature_type:
+    :return: coordinates
+    """
+    index_x = 2
+    index_y = 1
+    if feature_type == FeatureType.DATA_TIMELESS or feature_type == FeatureType.MASK_TIMELESS:
+        index_x = 1
+        index_y = 0
+    pixel_width = (bbox.max_x - bbox.min_x)/data.shape[index_x]
+    pixel_height = (bbox.max_y - bbox.min_y)/data.shape[index_y]
+    coordinates = {
+        'x': np.linspace(bbox.min_x+pixel_width/2, bbox.max_x-pixel_width/2, data.shape[index_x]),
+        'y': np.linspace(bbox.min_y+pixel_height/2, bbox.max_y-pixel_height/2, data.shape[index_y])
+    }
+
+    return coordinates
+
+
+def get_temporal_coordinates(timestamps):
+    """
+
+    :return:
+    """
+    coordinates = {
+        'time': timestamps
+    }
+
+    return coordinates
+
+
+def get_depth_coordinates(feature_name, data, names_of_channels=None):
+    """
+
+    :return:
+    """
+    coordinates = {}
+    depth = feature_name.replace('-', '_')+'_dim'
+    if names_of_channels:
+        coordinates[depth] = names_of_channels
+    elif isinstance(data, np.ndarray):
+        coordinates[depth] = np.arange(data.shape[-1])
+
+    return coordinates
+
+
+def get_coordinates(feature_type, feature_name, bbox, data, timestamps, names_of_channels=None):
+    """
+
+    :param feature_type:
+    :param bbox:
+    :param data:
+    :param timestamps:
+    :return:
+    """
+
+    if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
+        return {**get_temporal_coordinates(timestamps),
+                **get_spatial_coordinates(bbox, data, feature_type),
+                **get_depth_coordinates(data=data, feature_name=feature_name)
+                }
+    elif feature_type == FeatureType.SCALAR or feature_type == FeatureType.LABEL:
+        return {**get_temporal_coordinates(timestamps),
+                **get_depth_coordinates(data=data, feature_name=feature_name)
+                }
+    elif feature_type == FeatureType.DATA_TIMELESS or feature_type == FeatureType.MASK_TIMELESS:
+        return {**get_spatial_coordinates(bbox, data, feature_type),
+                **get_depth_coordinates(data=data, feature_name=feature_name)
+                }
+    elif feature_type == FeatureType.SCALAR_TIMELESS or feature_type == FeatureType.LABEL_TIMELESS:
+        return get_depth_coordinates(data=data, feature_name=feature_name)
+
+
+def get_dimensions(feature_type, feature_name):
+    """ Returns list of dimensions
+
+    :return:
+    """
+    depth = feature_name.replace('-', '_') + "_dim"
+    if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
+        return ['time', 'y', 'x', depth]
+    elif feature_type == FeatureType.SCALAR or feature_type == FeatureType.LABEL:
+        return['time', depth]
+    elif feature_type == FeatureType.DATA_TIMELESS or feature_type == FeatureType.MASK_TIMELESS:
+        return['y', 'x', depth]
+    elif feature_type == FeatureType.SCALAR_TIMELESS or feature_type == FeatureType.LABEL_TIMELESS:
+        return[depth]
+
+
+def array_to_dataframe(eopatch, feature_type, feature_name):
+    """
+        Convert one numpy ndarray to xarray dataframe
+    """
+
+    bbox = eopatch.bbox
+    timestamps = eopatch.timestamp
+    data = eopatch[feature_type][feature_name]
+    if isinstance(data, xr.DataArray):
+        data = data.values
+    dimensions = get_dimensions(feature_type, feature_name)
+    coordinates = get_coordinates(feature_type, feature_name, bbox, data, timestamps)
+    dataframe = xr.DataArray(data=data,
+                             coords=coordinates,
+                             dims=dimensions,
+                             attrs={'crs': str(bbox.crs),
+                                    'feature_type': feature_type,
+                                    'feature_name': feature_name},
+                             name=feature_name.replace('-', '_'))
+
+    return dataframe
+
+
+def eopatch_to_dataset(eopatch, remove_depth=True):
+    """
+    Converts eopatch to xarray Dataset
+    :param eopatch:
+    :return:
+    """
+    dataset = xr.Dataset()
+    for feature in eopatch.get_feature_list():
+        if not isinstance(feature, tuple):
+            continue
+        feature_type = feature[0]
+        feature_name = feature[1]
+        if feature_type not in (FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS, FeatureType.META_INFO):
+            dataframe = array_to_dataframe(eopatch, feature_type, feature_name)
+            if remove_depth and dataframe.values.shape[-1] == 1:
+                dataframe = dataframe.squeeze()
+                dataframe = dataframe.drop(feature_name+'_dim')
+            dataset[feature_name] = dataframe
+
+    return dataset
