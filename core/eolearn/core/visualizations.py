@@ -247,9 +247,18 @@ def plot(eopatch, front=None, back=None, background=None, time=None, alpha=None,
     def plot_rgb(eopatch_xr, timestamp):
         return eopatch_xr.sel(time=timestamp).drop('time').hvplot(x='x', y='y', width=600, height=600)
 
-    rgb_dict = {(timestamp_): plot_rgb(back_data, timestamp_)
-                for timestamp_ in timestamps}
-    hmap = hv.HoloMap(rgb_dict, kdims=['time'])
+    def plot_shapes(vector_gp, timestamp):
+        out = vector_gp.loc[vector_gp['TIMESTAMP'] == timestamp] if not vector_gp.loc[
+            vector_gp['TIMESTAMP'] == timestamp].empty else None
+        return gv.Polygons(out, crs=ccrs.UTM(33))
+
+    # rgb_dict = {(timestamp_): plot_rgb(back_data, timestamp_)
+    #             for timestamp_ in timestamps}
+    # hmap = hv.HoloMap(rgb_dict, kdims=['time'])
+
+    shapes_dict = {(timestamp_): plot_shapes(front_data, timestamp_)
+                   for timestamp_ in timestamps}
+    hmap = hv.HoloMap(shapes_dict, kdims=['time'])
     return hmap * gv.tile_sources.EsriImagery
 
 
