@@ -262,7 +262,14 @@ def plot2(eopatch, front=None, back=None, background=None, time=None, alpha=None
     return hmap * gv.tile_sources.EsriImagery
 
 
-def plot(eopatch, feature_type, feature_name, rgb=None, background=None):
+def plot(eopatch, feature_type, feature_name, front=None, background=None, time=None, alpha=None, rgb=None):
+    if not front:
+        vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name,
+                       background=background, rgb=rgb)
+        return vis
+
+
+def plot_one(eopatch, feature_type, feature_name, rgb=None, background=None):
     vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
         vis = plot_raster(eopatch, feature_type, feature_name)
