@@ -226,7 +226,7 @@ def plot_bands_mask(eopatch, vector_gp, bands_name, bands_index, mask):
     return hmap * gv.tile_sources.EsriImagery
 
 
-def plot(eopatch, front=None, back=None, background=None, time=None, alpha=None, rgb=None):
+def plot2(eopatch, front=None, back=None, background=None, time=None, alpha=None, rgb=None):
     """
 
     :param eopatch:
@@ -260,6 +260,34 @@ def plot(eopatch, front=None, back=None, background=None, time=None, alpha=None,
                    for timestamp_ in timestamps}
     hmap = hv.HoloMap(shapes_dict, kdims=['time'])
     return hmap * gv.tile_sources.EsriImagery
+
+
+def plot(eopatch, feature_type, feature_name, rgb=None, background=None):
+    if feature_type == FeatureType.DATA:
+        return plot_data(eopatch, feature_name, rgb=rgb, background=background)
+    elif feature_type == FeatureType.MASK:
+        return plot_mask(eopatch, feature_name, background=background)
+    elif feature_type == FeatureType.VECTOR:
+        return plot_vector(eopatch, feature_name, background=background)
+    elif feature_type == FeatureType.DATA_TIMELESS:
+        return plot_data_timeless(eopatch, feature_name, background=background)
+    elif feature_type == FeatureType.MASK_TIMELESS:
+        return plot_mask_timeless(eopatch, feature_name, background=background)
+    elif feature_type == FeatureType.VECTOR_TIMELESS:
+        return plot_vector_timeless(eopatch, feature_name, background=background)
+
+
+def plot_data(eopatch, feature_name, rgb, background):
+    data_da = array_to_dataframe(eopatch, FeatureType.DATA, feature_name)
+    if not rgb:
+        vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+        if background:
+            vis = vis * background
+        return vis
+    else:
+
+
+
 
 
 def get_data(layer, eopatch, eopatch_ds, alpha, rgb):
