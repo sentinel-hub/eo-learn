@@ -225,30 +225,59 @@ def plot_bands_mask(eopatch, vector_gp, bands_name, bands_index, mask):
 
     return hmap * gv.tile_sources.EsriImagery
 
-def plot(eopatch, time, space, layer1, layer0, tile_source=gv.tile_sources.EsriImagery):
+
+def plot(eopatch, front=None, back=None, background=None, time=None, alpha=None, rgb=None):
     """
 
     :param eopatch:
-    :param layer1: (feature_type, feature_name, alpha, index)
-    :param layer0: (feature_type, feature_name, index)
+    :param front: (feature_type, feature_name, index)
+    :param back: (feature_type, feature_name, index)
     :param tile_source:
     :return:
     """
     eopatch_ds = eopatch_to_dataset(eopatch)
     # DataArray or Geopandas
-    layer1_data = get_data(layer1)
-    leyer0_data = get_data(layer0)
+    if front:
+        front_data = get_data(layer=front, eopatch=eopatch, eopatch_ds=eopatch_ds, alpha=alpha, rgb=None)
+    if back:
+        back_data = get_data(layer=back, eopatch=eopatch, eopatch_ds=eopatch_ds, alpha=None, rgb=rgb)
     # timestamp
     timestamps = eopatch.timestamp
 
+    def plot_rgb(eopatch_xr, timestamp):
+        return eopatch_xr.sel(time=timestamp).drop('time').hvplot(x='x', y='y', width=600, height=600)
 
-def get_data(layer, eopatch, eopatch_ds):
+    rgb_dict = {(timestamp_): plot_rgb(back_data, timestamp_)
+                for timestamp_ in timestamps}
+    hmap = hv.HoloMap(rgb_dict, kdims=['time'])
+    return hmap * gv.tile_sources.EsriImagery
+
+
+def get_data(layer, eopatch, eopatch_ds, alpha, rgb):
     feature_type = layer[0]
     feature_name = layer[1]
     if feature_type in [FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS]:
         return eopatch[feature_type][feature_name]
+    elif rgb:
+        return eopatch_ds_to_rgb(eopatch_ds=eopatch_ds, feature_name=feature_name, rgb=rgb)
     else:
         return eopatch_ds[feature_name]
+
+
+def eopatch_ds_to_rgb(eopatch_ds, feature_name, rgb):
+    timestamps = eopatch_ds.coords['time'].values
+    bands = eopatch_ds[feature_name][..., rgb] * 3.5
+    bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
+    xs, ys = new_coordinates(eopatch_ds, CRS(32633), CRS(3857))
+    eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
+                               coords={'time': timestamps,
+                                       'band': rgb,
+                                       'y': np.flip(ys),
+                                       'x': xs},
+                               dims=('time', 'band', 'y', 'x'))
+    return eopatch_rgb
+
+
 
 
 
