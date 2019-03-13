@@ -264,39 +264,39 @@ def plot2(eopatch, front=None, back=None, background=None, time=None, alpha=None
 
 def plot(eopatch, feature_type, feature_name, rgb=None, background=None):
     if feature_type == FeatureType.DATA:
-        return plot_data(eopatch, feature_name, rgb=rgb, background=background)
+        vis = plot_data(eopatch, feature_name, rgb=rgb)
     elif feature_type == FeatureType.MASK:
-        return plot_mask(eopatch, feature_name, background=background)
+        vis = plot_mask(eopatch, feature_name)
     elif feature_type == FeatureType.VECTOR:
-        return plot_vector(eopatch, feature_name, background=background)
+        vis = plot_vector(eopatch, feature_name)
     elif feature_type == FeatureType.DATA_TIMELESS:
-        return plot_data_timeless(eopatch, feature_name, background=background)
+        vis = plot_data_timeless(eopatch, feature_name)
     elif feature_type == FeatureType.MASK_TIMELESS:
-        return plot_mask_timeless(eopatch, feature_name, background=background)
+        vis = plot_mask_timeless(eopatch, feature_name)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
-        return plot_vector_timeless(eopatch, feature_name, background=background)
+        vis = plot_vector_timeless(eopatch, feature_name)
+    if background:
+        vis *= background
+
+    return vis
 
 
-def plot_data(eopatch, feature_name, rgb, background):
+def plot_data(eopatch, feature_name, rgb):
     data_da = array_to_dataframe(eopatch, FeatureType.DATA, feature_name)
     if not rgb:
         vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
-        if background:
-            vis = vis * background
         return vis
     else:
         pass
 
 
-def plot_mask(eopatch, feature_name, background):
+def plot_mask(eopatch, feature_name):
     data_da = array_to_dataframe(eopatch, FeatureType.MASK, feature_name)
     vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
-    if background:
-        vis = vis * background
     return vis
 
 
-def plot_vector(eopatch, feature_name, background):
+def plot_vector(eopatch, feature_name):
     def plot_shapes(data_gpd, timestamp):
         out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
             data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
@@ -305,13 +305,31 @@ def plot_vector(eopatch, feature_name, background):
     timestamps = eopatch.timestamp
     shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_) for timestamp_ in timestamps}
     vis = hv.HoloMap(shapes_dict, kdims=['time'])
-    if background:
-        vis *= background
     return vis
 
 
+def plot_data_timeless(eopatch, feature_name):
+    data_da = array_to_dataframe(eopatch, FeatureType.DATA_TIMELESS, feature_name)
+    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+    return vis
 
 
+def plot_data_timeless(eopatch, feature_name):
+    data_da = array_to_dataframe(eopatch, FeatureType.DATA_TIMELESS, feature_name)
+    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+    return vis
+
+
+def plot_mask_timeless(eopatch, feature_name):
+    data_da = array_to_dataframe(eopatch, FeatureType.MASK_TIMELESS, feature_name)
+    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+    return vis
+
+
+def plot_vector_timeless(eopatch, feature_name):
+    data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
+    vis = gv.Polygons(data_gpd, crs=ccrs.UTM(33), vdims=['LULC_ID'])
+    return vis
 
 
 def get_data(layer, eopatch, eopatch_ds, alpha, rgb):
