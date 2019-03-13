@@ -103,7 +103,7 @@ def get_dimensions(feature_type, feature_name):
         return[depth]
 
 
-def array_to_dataframe(eopatch, feature_type, feature_name):
+def array_to_dataframe(eopatch, feature_type, feature_name, remove_depth=True):
     """
         Convert one numpy ndarray to xarray dataframe
     """
@@ -122,6 +122,9 @@ def array_to_dataframe(eopatch, feature_type, feature_name):
                                     'feature_type': feature_type,
                                     'feature_name': feature_name},
                              name=feature_name.replace('-', '_'))
+    if remove_depth and dataframe.values.shape[-1] == 1:
+        dataframe = dataframe.squeeze()
+        dataframe = dataframe.drop(feature_name + '_dim')
 
     return dataframe
 
@@ -139,10 +142,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
         feature_type = feature[0]
         feature_name = feature[1]
         if feature_type not in (FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS, FeatureType.META_INFO):
-            dataframe = array_to_dataframe(eopatch, feature_type, feature_name)
-            if remove_depth and dataframe.values.shape[-1] == 1:
-                dataframe = dataframe.squeeze()
-                dataframe = dataframe.drop(feature_name+'_dim')
+            dataframe = array_to_dataframe(eopatch, feature_type, feature_name, remove_depth)
             dataset[feature_name] = dataframe
 
     return dataset
@@ -285,6 +285,30 @@ def plot_data(eopatch, feature_name, rgb, background):
             vis = vis * background
         return vis
     else:
+        pass
+
+
+def plot_mask(eopatch, feature_name, background):
+    data_da = array_to_dataframe(eopatch, FeatureType.MASK, feature_name)
+    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+    if background:
+        vis = vis * background
+    return vis
+
+
+def plot_vector(eopatch, feature_name, background):
+    def plot_shapes(data_gpd, timestamp):
+        out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
+            data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
+        return gv.Polygons(out, crs=ccrs.UTM(33))
+    data_gpd = eopatch[FeatureType.VECTOR][feature_name]
+    timestamps = eopatch.timestamp
+    shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_) for timestamp_ in timestamps}
+    vis = hv.HoloMap(shapes_dict, kdims=['time'])
+    if background:
+        vis *= background
+    return vis
+
 
 
 
