@@ -169,18 +169,18 @@ def plot_bands(eopatch_xr, timestamp, band):
                     width=600, height=600))
 
 
-def plot_shapes(vector_gp, timestamp, alpha=1):
-    out = vector_gp.loc[vector_gp['TIMESTAMP'] == timestamp] if not vector_gp.loc[
-        vector_gp['TIMESTAMP'] == timestamp].empty else None
-    return gv.Polygons(out, crs=ccrs.UTM(33)).opts(alpha=alpha, fill_color='white', border=3)
+def plot_shapes(data_gpd, timestamp):
+    out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
+        data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
+    return gv.Polygons(out, crs=ccrs.UTM(33))
 
 
 def plot_bands_shapes(eopatch_xr, vector_gp, timestamp, band):
     return plot_bands(eopatch_xr, timestamp, band) * plot_shapes(vector_gp, timestamp)
 
 
-def plot_rgb(eopatch_xr, timestamp):
-    return eopatch_xr.sel(time=timestamp).drop('time').hvplot(x='x', y='y', width=600, height=600)
+def plot_rgb(eopatch_da, timestamp):  # OK
+    return eopatch_da.sel(time=timestamp).drop('time').hvplot(x='x', y='y')
 
 
 def plot_rgb_shapes(eopatch_xr, vector_gp, timestamp, alpha):
@@ -256,23 +256,20 @@ def plot2(eopatch, front=None, back=None, background=None, time=None, alpha=None
     #             for timestamp_ in timestamps}
     # hmap = hv.HoloMap(rgb_dict, kdims=['time'])
 
-    shapes_dict = {(timestamp_): plot_shapes(front_data, timestamp_)
+    shapes_dict = {timestamp_: plot_shapes(front_data, timestamp_)
                    for timestamp_ in timestamps}
     hmap = hv.HoloMap(shapes_dict, kdims=['time'])
     return hmap * gv.tile_sources.EsriImagery
 
 
 def plot(eopatch, feature_type, feature_name, rgb=None, background=None):
-    if feature_type == FeatureType.DATA:
-        vis = plot_data(eopatch, feature_name, rgb=rgb)
-    elif feature_type == FeatureType.MASK:
-        vis = plot_mask(eopatch, feature_name)
+    vis = None
+    if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
+        vis = plot_raster(eopatch, feature_type, feature_name)
+    elif feature_type == FeatureType.DATA:
+        vis = plot_data(eopatch, feature_name, rgb)
     elif feature_type == FeatureType.VECTOR:
         vis = plot_vector(eopatch, feature_name)
-    elif feature_type == FeatureType.DATA_TIMELESS:
-        vis = plot_data_timeless(eopatch, feature_name)
-    elif feature_type == FeatureType.MASK_TIMELESS:
-        vis = plot_mask_timeless(eopatch, feature_name)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
         vis = plot_vector_timeless(eopatch, feature_name)
     if background:
@@ -283,46 +280,29 @@ def plot(eopatch, feature_type, feature_name, rgb=None, background=None):
 
 def plot_data(eopatch, feature_name, rgb):
     data_da = array_to_dataframe(eopatch, FeatureType.DATA, feature_name)
+    timestamps = eopatch.timestamp
     if not rgb:
         vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
         return vis
     else:
-        pass
+        data_rgb = eopatch_da_to_rgb(data_da, feature_name, rgb)
+        rgb_dict = {timestamp_: plot_rgb(data_rgb, timestamp_) for timestamp_ in timestamps}
+
+        vis = hv.HoloMap(rgb_dict, kdims=['time'])
+        return vis
 
 
-def plot_mask(eopatch, feature_name):
-    data_da = array_to_dataframe(eopatch, FeatureType.MASK, feature_name)
+def plot_raster(eopatch, feature_type, feature_name):
+    data_da = array_to_dataframe(eopatch, feature_type, feature_name)
     vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
     return vis
 
 
 def plot_vector(eopatch, feature_name):
-    def plot_shapes(data_gpd, timestamp):
-        out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
-            data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
-        return gv.Polygons(out, crs=ccrs.UTM(33))
     data_gpd = eopatch[FeatureType.VECTOR][feature_name]
     timestamps = eopatch.timestamp
     shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_) for timestamp_ in timestamps}
     vis = hv.HoloMap(shapes_dict, kdims=['time'])
-    return vis
-
-
-def plot_data_timeless(eopatch, feature_name):
-    data_da = array_to_dataframe(eopatch, FeatureType.DATA_TIMELESS, feature_name)
-    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
-    return vis
-
-
-def plot_data_timeless(eopatch, feature_name):
-    data_da = array_to_dataframe(eopatch, FeatureType.DATA_TIMELESS, feature_name)
-    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
-    return vis
-
-
-def plot_mask_timeless(eopatch, feature_name):
-    data_da = array_to_dataframe(eopatch, FeatureType.MASK_TIMELESS, feature_name)
-    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
     return vis
 
 
@@ -357,13 +337,16 @@ def eopatch_ds_to_rgb(eopatch_ds, feature_name, rgb):
     return eopatch_rgb
 
 
-
-
-
-
-
-
-
-
-
+def eopatch_da_to_rgb(eopatch_da, feature_name, rgb):
+    timestamps = eopatch_da.coords['time'].values
+    bands = eopatch_da[..., rgb] * 3.5
+    bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
+    xs, ys = new_coordinates(eopatch_da, CRS(32633), CRS(3857))
+    eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
+                               coords={'time': timestamps,
+                                       'band': rgb,
+                                       'y': np.flip(ys),
+                                       'x': xs},
+                               dims=('time', 'band', 'y', 'x'))
+    return eopatch_rgb
 
