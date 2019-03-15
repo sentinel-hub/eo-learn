@@ -169,18 +169,8 @@ def plot_bands(eopatch_xr, timestamp, band):
                     width=600, height=600))
 
 
-def plot_shapes(data_gpd, timestamp):
-    out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
-        data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
-    return gv.Polygons(out, crs=ccrs.UTM(33))
-
-
 def plot_bands_shapes(eopatch_xr, vector_gp, timestamp, band):
     return plot_bands(eopatch_xr, timestamp, band) * plot_shapes(vector_gp, timestamp)
-
-
-def plot_rgb(eopatch_da, timestamp):  # OK
-    return eopatch_da.sel(time=timestamp).drop('time').hvplot(x='x', y='y')
 
 
 def plot_rgb_shapes(eopatch_xr, vector_gp, timestamp, alpha):
@@ -262,25 +252,36 @@ def plot2(eopatch, front=None, back=None, background=None, time=None, alpha=None
     return hmap * gv.tile_sources.EsriImagery
 
 
-def plot(eopatch, feature_type, feature_name, front=None, background=None, time=None, alpha=None, rgb=None):
+TYPE_NO_TIME = (FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS)
+TYPE_TIME = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR)
+TYPE_VECTOR = (FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS)
+TYPE_TRANSPARENT = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS)
+
+
+def plot(eopatch, feature_type, feature_name, front=None, background=None, time=None, alpha=1, rgb=None):
     if not front:
-        vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name,
-                       background=background, rgb=rgb)
+        vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name, alpha=alpha, rgb=rgb)
+        if background:
+            vis *= background
+        return vis
+    front_feature_type = front[0]
+    front_feature_name = front[1]
+    if feature_type in TYPE_NO_TIME and front_feature_type in TYPE_NO_TIME:
+        vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name) * \
+              plot_one(eopatch=eopatch, feature_type=front_feature_type, feature_name=front_feature_name)
         return vis
 
 
-def plot_one(eopatch, feature_type, feature_name, rgb=None, background=None):
+def plot_one(eopatch, feature_type, feature_name, alpha, rgb=None):
     vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
-        vis = plot_raster(eopatch, feature_type, feature_name)
+        vis = plot_raster(eopatch, feature_type, feature_name, alpha=alpha)
     elif feature_type == FeatureType.DATA:
         vis = plot_data(eopatch, feature_name, rgb)
     elif feature_type == FeatureType.VECTOR:
         vis = plot_vector(eopatch, feature_name)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
         vis = plot_vector_timeless(eopatch, feature_name)
-    if background:
-        vis *= background
 
     return vis
 
@@ -299,9 +300,21 @@ def plot_data(eopatch, feature_name, rgb):
         return vis
 
 
-def plot_raster(eopatch, feature_type, feature_name):
+def plot_rgb(eopatch_da, timestamp):  # OK
+    return eopatch_da.sel(time=timestamp).drop('time').hvplot(x='x', y='y')
+
+
+def plot_raster(eopatch, feature_type, feature_name, alpha):
     data_da = array_to_dataframe(eopatch, feature_type, feature_name)
-    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+    data_min = data_da.values.min()
+    data_max = data_da.values.max()
+    data_levels = len(np.unique(data_da))
+    data_levels = 11 if data_levels > 11 else data_levels
+    data_da = data_da.where(data_da > 0).fillna(-1)
+    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33)).opts(clim=(data_min, data_max),
+                                                              clipping_colors={'min': 'transparent'},
+                                                              color_levels=data_levels,
+                                                              alpha=alpha)
     return vis
 
 
@@ -311,6 +324,12 @@ def plot_vector(eopatch, feature_name):
     shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_) for timestamp_ in timestamps}
     vis = hv.HoloMap(shapes_dict, kdims=['time'])
     return vis
+
+
+def plot_shapes(data_gpd, timestamp):  # OK
+    out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
+        data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
+    return gv.Polygons(out, crs=ccrs.UTM(33))
 
 
 def plot_vector_timeless(eopatch, feature_name):
