@@ -1,6 +1,7 @@
 """ Module for interpolating, smoothing and re-sampling features in EOPatch """
 
 import numpy as np
+import dask.array as da
 
 from dateutil import parser
 from datetime import timedelta, datetime
@@ -164,9 +165,13 @@ class InterpolationTask(EOTask):
         # build interpolation function
         if len(input_x) > 1:
             interp_func = self.get_interpolation_function(input_x, input_y)
+            # chunk_size is proportional to length of time series by dividing input_x by resampled_times
+            chunk_size = round(len(input_x)/len(resampled_times)) 
+            ires_temp_values = da.from_array(res_temp_values[~np.isnan(res_temp_values)], chunks=chunk_size)
+            output_z = da.map_blocks(interp_func, ires_temp_values, dtype='float64')
 
             # interpolate non-NaN values in resampled time values
-            new_data[~np.isnan(res_temp_values)] = interp_func(res_temp_values[~np.isnan(res_temp_values)])
+            new_data[~np.isnan(res_temp_values)] = output_z.compute()
 
         # return interpolated values
         return new_data
