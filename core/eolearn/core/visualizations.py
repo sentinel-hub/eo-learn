@@ -10,10 +10,11 @@ from sentinelhub import BBox, CRS
 from cartopy import crs as ccrs
 from eolearn.core.eodata import FeatureType
 
+
 def get_spatial_coordinates(bbox, data, feature_type):
     """ Returns coordinates dictionary for building
 
-    :param bbox:
+    :param bbox: EOpatch
     :param data:
     :param feature_type:
     :return: coordinates
@@ -261,27 +262,28 @@ TYPE_TRANSPARENT = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, Feat
 def plot(eopatch, feature_type, feature_name, front=None, background=None, time=None, alpha=1, rgb=None):
     if not front:
         vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name, alpha=alpha, rgb=rgb)
-        if background:
-            vis *= background
-        return vis
-    front_feature_type = front[0]
-    front_feature_name = front[1]
-    if feature_type in TYPE_NO_TIME and front_feature_type in TYPE_NO_TIME:
-        vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name) * \
-              plot_one(eopatch=eopatch, feature_type=front_feature_type, feature_name=front_feature_name)
-        return vis
+    else:
+        front_feature_type = front[0]
+        front_feature_name = front[1]
+        vis = plot_one(eopatch, feature_type, feature_name, alpha=alpha) * \
+            plot_one(eopatch, front_feature_type, front_feature_name, alpha=alpha)
+    if background:
+        vis *= background
+    return vis
 
 
-def plot_one(eopatch, feature_type, feature_name, alpha, rgb=None):
+def plot_one(eopatch, feature_type, feature_name, *, alpha, rgb=None):
     vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
         vis = plot_raster(eopatch, feature_type, feature_name, alpha=alpha)
     elif feature_type == FeatureType.DATA:
         vis = plot_data(eopatch, feature_name, rgb)
     elif feature_type == FeatureType.VECTOR:
-        vis = plot_vector(eopatch, feature_name)
+        vis = plot_vector(eopatch, feature_name, alpha)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
-        vis = plot_vector_timeless(eopatch, feature_name)
+        vis = plot_vector_timeless(eopatch, feature_name, alpha)
+    elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
+        vis = plot_scalar_label(eopatch, feature_type, feature_name)
 
     return vis
 
@@ -318,23 +320,31 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
     return vis
 
 
-def plot_vector(eopatch, feature_name):
+def plot_vector(eopatch, feature_name, alpha):
     data_gpd = eopatch[FeatureType.VECTOR][feature_name]
     timestamps = eopatch.timestamp
-    shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_) for timestamp_ in timestamps}
+    shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_, alpha) for timestamp_ in timestamps}
     vis = hv.HoloMap(shapes_dict, kdims=['time'])
     return vis
 
 
-def plot_shapes(data_gpd, timestamp):  # OK
+def plot_scalar_label(eopatch, feature_type, feature_name):
+    data_da = array_to_dataframe(eopatch, feature_type, feature_name)
+    if data_da.dtype == np.bool:
+        data_da = data_da.astype(np.int8)
+    vis = data_da.hvplot()
+    return vis
+
+
+def plot_shapes(data_gpd, timestamp, alpha):  # OK
     out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
         data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
-    return gv.Polygons(out, crs=ccrs.UTM(33))
+    return gv.Polygons(out, crs=ccrs.UTM(33)).opts(alpha=alpha)
 
 
-def plot_vector_timeless(eopatch, feature_name):
+def plot_vector_timeless(eopatch, feature_name, alpha):
     data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-    vis = gv.Polygons(data_gpd, crs=ccrs.UTM(33), vdims=['LULC_ID'])
+    vis = gv.Polygons(data_gpd, crs=ccrs.UTM(33), vdims=['LULC_ID']).opts(alpha=alpha)
     return vis
 
 
