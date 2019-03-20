@@ -4,10 +4,12 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 
 import warnings
 import datetime as dt
+import inspect
 
 import dateutil
 import scipy.interpolate
 import numpy as np
+from functools import partial
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
@@ -291,7 +293,10 @@ class InterpolationTask(EOTask):
         :type series: numpy.array
         :return: Initialized interpolation model class
         """
-        return self.interpolation_object(times, series, **self.interpolation_parameters)
+        if str(inspect.getmodule(self.interpolation_object))[9:14] == 'scipy':
+            return self.interpolation_object(times, series, **self.interpolation_parameters)
+        elif str(inspect.getmodule(self.interpolation_object))[9:14] == 'numpy':
+            return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
 
     def get_resampled_timestamp(self, timestamp):
         """ Takes a list of timestamps and generates new list of timestamps according to ``resample_range``
@@ -389,16 +394,11 @@ class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature, **kwargs):
-        super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
-
-
-class LinearInterpolationNP(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using numpy `np.interp`
-    """
-    def __init__(self, feature, **kwargs):
-        super().__init__(feature, np.interp, **kwargs)
+    def __init__(self, feature, library='numpy', **kwargs):
+        if library == 'scipy':
+            super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
+        elif library == 'numpy':
+            super().__init__(feature, np.interp, **kwargs)
 
 
 class CubicInterpolation(InterpolationTask):
