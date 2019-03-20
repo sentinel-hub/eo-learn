@@ -293,10 +293,10 @@ class InterpolationTask(EOTask):
         :type series: numpy.array
         :return: Initialized interpolation model class
         """
-        if str(inspect.getmodule(self.interpolation_object))[9:14] == 'scipy':
-            return self.interpolation_object(times, series, **self.interpolation_parameters)
-        elif str(inspect.getmodule(self.interpolation_object))[9:14] == 'numpy':
+        if str(inspect.getmodule(self.interpolation_object))[9:14] == 'numpy':
             return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
+        else:
+            return self.interpolation_object(times, series, **self.interpolation_parameters)
 
     def get_resampled_timestamp(self, timestamp):
         """ Takes a list of timestamps and generates new list of timestamps according to ``resample_range``
