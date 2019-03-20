@@ -12,12 +12,12 @@ from eolearn.core.eodata import FeatureType
 
 
 def get_spatial_coordinates(bbox, data, feature_type):
-    """ Returns coordinates dictionary for building
+    """ Returns spatial coordinates dictionary for creating xarray DataArray/Dataset
 
-    :param bbox: EOpatch
-    :param data:
-    :param feature_type:
-    :return: coordinates
+    :param bbox: EOpatch BBox
+    :param data: numpy array
+    :param feature_type: type of the feature
+    :return: spatial coordinates
     """
     index_x = 2
     index_y = 1
@@ -35,9 +35,10 @@ def get_spatial_coordinates(bbox, data, feature_type):
 
 
 def get_temporal_coordinates(timestamps):
-    """
+    """ Returns temporal coordinates dictionary for creating xarray DataArray/Dataset
 
-    :return:
+    :param: timestamp: EOpatch.timestap
+    :return: temporal coordinates
     """
     coordinates = {
         'time': timestamps
@@ -47,9 +48,11 @@ def get_temporal_coordinates(timestamps):
 
 
 def get_depth_coordinates(feature_name, data, names_of_channels=None):
-    """
+    """ Returns band/channel/dept coordinates for
 
-    :return:
+    :param: feature_name: name of feature of EOPatch
+    :param: data: data of EOPatch
+    :return: depth/band coordinates
     """
     coordinates = {}
     depth = feature_name.replace('-', '_')+'_dim'
@@ -62,12 +65,12 @@ def get_depth_coordinates(feature_name, data, names_of_channels=None):
 
 
 def get_coordinates(feature_type, feature_name, bbox, data, timestamps, names_of_channels=None):
-    """
+    """ Creates coordinates for xarray DataArray
 
-    :param feature_type:
-    :param bbox:
-    :param data:
-    :param timestamps:
+    :param feature_type: FeatureType of EOPatch
+    :param bbox: BBox of EOPatch
+    :param data: data of EOPatch
+    :param timestamps: timestamps of EOPatch
     :return:
     """
 
@@ -89,7 +92,7 @@ def get_coordinates(feature_type, feature_name, bbox, data, timestamps, names_of
 
 
 def get_dimensions(feature_type, feature_name):
-    """ Returns list of dimensions
+    """ Returns list of dimensions for xarray DataArray
 
     :return:
     """
