@@ -235,6 +235,7 @@ class InterpolationTask(EOTask):
                 valid = ~np.isnan(data[:, obs])
 
                 obs_interpolating_func = self.get_interpolation_function(times[valid], data[valid, obs])
+                print(type(obs_interpolating_func))
 
                 new_data[:, obs] = obs_interpolating_func(resampled_times[:, np.newaxis])
 
@@ -394,10 +395,10 @@ class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature, library='numpy', **kwargs):
-        if library == 'scipy':
+    def __init__(self, feature, _library='numpy', **kwargs):
+        if _library == 'scipy':
             super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
-        elif library == 'numpy':
+        elif _library == 'numpy':
             super().__init__(feature, np.interp, **kwargs)
 
 
