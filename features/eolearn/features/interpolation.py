@@ -393,6 +393,14 @@ class LinearInterpolation(InterpolationTask):
         super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
 
 
+class LinearInterpolationNP(InterpolationTask):
+    """
+    Implements `eolearn.features.InterpolationTask` by using numpy `np.interp`
+    """
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, np.interp, **kwargs)
+
+
 class CubicInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
