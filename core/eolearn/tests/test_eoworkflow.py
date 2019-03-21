@@ -111,6 +111,39 @@ class TestEOWorkflow(unittest.TestCase):
         })
         self.assertEqual(res[pow_task], (2+2)**3)
 
+    def test_get_tasks(self):
+        in_task = InputTask()
+        inc_task = Inc()
+        pow_task = Pow()
+
+        task_names = ['InputTask', 'Inc', 'Pow']
+        workflow_tasks = [in_task, inc_task, pow_task]
+        eow = LinearWorkflow(*workflow_tasks)
+
+        returned_tasks = eow.get_tasks()
+
+        # check if tasks are present
+        for task_name in task_names:
+            self.assertIn(task_name, returned_tasks.keys())
+
+        # check if tasks still work
+        arguments_dict = {
+            in_task: {'val': 2},
+            inc_task: {'d': 2},
+            pow_task: {'n': 3}
+        }
+
+        res_workflow = eow.execute(arguments_dict)
+        res_workflow_value = [res_workflow[key] for key in res_workflow.keys()][0]
+
+        for idx, task in enumerate(workflow_tasks):
+            if idx == 0:
+                res_tasks_value = task.execute(**arguments_dict[task])
+            else:
+                res_tasks_value = task.execute(res_tasks_value, **arguments_dict[task])
+
+        self.assertEqual(res_workflow_value, res_tasks_value)
+
     def test_trivial_workflow(self):
         task = DummyTask()
         dep = Dependency(task, [])

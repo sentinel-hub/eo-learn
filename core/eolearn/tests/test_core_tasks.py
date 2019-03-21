@@ -28,7 +28,7 @@ class TestCoreTasks(unittest.TestCase):
                                datetime.datetime(2017, 3, 2, 10, 0, 20),
                                datetime.datetime(2017, 3, 12, 10, 7, 6),
                                datetime.datetime(2017, 3, 15, 10, 12, 14)]
-        cls.patch.bbox = '324.54,546.45,955.4,63.43'
+        cls.patch.bbox = (324.54, 546.45, 955.4, 63.43, 3857)
         cls.patch.meta_info['something'] = np.random.rand(10, 1)
 
     def test_copy(self):

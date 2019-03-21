@@ -108,6 +108,7 @@ ENV/
 
 # Files that Sphinx generates
 /docs/source/examples
+/docs/source/markdowns
 /docs/source/eotasks.rst
 
 # pytest

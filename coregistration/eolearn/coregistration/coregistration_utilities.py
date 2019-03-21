@@ -3,10 +3,10 @@ Utility function for image co-registration
 """
 # pylint: disable=invalid-name
 
+import logging
+
 import numpy as np
 import scipy
-
-import logging
 
 LOGGER = logging.getLogger(__name__)
 

@@ -2,11 +2,13 @@
 [![Build Status](https://travis-ci.org/sentinel-hub/eo-learn.svg?branch=master)](https://travis-ci.org/sentinel-hub/eo-learn)
 [![Docs status](https://readthedocs.org/projects/eo-learn/badge/?version=latest)](https://eo-learn.readthedocs.io)
 [![License](https://img.shields.io/pypi/l/eo-learn.svg)](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE)
-<img align="right" src="docs/source/figures/eo-learn-logo.png" alt="drawing" width="300"/>
+[![Overall downloads](http://pepy.tech/badge/eo-learn)](https://pepy.tech/project/eo-learn)
+[![Last month downloads](https://pepy.tech/badge/eo-learn/month)](https://pepy.tech/project/eo-learn)
+<img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
 
 # eo-learn
-**`eo-learn` makes extraction of valuable information from satellite imagery easy.**
+**eo-learn makes extraction of valuable information from satellite imagery easy.**
 
 The availability of open Earth observation (EO) data through the Copernicus and Landsat programs represents an
 unprecedented resource for many EO applications, ranging from ocean and land use and land cover monitoring,
@@ -42,14 +44,13 @@ At the moment there are the following subpackages:
 
 ## Installation
 
-The package requires Python version `>=3.5`. It can be installed with:
+The package requires Python version **>=3.5** . It can be installed with:
 
 ```bash
 pip install eo-learn
 ```
 
-however it is also possible to install each subpackage separately:
-
+In order to avoid heavy package dependencies it is possible to install each subpackage separately:
 ```bash
 pip install eo-learn-core
 pip install eo-learn-coregistration
@@ -60,16 +61,41 @@ pip install eo-learn-mask
 pip install eo-learn-ml-tools
 ```
 
+Before installing `eo-learn` on **Windows** it is recommended to install the following packages from [Unofficial Windows wheels repository](https://www.lfd.uci.edu/~gohlke/pythonlibs/):
+
+```bash
+gdal
+rasterio
+shapely
+fiona
+```
+
+One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+
 ## Documentation
 
 For more information on the package content, visit [readthedocs](https://eo-learn.readthedocs.io/).
 
+## Contributions
 
-# Blog posts
+If you would like to contribute to `eo-learn`, check out our [contribution guidelines](./CONTRIBUTING.md).
 
- * [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c)
+## Blog posts
+
+ * [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c) (by Devis Peressutti)
+ * [Land Cover Classification with eo-learn: Part 1 - Mastering Satellite Image Data in an Open-Source Python Environment](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-1-2471e8098195) (by Matic Lubej)
+ * [Land Cover Classification with eo-learn: Part 2 - Going from Data to Predictions in the Comfort of Your Laptop](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-2-bd9aa86f8500) (by Matic Lubej)
+ * [Land Cover Classification with eo-learn: Part 3 - Pushing Beyond the Point of “Good Enough”](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-3-c62ed9ecd405) (by Matic Lubej)
+ * [Innovations in satellite measurements for development](https://blogs.worldbank.org/opendata/innovations-satellite-measurements-development)
+ * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
+
+## Questions and Issues
+
+Feel free to ask questions about the package and its use cases at [Sentinel Hub forum](https://forum.sentinel-hub.com/) or raise an issue on [GitHub](https://github.com/sentinel-hub/eo-learn/issues).
+
+You are welcome to send your feedback to the package authors, EO Research team, through any of [Sentinel Hub communication channel](https://sentinel-hub.com/develop/communication-channels).
 
 
 ## License
 
-See [LICENSE](LICENSE).
+See [LICENSE](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE).

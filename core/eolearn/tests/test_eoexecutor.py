@@ -39,7 +39,7 @@ class TestEOExecutor(unittest.TestCase):
 
     def test_execution_logs(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, save_logs=True, logs_folder=tmp_dir_name)
             executor.run()
 
             self.assertEqual(len(executor.execution_logs), 4)
@@ -48,7 +48,7 @@ class TestEOExecutor(unittest.TestCase):
 
     def test_execution_stats(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
             executor.run(workers=2)
 
             self.assertEqual(len(executor.execution_stats), 4)
@@ -58,7 +58,7 @@ class TestEOExecutor(unittest.TestCase):
 
     def test_execution_errors(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
             executor.run(workers=5)
 
             for idx, stats in enumerate(executor.execution_stats):
@@ -70,11 +70,11 @@ class TestEOExecutor(unittest.TestCase):
 
     def test_report_creation(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, file_path=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
             executor.run(workers=10)
             executor.make_report()
 
-            self.assertTrue(os.path.exists(executor._get_report_filename()), 'Execution report was not created')
+            self.assertTrue(os.path.exists(executor.get_report_filename()), 'Execution report was not created')
 
 
 if __name__ == '__main__':

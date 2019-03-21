@@ -1,12 +1,16 @@
-from eolearn.core import EOTask, FeatureType, get_common_timestamps
-from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+"""
+Module for cloud masking
+"""
 
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
+import logging
 
 import numpy as np
-import logging
-from scipy.ndimage.interpolation import zoom
-from scipy.ndimage import gaussian_filter
+import scipy.ndimage
+from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
+from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+
+from eolearn.core import EOTask, get_common_timestamps
+
 
 INTERP_METHODS = ['nearest', 'linear']
 
@@ -157,12 +161,10 @@ class AddCloudMaskTask(EOTask):
 
         if smooth:
             sigma = (0,) + tuple(int(1/x) for x in rescale) + (0,)
-            hr_array = gaussian_filter(hr_array, sigma)
+            hr_array = scipy.ndimage.gaussian_filter(hr_array, sigma)
 
-        lr_array = zoom(hr_array,
-                        (1.0,)+rescale+(1.0,),
-                        order=INTERP_METHODS.index(interp),
-                        mode='nearest')
+        lr_array = scipy.ndimage.interpolation.zoom(hr_array, (1.0,) + rescale + (1.0,),
+                                                    order=INTERP_METHODS.index(interp), mode='nearest')
 
         return lr_array, rescale
 
@@ -183,11 +185,10 @@ class AddCloudMaskTask(EOTask):
         if rescale is None:
             return lr_array.reshape(lr_shape)
 
-        out_array = zoom(lr_array.reshape(lr_shape),
-                         (1.0,)+tuple(1/x for x in rescale)+(1.0,),
-                         output=lr_array.dtype,
-                         order=INTERP_METHODS.index(interp),
-                         mode='nearest')
+        out_array = scipy.ndimage.interpolation.zoom(lr_array.reshape(lr_shape),
+                                                     (1.0,) + tuple(1 / x for x in rescale) + (1.0,),
+                                                     output=lr_array.dtype, order=INTERP_METHODS.index(interp),
+                                                     mode='nearest')
 
         # Padding and cropping might be needed to get to the reference shape
         out_shape = out_array.shape
@@ -265,21 +266,17 @@ class AddCloudMaskTask(EOTask):
             reference_shape = next(iter(eopatch.data.values())).shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
-        # Raise error if last channel dimension is less than required
-        if new_data.shape[-1] < len(self.classifier.band_idxs):
-            raise ValueError("Data feature has less than the required 10 bands")
-
         clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
         clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
 
         # Add cloud mask as a feature to EOPatch
         clf_mask_hr = self._upsampling(clf_mask_lr, rescale, reference_shape, interp='nearest')
-        eopatch.add_feature(FeatureType.MASK, self.cm_feature, clf_mask_hr.astype(np.uint8))
+        eopatch.mask[self.cm_feature] = clf_mask_hr.astype(np.bool)
 
         # If the feature name for cloud probability maps is specified, add as feature
         if self.cprobs_feature is not None:
             clf_probs_hr = self._upsampling(clf_probs_lr, rescale, reference_shape, interp='linear')
-            eopatch.add_feature(FeatureType.DATA, self.cprobs_feature, clf_probs_hr.astype(np.float32))
+            eopatch.data[self.cprobs_feature] = clf_probs_hr.astype(np.float32)
 
         return eopatch
 
