@@ -182,11 +182,6 @@ TYPE_TRANSPARENT = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, Feat
 
 
 def plot(eopatch, feature_type, feature_name, time=None, alpha=1, rgb=None):
-    vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name, alpha=alpha, rgb=rgb)
-    return vis
-
-
-def plot_one(eopatch, feature_type, feature_name, *, alpha, rgb=None):
     vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
         vis = plot_raster(eopatch, feature_type, feature_name, alpha=alpha)
@@ -202,18 +197,20 @@ def plot_one(eopatch, feature_type, feature_name, *, alpha, rgb=None):
     return vis
 
 
+def plot_one():
+    pass
+
+
 def plot_data(eopatch, feature_name, rgb):
     data_da = array_to_dataframe(eopatch, FeatureType.DATA, feature_name)
     timestamps = eopatch.timestamp
     if not rgb:
-        vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
-        return vis
+        return data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
     else:
         data_rgb = eopatch_da_to_rgb(data_da, feature_name, rgb)
         rgb_dict = {timestamp_: plot_rgb(data_rgb, timestamp_) for timestamp_ in timestamps}
 
-        vis = hv.HoloMap(rgb_dict, kdims=['time'])
-        return vis
+        return hv.HoloMap(rgb_dict, kdims=['time'])
 
 
 def plot_rgb(eopatch_da, timestamp):  # OK
