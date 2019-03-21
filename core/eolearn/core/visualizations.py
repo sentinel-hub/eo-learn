@@ -14,12 +14,17 @@ from eolearn.core.eodata import FeatureType
 
 
 def get_spatial_coordinates(bbox, data, feature_type):
-    """ Returns spatial coordinates dictionary for creating xarray DataArray/Dataset
+    """ Returns spatial coordinates (dictionary) for creating xarray DataArray/Dataset
 
-    :param bbox: EOpatch BBox
-    :param data: numpy array
+    :param bbox: eopatch bbox
+    :type bbox: EOPatch BBox
+    :param data: values for calculating number of coordinates
+    :type data: numpy array
     :param feature_type: type of the feature
+    :type feature_type: FeatureType
+
     :return: spatial coordinates
+    :type: dict {'x':, 'y':}
     """
     index_x = 2
     index_y = 1
@@ -39,8 +44,11 @@ def get_spatial_coordinates(bbox, data, feature_type):
 def get_temporal_coordinates(timestamps):
     """ Returns temporal coordinates dictionary for creating xarray DataArray/Dataset
 
-    :param: timestamp: EOpatch.timestap
+    :param timestamps: timestamps
+    :type timestamps: EOpatch.timestamp
+
     :return: temporal coordinates
+    :type: dict {'time': }
     """
     coordinates = {
         'time': timestamps
@@ -50,11 +58,17 @@ def get_temporal_coordinates(timestamps):
 
 
 def get_depth_coordinates(feature_name, data, names_of_channels=None):
-    """ Returns band/channel/dept coordinates for
+    """ Returns band/channel/dept coordinates for xarray DataArray/Dataset
 
-    :param: feature_name: name of feature of EOPatch
-    :param: data: data of EOPatch
+    :param feature_name: name of feature of EOPatch
+    :type feature_name: FeatureType
+    :param data: data of EOPatch
+    :type data: numpy.array
+    :param names_of_channels: coordinates for the last (band/dept/chanel) dimension
+    :type names_of_channels: list
+
     :return: depth/band coordinates
+    :type: dict
     """
     coordinates = {}
     depth = feature_name.replace('-', '_')+'_dim'
@@ -69,11 +83,19 @@ def get_depth_coordinates(feature_name, data, names_of_channels=None):
 def get_coordinates(feature_type, feature_name, bbox, data, timestamps, names_of_channels=None):
     """ Creates coordinates for xarray DataArray
 
-    :param feature_type: FeatureType of EOPatch
-    :param bbox: BBox of EOPatch
-    :param data: data of EOPatch
-    :param timestamps: timestamps of EOPatch
-    :return:
+    :param feature_type: type of eopatch feature
+    :type feature_type: FeatureType
+    :param feature_name: name of eopatch feature
+    :type feature_name: str
+    :param bbox: bbox of eopatch
+    :type bbox: EOPatch.bbox
+    :param data: data of eopatch
+    :type data: numpy.array
+    :param timestamps: timestamps of eopatch
+    :type timestamps: EOPatch.timestamp
+
+    :return: coordinates for xarry DataArray/Dataset
+    :type: dict
     """
 
     if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
@@ -94,9 +116,15 @@ def get_coordinates(feature_type, feature_name, bbox, data, timestamps, names_of
 
 
 def get_dimensions(feature_type, feature_name):
-    """ Returns list of dimensions for xarray DataArray
+    """ Returns list of dimensions for xarray DataArray/Dataset
 
-    :return:
+    :param feature_type: type of eopatch feature
+    :type feature_type: FeatureType
+    :param feature_name: name of eopatch feature
+    :type feature_name: str
+
+    :return: dimensions for xarray DataArray/Dataset
+    :type: list(str)
     """
     depth = feature_name.replace('-', '_') + "_dim"
     if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
@@ -110,8 +138,19 @@ def get_dimensions(feature_type, feature_name):
 
 
 def array_to_dataframe(eopatch, feature_type, feature_name, remove_depth=True):
-    """
-        Convert one numpy ndarray to xarray dataframe
+    """ Converts one feature of eopathc to xarray DataArray
+
+    :param eopatch: eopatch
+    :type eopatch: EOPatch
+    :param feature_type: type of eopatch feature
+    :type feature_type: FeatureType
+    :param feature_name: name of eopatch feature
+    :type feature_name: str
+    :param remove_depth: removes last dimension if it is one
+    :type remove_depth: bool
+
+    :return: dataarray
+    :type: xarray DataArray
     """
 
     bbox = eopatch.bbox
@@ -138,8 +177,14 @@ def array_to_dataframe(eopatch, feature_type, feature_name, remove_depth=True):
 def eopatch_to_dataset(eopatch, remove_depth=True):
     """
     Converts eopatch to xarray Dataset
-    :param eopatch:
-    :return:
+
+    :param eopatch: eopathc
+    :type eopatch: EOPatch
+    :param remove_depth: removes last dimension if it is one
+    :type remove_depth: bool
+
+    :return: dataset
+    :type: xarray Dataset
     """
     dataset = xr.Dataset()
     for feature in eopatch.get_feature_list():
@@ -235,8 +280,7 @@ def plot_vector(eopatch, feature_name, alpha):
     timestamps = eopatch.timestamp
     data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name)
     shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_, alpha) for timestamp_ in timestamps}
-    vis = hv.HoloMap(shapes_dict, kdims=['time'])
-    return vis
+    return hv.HoloMap(shapes_dict, kdims=['time'])
 
 
 def fill_vector(eopatch, feature_type, feature_name):
@@ -258,8 +302,7 @@ def plot_scalar_label(eopatch, feature_type, feature_name):
     data_da = array_to_dataframe(eopatch, feature_type, feature_name)
     if data_da.dtype == np.bool:
         data_da = data_da.astype(np.int8)
-    vis = data_da.hvplot()
-    return vis
+    return data_da.hvplot()
 
 
 def plot_shapes(data_gpd, timestamp, alpha):  # OK
@@ -269,8 +312,7 @@ def plot_shapes(data_gpd, timestamp, alpha):  # OK
 
 def plot_vector_timeless(eopatch, feature_name, alpha):
     data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-    vis = gv.Polygons(data_gpd, crs=ccrs.UTM(33), vdims=['LULC_ID']).opts(alpha=alpha)
-    return vis
+    return gv.Polygons(data_gpd, crs=ccrs.UTM(33), vdims=['LULC_ID']).opts(alpha=alpha)
 
 
 def get_data(layer, eopatch, eopatch_ds, alpha, rgb):
@@ -280,8 +322,7 @@ def get_data(layer, eopatch, eopatch_ds, alpha, rgb):
         return eopatch[feature_type][feature_name]
     elif rgb:
         return eopatch_ds_to_rgb(eopatch_ds=eopatch_ds, feature_name=feature_name, rgb=rgb)
-    else:
-        return eopatch_ds[feature_name]
+    return eopatch_ds[feature_name]
 
 
 def eopatch_ds_to_rgb(eopatch_ds, feature_name, rgb):
