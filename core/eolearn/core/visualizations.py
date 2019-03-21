@@ -2,6 +2,8 @@ import numpy as np
 import geoviews as gv
 import xarray as xr
 import holoviews as hv
+import pandas as pd
+import geopandas as gpd
 import hvplot
 import hvplot.xarray
 import hvplot.pandas
@@ -173,30 +175,14 @@ def plot_bands(eopatch_xr, timestamp, band):
                     width=600, height=600))
 
 
-def plot_bands_shapes(eopatch_xr, vector_gp, timestamp, band):
-    return plot_bands(eopatch_xr, timestamp, band) * plot_shapes(vector_gp, timestamp)
-
-
-def plot_rgb_shapes(eopatch_xr, vector_gp, timestamp, alpha):
-    return plot_rgb(eopatch_xr, timestamp) * plot_shapes(vector_gp, timestamp, alpha)
-
-
 TYPE_NO_TIME = (FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS)
 TYPE_TIME = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR)
 TYPE_VECTOR = (FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS)
 TYPE_TRANSPARENT = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS)
 
 
-def plot(eopatch, feature_type, feature_name, front=None, background=None, time=None, alpha=1, rgb=None):
-    if not front:
-        vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name, alpha=alpha, rgb=rgb)
-    else:
-        front_feature_type = front[0]
-        front_feature_name = front[1]
-        vis = plot_one(eopatch, feature_type, feature_name, alpha=alpha) * \
-            plot_one(eopatch, front_feature_type, front_feature_name, alpha=alpha)
-    if background:
-        vis *= background
+def plot(eopatch, feature_type, feature_name, time=None, alpha=1, rgb=None):
+    vis = plot_one(eopatch=eopatch, feature_type=feature_type, feature_name=feature_name, alpha=alpha, rgb=rgb)
     return vis
 
 
@@ -249,11 +235,26 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
 
 
 def plot_vector(eopatch, feature_name, alpha):
-    data_gpd = eopatch[FeatureType.VECTOR][feature_name]
     timestamps = eopatch.timestamp
+    data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name)
     shapes_dict = {timestamp_: plot_shapes(data_gpd, timestamp_, alpha) for timestamp_ in timestamps}
     vis = hv.HoloMap(shapes_dict, kdims=['time'])
     return vis
+
+
+def fill_vector(eopatch, feature_type, feature_name):
+    vector = eopatch[feature_type][feature_name]
+    eopatch_timestamps = eopatch.timestamp
+    vector_timestamps = list(vector['TIMESTAMP'])
+    blank_timestamps = [timestamp for timestamp in eopatch_timestamps if timestamp not in vector_timestamps]
+
+    temp_df = pd.DataFrame(list(zip(blank_timestamps,
+                                    len(blank_timestamps) * [1],
+                                    len(blank_timestamps) * [eopatch.bbox.geometry])),
+                           columns=vector.columns)
+
+    final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True))
+    return final_vector
 
 
 def plot_scalar_label(eopatch, feature_type, feature_name):
@@ -265,8 +266,7 @@ def plot_scalar_label(eopatch, feature_type, feature_name):
 
 
 def plot_shapes(data_gpd, timestamp, alpha):  # OK
-    out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp] if not \
-        data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp].empty else None
+    out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp]
     return gv.Polygons(out, crs=ccrs.UTM(33)).opts(alpha=alpha)
 
 
