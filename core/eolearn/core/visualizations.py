@@ -220,13 +220,20 @@ def plot_bands(eopatch_xr, timestamp, band):
                     width=600, height=600))
 
 
-TYPE_NO_TIME = (FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS)
-TYPE_TIME = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR)
-TYPE_VECTOR = (FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS)
-TYPE_TRANSPARENT = (FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS)
-
-
 def plot(eopatch, feature_type, feature_name, time=None, alpha=1, rgb=None):
+    """ Plots eopatch
+
+    :param eopatch: eopatch
+    :type eopatch: EOPatch
+    :param feature: feature of eopatch
+    :type
+    :param time:
+    :param alpha:
+    :param rgb:
+    :return:
+    """
+    feature_type = feature[0]
+    feature_name = feature[1]
     vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
         vis = plot_raster(eopatch, feature_type, feature_name, alpha=alpha)
