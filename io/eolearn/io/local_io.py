@@ -7,10 +7,11 @@ import os.path
 import datetime
 import rasterio
 import numpy as np
+from pyproj import Proj, transform
 from sentinelhub import CRS
 from sentinelhub.time_utils import iso_to_datetime
 
-from eolearn.core import SaveToDisk, FeatureType
+from eolearn.core import EOTask, SaveToDisk, FeatureType
 
 
 class ExportToTiff(SaveToDisk):
@@ -132,4 +133,64 @@ class ExportToTiff(SaveToDisk):
             output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
             dst.write(output_array)
 
+        return eopatch
+
+class ReadFromTiff(EOTask):
+    """ Read from a local or remote GeoTiff into a EOPatch.
+
+    :param path: Path of a GeoTIFF to add to the EOPatch
+    :type path: str
+    :param mask_name: name of the MASK_TIMELESS feature that the GeoTiff data will be added to
+    :type mask_name: str
+     """
+
+    def __init__(self, path, mask_name):
+        self.path = path
+        self.mask_name = mask_name
+
+    def _get_window(self, src, bbox, width, height):
+        x_res, y_res = src.transform[0], src.transform[4]
+        p1 = Proj(bbox.get_crs().ogc_string())
+        p2 = Proj(**src.crs)
+
+        deg_per_pix_x = (bbox.max_x - bbox.min_x) / width
+        deg_per_pix_y = (bbox.max_y - bbox.min_y) / height
+
+        # project mask boundaries from bbox CRS to source CRS
+        tile_ul_proj = transform(p1, p2, bbox.max_x, bbox.max_y)
+        tile_lr_proj = transform(p1, p2, bbox.min_x, bbox.min_y)
+        # get origin point from the TIF
+        tif_ul_proj = (src.bounds.left, src.bounds.top)
+
+        # use the above information to calculate the pixel indices of the window
+        top = int((tile_ul_proj[1] - tif_ul_proj[1]) / y_res)
+        left = int((tile_ul_proj[0] - tif_ul_proj[0]) / x_res)
+        bottom = int((tile_lr_proj[1] - tif_ul_proj[1]) / y_res)
+        right = int((tile_lr_proj[0] - tif_ul_proj[0]) / x_res)
+
+        return ((top, bottom), (left, right))
+
+    def _get_width_height(self, src):
+        return (0, 0)
+
+    def execute(self, eopatch, width, height):
+        """ Execute function which adds new MASK_TIMELESS layer to the EOPatch
+
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        :return: New EOPatch with added vector layer
+        :rtype: EOPatch
+        """
+        bbox = eopatch.bbox
+
+        with rasterio.open(self.path) as src:
+            if not width or not height:
+                width, height = self._get_width_height(src)
+            bands = src.count
+            data = np.empty(shape=(bands, width, height)).astype(src.profile['dtype'])
+            window = self._get_window(src, bbox, width, height)
+            for band in range(bands):
+                src.read(band + 1, window=window, out=data[band], boundless=True)
+
+        eopatch[FeatureType.MASK_TIMELESS][self.mask_name] = data
         return eopatch
