@@ -255,6 +255,20 @@ def plot_one():
     pass
 
 
+def crs_to_cartopy(eopatch):
+    """ Converts eopatch.crs to cartopy.crs
+
+    :param eopatch: eopatch
+    :type eopatch: EOPatch
+    :return: cartopy crss
+    :rtype: cartopy.crs
+    """
+    epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
+    if epsg_number == 4326:
+        return
+    return ccrs.epsg(epsg_number)
+
+
 def plot_data(eopatch, feature_name, rgb):
     """ Plots the FeatureType.DATA of eopatch.
 
@@ -269,10 +283,12 @@ def plot_data(eopatch, feature_name, rgb):
     """
     data_da = array_to_dataframe(eopatch, (FeatureType.DATA, feature_name))
     timestamps = eopatch.timestamp
+    crs = eopatch.bbox.crs
+    cartopy_crs = crs_to_cartopy(eopatch)
     if not rgb:
-        return data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33))
+        return data_da.hvplot(x='x', y='y', crs=cartopy_crs)
     else:
-        data_rgb = eopatch_da_to_rgb(data_da, feature_name, rgb)
+        data_rgb = eopatch_da_to_rgb(data_da, feature_name, crs, rgb)
         rgb_dict = {timestamp_: plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
         return hv.HoloMap(rgb_dict, kdims=['time'])
@@ -303,13 +319,14 @@ def plot_raster(eopatch, feature, alpha):
     :rtype: holoviews/geoviews/bokeh
     """
     feature_type, feature_name = FeatureParser(feature)
+    cartopy_crs = crs_to_cartopy(eopatch)
     data_da = array_to_dataframe(eopatch, feature_type, feature_name)
     data_min = data_da.values.min()
     data_max = data_da.values.max()
     data_levels = len(np.unique(data_da))
     data_levels = 11 if data_levels > 11 else data_levels
     data_da = data_da.where(data_da > 0).fillna(-1)
-    vis = data_da.hvplot(x='x', y='y', crs=ccrs.UTM(33)).opts(clim=(data_min, data_max),
+    vis = data_da.hvplot(x='x', y='y', crs=cartopy_crs).opts(clim=(data_min, data_max),
                                                               clipping_colors={'min': 'transparent'},
                                                               color_levels=data_levels,
                                                               alpha=alpha)
@@ -330,8 +347,9 @@ def plot_vector(eopatch, feature_name, alpha):
 
     """
     timestamps = eopatch.timestamp
+    cartopy_crs = crs_to_cartopy(eopatch)
     data_gpd = fill_vector(eopatch, (FeatureType.VECTOR, feature_name))
-    shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, alpha) for timestamp_ in timestamps}
+    shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, cartopy_crs, alpha) for timestamp_ in timestamps}
     return hv.HoloMap(shapes_dict, kdims=['time'])
 
 
@@ -377,7 +395,7 @@ def plot_scalar_label(eopatch, feature):
     return data_da.hvplot()
 
 
-def plot_shapes_one(data_gpd, timestamp, alpha):  # OK
+def plot_shapes_one(data_gpd, timestamp, cartopy_crs, alpha):  # OK
     """ Plots shapes for one timestamp from geopandas GeoDataFRame
 
     :param data_gpd: data to plot
@@ -390,7 +408,7 @@ def plot_shapes_one(data_gpd, timestamp, alpha):  # OK
     :rtype: geoviews
     """
     out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp]
-    return gv.Polygons(out, crs=ccrs.UTM(33)).opts(alpha=alpha)
+    return gv.Polygons(out, crs=cartopy_crs).opts(alpha=alpha)
 
 
 def plot_vector_timeless(eopatch, feature_name, alpha):
@@ -405,11 +423,12 @@ def plot_vector_timeless(eopatch, feature_name, alpha):
     :return: visalization
     :rtype: geoviews
     """
+    cartopy_crs = crs_to_cartopy(eopatch)
     data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-    return gv.Polygons(data_gpd, crs=ccrs.UTM(33), vdims=['LULC_ID']).opts(alpha=alpha)
+    return gv.Polygons(data_gpd, crs=cartopy_crs, vdims=['LULC_ID']).opts(alpha=alpha)
 
 
-def eopatch_da_to_rgb(eopatch_da, feature_name, rgb):
+def eopatch_da_to_rgb(eopatch_da, feature_name, crs, rgb):
     """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
 
     :param eopatch_da: eopatch DataArray
@@ -424,7 +443,7 @@ def eopatch_da_to_rgb(eopatch_da, feature_name, rgb):
     timestamps = eopatch_da.coords['time'].values
     bands = eopatch_da[..., rgb] * 3.5
     bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
-    xs, ys = new_coordinates(eopatch_da, CRS(32633), CRS(3857))
+    xs, ys = new_coordinates(eopatch_da, crs, CRS(3857))
     eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
                                coords={'time': timestamps,
                                        'band': rgb,
