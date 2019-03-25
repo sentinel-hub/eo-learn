@@ -262,20 +262,6 @@ def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
     return vis
 
 
-def crs_to_cartopy(eopatch):
-    """ Converts eopatch.crs to cartopy.crs
-
-    :param eopatch: eopatch
-    :type eopatch: EOPatch
-    :return: cartopy crss
-    :rtype: cartopy.crs
-    """
-    epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
-    if epsg_number == 4326:
-        return ccrs.epsg(3857)
-    return ccrs.epsg(epsg_number)
-
-
 def plot_data(eopatch, feature_name, rgb, rgb_factor):
     """ Plots the FeatureType.DATA of eopatch.
 
@@ -290,12 +276,12 @@ def plot_data(eopatch, feature_name, rgb, rgb_factor):
     :return: visualization
     :rtype: holoview/geoviews/bokeh
     """
+    epsg_number = eopatch.bbox.crs.split(':')[1]
     data_da = array_to_dataframe(eopatch, (FeatureType.DATA, feature_name))
     timestamps = eopatch.timestamp
     crs = eopatch.bbox.crs
-    cartopy_crs = crs_to_cartopy(eopatch)
     if not rgb:
-        return data_da.hvplot(x='x', y='y', crs=cartopy_crs)
+        return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(epsg_number))
     data_rgb = eopatch_da_to_rgb(data_da, feature_name, crs, rgb, rgb_factor)
     rgb_dict = {timestamp_: plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
@@ -328,7 +314,7 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
     :return: visualization
     :rtype: holoviews/geoviews/bokeh
     """
-    cartopy_crs = crs_to_cartopy(eopatch)
+    epsg_number = eopatch.bbox.crs.split(':')[1]
     data_da = array_to_dataframe(eopatch, (feature_type, feature_name))
     data_min = data_da.values.min()
     data_max = data_da.values.max()
@@ -336,10 +322,10 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
     data_levels = 11 if data_levels > 11 else data_levels
     data_da = data_da.where(data_da > 0).fillna(-1)
     vis = data_da.hvplot(x='x', y='y',
-                         crs=cartopy_crs).opts(clim=(data_min, data_max),
-                                               clipping_colors={'min': 'transparent'},
-                                               color_levels=data_levels,
-                                               alpha=alpha)
+                         crs=ccrs.epsg(epsg_number)).opts(clim=(data_min, data_max),
+                                                          clipping_colors={'min': 'transparent'},
+                                                          color_levels=data_levels,
+                                                          alpha=alpha)
     return vis
 
 
@@ -356,10 +342,10 @@ def plot_vector(eopatch, feature_name, alpha):
     :rtype: holoviews/geoviews/bokeh
 
     """
+    epsg_number = eopatch.bbox.crs.split(':')[1]
     timestamps = eopatch.timestamp
-    cartopy_crs = crs_to_cartopy(eopatch)
     data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name)
-    shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, cartopy_crs, alpha) for timestamp_ in timestamps}
+    shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, epsg_number, alpha) for timestamp_ in timestamps}
     return hv.HoloMap(shapes_dict, kdims=['time'])
 
 
@@ -404,25 +390,25 @@ def plot_scalar_label(eopatch, feature_type, feature_name):
     data_da = array_to_dataframe(eopatch, (feature_type, feature_name))
     if data_da.dtype == np.bool:
         data_da = data_da.astype(np.int8)
-    return data_da.hvplot() #* data_da.hvplot()  TODO: plot line AND points
+    return data_da.hvplot()
 
 
-def plot_shapes_one(data_gpd, timestamp, cartopy_crs, alpha):  # OK
+def plot_shapes_one(data_gpd, timestamp, epsg_number, alpha):  # OK
     """ Plots shapes for one timestamp from geopandas GeoDataFRame
 
     :param data_gpd: data to plot
     :type data_gpd: geopandas.GeoDataFrame
     :param timestamp: timestamp to plot data for
     :type timestamp: datetime
-    :param cartopy_crs: in which crs is the data to plot
-    :type cartopy_crs: cartopy.crs
+    :param epsg_number: in which crs is the data to plot
+    :type epsg_number: int
     :param alpha: transpareny
     :type alpha: float
     :return: visualization
     :rtype: geoviews
     """
     out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp]
-    return gv.Polygons(out, crs=cartopy_crs).opts(alpha=alpha)
+    return gv.Polygons(out, crs=ccrs.epsg(epsg_number)).opts(alpha=alpha)
 
 
 def plot_vector_timeless(eopatch, feature_name, alpha, vdims):
@@ -434,12 +420,14 @@ def plot_vector_timeless(eopatch, feature_name, alpha, vdims):
     :type feature_name: str
     :param alpha: transparency
     :type alpha: float
+    :param vdims: value dimension for plot (for coloring the shapes)
+    :type vdims: str
     :return: visalization
     :rtype: geoviews
     """
-    cartopy_crs = crs_to_cartopy(eopatch)
+    epsg_number = eopatch.bbox.crs.split(':')[1]
     data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-    return gv.Polygons(data_gpd, crs=cartopy_crs, vdims=vdims).opts(alpha=alpha)
+    return gv.Polygons(data_gpd, crs=ccrs.epsg(epsg_number), vdims=vdims).opts(alpha=alpha)
 
 
 def eopatch_da_to_rgb(eopatch_da, feature_name, crs, rgb, rgb_factor):
