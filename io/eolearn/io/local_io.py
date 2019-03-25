@@ -148,17 +148,14 @@ class ReadFromTiff(EOTask):
         self.path = path
         self.mask_name = mask_name
 
-    def _get_window(self, src, bbox, width, height):
+    def _get_window(self, src, bbox):
         x_res, y_res = src.transform[0], src.transform[4]
         p1 = Proj(bbox.get_crs().ogc_string())
         p2 = Proj(**src.crs)
 
-        deg_per_pix_x = (bbox.max_x - bbox.min_x) / width
-        deg_per_pix_y = (bbox.max_y - bbox.min_y) / height
-
         # project mask boundaries from bbox CRS to source CRS
-        tile_ul_proj = transform(p1, p2, bbox.max_x, bbox.max_y)
-        tile_lr_proj = transform(p1, p2, bbox.min_x, bbox.min_y)
+        tile_ul_proj = transform(p1, p2, bbox.min_x, bbox.max_y)
+        tile_lr_proj = transform(p1, p2, bbox.max_x, bbox.min_y)
         # get origin point from the TIF
         tif_ul_proj = (src.bounds.left, src.bounds.top)
 
@@ -170,14 +167,20 @@ class ReadFromTiff(EOTask):
 
         return ((top, bottom), (left, right))
 
-    def _get_width_height(self, src):
-        return (0, 0)
+    def _get_width_height(self, src, bbox):
+        window = self._get_window(src, bbox)
+        ((top, bottom), (left, right)) = window
+        return (window[1][1] - window[1][0], window[0][1] - window[0][0])
 
-    def execute(self, eopatch, width, height):
+    def execute(self, eopatch, width=None, height=None):
         """ Execute function which adds new MASK_TIMELESS layer to the EOPatch
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
+        :param width: optional parameter specifying the width of the new mask
+        :type width: int
+        :param height: optional parameter specifying the height of the new mask
+        :type height: int
         :return: New EOPatch with added vector layer
         :rtype: EOPatch
         """
@@ -185,12 +188,12 @@ class ReadFromTiff(EOTask):
 
         with rasterio.open(self.path) as src:
             if not width or not height:
-                width, height = self._get_width_height(src)
+                width, height = self._get_width_height(src, bbox)
             bands = src.count
             data = np.empty(shape=(bands, width, height)).astype(src.profile['dtype'])
-            window = self._get_window(src, bbox, width, height)
+            window = self._get_window(src, bbox)
             for band in range(bands):
                 src.read(band + 1, window=window, out=data[band], boundless=True)
 
-        eopatch[FeatureType.MASK_TIMELESS][self.mask_name] = data
+        eopatch[FeatureType.MASK_TIMELESS][self.mask_name] = np.moveaxis(data, 0, -1)
         return eopatch
