@@ -92,7 +92,8 @@ def get_coordinates(eopatch, feature, names_of_channels=None):
     :rtype: dict
     """
 
-    feature_type, feature_name = FeatureParser(feature)
+    feature = list(FeatureParser(feature))
+    feature_type, feature_name = feature[0][0], feature[0][1]
     bbox = eopatch.bbox
     data = eopatch[feature_type][feature_name]
     timestamps = eopatch.timestamp
@@ -122,7 +123,8 @@ def get_dimensions(feature):
     :return: dimensions for xarray DataArray/Dataset
     :rtype: list(str)
     """
-    feature_type, feature_name = FeatureParser(feature)
+    feature = list(FeatureParser(feature))
+    feature_type, feature_name = feature[0][0], feature[0][1]
     depth = feature_name.replace('-', '_') + "_dim"
     if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
         return ['time', 'y', 'x', depth]
@@ -147,7 +149,9 @@ def array_to_dataframe(eopatch, feature, remove_depth=True):
     :return: dataarray
     :rtype: xarray DataArray
     """
-    feature_type, feature_name = FeatureParser(feature)
+    feature = list(FeatureParser(feature))
+    feature_type = feature[0][0]
+    feature_name = feature[0][1]
     bbox = eopatch.bbox
     timestamps = eopatch.timestamp
     data = eopatch[feature_type][feature_name]
@@ -218,7 +222,7 @@ def new_coordinates(data, crs, new_crs):
     return new_xs, new_ys
 
 
-def plot(eopatch, feature, time=None, alpha=1, rgb=None):
+def plot(eopatch, feature, time=None, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
     """ Plots eopatch
 
     :param eopatch: eopatch
@@ -231,22 +235,28 @@ def plot(eopatch, feature, time=None, alpha=1, rgb=None):
     :type alpha: float
     :param rgb: indexes of bands to create rgb image from
     :type rgb: [int, int, int]
+    :param rgb_factor: factor for rgb bands multiplication
+    :type rgb_factor: float
+    :param vdims: value dimension for vector data
+    :type vdims: str
     :return: plot
     :rtype: holovies/bokeh
     """
 
-    feature_type, feature_name = FeatureParser(feature)
+    features = list(FeatureParser(feature))
+    feature_type = features[0][0]
+    feature_name = features[0][1]
     vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
-        vis = plot_raster(eopatch, feature=feature, alpha=alpha)
+        vis = plot_raster(eopatch, feature_type, feature_name, alpha=alpha)
     elif feature_type == FeatureType.DATA:
-        vis = plot_data(eopatch, feature_name, rgb=rgb)
+        vis = plot_data(eopatch, feature_name, rgb=rgb, rgb_factor=rgb_factor)
     elif feature_type == FeatureType.VECTOR:
         vis = plot_vector(eopatch, feature_name, alpha=alpha)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
-        vis = plot_vector_timeless(eopatch, feature_name, alpha=alpha)
+        vis = plot_vector_timeless(eopatch, feature_name, alpha=alpha, vdims=vdims)
     elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
-        vis = plot_scalar_label(eopatch, feature)
+        vis = plot_scalar_label(eopatch, feature_type, feature_name)
 
     return vis
 
@@ -269,7 +279,7 @@ def crs_to_cartopy(eopatch):
     return ccrs.epsg(epsg_number)
 
 
-def plot_data(eopatch, feature_name, rgb):
+def plot_data(eopatch, feature_name, rgb, rgb_factor):
     """ Plots the FeatureType.DATA of eopatch.
 
     :param eopatch: eopatch
@@ -278,6 +288,8 @@ def plot_data(eopatch, feature_name, rgb):
     :param feature_name: str
     :param rgb: wheather to output rgb image, list of indices to create rgb image from
     :type rgb: [int, int, int]
+    :param rgb_factor: factor for rgb bands multiplication
+    :type rgb_factor: float
     :return: visualization
     :rtype: holoview/geoviews/bokeh
     """
@@ -288,7 +300,7 @@ def plot_data(eopatch, feature_name, rgb):
     if not rgb:
         return data_da.hvplot(x='x', y='y', crs=cartopy_crs)
     else:
-        data_rgb = eopatch_da_to_rgb(data_da, feature_name, crs, rgb)
+        data_rgb = eopatch_da_to_rgb(data_da, feature_name, crs, rgb, rgb_factor)
         rgb_dict = {timestamp_: plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
         return hv.HoloMap(rgb_dict, kdims=['time'])
@@ -306,21 +318,22 @@ def plot_rgb_one(eopatch_da, timestamp):  # OK
     return eopatch_da.sel(time=timestamp).drop('time').hvplot(x='x', y='y')
 
 
-def plot_raster(eopatch, feature, alpha):
+def plot_raster(eopatch, feature_type, feature_name, alpha):
     """ Makes visualization for raster data (except for FeatureType.DATA)
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
-    :param feature: feature of eopatch
-    :type feature: (FeatureType, str)
+    :param feature_type: type of eopatch feature
+    :type feature_type: FeatureType
+    :param feature_name: name of eopatch feature
+    :type feature_name: str
     :param alpha: transparency of the visualization
     :type alpha: float
     :return: visualization
     :rtype: holoviews/geoviews/bokeh
     """
-    feature_type, feature_name = FeatureParser(feature)
     cartopy_crs = crs_to_cartopy(eopatch)
-    data_da = array_to_dataframe(eopatch, feature_type, feature_name)
+    data_da = array_to_dataframe(eopatch, (feature_type, feature_name))
     data_min = data_da.values.min()
     data_max = data_da.values.max()
     data_levels = len(np.unique(data_da))
@@ -348,22 +361,23 @@ def plot_vector(eopatch, feature_name, alpha):
     """
     timestamps = eopatch.timestamp
     cartopy_crs = crs_to_cartopy(eopatch)
-    data_gpd = fill_vector(eopatch, (FeatureType.VECTOR, feature_name))
+    data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name)
     shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, cartopy_crs, alpha) for timestamp_ in timestamps}
     return hv.HoloMap(shapes_dict, kdims=['time'])
 
 
-def fill_vector(eopatch, feature):
+def fill_vector(eopatch, feature_type, feature_name):
     """ Adds timestamps from eopatch to GeoDataFrame.
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
-    :param feature: eopatch feature
-    :type feature: (FeatureType, str)
+    :param feature_type: type of eopatch feature
+    :type feature_type: FeatureType
+    :param feature_name: name of eopatch feature
+    :type feature_name: str
     :return: GeoDataFrame with added data
     :rtype: geopandas.GeoDataFrame
     """
-    feature_type, feature_name = FeatureParser(feature)
     vector = eopatch[feature_type][feature_name]
     eopatch_timestamps = eopatch.timestamp
     vector_timestamps = list(vector['TIMESTAMP'])
@@ -378,21 +392,22 @@ def fill_vector(eopatch, feature):
     return final_vector
 
 
-def plot_scalar_label(eopatch, feature):
+def plot_scalar_label(eopatch, feature_type, feature_name):
     """ Line plot for FeatureType.SCALAR, FeatureType.LABEL
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
-    :param feature: eopatch feature
-    :type feature: (FeatureType, str)
+    :param feature_type: type of eopatch feature
+    :type feature_type: FeatureType
+    :param feature_name: name of eopatch feature
+    :type feature_name: str
     :return: visualization
     :rtype: holoviews/geoviews/bokeh
     """
-    feature_type, feature_name = FeatureParser(feature)
-    data_da = array_to_dataframe(eopatch, feature_type, feature_name)
+    data_da = array_to_dataframe(eopatch, (feature_type, feature_name))
     if data_da.dtype == np.bool:
         data_da = data_da.astype(np.int8)
-    return data_da.hvplot()
+    return data_da.hvplot() #* data_da.hvplot()  TODO: plot line AND points
 
 
 def plot_shapes_one(data_gpd, timestamp, cartopy_crs, alpha):  # OK
@@ -402,6 +417,8 @@ def plot_shapes_one(data_gpd, timestamp, cartopy_crs, alpha):  # OK
     :type data_gpd: geopandas.GeoDataFrame
     :param timestamp: timestamp to plot data for
     :type timestamp: datetime
+    :param cartopy_crs: in which crs is the data to plot
+    :type cartopy_crs: cartopy.crs
     :param alpha: transpareny
     :type alpha: float
     :return: visualization
@@ -411,7 +428,7 @@ def plot_shapes_one(data_gpd, timestamp, cartopy_crs, alpha):  # OK
     return gv.Polygons(out, crs=cartopy_crs).opts(alpha=alpha)
 
 
-def plot_vector_timeless(eopatch, feature_name, alpha):
+def plot_vector_timeless(eopatch, feature_name, alpha, vdims):
     """ Plot FeatureType.VECTOR_TIMELESS data
 
     :param eopatch:
@@ -425,23 +442,27 @@ def plot_vector_timeless(eopatch, feature_name, alpha):
     """
     cartopy_crs = crs_to_cartopy(eopatch)
     data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-    return gv.Polygons(data_gpd, crs=cartopy_crs, vdims=['LULC_ID']).opts(alpha=alpha)
+    return gv.Polygons(data_gpd, crs=cartopy_crs, vdims=vdims).opts(alpha=alpha)
 
 
-def eopatch_da_to_rgb(eopatch_da, feature_name, crs, rgb):
+def eopatch_da_to_rgb(eopatch_da, feature_name, crs, rgb, rgb_factor):
     """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
 
     :param eopatch_da: eopatch DataArray
     :type eopatch_da: DataArray
     :param feature_name: name of the feature to plot
     :type feature_name:  str
+    :param crs: in which crs are the data
+    :type crs: sentinelhub.constants.crs
     :param rgb: list of bands to use as rgb channels
     :type rgb: [int, int, int]
+    :param rgb_factor: factor for rgb bands multiplication
+    :type rgb_factor: float
     :return: eopatch DataArray with proper coordinates, dimensions, crs
     :rtype: xarray.DataArray
     """
     timestamps = eopatch_da.coords['time'].values
-    bands = eopatch_da[..., rgb] * 3.5
+    bands = eopatch_da[..., rgb] * rgb_factor
     bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
     xs, ys = new_coordinates(eopatch_da, crs, CRS(3857))
     eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
