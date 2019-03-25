@@ -85,20 +85,26 @@ def get_depth_coordinates(feature_name, data, names_of_channels=None):
     return coordinates
 
 
-def get_coordinates(eopatch, feature):
+def get_coordinates(eopatch, feature, epsg_number):
     """ Creates coordinates for xarray DataArray
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
     :param feature: feature of eopatch
     :type feature: (FeatureType, str)
+    :param epsg_number: convert spatial coordinates to crs epsg:epsg_number
+    :type epsg_number: int
     :return: coordinates for xarry DataArray/Dataset
     :rtype: dict
     """
 
     features = list(FeatureParser(feature))
     feature_type, feature_name = features[0][0], features[0][1]
-    bbox = eopatch.bbox
+    original_epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
+    if epsg_number and original_epsg_number != epsg_number:
+        bbox = eopatch.bbox.transform(CRS(epsg_number))
+    else:
+        bbox = eopatch.bbox
     data = eopatch[feature_type][feature_name]
     timestamps = eopatch.timestamp
 
@@ -141,7 +147,7 @@ def get_dimensions(feature):
     return dimensions
 
 
-def array_to_dataframe(eopatch, feature, remove_depth=True):
+def array_to_dataframe(eopatch, feature, remove_depth=True, epsg_number=None):
     """ Converts one feature of eopathc to xarray DataArray
 
     :param eopatch: eopatch
@@ -150,7 +156,8 @@ def array_to_dataframe(eopatch, feature, remove_depth=True):
     :type feature: (FeatureType, str)
     :param remove_depth: removes last dimension if it is one
     :type remove_depth: bool
-
+    :param epsg_number: converts dimensions to epsg:epsg_number crs
+    :type epsg_number: int
     :return: dataarray
     :rtype: xarray DataArray
     """
@@ -162,7 +169,7 @@ def array_to_dataframe(eopatch, feature, remove_depth=True):
     if isinstance(data, xr.DataArray):
         data = data.values
     dimensions = get_dimensions(feature)
-    coordinates = get_coordinates(eopatch, feature)
+    coordinates = get_coordinates(eopatch, feature, epsg_number=epsg_number)
     dataframe = xr.DataArray(data=data,
                              coords=coordinates,
                              dims=dimensions,
@@ -276,8 +283,9 @@ def plot_data(eopatch, feature_name, rgb, rgb_factor):
     :return: visualization
     :rtype: holoview/geoviews/bokeh
     """
-    epsg_number = eopatch.bbox.crs.split(':')[1]
-    data_da = array_to_dataframe(eopatch, (FeatureType.DATA, feature_name))
+    epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
+    epsg_number = 3857 if epsg_number == 4326 else epsg_number
+    data_da = array_to_dataframe(eopatch, (FeatureType.DATA, feature_name), epsg_number=epsg_number)
     timestamps = eopatch.timestamp
     crs = eopatch.bbox.crs
     if not rgb:
@@ -314,8 +322,9 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
     :return: visualization
     :rtype: holoviews/geoviews/bokeh
     """
-    epsg_number = eopatch.bbox.crs.split(':')[1]
-    data_da = array_to_dataframe(eopatch, (feature_type, feature_name))
+    epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
+    epsg_number = 3857 if epsg_number == 4326 else epsg_number
+    data_da = array_to_dataframe(eopatch, (feature_type, feature_name), epsg_number=epsg_number)
     data_min = data_da.values.min()
     data_max = data_da.values.max()
     data_levels = len(np.unique(data_da))
@@ -342,9 +351,12 @@ def plot_vector(eopatch, feature_name, alpha):
     :rtype: holoviews/geoviews/bokeh
 
     """
-    epsg_number = eopatch.bbox.crs.split(':')[1]
+    epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
     timestamps = eopatch.timestamp
     data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name)
+    if epsg_number == 4326:
+        epsg_number = 3857
+        data_gpd = data_gpd.to_crs({'init': 'epsg:3857'})
     shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, epsg_number, alpha) for timestamp_ in timestamps}
     return hv.HoloMap(shapes_dict, kdims=['time'])
 
@@ -425,8 +437,12 @@ def plot_vector_timeless(eopatch, feature_name, alpha, vdims):
     :return: visalization
     :rtype: geoviews
     """
-    epsg_number = eopatch.bbox.crs.split(':')[1]
-    data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
+    epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
+    if epsg_number == 4326:
+        epsg_number = 3857
+        data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs({'init': 'epsg:3857'})
+    else:
+        data_gpd = eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
     return gv.Polygons(data_gpd, crs=ccrs.epsg(epsg_number), vdims=vdims).opts(alpha=alpha)
 
 
