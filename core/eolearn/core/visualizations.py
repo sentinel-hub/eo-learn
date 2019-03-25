@@ -1,16 +1,20 @@
+"""
+This module implements visualizations for EOPatch (with conversion to xarray DataArray/Dataset)
+"""
+
 import numpy as np
 import geoviews as gv
 import xarray as xr
 import holoviews as hv
 import pandas as pd
 import geopandas as gpd
-import hvplot
-import hvplot.xarray
-import hvplot.pandas
-
-from sentinelhub import BBox, CRS
+import hvplot         # pylint: disable=unused-import
+import hvplot.xarray  # pylint: disable=unused-import
+import hvplot.pandas  # pylint: disable=unused-import
 from cartopy import crs as ccrs
-from eolearn.core.eodata import FeatureType
+from sentinelhub import BBox, CRS
+
+from .eodata import FeatureType
 from .utilities import FeatureParser
 
 
@@ -29,7 +33,7 @@ def get_spatial_coordinates(bbox, data, feature_type):
     """
     index_x = 2
     index_y = 1
-    if feature_type == FeatureType.DATA_TIMELESS or feature_type == FeatureType.MASK_TIMELESS:
+    if feature_type in (FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
         index_x = 1
         index_y = 0
     pixel_width = (bbox.max_x - bbox.min_x)/data.shape[index_x]
@@ -81,7 +85,7 @@ def get_depth_coordinates(feature_name, data, names_of_channels=None):
     return coordinates
 
 
-def get_coordinates(eopatch, feature, names_of_channels=None):
+def get_coordinates(eopatch, feature):
     """ Creates coordinates for xarray DataArray
 
     :param eopatch: eopatch
@@ -92,27 +96,26 @@ def get_coordinates(eopatch, feature, names_of_channels=None):
     :rtype: dict
     """
 
-    feature = list(FeatureParser(feature))
-    feature_type, feature_name = feature[0][0], feature[0][1]
+    features = list(FeatureParser(feature))
+    feature_type, feature_name = features[0][0], features[0][1]
     bbox = eopatch.bbox
     data = eopatch[feature_type][feature_name]
     timestamps = eopatch.timestamp
 
-    if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
-        return {**get_temporal_coordinates(timestamps),
-                **get_spatial_coordinates(bbox, data, feature_type),
-                **get_depth_coordinates(data=data, feature_name=feature_name)
-                }
-    elif feature_type == FeatureType.SCALAR or feature_type == FeatureType.LABEL:
-        return {**get_temporal_coordinates(timestamps),
-                **get_depth_coordinates(data=data, feature_name=feature_name)
-                }
-    elif feature_type == FeatureType.DATA_TIMELESS or feature_type == FeatureType.MASK_TIMELESS:
-        return {**get_spatial_coordinates(bbox, data, feature_type),
-                **get_depth_coordinates(data=data, feature_name=feature_name)
-                }
-    elif feature_type == FeatureType.SCALAR_TIMELESS or feature_type == FeatureType.LABEL_TIMELESS:
-        return get_depth_coordinates(data=data, feature_name=feature_name)
+    if feature_type in (FeatureType.DATA, FeatureType.MASK):
+        coordinates = {**get_temporal_coordinates(timestamps),
+                       **get_spatial_coordinates(bbox, data, feature_type),
+                       **get_depth_coordinates(data=data, feature_name=feature_name)}
+    elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
+        coordinates = {**get_temporal_coordinates(timestamps),
+                       **get_depth_coordinates(data=data, feature_name=feature_name)}
+    elif feature_type in (FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
+        coordinates = {**get_spatial_coordinates(bbox, data, feature_type),
+                       **get_depth_coordinates(data=data, feature_name=feature_name)}
+    else:      # elif feature_type in (FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS):
+        coordinates = get_depth_coordinates(data=data, feature_name=feature_name)
+
+    return coordinates
 
 
 def get_dimensions(feature):
@@ -123,17 +126,19 @@ def get_dimensions(feature):
     :return: dimensions for xarray DataArray/Dataset
     :rtype: list(str)
     """
-    feature = list(FeatureParser(feature))
-    feature_type, feature_name = feature[0][0], feature[0][1]
+    features = list(FeatureParser(feature))
+    feature_type, feature_name = features[0][0], features[0][1]
     depth = feature_name.replace('-', '_') + "_dim"
-    if feature_type == FeatureType.DATA or feature_type == FeatureType.MASK:
-        return ['time', 'y', 'x', depth]
-    elif feature_type == FeatureType.SCALAR or feature_type == FeatureType.LABEL:
-        return['time', depth]
-    elif feature_type == FeatureType.DATA_TIMELESS or feature_type == FeatureType.MASK_TIMELESS:
-        return['y', 'x', depth]
-    elif feature_type == FeatureType.SCALAR_TIMELESS or feature_type == FeatureType.LABEL_TIMELESS:
-        return[depth]
+    if feature_type in (FeatureType.DATA, FeatureType.MASK):
+        dimensions = ['time', 'y', 'x', depth]
+    elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
+        dimensions = ['time', depth]
+    elif feature_type in (FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
+        dimensions = ['y', 'x', depth]
+    else:      # elif feature_type in (FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS):
+        dimensions = [depth]
+
+    return dimensions
 
 
 def array_to_dataframe(eopatch, feature, remove_depth=True):
@@ -149,11 +154,10 @@ def array_to_dataframe(eopatch, feature, remove_depth=True):
     :return: dataarray
     :rtype: xarray DataArray
     """
-    feature = list(FeatureParser(feature))
-    feature_type = feature[0][0]
-    feature_name = feature[0][1]
+    features = list(FeatureParser(feature))
+    feature_type = features[0][0]
+    feature_name = features[0][1]
     bbox = eopatch.bbox
-    timestamps = eopatch.timestamp
     data = eopatch[feature_type][feature_name]
     if isinstance(data, xr.DataArray):
         data = data.values
@@ -209,28 +213,26 @@ def new_coordinates(data, crs, new_crs):
     :return: new x and y coordinates
     :rtype: (float, float)
     """
-    xs = data.coords['x'].values
-    ys = data.coords['y'].values
-    bbox = (xs[0], ys[0], xs[-1], ys[-1])
+    x_values = data.coords['x'].values
+    y_values = data.coords['y'].values
+    bbox = (x_values[0], y_values[0], x_values[-1], y_values[-1])
     bbox = BBox(bbox, crs=crs)
     bbox = bbox.transform(new_crs)
     xmin, ymin = bbox.get_lower_left()
     xmax, ymax = bbox.get_upper_right()
-    new_xs = np.linspace(xmin, xmax, len(xs))
-    new_ys = np.linspace(ymin, ymax, len(ys))
+    new_xs = np.linspace(xmin, xmax, len(x_values))
+    new_ys = np.linspace(ymin, ymax, len(y_values))
 
     return new_xs, new_ys
 
 
-def plot(eopatch, feature, time=None, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
+def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
     """ Plots eopatch
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
     :param feature: feature of eopatch
-    :type feature: (FeatureType, str9
-    :param time: option to plot for time interval
-    :type time: (datetime, datetime)
+    :type feature: (FeatureType, str)
     :param alpha: opacity parameter
     :type alpha: float
     :param rgb: indexes of bands to create rgb image from
@@ -246,7 +248,6 @@ def plot(eopatch, feature, time=None, alpha=1, rgb=None, rgb_factor=3.5, vdims=N
     features = list(FeatureParser(feature))
     feature_type = features[0][0]
     feature_name = features[0][1]
-    vis = None
     if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
         vis = plot_raster(eopatch, feature_type, feature_name, alpha=alpha)
     elif feature_type == FeatureType.DATA:
@@ -255,14 +256,10 @@ def plot(eopatch, feature, time=None, alpha=1, rgb=None, rgb_factor=3.5, vdims=N
         vis = plot_vector(eopatch, feature_name, alpha=alpha)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
         vis = plot_vector_timeless(eopatch, feature_name, alpha=alpha, vdims=vdims)
-    elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
+    else:      # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
         vis = plot_scalar_label(eopatch, feature_type, feature_name)
 
     return vis
-
-
-def plot_one():
-    pass
 
 
 def crs_to_cartopy(eopatch):
@@ -275,7 +272,7 @@ def crs_to_cartopy(eopatch):
     """
     epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
     if epsg_number == 4326:
-        return
+        return ccrs.epsg(3857)
     return ccrs.epsg(epsg_number)
 
 
@@ -299,11 +296,10 @@ def plot_data(eopatch, feature_name, rgb, rgb_factor):
     cartopy_crs = crs_to_cartopy(eopatch)
     if not rgb:
         return data_da.hvplot(x='x', y='y', crs=cartopy_crs)
-    else:
-        data_rgb = eopatch_da_to_rgb(data_da, feature_name, crs, rgb, rgb_factor)
-        rgb_dict = {timestamp_: plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
+    data_rgb = eopatch_da_to_rgb(data_da, feature_name, crs, rgb, rgb_factor)
+    rgb_dict = {timestamp_: plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
-        return hv.HoloMap(rgb_dict, kdims=['time'])
+    return hv.HoloMap(rgb_dict, kdims=['time'])
 
 
 def plot_rgb_one(eopatch_da, timestamp):  # OK
@@ -339,10 +335,11 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
     data_levels = len(np.unique(data_da))
     data_levels = 11 if data_levels > 11 else data_levels
     data_da = data_da.where(data_da > 0).fillna(-1)
-    vis = data_da.hvplot(x='x', y='y', crs=cartopy_crs).opts(clim=(data_min, data_max),
-                                                              clipping_colors={'min': 'transparent'},
-                                                              color_levels=data_levels,
-                                                              alpha=alpha)
+    vis = data_da.hvplot(x='x', y='y',
+                         crs=cartopy_crs).opts(clim=(data_min, data_max),
+                                               clipping_colors={'min': 'transparent'},
+                                               color_levels=data_levels,
+                                               alpha=alpha)
     return vis
 
 
@@ -464,12 +461,11 @@ def eopatch_da_to_rgb(eopatch_da, feature_name, crs, rgb, rgb_factor):
     timestamps = eopatch_da.coords['time'].values
     bands = eopatch_da[..., rgb] * rgb_factor
     bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
-    xs, ys = new_coordinates(eopatch_da, crs, CRS(3857))
+    x_values, y_values = new_coordinates(eopatch_da, crs, CRS(3857))
     eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
                                coords={'time': timestamps,
                                        'band': rgb,
-                                       'y': np.flip(ys),
-                                       'x': xs},
+                                       'y': np.flip(y_values),
+                                       'x': x_values},
                                dims=('time', 'band', 'y', 'x'))
     return eopatch_rgb
-
