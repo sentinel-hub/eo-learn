@@ -166,7 +166,7 @@ class ReadFromTiff(EOTask):
 
     :param path: Path of a GeoTIFF to add to the EOPatch
     :type path: str
-    :param mask_name: name of the MASK_TIMELESS feature that the GeoTiff data will be added to
+    :param mask_name: name of the DATA_TIMELESS feature that the GeoTiff data will be added to
     :type mask_name: str
      """
 
@@ -175,7 +175,7 @@ class ReadFromTiff(EOTask):
         self.mask_name = mask_name
 
     def execute(self, eopatch, width=None, height=None):
-        """ Execute function which adds new MASK_TIMELESS layer to the EOPatch
+        """ Execute function which adds new DATA_TIMELESS layer to the EOPatch
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
@@ -197,5 +197,5 @@ class ReadFromTiff(EOTask):
             for band in range(bands):
                 src.read(band + 1, window=window, out=data[band], boundless=True)
 
-        eopatch[FeatureType.MASK_TIMELESS][self.mask_name] = np.moveaxis(data, 0, -1)
+        eopatch[FeatureType.DATA_TIMELESS][self.mask_name] = np.moveaxis(data, 0, -1)
         return eopatch
