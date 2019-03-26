@@ -18,8 +18,11 @@ from shapely import geometry
 
 from sentinelhub import BBox, CRS
 
-from .eodata import FeatureType
+from .constants import FeatureType
 from .utilities import FeatureParser
+
+PLOT_WIDTH = 800
+PLOT_HEIGHT = 500
 
 
 def get_spatial_coordinates(bbox, data, feature_type):
@@ -217,9 +220,9 @@ def new_coordinates(data, crs, new_crs):
     :param data: data for converting coordinates for
     :type data: xarray.DataArray or xarray.Dataset
     :param crs: old crs
-    :type crs: crs
+    :type crs: BBox.crs
     :param new_crs: new crs
-    :type new_crs: crs
+    :type new_crs: BBox.crs
     :return: new x and y coordinates
     :rtype: (float, float)
     """
@@ -276,7 +279,7 @@ def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None,
     else:      # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
         vis = plot_scalar_label(eopatch, feature_type, feature_name)
 
-    return vis
+    return vis.opts(plot=dict(width=PLOT_WIDTH, height=PLOT_HEIGHT))
 
 
 def plot_data(eopatch, feature_name, rgb, rgb_factor):

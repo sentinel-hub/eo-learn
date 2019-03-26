@@ -22,6 +22,7 @@ import sentinelhub
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
+from .visualizations import plot
 
 # pylint: disable=too-many-lines
 LOGGER = logging.getLogger(__name__)
@@ -757,6 +758,30 @@ class EOPatch:
 
         self.timestamp = good_timestamps
         return remove_from_patch
+
+    def plot(self, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None,
+             timestamp_column='TIMESTAMP', geometry_column='geometry'):
+        """ Plots eopatch features
+
+        :param feature: feature of eopatch
+        :type feature: (FeatureType, str)
+        :param alpha: opacity parameter
+        :type alpha: float
+        :param rgb: indexes of bands to create rgb image from
+        :type rgb: [int, int, int]
+        :param rgb_factor: factor for rgb bands multiplication
+        :type rgb_factor: float
+        :param vdims: value dimension for vector data
+        :type vdims: str
+        :param timestamp_column: name of the timestamp column, valid for vector data
+        :type timestamp_column: str
+        :param geometry_column: name of the geometry column, valid for vector data
+        :type geometry_column: str
+        :return: plot
+        :rtype: holovies/bokeh
+        """
+        return plot(self, feature, alpha=alpha, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
+                    timestamp_column=timestamp_column, geometry_column=geometry_column)
 
 
 class _FeatureDict(dict):
