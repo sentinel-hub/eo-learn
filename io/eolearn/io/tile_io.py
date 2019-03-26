@@ -43,7 +43,7 @@ def get_window(zoom, maximum_latitude, image_tile_xs, image_tile_ys, latlng_boun
     return (top, bottom, left, right)
 
 class MapboxXYZInput(EOTask):
-    """ Use a Mapbox raster tile service as input to a MASK_TIMELESS feature
+    """ Use a Mapbox raster tile service as input to a DATA_TIMELESS feature
 
     :param id: Feature which will be exported
     :type id: str
@@ -59,7 +59,7 @@ class MapboxXYZInput(EOTask):
         self.access_token = access_token
 
     def execute(self, eopatch, zoom=None):
-        """ Execute function which adds new MASK_TIMELESS layer to the EOPatch
+        """ Execute function which adds new DATA_TIMELESS layer to the EOPatch
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param zoom: optional parameter specifying the zoom level at which to download tiles
@@ -102,5 +102,5 @@ class MapboxXYZInput(EOTask):
         top, bottom, left, right = get_window(zoom, maximum_latitude, image_tile_xs, image_tile_ys, latlng_bounds)
 
 
-        eopatch[FeatureType.MASK_TIMELESS][self.mask_name] = image_tile[top:bottom, left:right]
+        eopatch[FeatureType.DATA_TIMELESS][self.mask_name] = image_tile[top:bottom, left:right]
         return eopatch
