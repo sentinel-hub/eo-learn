@@ -8,10 +8,14 @@ import xarray as xr
 import holoviews as hv
 import pandas as pd
 import geopandas as gpd
+
 import hvplot         # pylint: disable=unused-import
 import hvplot.xarray  # pylint: disable=unused-import
 import hvplot.pandas  # pylint: disable=unused-import
+
 from cartopy import crs as ccrs
+from shapely import geometry
+
 from sentinelhub import BBox, CRS
 
 from .eodata import FeatureType
@@ -71,7 +75,6 @@ def get_depth_coordinates(feature_name, data, names_of_channels=None):
     :type data: numpy.array
     :param names_of_channels: coordinates for the last (band/dept/chanel) dimension
     :type names_of_channels: list
-
     :return: depth/band coordinates
     :rtype: dict
     """
@@ -233,7 +236,8 @@ def new_coordinates(data, crs, new_crs):
     return new_xs, new_ys
 
 
-def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
+def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None,
+         timestamp_column='TIMESTAMP', geometry_column='geometry'):
     """ Plots eopatch
 
     :param eopatch: eopatch
@@ -248,6 +252,10 @@ def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
     :type rgb_factor: float
     :param vdims: value dimension for vector data
     :type vdims: str
+    :param timestamp_column: name of the timestamp column, valid for vector data
+    :type timestamp_column: str
+    :param geometry_column: name of the geometry column, valid for vector data
+    :type geometry_column: str
     :return: plot
     :rtype: holovies/bokeh
     """
@@ -260,7 +268,9 @@ def plot(eopatch, feature, alpha=1, rgb=None, rgb_factor=3.5, vdims=None):
     elif feature_type == FeatureType.DATA:
         vis = plot_data(eopatch, feature_name, rgb=rgb, rgb_factor=rgb_factor)
     elif feature_type == FeatureType.VECTOR:
-        vis = plot_vector(eopatch, feature_name, alpha=alpha)
+        vis = plot_vector(eopatch, feature_name, alpha=alpha,
+                          timestamp_column=timestamp_column,
+                          geometry_column=geometry_column)
     elif feature_type == FeatureType.VECTOR_TIMELESS:
         vis = plot_vector_timeless(eopatch, feature_name, alpha=alpha, vdims=vdims)
     else:      # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
@@ -338,7 +348,7 @@ def plot_raster(eopatch, feature_type, feature_name, alpha):
     return vis
 
 
-def plot_vector(eopatch, feature_name, alpha):
+def plot_vector(eopatch, feature_name, alpha, timestamp_column, geometry_column):
     """ Visualizaton for vector (FeatureType.VECTOR) data
 
     :param eopatch: eopatch
@@ -347,21 +357,29 @@ def plot_vector(eopatch, feature_name, alpha):
     :type feature_name: str
     :param alpha: transparency of visualization
     :type alpha: float
+    :param timestamp_column: name of the timestamp column, valid for vector data
+    :type timestamp_column: str
+    :param geometry_column: name of the geometry column, valid for vector data
+    :type geometry_column: str
     :return: visualization
     :rtype: holoviews/geoviews/bokeh
 
     """
     epsg_number = eopatch.bbox.crs.ogc_string().split(':')[1]
     timestamps = eopatch.timestamp
-    data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name)
+    data_gpd = fill_vector(eopatch, FeatureType.VECTOR, feature_name,
+                           timestamp_column=timestamp_column,
+                           geometry_column=geometry_column)
     if epsg_number == 4326:
         epsg_number = 3857
         data_gpd = data_gpd.to_crs({'init': 'epsg:3857'})
-    shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_, epsg_number, alpha) for timestamp_ in timestamps}
+    shapes_dict = {timestamp_: plot_shapes_one(data_gpd, timestamp_,
+                                               epsg_number, alpha, timestamp_column)
+                   for timestamp_ in timestamps}
     return hv.HoloMap(shapes_dict, kdims=['time'])
 
 
-def fill_vector(eopatch, feature_type, feature_name):
+def fill_vector(eopatch, feature_type, feature_name, timestamp_column, geometry_column):
     """ Adds timestamps from eopatch to GeoDataFrame.
 
     :param eopatch: eopatch
@@ -370,21 +388,86 @@ def fill_vector(eopatch, feature_type, feature_name):
     :type feature_type: FeatureType
     :param feature_name: name of eopatch feature
     :type feature_name: str
+    :param timestamp_column: name of the timestamp column, valid for vector data
+    :type timestamp_column: str
+    :param geometry_column: name of the geometry column, valid for vector data
+    :type geometry_column: str
     :return: GeoDataFrame with added data
     :rtype: geopandas.GeoDataFrame
     """
-    vector = eopatch[feature_type][feature_name]
+    vector = eopatch[feature_type][feature_name].copy()
+    vector['valid'] = True
     eopatch_timestamps = eopatch.timestamp
-    vector_timestamps = list(vector['TIMESTAMP'])
+    vector_timestamps = list(vector[timestamp_column])
     blank_timestamps = [timestamp for timestamp in eopatch_timestamps if timestamp not in vector_timestamps]
+    dummy_geometry = create_dummy_polygon(eopatch.bbox, 0.0000001)
 
-    temp_df = pd.DataFrame(list(zip(blank_timestamps,
-                                    len(blank_timestamps) * [1],
-                                    len(blank_timestamps) * [eopatch.bbox.geometry])),
-                           columns=vector.columns)
+    temp_df = create_dummy_dataframe(vector,
+                                     blank_timestamps=blank_timestamps,
+                                     dummy_geometry=dummy_geometry,
+                                     timestamp_column=timestamp_column,
+                                     geometry_column=geometry_column)
 
     final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True))
     return final_vector
+
+
+def create_dummy_dataframe(geodataframe, blank_timestamps, dummy_geometry,
+                           timestamp_column, geometry_column,
+                           fill_str='', fill_numeric=1):
+    """ Creates geopadnas GeoDataFrame to fill with dummy data (for visualization)
+
+    :param geodataframe: dataframe to append rows to
+    :type geodataframe: geopandas.GeoDataFrame
+    :param blank_timestamps: timestamps for constructing dataframe
+    :type blank_timestamps: list of timestamps
+    :param dummy_geometry: geometry to plot when there is no data
+    :type dummy_geometry: shapely.geometry.Polygon
+    :param timestamp_column: name of the timestamp column, valid for vector data
+    :type timestamp_column: str
+    :param geometry_column: name of the geometry column, valid for vector data
+    :type geometry_column: str
+    :param fill_str: insert when there is no value in str column
+    :type fill_str: str
+    :param fill_numeric: insert when
+    :type fill_numeric: float
+    :return: dataframe with dummy data
+    :rtype: geopandas.GeoDataFrame
+    """
+    dataframe = pd.DataFrame(data=blank_timestamps, columns=[timestamp_column])
+
+    for column in geodataframe.columns:
+        if column == timestamp_column:
+            continue
+        elif column == geometry_column:
+            dataframe[column] = dummy_geometry
+        elif column == 'valid':
+            dataframe[column] = False
+        elif geodataframe[column].dtype in (int, float):
+            dataframe[column] = fill_numeric
+        else:
+            dataframe[column] = fill_str
+
+    return dataframe
+
+
+def create_dummy_polygon(bbox, addition_factor):
+    """ Creates geometry/polygon to plot if there is no data (at timestamp)
+
+    :param bbox: eopatch bbox
+    :type bbox: EOPatch.bbox
+    :param addition_factor: size of the 'blank polygon'
+    :type addition_factor: float
+    :return: polygon
+    :rtype: shapely.geometry.Polygon
+    """
+    x_blank, y_blank = bbox.lower_left
+    dummy_geometry = geometry.Polygon([[x_blank, y_blank],
+                                       [x_blank + addition_factor, y_blank],
+                                       [x_blank + addition_factor, y_blank + addition_factor],
+                                       [x_blank, y_blank + addition_factor]])
+
+    return dummy_geometry
 
 
 def plot_scalar_label(eopatch, feature_type, feature_name):
@@ -405,7 +488,7 @@ def plot_scalar_label(eopatch, feature_type, feature_name):
     return data_da.hvplot()
 
 
-def plot_shapes_one(data_gpd, timestamp, epsg_number, alpha):  # OK
+def plot_shapes_one(data_gpd, timestamp, epsg_number, alpha, timestamp_column):  # OK
     """ Plots shapes for one timestamp from geopandas GeoDataFRame
 
     :param data_gpd: data to plot
@@ -416,10 +499,12 @@ def plot_shapes_one(data_gpd, timestamp, epsg_number, alpha):  # OK
     :type epsg_number: int
     :param alpha: transpareny
     :type alpha: float
+    :param timestamp_column: name of the timestamp column
+    :type timestamp_column: str
     :return: visualization
     :rtype: geoviews
     """
-    out = data_gpd.loc[data_gpd['TIMESTAMP'] == timestamp]
+    out = data_gpd.loc[data_gpd[timestamp_column] == timestamp]
     return gv.Polygons(out, crs=ccrs.epsg(epsg_number)).opts(alpha=alpha)
 
 
