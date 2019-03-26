@@ -50,15 +50,24 @@ class MapboxXYZInput(EOTask):
         self.access_token = access_token
 
     def execute(self, eopatch, zoom=None):
+        """ Execute function which adds new MASK_TIMELESS layer to the EOPatch
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        :param zoom: optional parameter specifying the zoom level at which to download tiles
+        :type zoom: int
+        :return: New EOPatch with added raster layer
+        :rtype: EOPatch
+        """
         latlng_bounds = eopatch.bbox.transform(CRS.WGS84)
+        maximum_latitude = max(abs(latlng_bounds.min_y), abs(latlng_bounds.max_y))
 
         # get ideal zoom for the smallest resolution and furthest latitude from the equator
-        minimum_resolution = min(
-            parse_numeric(eopatch.meta_info['size_x']),
-            parse_numeric(eopatch.meta_info['size_y'])
-        )
-        maximum_latitude = max(abs(latlng_bounds.min_y), abs(latlng_bounds.max_y))
-        zoom = get_zoom(minimum_resolution, maximum_latitude)
+        if not zoom:
+            minimum_resolution = min(
+                parse_numeric(eopatch.meta_info['size_x']),
+                parse_numeric(eopatch.meta_info['size_y'])
+            )
+            zoom = get_zoom(minimum_resolution, maximum_latitude)
 
         # find all necessary tiles and download them into a single 3-band image
         covering_tiles = list(tiles(*latlng_bounds, zoom))
@@ -81,9 +90,6 @@ class MapboxXYZInput(EOTask):
         left = int((latlng_bounds.min_x - image_tile_origin.lng) / res)
         bottom = int((image_tile_origin.lat - latlng_bounds.min_y) / res)
         right = int((latlng_bounds.max_x - image_tile_origin.lng) / res)
-        window = ((top, bottom), (left, right))
-
-        print(window)
 
         eopatch[FeatureType.MASK_TIMELESS][self.mask_name] = image_tile[top:bottom, left:right]
         return eopatch
