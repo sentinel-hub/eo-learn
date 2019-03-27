@@ -5,11 +5,13 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 import warnings
 import datetime as dt
 import inspect
+import calendar
 from functools import partial
 
 import dateutil
 import scipy.interpolate
 import numpy as np
+import numba
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
@@ -398,6 +400,121 @@ class LinearInterpolation(InterpolationTask):
             super().__init__(feature, np.interp, **kwargs)
         else:
             super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
+
+
+class LinearInterpolationNumba(InterpolationTask):
+    """
+    Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
+    """
+    def __init__(self, feature, **kwargs):
+        super().__init__(feature, np.interp, **kwargs)
+
+    def execute(self, eopatch):
+        """ Execute method that processes EOPatch and returns EOPatch
+        """
+        # pylint: disable=too-many-locals
+        feature_type, feature_name, _ = next(self.feature(eopatch))
+
+        # Make a copy not to change original numpy array
+        feature_data = eopatch[feature_type][feature_name].copy()
+        time_num = feature_data.shape[0]
+        if time_num <= 1:
+            raise ValueError('Feature {} has time dimension of size {}, required at least size '
+                             '2'.format((feature_type, feature_name), time_num))
+
+        # Apply a mask on data
+        if self.mask_feature is not None:
+            for mask_type, mask_name in self.mask_feature(eopatch):
+                negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
+                feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
+
+        # If resampling create new EOPatch
+        new_eopatch = EOPatch() if self.resample_range else eopatch
+
+        # Resample times
+        times = eopatch.time_series(scale_time=self.scale_time)
+        new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
+        total_diff = int((new_eopatch.timestamp[0].date() - eopatch.timestamp[0].date()).total_seconds())
+        resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff // self.scale_time
+
+        # Add BBox to eopatch if it was created anew
+        if new_eopatch.bbox is None:
+            new_eopatch.bbox = eopatch.bbox
+
+        # Interpolate
+        feature_data = self.interpolate4d(feature_data, times, resampled_times)
+
+        # Normalize
+        if self.result_interval:
+            min_val, max_val = self.result_interval
+            valid_mask = ~np.isnan(feature_data)
+            feature_data[valid_mask] = np.maximum(np.minimum(feature_data[valid_mask], max_val), min_val)
+
+        # Replace unknown value
+        if not np.isnan(self.unknown_value):
+            feature_data[np.isnan(feature_data)] = self.unknown_value
+
+        # append features from old patch
+        new_eopatch = self._copy_old_features(new_eopatch, eopatch, self.copy_features)
+
+        return new_eopatch
+
+    @staticmethod
+    @numba.jit(nopython=True)
+    def interpolate4d(data, times, resampled_times):
+        """ Interpolates data feature
+
+        :param data: Array in a shape of t x h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times relative to the first timestamp
+        :type times:
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
+        """
+
+        height, width, depth = data.shape[1:]
+        new_bands = np.empty((len(resampled_times), height, width, depth))
+        for band in range(depth):
+            for y_value in range(height):
+                for x_value in range(width):
+                    mask1d = ~np.isnan(data[:, y_value, x_value, band])
+                    new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
+
+                    true_index = np.where(mask1d)
+                    index_first, index_last = true_index[0][0], true_index[0][-1]
+                    min_time, max_time = times[index_first], times[index_last]
+                    first = np.where(resampled_times < min_time)[0]
+                    if first.size:
+                        new_data[:first[-1] + 1] = np.nan
+                    last = np.where(max_time < resampled_times)[0]
+                    if last.size:
+                        new_data[last[0]:] = np.nan
+
+                    new_bands[:, y_value, x_value, band] = new_data
+
+        return new_bands
+
+    @staticmethod
+    def datetime_to_utc(datetimes, start=None):
+        """ Converts list of utc datetimes to list of unix timestamp
+
+        :param datetimes:
+        :type datetimes:
+        :param start:
+        :type start:
+        :return:
+        :rtype:
+        """
+        epoch = [calendar.timegm(el.utctimetuple()) for el in datetimes]
+        if start:
+            start = calendar.timegm(start.utctimetuple())
+        else:
+            start = epoch[0]
+        epoch_from_0 = [el - start for el in epoch]
+
+        return epoch_from_0
 
 
 class CubicInterpolation(InterpolationTask):
