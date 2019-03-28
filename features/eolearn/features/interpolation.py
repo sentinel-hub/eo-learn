@@ -413,7 +413,7 @@ class LinearInterpolationNumba(InterpolationTask):
         """ Execute method that processes EOPatch and returns EOPatch
         """
         # pylint: disable=too-many-locals
-        feature_type, feature_name, _ = next(self.feature(eopatch))
+        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
 
         # Make a copy not to change original numpy array
         feature_data = eopatch[feature_type][feature_name].copy()
@@ -453,6 +453,9 @@ class LinearInterpolationNumba(InterpolationTask):
         # Replace unknown value
         if not np.isnan(self.unknown_value):
             feature_data[np.isnan(feature_data)] = self.unknown_value
+
+        # add values
+        new_eopatch[feature_type][new_feature_name] = feature_data
 
         # append features from old patch
         new_eopatch = self._copy_old_features(new_eopatch, eopatch, self.copy_features)
