@@ -12,6 +12,7 @@ import dateutil
 import scipy.interpolate
 import numpy as np
 import numba
+from numba import prange
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
@@ -406,8 +407,9 @@ class LinearInterpolationNumba(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
     """
-    def __init__(self, feature, **kwargs):
+    def __init__(self, feature, parallel=False, **kwargs):
         super().__init__(feature, np.interp, **kwargs)
+        self.parallel = parallel
 
     def execute(self, eopatch):
         """ Execute method that processes EOPatch and returns EOPatch
@@ -442,7 +444,10 @@ class LinearInterpolationNumba(InterpolationTask):
             new_eopatch.bbox = eopatch.bbox
 
         # Interpolate
-        feature_data = self.interpolate4d(feature_data, times, resampled_times)
+        if self.parallel:
+            feature_data = self.interpolate4d_parallel(feature_data, times, resampled_times)
+        else:
+            feature_data = self.interpolate4d(feature_data, times, resampled_times)
 
         # Normalize
         if self.result_interval:
@@ -482,6 +487,43 @@ class LinearInterpolationNumba(InterpolationTask):
         for band in range(depth):
             for y_value in range(height):
                 for x_value in range(width):
+                    mask1d = ~np.isnan(data[:, y_value, x_value, band])
+                    new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
+
+                    true_index = np.where(mask1d)
+                    index_first, index_last = true_index[0][0], true_index[0][-1]
+                    min_time, max_time = times[index_first], times[index_last]
+                    first = np.where(resampled_times < min_time)[0]
+                    if first.size:
+                        new_data[:first[-1] + 1] = np.nan
+                    last = np.where(max_time < resampled_times)[0]
+                    if last.size:
+                        new_data[last[0]:] = np.nan
+
+                    new_bands[:, y_value, x_value, band] = new_data
+
+        return new_bands
+
+    @staticmethod
+    @numba.jit(nopython=True, parallel=True)
+    def interpolate4d_parallel(data, times, resampled_times):
+        """ Interpolates data feature
+
+        :param data: Array in a shape of t x h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times relative to the first timestamp
+        :type times:
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
+        """
+
+        height, width, depth = data.shape[1:]
+        new_bands = np.empty((len(resampled_times), height, width, depth))
+        for band in prange(depth):
+            for y_value in prange(height):
+                for x_value in prange(width):
                     mask1d = ~np.isnan(data[:, y_value, x_value, band])
                     new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
 
