@@ -10,4 +10,5 @@ pygments
 sentinelhub>=2.5.0
 geopandas
 tqdm>=4.27
-pyviz
+geoviews
+hvplot
