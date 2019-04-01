@@ -488,17 +488,21 @@ class LinearInterpolationNumba(InterpolationTask):
             for y_value in range(height):
                 for x_value in range(width):
                     mask1d = ~np.isnan(data[:, y_value, x_value, band])
-                    new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
+                    if (~mask1d).all():
+                        new_data = np.empty((len(resampled_times)))
+                        new_data[:] = np.nan
+                    else:
+                        new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
 
-                    true_index = np.where(mask1d)
-                    index_first, index_last = true_index[0][0], true_index[0][-1]
-                    min_time, max_time = times[index_first], times[index_last]
-                    first = np.where(resampled_times < min_time)[0]
-                    if first.size:
-                        new_data[:first[-1] + 1] = np.nan
-                    last = np.where(max_time < resampled_times)[0]
-                    if last.size:
-                        new_data[last[0]:] = np.nan
+                        true_index = np.where(mask1d)
+                        index_first, index_last = true_index[0][0], true_index[0][-1]
+                        min_time, max_time = times[index_first], times[index_last]
+                        first = np.where(resampled_times < min_time)[0]
+                        if first.size:
+                            new_data[:first[-1] + 1] = np.nan
+                        last = np.where(max_time < resampled_times)[0]
+                        if last.size:
+                            new_data[last[0]:] = np.nan
 
                     new_bands[:, y_value, x_value, band] = new_data
 
@@ -525,17 +529,21 @@ class LinearInterpolationNumba(InterpolationTask):
             for y_value in prange(height):
                 for x_value in prange(width):
                     mask1d = ~np.isnan(data[:, y_value, x_value, band])
-                    new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
+                    if (~mask1d).all():
+                        new_data = np.empty((len(resampled_times)))
+                        new_data[:] = np.nan
+                    else:
+                        new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
 
-                    true_index = np.where(mask1d)
-                    index_first, index_last = true_index[0][0], true_index[0][-1]
-                    min_time, max_time = times[index_first], times[index_last]
-                    first = np.where(resampled_times < min_time)[0]
-                    if first.size:
-                        new_data[:first[-1] + 1] = np.nan
-                    last = np.where(max_time < resampled_times)[0]
-                    if last.size:
-                        new_data[last[0]:] = np.nan
+                        true_index = np.where(mask1d)
+                        index_first, index_last = true_index[0][0], true_index[0][-1]
+                        min_time, max_time = times[index_first], times[index_last]
+                        first = np.where(resampled_times < min_time)[0]
+                        if first.size:
+                            new_data[:first[-1] + 1] = np.nan
+                        last = np.where(max_time < resampled_times)[0]
+                        if last.size:
+                            new_data[last[0]:] = np.nan
 
                     new_bands[:, y_value, x_value, band] = new_data
 
