@@ -447,7 +447,7 @@ class LinearInterpolationNumba(InterpolationTask):
         if self.parallel:
             feature_data = self.interpolate4d_parallel(feature_data, times, resampled_times)
         else:
-            feature_data = self.interpolate4d(feature_data, times, resampled_times)
+            feature_data = self.interpolate2d(feature_data, times, resampled_times)
 
         # Normalize
         if self.result_interval:
@@ -569,17 +569,21 @@ class LinearInterpolationNumba(InterpolationTask):
         data = data.reshape(timestamps, height * width * depth)
         for n_feat in range(height * width * depth):
             mask1d = ~np.isnan(data[:, n_feat])
-            new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
+            if (~mask1d).all():
+                new_data = np.empty((len(resampled_times)))
+                new_data[:] = np.nan
+            else:
+                new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
 
-            true_index = np.where(mask1d)
-            index_first, index_last = true_index[0][0], true_index[0][-1]
-            min_time, max_time = times[index_first], times[index_last]
-            first = np.where(resampled_times < min_time)[0]
-            if first.size:
-                new_data[:first[-1] + 1] = np.nan
-            last = np.where(max_time < resampled_times)[0]
-            if last.size:
-                new_data[last[0]:] = np.nan
+                true_index = np.where(mask1d)
+                index_first, index_last = true_index[0][0], true_index[0][-1]
+                min_time, max_time = times[index_first], times[index_last]
+                first = np.where(resampled_times < min_time)[0]
+                if first.size:
+                    new_data[:first[-1] + 1] = np.nan
+                last = np.where(max_time < resampled_times)[0]
+                if last.size:
+                    new_data[last[0]:] = np.nan
 
             new_bands[:, n_feat] = new_data
 
