@@ -445,9 +445,9 @@ class LinearInterpolationNumba(InterpolationTask):
 
         # Interpolate
         if self.parallel:
-            feature_data = self.interpolate4d_parallel(feature_data, times, resampled_times)
+            feature_data = self.interpolation_function_parallel(feature_data, times, resampled_times)
         else:
-            feature_data = self.interpolate2d(feature_data, times, resampled_times)
+            feature_data = self.interpolation_function(feature_data, times, resampled_times)
 
         # Normalize
         if self.result_interval:
@@ -469,89 +469,7 @@ class LinearInterpolationNumba(InterpolationTask):
 
     @staticmethod
     @numba.jit(nopython=True)
-    def interpolate4d(data, times, resampled_times):
-        """ Interpolates data feature
-
-        :param data: Array in a shape of t x h x w x n
-        :type data: numpy.ndarray
-        :param times: Array of reference times relative to the first timestamp
-        :type times:
-        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
-        :type resampled_times: numpy.array
-        :return: Array of interpolated values
-        :rtype: numpy.ndarray
-        """
-
-        height, width, depth = data.shape[1:]
-        new_bands = np.empty((len(resampled_times), height, width, depth))
-        for band in range(depth):
-            for y_value in range(height):
-                for x_value in range(width):
-                    mask1d = ~np.isnan(data[:, y_value, x_value, band])
-                    if (~mask1d).all():
-                        new_data = np.empty((len(resampled_times)))
-                        new_data[:] = np.nan
-                    else:
-                        new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
-
-                        true_index = np.where(mask1d)
-                        index_first, index_last = true_index[0][0], true_index[0][-1]
-                        min_time, max_time = times[index_first], times[index_last]
-                        first = np.where(resampled_times < min_time)[0]
-                        if first.size:
-                            new_data[:first[-1] + 1] = np.nan
-                        last = np.where(max_time < resampled_times)[0]
-                        if last.size:
-                            new_data[last[0]:] = np.nan
-
-                    new_bands[:, y_value, x_value, band] = new_data
-
-        return new_bands
-
-    @staticmethod
-    @numba.jit(nopython=True, parallel=True)
-    def interpolate4d_parallel(data, times, resampled_times):
-        """ Interpolates data feature
-
-        :param data: Array in a shape of t x h x w x n
-        :type data: numpy.ndarray
-        :param times: Array of reference times relative to the first timestamp
-        :type times:
-        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
-        :type resampled_times: numpy.array
-        :return: Array of interpolated values
-        :rtype: numpy.ndarray
-        """
-
-        height, width, depth = data.shape[1:]
-        new_bands = np.empty((len(resampled_times), height, width, depth))
-        for band in prange(depth):
-            for y_value in prange(height):
-                for x_value in prange(width):
-                    mask1d = ~np.isnan(data[:, y_value, x_value, band])
-                    if (~mask1d).all():
-                        new_data = np.empty((len(resampled_times)))
-                        new_data[:] = np.nan
-                    else:
-                        new_data = np.interp(resampled_times, times[mask1d], data[:, y_value, x_value, band][mask1d])
-
-                        true_index = np.where(mask1d)
-                        index_first, index_last = true_index[0][0], true_index[0][-1]
-                        min_time, max_time = times[index_first], times[index_last]
-                        first = np.where(resampled_times < min_time)[0]
-                        if first.size:
-                            new_data[:first[-1] + 1] = np.nan
-                        last = np.where(max_time < resampled_times)[0]
-                        if last.size:
-                            new_data[last[0]:] = np.nan
-
-                    new_bands[:, y_value, x_value, band] = new_data
-
-        return new_bands
-
-    @staticmethod
-    @numba.jit(nopython=True)
-    def interpolate2d(data, times, resampled_times):
+    def interpolation_function(data, times, resampled_times):
         """ Interpolates data feature
 
         :param data: Array in a shape of t x h x w x n
@@ -568,6 +486,46 @@ class LinearInterpolationNumba(InterpolationTask):
         new_bands = np.empty((len(resampled_times), height * width * depth))
         data = data.reshape(timestamps, height * width * depth)
         for n_feat in range(height * width * depth):
+            mask1d = ~np.isnan(data[:, n_feat])
+            if (~mask1d).all():
+                new_data = np.empty((len(resampled_times)))
+                new_data[:] = np.nan
+            else:
+                new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
+
+                true_index = np.where(mask1d)
+                index_first, index_last = true_index[0][0], true_index[0][-1]
+                min_time, max_time = times[index_first], times[index_last]
+                first = np.where(resampled_times < min_time)[0]
+                if first.size:
+                    new_data[:first[-1] + 1] = np.nan
+                last = np.where(max_time < resampled_times)[0]
+                if last.size:
+                    new_data[last[0]:] = np.nan
+
+            new_bands[:, n_feat] = new_data
+
+        return new_bands.reshape(len(resampled_times), height, width, depth)
+
+    @staticmethod
+    @numba.jit(nopython=True, parallel=True)
+    def interpolation_function_parallel(data, times, resampled_times):
+        """ Interpolates data feature
+
+        :param data: Array in a shape of t x h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times relative to the first timestamp
+        :type times:
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
+        """
+
+        timestamps, height, width, depth = data.shape
+        new_bands = np.empty((len(resampled_times), height * width * depth))
+        data = data.reshape(timestamps, height * width * depth)
+        for n_feat in prange(height * width * depth):
             mask1d = ~np.isnan(data[:, n_feat])
             if (~mask1d).all():
                 new_data = np.empty((len(resampled_times)))
