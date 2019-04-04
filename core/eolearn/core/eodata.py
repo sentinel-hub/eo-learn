@@ -760,7 +760,7 @@ class EOPatch:
         return remove_from_patch
 
     def plot(self, feature, rgb=None, rgb_factor=3.5, vdims=None,
-             timestamp_column='TIMESTAMP', geometry_column='geometry'):
+             timestamp_column='TIMESTAMP', geometry_column='geometry', pixel=False, mask=None):
         """ Plots eopatch features
 
         :param feature: feature of eopatch
@@ -779,7 +779,8 @@ class EOPatch:
         :rtype: holovies/bokeh
         """
         vis = Plot(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
-                   timestamp_column=timestamp_column, geometry_column=geometry_column)
+                   timestamp_column=timestamp_column, geometry_column=geometry_column,
+                   pixel=pixel, mask=mask)
         return vis.plot()
 
 

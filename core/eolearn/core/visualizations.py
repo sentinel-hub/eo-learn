@@ -241,7 +241,8 @@ def new_coordinates(data, crs, new_crs):
 
 class Plot:
     """
-    Plot class for making visalizations.
+    Plot class for making visulizations.
+
     :param eopatch: eopatch
     :type eopatch: EOPatch
     :param feature: feature of eopatch
@@ -258,7 +259,7 @@ class Plot:
     :type geometry_column: geometry
     """
     def __init__(self, eopatch, feature, rgb=None, rgb_factor=3.5, vdims=None,
-                 timestamp_column='TIMESTAMP', geometry_column='geometry'):
+                 timestamp_column='TIMESTAMP', geometry_column='geometry', pixel=False, mask=None):
         self.eopatch = eopatch
         self.feature = feature
         self.rgb = rgb
@@ -266,6 +267,8 @@ class Plot:
         self.vdims = vdims
         self.timestamp_column = timestamp_column
         self.geometry_column = geometry_column
+        self.pixel = pixel
+        self.mask = mask
 
     def plot(self):
         """ Plots eopatch
@@ -277,7 +280,9 @@ class Plot:
         features = list(FeatureParser(self.feature))
         feature_type = features[0][0]
         feature_name = features[0][1]
-        if feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
+        if self.pixel and feature_type in (FeatureType.DATA, FeatureType.MASK):
+            vis = self.plot_pixel(feature_type, feature_name)
+        elif feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
             vis = self.plot_raster(feature_type, feature_name)
         elif feature_type == FeatureType.DATA:
             vis = self.plot_data(feature_name)
@@ -293,6 +298,8 @@ class Plot:
     def plot_data(self, feature_name):
         """ Plots the FeatureType.DATA of eopatch.
 
+        :param feature_name: name of the eopatch feature
+        :type feature_name: str
         :return: visualization
         :rtype: holoview/geoviews/bokeh
         """
@@ -505,3 +512,17 @@ class Plot:
                                            'x': x_values},
                                    dims=('time', 'band', 'y', 'x'))
         return eopatch_rgb
+
+    def plot_pixel(self, feature_type, feature_name):
+        """
+        Plots one pixel through time
+        :return:
+        :rtype:
+        """
+        data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
+        if self.mask:
+            pass  # data_da.values[~self.eopatch[FeatureType.MASK][self.mask]]=0
+        if data_da.dtype == np.bool:
+            data_da = data_da.astype(np.int8)
+        return data_da.hvplot(x='time')
+
