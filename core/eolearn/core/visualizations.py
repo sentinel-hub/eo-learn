@@ -215,7 +215,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
 
 
 def new_coordinates(data, crs, new_crs):
-    """ Returns coordinates for data in new crs.
+    """ Returns coordinates for xarray DataArray/Dataset in new crs.
 
     :param data: data for converting coordinates for
     :type data: xarray.DataArray or xarray.Dataset
@@ -239,7 +239,7 @@ def new_coordinates(data, crs, new_crs):
     return new_xs, new_ys
 
 
-class Plot:
+class Visualization:
     """
     Plot class for making visulizations.
 

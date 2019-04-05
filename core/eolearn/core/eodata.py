@@ -22,7 +22,7 @@ import sentinelhub
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
-from .visualizations import Plot
+from .visualizations import Visualization
 
 # pylint: disable=too-many-lines
 LOGGER = logging.getLogger(__name__)
@@ -760,7 +760,8 @@ class EOPatch:
         return remove_from_patch
 
     def plot(self, feature, rgb=None, rgb_factor=3.5, vdims=None,
-             timestamp_column='TIMESTAMP', geometry_column='geometry', pixel=False, mask=None):
+             timestamp_column='TIMESTAMP', geometry_column='geometry',
+             pixel=False, mask=None):
         """ Plots eopatch features
 
         :param feature: feature of eopatch
@@ -775,14 +776,36 @@ class EOPatch:
         :type timestamp_column: str
         :param geometry_column: name of the geometry column, valid for vector data
         :type geometry_column: str
+        :param pixel: plot values through time for one pixel
+        :type pixel: bool
+        :param mask: where eopatch[FeatureType.MASK] == False, value = 0
+        :type mask: str
         :return: plot
         :rtype: holovies/bokeh
         """
-        vis = Plot(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
-                   timestamp_column=timestamp_column, geometry_column=geometry_column,
-                   pixel=pixel, mask=mask)
+        vis = Visualization(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
+                            timestamp_column=timestamp_column, geometry_column=geometry_column,
+                            pixel=pixel, mask=mask)
         return vis.plot()
 
+    def to_dataset(self, features):
+        """
+        Converts eopatch to xarray Dataset
+        :param features: converts only chosen features to Dataset, if empty, complete eopatch is converted
+        :type features: (FeatureType, str)
+        :return: xarray dataset
+        :rtype: xarray Dataset
+        """
+
+    def to_dataarray(self, features):
+        """
+        Converts eopatch to (multiple) xarray DataArrays
+        :param features: converts chosen feature to DataArray, if multiple features are defined, it creates multiple
+                         DataArrays
+        :type features: (FeatureType, str)
+        :return: DataArray or list of DataArrays
+        :rtype: xarray.DataArray or tuple(DataArray, DataArry)
+        """
 
 
 class _FeatureDict(dict):
