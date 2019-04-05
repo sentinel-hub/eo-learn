@@ -306,6 +306,8 @@ class Visualization:
         epsg_number = self.eopatch.bbox.crs.ogc_string().split(':')[1]
         epsg_number = 3857 if epsg_number == 4326 else epsg_number
         data_da = array_to_dataframe(self.eopatch, (FeatureType.DATA, feature_name), epsg_number=epsg_number)
+        if self.mask:
+            data_da = self.mask_data(data_da)
         timestamps = self.eopatch.timestamp
         crs = self.eopatch.bbox.crs
         if not self.rgb:
@@ -521,12 +523,25 @@ class Visualization:
         """
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
         if self.mask:
-            mask = self.eopatch[FeatureType.MASK][self.mask]
-            if len(data_da.values.shape) == 4:
-                mask = np.repeat(mask, data_da.values.shape[-1], -1)
-            else:
-                mask = np.squeeze(mask)
-            data_da.values[~mask] = 0
+            data_da = self.mask_data(data_da)
         if data_da.dtype == np.bool:
             data_da = data_da.astype(np.int8)
         return data_da.hvplot(x='time')
+
+    def mask_data(self, data_da):
+        """
+        Creates a copy of array and apply 0 where data is masked.
+        :param data_da: dataarray
+        :type data_da: xarray.DataArray
+        :return: dataaray
+        :rtype: xarray.DataArray
+        """
+        mask = self.eopatch[FeatureType.MASK][self.mask]
+        if len(data_da.values.shape) == 4:
+            mask = np.repeat(mask, data_da.values.shape[-1], -1)
+        else:
+            mask = np.squeeze(mask)
+        data_da = data_da.copy()
+        data_da.values[~mask] = 0
+
+        return data_da
