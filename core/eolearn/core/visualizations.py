@@ -521,8 +521,12 @@ class Plot:
         """
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
         if self.mask:
-            pass  # data_da.values[~self.eopatch[FeatureType.MASK][self.mask]]=0
+            mask = self.eopatch[FeatureType.MASK][self.mask]
+            if len(data_da.values.shape) == 4:
+                mask = np.repeat(mask, data_da.values.shape[-1], -1)
+            else:
+                mask = np.squeeze(mask)
+            data_da.values[~mask] = 0
         if data_da.dtype == np.bool:
             data_da = data_da.astype(np.int8)
         return data_da.hvplot(x='time')
-
