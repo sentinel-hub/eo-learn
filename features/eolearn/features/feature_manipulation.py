@@ -52,6 +52,8 @@ class SimpleFilterTask(EOTask):
 
         good_idxs = self._get_filtered_indices(eopatch[feature_type][feature_name] if feature_name is not ... else
                                                eopatch[feature_type])
+        if not good_idxs:
+            raise RuntimeError(f'Patch has no good indices after filtering with {self.filter_func}')
 
         for feature_type, feature_name in self.filter_features(eopatch):
             if feature_type.is_time_dependent():
