@@ -286,7 +286,8 @@ class ECCRegistration(RegistrationTask):
         # Run the ECC algorithm. The results are stored in warp_matrix.
         _, warp_matrix = cv2.findTransformECC(src.astype(np.float32),
                                               trg.astype(np.float32),
-                                              warp_matrix, warp_mode, criteria)
+                                              warp_matrix, warp_mode, criteria,
+                                              inputMask=None)
         return warp_matrix
 
 
