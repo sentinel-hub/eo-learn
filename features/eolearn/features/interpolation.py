@@ -392,18 +392,18 @@ class InterpolationTask(EOTask):
         return new_eopatch
 
 
-class LinearInterpolation(InterpolationTask):
+class LegacyInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature, _library='numpy', **kwargs):
-        if _library == 'numpy':
+    def __init__(self, feature, library='numpy', **kwargs):
+        if library == 'numpy':
             super().__init__(feature, np.interp, **kwargs)
         else:
             super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
 
 
-class LinearInterpolationNumba(InterpolationTask):
+class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
     """
