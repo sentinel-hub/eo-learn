@@ -15,7 +15,7 @@ before_install:
 - sudo apt-get install -y libgdal-dev
 - sudo apt-get install graphviz
 - sudo apt-get install proj-bin
-- sudo apt-get install gcc
+- sudo apt-get install build-essential
 
 install:
 - pip install -r requirements-dev.txt --upgrade
