@@ -1,4 +1,4 @@
-numpy
+numpy>=1.16
 attrs>=18.2.0
 python-dateutil
 networkx
