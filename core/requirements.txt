@@ -12,3 +12,4 @@ geopandas
 tqdm>=4.27
 geoviews
 hvplot
+xarray
