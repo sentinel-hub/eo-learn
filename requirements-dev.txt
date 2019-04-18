@@ -1,6 +1,6 @@
 pytest>=4.0.0
 pytest-cov
-pylint==2.3.0
+pylint>=2.3
 radon
 hypothesis
 twine
