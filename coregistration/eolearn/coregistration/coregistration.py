@@ -255,10 +255,17 @@ class ECCRegistration(RegistrationTask):
     def get_params(self):
         LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
         LOGGER.info("\t\t\t\tMaxIters: {:d}".format(self.params['MaxIters']))
+        LOGGER.info("\t\t\t\tgaussFiltSize: {:d}".format(self.params['gaussFiltSize']))
 
     def check_params(self):
-        if (self.params is None) or (not isinstance(self.params.get('MaxIters'), int)):
-            self.params = dict(MaxIters=200)
+        if self.params is None:
+            self.params = dict(MaxIters=200, gaussFiltSize=1)
+        elif (self.params.get('MaxIters') is None) or (not isinstance(self.params.get('MaxIters'), int)):
+            LOGGER.info("{:s}:MaxIters set to 200".format(self.__class__.__name__))
+            self.params['MaxIters'] = 200
+        if (self.params.get('gaussFilterSize') is None) or (not isinstance(self.params.get('gaussFilterSize'), int)):
+            LOGGER.info("{:s}:gaussFilterSize set to 1".format(self.__class__.__name__))
+            self.params['gaussFiltSize'] = 1
 
     def register(self, src, trg, trg_mask=None, src_mask=None):
         """ Implementation of pair-wise registration and warping using Enhanced Correlation Coefficient
@@ -287,7 +294,7 @@ class ECCRegistration(RegistrationTask):
         _, warp_matrix = cv2.findTransformECC(src.astype(np.float32),
                                               trg.astype(np.float32),
                                               warp_matrix, warp_mode,
-                                              criteria, None)
+                                              criteria, None, self.params['gaussFiltSize'])
         return warp_matrix
 
 
