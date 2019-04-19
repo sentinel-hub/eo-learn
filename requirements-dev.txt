@@ -1,7 +1,6 @@
 pytest>=4.0.0
 pytest-cov
-pylint>=2.3.1
-astroid==2.
+pylint
 radon
 hypothesis
 twine
