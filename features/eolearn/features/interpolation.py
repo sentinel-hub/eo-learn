@@ -491,7 +491,9 @@ class LinearInterpolation(InterpolationTask):
                 new_data = np.empty((len(resampled_times)))
                 new_data[:] = np.nan
             else:
-                new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
+                new_data = np.interp(resampled_times.astype(np.float64),
+                                     times[mask1d].astype(np.float64),
+                                     data[:, n_feat][mask1d].astype(np.float64))
 
                 true_index = np.where(mask1d)
                 index_first, index_last = true_index[0][0], true_index[0][-1]
@@ -505,7 +507,7 @@ class LinearInterpolation(InterpolationTask):
 
             new_bands[:, n_feat] = new_data
 
-        return new_bands.reshape(len(resampled_times), height, width, depth)
+        return new_bands.reshape(len(resampled_times), height, width, depth).astype(data.dtype)
 
     @staticmethod
     @numba.jit(nopython=True, parallel=True)
