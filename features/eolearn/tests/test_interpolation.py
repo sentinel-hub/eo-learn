@@ -1,4 +1,3 @@
-
 import unittest
 import os.path
 from datetime import datetime
@@ -64,14 +63,14 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('linear', LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                                     mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                                     unknown_value=10),
-                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.7204206,
-                                      img_median=0.59765697),
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
+                                      img_median=0.59765935),
 
             cls.InterpolationTestCase('linear_change_timescale',
                                       LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                           mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                           unknown_value=10, scale_time=1),
-                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.7204206,
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.7204042,
                                       img_median=0.59765697),
 
             cls.InterpolationTestCase('cubic', CubicInterpolation('NDVI', result_interval=(0.0, 1.0),
@@ -129,8 +128,8 @@ class TestInterpolation(unittest.TestCase):
                 'NDVI', result_interval=(-0.2, 1.0),
                 resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
                 unknown_value=-2),
-                                      result_len=5, img_min=0.0, img_max=0.8427637, img_mean=0.55989975,
-                                      img_median=0.6243819),
+                                      result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417,
+                                      img_median=0.5042224),
 
             cls.InterpolationTestCase('linear with bands and multiple masks',
                                       LinearInterpolation('BANDS-S2-L1C', result_interval=(0.0, 1.0), unknown_value=10,
