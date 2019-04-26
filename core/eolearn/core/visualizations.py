@@ -14,11 +14,11 @@ import hvplot.xarray  # pylint: disable=unused-import
 import hvplot.pandas  # pylint: disable=unused-import
 
 from cartopy import crs as ccrs
-from shapely import geometry
+from shapely.geometry import Polygon
 
 from sentinelhub import CRS
 
-from .constants import FeatureType
+from .constants import FeatureType, FeatureTypeSet
 from .utilities import FeatureParser
 from .xarray_utils import array_to_dataframe, _new_coordinates
 
@@ -72,15 +72,15 @@ class Visualization:
         features = list(FeatureParser(self.feature))
         feature_type = features[0][0]
         feature_name = features[0][1]
-        if self.pixel and feature_type in (FeatureType.DATA, FeatureType.MASK):
+        if self.pixel and feature_type in FeatureTypeSet.RASTER_TYPES_4D:
             vis = self.plot_pixel(feature_type, feature_name)
-        elif feature_type in (FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS):
+        elif feature_type in (FeatureType.MASK, FeatureTypeSet.RASTER_TYPES_3D):
             vis = self.plot_raster(feature_type, feature_name)
-        elif feature_type == FeatureType.DATA:
+        elif feature_type is FeatureType.DATA:
             vis = self.plot_data(feature_name)
-        elif feature_type == FeatureType.VECTOR:
+        elif feature_type is FeatureType.VECTOR:
             vis = self.plot_vector(feature_name)
-        elif feature_type == FeatureType.VECTOR_TIMELESS:
+        elif feature_type is FeatureType.VECTOR_TIMELESS:
             vis = self.plot_vector_timeless(feature_name)
         else:      # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
             vis = self.plot_scalar_label(feature_type, feature_name)
@@ -177,7 +177,7 @@ class Visualization:
         vector = self.eopatch[feature_type][feature_name].copy()
         vector['valid'] = True
         eopatch_timestamps = self.eopatch.timestamp
-        vector_timestamps = list(vector[self.timestamp_column])
+        vector_timestamps = set(vector[self.timestamp_column])
         blank_timestamps = [timestamp for timestamp in eopatch_timestamps if timestamp not in vector_timestamps]
         dummy_geometry = self.create_dummy_polygon(0.0000001)
 
@@ -230,10 +230,10 @@ class Visualization:
         :rtype: shapely.geometry.Polygon
         """
         x_blank, y_blank = self.eopatch.bbox.lower_left
-        dummy_geometry = geometry.Polygon([[x_blank, y_blank],
-                                           [x_blank + addition_factor, y_blank],
-                                           [x_blank + addition_factor, y_blank + addition_factor],
-                                           [x_blank, y_blank + addition_factor]])
+        dummy_geometry = Polygon([[x_blank, y_blank],
+                                  [x_blank + addition_factor, y_blank],
+                                  [x_blank + addition_factor, y_blank + addition_factor],
+                                  [x_blank, y_blank + addition_factor]])
 
         return dummy_geometry
 
@@ -253,7 +253,7 @@ class Visualization:
         return data_da.hvplot()
 
     def plot_shapes_one(self, data_gpd, timestamp, epsg_string):
-        """ Plots shapes for one timestamp from geopandas GeoDataFRame
+        """ Plots shapes for one timestamp from geopandas GeoDataFrame
 
         :param data_gpd: data to plot
         :type data_gpd: geopandas.GeoDataFrame
@@ -298,7 +298,7 @@ class Visualization:
         timestamps = eopatch_da.coords['time'].values
         bands = eopatch_da[..., self.rgb] * self.rgb_factor
         bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
-        x_values, y_values = _new_coordinates(eopatch_da, crs, CRS(3857))
+        x_values, y_values = _new_coordinates(eopatch_da, crs, CRS.POP_WEB)
         eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
                                    coords={'time': timestamps,
                                            'band': self.rgb,
@@ -310,8 +310,8 @@ class Visualization:
     def plot_pixel(self, feature_type, feature_name):
         """
         Plots one pixel through time
-        :return:
-        :rtype:
+        :return: visualization
+        :rtype: holoviews
         """
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
         if self.mask:

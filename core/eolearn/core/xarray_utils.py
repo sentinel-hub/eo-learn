@@ -7,7 +7,7 @@ import xarray as xr
 
 from sentinelhub import BBox, CRS
 
-from .constants import FeatureType, FeatureTypeSet
+from .constants import FeatureTypeSet
 from .utilities import FeatureParser
 
 
@@ -26,11 +26,9 @@ def _get_spatial_coordinates(bbox, data, feature_type):
     """
     if not (feature_type.is_spatial() and feature_type.is_raster()):
         raise Exception('Data should be raster and have spatial dimesion')
-    index_x = 2
-    index_y = 1
+    index_x, index_y = 2, 1
     if feature_type.is_timeless():
-        index_x = 1
-        index_y = 0
+        index_x, index_y = 1, 0
     pixel_width = (bbox.max_x - bbox.min_x)/data.shape[index_x]
     pixel_height = (bbox.max_y - bbox.min_y)/data.shape[index_y]
 
@@ -85,7 +83,7 @@ def get_coordinates(eopatch, feature, epsg_string):
     """
 
     features = list(FeatureParser(feature))
-    feature_type, feature_name = features[0][0], features[0][1]
+    feature_type, feature_name = features[0]
     original_epsg_string = eopatch.bbox.crs.value
     if epsg_string and original_epsg_string != epsg_string:
         bbox = eopatch.bbox.transform(CRS(int(epsg_string)))
@@ -116,7 +114,7 @@ def get_dimensions(feature):
     :rtype: list(str)
     """
     features = list(FeatureParser(feature))
-    feature_type, feature_name = features[0][0], features[0][1]
+    feature_type, feature_name = features[0]
     depth = feature_name.replace('-', '_') + "_dim"
     if feature_type in FeatureTypeSet.RASTER_TYPES_4D:
         return ['time', 'y', 'x', depth]
@@ -142,8 +140,7 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, epsg_string=None):
     :rtype: xarray DataArray
     """
     features = list(FeatureParser(feature))
-    feature_type = features[0][0]
-    feature_name = features[0][1]
+    feature_type, feature_name = features[0]
     bbox = eopatch.bbox
     data = eopatch[feature_type][feature_name]
     if isinstance(data, xr.DataArray):
@@ -181,7 +178,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
             continue
         feature_type = feature[0]
         feature_name = feature[1]
-        if feature_type not in (FeatureTypeSet.VECTOR_TYPES, FeatureTypeSet.META_TYPES):
+        if feature_type.is_raster():
             dataframe = array_to_dataframe(eopatch, (feature_type, feature_name), remove_depth)
             dataset[feature_name] = dataframe
 
@@ -194,16 +191,15 @@ def _new_coordinates(data, crs, new_crs):
     :param data: data for converting coordinates for
     :type data: xarray.DataArray or xarray.Dataset
     :param crs: old crs
-    :type crs: BBox.crs
+    :type crs: sentinelhub.CRS
     :param new_crs: new crs
-    :type new_crs: BBox.crs
+    :type new_crs: sentinelhub.CRS
     :return: new x and y coordinates
     :rtype: (float, float)
     """
     x_values = data.coords['x'].values
     y_values = data.coords['y'].values
-    bbox = (x_values[0], y_values[0], x_values[-1], y_values[-1])
-    bbox = BBox(bbox, crs=crs)
+    bbox = BBox((x_values[0], y_values[0], x_values[-1], y_values[-1]), crs=crs)
     bbox = bbox.transform(new_crs)
     xmin, ymin = bbox.get_lower_left()
     xmax, ymax = bbox.get_upper_right()
