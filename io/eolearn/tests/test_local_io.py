@@ -7,7 +7,7 @@ import numpy as np
 from sentinelhub.io_utils import read_data
 from sentinelhub.time_utils import datetime_to_iso, iso_to_datetime
 from eolearn.core import EOPatch, FeatureType
-from eolearn.io import ExportToTiff
+from eolearn.io import ExportToTiff, ReadFromTiff
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -433,6 +433,16 @@ class TestEOPatch(unittest.TestCase):
             raster = read_data(os.path.join(tmp_dir_name, tmp_file_name))
             self.assertTrue(np.all(ordered_subset == raster))
 
+    def test_readfromtif(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/test.tif')
+        mask_name = 'TEST_TIF'
+
+        eop = EOPatch.load(self.PATCH_FILENAME)
+
+        task = ReadFromTiff(path, mask_name)
+        task.execute(eop)
+
+        self.assertEqual(np.sum(eop.mask_timeless[mask_name]), 8471505)
 
 if __name__ == '__main__':
     unittest.main()
