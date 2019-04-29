@@ -788,25 +788,6 @@ class EOPatch:
                             pixel=pixel, mask=mask)
         return vis.plot()
 
-    def to_dataset(self, features):
-        """
-        Converts eopatch to xarray Dataset
-        :param features: converts only chosen features to Dataset, if empty, complete eopatch is converted
-        :type features: (FeatureType, str)
-        :return: xarray dataset
-        :rtype: xarray Dataset
-        """
-
-    def to_dataarray(self, features):
-        """
-        Converts eopatch to (multiple) xarray DataArrays
-        :param features: converts chosen feature to DataArray, if multiple features are defined, it creates multiple
-                         DataArrays
-        :type features: (FeatureType, str)
-        :return: DataArray or list of DataArrays
-        :rtype: xarray.DataArray or tuple(DataArray, DataArry)
-        """
-
 
 class _FeatureDict(dict):
     """A dictionary structure that holds features of certain feature type.
