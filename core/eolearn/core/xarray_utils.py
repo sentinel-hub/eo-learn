@@ -25,7 +25,8 @@ def string_to_variable(string, extension=None):
 
     string = re.sub('[^0-9a-zA-Z_]', '', string)
     string = re.sub('^[^a-zA-Z_]+', '', string)
-    string += extension
+    if extension:
+        string += extension
 
     return string
 

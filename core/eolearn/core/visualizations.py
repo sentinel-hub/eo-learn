@@ -281,7 +281,7 @@ class Visualization:
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs({'init': 'epsg:'+crs.value})
         else:
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-        return gv.Polygons(data_gpd, crs=ccrs.epsg(int(crs.string)), vdims=self.vdims)
+        return gv.Polygons(data_gpd, crs=ccrs.epsg(int(crs.value)), vdims=self.vdims)
 
     def eopatch_da_to_rgb(self, eopatch_da, feature_name, crs):
         """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
