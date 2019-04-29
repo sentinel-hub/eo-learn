@@ -258,12 +258,10 @@ class ECCRegistration(RegistrationTask):
         LOGGER.info("\t\t\t\tgaussFiltSize: {:d}".format(self.params['gaussFiltSize']))
 
     def check_params(self):
-        if self.params is None:
-            self.params = dict(MaxIters=200, gaussFiltSize=1)
-        elif (self.params.get('MaxIters') is None) or (not isinstance(self.params.get('MaxIters'), int)):
+        if not isinstance(self.params.get('MaxIters'), int):
             LOGGER.info("{:s}:MaxIters set to 200".format(self.__class__.__name__))
             self.params['MaxIters'] = 200
-        if (self.params.get('gaussFilterSize') is None) or (not isinstance(self.params.get('gaussFilterSize'), int)):
+        if not isinstance(self.params.get('gaussFilterSize'), int):
             LOGGER.info("{:s}:gaussFilterSize set to 1".format(self.__class__.__name__))
             self.params['gaussFiltSize'] = 1
 
@@ -312,22 +310,18 @@ class PointBasedRegistration(RegistrationTask):
         LOGGER.info("\t\t\t\tRANSACThreshold: {:.2f}".format(self.params['RANSACThreshold']))
 
     def check_params(self):
-        if self.params is None:
-            self.params = dict(Model='Euler', Descriptor='SIFT', MaxIters=1000, RANSACThreshold=7.0)
-        else:
-            if not (self.params.get('Model') in ['Euler', 'PartialAffine', 'Homography']):
-                LOGGER.info("{:s}:Model set to Euler".format(self.__class__.__name__))
-                self.params['Model'] = 'Euler'
-            if not (self.params.get('Descriptor') in ['SIFT', 'SURF']):
-                LOGGER.info("{:s}:Descriptor set to SIFT".format(self.__class__.__name__))
-                self.params['Descriptor'] = 'SIFT'
-            if (self.params.get('MaxIters') is None) or (not isinstance(self.params.get('MaxIters'), int)):
-                LOGGER.info("{:s}:RANSAC MaxIters set to 1000".format(self.__class__.__name__))
-                self.params['MaxIters'] = 1000
-            if (self.params.get('RANSACThreshold') is None) or (not isinstance(self.params.get('RANSACThreshold'),
-                                                                               float)):
-                LOGGER.info("{:s}:RANSAC threshold set to 7.0".format(self.__class__.__name__))
-                self.params['RANSACThreshold'] = 7.0
+        if not (self.params.get('Model') in ['Euler', 'PartialAffine', 'Homography']):
+            LOGGER.info("{:s}:Model set to Euler".format(self.__class__.__name__))
+            self.params['Model'] = 'Euler'
+        if not (self.params.get('Descriptor') in ['SIFT', 'SURF']):
+            LOGGER.info("{:s}:Descriptor set to SIFT".format(self.__class__.__name__))
+            self.params['Descriptor'] = 'SIFT'
+        if not isinstance(self.params.get('MaxIters'), int):
+            LOGGER.info("{:s}:RANSAC MaxIters set to 1000".format(self.__class__.__name__))
+            self.params['MaxIters'] = 1000
+        if not isinstance(self.params.get('RANSACThreshold'), float):
+            LOGGER.info("{:s}:RANSAC threshold set to 7.0".format(self.__class__.__name__))
+            self.params['RANSACThreshold'] = 7.0
 
     def register(self, src, trg, trg_mask=None, src_mask=None):
         """ Implementation of pair-wise registration and warping using point-based matching
