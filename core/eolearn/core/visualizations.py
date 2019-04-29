@@ -95,7 +95,7 @@ class Visualization:
         :rtype: holoview/geoviews/bokeh
         """
         crs = self.eopatch.bbox.crs
-        crs = CRS('3857') if crs == CRS('4326') else crs
+        crs = CRS.POP_WEB if crs == CRS.WGS84 else crs
         data_da = array_to_dataframe(self.eopatch, (FeatureType.DATA, feature_name), crs=crs)
         if self.mask:
             data_da = self.mask_data(data_da)
@@ -131,7 +131,7 @@ class Visualization:
         :rtype: holoviews/geoviews/bokeh
         """
         crs = self.eopatch.bbox.crs
-        crs = CRS('3857') if crs == CRS('4326') else crs
+        crs = CRS.POP_WEB if crs == CRS.WGS84 else crs
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name), crs=crs)
         data_min = data_da.values.min()
         data_max = data_da.values.max()
@@ -156,8 +156,8 @@ class Visualization:
         crs = self.eopatch.bbox.crs
         timestamps = self.eopatch.timestamp
         data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
-        if crs == CRS('4326'):
-            crs = CRS('3857')
+        if crs == CRS.WGS84:
+            crs = CRS.POP_WEB
             data_gpd = data_gpd.to_crs({'init': 'epsg:'+crs.value})
         shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
                        for timestamp_ in timestamps}
@@ -184,7 +184,8 @@ class Visualization:
                                               blank_timestamps=blank_timestamps,
                                               dummy_geometry=dummy_geometry)
 
-        final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True))
+        final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True),
+                                        crs=vector.crs)
         return final_vector
 
     def create_dummy_dataframe(self, geodataframe, blank_timestamps, dummy_geometry,
@@ -275,8 +276,8 @@ class Visualization:
         :rtype: geoviews
         """
         crs = self.eopatch.bbox.crs
-        if crs == CRS('4326'):
-            crs = CRS('3857')
+        if crs == CRS.WGS84:
+            crs = CRS.POP_WEB
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs({'init': 'epsg:'+crs.value})
         else:
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
