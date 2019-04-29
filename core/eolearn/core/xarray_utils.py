@@ -69,24 +69,24 @@ def _get_depth_coordinates(feature_name, data, names_of_channels=None):
     return coordinates
 
 
-def get_coordinates(eopatch, feature, epsg_string):
+def get_coordinates(eopatch, feature, crs):
     """ Creates coordinates for xarray DataArray
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
     :param feature: feature of eopatch
     :type feature: (FeatureType, str)
-    :param epsg_string: convert spatial coordinates to crs epsg:epsg_string
-    :type epsg_string: int
+    :param crs: convert spatial coordinates to crs
+    :type crs: sentinelhub.crs
     :return: coordinates for xarry DataArray/Dataset
     :rtype: dict
     """
 
     features = list(FeatureParser(feature))
     feature_type, feature_name = features[0]
-    original_epsg_string = eopatch.bbox.crs.value
-    if epsg_string and original_epsg_string != epsg_string:
-        bbox = eopatch.bbox.transform(CRS(int(epsg_string)))
+    original_crs = eopatch.bbox.crs
+    if crs and original_crs != crs:
+        bbox = eopatch.bbox.transform(crs)
     else:
         bbox = eopatch.bbox
     data = eopatch[feature_type][feature_name]
@@ -125,7 +125,7 @@ def get_dimensions(feature):
     return [depth]
 
 
-def array_to_dataframe(eopatch, feature, remove_depth=True, epsg_string=None):
+def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None):
     """ Converts one feature of eopatch to xarray DataArray
 
     :param eopatch: eopatch
@@ -134,8 +134,8 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, epsg_string=None):
     :type feature: (FeatureType, str)
     :param remove_depth: removes last dimension if it is one
     :type remove_depth: bool
-    :param epsg_string: converts dimensions to epsg:epsg_string crs
-    :type epsg_string: int
+    :param crs: converts dimensions to crs
+    :type crs: sentinelhub.crs
     :return: dataarray
     :rtype: xarray DataArray
     """
@@ -146,7 +146,7 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, epsg_string=None):
     if isinstance(data, xr.DataArray):
         data = data.values
     dimensions = get_dimensions(feature)
-    coordinates = get_coordinates(eopatch, feature, epsg_string=epsg_string)
+    coordinates = get_coordinates(eopatch, feature, crs=crs)
     dataframe = xr.DataArray(data=data,
                              coords=coordinates,
                              dims=dimensions,

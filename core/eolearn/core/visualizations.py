@@ -95,15 +95,15 @@ class Visualization:
         :return: visualization
         :rtype: holoview/geoviews/bokeh
         """
-        epsg_string = self.eopatch.bbox.crs.value
-        epsg_string = '3857' if epsg_string == '4326' else epsg_string
-        data_da = array_to_dataframe(self.eopatch, (FeatureType.DATA, feature_name), epsg_string=epsg_string)
+        crs = self.eopatch.bbox.crs
+        crs = crs('3857') if crs == crs('4326') else crs
+        data_da = array_to_dataframe(self.eopatch, (FeatureType.DATA, feature_name), crs=crs)
         if self.mask:
             data_da = self.mask_data(data_da)
         timestamps = self.eopatch.timestamp
         crs = self.eopatch.bbox.crs
         if not self.rgb:
-            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(int(epsg_string)))
+            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(int(crs.value)))
         data_rgb = self.eopatch_da_to_rgb(data_da, feature_name, crs)
         rgb_dict = {timestamp_: self.plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
@@ -131,18 +131,18 @@ class Visualization:
         :return: visualization
         :rtype: holoviews/geoviews/bokeh
         """
-        epsg_string = self.eopatch.bbox.crs.value
-        epsg_string = '3857' if epsg_string == '4326' else epsg_string
-        data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name), epsg_string=epsg_string)
+        crs = self.eopatch.bbox.crs
+        crs = crs('3857') if crs == crs('4326') else crs
+        data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name), crs=crs)
         data_min = data_da.values.min()
         data_max = data_da.values.max()
         data_levels = len(np.unique(data_da))
         data_levels = 11 if data_levels > 11 else data_levels
         data_da = data_da.where(data_da > 0).fillna(-1)
         vis = data_da.hvplot(x='x', y='y',
-                             crs=ccrs.epsg(epsg_string)).opts(clim=(data_min, data_max),
-                                                              clipping_colors={'min': 'transparent'},
-                                                              color_levels=data_levels)
+                             crs=ccrs.epsg(int(crs.value))).opts(clim=(data_min, data_max),
+                                                                 clipping_colors={'min': 'transparent'},
+                                                                 color_levels=data_levels)
         return vis
 
     def plot_vector(self, feature_name):
@@ -154,13 +154,13 @@ class Visualization:
         :rtype: holoviews/geoviews/bokeh
 
         """
-        epsg_string = self.eopatch.bbox.crs.value
+        crs = self.eopatch.bbox.crs
         timestamps = self.eopatch.timestamp
         data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
-        if epsg_string == '4326':
-            epsg_string = '3857'
-            data_gpd = data_gpd.to_crs({'init': 'epsg:3857'})
-        shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, epsg_string)
+        if crs == crs('4326'):
+            crs = crs('3857')
+            data_gpd = data_gpd.to_crs({'init': 'epsg:'+crs.value})
+        shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
                        for timestamp_ in timestamps}
         return hv.HoloMap(shapes_dict, kdims=['time'])
 
@@ -252,20 +252,20 @@ class Visualization:
             data_da = data_da.astype(np.int8)
         return data_da.hvplot()
 
-    def plot_shapes_one(self, data_gpd, timestamp, epsg_string):
+    def plot_shapes_one(self, data_gpd, timestamp, crs):
         """ Plots shapes for one timestamp from geopandas GeoDataFrame
 
         :param data_gpd: data to plot
         :type data_gpd: geopandas.GeoDataFrame
         :param timestamp: timestamp to plot data for
         :type timestamp: datetime
-        :param epsg_string: in which crs is the data to plot
-        :type epsg_string: str
+        :param crs: in which crs is the data to plot
+        :type crs: sentinelhub.crs
         :return: visualization
         :rtype: geoviews
         """
         out = data_gpd.loc[data_gpd[self.timestamp_column] == timestamp]
-        return gv.Polygons(out, crs=ccrs.epsg(int(epsg_string)))
+        return gv.Polygons(out, crs=ccrs.epsg(int(crs.value)))
 
     def plot_vector_timeless(self, feature_name):
         """ Plot FeatureType.VECTOR_TIMELESS data
@@ -275,13 +275,13 @@ class Visualization:
         :return: visalization
         :rtype: geoviews
         """
-        epsg_string = self.eopatch.bbox.crs.value
-        if epsg_string == '4326':
-            epsg_string = '3857'
-            data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs({'init': 'epsg:3857'})
+        crs = self.eopatch.bbox.crs
+        if crs == crs('4326'):
+            crs = crs('3857')
+            data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs({'init': 'epsg:'+crs.value})
         else:
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-        return gv.Polygons(data_gpd, crs=ccrs.epsg(int(epsg_string)), vdims=self.vdims)
+        return gv.Polygons(data_gpd, crs=ccrs.epsg(int(crs.string)), vdims=self.vdims)
 
     def eopatch_da_to_rgb(self, eopatch_da, feature_name, crs):
         """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
