@@ -2,13 +2,32 @@
 This module implements conversion from/to xarray DataArray/Dataset
 """
 
+import re
 import numpy as np
 import xarray as xr
 
-from sentinelhub import BBox, CRS
+from sentinelhub import BBox
 
 from .constants import FeatureTypeSet
 from .utilities import FeatureParser
+
+
+def string_to_variable(string, extension=None):
+    """
+
+    :param string: string to be used as python variable name
+    :type string: str
+    :param extension: string to be appended to string
+    :type extension: str
+    :return: valid python variable name
+    :rtype: str
+    """
+
+    string = re.sub('[^0-9a-zA-Z_]', '', string)
+    string = re.sub('^[^a-zA-Z_]+', '', string)
+    string += extension
+
+    return string
 
 
 def _get_spatial_coordinates(bbox, data, feature_type):
@@ -60,7 +79,7 @@ def _get_depth_coordinates(feature_name, data, names_of_channels=None):
     :rtype: dict
     """
     coordinates = {}
-    depth = feature_name.replace('-', '_')+'_dim'
+    depth = string_to_variable(feature_name, '_dim')
     if names_of_channels:
         coordinates[depth] = names_of_channels
     elif isinstance(data, np.ndarray):
@@ -115,7 +134,7 @@ def get_dimensions(feature):
     """
     features = list(FeatureParser(feature))
     feature_type, feature_name = features[0]
-    depth = feature_name.replace('-', '_') + "_dim"
+    depth = string_to_variable(feature_name, '_dim')
     if feature_type in FeatureTypeSet.RASTER_TYPES_4D:
         return ['time', 'y', 'x', depth]
     if feature_type in FeatureTypeSet.RASTER_TYPES_2D:
@@ -153,7 +172,8 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None):
                              attrs={'crs': str(bbox.crs),
                                     'feature_type': feature_type,
                                     'feature_name': feature_name},
-                             name=feature_name.replace('-', '_'))
+                             name=string_to_variable(feature_name))
+
     if remove_depth and dataframe.values.shape[-1] == 1:
         dataframe = dataframe.squeeze()
         dataframe = dataframe.drop(feature_name + '_dim')
@@ -185,7 +205,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
     return dataset
 
 
-def _new_coordinates(data, crs, new_crs):
+def new_coordinates(data, crs, new_crs):
     """ Returns coordinates for xarray DataArray/Dataset in new crs.
 
     :param data: data for converting coordinates for

@@ -20,7 +20,7 @@ from sentinelhub import CRS
 
 from .constants import FeatureType, FeatureTypeSet
 from .utilities import FeatureParser
-from .xarray_utils import array_to_dataframe, _new_coordinates
+from .xarray_utils import array_to_dataframe, new_coordinates, string_to_variable
 
 PLOT_WIDTH = 800
 PLOT_HEIGHT = 500
@@ -70,8 +70,7 @@ class Visualization:
         """
 
         features = list(FeatureParser(self.feature))
-        feature_type = features[0][0]
-        feature_name = features[0][1]
+        feature_type, feature_name = features[0]
         if self.pixel and feature_type in FeatureTypeSet.RASTER_TYPES_4D:
             vis = self.plot_pixel(feature_type, feature_name)
         elif feature_type in (FeatureType.MASK, FeatureTypeSet.RASTER_TYPES_3D):
@@ -96,7 +95,7 @@ class Visualization:
         :rtype: holoview/geoviews/bokeh
         """
         crs = self.eopatch.bbox.crs
-        crs = crs('3857') if crs == crs('4326') else crs
+        crs = CRS('3857') if crs == CRS('4326') else crs
         data_da = array_to_dataframe(self.eopatch, (FeatureType.DATA, feature_name), crs=crs)
         if self.mask:
             data_da = self.mask_data(data_da)
@@ -132,7 +131,7 @@ class Visualization:
         :rtype: holoviews/geoviews/bokeh
         """
         crs = self.eopatch.bbox.crs
-        crs = crs('3857') if crs == crs('4326') else crs
+        crs = CRS('3857') if crs == CRS('4326') else crs
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name), crs=crs)
         data_min = data_da.values.min()
         data_max = data_da.values.max()
@@ -157,8 +156,8 @@ class Visualization:
         crs = self.eopatch.bbox.crs
         timestamps = self.eopatch.timestamp
         data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
-        if crs == crs('4326'):
-            crs = crs('3857')
+        if crs == CRS('4326'):
+            crs = CRS('3857')
             data_gpd = data_gpd.to_crs({'init': 'epsg:'+crs.value})
         shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
                        for timestamp_ in timestamps}
@@ -276,8 +275,8 @@ class Visualization:
         :rtype: geoviews
         """
         crs = self.eopatch.bbox.crs
-        if crs == crs('4326'):
-            crs = crs('3857')
+        if crs == CRS('4326'):
+            crs = CRS('3857')
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs({'init': 'epsg:'+crs.value})
         else:
             data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
@@ -297,8 +296,8 @@ class Visualization:
         """
         timestamps = eopatch_da.coords['time'].values
         bands = eopatch_da[..., self.rgb] * self.rgb_factor
-        bands = bands.rename({feature_name.replace('-', '_') + '_dim': 'band'}).transpose('time', 'band', 'y', 'x')
-        x_values, y_values = _new_coordinates(eopatch_da, crs, CRS.POP_WEB)
+        bands = bands.rename({string_to_variable(feature_name, '_dim'): 'band'}).transpose('time', 'band', 'y', 'x')
+        x_values, y_values = new_coordinates(eopatch_da, crs, CRS.POP_WEB)
         eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
                                    coords={'time': timestamps,
                                            'band': self.rgb,
