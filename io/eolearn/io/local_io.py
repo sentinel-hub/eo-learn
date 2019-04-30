@@ -131,7 +131,16 @@ class ExportToTiff(BaseLocalIo):
         raise ValueError('Invalid format in {}, expected tuple or list'.format(self.date_indices))
 
     def execute(self, eopatch, *, filename=None):
+        """ Execute method
 
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
+        of task initialization.
+        :type filename: str or None
+        :return: Unchanged input EOPatch
+        :rtype: EOPatch
+        """
         feature_type, feature_name = next(self.feature(eopatch))
         array = eopatch[feature_type][feature_name]
 
@@ -174,6 +183,10 @@ class ExportToTiff(BaseLocalIo):
 
 class ImportFromTiff(BaseLocalIo):
     """ Task for importing data from a Geo-Tiff file into an EOPatch
+
+    The task can take an existing EOPatch and read the part of Geo-Tiff image, which intersects with its bounding
+    box, into a new feature. But if no EOPatch is given it will create a new EOPatch, read entire Geo-Tiff image into a
+    feature and set a bounding box of the new EOPatch.
     """
     def __init__(self, feature, folder=None, *, timestamp_size=None, **kwargs):
         """
@@ -181,6 +194,13 @@ class ImportFromTiff(BaseLocalIo):
         :type feature: (FeatureType, str)
         :param folder: A directory containing image files or a path of an image file
         :type folder: str
+        :param timestamp_size: In case data will be imported into time-dependant feature this parameter can be used to
+        specify time dimension. If not specified, time dimension will be the same as size of FeatureType.TIMESTAMP
+        feature. If FeatureType.TIMESTAMP does not exist it will be set to 1.
+        When converting data into a feature channels of given tiff image should be in order
+        T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
+        where T and B are the time and band indices.
+        :type timestamp_size: int
         :param image_dtype: Type of data of new feature
         :type image_dtype: numpy.dtype
         :param no_data_value: Values where given Geo-Tiff image does not cover EOPatch
@@ -217,11 +237,12 @@ class ImportFromTiff(BaseLocalIo):
         return (top, bottom), (left, right)
 
     def execute(self, eopatch=None, *, filename=None):
-        """ Execute function which adds a new feature to the EOPatch
+        """ Execute method which adds a new feature to the EOPatch
 
-        :param eopatch: input EOPatch
+        :param eopatch: input EOPatch or None if a new EOPatch should be created
         :type eopatch: EOPatch or None
-        :param filename: filename of tiff file
+        :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
+        of task initialization.
         :type filename: str or None
         :return: New EOPatch with added raster layer
         :rtype: EOPatch
