@@ -187,6 +187,9 @@ class ImportFromTiff(BaseLocalIo):
     The task can take an existing EOPatch and read the part of Geo-Tiff image, which intersects with its bounding
     box, into a new feature. But if no EOPatch is given it will create a new EOPatch, read entire Geo-Tiff image into a
     feature and set a bounding box of the new EOPatch.
+
+    Note that if Geo-Tiff file is not completely spatially aligned with location of given EOPatch it will try to fit it
+    as best as possible. However it will not do any spatial resampling or interpolation on Geo-TIFF data.
     """
     def __init__(self, feature, folder=None, *, timestamp_size=None, **kwargs):
         """
