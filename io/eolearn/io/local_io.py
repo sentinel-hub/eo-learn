@@ -11,7 +11,7 @@ import dateutil
 import rasterio
 import numpy as np
 
-from sentinelhub import CRS, BBox, bbox_to_resolution
+from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, EOTask
 
@@ -198,8 +198,11 @@ class ImportFromTiff(BaseLocalIo):
             eopatch_bbox = eopatch_bbox.transform(data_bbox.crs)
 
         # The following will be in the future moved to sentinelhub-py
-        data_ul_x, data_ul_y = data_bbox.min_x, data_bbox.max_y
-        res_x, res_y = bbox_to_resolution(data_bbox, width, height)
+        data_ul_x, data_lr_y = data_bbox.lower_left
+        data_lr_x, data_ul_y = data_bbox.upper_right
+
+        res_x = abs(data_ul_x - data_lr_x) / width
+        res_y = abs(data_ul_y - data_lr_y) / height
 
         ul_x, lr_y = eopatch_bbox.lower_left
         lr_x, ul_y = eopatch_bbox.upper_right

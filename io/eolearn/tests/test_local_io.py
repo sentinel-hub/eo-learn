@@ -147,7 +147,7 @@ class TestImportTiff(unittest.TestCase):
                                                 '../../../example_data/TestEOPatch'))
 
     def test_import_tiff_subset(self):
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/test.tif')
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/import-tiff-test1.tiff')
 
         mask_feature = FeatureType.MASK_TIMELESS, 'TEST_TIF'
         mask_type, mask_name = mask_feature
@@ -159,6 +159,29 @@ class TestImportTiff(unittest.TestCase):
 
         self.assertTrue(np.array_equal(tiff_img[20: 53, 21: 54], self.eopatch[mask_type][mask_name][..., 0]),
                         msg='Imported tiff data should be the same as original')
+
+    def test_import_tiff_intersecting(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/import-tiff-test2.tiff')
+
+        mask_feature = FeatureType.MASK_TIMELESS, 'TEST_TIF'
+        mask_type, mask_name = mask_feature
+        no_data_value = 1.0
+
+        task = ImportFromTiff(mask_feature, path, image_dtype=np.float64, no_data_value=no_data_value)
+        task.execute(self.eopatch)
+
+        tiff_img = read_data(path)
+
+        self.assertTrue(np.array_equal(tiff_img[-6:, :3, :], self.eopatch[mask_type][mask_name][:6, -3:, :]),
+                        msg='Imported tiff data should be the same as original')
+        feature_dtype = self.eopatch[mask_type][mask_name].dtype
+        self.assertEqual(feature_dtype, np.float64,
+                         msg='Feature should have dtype numpy.float64 but {} found'.format(feature_dtype))
+
+        self.eopatch[mask_type][mask_name][:6, -3:, :] = no_data_value
+        unique_values = list(np.unique(self.eopatch[mask_type][mask_name][:6, -3:, :]))
+        self.assertEqual(unique_values, [no_data_value],
+                         msg='No data values should all be equal to {}'.format(no_data_value))
 
 
 if __name__ == '__main__':
