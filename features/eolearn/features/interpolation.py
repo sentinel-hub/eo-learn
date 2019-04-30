@@ -4,6 +4,8 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 
 import warnings
 import datetime as dt
+import inspect
+from functools import partial
 
 import dateutil
 import scipy.interpolate
@@ -200,11 +202,10 @@ class InterpolationTask(EOTask):
                 if new_feature in existing_features:
                     raise ValueError('Feature {} of {} already exists in the new EOPatch! '
                                      'Use a different name!'.format(copy_new_feature_name, copy_feature_type))
-                else:
-                    existing_features.add(new_feature)
+                existing_features.add(new_feature)
 
-                    new_eopatch[copy_feature_type][copy_new_feature_name] = \
-                        old_eopatch[copy_feature_type][copy_feature_name]
+                new_eopatch[copy_feature_type][copy_new_feature_name] = \
+                    old_eopatch[copy_feature_type][copy_feature_name]
 
         return new_eopatch
 
@@ -292,6 +293,8 @@ class InterpolationTask(EOTask):
         :type series: numpy.array
         :return: Initialized interpolation model class
         """
+        if str(inspect.getmodule(self.interpolation_object))[9:14] == 'numpy':
+            return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
     def get_resampled_timestamp(self, timestamp):
@@ -390,8 +393,11 @@ class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature, **kwargs):
-        super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
+    def __init__(self, feature, _library='numpy', **kwargs):
+        if _library == 'numpy':
+            super().__init__(feature, np.interp, **kwargs)
+        else:
+            super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
 
 
 class CubicInterpolation(InterpolationTask):

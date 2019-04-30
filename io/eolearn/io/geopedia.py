@@ -117,10 +117,10 @@ class AddGeopediaFeature(EOTask):
                         'cultivated land': (1,[193, 243, 249, 255]),
                         'forest': (2,[73, 119, 20, 255]),
                         'grassland': (3,[95, 208, 169, 255]),
-                        'schrubland': (4,[112, 179, 62, 255]),
+                        'shrubland': (4,[112, 179, 62, 255]),
                         'water': (5,[154, 86, 1, 255]),
                         'wetland': (6,[244, 206, 126, 255]),
-                        'thundra': (7,[50, 100, 100, 255]),
+                        'tundra': (7,[50, 100, 100, 255]),
                         'artificial surface': (8,[20, 47, 147, 255]),
                         'bareland': (9,[202, 202, 202, 255]),
                         'snow and ice': (10,[251, 237, 211, 255])}
