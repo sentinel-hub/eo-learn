@@ -25,7 +25,7 @@ class BaseLocalIo(EOTask):
         :type feature: (FeatureType, str)
         :param folder: A directory containing image files or a path of an image file
         :type folder: str
-        :param image_dtype: Type of data to be saved into tiff image
+        :param image_dtype: Type of data to be exported into tiff image or imported from tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of undefined pixels
         :type no_data_value: int or float
@@ -35,17 +35,16 @@ class BaseLocalIo(EOTask):
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
-    @staticmethod
-    def _get_file_path(folder, filename):
+    def _get_file_path(self, filename):
         """ Builds a file path from values obtained at class initialization and in execute method
         """
-        if folder is None:
+        if self.folder is None:
             if filename is None:
                 raise ValueError("At least one of parameters 'folder' and 'filename' has to be specified")
             return filename
         if filename is None:
-            return folder
-        return os.path.join(folder, filename)
+            return self.folder
+        return os.path.join(self.folder, filename)
 
     @abstractmethod
     def execute(self, eopatch, **kwargs):
@@ -77,7 +76,7 @@ class ExportToTiff(BaseLocalIo):
         :param date_indices: Dates to be added to tiff image. Dates are represented by their 0-based index as tuple
         in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
         :type date_indices: tuple or list or None
-        :param image_dtype: Type of data to be saved into tiff image
+        :param image_dtype: Type of data to be exported into tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of pixels of tiff image with no data in EOPatch
         :type no_data_value: int or float
@@ -169,7 +168,7 @@ class ExportToTiff(BaseLocalIo):
                           'numpy.int32 instead'.format((feature_type, feature_name)))
 
         # Write it out to a file
-        with rasterio.open(self._get_file_path(self.folder, filename), 'w', driver='GTiff',
+        with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
                            width=width, height=height,
                            count=index,
                            dtype=image_dtype, nodata=self.no_data_value,
@@ -204,7 +203,7 @@ class ImportFromTiff(BaseLocalIo):
         T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
         where T and B are the time and band indices.
         :type timestamp_size: int
-        :param image_dtype: Type of data of new feature
+        :param image_dtype: Type of data of new feature imported from tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Values where given Geo-Tiff image does not cover EOPatch
         :type no_data_value: int or float
@@ -254,7 +253,7 @@ class ImportFromTiff(BaseLocalIo):
         if eopatch is None:
             eopatch = EOPatch()
 
-        with rasterio.open(self._get_file_path(self.folder, filename)) as source:
+        with rasterio.open(self._get_file_path(filename)) as source:
 
             data_bbox = BBox(source.bounds, CRS(source.crs.to_epsg()))
             if eopatch.bbox is None:
