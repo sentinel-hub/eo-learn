@@ -45,7 +45,7 @@ def _get_spatial_coordinates(bbox, data, feature_type):
     :rtype: dict {'x':, 'y':}
     """
     if not (feature_type.is_spatial() and feature_type.is_raster()):
-        raise Exception('Data should be raster and have spatial dimesion')
+        raise ValueError('Data should be raster and have spatial dimension')
     index_x, index_y = 2, 1
     if feature_type.is_timeless():
         index_x, index_y = 1, 0
