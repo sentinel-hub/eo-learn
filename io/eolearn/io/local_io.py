@@ -10,10 +10,11 @@ from abc import abstractmethod
 import dateutil
 import rasterio
 import numpy as np
+from pyproj import Proj, transform
+from sentinelhub import CRS, Bbox
+from sentinelhub.time_utils import iso_to_datetime
 
-from sentinelhub import CRS, BBox
-
-from eolearn.core import EOPatch, EOTask
+from eolearn.core import EOTask, EOPatch, SaveToDisk, FeatureType
 
 
 class BaseLocalIo(EOTask):
@@ -286,4 +287,5 @@ class ImportFromTiff(BaseLocalIo):
             data = np.moveaxis(data, 1, -1)
 
         eopatch[feature_type][feature_name] = data
+        
         return eopatch
