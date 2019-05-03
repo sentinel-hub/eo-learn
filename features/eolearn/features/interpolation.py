@@ -30,15 +30,17 @@ def base_interpolation_function(data, times, resampled_times):
     """
 
     timestamps, height, width, depth = data.shape
-    new_bands = np.empty(len(resampled_times), height * width * depth)
+    new_bands = np.empty((len(resampled_times), height * width * depth))
     data = data.reshape(timestamps, height * width * depth)
     for n_feat in numba.prange(height * width * depth):
         mask1d = ~np.isnan(data[:, n_feat])
         if (~mask1d).all():
-            new_data = np.empty((len(resampled_times)))
+            new_data = np.empty(len(resampled_times))
             new_data[:] = np.nan
         else:
-            new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
+            new_data = np.interp(resampled_times.astype(np.float64),
+                                 times[mask1d].astype(np.float64),
+                                 data[:, n_feat][mask1d].astype(np.float64))
 
             true_index = np.where(mask1d)
             index_first, index_last = true_index[0][0], true_index[0][-1]
@@ -50,7 +52,7 @@ def base_interpolation_function(data, times, resampled_times):
             if last.size:
                 new_data[last[0]:] = np.nan
 
-        new_bands[:, n_feat] = new_data
+        new_bands[:, n_feat] = new_data.astype(data.dtype)
 
     return new_bands.reshape(len(resampled_times), height, width, depth)
 
@@ -490,9 +492,9 @@ class LinearInterpolation(InterpolationTask):
 
         # Interpolate
         if self.parallel:
-            feature_data = self.interpolation_function_parallel(feature_data, times, resampled_times)
+            feature_data = interpolation_function_parallel(feature_data, times, resampled_times)
         else:
-            feature_data = self.interpolation_function(feature_data, times, resampled_times)
+            feature_data = interpolation_function(feature_data, times, resampled_times)
 
         # Normalize
         if self.result_interval:
