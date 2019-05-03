@@ -5,17 +5,59 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 import warnings
 import datetime as dt
 import inspect
-import calendar
 from functools import partial
 
 import dateutil
 import scipy.interpolate
 import numpy as np
 import numba
-from numba import prange
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
+
+
+def base_interpolation_function(data, times, resampled_times):
+    """ Interpolates data feature
+
+    :param data: Array in a shape of t x h x w x n
+    :type data: numpy.ndarray
+    :param times: Array of reference times relative to the first timestamp
+    :type times:
+    :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
+    :type resampled_times: numpy.array
+    :return: Array of interpolated values
+    :rtype: numpy.ndarray
+    """
+
+    timestamps, height, width, depth = data.shape
+    new_bands = np.empty(len(resampled_times), height * width * depth)
+    data = data.reshape(timestamps, height * width * depth)
+    for n_feat in numba.prange(height * width * depth):
+        mask1d = ~np.isnan(data[:, n_feat])
+        if (~mask1d).all():
+            new_data = np.empty((len(resampled_times)))
+            new_data[:] = np.nan
+        else:
+            new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
+
+            true_index = np.where(mask1d)
+            index_first, index_last = true_index[0][0], true_index[0][-1]
+            min_time, max_time = times[index_first], times[index_last]
+            first = np.where(resampled_times < min_time)[0]
+            if first.size:
+                new_data[:first[-1] + 1] = np.nan
+            last = np.where(max_time < resampled_times)[0]
+            if last.size:
+                new_data[last[0]:] = np.nan
+
+        new_bands[:, n_feat] = new_data
+
+    return new_bands.reshape(len(resampled_times), height, width, depth)
+
+
+# pylint: disable=invalid-name
+interpolation_function = numba.njit(base_interpolation_function)
+interpolation_function_parallel = numba.njit(base_interpolation_function, parallel=True)
 
 
 class InterpolationTask(EOTask):
@@ -60,11 +102,13 @@ class InterpolationTask(EOTask):
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
     interpolation object for the whole image
     :type interpolate_pixel_wise : bool
+    :param parallel: interpolation should be calculated in parallel
+    :type parallel: bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
                  copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
-                 interpolate_pixel_wise=False, **interpolation_parameters):
+                 interpolate_pixel_wise=False, parallel=False, **interpolation_parameters):
 
         self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA,
                                             allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
@@ -88,6 +132,7 @@ class InterpolationTask(EOTask):
         self.scale_time = scale_time
         self.filling_factor = filling_factor
         self.interpolate_pixel_wise = interpolate_pixel_wise
+        self.parallel = parallel
 
         self._resampled_times = None
 
@@ -466,108 +511,6 @@ class LinearInterpolation(InterpolationTask):
         new_eopatch = self._copy_old_features(new_eopatch, eopatch, self.copy_features)
 
         return new_eopatch
-
-    @staticmethod
-    @numba.jit(nopython=True)
-    def interpolation_function(data, times, resampled_times):
-        """ Interpolates data feature
-
-        :param data: Array in a shape of t x h x w x n
-        :type data: numpy.ndarray
-        :param times: Array of reference times relative to the first timestamp
-        :type times:
-        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
-        :type resampled_times: numpy.array
-        :return: Array of interpolated values
-        :rtype: numpy.ndarray
-        """
-
-        timestamps, height, width, depth = data.shape
-        new_bands = np.empty((len(resampled_times), height * width * depth))
-        data = data.reshape(timestamps, height * width * depth)
-        for n_feat in range(height * width * depth):
-            mask1d = ~np.isnan(data[:, n_feat])
-            if (~mask1d).all():
-                new_data = np.empty((len(resampled_times)))
-                new_data[:] = np.nan
-            else:
-                new_data = np.interp(resampled_times.astype(np.float64),
-                                     times[mask1d].astype(np.float64),
-                                     data[:, n_feat][mask1d].astype(np.float64))
-
-                true_index = np.where(mask1d)
-                index_first, index_last = true_index[0][0], true_index[0][-1]
-                min_time, max_time = times[index_first], times[index_last]
-                first = np.where(resampled_times < min_time)[0]
-                if first.size:
-                    new_data[:first[-1] + 1] = np.nan
-                last = np.where(max_time < resampled_times)[0]
-                if last.size:
-                    new_data[last[0]:] = np.nan
-
-            new_bands[:, n_feat] = new_data
-
-        return new_bands.reshape(len(resampled_times), height, width, depth).astype(data.dtype)
-
-    @staticmethod
-    @numba.jit(nopython=True, parallel=True)
-    def interpolation_function_parallel(data, times, resampled_times):
-        """ Interpolates data feature
-
-        :param data: Array in a shape of t x h x w x n
-        :type data: numpy.ndarray
-        :param times: Array of reference times relative to the first timestamp
-        :type times:
-        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
-        :type resampled_times: numpy.array
-        :return: Array of interpolated values
-        :rtype: numpy.ndarray
-        """
-
-        timestamps, height, width, depth = data.shape
-        new_bands = np.empty((len(resampled_times), height * width * depth))
-        data = data.reshape(timestamps, height * width * depth)
-        for n_feat in prange(height * width * depth):
-            mask1d = ~np.isnan(data[:, n_feat])
-            if (~mask1d).all():
-                new_data = np.empty((len(resampled_times)))
-                new_data[:] = np.nan
-            else:
-                new_data = np.interp(resampled_times, times[mask1d], data[:, n_feat][mask1d])
-
-                true_index = np.where(mask1d)
-                index_first, index_last = true_index[0][0], true_index[0][-1]
-                min_time, max_time = times[index_first], times[index_last]
-                first = np.where(resampled_times < min_time)[0]
-                if first.size:
-                    new_data[:first[-1] + 1] = np.nan
-                last = np.where(max_time < resampled_times)[0]
-                if last.size:
-                    new_data[last[0]:] = np.nan
-
-            new_bands[:, n_feat] = new_data
-
-        return new_bands.reshape(len(resampled_times), height, width, depth)
-
-    @staticmethod
-    def datetime_to_utc(datetimes, start=None):
-        """ Converts list of utc datetimes to list of unix timestamp
-
-        :param datetimes:
-        :type datetimes:
-        :param start:
-        :type start:
-        :return:
-        :rtype:
-        """
-        epoch = [calendar.timegm(el.utctimetuple()) for el in datetimes]
-        if start:
-            start = calendar.timegm(start.utctimetuple())
-        else:
-            start = epoch[0]
-        epoch_from_0 = [el - start for el in epoch]
-
-        return epoch_from_0
 
 
 class CubicInterpolation(InterpolationTask):

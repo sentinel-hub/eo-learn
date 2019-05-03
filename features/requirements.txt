@@ -3,4 +3,4 @@ numpy
 scipy
 python-dateutil
 scikit-image
-numba>=0.43
+numba>=0.43.1

@@ -127,7 +127,7 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('linear custom list', LinearInterpolation(
                 'NDVI', result_interval=(-0.2, 1.0),
                 resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
-                unknown_value=-2),
+                unknown_value=-2, parallel=True),
                                       result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417,
                                       img_median=0.5042224),
 
