@@ -57,6 +57,9 @@ extensions = [
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
 autoclass_content = 'both'
 
+# Content is in the same order as in module
+autodoc_member_order = 'bysource'
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -242,6 +245,8 @@ def process_readme():
     intro = '\n'.join([chapter for chapter in chapters if not (chapter.startswith('## Install') or
                                                                chapter.startswith('## Documentation'))])
     install = '\n'.join([chapter for chapter in chapters if chapter.startswith('## Install')])
+
+    intro = intro.replace('./CONTRIBUTING.md', 'contribute.html')
 
     with open(os.path.join(MARKDOWNS_FOLDER, 'INTRO.md'), 'w') as file:
         file.write(intro)

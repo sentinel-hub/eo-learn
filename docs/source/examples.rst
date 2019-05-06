@@ -35,6 +35,14 @@ Data masks
     examples/mask/ValidDataMask.ipynb
 
 
+Visualizations
+--------------
+
+.. toctree::
+
+    examples/core/ExampleVisualization.ipynb
+
+
 Timelapse
 ---------
 

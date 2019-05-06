@@ -3,3 +3,4 @@ numpy
 scipy
 python-dateutil
 scikit-image
+scikit-learn
