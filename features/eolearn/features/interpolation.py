@@ -19,7 +19,7 @@ from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
 def base_interpolation_function(data, times, resampled_times):
     """ Interpolates data feature
 
-    :param data: Array in a shape of t x h x w x n
+    :param data: Array in a shape of t x (h x w x n)
     :type data: numpy.ndarray
     :param times: Array of reference times relative to the first timestamp
     :type times:
@@ -29,10 +29,9 @@ def base_interpolation_function(data, times, resampled_times):
     :rtype: numpy.ndarray
     """
 
-    timestamps, height, width, depth = data.shape
-    new_bands = np.empty((len(resampled_times), height * width * depth))
-    data = data.reshape(timestamps, height * width * depth)
-    for n_feat in numba.prange(height * width * depth):
+    _, height_width_depth = data.shape
+    new_bands = np.empty((len(resampled_times), height_width_depth))
+    for n_feat in numba.prange(height_width_depth):
         mask1d = ~np.isnan(data[:, n_feat])
         if (~mask1d).all():
             new_data = np.empty(len(resampled_times))
@@ -54,7 +53,7 @@ def base_interpolation_function(data, times, resampled_times):
 
         new_bands[:, n_feat] = new_data.astype(data.dtype)
 
-    return new_bands.reshape(len(resampled_times), height, width, depth)
+    return new_bands
 
 
 # pylint: disable=invalid-name
@@ -454,65 +453,25 @@ class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
     """
-    def __init__(self, feature, parallel=False, **kwargs):
+    def __init__(self, feature, **kwargs):
         super().__init__(feature, np.interp, **kwargs)
-        self.parallel = parallel
 
-    def execute(self, eopatch):
-        """ Execute method that processes EOPatch and returns EOPatch
+    def interpolate_data(self, data, times, resampled_times):
+        """ Interpolates data feature
+
+        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times in second relative to the first timestamp
+        :type times: numpy.array
+        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
+                                array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
         """
-        # pylint: disable=too-many-locals
-        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
-
-        # Make a copy not to change original numpy array
-        feature_data = eopatch[feature_type][feature_name].copy()
-        time_num = feature_data.shape[0]
-        if time_num <= 1:
-            raise ValueError('Feature {} has time dimension of size {}, required at least size '
-                             '2'.format((feature_type, feature_name), time_num))
-
-        # Apply a mask on data
-        if self.mask_feature is not None:
-            for mask_type, mask_name in self.mask_feature(eopatch):
-                negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
-                feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
-
-        # If resampling create new EOPatch
-        new_eopatch = EOPatch() if self.resample_range else eopatch
-
-        # Resample times
-        times = eopatch.time_series(scale_time=self.scale_time)
-        new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
-        total_diff = int((new_eopatch.timestamp[0].date() - eopatch.timestamp[0].date()).total_seconds())
-        resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff // self.scale_time
-
-        # Add BBox to eopatch if it was created anew
-        if new_eopatch.bbox is None:
-            new_eopatch.bbox = eopatch.bbox
-
-        # Interpolate
         if self.parallel:
-            feature_data = interpolation_function_parallel(feature_data, times, resampled_times)
-        else:
-            feature_data = interpolation_function(feature_data, times, resampled_times)
-
-        # Normalize
-        if self.result_interval:
-            min_val, max_val = self.result_interval
-            valid_mask = ~np.isnan(feature_data)
-            feature_data[valid_mask] = np.maximum(np.minimum(feature_data[valid_mask], max_val), min_val)
-
-        # Replace unknown value
-        if not np.isnan(self.unknown_value):
-            feature_data[np.isnan(feature_data)] = self.unknown_value
-
-        # add values
-        new_eopatch[feature_type][new_feature_name] = feature_data
-
-        # append features from old patch
-        new_eopatch = self._copy_old_features(new_eopatch, eopatch, self.copy_features)
-
-        return new_eopatch
+            return interpolation_function_parallel(data, times, resampled_times)
+        return interpolation_function(data, times, resampled_times)
 
 
 class CubicInterpolation(InterpolationTask):
