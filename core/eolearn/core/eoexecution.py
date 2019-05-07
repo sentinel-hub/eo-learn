@@ -17,7 +17,12 @@ import concurrent.futures
 import datetime as dt
 
 import graphviz
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
 import pygments
 import pygments.lexers
 from pygments.formatters.html import HtmlFormatter

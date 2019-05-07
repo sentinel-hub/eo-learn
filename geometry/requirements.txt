@@ -3,4 +3,4 @@ shapely
 geopandas
 descartes
 rasterio
-scikit-image
+scikit-image>=0.15.0
