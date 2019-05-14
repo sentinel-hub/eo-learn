@@ -33,7 +33,7 @@ def base_interpolation_function(data, times, resampled_times):
     new_bands = np.empty((len(resampled_times), height_width_depth))
     for n_feat in numba.prange(height_width_depth):
         mask1d = ~np.isnan(data[:, n_feat])
-        if (~mask1d).all():
+        if not mask1d.any():
             new_data = np.empty(len(resampled_times))
             new_data[:] = np.nan
         else:
@@ -103,13 +103,11 @@ class InterpolationTask(EOTask):
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
     interpolation object for the whole image
     :type interpolate_pixel_wise : bool
-    :param parallel: interpolation should be calculated in parallel
-    :type parallel: bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
                  copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
-                 interpolate_pixel_wise=False, parallel=False, **interpolation_parameters):
+                 interpolate_pixel_wise=False, **interpolation_parameters):
 
         self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA,
                                             allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
@@ -133,7 +131,6 @@ class InterpolationTask(EOTask):
         self.scale_time = scale_time
         self.filling_factor = filling_factor
         self.interpolate_pixel_wise = interpolate_pixel_wise
-        self.parallel = parallel
 
         self._resampled_times = None
 
@@ -452,8 +449,14 @@ class LegacyInterpolation(InterpolationTask):
 class LinearInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
+
+    :param parallel: interpolation is calculated in parallel using as many CPUs as detected
+        by the multiprocessing module.
+    :type parallel: bool
+    :param **kwargs: parameters of InterpolationTask(EOTask)
     """
-    def __init__(self, feature, **kwargs):
+    def __init__(self, feature, parallel=False, **kwargs):
+        self.parallel = parallel
         super().__init__(feature, np.interp, **kwargs)
 
     def interpolate_data(self, data, times, resampled_times):
