@@ -10,9 +10,55 @@ from functools import partial
 import dateutil
 import scipy.interpolate
 import numpy as np
+import numba
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
+
+
+def base_interpolation_function(data, times, resampled_times):
+    """ Interpolates data feature
+
+    :param data: Array in a shape of t x (h x w x n)
+    :type data: numpy.ndarray
+    :param times: Array of reference times relative to the first timestamp
+    :type times:
+    :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
+    :type resampled_times: numpy.array
+    :return: Array of interpolated values
+    :rtype: numpy.ndarray
+    """
+
+    _, height_width_depth = data.shape
+    new_bands = np.empty((len(resampled_times), height_width_depth))
+    for n_feat in numba.prange(height_width_depth):
+        mask1d = ~np.isnan(data[:, n_feat])
+        if not mask1d.any():
+            new_data = np.empty(len(resampled_times))
+            new_data[:] = np.nan
+        else:
+            new_data = np.interp(resampled_times.astype(np.float64),
+                                 times[mask1d].astype(np.float64),
+                                 data[:, n_feat][mask1d].astype(np.float64))
+
+            true_index = np.where(mask1d)
+            index_first, index_last = true_index[0][0], true_index[0][-1]
+            min_time, max_time = times[index_first], times[index_last]
+            first = np.where(resampled_times < min_time)[0]
+            if first.size:
+                new_data[:first[-1] + 1] = np.nan
+            last = np.where(max_time < resampled_times)[0]
+            if last.size:
+                new_data[last[0]:] = np.nan
+
+        new_bands[:, n_feat] = new_data.astype(data.dtype)
+
+    return new_bands
+
+
+# pylint: disable=invalid-name
+interpolation_function = numba.njit(base_interpolation_function)
+interpolation_function_parallel = numba.njit(base_interpolation_function, parallel=True)
 
 
 class InterpolationTask(EOTask):
@@ -389,15 +435,46 @@ class InterpolationTask(EOTask):
         return new_eopatch
 
 
-class LinearInterpolation(InterpolationTask):
+class LegacyInterpolation(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
-    def __init__(self, feature, _library='numpy', **kwargs):
-        if _library == 'numpy':
+    def __init__(self, feature, library='numpy', **kwargs):
+        if library == 'numpy':
             super().__init__(feature, np.interp, **kwargs)
         else:
             super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
+
+
+class LinearInterpolation(InterpolationTask):
+    """
+    Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
+
+    :param parallel: interpolation is calculated in parallel using as many CPUs as detected
+        by the multiprocessing module.
+    :type parallel: bool
+    :param **kwargs: parameters of InterpolationTask(EOTask)
+    """
+    def __init__(self, feature, parallel=False, **kwargs):
+        self.parallel = parallel
+        super().__init__(feature, np.interp, **kwargs)
+
+    def interpolate_data(self, data, times, resampled_times):
+        """ Interpolates data feature
+
+        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :type data: numpy.ndarray
+        :param times: Array of reference times in second relative to the first timestamp
+        :type times: numpy.array
+        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
+                                array.
+        :type resampled_times: numpy.array
+        :return: Array of interpolated values
+        :rtype: numpy.ndarray
+        """
+        if self.parallel:
+            return interpolation_function_parallel(data, times, resampled_times)
+        return interpolation_function(data, times, resampled_times)
 
 
 class CubicInterpolation(InterpolationTask):

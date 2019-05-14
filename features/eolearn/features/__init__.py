@@ -6,7 +6,7 @@ from .temporal_features import AddSpatioTemporalFeaturesTask, AddMaxMinTemporalI
     AddMaxMinNDVISlopeIndicesTask
 from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, \
     BSplineInterpolation, AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling, \
-    KrigingInterpolation
+    KrigingInterpolation, LegacyInterpolation
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import SimpleFilterTask, FilterTimeSeries
 from .haralick import HaralickTask
