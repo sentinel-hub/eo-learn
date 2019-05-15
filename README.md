@@ -99,3 +99,7 @@ You are welcome to send your feedback to the package authors, EO Research team, 
 ## License
 
 See [LICENSE](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE).
+
+## Acknowledgements 
+
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No. 776115.
