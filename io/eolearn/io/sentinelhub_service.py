@@ -6,9 +6,10 @@ import logging
 import datetime as dt
 
 import numpy as np
+from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
+
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
 
-from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,8 +23,9 @@ class SentinelHubOGCInput(EOTask):
     :param feature: Feature to which the data will be added. By default the name will be the same as the name of the
         layer
     :type feature: str or (FeatureType, str) or None
-    :param valid_data_mask_feature: A feature to which valid data mask will be stored. Default is `'IS_DATA'`.
-    :type valid_data_mask_feature: str or (FeatureType, str)
+    :param valid_data_mask_feature: A feature to which valid data mask will be stored. Default is
+        `(FeatureType.MASK, 'IS_DATA')`.
+    :type valid_data_mask_feature: (FeatureType, str)
     :param service_type: type of OGC service (WMS or WCS)
     :type service_type: ServiceType
     :param data_source: Source of requested satellite data.
@@ -34,7 +36,7 @@ class SentinelHubOGCInput(EOTask):
     :type size_y: int or str, depends on the service_type
     :param maxcc: maximum accepted cloud coverage of an image. Float between 0.0 and 1.0. Default is ``1.0``.
     :type maxcc: float
-    :param image_format: format of the returned image by the Sentinel Hub's WMS getMap service. Default is 32-bit TIFF.
+    :param image_format: format of the returned image by the Sentinel Hub's WMS getMap service. Default is 16-bit TIFF.
     :type image_format: constants.MimeType
     :param instance_id: user's instance id. If ``None`` the instance id is taken from the ``config.json``
                         configuration file from sentinelhub-py package.
@@ -56,15 +58,17 @@ class SentinelHubOGCInput(EOTask):
     :type raise_download_errors: bool
     """
 
-    def __init__(self, layer, feature=None, valid_data_mask_feature='IS_DATA', service_type=None, data_source=None,
-                 size_x=None, size_y=None, maxcc=None, image_format=MimeType.TIFF_d32f, instance_id=None,
-                 custom_url_params=None, time_difference=None, raise_download_errors=True):
+    def __init__(self, layer, feature=None, valid_data_mask_feature=(FeatureType.MASK, 'IS_DATA'),
+                 service_type=None, data_source=None, size_x=None, size_y=None, maxcc=None, image_format=None,
+                 instance_id=None, custom_url_params=None, time_difference=None, raise_download_errors=True):
         # pylint: disable=too-many-arguments
         self.layer = layer
         self.feature_type, self.feature_name = next(self._parse_features(layer if feature is None else feature,
                                                                          default_feature_type=FeatureType.DATA)())
-        self.valid_data_mask_feature = self._parse_features(valid_data_mask_feature,
-                                                            default_feature_type=FeatureType.MASK)
+        self.valid_data_mask_feature_type, self.valid_data_mask_feature_name = \
+            next(self._parse_features(layer+'_MASK' if valid_data_mask_feature is None else valid_data_mask_feature,
+                                      default_feature_type=FeatureType.MASK)())
+
         self.service_type = service_type
         self.data_source = data_source
         self.size_x = size_x
@@ -97,6 +101,8 @@ class SentinelHubOGCInput(EOTask):
             return dt.timedelta(seconds=-1)
         if name in ('size_x', 'size_y'):
             return None
+        if name == 'time_interval' and not self.feature_type.is_time_dependent():
+            return None
 
         raise ValueError('Parameter {} was neither defined in initialization of {} nor is contained in '
                          'EOPatch'.format(name, self.__class__.__name__))
@@ -119,7 +125,7 @@ class SentinelHubOGCInput(EOTask):
             'time': time_interval,
             'time_difference': self._get_parameter('time_difference', eopatch),
             'maxcc': self._get_parameter('maxcc', eopatch),
-            'image_format': self.image_format,
+            'image_format': self.image_format if self.image_format else MimeType.TIFF_d16,
             'custom_url_params': self.custom_url_params,
             'data_source': self.data_source,
             'instance_id': self.instance_id,
@@ -132,6 +138,10 @@ class SentinelHubOGCInput(EOTask):
         valid_mask = data[..., -1]
         data = data[..., :-1]
 
+        if self.image_format is None:
+            #image format was set to MimeType.TIFF_d16
+            data = data/2**16
+
         if data.ndim == 3:
             data = data.reshape(data.shape + (1,))
         if not self.feature_type.is_time_dependent():
@@ -143,13 +153,15 @@ class SentinelHubOGCInput(EOTask):
 
         eopatch[self.feature_type][self.feature_name] = data
 
-        mask_feature_type, mask_feature_name = next(self.valid_data_mask_feature())
+        max_value = self.image_format.get_expected_max_value() if self.image_format else \
+            MimeType.TIFF_d16.get_expected_max_value()
 
-        max_value = self.image_format.get_expected_max_value()
-        valid_data = (valid_mask == max_value).astype(np.bool).reshape(valid_mask.shape + (1,))
+        valid_data = (valid_mask == max_value).astype(np.bool)
+        if self.valid_data_mask_feature_type.is_time_dependent():
+            valid_data = valid_data.reshape(valid_mask.shape + (1,))
 
-        if mask_feature_name not in eopatch[mask_feature_type]:
-            eopatch[mask_feature_type][mask_feature_name] = valid_data
+        if self.valid_data_mask_feature_name not in eopatch[self.valid_data_mask_feature_type]:
+            eopatch[self.valid_data_mask_feature_type][self.valid_data_mask_feature_name] = valid_data
 
     def _add_meta_info(self, eopatch, request_params, service_type):
         """ Adds any missing metadata info to EOPatch """
@@ -157,6 +169,11 @@ class SentinelHubOGCInput(EOTask):
         for param, eoparam in zip(['time', 'time_difference', 'maxcc'], ['time_interval', 'time_difference', 'maxcc']):
             if eoparam not in eopatch.meta_info:
                 eopatch.meta_info[eoparam] = request_params[param]
+
+        if 'time_interval' in eopatch.meta_info and not eopatch.meta_info['time_interval'] \
+                and self.feature_type.is_time_dependent():
+            if all([feature.is_timeless() for feature in eopatch.get_features() if not feature.is_meta()]):
+                eopatch.meta_info['time_interval'] = request_params['time']
 
         if 'service_type' not in eopatch.meta_info:
             eopatch.meta_info['service_type'] = service_type.value
@@ -196,7 +213,7 @@ class SentinelHubOGCInput(EOTask):
 
         request_dates = request.get_dates()
 
-        if not eopatch.timestamp:
+        if not eopatch.timestamp and self.feature_type.is_time_dependent():
             eopatch.timestamp = request_dates
 
         download_frames = None
@@ -216,8 +233,8 @@ class SentinelHubOGCInput(EOTask):
                 LOGGER.warning('Removed data for frame %s from EOPatch '
                                'due to unavailability of %s!', str(removed_frame), self.layer)
 
-        self._add_data(eopatch, np.asarray(images))
         self._add_meta_info(eopatch, request_params, service_type)
+        self._add_data(eopatch, np.asarray(images))
         return eopatch
 
 
@@ -325,7 +342,10 @@ class DEMWCSInput(SentinelHubWCSInput):
             feature = (FeatureType.DATA_TIMELESS, layer)
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
-        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, **kwargs)
+        # if 'valid_data_mask_feature' not in kwargs:
+        mask_feature = (FeatureType.MASK_TIMELESS, 'IS_DATA_TIMELESS')
+        super().__init__(layer=layer, feature=feature, valid_data_mask_feature=mask_feature,
+                         data_source=DataSource.DEM, **kwargs)
 
 
 class AddSen2CorClassificationFeature(SentinelHubOGCInput):
@@ -355,12 +375,46 @@ class AddSen2CorClassificationFeature(SentinelHubOGCInput):
             'SNW': FeatureType.DATA
         }
 
+        if 'image_format' in kwargs:
+            image_format = kwargs.get('image_format')
+            kwargs.pop('image_format', None)
+            sample_type = image_format.get_sample_type()
+        else:
+            image_format = MimeType.TIFF_d8
+            sample_type = 'INT8'
+
         if sen2cor_classification not in classification_types:
             raise ValueError('Unsupported Sen2Cor classification type: {}.'
                              ' Possible types are: {}'.format(sen2cor_classification, classification_types))
 
-        evalscript = 'return [{}];'.format(sen2cor_classification)
+        evalscript = '''\
+//VERSION=2
+function setup(ds) {{
+    return {{
+        components: [ds.{classification_type}],
+        output: [
+            {{
+                id: "default",
+                sampleType: SampleType.{sample_type},
+                componentCount: 1
+            }}
+        ],
+        normalization: false
+    }};
+}}
+
+function evaluatePixel(samples, scenes, metadata) {{
+    return {{
+        default: [
+            samples[0].{classification_type}
+        ]
+    }};
+}}\
+'''
+
+        evalscript_args = {'classification_type': sen2cor_classification, 'sample_type': sample_type}
+        evalscript = evalscript.format(**evalscript_args)
 
         super().__init__(feature=(classification_types[sen2cor_classification], sen2cor_classification),
-                         layer=layer, data_source=DataSource.SENTINEL2_L2A,
+                         layer=layer, data_source=DataSource.SENTINEL2_L2A, image_format=image_format,
                          custom_url_params={CustomUrlParam.EVALSCRIPT: evalscript}, **kwargs)
