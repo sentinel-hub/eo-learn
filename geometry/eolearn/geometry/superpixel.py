@@ -12,7 +12,7 @@ from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 LOGGER = logging.getLogger(__name__)
 
 
-class SuperpixelSegmetation(EOTask):
+class SuperpixelSegmentation(EOTask):
     """ Super-pixel segmentation task
 
     Given a raster feature it will segment data into super-pixels. Representation of super-pixels will be returned as
@@ -49,34 +49,40 @@ class SuperpixelSegmetation(EOTask):
             data = np.moveaxis(data, 0, 2)
             data = data.reshape((data.shape[0], data.shape[1], data.shape[2] * data.shape[3]))
 
-        superpixel_mask = self._create_superpixel_mask(data)
-        superpixel_mask = superpixel_mask.reshape((superpixel_mask.shape[0], superpixel_mask.shape[1], 1))
+        superpixel_mask = np.atleast_3d(self._create_superpixel_mask(data))
 
-        ft, fn = self.superpixel_feature
-        eopatch[ft][fn] = superpixel_mask
+        new_feature_type, new_feature_name = self.superpixel_feature
+        eopatch[new_feature_type][new_feature_name] = superpixel_mask
 
         return eopatch
 
 
-class FelzenszwalbSegmentation(SuperpixelSegmetation):
+class FelzenszwalbSegmentation(SuperpixelSegmentation):
     """ Super-pixel segmentation which uses Felzenszwalb's method of segmentation
 
     Uses segmentation function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb
     """
     def __init__(self, feature, superpixel_feature, **kwargs):
-        """ Arguments are passed to `SuperpixelSegmetation` task
+        """ Arguments are passed to `SuperpixelSegmentation` task
         """
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.felzenszwalb, **kwargs)
 
 
-class SlicSegmentation(SuperpixelSegmetation):
+class SlicSegmentation(SuperpixelSegmentation):
     """ Super-pixel segmentation which uses SLIC method of segmentation
 
     Uses segmentation function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.slic
     """
     def __init__(self, feature, superpixel_feature, **kwargs):
-        """ Arguments are passed to `SuperpixelSegmetation` task
+        """ Arguments are passed to `SuperpixelSegmentation` task
         """
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, **kwargs)
+
+    def _create_superpixel_mask(self, data):
+        """ Method which performs the segmentation
+        """
+        if np.issubdtype(data.dtype, np.floating) and data.dtype != np.float64:
+            data = data.astype(np.float64)
+        return super()._create_superpixel_mask(data)
