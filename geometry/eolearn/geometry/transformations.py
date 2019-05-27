@@ -3,61 +3,156 @@ Transformations between vector and raster formats of data
 """
 
 import logging
+import warnings
 
 import shapely.geometry
+import shapely.wkt
 import rasterio.features
 import rasterio.transform
 import numpy as np
 import pandas as pd
 from geopandas import GeoSeries, GeoDataFrame
 
-from eolearn.core import EOTask, FeatureType
+from sentinelhub import CRS, bbox_to_dimensions
+
+from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)
 
 
 class VectorToRaster(EOTask):
-    """
-    Task burns into one of the EOPatch's features geo-referenced shapes given in provided Geopandas DataFrame.
+    """ Task that transforms vector data into a raster feature.
 
-    :param feature: A tuple of feature type and feature name, e.g. (FeatureType.MASK, 'cloud_mask')
-    :type feature: (FeatureType, str)
-    :param vector_data: Vector data
-    :type vector_data: geopandas.GeoDataFrame
-    :param raster_value: Value of raster pixels which are contained inside of vector polygons
-    :type raster_value: int or float
-    :param raster_shape: Can be a tuple in form of (height, width) of an existing feature from which the shape will be
-                            taken e.g. (FeatureType.MASK, 'IS_DATA')
-    :type raster_shape: (int, int) or (FeatureType, str)
-    :param raster_dtype: `numpy` data type of the obtained raster array
-    :type raster_dtype: numpy.dtype
-    :param no_data_value: Value of raster pixels which are outside of vector polygons
-    :type no_data_value: int or float
+    Vector data can be given as an EOPatch feature or as an independent geopandas `GeoDataFrame`.
+
+    In the background it uses `rasterio.features.rasterize`, documented at
+    https://rasterio.readthedocs.io/en/stable/api/rasterio.features.html#rasterio.features.rasterize
+
+    Note: Rasterization of time-dependent vector features is not yet supported.
     """
-    def __init__(self, feature, vector_data, raster_value, raster_shape, raster_dtype=np.uint8, no_data_value=0):
-        self.feature_type, self.feature_name = next(iter(self._parse_features(feature)))
-        self.vector_data = vector_data
-        self.raster_value = raster_value
+    def __init__(self, vector_input, raster_feature, *, values=None, values_column=None, raster_shape=None,
+                 raster_resolution=None, raster_dtype=np.uint8, no_data_value=0, write_to_existing=True,
+                 **rasterio_params):
+        """
+        :param vector_input: Vector data to be used for rasterization. It can be given as a feature in `EOPatch` or
+            as an independent geopandas `GeoDataFrame`.
+        :type vector_input: (FeatureType, str) or GeoDataFrame
+        :param raster_feature: New or existing raster feature into which data will be written. If existing raster
+            raster feature is given it will by default take existing values and write over them.
+        :type raster_feature: (FeatureType, str)
+        :param values: If `values_column` parameter is specified then only polygons which have one of these specified
+            values in `values_column` will be rasterized. It can be also left to `None`. If `values_column` parameter
+            is not specified `values` parameter has to be a single number into which everything will be rasterized.
+        :type values: list(int or float) or int or float or None
+        :param values_column: A column in gived dataframe where values, into which polygons will be rasterized,
+            are stored. If it is left to `None` then `values` parameter should be a single number into which
+            everything will be rasterized.
+        :type values_column: str or None
+        :param raster_shape: Can be a tuple in form of (height, width) or an existing feature from which the spatial
+            dimensions will be taken. Parameter `raster_resolution` can be specified instead of `raster_shape`.
+        :type raster_shape: (int, int) or (FeatureType, str) or None
+        :param raster_resolution: Resolution of raster into which data will be rasterized. Has to be given as a
+            number or a tuple of numbers in meters. Parameter `raster_shape` can be specified instead or
+            `raster_resolution`.
+        :type raster_resolution: float or (float, float) or None
+        :param raster_dtype: Data type of the obtained raster array, default is `numpy.uint8`.
+        :type raster_dtype: numpy.dtype
+        :param no_data_value: Default value of all other raster pixels into which no value will be rasterized.
+        :type no_data_value: int or float
+        :param write_to_existing: If `True` it will write to existing raster array and overwrite parts of its values.
+            If `False` it will create a new raster array.
+        :type write_to_existing: bool
+        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently
+            available parameters are `all_touched` and `merge_alg`
+        """
+
+        self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
+
+        self.values = values
+        self.values_column = values_column
+        if values_column is None and (values is None or not isinstance(values, (int, float))):
+            raise ValueError("One of parameters 'values' and 'values_column' is missing")
+
         self.raster_shape = raster_shape
+        self.raster_resolution = raster_resolution
+        if (raster_shape is None) != (raster_resolution is None):
+            raise ValueError("Exactly one of parameters 'raster_shape' and 'raster_resolution' has to be specified")
+
         self.raster_dtype = raster_dtype
         self.no_data_value = no_data_value
+        self.write_to_existing = write_to_existing
+        self.rasterio_params = rasterio_params
 
-    def _get_submap(self, eopatch):
+    @staticmethod
+    def _parse_main_params(vector_input, raster_feature):
+        """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
         """
-        Returns a new geopandas dataframe with same structure as original one (columns) except that
-        it contains only polygons that are contained within the given bbox.
+        if VectorToRaster._is_geopandas_object(raster_feature):
+            warnings.warn('In the new version of VectorToRaster task order of parameters changed. Parameter for '
+                          'specifying vector data or feature has to be before parameter specifying new raster feature',
+                          DeprecationWarning)
+            return VectorToRaster._parse_main_params(raster_feature, vector_input)
 
-        :param eopatch: input EOPatch
-        :type eopatch: EOPatch
-        :return: New EOPatch
-        :rtype: EOPatch
+        if not VectorToRaster._is_geopandas_object(vector_input):
+            vector_input = VectorToRaster._parse_features(vector_input,
+                                                          allowed_feature_types={FeatureType.VECTOR_TIMELESS})
+        raster_feature = next(iter(
+            VectorToRaster._parse_features(raster_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_3D)
+        ))
+
+        return vector_input, raster_feature
+
+    @staticmethod
+    def _is_geopandas_object(data):
+        """ A frequently used check if object is geopandas `GeoDataFrame` or `GeoSeries`
         """
-        bbox_poly = eopatch.bbox.get_geometry()
+        return isinstance(data, (GeoDataFrame, GeoSeries))
 
-        filtered_data = self.vector_data[self.vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
-        filtered_data.geometry = filtered_data.geometry.intersection(bbox_poly)
+    def _get_vector_data(self, eopatch):
+        """ Provides vector data which will be rasterized
+        """
+        if self._is_geopandas_object(self.vector_input):
+            return self.vector_input
 
-        return filtered_data
+        feature_type, feature_name = next(self._parse_features(self.vector_input)(eopatch))
+        return eopatch[feature_type][feature_name]
+
+    def _get_rasterization_shapes(self, eopatch):
+        """ Returns a generator of pairs of geometrical shapes and values. In rasterization process each shape will be
+        rasterized to it's corresponding value.
+        If there are no such geometries it will return `None`
+        """
+        vector_data = self._get_vector_data(eopatch)
+
+        if 'init' not in vector_data:
+            raise ValueError('Cannot recognize CRS of vector data')
+        vector_data_crs = CRS(vector_data.crs['init'])
+        if eopatch.bbox.crs is not vector_data_crs:
+            raise ValueError("Vector data and EOPatch should be in the same CRS, found '{}' and '{}'"
+                             "".format(eopatch.bbox.crs, vector_data_crs))
+
+        bbox_poly = eopatch.bbox.geometry
+        vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
+
+        if vector_data.empty:
+            return None
+
+        if not vector_data.geometry.is_valid.all():
+            warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
+            vector_data.geometry = vector_data.geometry.buffer(0)
+
+        if vector_data.geometry.has_z.any():
+            warnings.warn('Given vector polygons contain some 3D geometries, they will be projected to 2D',
+                          RuntimeWarning)
+            vector_data.geometry = vector_data.geometry.apply(lambda geo: shapely.wkt.loads(geo.to_wkt()))
+
+        if self.values_column is None:
+            return zip(vector_data.geometry, [self.values] * len(vector_data.index))
+
+        if self.values is not None:
+            vector_data = vector_data[vector_data[self.values_column].isin(self.values)]
+
+        return zip(vector_data.geometry, vector_data[self.values_column])
 
     def _get_shape(self, eopatch):
         """ Determines the shape of new raster feature
@@ -69,45 +164,69 @@ class VectorToRaster(EOTask):
             feature_type, feature_name = next(self._parse_features(self.raster_shape)(eopatch))
             return eopatch.get_spatial_dimension(feature_type, feature_name)
 
+        if self.raster_resolution:
+            resolution = float(self.raster_resolution.strip('m')) if isinstance(self.raster_resolution, str) else \
+                self.raster_resolution
+            return bbox_to_dimensions(eopatch.bbox, resolution)
+
         raise ValueError('Could not determine shape of the raster image')
 
+    def _get_raster(self, eopatch, height, width):
+        """ Provides raster in which data will be written
+        """
+        feature_type, feature_name = self.raster_feature
+
+        if self.write_to_existing and feature_name in eopatch[feature_type]:
+            raster = eopatch[self.feature_type][self.feature_name].squeeze(axis=-1)
+
+            if (height, width) != raster.shape[:2]:
+                warnings.warn('Writing to existing raster with spatial dimensions {}, but dimensions {} were expected'
+                              ''.format(raster.shape[:2], (height, width)), RuntimeWarning)
+
+            return raster
+
+        return np.ones((height, width), dtype=self.raster_dtype) * self.no_data_value
+
     def execute(self, eopatch):
-        """ Execute function which adds new vector layer to the EOPatch
+        """ Execute method
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
-        :return: New EOPatch with added vector layer
+        :return: New EOPatch with vector data transformed into a raster feature
         :rtype: EOPatch
         """
-        bbox_map = self._get_submap(eopatch)
+        if eopatch.bbox is None:
+            raise ValueError('EOPatch has to have a bounding box')
+
+        rasterization_shapes = self._get_rasterization_shapes(eopatch)
+        if not rasterization_shapes:
+            return eopatch
+
         height, width = self._get_shape(eopatch)
         data_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
-        if self.feature_name in eopatch[self.feature_type]:
-            raster = eopatch[self.feature_type][self.feature_name].squeeze()
-        else:
-            raster = np.ones((height, width), dtype=self.raster_dtype) * self.no_data_value
+        raster = self._get_raster(eopatch, height, width)
 
-        if not bbox_map.empty:
-            rasterio.features.rasterize([(bbox_map.cascaded_union.buffer(0), self.raster_value)], out=raster,
-                                        transform=data_transform, dtype=self.raster_dtype)
+        rasterio.features.rasterize(rasterization_shapes, out=raster, transform=data_transform,
+                                    dtype=self.raster_dtype, **self.rasterio_params)
 
         eopatch[self.feature_type][self.feature_name] = raster[..., np.newaxis]
-
         return eopatch
 
 
 class RasterToVector(EOTask):
-    """
-    Task that turns raster mask feature into vector feature. Each connected component with the same value on the raster
-    mask is turned into a shapely polygon. Polygon are returned as a geometry column in a ``geopandas.GeoDataFrame``
-    structure together with a column `VALUE` with values of each polygon.
+    """ Task for transforming raster mask feature into vector feature.
+
+    Each connected component with the same value on the raster mask is turned into a shapely polygon. Polygon are
+    returned as a geometry column in a ``geopandas.GeoDataFrame``structure together with a column `VALUE` with
+    values of each polygon.
+
     If raster mask feature has time component, vector feature will also have a column `TIMESTAMP` with timestamps to
     which raster image each polygon belongs to.
     If raster mask has multiple channels each of them will be vectorized separately but polygons will be in the
     same vector feature
     """
-    def __init__(self, features, values=None, raster_dtype=None):
+    def __init__(self, features, *, values=None, raster_dtype=None, **rasterio_params):
         """
         :param features: One or more raster mask features which will be vectorized together with an optional new name
         of vector feature. If no new name is given the same name will be used.
@@ -126,10 +245,13 @@ class RasterToVector(EOTask):
             (``numpy.int16``, ``numpy.int32``, ``numpy.uint8``, ``numpy.uint16`` or ``numpy.float32``). By default
             value of the parameter is ``None`` and no casting is done.
         :type raster_dtype: numpy.dtype or None
+        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently
+            available is parameter `connectivity`.
         """
         self.feature_gen = self._parse_features(features, new_names=True)
         self.values = values
         self.raster_dtype = raster_dtype
+        self.rasterio_params = rasterio_params
 
         for feature_type, _, _ in self.feature_gen:
             if not (feature_type.is_spatial() and feature_type.is_discrete()):
@@ -160,7 +282,7 @@ class RasterToVector(EOTask):
         for idx in range(raster.shape[-1]):
             for geojson, value in rasterio.features.shapes(raster[..., idx],
                                                            mask=None if mask is None else mask[..., idx],
-                                                           transform=data_transform):
+                                                           transform=data_transform, **self.rasterio_params):
                 geo_list.append(shapely.geometry.shape(geojson))
                 value_list.append(value)
 
