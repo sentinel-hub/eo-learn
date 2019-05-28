@@ -6,9 +6,10 @@ import logging
 import datetime as dt
 
 import numpy as np
-from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
+
+from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 
 
 LOGGER = logging.getLogger(__name__)
@@ -36,7 +37,9 @@ class SentinelHubOGCInput(EOTask):
     :type size_y: int or str, depends on the service_type
     :param maxcc: maximum accepted cloud coverage of an image. Float between 0.0 and 1.0. Default is ``1.0``.
     :type maxcc: float
-    :param image_format: format of the returned image by the Sentinel Hub's WMS getMap service. Default is 16-bit TIFF.
+    :param image_format: format of the returned image by the Sentinel Hub's WMS getMap service. Default is `None` which
+        means values will be downloaded in 16-bit tiff but then scaled back to [0,1] float values. The result is the
+        same as by setting `MimeType.TIFF_d32f`, but with less data to download.
     :type image_format: constants.MimeType
     :param instance_id: user's instance id. If ``None`` the instance id is taken from the ``config.json``
                         configuration file from sentinelhub-py package.
@@ -337,14 +340,13 @@ class DEMWCSInput(SentinelHubWCSInput):
     """
     Adds DEM to DATA_TIMELESS EOPatch feature.
     """
-    def __init__(self, layer, feature=None, **kwargs):
+    def __init__(self, layer, feature=None,
+                 valid_data_mask_feature=(FeatureType.MASK_TIMELESS, 'IS_DATA_TIMELESS'), **kwargs):
         if feature is None:
             feature = (FeatureType.DATA_TIMELESS, layer)
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
-        # if 'valid_data_mask_feature' not in kwargs:
-        mask_feature = (FeatureType.MASK_TIMELESS, 'IS_DATA_TIMELESS')
-        super().__init__(layer=layer, feature=feature, valid_data_mask_feature=mask_feature,
+        super().__init__(layer=layer, feature=feature, valid_data_mask_feature=valid_data_mask_feature,
                          data_source=DataSource.DEM, **kwargs)
 
 

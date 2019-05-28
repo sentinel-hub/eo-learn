@@ -291,7 +291,7 @@ class TestEOPatch(unittest.TestCase):
 
         ]
 
-        cls.task_cases = cls.create_patches + cls.update_patches
+        cls.task_cases = cls.create_patches + cls.update_patches + cls.task_cases_image_format
         cls.task_cases_datetime = cls.create_patches_datetime
 
     def test_return_type(self):
