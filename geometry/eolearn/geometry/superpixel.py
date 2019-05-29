@@ -3,6 +3,7 @@ Module for super-pixel segmentation
 """
 
 import logging
+import warnings
 
 import skimage.segmentation
 import numpy as np
@@ -36,7 +37,9 @@ class SuperpixelSegmentation(EOTask):
     def _create_superpixel_mask(self, data):
         """ Method which performs the segmentation
         """
-        return self.segmentation_object(data, **self.segmentation_params)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=RuntimeWarning, module=skimage.segmentation.__name__)
+            return self.segmentation_object(data, **self.segmentation_params)
 
     def execute(self, eopatch):
         """ Main execute method
