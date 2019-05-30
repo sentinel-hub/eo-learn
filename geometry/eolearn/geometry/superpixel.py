@@ -48,6 +48,10 @@ class SuperpixelSegmentation(EOTask):
 
         data = eopatch[feature_type][feature_name]
 
+        if np.isnan(data).any():
+            warnings.warn('There are NaN values in given data, super-pixel segmentation might produce bad results',
+                          RuntimeWarning)
+
         if feature_type.is_time_dependent():
             data = np.moveaxis(data, 0, 2)
             data = data.reshape((data.shape[0], data.shape[1], data.shape[2] * data.shape[3]))
