@@ -73,7 +73,7 @@ class Visualization:
         feature_type, feature_name = features[0]
         if self.pixel and feature_type in FeatureTypeSet.RASTER_TYPES_4D:
             vis = self.plot_pixel(feature_type, feature_name)
-        elif feature_type in (FeatureType.MASK, FeatureTypeSet.RASTER_TYPES_3D):
+        elif feature_type in (FeatureType.MASK, *FeatureTypeSet.RASTER_TYPES_3D):
             vis = self.plot_raster(feature_type, feature_name)
         elif feature_type is FeatureType.DATA:
             vis = self.plot_data(feature_name)

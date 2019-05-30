@@ -11,4 +11,5 @@ Submodules:
 .. toctree::
 
    eolearn.geometry.sampling
+   eolearn.geometry.superpixel
    eolearn.geometry.utilities
