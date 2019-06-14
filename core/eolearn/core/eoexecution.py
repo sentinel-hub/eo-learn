@@ -130,6 +130,8 @@ class EOExecutor:
 
     @staticmethod
     def _get_log_handler(log_path):
+        """ Provides object which handles logs
+        """
         handler = logging.FileHandler(log_path)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
@@ -137,11 +139,33 @@ class EOExecutor:
         return handler
 
     def _get_report_folder(self):
+        """ Returns file path of folder where report will be saved
+        """
         return os.path.join(self.logs_folder,
                             'eoexecution-report-{}'.format(dt.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
 
     def _get_log_filename(self, execution_nb):
+        """ Returns file path of a log file
+        """
         return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
+
+    def get_successful_executions(self):
+        """ Returns a list of IDs of successful executions. The IDs are integers from interval
+        `[0, len(execution_args) - 1]`, sorted in increasing order.
+
+        :return: List of succesful execution IDs
+        :rtype: list(int)
+        """
+        return [idx for idx, stats in enumerate(self.execution_stats) if self.STATS_ERROR not in stats]
+
+    def get_failed_executions(self):
+        """ Returns a list of IDs of failed executions. The IDs are integers from interval
+        `[0, len(execution_args) - 1]`, sorted in increasing order.
+
+        :return: List of failed execution IDs
+        :rtype: list(int)
+        """
+        return [idx for idx, stats in enumerate(self.execution_stats) if self.STATS_ERROR in stats]
 
     def get_report_filename(self):
         """ Returns the filename and file path of the report
@@ -194,10 +218,14 @@ class EOExecutor:
         return self.workflow.dependency_graph()
 
     def _create_dependency_graph(self):
+        """ Provides an image of dependecy graph
+        """
         dot = self.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
     def _get_task_descriptions(self):
+        """ Prepares a list of task names and their initialization parameters
+        """
         descriptions = []
 
         for task_id, dependency in self.workflow.uuid_dict.items():
@@ -212,6 +240,8 @@ class EOExecutor:
         return descriptions
 
     def _render_task_source(self, formatter):
+        """ Collects source code of each costum task
+        """
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
         sources = {}
 
@@ -238,6 +268,8 @@ class EOExecutor:
         return sources
 
     def _render_execution_errors(self, formatter):
+        """ Renders stack traces of those executions which failed
+        """
         tb_lexer = pygments.lexers.get_lexer_by_name("py3tb", stripall=True)
 
         executions = []
@@ -254,6 +286,8 @@ class EOExecutor:
 
     @classmethod
     def _get_template(cls):
+        """ Loads and sets up a template for report
+        """
         templates_dir = os.path.join(os.path.dirname(__file__), 'report_templates')
         env = Environment(loader=FileSystemLoader(templates_dir))
         env.filters['datetime'] = cls._format_datetime
@@ -264,8 +298,12 @@ class EOExecutor:
 
     @staticmethod
     def _format_datetime(value):
+        """ Method for formatting datetime objects into report
+        """
         return value.strftime('%X %x %Z')
 
     @staticmethod
     def _format_timedelta(value1, value2):
+        """ Method for formatting time delta into report
+        """
         return str(value2 - value1)
