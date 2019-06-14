@@ -52,15 +52,15 @@ class EOExecutor:
     """
     REPORT_FILENAME = 'report.html'
 
-    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', file_path=None):
+    STATS_START_TIME = 'start_time'
+    STATS_END_TIME = 'end_time'
+    STATS_ERROR = 'error'
+
+    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.'):
         self.workflow = workflow
         self.execution_args = self._parse_execution_args(execution_args)
         self.save_logs = save_logs
         self.logs_folder = logs_folder
-        if file_path is not None:
-            warnings.warn("Parameter 'file_path' has been renamed to 'logs_folder' and will soon be removed. Please "
-                          "use parameter 'logs_folder' instead.", DeprecationWarning, stacklevel=2)
-            self.logs_folder = file_path
 
         self.report_folder = None
         self.execution_logs = None
@@ -115,12 +115,12 @@ class EOExecutor:
             handler = cls._get_log_handler(log_path)
             logger.addHandler(handler)
 
-        stats = {'start_time': dt.datetime.now()}
+        stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
             _ = workflow.execute(input_args, monitor=True)
         except BaseException:
-            stats['error'] = traceback.format_exc()
-        stats['end_time'] = dt.datetime.now()
+            stats[cls.STATS_ERROR] = traceback.format_exc()
+        stats[cls.STATS_END_TIME] = dt.datetime.now()
 
         if log_path:
             handler.close()
@@ -245,8 +245,8 @@ class EOExecutor:
         for orig_execution in self.execution_stats:
             execution = copy.deepcopy(orig_execution)
 
-            if 'error' in execution:
-                execution['error'] = pygments.highlight(execution['error'], tb_lexer, formatter)
+            if self.STATS_ERROR in execution:
+                execution[self.STATS_ERROR] = pygments.highlight(execution[self.STATS_ERROR], tb_lexer, formatter)
 
             executions.append(execution)
 
