@@ -31,7 +31,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .eoworkflow import EOWorkflow
 
-LOGGER = logging.getLogger(__file__)
+LOGGER = logging.getLogger(__name__)
 
 
 class EOExecutor:

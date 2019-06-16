@@ -26,7 +26,7 @@ from .eotask import EOTask
 from .graph import DirectedGraph
 
 
-LOGGER = logging.getLogger(__file__)
+LOGGER = logging.getLogger(__name__)
 
 
 class CyclicDependencyError(ValueError):
@@ -235,7 +235,7 @@ class EOWorkflow:
             inputs += kw_inputs
             kw_inputs = {}
 
-        LOGGER.debug("Computing %s(*%s, **%s)", str(task), str(inputs), str(kw_inputs))
+        LOGGER.debug("Computing %s(*%s, **%s)", task.__class__.__name__, str(inputs), str(kw_inputs))
         return task(*inputs, **kw_inputs, monitor=monitor)
 
     def _relax_dependencies(self, *, dependency, out_degrees, intermediate_results):
@@ -258,7 +258,7 @@ class EOWorkflow:
             out_degrees[dep] -= 1
 
             if out_degrees[dep] == 0:
-                LOGGER.debug("Removing intermediate result for %s", str(current_task))
+                LOGGER.debug("Removing intermediate result for %s", current_task.__class__.__name__)
                 del intermediate_results[dep]
 
     def get_tasks(self):
