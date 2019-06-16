@@ -75,12 +75,15 @@ class EOExecutor:
 
         return [EOWorkflow.parse_input_args(input_args) for input_args in execution_args]
 
-    def run(self, workers=1):
+    def run(self, workers=1, multiprocess=True):
         """ Runs the executor with n workers.
 
-        :param workers: Number of parallel processes used in the execution. Default is a single process. If set to
-            `None` the number of workers will be the number of processors of the system.
+        :param workers: Maximum number of workflows which will be executed in parallel. Default is a single workflow.
+            If set to `None` the number of workers will be the number of processors of the system.
         :type workers: int or None
+        :param multiprocess: If `True` it will use multiple processors for execution. If `False` it will run on
+            multiple threads of a single processor.
+        :type multiprocess: bool
         """
         self.report_folder = self._get_report_folder()
         if self.save_logs and not os.path.isdir(self.report_folder):
@@ -93,7 +96,9 @@ class EOExecutor:
         processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
                                                                                                log_paths)]
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+        pool_executor_class = concurrent.futures.ProcessPoolExecutor if multiprocess else \
+            concurrent.futures.ThreadPoolExecutor
+        with pool_executor_class(max_workers=workers) as executor:
             self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
                                              total=len(processing_args)))
 
