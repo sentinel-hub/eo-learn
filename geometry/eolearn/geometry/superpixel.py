@@ -3,6 +3,7 @@ Module for super-pixel segmentation
 """
 
 import logging
+import warnings
 
 import skimage.segmentation
 import numpy as np
@@ -36,7 +37,9 @@ class SuperpixelSegmentation(EOTask):
     def _create_superpixel_mask(self, data):
         """ Method which performs the segmentation
         """
-        return self.segmentation_object(data, **self.segmentation_params)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=RuntimeWarning, module=skimage.segmentation.__name__)
+            return self.segmentation_object(data, **self.segmentation_params)
 
     def execute(self, eopatch):
         """ Main execute method
@@ -44,6 +47,10 @@ class SuperpixelSegmentation(EOTask):
         feature_type, feature_name = next(self.feature_checker(eopatch))
 
         data = eopatch[feature_type][feature_name]
+
+        if np.isnan(data).any():
+            warnings.warn('There are NaN values in given data, super-pixel segmentation might produce bad results',
+                          RuntimeWarning)
 
         if feature_type.is_time_dependent():
             data = np.moveaxis(data, 0, 2)
@@ -86,3 +93,39 @@ class SlicSegmentation(SuperpixelSegmentation):
         if np.issubdtype(data.dtype, np.floating) and data.dtype != np.float64:
             data = data.astype(np.float64)
         return super()._create_superpixel_mask(data)
+
+
+class MarkSegmentationBoundaries(EOTask):
+    """ Takes super-pixel segmentation mask and creates a new mask where boundaries of super-pixels are marked
+
+    The result is a binary mask with values 0 and 1 and dtype `numpy.uint8`
+
+    Uses `mark_boundaries` function documented at:
+    https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.mark_boundaries
+    """
+    def __init__(self, feature, new_feature, **params):
+        """
+        :param feature: Input feature - super-pixel mask
+        :type feature: (FeatureType, str)
+        :param new_feature: Output feature - a new feature where new mask with boundaries will be put
+        :type new_feature: (FeatureType, str)
+        :param params: Additional parameters which will be passed to `mark_boundaries`. Supported parameters are `mode`
+            and `background_label`
+        """
+        self.feature_checker = self._parse_features(feature, allowed_feature_types={FeatureType.MASK_TIMELESS})
+        self.new_feature = next(self._parse_features(new_feature, allowed_feature_types={FeatureType.MASK_TIMELESS})())
+
+        self.params = params
+
+    def execute(self, eopatch):
+        """ Execute method
+        """
+        feature_type, feature_name = next(self.feature_checker(eopatch))
+        segmentation_mask = eopatch[feature_type][feature_name][..., 0]
+
+        bounds_mask = skimage.segmentation.mark_boundaries(np.zeros(segmentation_mask.shape[:2], dtype=np.uint8),
+                                                           segmentation_mask, **self.params)
+
+        bounds_mask = bounds_mask[..., :1].astype(np.uint8)
+        eopatch[self.new_feature[0]][self.new_feature[1]] = bounds_mask
+        return eopatch
