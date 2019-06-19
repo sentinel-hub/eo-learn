@@ -29,7 +29,7 @@
         <h3>{{ task['title'] }}</h3>
         <ul>
             {% for key, value in task['args'].items() %}
-                <li>{{ key }} = {{ value }}</li>
+                <li> <pre> {{ key }} = {{ value }} </pre> </li>
             {% endfor %}
         </ul>
     {% endfor %}

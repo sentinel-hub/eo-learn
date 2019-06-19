@@ -235,11 +235,14 @@ class EOExecutor:
 
         for task_id, dependency in self.workflow.uuid_dict.items():
             task = dependency.task
+
+            init_args = {key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
+                         task.private_task_config.init_args.items()}
+
             desc = {
                 'title': "{}_{} ({})".format(task.__class__.__name__, task_id[:6], task.__module__),
-                'args': task.private_task_config.init_args
+                'args': init_args
             }
-
             descriptions.append(desc)
 
         return descriptions
