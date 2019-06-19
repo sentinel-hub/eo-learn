@@ -263,7 +263,11 @@ class AddCloudMaskTask(EOTask):
                                'eopatch due to unavailability of %s!', str(rm_frame), self.data_feature)
 
             # Get reference shape from first item in data dictionary
-            reference_shape = next(iter(eopatch.data.values())).shape[:3]
+            if not eopatch.data:
+                raise ValueError('Given EOPatch does not have any data feature')
+
+            reference_data_feature = sorted(eopatch.data)[0]
+            reference_shape = eopatch.data[reference_data_feature].shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
         clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)

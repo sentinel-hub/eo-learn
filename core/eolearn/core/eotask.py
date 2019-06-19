@@ -11,7 +11,6 @@ import sys
 import logging
 import datetime
 import inspect
-import copy
 from collections import OrderedDict
 from abc import ABC, abstractmethod
 
@@ -31,10 +30,10 @@ class EOTask(ABC):
 
         init_args = OrderedDict()
         for arg, value in zip(inspect.getfullargspec(self.__init__).args[1: len(args) + 1], args):
-            init_args[arg] = copy.deepcopy(value)
+            init_args[arg] = repr(value)
         for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1:]:
             if arg in kwargs:
-                init_args[arg] = copy.deepcopy(kwargs[arg])
+                init_args[arg] = repr(kwargs[arg])
 
         self.private_task_config = _PrivateTaskConfig(init_args=init_args)
 

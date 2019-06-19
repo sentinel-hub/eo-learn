@@ -31,7 +31,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from .eoworkflow import EOWorkflow
 
-LOGGER = logging.getLogger(__file__)
+LOGGER = logging.getLogger(__name__)
 
 
 class EOExecutor:
@@ -52,15 +52,15 @@ class EOExecutor:
     """
     REPORT_FILENAME = 'report.html'
 
-    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', file_path=None):
+    STATS_START_TIME = 'start_time'
+    STATS_END_TIME = 'end_time'
+    STATS_ERROR = 'error'
+
+    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.'):
         self.workflow = workflow
         self.execution_args = self._parse_execution_args(execution_args)
         self.save_logs = save_logs
         self.logs_folder = logs_folder
-        if file_path is not None:
-            warnings.warn("Parameter 'file_path' has been renamed to 'logs_folder' and will soon be removed. Please "
-                          "use parameter 'logs_folder' instead.", DeprecationWarning, stacklevel=2)
-            self.logs_folder = file_path
 
         self.report_folder = None
         self.execution_logs = None
@@ -75,12 +75,21 @@ class EOExecutor:
 
         return [EOWorkflow.parse_input_args(input_args) for input_args in execution_args]
 
-    def run(self, workers=1):
+    def run(self, workers=1, multiprocess=True):
         """ Runs the executor with n workers.
 
-        :param workers: Number of parallel processes used in the execution. Default is a single process. If set to
-            `None` the number of workers will be the number of processors of the system.
+        :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
+            execute workflows consecutively. If set to `None` the number of workers will be the number of processors
+            of the system.
         :type workers: int or None
+        :param multiprocess: If `True` it will use `concurrent.futures.ProcessPoolExecutor` which will distribute
+            workflow executions among multiple processors. If `False` it will use
+            `concurrent.futures.ThreadPoolExecutor` which will distribute workflow among multiple threads.
+            However even when `multiprocess=False`, tasks from workflow could still be using multiple processors.
+            This parameter is used especially because certain task cannot run with
+            `concurrent.futures.ProcessPoolExecutor`.
+            In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
+        :type multiprocess: bool
         """
         self.report_folder = self._get_report_folder()
         if self.save_logs and not os.path.isdir(self.report_folder):
@@ -93,9 +102,14 @@ class EOExecutor:
         processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
                                                                                                log_paths)]
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-            self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
-                                             total=len(processing_args)))
+        if workers == 1:
+            self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
+        else:
+            pool_executor_class = concurrent.futures.ProcessPoolExecutor if multiprocess else \
+                concurrent.futures.ThreadPoolExecutor
+            with pool_executor_class(max_workers=workers) as executor:
+                self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
+                                                 total=len(processing_args)))
 
         self.execution_logs = [None] * execution_num
         if self.save_logs:
@@ -115,12 +129,12 @@ class EOExecutor:
             handler = cls._get_log_handler(log_path)
             logger.addHandler(handler)
 
-        stats = {'start_time': dt.datetime.now()}
+        stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
             _ = workflow.execute(input_args, monitor=True)
         except BaseException:
-            stats['error'] = traceback.format_exc()
-        stats['end_time'] = dt.datetime.now()
+            stats[cls.STATS_ERROR] = traceback.format_exc()
+        stats[cls.STATS_END_TIME] = dt.datetime.now()
 
         if log_path:
             handler.close()
@@ -130,6 +144,8 @@ class EOExecutor:
 
     @staticmethod
     def _get_log_handler(log_path):
+        """ Provides object which handles logs
+        """
         handler = logging.FileHandler(log_path)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
@@ -137,11 +153,33 @@ class EOExecutor:
         return handler
 
     def _get_report_folder(self):
+        """ Returns file path of folder where report will be saved
+        """
         return os.path.join(self.logs_folder,
                             'eoexecution-report-{}'.format(dt.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
 
     def _get_log_filename(self, execution_nb):
+        """ Returns file path of a log file
+        """
         return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
+
+    def get_successful_executions(self):
+        """ Returns a list of IDs of successful executions. The IDs are integers from interval
+        `[0, len(execution_args) - 1]`, sorted in increasing order.
+
+        :return: List of succesful execution IDs
+        :rtype: list(int)
+        """
+        return [idx for idx, stats in enumerate(self.execution_stats) if self.STATS_ERROR not in stats]
+
+    def get_failed_executions(self):
+        """ Returns a list of IDs of failed executions. The IDs are integers from interval
+        `[0, len(execution_args) - 1]`, sorted in increasing order.
+
+        :return: List of failed execution IDs
+        :rtype: list(int)
+        """
+        return [idx for idx, stats in enumerate(self.execution_stats) if self.STATS_ERROR in stats]
 
     def get_report_filename(self):
         """ Returns the filename and file path of the report
@@ -191,27 +229,34 @@ class EOExecutor:
         with open(self.get_report_filename(), 'w') as fout:
             fout.write(html)
 
-        return self.workflow.dependency_graph()
-
     def _create_dependency_graph(self):
+        """ Provides an image of dependecy graph
+        """
         dot = self.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
     def _get_task_descriptions(self):
+        """ Prepares a list of task names and their initialization parameters
+        """
         descriptions = []
 
         for task_id, dependency in self.workflow.uuid_dict.items():
             task = dependency.task
+
+            init_args = {key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
+                         task.private_task_config.init_args.items()}
+
             desc = {
                 'title': "{}_{} ({})".format(task.__class__.__name__, task_id[:6], task.__module__),
-                'args': task.private_task_config.init_args
+                'args': init_args
             }
-
             descriptions.append(desc)
 
         return descriptions
 
     def _render_task_source(self, formatter):
+        """ Collects source code of each costum task
+        """
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
         sources = {}
 
@@ -238,6 +283,8 @@ class EOExecutor:
         return sources
 
     def _render_execution_errors(self, formatter):
+        """ Renders stack traces of those executions which failed
+        """
         tb_lexer = pygments.lexers.get_lexer_by_name("py3tb", stripall=True)
 
         executions = []
@@ -245,8 +292,8 @@ class EOExecutor:
         for orig_execution in self.execution_stats:
             execution = copy.deepcopy(orig_execution)
 
-            if 'error' in execution:
-                execution['error'] = pygments.highlight(execution['error'], tb_lexer, formatter)
+            if self.STATS_ERROR in execution:
+                execution[self.STATS_ERROR] = pygments.highlight(execution[self.STATS_ERROR], tb_lexer, formatter)
 
             executions.append(execution)
 
@@ -254,6 +301,8 @@ class EOExecutor:
 
     @classmethod
     def _get_template(cls):
+        """ Loads and sets up a template for report
+        """
         templates_dir = os.path.join(os.path.dirname(__file__), 'report_templates')
         env = Environment(loader=FileSystemLoader(templates_dir))
         env.filters['datetime'] = cls._format_datetime
@@ -264,8 +313,12 @@ class EOExecutor:
 
     @staticmethod
     def _format_datetime(value):
+        """ Method for formatting datetime objects into report
+        """
         return value.strftime('%X %x %Z')
 
     @staticmethod
     def _format_timedelta(value1, value2):
+        """ Method for formatting time delta into report
+        """
         return str(value2 - value1)
