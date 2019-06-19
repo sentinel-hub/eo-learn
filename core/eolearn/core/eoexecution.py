@@ -78,11 +78,17 @@ class EOExecutor:
     def run(self, workers=1, multiprocess=True):
         """ Runs the executor with n workers.
 
-        :param workers: Maximum number of workflows which will be executed in parallel. Default is a single workflow.
-            If set to `None` the number of workers will be the number of processors of the system.
+        :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
+            execute workflows consecutively. If set to `None` the number of workers will be the number of processors
+            of the system.
         :type workers: int or None
-        :param multiprocess: If `True` it will use multiple processors for execution. If `False` it will run on
-            multiple threads of a single processor.
+        :param multiprocess: If `True` it will use `concurrent.futures.ProcessPoolExecutor` which will distribute
+            workflow executions among multiple processors. If `False` it will use
+            `concurrent.futures.ThreadPoolExecutor` which will distribute workflow among multiple threads.
+            However even when `multiprocess=False`, tasks from workflow could still be using multiple processors.
+            This parameter is used especially because certain task cannot run with
+            `concurrent.futures.ProcessPoolExecutor`.
+            In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
         :type multiprocess: bool
         """
         self.report_folder = self._get_report_folder()
@@ -96,11 +102,14 @@ class EOExecutor:
         processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
                                                                                                log_paths)]
 
-        pool_executor_class = concurrent.futures.ProcessPoolExecutor if multiprocess else \
-            concurrent.futures.ThreadPoolExecutor
-        with pool_executor_class(max_workers=workers) as executor:
-            self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
-                                             total=len(processing_args)))
+        if workers == 1:
+            self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
+        else:
+            pool_executor_class = concurrent.futures.ProcessPoolExecutor if multiprocess else \
+                concurrent.futures.ThreadPoolExecutor
+            with pool_executor_class(max_workers=workers) as executor:
+                self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
+                                                 total=len(processing_args)))
 
         self.execution_logs = [None] * execution_num
         if self.save_logs:
@@ -219,8 +228,6 @@ class EOExecutor:
 
         with open(self.get_report_filename(), 'w') as fout:
             fout.write(html)
-
-        return self.workflow.dependency_graph()
 
     def _create_dependency_graph(self):
         """ Provides an image of dependecy graph
