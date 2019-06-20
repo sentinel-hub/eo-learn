@@ -1,0 +1,5 @@
+eo-learn-core
+geoviews
+hvplot
+pyepsg
+xarray
