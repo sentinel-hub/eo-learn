@@ -74,7 +74,7 @@ class TestEOExecutor(unittest.TestCase):
 
     def test_report_creation(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name, save_logs=True)
             executor.run(workers=10)
             executor.make_report()
 
