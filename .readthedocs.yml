@@ -3,7 +3,7 @@ conda:
   environment: docs/environment.yml
 python:
   version: 3.7
-  pip_install: true
   install:
+    - method: pip
     - requirements: requirements-docs.txt
   system_packages: true
