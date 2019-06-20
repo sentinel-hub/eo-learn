@@ -38,6 +38,7 @@ setup(
     author_email='eoresearch@sinergise.com',
     license='MIT',
     packages=find_packages(),
+    package_data={'eolearn': ['visualization/report_templates/report.html']},
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     zip_safe=False
