@@ -80,7 +80,7 @@ For more information on the package content, visit [readthedocs](https://eo-lear
 
 If you would like to contribute to `eo-learn`, check out our [contribution guidelines](./CONTRIBUTING.md).
 
-## Blog posts
+## Blog posts and papers
 
  * [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c) (by Devis Peressutti)
  * [Land Cover Classification with eo-learn: Part 1 - Mastering Satellite Image Data in an Open-Source Python Environment](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-1-2471e8098195) (by Matic Lubej)
@@ -88,6 +88,7 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Land Cover Classification with eo-learn: Part 3 - Pushing Beyond the Point of “Good Enough”](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-3-c62ed9ecd405) (by Matic Lubej)
  * [Innovations in satellite measurements for development](https://blogs.worldbank.org/opendata/innovations-satellite-measurements-development)
  * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
+ * [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification)(by Anze Zupanc) 
 
 ## Questions and Issues
 
@@ -99,3 +100,7 @@ You are welcome to send your feedback to the package authors, EO Research team, 
 ## License
 
 See [LICENSE](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE).
+
+## Acknowledgements 
+
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No. 776115.
