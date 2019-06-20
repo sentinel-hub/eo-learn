@@ -68,11 +68,15 @@ class EOPatch:
     bbox = attr.ib(default=None)
     timestamp = attr.ib(factory=list)
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key, value, feature_name=None):
         """Raises TypeError if feature type attributes are not of correct type.
 
         In case they are a dictionary they are cast to _FeatureDict class
         """
+        if feature_name is not None and FeatureType.has_value(key):
+            self[key][feature_name] = value
+            return
+
         if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
@@ -103,37 +107,59 @@ class EOPatch:
         raise TypeError('Attribute {} requires value of type {} - '
                         'failed to parse given value'.format(feature_type, feature_type.type()))
 
-    def __getattribute__(self, key, load=True):
-        """ Handles lazy loading
+    def __getattribute__(self, key, load=True, feature_name=None):
+        """ Handles lazy loading and it can even provide a single feature from _FeatureDict
         """
         value = super().__getattribute__(key)
 
         if isinstance(value, _FileLoader) and load:
             value = value.load()
             setattr(self, key, value)
-            return getattr(self, key)
+            value = getattr(self, key)
+
+        if feature_name is not None and isinstance(value, _FeatureDict):
+            return value[feature_name]
 
         return value
 
     def __getitem__(self, feature_type):
-        """Provides features of requested feature type.
+        """ Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name)
 
         :param feature_type: Type of EOPatch feature
-        :type feature_type: FeatureType or str
+        :type feature_type: FeatureType or str or (FeatureType, str)
         :return: Dictionary of features
         """
-        return getattr(self, FeatureType(feature_type).value)
+        feature_name = None
+        if isinstance(feature_type, tuple):
+            self._check_tuple_key(feature_type)
+            feature_type, feature_name = feature_type
+
+        return self.__getattribute__(FeatureType(feature_type).value, feature_name=feature_name)
 
     def __setitem__(self, feature_type, value):
-        """Sets a new dictionary / list to the given FeatureType.
+        """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
+        (feature_type, feature_name)
 
         :param feature_type: Type of EOPatch feature
-        :type feature_type: FeatureType or str
+        :type feature_type: FeatureType or str or (FeatureType, str)
         :param value: New dictionary or list
         :type value: dict or list
         :return: Dictionary of features
         """
-        return setattr(self, FeatureType(feature_type).value, value)
+        feature_name = None
+        if isinstance(feature_type, tuple):
+            self._check_tuple_key(feature_type)
+            feature_type, feature_name = feature_type
+
+        return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
+
+    @staticmethod
+    def _check_tuple_key(key):
+        """ A helper function that checks a tuple, which should hold (feature_type, feature_name)
+        """
+        if len(key) != 2:
+            raise ValueError('Given element should be a feature_type or a tuple of (feature_type, feature_name),'
+                             'but {} found'.format(key))
 
     def __eq__(self, other):
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""
