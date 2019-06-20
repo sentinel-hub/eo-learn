@@ -20,7 +20,6 @@ import uuid
 import copy
 
 import attr
-from graphviz import Digraph
 
 from .eotask import EOTask
 from .graph import DirectedGraph
@@ -280,39 +279,8 @@ class EOWorkflow:
         :return: The DOT representation of the computational graph
         :rtype: Digraph
         """
-        dot = Digraph(format='png')
-
-        dep_to_dot_name = self._get_dep_to_dot_name_mapping(self.ordered_dependencies)
-
-        for dep in self.ordered_dependencies:
-            for input_task in dep.inputs:
-                dot.edge(dep_to_dot_name[self.uuid_dict[input_task.private_task_config.uuid]],
-                         dep_to_dot_name[dep])
-        return dot
-
-    @staticmethod
-    def _get_dep_to_dot_name_mapping(dependencies):
-        """ Creates mapping between Dependency classes and names used in DOT graph
-        """
-        dot_name_to_deps = {}
-        for dep in dependencies:
-            dot_name = dep.name
-
-            if dot_name not in dot_name_to_deps:
-                dot_name_to_deps[dot_name] = [dep]
-            else:
-                dot_name_to_deps[dot_name].append(dep)
-
-        dep_to_dot_name = {}
-        for dot_name, deps in dot_name_to_deps.items():
-            if len(deps) == 1:
-                dep_to_dot_name[deps[0]] = dot_name
-                continue
-
-            for idx, dep in enumerate(deps):
-                dep_to_dot_name[dep] = dot_name + str(idx)
-
-        return dep_to_dot_name
+        visualization = self._get_visualization()
+        return visualization.get_dot()
 
     def dependency_graph(self, filename=None):
         """Visualize the computational graph.
@@ -323,15 +291,18 @@ class EOWorkflow:
         :return: The DOT representation of the computational graph, with some more formatting
         :rtype: Digraph
         """
-        dot = self.get_dot()
-        dot.attr(rankdir='LR')  # Show graph from left to right
+        visualization = self._get_visualization()
+        return visualization.dependency_graph(filename=filename)
 
-        if filename is not None:
-            file_name, file_format = filename.rsplit('.', 1)
-
-            dot.render(filename=file_name, format=file_format, cleanup=True)
-
-        return dot
+    def _get_visualization(self):
+        """ Helper method which provides EOWorkflowVisualization object
+        """
+        try:
+            from eolearn.visualization import EOWorkflowVisualization
+        except ImportError:
+            raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use EOWorkflow '
+                               'visualization methods')
+        return EOWorkflowVisualization(self)
 
 
 class LinearWorkflow(EOWorkflow):
