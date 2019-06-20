@@ -5,10 +5,10 @@ ipython
 m2r>=0.2.0
 
 ./core
-./visualization
 ./coregistration
 ./features
 ./geometry
 ./io
 ./mask
 ./ml_tools
+./visualization
