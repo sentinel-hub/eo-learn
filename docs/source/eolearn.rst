@@ -13,3 +13,4 @@ Subpackages:
     eolearn.io
     eolearn.mask
     eolearn.ml_tools
+    eolearn.visualization

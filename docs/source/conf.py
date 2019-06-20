@@ -274,6 +274,7 @@ def get_eotasks():
     import eolearn.io
     import eolearn.mask
     import eolearn.ml_tools
+    import eolearn.visualization
 
     return get_subclasses(eolearn.core.EOTask)
 

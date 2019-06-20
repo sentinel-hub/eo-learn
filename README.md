@@ -41,6 +41,7 @@ At the moment there are the following subpackages:
 - **`eo-learn-io`** - Input/output subpackage that deals with obtaining data from Sentinel Hub services or saving and loading data locally.
 - **`eo-learn-mask`** - The subpackage used for masking of data and calculation of cloud masks.
 - **`eo-learn-ml-tools`** - Various tools that can be used before or after the machine learning process.
+- **`eo-learn-visualization`** - Visualization tools for core elements of eo-learn.
 
 ## Installation
 
@@ -59,6 +60,7 @@ pip install eo-learn-geometry
 pip install eo-learn-io
 pip install eo-learn-mask
 pip install eo-learn-ml-tools
+pip install eo-learn-visualization
 ```
 
 Before installing `eo-learn` on **Windows** it is recommended to install the following packages from [Unofficial Windows wheels repository](https://www.lfd.uci.edu/~gohlke/pythonlibs/):

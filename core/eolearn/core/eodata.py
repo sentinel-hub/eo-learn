@@ -22,7 +22,6 @@ import sentinelhub
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import deep_eq, FeatureParser
-from .visualizations import Visualization
 
 # pylint: disable=too-many-lines
 LOGGER = logging.getLogger(__name__)
@@ -785,9 +784,8 @@ class EOPatch:
         self.timestamp = good_timestamps
         return remove_from_patch
 
-    def plot(self, feature, rgb=None, rgb_factor=3.5, vdims=None,
-             timestamp_column='TIMESTAMP', geometry_column='geometry',
-             pixel=False, mask=None):
+    def plot(self, feature, rgb=None, rgb_factor=3.5, vdims=None, timestamp_column='TIMESTAMP',
+             geometry_column='geometry', pixel=False, mask=None):
         """ Plots eopatch features
 
         :param feature: feature of eopatch
@@ -809,9 +807,14 @@ class EOPatch:
         :return: plot
         :rtype: holovies/bokeh
         """
-        vis = Visualization(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
-                            timestamp_column=timestamp_column, geometry_column=geometry_column,
-                            pixel=pixel, mask=mask)
+        try:
+            from eolearn.visualization import EOPatchVisualization
+        except ImportError:
+            raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use plot method')
+
+        vis = EOPatchVisualization(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
+                                   timestamp_column=timestamp_column, geometry_column=geometry_column,
+                                   pixel=pixel, mask=mask)
         return vis.plot()
 
 

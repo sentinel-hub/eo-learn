@@ -3,11 +3,11 @@ This module implements visualizations for EOPatch
 """
 
 import numpy as np
-import geoviews as gv
-import xarray as xr
-import holoviews as hv
 import pandas as pd
 import geopandas as gpd
+import xarray as xr
+import holoviews as hv
+import geoviews as gv
 
 import hvplot         # pylint: disable=unused-import
 import hvplot.xarray  # pylint: disable=unused-import
@@ -18,15 +18,15 @@ from shapely.geometry import Polygon
 
 from sentinelhub import CRS
 
-from .constants import FeatureType, FeatureTypeSet
-from .utilities import FeatureParser
+from eolearn.core import FeatureType, FeatureTypeSet, FeatureParser
+
 from .xarray_utils import array_to_dataframe, new_coordinates, string_to_variable
 
 PLOT_WIDTH = 800
 PLOT_HEIGHT = 500
 
 
-class Visualization:
+class EOPatchVisualization:
     """
     Plot class for making visulizations.
 

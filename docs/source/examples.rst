@@ -40,7 +40,7 @@ Visualizations
 
 .. toctree::
 
-    examples/core/ExampleVisualization.ipynb
+    examples/visualization/EOPatchVisualization.ipynb
 
 
 Timelapse

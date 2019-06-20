@@ -7,6 +7,7 @@ import subprocess
 
 
 SUBPACKAGE_LIST = ['core',
+                   'visualization',
                    'coregistration',
                    'features',
                    'geometry',

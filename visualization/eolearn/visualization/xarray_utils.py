@@ -8,8 +8,7 @@ import xarray as xr
 
 from sentinelhub import BBox
 
-from .constants import FeatureTypeSet
-from .utilities import FeatureParser
+from eolearn.core import FeatureTypeSet, FeatureParser
 
 
 def string_to_variable(string, extension=None):

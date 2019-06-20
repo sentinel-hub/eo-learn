@@ -19,7 +19,7 @@ def parse_requirements(file):
 
 
 def get_version():
-    for line in open(os.path.join(os.path.dirname(__file__), 'eolearn', 'core', '__init__.py')):
+    for line in open(os.path.join(os.path.dirname(__file__), 'eolearn', 'visualization', '__init__.py')):
         if line.find("__version__") >= 0:
             version = line.split("=")[1].strip()
             version = version.strip('"').strip("'")
@@ -27,10 +27,10 @@ def get_version():
 
 
 setup(
-    name='eo-learn-core',
+    name='eo-learn-visualization',
     python_requires='>=3.5',
     version=get_version(),
-    description='Core Machine Learning Framework at Sinergise',
+    description='A collection of visualization utilities',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
     url='https://github.com/sentinel-hub/eo-learn',
@@ -38,6 +38,7 @@ setup(
     author_email='eoresearch@sinergise.com',
     license='MIT',
     packages=find_packages(),
+    package_data={'eolearn': ['visualization/report_templates/report.html']},
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     zip_safe=False

@@ -2,7 +2,7 @@
 A collection of most basic EOTasks
 """
 
-import os.path
+import os
 
 from .eodata import EOPatch
 from .eotask import EOTask
