@@ -32,6 +32,7 @@ script:
     pylint io/eolearn/io/*.py;
     pylint mask/eolearn/mask/*.py;
     pylint ml_tools/eolearn/ml_tools/*.py;
+    pylint visualization/eolearn/visualization/*.py;
   fi
 - radon cc core/eolearn/core/*.py -a -nb
 - radon cc coregistration/eolearn/coregistration/*.py -a -nb
@@ -40,6 +41,7 @@ script:
 - radon cc io/eolearn/io/*.py -a -nb
 - radon cc mask/eolearn/mask/*.py -a -nb
 - radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
+- radon cc visualization/eolearn/visualization/*.py -a -nb
 - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then pytest --ignore io/eolearn/tests; fi'
 - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest ; fi'
 - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'

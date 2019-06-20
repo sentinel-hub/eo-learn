@@ -38,7 +38,8 @@ setup(
         'eo-learn-geometry>=0.4.2',
         'eo-learn-io>=0.4.2',
         'eo-learn-mask>=0.4.2',
-        'eo-learn-ml-tools>=0.4.2'
+        'eo-learn-ml-tools>=0.4.2',
+        'eo-learn-visualization>=0.5.0'
     ],
     extras_require={
         'DEV': parse_requirements('requirements-dev.txt')
