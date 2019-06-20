@@ -4,4 +4,17 @@ channels:
 dependencies:
 - cartopy=0.17.0
 - pip:
-  - ./../requirements-docs.txt
+  - Sphinx
+  - sphinx-rtd-theme
+  - nbsphinx
+  - ipython
+  - m2r>=0.2.0
+
+  - ./../core
+  - ./../coregistration
+  - ./../features
+  - ./../geometry
+  - ./../io
+  - ./../mask
+  - ./../ml_tools
+  - ./../visualization
