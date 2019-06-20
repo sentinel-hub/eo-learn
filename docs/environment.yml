@@ -1,0 +1,5 @@
+name: eo-learn-docs
+channels:
+- conda-forge
+dependencies:
+- cartopy=0.17.0
