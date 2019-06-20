@@ -205,11 +205,11 @@ class VectorToRaster(EOTask):
             return eopatch
 
         height, width = self._get_raster_shape(eopatch)
-        data_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
+        affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
         raster = self._get_raster(eopatch, height, width)
 
-        rasterio.features.rasterize(rasterization_shapes, out=raster, transform=data_transform,
+        rasterio.features.rasterize(rasterization_shapes, out=raster, transform=affine_transform,
                                     dtype=self.raster_dtype, **self.rasterio_params)
 
         feature_type, feature_name = self.raster_feature
@@ -263,13 +263,13 @@ class RasterToVector(EOTask):
             if not (feature_type.is_spatial() and feature_type.is_discrete()):
                 raise ValueError('Input features should be a spatial mask, but {} found'.format(feature_type))
 
-    def _vectorize_single_raster(self, raster, data_transform, crs, timestamp=None):
+    def _vectorize_single_raster(self, raster, affine_transform, crs, timestamp=None):
         """ Vectorizes a data slice of a single time component
 
         :param raster: Numpy array or shape (height, width, channels)
         :type raster: numpy.ndarray
-        :param data_transform: Object holding a transform vector (i.e. geographical location vector) of the raster
-        :type data_transform: affine.Affine
+        :param affine_transform: Object holding a transform vector (i.e. geographical location vector) of the raster
+        :type affine_transform: affine.Affine
         :param crs: Coordinate reference system
         :type crs: sentinelhub.CRS
         :param timestamp: Time of the data slice
@@ -288,7 +288,7 @@ class RasterToVector(EOTask):
         for idx in range(raster.shape[-1]):
             for geojson, value in rasterio.features.shapes(raster[..., idx],
                                                            mask=None if mask is None else mask[..., idx],
-                                                           transform=data_transform, **self.rasterio_params):
+                                                           transform=affine_transform, **self.rasterio_params):
                 geo_list.append(shapely.geometry.shape(geojson))
                 value_list.append(value)
 
@@ -323,14 +323,14 @@ class RasterToVector(EOTask):
             if self.raster_dtype:
                 raster = raster.astype(self.raster_dtype)
 
-            data_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
+            affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
             crs = eopatch.bbox.get_crs()
 
             if raster_ft.is_timeless():
-                eopatch[vector_ft][vector_fn] = self._vectorize_single_raster(raster, data_transform, crs)
+                eopatch[vector_ft][vector_fn] = self._vectorize_single_raster(raster, affine_transform, crs)
             else:
-                gpd_list = [self._vectorize_single_raster(raster[time_idx, ...], data_transform, crs,
+                gpd_list = [self._vectorize_single_raster(raster[time_idx, ...], affine_transform, crs,
                                                           timestamp=eopatch.timestamp[time_idx])
                             for time_idx in range(raster.shape[0])]
 
