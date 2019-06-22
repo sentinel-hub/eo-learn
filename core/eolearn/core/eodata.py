@@ -810,7 +810,8 @@ class EOPatch:
         try:
             from eolearn.visualization import EOPatchVisualization
         except ImportError:
-            raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use plot method')
+            raise RuntimeError('Subpackage eo-learn-visualization has to be installed with an option [FULL] in order '
+                               'to use plot method')
 
         vis = EOPatchVisualization(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
                                    timestamp_column=timestamp_column, geometry_column=geometry_column,

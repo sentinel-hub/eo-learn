@@ -17,4 +17,4 @@ dependencies:
   - ./../io
   - ./../mask
   - ./../ml_tools
-  - ./../visualization
+  - ./../visualization[FULL]

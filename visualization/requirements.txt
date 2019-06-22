@@ -1,8 +1,4 @@
 eo-learn-core
-geoviews
-hvplot
-pyepsg
-xarray
 pydot
 graphviz>=0.10.1
 matplotlib

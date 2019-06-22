@@ -72,7 +72,13 @@ shapely
 fiona
 ```
 
-One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. On windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+
+A part of subpackage `eo-learn-visualization` requires additional dependencies which don't get installed by default. Those can be installed with
+
+```bash
+pip install eo-learn-visualization[FULL]
+```
 
 ## Documentation
 
