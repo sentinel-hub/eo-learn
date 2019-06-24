@@ -97,6 +97,7 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Innovations in satellite measurements for development](https://blogs.worldbank.org/opendata/innovations-satellite-measurements-development)
  * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
  * [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification)(by Anze Zupanc) 
+ * [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966)(by Daniel Moraite)
 
 ## Questions and Issues
 
