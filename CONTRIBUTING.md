@@ -74,38 +74,47 @@ The following guidelines should be observed when creating a PR.
 
 ### General guidelines
 
- * Where applicable, create your contribution in a new branch of your fork based on the
-   `develop` branch, as the `master` branch is aligned to the released package on [PyPI][pypi]. Upon
-   completion of the code review, the branch will be merged into `develop` and, at
-   the next package release, into `master`.
+* Where applicable, create your contribution in a new branch of your fork based on the `develop` branch, as the `master` branch is aligned to the released package on [PyPI][pypi]. Upon completion of the code review, the branch will be merged into `develop` and, at the next package release, into `master`.
 
- * Document your PR to help maintainers understand and review your contribution. The PR
-   should include:
+* Document your PR to help maintainers understand and review your contribution. The PR should include:
 
-   * Description of contribution;
-   * Required testing;
-   * Link to issue/feature request.
+  * Description of contribution;
+  * Required testing;
+  * Link to issue/feature request.
 
- * Your contribution should include unit tests, to test correct behaviour of the new feature
-   and to lower the maintenance effort. Bug fixes as well as new features should include unit tests.
-   When submitting the PR, check whether the Travis CI testing returns any errors, and if it does,
-   please try to fix the issues causing failure. A test `EOPatch` is made available [here][test-eo-patch]
-   with data for each `FeatureType`. Unit tests evaluating the correctness of new tasks should use data
-   available in this `EOPatch`. New fields useful for testing purposes can be added, but should
-   be consistent with the `bbox` and `timestamp` of the `EOPatch`.
+* Your contribution should include unit tests, to test correct behaviour of the new feature and to lower the maintenance effort. Bug fixes as well as new features should include unit tests. When submitting the PR, check whether the Travis CI testing returns any errors, and if it does, please try to fix the issues causing failure. A test `EOPatch` is made available [here][test-eo-patch] with data for each `FeatureType`. Unit tests evaluating the correctness of new tasks should use data available in this `EOPatch`. New fields useful for testing purposes can be added, but should be consistent with the `bbox` and `timestamp` of the `EOPatch`.
 
- * Try to keep contributions small, as this speeds up the reviewing process. In the case of large
-   contributions, e.g. a new complex `EOTask`, it's best to contact us first to review the scope
-   of the contribution.
+* Try to keep contributions small, as this speeds up the reviewing process. In the case of large contributions, e.g. a new complex `EOTask`, it's best to contact us first to review the scope of the contribution.
 
- * Keep API compatibility in mind, in particular when contributing a new `EOTask`. In general,
-   all new tasks should adhere to the modularity of **eo-learn**.
-   Check the Section below for more information on how to contribute an `EOTask`.
+* Keep API compatibility in mind, in particular when contributing a new `EOTask`. In general,all new tasks should adhere to the modularity of **eo-learn**. Check the Section below for more information on how to contribute an `EOTask`.
 
- * New features or tasks should be appropriately commented using Sphinx style docstrings. The documentation uses
-   the [PEP-8][pep-8] formatting guidelines. [Pylint][pylint] is used to check the coding standard.
-   Therefore please run `pylint` from the the main folder, which contains the `pylintrc` file, to make sure your
-   contribution is scored `10.0/10.0`.
+* New features or tasks should be appropriately commented using Sphinx style docstrings. The documentation uses the [PEP-8][pep-8] formatting guidelines. [Pylint][pylint] is used to check the coding standard. Therefore please run `pylint` from the the main folder, which contains the `pylintrc` file, to make sure your contribution is scored `10.0/10.0`.
+
+### Development environment
+
+* Get the latest development version. Fork and clone the repo:
+```bash
+git clone git@github.com:<username>/eo-learn.git
+```
+
+* Make sure that you have python 3 installed, i.e. version 3.5 or higher.
+
+* Install **eo-learn** and all subpackages in editable mode with `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required libraries. For example:
+
+```bash
+cd eo-learn
+virtualenv --python python3 .env
+source .env/bin/activate
+pip install -e ./core
+pip install -e ./coregistration
+pip install -e ./features
+pip install -e ./geometry
+pip install -e ./io
+pip install -e ./mask
+pip install -e ./ml_tools
+pip install -e ./visualization
+pip install -e .
+```
 
 ### Contribute an `EOTask`
 
