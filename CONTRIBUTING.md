@@ -5,9 +5,9 @@ to the library is very much appreciated.
 
 Here is how you can contribute:
 
- * [Bug Reports](#bug-reports)
- * [Feature Requests](#feature-requests)
- * [Pull Requests](#pull-requests)
+* [Bug Reports](#bug-reports)
+* [Feature Requests](#feature-requests)
+* [Pull Requests](#pull-requests)
 
 All contributors agree to follow our [Code of Conduct][code-of-conduct].
 
@@ -30,11 +30,11 @@ When reporting a bug, please check [here][open-bug-list] whether
 the bug was already reported. If not, open an issue with the **bug** label and
 report the following information:
 
- * Issue description
- * How to reproduce the issue
- * Expected outcome
- * Actual outcome
- * OS and package versions
+* Issue description
+* How to reproduce the issue
+* Expected outcome
+* Actual outcome
+* OS and package versions
 
 This information helps us to reproduce, pinpoint, and fix the reported issue.
 
@@ -82,38 +82,51 @@ The following guidelines should be observed when creating a PR.
   * Required testing;
   * Link to issue/feature request.
 
-* Your contribution should include unit tests, to test correct behaviour of the new feature and to lower the maintenance effort. Bug fixes as well as new features should include unit tests. When submitting the PR, check whether the Travis CI testing returns any errors, and if it does, please try to fix the issues causing failure. A test `EOPatch` is made available [here][test-eo-patch] with data for each `FeatureType`. Unit tests evaluating the correctness of new tasks should use data available in this `EOPatch`. New fields useful for testing purposes can be added, but should be consistent with the `bbox` and `timestamp` of the `EOPatch`.
+* Your contribution should include unit tests, to test correct behaviour of the new feature and to lower the maintenance effort. Bug fixes as well as new features should include unit tests. When submitting the PR, check whether the Travis CI testing returns any errors, and if it does, please try to fix the issues causing failure. A test `EOPatch` is made available [here][test-eo-patch] with data for each `FeatureType`. Unit tests evaluating the correctness of new tasks should use data available in this `EOPatch`. New fields useful for testing purposes can be added, but should be consistent with the `bbox` and `timestamp` of the `EOPatch`. To execute all unit tests locally on you machine, use the command: `pytest` from the main folder. See also the [examples/README.md](examples/README.md) for how to setup you SentinelHub account and local config for testing.
 
 * Try to keep contributions small, as this speeds up the reviewing process. In the case of large contributions, e.g. a new complex `EOTask`, it's best to contact us first to review the scope of the contribution.
 
 * Keep API compatibility in mind, in particular when contributing a new `EOTask`. In general,all new tasks should adhere to the modularity of **eo-learn**. Check the Section below for more information on how to contribute an `EOTask`.
 
-* New features or tasks should be appropriately commented using Sphinx style docstrings. The documentation uses the [PEP-8][pep-8] formatting guidelines. [Pylint][pylint] is used to check the coding standard. Therefore please run `pylint` from the the main folder, which contains the `pylintrc` file, to make sure your contribution is scored `10.0/10.0`.
+* New features or tasks should be appropriately commented using Sphinx style docstrings. The documentation uses the [PEP-8][pep-8] formatting guidelines. [Pylint][pylint] is used to check the coding standard. Therefore please run `pylint */ *.py` from the the main folder, which contains the `pylintrc` file, to make sure your contribution is scored `10.0/10.0`.
 
 ### Development environment
 
-* Get the latest development version. Fork and clone the repo:
+* Get the latest development version by creating a fork and clone the repo:
+
 ```bash
 git clone git@github.com:<username>/eo-learn.git
 ```
 
 * Make sure that you have python 3 installed, i.e. version 3.5 or higher.
 
-* Install **eo-learn** and all subpackages in editable mode with `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required libraries. For example:
+* Install **eo-learn** and all subpackages in (editable) development mode with `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required libraries. For example by using Python Package Index (PyPI) and virtualenv:
 
 ```bash
 cd eo-learn
+# The following creates the virtual environment in the ".env" folder.
 virtualenv --python python3 .env
 source .env/bin/activate
-pip install -e ./core
-pip install -e ./coregistration
-pip install -e ./features
-pip install -e ./geometry
-pip install -e ./io
-pip install -e ./mask
-pip install -e ./ml_tools
-pip install -e ./visualization
-pip install -e .
+
+#The following installs all eo-learn subpackages and development packages
+#using PyPI in the inside the activated virtualenv environment.
+pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io -e ./mask -e ./ml_tools -e ./visualization -e .
+pip install -r requirements-dev.txt -r requirements-docs.txt
+```
+
+Or alternatively by using Conda:
+
+```bash
+cd eo-learn
+# The following creates the virtual environment named "dev_eolearn" where the Conda installation in located.
+# ipykernel: Enables Jupyter (using nb_conda_kernels) to select the environment as a kernel.
+# ipywidgets: Enables Jupyter to show progress bar of EOExecutor without raising an error.
+conda create -n dev_eolearn python=3.7 ipykernel ipywidgets
+conda activate dev_eolearn
+
+# The following installs all eo-learn subpackages and development packages using PyPI inside the activated Conda environment.
+pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io -e ./mask -e ./ml_tools -e ./visualization -e .
+pip install -r requirements-dev.txt -r requirements-docs.txt
 ```
 
 ### Contribute an `EOTask`
@@ -135,23 +148,15 @@ class FooTask(EOTask):
         # do what foo does on input eopatch and return it
         return eopatch
 ```
+
 When creating a new task, bear in mind the following:
 
- * Tasks should be as modular as possible, facilitating task re-use and sharing.
- * An `EOTask` should perform a well-defined operation on the input eopatch(es). If the operation
-   could be split into atomic sub-operations that could be used separately, then consider splitting
-   the task into multiple tasks. Similarly, if tasks share the bulk of the implementation but differ
-   in a minority of implementation, consider using Base classes and inheritance. The interpolation
-   tasks represent a good example of this.  
- * Tasks should be as generalizable as possible, therefore hard-coding of task parameters or `EOPatch`
-   feature types should be avoided. Use the `EOTask._parse_features` method to parse input features in a task,
-   and pass task parameters as arguments, either in the constructor, or at run-time.
- * If in doubt on whether a task is general enough to be of interest to the community, or you are not
-   sure to which sub-package to contribute your task to, send us an email or open a
-   [feature request](#feature-requests).
+* Tasks should be as modular as possible, facilitating task re-use and sharing.
+* An `EOTask` should perform a well-defined operation on the input eopatch(es). If the operation could be split into atomic sub-operations that could be used separately, then consider splitting the task into multiple tasks. Similarly, if tasks share the bulk of the implementation but differ in a minority of implementation, consider using Base classes and inheritance. The interpolation tasks represent a good example of this.  
+* Tasks should be as generalizable as possible, therefore hard-coding of task parameters or `EOPatch` feature types should be avoided. Use the `EOTask._parse_features` method to parse input features in a task, and pass task parameters as arguments, either in the constructor, or at run-time.
+* If in doubt on whether a task is general enough to be of interest to the community, or you are not sure to which sub-package to contribute your task to, send us an email or open a [feature request](#feature-requests).
 
 Looking forward to include your contributions into **eo-learn**.
-
 
 [pypi]: https://pypi.org/project/eo-learn/
 [pep-8]: https://www.python.org/dev/peps/pep-0008/
