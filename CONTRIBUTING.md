@@ -76,9 +76,9 @@ The following guidelines should be observed when creating a PR.
 
 * Try to keep contributions small, as this speeds up the reviewing process. In the case of large contributions, e.g. a new complex `EOTask`, it's best to contact us first to review the scope of the contribution.
 
-* Keep API compatibility in mind, in particular when contributing a new `EOTask`. In general,all new tasks should adhere to the modularity of **eo-learn**. Check the Section below for more information on how to contribute an `EOTask`.
+* Keep API compatibility in mind, in particular when contributing a new `EOTask`. In general, all new tasks should adhere to the modularity of **eo-learn**. Check the Section below for more information on how to contribute an `EOTask`.
 
-* New features or tasks should be appropriately commented using Sphinx style docstrings. The documentation uses the [PEP-8][pep-8] formatting guidelines. [Pylint][pylint] is used to check the coding standard. Therefore please run `pylint */ *.py` from the the main folder, which contains the `pylintrc` file, to make sure your contribution is scored `10.0/10.0`.
+* New features or tasks should be appropriately commented using Sphinx style docstrings. The documentation uses the [PEP-8][pep-8] formatting guidelines. [Pylint][pylint] is used to check the coding standard. Therefore, please run `pylint */ *.py` from the the main folder, which contains the `pylintrc` file, to make sure your contribution is scored `10.0/10.0`.
 
 ### Development environment
 
@@ -88,9 +88,9 @@ The following guidelines should be observed when creating a PR.
 git clone git@github.com:<username>/eo-learn.git
 ```
 
-* Make sure that you have python 3 installed, i.e. version 3.5 or higher.
+* Make sure that you have python 3 installed, i.e. version 3.5 or higher. See https://www.python.org/downloads/ for general Python versions or https://www.anaconda.com/distribution/ for using Conda.
 
-* Install **eo-learn** and all subpackages in (editable) development mode with `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required libraries. For example by using Python Package Index (PyPI) and virtualenv:
+* Install **eo-learn** and all subpackages in (editable) development mode with `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required packages. For example by using Python Package Index (PyPI) and virtualenv:
 
 ```bash
 cd eo-learn
@@ -110,9 +110,9 @@ Or alternatively by using Conda:
 ```bash
 cd eo-learn
 # The following creates the virtual environment named "dev_eolearn" where the
-# Conda installation in located. ipykernel: Enables Jupyter (using
-# nb_conda_kernels) to select the environment as a kernel. ipywidgets: Enables
-# Jupyter to show progress bar of EOExecutor without raising an error.
+# Conda installation in located. ipykernel enables Jupyter (using
+# nb_conda_kernels) to select the environment as a kernel. ipywidgets enables
+# Jupyter to show the progress bar of EOExecutor without raising an error.
 conda create -n dev_eolearn python=3.7 ipykernel ipywidgets
 conda activate dev_eolearn
 
@@ -123,7 +123,7 @@ pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io \
 pip install -r requirements-dev.txt -r requirements-docs.txt
 ```
 
-**Note:** to reduce later merge conflict, always pull the latest version of the `develop` branch of the upstream eo-learn repository ([located here](https://github.com/sentinel-hub/eo-learn/tree/develop)) to your fork before starting the work on your PR.
+**Note:** to reduce later merge conflicts, always pull the latest version of the `develop` branch from the upstream eo-learn repository ([located here](https://github.com/sentinel-hub/eo-learn/tree/develop)) to your fork before starting the work on your PR.
 
 ### Contribute an `EOTask`
 
