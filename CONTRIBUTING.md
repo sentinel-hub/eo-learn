@@ -38,8 +38,7 @@ report the following information:
 
 This information helps us to reproduce, pinpoint, and fix the reported issue.
 
-If you are not sure whether the odd behaviour is a bug or a _feature_, best to open
-an issue and clarify.
+If you are not sure whether the odd behaviour is a bug or a _feature_, best to open an issue and clarify.
 
 [open-bug-list]: https://github.com/sentinel-hub/eo-learn/issues?q=state:open+type:issue+label:"bug"
 
@@ -47,24 +46,15 @@ an issue and clarify.
 
 Existing feature requests can be found [here][existing-feature-requests].
 
-A new feature request can be created by opening a new issue with the **enhancement** label,
-and describing how the feature would benefit the **eo-learn** community.
-Providing an example use-case would help assessing the scope of the
-feature request.
+A new feature request can be created by opening a new issue with the **enhancement** label, and describing how the feature would benefit the **eo-learn** community. Providing an example use-case would help assessing the scope of the feature request.
 
 [existing-feature-requests]: https://github.com/sentinel-hub/eo-learn/issues?q=state:open+type:issue+label:"enhancement"
 
 ## Pull Requests
 
-The GitHub Pull Request (PR) mechanism is the best option to contribute code
-to the library. Users can fork the repository, make their contribution to their
-local fork and create a PR to add those changes to the codebase. GitHub provides excellent
-tutorials on how the [fork and pull][fork-and-pull] mechanism work, and on
-how to best [create a PR][create-pr].
+The GitHub Pull Request (PR) mechanism is the best option to contribute code to the library. Users can fork the repository, make their contribution to their local fork and create a PR to add those changes to the codebase. GitHub provides excellent tutorials on how the [fork and pull][fork-and-pull] mechanism work, and on how to best [create a PR][create-pr].
 
-Existing PRs can be found [here][existing-prs]. Before creating new PRs, you should check
-whether someone else has contributed a similar feature, and if so, you can add your
-input to the existing code review.
+Existing PRs can be found [here][existing-prs]. Before creating new PRs, you should check whether someone else has contributed a similar feature, and if so, you can add your input to the existing code review.
 
 The following guidelines should be observed when creating a PR.
 
@@ -108,9 +98,10 @@ cd eo-learn
 virtualenv --python python3 .env
 source .env/bin/activate
 
-#The following installs all eo-learn subpackages and development packages
-#using PyPI in the inside the activated virtualenv environment.
-pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io -e ./mask -e ./ml_tools -e ./visualization -e .
+# The following installs all eo-learn subpackages and development packages
+# using PyPI in the activated virtualenv environment.
+pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io \
+-e ./mask -e ./ml_tools -e ./visualization -e .
 pip install -r requirements-dev.txt -r requirements-docs.txt
 ```
 
@@ -118,16 +109,21 @@ Or alternatively by using Conda:
 
 ```bash
 cd eo-learn
-# The following creates the virtual environment named "dev_eolearn" where the Conda installation in located.
-# ipykernel: Enables Jupyter (using nb_conda_kernels) to select the environment as a kernel.
-# ipywidgets: Enables Jupyter to show progress bar of EOExecutor without raising an error.
+# The following creates the virtual environment named "dev_eolearn" where the
+# Conda installation in located. ipykernel: Enables Jupyter (using
+# nb_conda_kernels) to select the environment as a kernel. ipywidgets: Enables
+# Jupyter to show progress bar of EOExecutor without raising an error.
 conda create -n dev_eolearn python=3.7 ipykernel ipywidgets
 conda activate dev_eolearn
 
-# The following installs all eo-learn subpackages and development packages using PyPI inside the activated Conda environment.
-pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io -e ./mask -e ./ml_tools -e ./visualization -e .
+# The following installs all eo-learn subpackages and development packages
+# using PyPI in the activated Conda environment.
+pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io \
+ -e ./mask -e ./ml_tools -e ./visualization -e .
 pip install -r requirements-dev.txt -r requirements-docs.txt
 ```
+
+**Note:** to reduce later merge conflict, always pull the latest version of the `develop` branch of the upstream eo-learn repository ([located here](https://github.com/sentinel-hub/eo-learn/tree/develop)) to your fork before starting the work on your PR.
 
 ### Contribute an `EOTask`
 
