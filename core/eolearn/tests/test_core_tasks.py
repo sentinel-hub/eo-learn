@@ -3,7 +3,7 @@ import logging
 import datetime
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature
+from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature, DuplicateFeature
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -81,6 +81,40 @@ class TestCoreTasks(unittest.TestCase):
         patch = RemoveFeature((FeatureType.MASK, new_feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
 
+    def test_duplicate_feature(self):
+        mask_data = np.arange(10).reshape(5, 2, 1, 1)
+        feature_name = 'MASK1'
+        duplicate_name = 'MASK2'
+
+        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, mask_data)
+
+        duplicate_task = DuplicateFeature((FeatureType.MASK, feature_name, duplicate_name))
+        patch = duplicate_task(patch)
+
+        self.assertTrue(duplicate_name in patch.mask, 'Feature was not duplicated. Name not found.')
+
+        self.assertTrue(np.array_equal(patch.mask[duplicate_name], mask_data),
+                        'Feature was not duplicated correctly. Data does not match.')
+
+        self.assertRaises(BaseException, duplicate_task, patch,
+                          'Expected an exception when duplicating an already exising feature.')
+
+        duplicate_names = {'D1', 'D2'}
+        feature_list = [(FeatureType.MASK, 'MASK1', 'D1'), (FeatureType.MASK, 'MASK2', 'D2')]
+        patch = DuplicateFeature(feature_list).execute(patch)
+
+        self.assertTrue(duplicate_names.issubset(patch.mask.keys()),
+                        'Duplicating multiple features failed.')
+        
+        # Duplicating MASK1 three times into D3, D4, D5 doesn't work, because EOTask.feature_gen
+        # returns a dict containing only ('MASK1', 'D5') duplication
+
+        # duplicate_names = {'D3', 'D4', 'D5'}
+        # feature_list = [(FeatureType.MASK, 'MASK1', new) for new in duplicate_names]
+        # patch = DuplicateFeature(feature_list).execute(patch)
+
+        # self.assertTrue(duplicate_names.issubset(patch.mask.keys()),
+        #                 'Duplicating single feature multiple times failed.')
 
 if __name__ == '__main__':
     unittest.main()

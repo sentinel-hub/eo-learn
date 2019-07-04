@@ -172,3 +172,32 @@ class RenameFeature(EOTask):
             del eopatch[feature_type][feature_name]
 
         return eopatch
+
+class DuplicateFeature(EOTask):
+    """Duplicates one or multiple features in an EOPatch.
+
+    :param features: A collection of features to be copied.
+    :type features: object supported by eolearn.core.utilities.FeatureParser class
+    """
+
+    def __init__(self, features):
+        self.feature_gen = self._parse_features(features, new_names=True)
+
+    def execute(self, eopatch):
+        """Returns the EOPatch with copied features.
+
+        :param eopatch: Input EOPatch
+        :type eopatch: EOPatch
+        :return: Input EOPatch with the duplicated features.
+        :rtype: EOPatch
+        :raises BaseException: Raises an exception when trying to duplicate a feature with an
+            already existing feature name.
+        """
+
+        for feature_type, feature_name, new_feature_name in self.feature_gen(eopatch):
+            if new_feature_name in eopatch[feature_type].keys():
+                raise BaseException("A feature named '{}' already exists.".format(new_feature_name))
+
+            eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
+
+        return eopatch
