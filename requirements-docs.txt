@@ -11,4 +11,4 @@ m2r>=0.2.0
 -e ./io
 -e ./mask
 -e ./ml_tools
-./visualization
+-e ./visualization
