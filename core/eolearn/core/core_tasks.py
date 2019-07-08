@@ -14,10 +14,12 @@ class CopyTask(EOTask):
 
     It copies feature type dictionaries but not the data itself.
 
-    :param features: A collection of features or feature types that will be copied into new EOPatch.
-    :type features: object supported by eolearn.core.utilities.FeatureParser class
     """
     def __init__(self, features=...):
+        """
+        :param features: A collection of features or feature types that will be copied into new EOPatch.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        """
         self.features = features
 
     def execute(self, eopatch):
@@ -26,9 +28,6 @@ class CopyTask(EOTask):
 
 class DeepCopyTask(CopyTask):
     """ Makes a deep copy of the given EOPatch.
-
-    :param features: A collection of features or feature types that will be copied into new EOPatch.
-    :type features: object supported by eolearn.core.utilities.FeatureParser class
     """
     def execute(self, eopatch):
         return eopatch.__deepcopy__(features=self.features)
@@ -36,21 +35,22 @@ class DeepCopyTask(CopyTask):
 
 class SaveToDisk(EOTask):
     """Saves the given EOPatch to disk.
-
-    :param folder: root directory where all EOPatches are saved
-    :type folder: str
-    :param features: A collection of features types specifying features of which type will be saved. By default
-        all features will be saved.
-    :type features: object supported by eolearn.core.utilities.FeatureParser class
-    :param file_format: File format
-    :type file_format: FileFormat or str
-    :param overwrite_permission: A level of permission for overwriting an existing EOPatch
-    :type overwrite_permission: OverwritePermission or int
-    :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
-        to 9 (highest compression).
-    :type compress_level: int
     """
     def __init__(self, folder, *args, **kwargs):
+        """
+        :param folder: root directory where all EOPatches are saved
+        :type folder: str
+        :param features: A collection of features types specifying features of which type will be saved. By default
+            all features will be saved.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :param file_format: File format
+        :type file_format: FileFormat or str
+        :param overwrite_permission: A level of permission for overwriting an existing EOPatch
+        :type overwrite_permission: OverwritePermission or int
+        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
+            to 9 (highest compression).
+        :type compress_level: int
+        """
         self.folder = folder
         self.args = args
         self.kwargs = kwargs
@@ -71,17 +71,18 @@ class SaveToDisk(EOTask):
 
 class LoadFromDisk(EOTask):
     """Loads the given EOPatch from disk.
-
-    :param folder: root directory where all EOPatches are saved
-    :type folder: str
-    :param features: A collection of features to be loaded. By default all features will be loaded.
-    :type features: object supported by eolearn.core.utilities.FeatureParser class
-    :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
-    :type lazy_loading: bool
-    :param mmap: If `True`, then memory-map the file. Works only on uncompressed npy files
-    :type mmap: bool
     """
     def __init__(self, folder, *args, **kwargs):
+        """
+        :param folder: root directory where all EOPatches are saved
+        :type folder: str
+        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
+        :type lazy_loading: bool
+        :param mmap: If `True`, then memory-map the file. Works only on uncompressed npy files
+        :type mmap: bool
+        """
         self.folder = folder
         self.args = args
         self.kwargs = kwargs
@@ -100,11 +101,12 @@ class LoadFromDisk(EOTask):
 
 class AddFeature(EOTask):
     """Adds a feature to the given EOPatch.
-
-    :param feature: Feature to be added
-    :type feature: (FeatureType, feature_name) or FeatureType
     """
     def __init__(self, feature):
+        """
+        :param feature: Feature to be added
+        :type feature: (FeatureType, feature_name) or FeatureType
+        """
         self.feature_type, self.feature_name = next(self._parse_features(feature)())
 
     def execute(self, eopatch, data):
@@ -127,11 +129,12 @@ class AddFeature(EOTask):
 
 class RemoveFeature(EOTask):
     """Removes one or multiple features from the given EOPatch.
-
-    :param features: A collection of features to be removed.
-    :type features: object supported by eolearn.core.utilities.FeatureParser class
     """
     def __init__(self, features):
+        """
+        :param features: A collection of features to be removed.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        """
         self.feature_gen = self._parse_features(features)
 
     def execute(self, eopatch):
@@ -153,11 +156,12 @@ class RemoveFeature(EOTask):
 
 class RenameFeature(EOTask):
     """Renames one or multiple features from the given EOPatch.
-
-    :param features: A collection of features to be renamed.
-    :type features: object supported by eolearn.core.utilities.FeatureParser class
     """
     def __init__(self, features):
+        """
+        :param features: A collection of features to be renamed.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        """
         self.feature_gen = self._parse_features(features, new_names=True)
 
     def execute(self, eopatch):
