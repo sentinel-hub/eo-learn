@@ -307,7 +307,7 @@ class EOPatch:
                 self[feature_type][new_feature_name] = self[feature_type][feature_name]
                 del self[feature_type][feature_name]
             else:
-                raise BaseException("Feature {} from attribute {} does not exist!".format(
+                raise ValueError("Feature {} from attribute {} does not exist!".format(
                     feature_name, feature_type.value))
         else:
             LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name)
