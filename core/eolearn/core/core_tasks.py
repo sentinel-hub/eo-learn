@@ -4,6 +4,7 @@ A collection of most basic EOTasks
 
 import os
 import numpy as np
+from copy import deepcopy
 
 from .eodata import EOPatch
 from .eotask import EOTask
@@ -182,12 +183,13 @@ class DuplicateFeature(EOTask):
     """Duplicates one or multiple features in an EOPatch.
     """
 
-    def __init__(self, features):
+    def __init__(self, features, deep_copy_data=False):
         """
         :param features: A collection of features to be copied.
         :type features: object supported by eolearn.core.utilities.FeatureParser class
         """
         self.feature_gen = self._parse_features(features, new_names=True)
+        self.deep = deep_copy_data
 
     def execute(self, eopatch):
         """Returns the EOPatch with copied features.
@@ -196,7 +198,7 @@ class DuplicateFeature(EOTask):
         :type eopatch: EOPatch
         :return: Input EOPatch with the duplicated features.
         :rtype: EOPatch
-        :raises BaseException: Raises an exception when trying to duplicate a feature with an
+        :raises ValueError: Raises an exception when trying to duplicate a feature with an
             already existing feature name.
         """
 
@@ -204,7 +206,10 @@ class DuplicateFeature(EOTask):
             if new_feature_name in eopatch[feature_type]:
                 raise ValueError("A feature named '{}' already exists.".format(new_feature_name))
 
-            eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
+            if self.deep:
+                eopatch[feature_type][new_feature_name] = deepcopy(eopatch[feature_type][feature_name])
+            else:
+                eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
 
         return eopatch
 
@@ -232,21 +237,22 @@ class InitializeFeature(EOTask):
         :type init_value: int
         :param dtype: Type of array values.
         :type dtype: NumPy dtype
+        :raises ValueError: Raises an exeption when passing the wrong shape argument.
         """
 
         self.new_features = self._parse_features(feature)
 
         try:
-            self.shape_feat_type, self.shape_feat_name = next(self._parse_features(shape)())
+            self.shape_feature = next(self._parse_features(shape)())
         except ValueError:
-            self.shape_feat_type, self.shape_feat_name = None, None
+            self.shape_feature = None
 
-        if self.shape_feat_type and self.shape_feat_name:
+        if self.shape_feature:
             self.shape = None
         elif isinstance(shape, tuple) and len(shape) in (3, 4) and all(isinstance(x, int) for x in shape):
             self.shape = shape
         else:
-            raise BaseException("shape argument is not a shape tuple or a feature containing one.")
+            raise ValueError("shape argument is not a shape tuple or a feature containing one.")
 
         self.init_value = init_value
         self.dtype = dtype
@@ -258,15 +264,11 @@ class InitializeFeature(EOTask):
         :return: Input EOPatch with the initialized aditional features.
         :rtype: EOPatch
         """
-        if self.shape_feat_type and self.shape_feat_name:
-            shape = eopatch.get_feature(self.shape_feat_type, self.shape_feat_name).shape
-        else:
-            shape = self.shape
+        shape = eopatch[self.shape_feature].shape if self.shape_feature else self.shape
 
         add_features = set(self.new_features) - set(eopatch.get_feature_list())
 
-        for feature_type, feature_name in add_features:
-            empty_array = np.ones(shape, dtype=self.dtype) * self.init_value
-            eopatch.add_feature(feature_type, feature_name, empty_array)
+        for feature in add_features:
+            eopatch[feature] = np.ones(shape, dtype=self.dtype) * self.init_value
 
         return eopatch
