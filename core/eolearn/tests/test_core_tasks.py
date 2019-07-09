@@ -3,7 +3,8 @@ import logging
 import datetime
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature
+from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
+    DuplicateFeature, InitializeFeature
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -80,6 +81,88 @@ class TestCoreTasks(unittest.TestCase):
 
         patch = RemoveFeature((FeatureType.MASK, new_feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
+
+    def test_duplicate_feature(self):
+        mask_data = np.arange(10).reshape(5, 2, 1, 1)
+        feature_name = 'MASK1'
+        duplicate_name = 'MASK2'
+
+        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, mask_data)
+
+        duplicate_task = DuplicateFeature((FeatureType.MASK, feature_name, duplicate_name))
+        patch = duplicate_task(patch)
+
+        self.assertTrue(duplicate_name in patch.mask, 'Feature was not duplicated. Name not found.')
+        self.assertEqual(id(patch.mask['MASK1']), id(patch.mask['MASK2']))
+        self.assertTrue(np.array_equal(patch.mask[duplicate_name], mask_data),
+                        'Feature was not duplicated correctly. Data does not match.')
+
+        with self.assertRaises(ValueError, msg='Expected a ValueError when creating an already exising feature.'):
+            patch = duplicate_task(patch)
+
+        duplicate_names = {'D1', 'D2'}
+        feature_list = [(FeatureType.MASK, 'MASK1', 'D1'), (FeatureType.MASK, 'MASK2', 'D2')]
+        patch = DuplicateFeature(feature_list).execute(patch)
+
+        self.assertTrue(duplicate_names.issubset(patch.mask.keys()), 'Duplicating multiple features failed.')
+
+        patch = DuplicateFeature((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy_data=True)(patch)
+        self.assertNotEqual(id(patch.mask['MASK1']), id(patch.mask['DEEP']))
+        self.assertTrue(np.array_equal(patch.mask['MASK1'], patch.mask['DEEP']),
+                        'Feature was not duplicated correctly. Data does not match.')
+
+        # Duplicating MASK1 three times into D3, D4, D5 doesn't work, because EOTask.feature_gen
+        # returns a dict containing only ('MASK1', 'D5') duplication
+
+        # duplicate_names = {'D3', 'D4', 'D5'}
+        # feature_list = [(FeatureType.MASK, 'MASK1', new) for new in duplicate_names]
+        # patch = DuplicateFeature(feature_list).execute(patch)
+
+        # self.assertTrue(duplicate_names.issubset(patch.mask.keys()),
+        #                 'Duplicating single feature multiple times failed.')
+
+    def test_initialize_feature(self):
+        patch = DeepCopyTask()(self.patch)
+
+        init_val = 123
+        shape = (5, 10, 10, 3)
+        compare_data = np.ones(shape) * init_val
+
+        patch = InitializeFeature((FeatureType.MASK, 'test'), shape=shape, init_value=init_val)(patch)
+        self.assertEqual(patch.mask['test'].shape, shape)
+        self.assertTrue(np.array_equal(patch.mask['test'], compare_data))
+
+        failmsg = 'Expected a ValueError when trying to initialize a feature with a wrong shape dmensions.'
+        with self.assertRaises(ValueError, msg=failmsg):
+            patch = InitializeFeature((FeatureType.MASK_TIMELESS, 'wrong'), shape=shape, init_value=init_val)(patch)
+
+        init_val = 123
+        shape = (10, 10, 3)
+        compare_data = np.ones(shape) * init_val
+
+        patch = InitializeFeature((FeatureType.MASK_TIMELESS, 'test'), shape=shape, init_value=init_val)(patch)
+        self.assertEqual(patch.mask_timeless['test'].shape, shape)
+        self.assertTrue(np.array_equal(patch.mask_timeless['test'], compare_data))
+
+        fail_msg = 'Expected a ValueError when trying to initialize a feature with a wrong shape dmensions.'
+        with self.assertRaises(ValueError, msg=fail_msg):
+            patch = InitializeFeature((FeatureType.MASK, 'wrong'), shape=shape, init_value=init_val)(patch)
+
+        init_val = 123
+        shape = (5, 10, 10, 3)
+        compare_data = np.ones(shape) * init_val
+        new_names = {'F1', 'F2', 'F3'}
+
+        patch = InitializeFeature({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
+        fail_msg = "Failed to initialize new features from a shape tuple."
+        self.assertTrue(new_names < set(patch.mask.keys()), msg=fail_msg)
+        self.assertTrue(all(patch.mask[key].shape == shape for key in new_names))
+        self.assertTrue(all(np.array_equal(patch.mask[key], compare_data) for key in new_names))
+
+        patch = InitializeFeature({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, 'bands'))(patch)
+        fail_msg = "Failed to initialize new features from an existing feature."
+        self.assertTrue(new_names < set(patch.data), msg=fail_msg)
+        self.assertTrue(all(patch.data[key].shape == patch.data['bands'].shape for key in new_names))
 
 
 if __name__ == '__main__':
