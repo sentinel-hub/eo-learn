@@ -3,8 +3,8 @@ A collection of most basic EOTasks
 """
 
 import os
+import copy
 import numpy as np
-from copy import deepcopy
 
 from .eodata import EOPatch
 from .eotask import EOTask
@@ -183,13 +183,16 @@ class DuplicateFeature(EOTask):
     """Duplicates one or multiple features in an EOPatch.
     """
 
-    def __init__(self, features, deep_copy_data=False):
+    def __init__(self, features, deep_copy=False):
         """
         :param features: A collection of features to be copied.
         :type features: object supported by eolearn.core.utilities.FeatureParser class
+
+        :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
+        :type deep_copy: bool
         """
         self.feature_gen = self._parse_features(features, new_names=True)
-        self.deep = deep_copy_data
+        self.deep = deep_copy
 
     def execute(self, eopatch):
         """Returns the EOPatch with copied features.
@@ -207,7 +210,7 @@ class DuplicateFeature(EOTask):
                 raise ValueError("A feature named '{}' already exists.".format(new_feature_name))
 
             if self.deep:
-                eopatch[feature_type][new_feature_name] = deepcopy(eopatch[feature_type][feature_name])
+                eopatch[feature_type][new_feature_name] = copy.deepcopy(eopatch[feature_type][feature_name])
             else:
                 eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
 
@@ -272,3 +275,36 @@ class InitializeFeature(EOTask):
             eopatch[feature] = np.ones(shape, dtype=self.dtype) * self.init_value
 
         return eopatch
+
+class MoveFeature(EOTask):
+    """
+        Task to copy/deepcopy fields from one eopatch to another.
+    """
+
+    def __init__(self, features_to_copy, deep_copy=False):
+        """
+        :param features: A collection of features to be moved.
+        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
+        :type deep_copy: bool
+        """
+        self.features_to_copy = self._parse_features(features_to_copy)
+        self.deep = deep_copy
+
+    def execute(self, src_eopatch, dst_eopatch):
+        """
+        :param src_eopatch: Source EOPatch from witch to take features.
+        :type src_eopatch: EOPatch
+        :param dst_eopatch: Destination EOPatch to which to move/copy features.
+        :type dst_eopatch: EOPatch
+        :return: dst_eopatch with the aditional features from src_eopatch.
+        :rtype: EOPatch
+        """
+
+        for feature_type, feature_name in self.features_to_copy:
+            if self.deep:
+                dst_eopatch[feature_type][feature_name] = copy.deepcopy(src_eopatch[feature_type][feature_name])
+            else:
+                dst_eopatch[feature_type][feature_name] = src_eopatch[feature_type][feature_name]
+
+        return dst_eopatch

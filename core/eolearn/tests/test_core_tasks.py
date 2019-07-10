@@ -4,7 +4,7 @@ import datetime
 import numpy as np
 
 from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
-    DuplicateFeature, InitializeFeature
+    DuplicateFeature, InitializeFeature, MoveFeature
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -104,9 +104,9 @@ class TestCoreTasks(unittest.TestCase):
         feature_list = [(FeatureType.MASK, 'MASK1', 'D1'), (FeatureType.MASK, 'MASK2', 'D2')]
         patch = DuplicateFeature(feature_list).execute(patch)
 
-        self.assertTrue(duplicate_names.issubset(patch.mask.keys()), 'Duplicating multiple features failed.')
+        self.assertTrue(duplicate_names.issubset(patch.mask), 'Duplicating multiple features failed.')
 
-        patch = DuplicateFeature((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy_data=True)(patch)
+        patch = DuplicateFeature((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy=True)(patch)
         self.assertNotEqual(id(patch.mask['MASK1']), id(patch.mask['DEEP']))
         self.assertTrue(np.array_equal(patch.mask['MASK1'], patch.mask['DEEP']),
                         'Feature was not duplicated correctly. Data does not match.')
@@ -118,7 +118,7 @@ class TestCoreTasks(unittest.TestCase):
         # feature_list = [(FeatureType.MASK, 'MASK1', new) for new in duplicate_names]
         # patch = DuplicateFeature(feature_list).execute(patch)
 
-        # self.assertTrue(duplicate_names.issubset(patch.mask.keys()),
+        # self.assertTrue(duplicate_names.issubset(patch.mask),
         #                 'Duplicating single feature multiple times failed.')
 
     def test_initialize_feature(self):
@@ -155,7 +155,7 @@ class TestCoreTasks(unittest.TestCase):
 
         patch = InitializeFeature({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
         fail_msg = "Failed to initialize new features from a shape tuple."
-        self.assertTrue(new_names < set(patch.mask.keys()), msg=fail_msg)
+        self.assertTrue(new_names < set(patch.mask), msg=fail_msg)
         self.assertTrue(all(patch.mask[key].shape == shape for key in new_names))
         self.assertTrue(all(np.array_equal(patch.mask[key], compare_data) for key in new_names))
 
@@ -164,6 +164,40 @@ class TestCoreTasks(unittest.TestCase):
         self.assertTrue(new_names < set(patch.data), msg=fail_msg)
         self.assertTrue(all(patch.data[key].shape == patch.data['bands'].shape for key in new_names))
 
+    def test_move_feature(self):
+        patch_src = EOPatch()
+        patch_dst = EOPatch()
+
+        shape = (10, 5, 5, 3)
+        size = np.product(shape)
+
+        shape_timeless = (5, 5, 3)
+        size_timeless = np.product(shape_timeless)
+
+        data = [np.random.randint(0, 100, size).reshape(*shape) for i in range(3)] + \
+               [np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for i in range(2)]
+
+        features = [(FeatureType.DATA, 'D1'),
+                    (FeatureType.DATA, 'D2'),
+                    (FeatureType.MASK, 'M1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless2')]
+
+        for feat, dat in zip(features, data):
+            patch_src = AddFeature(feat)(patch_src, dat)
+
+        patch_dst = MoveFeature(features)(patch_src, patch_dst)
+
+        for i, (ftype, fname) in enumerate(features):
+            self.assertTrue(id(data[i]) == id(patch_dst[ftype][fname]))
+            self.assertTrue(np.array_equal(data[i], patch_dst[ftype][fname]))
+
+        patch_dst = EOPatch()
+        patch_dst = MoveFeature(features, deep_copy=True)(patch_src, patch_dst)
+
+        for i, (ftype, fname) in enumerate(features):
+            self.assertTrue(id(data[i]) != id(patch_dst[ftype][fname]))
+            self.assertTrue(np.array_equal(data[i], patch_dst[ftype][fname]))
 
 if __name__ == '__main__':
     unittest.main()
