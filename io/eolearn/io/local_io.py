@@ -35,16 +35,26 @@ class BaseLocalIo(EOTask):
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
-    def _get_file_path(self, filename):
-        """ Builds a file path from values obtained at class initialization and in execute method
+    def _get_file_path(self, filename, create_dir=False):
+        """ Builds a file path from values obtained at class initialization and in execute method.
+        If create_dir is set to True, non existing directories are automatically created.
         """
         if self.folder is None:
             if filename is None:
                 raise ValueError("At least one of parameters 'folder' and 'filename' has to be specified")
-            return filename
-        if filename is None:
-            return self.folder
-        return os.path.join(self.folder, filename)
+            path = filename
+        elif filename is None:
+            path = self.folder
+        else:
+            path = os.path.join(self.folder, filename)
+
+        # Create directory of path if it doesn't exist
+        if create_dir:
+            path_dir = os.path.dirname(path)
+            if path_dir != '' and not os.path.exists(path_dir):
+                os.makedirs(path_dir)
+
+        return path
 
     @abstractmethod
     def execute(self, eopatch, **kwargs):
@@ -168,7 +178,7 @@ class ExportToTiff(BaseLocalIo):
                           'numpy.int32 instead'.format((feature_type, feature_name)))
 
         # Write it out to a file
-        with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
+        with rasterio.open(self._get_file_path(filename, create_dir=True), 'w', driver='GTiff',
                            width=width, height=height,
                            count=index,
                            dtype=image_dtype, nodata=self.no_data_value,
