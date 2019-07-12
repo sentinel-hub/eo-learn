@@ -28,10 +28,11 @@ def lulc_arr(lulc_mask, lulc_codes):
     land_cover_task_array = []
     for el, val in zip(land_cover_array, lulc_codes):
         land_cover_task_array.append(VectorToRaster(
-            feature=(FeatureType.MASK_TIMELESS, 'LULC'),
-            vector_data=el,
-            raster_value=val,
+            raster_feature=(FeatureType.MASK_TIMELESS, 'LULC'),
+            vector_input=el,
+            values=val,
             raster_shape=rshape,
+            write_to_existing=True,
             raster_dtype=np.uint8))
 
     return land_cover_task_array
