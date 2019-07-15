@@ -1,10 +1,12 @@
 import unittest
 import logging
 import datetime
+import os
+import copy
 import numpy as np
 
 from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
-    DuplicateFeature, InitializeFeature, MoveFeature
+    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeaturesTask, MapFeaturesTask, ZipFeaturesTask
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -14,6 +16,8 @@ class TestCoreTasks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                     '../../../example_data', 'TestEOPatch')
         cls.patch = EOPatch()
 
         cls.patch.data['bands'] = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
@@ -198,6 +202,63 @@ class TestCoreTasks(unittest.TestCase):
         for i, (ftype, fname) in enumerate(features):
             self.assertTrue(id(data[i]) != id(patch_dst[ftype][fname]))
             self.assertTrue(np.array_equal(data[i], patch_dst[ftype][fname]))
+
+    def test_merge_features(self):
+        patch = EOPatch()
+
+        shape = (10, 5, 5, 3)
+        size = np.product(shape)
+
+        shape_timeless = (5, 5, 3)
+        size_timeless = np.product(shape_timeless)
+
+        data = [np.random.randint(0, 100, size).reshape(*shape) for _ in range(3)] + \
+               [np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for _ in range(2)]
+
+        features = [(FeatureType.DATA, 'D1'),
+                    (FeatureType.DATA, 'D2'),
+                    (FeatureType.MASK, 'M1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless2')]
+
+        for feat, dat in zip(features, data):
+            patch = AddFeature(feat)(patch, dat)
+
+        patch = MergeFeaturesTask(features[:3], (FeatureType.MASK, 'merged'))(patch)
+        patch = MergeFeaturesTask(features[3:], (FeatureType.MASK_TIMELESS, 'merged_timeless'))(patch)
+
+        expected = np.concatenate([patch[f] for f in features[:3]], axis=-1)
+
+        self.assertTrue(np.array_equal(patch.mask['merged'], expected))
+
+    def test_zip_features(self):
+        patch = EOPatch.load(self.data_path)
+
+        merge = ZipFeaturesTask({FeatureType.DATA: ['CLP', 'NDVI', 'BANDS-S2-L1C']}, # input features
+                                (FeatureType.DATA, 'MERGED'),                        # output feature
+                                lambda *f: np.concatenate(f, axis=-1))
+
+        patch = merge(patch)
+
+        expected = np.concatenate([patch.data['CLP'], patch.data['NDVI'], patch.data['BANDS-S2-L1C']], axis=-1)
+        self.assertTrue(np.array_equal(patch.data['MERGED'], expected))
+
+    def test_map_features(self):
+        patch = EOPatch.load(self.data_path)
+
+        move = MapFeaturesTask({FeatureType.DATA: ['CLP', 'NDVI', 'BANDS-S2-L1C']},
+                               {FeatureType.DATA: ['CLP2', 'NDVI2', 'BANDS-S2-L1C2']}, copy.deepcopy)
+
+        patch = move(patch)
+
+        self.assertTrue(np.array_equal(patch.data['CLP'], patch.data['CLP2']))
+        self.assertTrue(np.array_equal(patch.data['NDVI'], patch.data['NDVI2']))
+        self.assertTrue(np.array_equal(patch.data['BANDS-S2-L1C'], patch.data['BANDS-S2-L1C2']))
+
+        self.assertTrue(id(patch.data['CLP']) != id(patch.data['CLP2']))
+        self.assertTrue(id(patch.data['NDVI']) != id(patch.data['NDVI2']))
+        self.assertTrue(id(patch.data['BANDS-S2-L1C']) != id(patch.data['BANDS-S2-L1C2']))
+
 
 if __name__ == '__main__':
     unittest.main()

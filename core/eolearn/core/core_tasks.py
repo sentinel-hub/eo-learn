@@ -308,3 +308,134 @@ class MoveFeature(EOTask):
                 dst_eopatch[feature_type][feature_name] = src_eopatch[feature_type][feature_name]
 
         return dst_eopatch
+
+class MapFeaturesTask(EOTask):
+    """ Applies a function to each feature in input_features of a patch and stores the results in a set of \
+        output_features.
+
+        Example using inheritance:
+
+        .. code-block:: python
+
+            class MultiplyFeatures(MapFeaturesTask):
+                def map_function(self, f):
+                    return f * 2
+
+            multiply = MultiplyFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
+                                        {FeatureType.MASK: ['m1', 'm2', 'm3']}) # output features
+
+            result = multiply(patch)
+
+        Example using lambda:
+
+        .. code-block:: python
+
+            multiply = MapFeaturesTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
+                                       {FeatureType.MASK: ['m1', 'm2', 'm3']}, # output features
+                                       lambda f: f*2)                          # function to apply to each feature
+
+            result = multiply(patch)
+    """
+    def __init__(self, input_features, output_features, function=None):
+        """
+        :param input_features: A collection of the input features to be mapped.
+        :type input_features: an object supported by eolearn.core.utilities.FeatureParser class
+        :param output_features: A collection of the output features to which to assign the output data.
+        :type output_features: an object supported by eolearn.core.utilities.FeatureParser class
+        :param function: A function or lambda to be applied to the input data.
+        :raises ValueError: Raises an exeption when passing feature collections with different lengths.
+
+        """
+        self.f_in = list(self._parse_features(input_features))
+        self.f_out = list(self._parse_features(output_features))
+
+        if len(self.f_in) != len(self.f_out):
+            raise ValueError('The number of input and output features must match.')
+
+        self.function = function if function else self.map_function
+
+    def execute(self, eopatch):
+        """
+        :param eopatch: Source EOPatch from witch to read the data of input features.
+        :type eopatch: EOPatch
+        :return: An eopatch with the aditional mapped features.
+        :rtype: EOPatch
+        """
+        for f_in, f_out in zip(self.f_in, self.f_out):
+            eopatch[f_out] = self.function(eopatch[f_in])
+
+        return eopatch
+
+    def map_function(self, feature):
+        """
+        A function that will be applied to the input features.
+        """
+        raise NotImplementedError('map_function should be overridden.')
+
+class ZipFeaturesTask(EOTask):
+    """ Passes a set of input_features to a function, which returnes a single features as a result and stores it in \
+        the eopatch.
+
+        Example using inheritance:
+
+        .. code-block:: python
+
+            class CalculateFeatures(ZipFeaturesTask):
+                def map_function(self, *f):
+                    return f[0] / (f[1] + f[2])
+
+            calc = CalculateFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
+                                     (FeatureType.MASK, 'm1'))               # output feature
+
+            result = calc(patch)
+
+        Example using lambda:
+
+        .. code-block:: python
+
+            calc = ZipFeaturesTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
+                                   (FeatureType.MASK, 'm1'),               # output feature
+                                   lambda f0, f1, f2: f0 / (f1 + f2))      # function to apply to each feature
+
+            result = multiply(patch)
+    """
+    def __init__(self, input_features, output_feature, function=None):
+        """
+        :param input_features: A collection of the input features to be mapped.
+        :type input_features: an object supported by eolearn.core.utilities.FeatureParser class
+        :param output_feature: An output feature object to which to assign the output data.
+        :type output_feature: an object supported by eolearn.core.utilities.FeatureParser class
+        :param function: A function or lambda to be applied to the input data.
+        """
+        self.f_in = list(self._parse_features(input_features))
+        self.f_out = next(self._parse_features(output_feature)._get_features())
+        self.function = function if function else self.zip_function
+
+    def execute(self, eopatch):
+        """
+        :param eopatch: Source EOPatch from witch to read the data of input features.
+        :type eopatch: EOPatch
+        :return: An eopatch with the aditional zipped features.
+        :rtype: EOPatch
+        """
+        data = [eopatch[feature] for feature in self.f_in]
+
+        eopatch[self.f_out] = self.function(*data)
+
+        return eopatch
+
+    def zip_function(self, *f):
+        """A function that will be applied to the input features if overriden.
+
+        :raises NotImplementedError: When called and was neither overriden nor function argument was provided in \
+        __init__.
+        """
+        raise NotImplementedError('zip_function should be overridden.')
+
+class MergeFeaturesTask(ZipFeaturesTask):
+    """ Merges multiple features together by concatenating their data along the last axis.
+    """
+    def zip_function(self, *f):
+        """Concatenates the data of features along the last axis.
+        """
+        return np.concatenate(f, axis=-1)
