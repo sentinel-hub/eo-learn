@@ -179,6 +179,7 @@ class RenameFeature(EOTask):
 
         return eopatch
 
+
 class DuplicateFeature(EOTask):
     """Duplicates one or multiple features in an EOPatch.
     """
@@ -218,7 +219,7 @@ class DuplicateFeature(EOTask):
 
 
 class InitializeFeature(EOTask):
-    """ Initalizes the values of a feature.
+    """ Initializes the values of a feature.
 
     Example:
 
@@ -228,7 +229,6 @@ class InitializeFeature(EOTask):
 
         # Initialize data of the same shape as (FeatureType.DATA, 'data1')
         InitializeFeature((FeatureType.MASK, 'mask1'), shape=(FeatureType.DATA, 'data1'), init_value=1)
-
     """
     def __init__(self, feature, shape, init_value=0, dtype=np.uint8):
         """
@@ -240,7 +240,7 @@ class InitializeFeature(EOTask):
         :type init_value: int
         :param dtype: Type of array values.
         :type dtype: NumPy dtype
-        :raises ValueError: Raises an exeption when passing the wrong shape argument.
+        :raises ValueError: Raises an exception when passing the wrong shape argument.
         """
 
         self.new_features = self._parse_features(feature)
@@ -264,7 +264,7 @@ class InitializeFeature(EOTask):
         """
         :param eopatch: Input EOPatch.
         :type eopatch: EOPatch
-        :return: Input EOPatch with the initialized aditional features.
+        :return: Input EOPatch with the initialized additional features.
         :rtype: EOPatch
         """
         shape = eopatch[self.shape_feature].shape if self.shape_feature else self.shape
@@ -276,32 +276,33 @@ class InitializeFeature(EOTask):
 
         return eopatch
 
+
 class MoveFeature(EOTask):
     """
         Task to copy/deepcopy fields from one eopatch to another.
     """
 
-    def __init__(self, features_to_copy, deep_copy=False):
+    def __init__(self, features, deep_copy=False):
         """
         :param features: A collection of features to be moved.
         :type features: object supported by eolearn.core.utilities.FeatureParser class
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
-        self.features_to_copy = self._parse_features(features_to_copy)
+        self.features = self._parse_features(features)
         self.deep = deep_copy
 
     def execute(self, src_eopatch, dst_eopatch):
         """
-        :param src_eopatch: Source EOPatch from witch to take features.
+        :param src_eopatch: Source EOPatch from which to take features.
         :type src_eopatch: EOPatch
         :param dst_eopatch: Destination EOPatch to which to move/copy features.
         :type dst_eopatch: EOPatch
-        :return: dst_eopatch with the aditional features from src_eopatch.
+        :return: dst_eopatch with the additional features from src_eopatch.
         :rtype: EOPatch
         """
 
-        for feature_type, feature_name in self.features_to_copy:
+        for feature_type, feature_name in self.features:
             if self.deep:
                 dst_eopatch[feature_type][feature_name] = copy.deepcopy(src_eopatch[feature_type][feature_name])
             else:
@@ -309,8 +310,9 @@ class MoveFeature(EOTask):
 
         return dst_eopatch
 
+
 class MapFeaturesTask(EOTask):
-    """ Applies a function to each feature in input_features of a patch and stores the results in a set of \
+    """ Applies a function to each feature in input_features of a patch and stores the results in a set of
         output_features.
 
         Example using inheritance:
@@ -336,14 +338,14 @@ class MapFeaturesTask(EOTask):
 
             result = multiply(patch)
     """
-    def __init__(self, input_features, output_features, function=None):
+    def __init__(self, input_features, output_features, map_function=None):
         """
         :param input_features: A collection of the input features to be mapped.
         :type input_features: an object supported by eolearn.core.utilities.FeatureParser class
         :param output_features: A collection of the output features to which to assign the output data.
         :type output_features: an object supported by eolearn.core.utilities.FeatureParser class
-        :param function: A function or lambda to be applied to the input data.
-        :raises ValueError: Raises an exeption when passing feature collections with different lengths.
+        :param map_function: A function or lambda to be applied to the input data.
+        :raises ValueError: Raises an exception when passing feature collections with different lengths.
 
         """
         self.f_in = list(self._parse_features(input_features))
@@ -352,13 +354,13 @@ class MapFeaturesTask(EOTask):
         if len(self.f_in) != len(self.f_out):
             raise ValueError('The number of input and output features must match.')
 
-        self.function = function if function else self.map_function
+        self.function = map_function if map_function else self.map_method
 
     def execute(self, eopatch):
         """
-        :param eopatch: Source EOPatch from witch to read the data of input features.
+        :param eopatch: Source EOPatch from which to read the data of input features.
         :type eopatch: EOPatch
-        :return: An eopatch with the aditional mapped features.
+        :return: An eopatch with the additional mapped features.
         :rtype: EOPatch
         """
         for f_in, f_out in zip(self.f_in, self.f_out):
@@ -366,14 +368,15 @@ class MapFeaturesTask(EOTask):
 
         return eopatch
 
-    def map_function(self, feature):
+    def map_method(self, feature):
         """
         A function that will be applied to the input features.
         """
-        raise NotImplementedError('map_function should be overridden.')
+        raise NotImplementedError('map_method should be overridden.')
+
 
 class ZipFeaturesTask(EOTask):
-    """ Passes a set of input_features to a function, which returnes a single features as a result and stores it in \
+    """ Passes a set of input_features to a function, which returns a single features as a result and stores it in
         the eopatch.
 
         Example using inheritance:
@@ -399,23 +402,23 @@ class ZipFeaturesTask(EOTask):
 
             result = multiply(patch)
     """
-    def __init__(self, input_features, output_feature, function=None):
+    def __init__(self, input_features, output_feature, zip_function=None):
         """
         :param input_features: A collection of the input features to be mapped.
         :type input_features: an object supported by eolearn.core.utilities.FeatureParser class
         :param output_feature: An output feature object to which to assign the output data.
         :type output_feature: an object supported by eolearn.core.utilities.FeatureParser class
-        :param function: A function or lambda to be applied to the input data.
+        :param zip_function: A function or lambda to be applied to the input data.
         """
         self.f_in = list(self._parse_features(input_features))
-        self.f_out = next(self._parse_features(output_feature)._get_features())
-        self.function = function if function else self.zip_function
+        self.f_out = next(self._parse_features(output_feature)())
+        self.function = zip_function if zip_function else self.zip_method
 
     def execute(self, eopatch):
         """
-        :param eopatch: Source EOPatch from witch to read the data of input features.
+        :param eopatch: Source EOPatch from which to read the data of input features.
         :type eopatch: EOPatch
-        :return: An eopatch with the aditional zipped features.
+        :return: An eopatch with the additional zipped features.
         :rtype: EOPatch
         """
         data = [eopatch[feature] for feature in self.f_in]
@@ -424,18 +427,54 @@ class ZipFeaturesTask(EOTask):
 
         return eopatch
 
-    def zip_function(self, *f):
-        """A function that will be applied to the input features if overriden.
+    def zip_method(self, *f):
+        """A function that will be applied to the input features if overridden.
 
-        :raises NotImplementedError: When called and was neither overriden nor function argument was provided in \
+        :raises NotImplementedError: When called and was neither overridden nor function argument was provided in
         __init__.
         """
-        raise NotImplementedError('zip_function should be overridden.')
+        raise NotImplementedError('zip_method should be overridden.')
+
 
 class MergeFeaturesTask(ZipFeaturesTask):
     """ Merges multiple features together by concatenating their data along the last axis.
     """
-    def zip_function(self, *f):
+    def zip_method(self, *f):
         """Concatenates the data of features along the last axis.
         """
         return np.concatenate(f, axis=-1)
+
+
+class MoveBandsTask(EOTask):
+    """ Moves a subset of bands from one feature to a new one.
+    """
+
+    def __init__(self, feature_src, feature_dst, bands):
+        """
+        :param feature_src: A source feature from which to take the subset of bands.
+        :type feature_src: tuple (FeatureType, name)
+        :param feature_dst: An output feature to which to write the bands.
+        :type feature_dst: tuple (FeatureType, name)
+        :param bands: A list of bands to be moved.
+        :type bands: list
+        """
+        self.src = next(self._parse_features(feature_src)())
+        self.dst = next(self._parse_features(feature_dst)())
+
+        self.bands = bands
+
+    def execute(self, eopatch):
+        """
+        :param eopatch: An eopatch in which to move the bands.
+        :type input_features: EOPatch
+        """
+        shape = eopatch[self.src].shape
+
+        if not all(band < shape[-1] for band in self.bands):
+            raise ValueError("Band index out of feature's dimensions.")
+
+        f_type, f_name = self.dst
+
+        eopatch.add_feature(f_type, f_name, eopatch[self.src][..., self.bands])
+
+        return eopatch
