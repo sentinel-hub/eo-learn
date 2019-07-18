@@ -537,14 +537,15 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
 
     interpolation_method = INTER_METHODS[interpolation]
     downscaling = scale_factors[0] < 1 or scale_factors[0] < 1
+    new_size = tuple(new_size)
 
     def _resize(image):
         # Perform anti-alias smoothing if downscaling
         if downscaling and anti_alias:
             sx, sy = [((1/s) - 1)/2 for s in scale_factors]
-            blured = cv2.GaussianBlur(image, (0,0), sigmaX=sx, sigmaY=sy, borderType=cv2.BORDER_REFLECT)
+            image = cv2.GaussianBlur(image, (0,0), sigmaX=sx, sigmaY=sy, borderType=cv2.BORDER_REFLECT)
 
-        resized = cv2.resize(blured, new_size, interpolation=interpolation_method)
+        resized = cv2.resize(image, new_size, interpolation=interpolation_method)
         
         return resized
 

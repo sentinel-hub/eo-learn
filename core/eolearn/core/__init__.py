@@ -12,7 +12,7 @@ from .eoexecution import EOExecutor
 
 from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFeature, RemoveFeature, RenameFeature,\
     DuplicateFeature, InitializeFeature
-from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
+from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser, map_image_slices, resize_images
 
 
 __version__ = '0.5.2'
