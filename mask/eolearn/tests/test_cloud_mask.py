@@ -36,8 +36,8 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)
         ps = np.sum(eop_clm.data['clp'][0]) / (w * h)
         self.assertTrue(eop_clm.mask['clm'].ndim == 4)
-        self.assertAlmostEqual(cc, 0.710357142857142, places=4)
-        self.assertAlmostEqual(ps, 0.500692345333859, places=4)
+        self.assertAlmostEqual(cc, 0.7212698412698413, places=4)
+        self.assertAlmostEqual(ps, 0.5089873, places=4)
 
     @pytest.mark.xfail
     def test_wms_request(self):
@@ -49,8 +49,8 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)
         ps = np.sum(eop_clm.data['clp'][0]) / (w * h)
         self.assertTrue(eop_clm.mask['clm'].ndim == 4)
-        self.assertAlmostEqual(cc, 0.737738, places=4)
-        self.assertAlmostEqual(ps, 0.520182, places=4)
+        self.assertAlmostEqual(cc, 0.7371428571428571, places=4)
+        self.assertAlmostEqual(ps, 0.5218150499131945, places=4)
 
 
 if __name__ == '__main__':
