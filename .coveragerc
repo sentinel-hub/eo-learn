@@ -1,0 +1,49 @@
+[pytest]
+addopts = --cov --cov-report=term
+testpaths = core
+    coregistration
+    features
+    geometry
+    io
+    mask
+    ml_tools
+    visualization
+
+[run]
+source = core
+    coregistration
+    features
+    geometry
+    io
+    mask
+    ml_tools
+    visualization
+
+[report]
+omit = core/eolearn/tests/*
+    coregistration/eolearn/tests/*
+    geometry/eolearn/tests/*
+    mask/eolearn/tests/*
+    ml_tools/eolearn/tests/*
+    visualization/eolearn/tests/*
+
+    core/setup.py
+    coregistration/setup.py
+    geometry/setup.py
+    mask/setup.py
+    ml_tools/setup.py
+    visualization/setup.py
+
+    core/eolearn/__init__.py
+    coregistration/eolearn/__init__.py
+    geometry/eolearn/__init__.py
+    mask/eolearn/__init__.py
+    ml_tools/eolearn/__init__.py
+    visualization/eolearn/__init__.py
+
+    core/eolearn/core/__init__.py
+    coregistration/eolearn/coregistration/__init__.py
+    geometry/eolearn/geometry/__init__.py
+    mask/eolearn/mask/__init__.py
+    ml_tools/eolearn/ml_tools/__init__.py
+    visualization/eolearn/visualization/__init__.py

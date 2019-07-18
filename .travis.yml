@@ -20,7 +20,7 @@ before_install:
 
 install:
 - pip install -r requirements-dev.txt --upgrade
-- python install_all.py
+- python install_all.py -e
 - pip install pandas==0.23.4  # This is temporal solution
 
 script:
@@ -42,6 +42,9 @@ script:
 - radon cc mask/eolearn/mask/*.py -a -nb
 - radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
 - radon cc visualization/eolearn/visualization/*.py -a -nb
-- 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then pytest --ignore io/eolearn/tests; fi'
-- 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest ; fi'
+- 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then pytest -c=.coveragerc --ignore io/eolearn/tests; fi'
+- 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest -c=.coveragerc; fi'
 - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
+
+after_success:
+- if [[ $TRAVIS_PYTHON_VERSION == 3.6 ]]; then codecov; fi
