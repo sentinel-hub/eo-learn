@@ -230,12 +230,12 @@ class InitializeFeature(EOTask):
         # Initialize data of the same shape as (FeatureType.DATA, 'data1')
         InitializeFeature((FeatureType.MASK, 'mask1'), shape=(FeatureType.DATA, 'data1'), init_value=1)
     """
-    def __init__(self, feature, shape, init_value=0, dtype=np.uint8):
+    def __init__(self, features, shape, init_value=0, dtype=np.uint8):
         """
-        :param feature: A collection of features to initialize.
-        :type feature: An object supported by eolearn.core.utilities.FeatureParser class.
+        :param features: A collection of features to initialize.
+        :type features: An object supported by eolearn.core.utilities.FeatureParser class.
         :param shape: A shape object (t, n, m, d) or a feature from which to read the shape.
-        :type feature: A tuple or an object supported by eolearn.core.utilities.FeatureParser class.
+        :type shape: A tuple or an object supported by eolearn.core.utilities.FeatureParser class.
         :param init_value: A value with which to initialize the array of the new feature.
         :type init_value: int
         :param dtype: Type of array values.
@@ -243,7 +243,7 @@ class InitializeFeature(EOTask):
         :raises ValueError: Raises an exception when passing the wrong shape argument.
         """
 
-        self.new_features = self._parse_features(feature)
+        self.features = self._parse_features(features)
 
         try:
             self.shape_feature = next(self._parse_features(shape)())
@@ -269,7 +269,7 @@ class InitializeFeature(EOTask):
         """
         shape = eopatch[self.shape_feature].shape if self.shape_feature else self.shape
 
-        add_features = set(self.new_features) - set(eopatch.get_feature_list())
+        add_features = set(self.features) - set(eopatch.get_feature_list())
 
         for feature in add_features:
             eopatch[feature] = np.ones(shape, dtype=self.dtype) * self.init_value
@@ -302,16 +302,16 @@ class MoveFeature(EOTask):
         :rtype: EOPatch
         """
 
-        for feature_type, feature_name in self.features:
+        for feature in self.features:
             if self.deep:
-                dst_eopatch[feature_type][feature_name] = copy.deepcopy(src_eopatch[feature_type][feature_name])
+                dst_eopatch[feature] = copy.deepcopy(src_eopatch[feature])
             else:
-                dst_eopatch[feature_type][feature_name] = src_eopatch[feature_type][feature_name]
+                dst_eopatch[feature] = src_eopatch[feature]
 
         return dst_eopatch
 
 
-class MapFeaturesTask(EOTask):
+class MapFeatureTask(EOTask):
     """ Applies a function to each feature in input_features of a patch and stores the results in a set of
         output_features.
 
@@ -319,7 +319,7 @@ class MapFeaturesTask(EOTask):
 
         .. code-block:: python
 
-            class MultiplyFeatures(MapFeaturesTask):
+            class MultiplyFeatures(MapFeatureTask):
                 def map_function(self, f):
                     return f * 2
 
@@ -332,7 +332,7 @@ class MapFeaturesTask(EOTask):
 
         .. code-block:: python
 
-            multiply = MapFeaturesTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
+            multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
                                        {FeatureType.MASK: ['m1', 'm2', 'm3']}, # output features
                                        lambda f: f*2)                          # function to apply to each feature
 
@@ -348,10 +348,10 @@ class MapFeaturesTask(EOTask):
         :raises ValueError: Raises an exception when passing feature collections with different lengths.
 
         """
-        self.f_in = list(self._parse_features(input_features))
-        self.f_out = list(self._parse_features(output_features))
+        self.input_features = list(self._parse_features(input_features))
+        self.output_feature = list(self._parse_features(output_features))
 
-        if len(self.f_in) != len(self.f_out):
+        if len(self.input_features) != len(self.output_feature):
             raise ValueError('The number of input and output features must match.')
 
         self.function = map_function if map_function else self.map_method
@@ -363,8 +363,8 @@ class MapFeaturesTask(EOTask):
         :return: An eopatch with the additional mapped features.
         :rtype: EOPatch
         """
-        for f_in, f_out in zip(self.f_in, self.f_out):
-            eopatch[f_out] = self.function(eopatch[f_in])
+        for input_features, output_feature in zip(self.input_features, self.output_feature):
+            eopatch[output_feature] = self.function(eopatch[input_features])
 
         return eopatch
 
@@ -375,7 +375,7 @@ class MapFeaturesTask(EOTask):
         raise NotImplementedError('map_method should be overridden.')
 
 
-class ZipFeaturesTask(EOTask):
+class ZipFeatureTask(EOTask):
     """ Passes a set of input_features to a function, which returns a single features as a result and stores it in
         the eopatch.
 
@@ -383,7 +383,7 @@ class ZipFeaturesTask(EOTask):
 
         .. code-block:: python
 
-            class CalculateFeatures(ZipFeaturesTask):
+            class CalculateFeatures(ZipFeatureTask):
                 def map_function(self, *f):
                     return f[0] / (f[1] + f[2])
 
@@ -396,7 +396,7 @@ class ZipFeaturesTask(EOTask):
 
         .. code-block:: python
 
-            calc = ZipFeaturesTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
+            calc = ZipFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
                                    (FeatureType.MASK, 'm1'),               # output feature
                                    lambda f0, f1, f2: f0 / (f1 + f2))      # function to apply to each feature
 
@@ -410,8 +410,8 @@ class ZipFeaturesTask(EOTask):
         :type output_feature: an object supported by eolearn.core.utilities.FeatureParser class
         :param zip_function: A function or lambda to be applied to the input data.
         """
-        self.f_in = list(self._parse_features(input_features))
-        self.f_out = next(self._parse_features(output_feature)())
+        self.input_features = list(self._parse_features(input_features))
+        self.output_feature = next(self._parse_features(output_feature)())
         self.function = zip_function if zip_function else self.zip_method
 
     def execute(self, eopatch):
@@ -421,9 +421,9 @@ class ZipFeaturesTask(EOTask):
         :return: An eopatch with the additional zipped features.
         :rtype: EOPatch
         """
-        data = [eopatch[feature] for feature in self.f_in]
+        data = [eopatch[feature] for feature in self.input_features]
 
-        eopatch[self.f_out] = self.function(*data)
+        eopatch[self.output_feature] = self.function(*data)
 
         return eopatch
 
@@ -436,7 +436,7 @@ class ZipFeaturesTask(EOTask):
         raise NotImplementedError('zip_method should be overridden.')
 
 
-class MergeFeaturesTask(ZipFeaturesTask):
+class MergeFeatureTask(ZipFeatureTask):
     """ Merges multiple features together by concatenating their data along the last axis.
     """
     def zip_method(self, *f):
@@ -445,36 +445,34 @@ class MergeFeaturesTask(ZipFeaturesTask):
         return np.concatenate(f, axis=-1)
 
 
-class MoveBandsTask(EOTask):
+class ExtractBandsTask(EOTask):
     """ Moves a subset of bands from one feature to a new one.
     """
 
-    def __init__(self, feature_src, feature_dst, bands):
+    def __init__(self, input_feature, output_feature, bands):
         """
-        :param feature_src: A source feature from which to take the subset of bands.
-        :type feature_src: tuple (FeatureType, name)
-        :param feature_dst: An output feature to which to write the bands.
-        :type feature_dst: tuple (FeatureType, name)
+        :param input_feature: A source feature from which to take the subset of bands.
+        :type input_feature: tuple (FeatureType, name)
+        :param output_feature: An output feature to which to write the bands.
+        :type output_feature: tuple (FeatureType, name)
         :param bands: A list of bands to be moved.
         :type bands: list
         """
-        self.src = next(self._parse_features(feature_src)())
-        self.dst = next(self._parse_features(feature_dst)())
+        self.input_feature = next(self._parse_features(input_feature)())
+        self.output_feature = next(self._parse_features(output_feature)())
 
         self.bands = bands
 
     def execute(self, eopatch):
         """
         :param eopatch: An eopatch in which to move the bands.
-        :type input_features: EOPatch
+        :type eopatch: EOPatch
         """
-        shape = eopatch[self.src].shape
+        shape = eopatch[self.input_feature].shape
 
         if not all(band < shape[-1] for band in self.bands):
             raise ValueError("Band index out of feature's dimensions.")
 
-        f_type, f_name = self.dst
-
-        eopatch.add_feature(f_type, f_name, eopatch[self.src][..., self.bands])
+        eopatch[self.output_feature] = eopatch[self.input_feature][..., self.bands]
 
         return eopatch
