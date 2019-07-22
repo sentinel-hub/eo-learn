@@ -18,8 +18,8 @@ class CopyTask(EOTask):
     """
     def __init__(self, features=...):
         """
-        :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :param features: A collection of features or feature types that will be copied into a new EOPatch.
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self.features = features
 
@@ -43,7 +43,7 @@ class SaveToDisk(EOTask):
         :type folder: str
         :param features: A collection of features types specifying features of which type will be saved. By default
             all features will be saved.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param file_format: File format
         :type file_format: FileFormat or str
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
@@ -78,7 +78,7 @@ class LoadFromDisk(EOTask):
         :param folder: root directory where all EOPatches are saved
         :type folder: str
         :param features: A collection of features to be loaded. By default all features will be loaded.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
         :param mmap: If `True`, then memory-map the file. Works only on uncompressed npy files
@@ -134,7 +134,7 @@ class RemoveFeature(EOTask):
     def __init__(self, features):
         """
         :param features: A collection of features to be removed.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self.feature_gen = self._parse_features(features)
 
@@ -161,7 +161,7 @@ class RenameFeature(EOTask):
     def __init__(self, features):
         """
         :param features: A collection of features to be renamed.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self.feature_gen = self._parse_features(features, new_names=True)
 
@@ -187,8 +187,7 @@ class DuplicateFeature(EOTask):
     def __init__(self, features, deep_copy=False):
         """
         :param features: A collection of features to be copied.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
-
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
@@ -233,9 +232,9 @@ class InitializeFeature(EOTask):
     def __init__(self, features, shape, init_value=0, dtype=np.uint8):
         """
         :param features: A collection of features to initialize.
-        :type features: An object supported by eolearn.core.utilities.FeatureParser class.
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param shape: A shape object (t, n, m, d) or a feature from which to read the shape.
-        :type shape: A tuple or an object supported by eolearn.core.utilities.FeatureParser class.
+        :type shape: A tuple or an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param init_value: A value with which to initialize the array of the new feature.
         :type init_value: int
         :param dtype: Type of array values.
@@ -278,14 +277,12 @@ class InitializeFeature(EOTask):
 
 
 class MoveFeature(EOTask):
+    """ Task to copy/deepcopy fields from one eopatch to another.
     """
-        Task to copy/deepcopy fields from one eopatch to another.
-    """
-
     def __init__(self, features, deep_copy=False):
         """
         :param features: A collection of features to be moved.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
@@ -341,9 +338,9 @@ class MapFeatureTask(EOTask):
     def __init__(self, input_features, output_features, map_function=None):
         """
         :param input_features: A collection of the input features to be mapped.
-        :type input_features: an object supported by eolearn.core.utilities.FeatureParser class
+        :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_features: A collection of the output features to which to assign the output data.
-        :type output_features: an object supported by eolearn.core.utilities.FeatureParser class
+        :type output_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param map_function: A function or lambda to be applied to the input data.
         :raises ValueError: Raises an exception when passing feature collections with different lengths.
 
@@ -405,9 +402,9 @@ class ZipFeatureTask(EOTask):
     def __init__(self, input_features, output_feature, zip_function=None):
         """
         :param input_features: A collection of the input features to be mapped.
-        :type input_features: an object supported by eolearn.core.utilities.FeatureParser class
-        :param output_feature: An output feature object to which to assign the output data.
-        :type output_feature: an object supported by eolearn.core.utilities.FeatureParser class
+        :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
+        :param output_feature: An output feature object to which to assign the the data.
+        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param zip_function: A function or lambda to be applied to the input data.
         """
         self.input_features = list(self._parse_features(input_features))
@@ -448,13 +445,12 @@ class MergeFeatureTask(ZipFeatureTask):
 class ExtractBandsTask(EOTask):
     """ Moves a subset of bands from one feature to a new one.
     """
-
     def __init__(self, input_feature, output_feature, bands):
         """
         :param input_feature: A source feature from which to take the subset of bands.
-        :type input_feature: tuple (FeatureType, name)
+        :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature to which to write the bands.
-        :type output_feature: tuple (FeatureType, name)
+        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param bands: A list of bands to be moved.
         :type bands: list
         """
@@ -476,3 +472,15 @@ class ExtractBandsTask(EOTask):
         eopatch[self.output_feature] = eopatch[self.input_feature][..., self.bands]
 
         return eopatch
+
+class CreateEOPatchTask(EOTask):
+    """Creates an EOPatch
+    """
+    def execute(self, **kwargs):
+        """Returns a newly created EOPatch with the given kwargs.
+
+        :param kwargs: Any valid kwargs accepted by :class:`EOPatch.__init__<eolearn.core.eodata.EOPatch>`
+        :return: A new eopatch.
+        :rtype: EOPatch
+        """
+        return EOPatch(**kwargs)

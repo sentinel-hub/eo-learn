@@ -5,8 +5,9 @@ import os
 import copy
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
-    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask, ExtractBandsTask
+from eolearn.core import EOPatch, FeatureType, CRS, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
+    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
+    ExtractBandsTask, CreateEOPatchTask
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -281,6 +282,13 @@ class TestCoreTasks(unittest.TestCase):
         bands = [2, 4, 16]
         move_bands = ExtractBandsTask((FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA, 'MOVED_BANDS'), bands)
         self.assertRaises(ValueError, move_bands, patch)
+
+    def test_create_eopatch(self):
+        data = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+        bbox = [5.60, 52.68, 5.75, 52.63, CRS.WGS84]
+
+        patch = CreateEOPatchTask()(data={'bands': data}, bbox=bbox)
+        self.assertTrue(np.array_equal(patch.data['bands'], data))
 
 
 if __name__ == '__main__':
