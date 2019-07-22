@@ -61,14 +61,14 @@ class TestVectorToRaster(unittest.TestCase):
                          img_min=1, img_max=13, img_mean=12.7093, img_median=13, img_dtype=np.uint16,
                          img_shape=(17, 17, 1)),
             cls.TestCase('deprecated parameters, single value, custom resolution',
-                         VectorToRaster(cls.raster_feature, custom_dataframe, values=14,
+                         VectorToRaster(vector_input=custom_dataframe, raster_feature=cls.raster_feature, values=14,
                                         raster_resolution=(32, 15), no_data_value=-1, raster_dtype=np.int32),
                          img_min=-1, img_max=14, img_mean=-0.8411, img_median=-1, img_dtype=np.int32,
                          img_shape=(67, 31, 1)),
             cls.TestCase('empty vector data test',
-                         VectorToRaster(raster_feature=cls.raster_feature,
-                                        vector_input=custom_dataframe[
+                         VectorToRaster(vector_input=custom_dataframe[
                                             (custom_dataframe.LULC_NAME == 'some_none_existent_name')],
+                                        raster_feature=cls.raster_feature,
                                         values_column='LULC_ID',
                                         raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
                          img_min=0, img_max=0, img_mean=0, img_median=0, img_dtype=np.uint8,
