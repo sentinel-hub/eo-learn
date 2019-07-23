@@ -46,6 +46,6 @@ class ErosionTask(EOTask):
         merged_mask = np.logical_or.reduce(eroded_masks + other_masks, axis=0)
 
         feature_array[~merged_mask] = self.no_data_label
-        eopatch[self.mask_type][self.new_mask_name] = np.expand_dims(feature_array, axis=-1)
+        eopatch[(self.mask_type, self.new_mask_name)] = np.expand_dims(feature_array, axis=-1)
 
         return eopatch
