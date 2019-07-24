@@ -15,7 +15,7 @@ from .radiometric_normalization import ReferenceScenes, HistogramMatching, BlueC
 from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
 from .hog import HOGTask
 from .local_binary_pattern import LocalBinaryPatternTask
-from .bands_extraction import EuclideanNormTask
+from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
 
 
 __version__ = '0.5.0'

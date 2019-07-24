@@ -1,16 +1,11 @@
 import unittest
-import os
-
 import numpy as np
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features import EuclideanNormTask
+from eolearn.features import EuclideanNormTask, NormalizedDifferenceIndexTask
 
-class TestErosion(unittest.TestCase):
 
-    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
-                                       'TestEOPatch')
-
+class TestBandsExtraction(unittest.TestCase):
     def test_euclidean_norm(self):
         eopatch = EOPatch()
 
@@ -22,6 +17,41 @@ class TestErosion(unittest.TestCase):
 
         eopatch = EuclideanNormTask((FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NORM'), bands)(eopatch)
         self.assertTrue(np.all(eopatch.data['NORM'] == np.sqrt(len(bands))))
+
+    def test_ndi(self):
+        eopatch = EOPatch(data={'TEST': np.zeros((4, 3, 3, 9))})
+
+        f_in, f_out = (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NDI')
+        self.assertRaises(ValueError, NormalizedDifferenceIndexTask, f_in, f_out, bands=[1, 2, 3])
+        self.assertRaises(ValueError, NormalizedDifferenceIndexTask, f_in, f_out, bands='test')
+
+        band_a, band_b = 4.123, 3.321
+        eopatch.data['TEST'][..., 0] = band_a
+        eopatch.data['TEST'][..., 1] = band_b
+        eopatch = NormalizedDifferenceIndexTask(f_in, f_out, bands=[0, 1])(eopatch)
+        self.assertTrue(np.all(eopatch.data['NDI'] == ((band_a - band_b) / (band_a + band_b))))
+
+        eopatch.data['TEST'][..., 5] = np.nan
+        eopatch.data['TEST'][..., 7] = np.inf
+        eopatch = NormalizedDifferenceIndexTask(
+            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NAN_INF_INPUT'), bands=[5, 7]
+        ).execute(eopatch)
+        self.assertTrue(np.all(np.isnan(eopatch.data['NAN_INF_INPUT'])))
+
+        eopatch.data['TEST'][..., 1] = 1
+        eopatch.data['TEST'][..., 3] = -1
+        eopatch = NormalizedDifferenceIndexTask(
+            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_ZERO_NAN'), bands=[1, 3]
+        ).execute(eopatch)
+
+        self.assertTrue(np.all(np.isnan(eopatch.data['DIV_ZERO_NAN'])))
+
+        eopatch = NormalizedDifferenceIndexTask(
+            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_ZERO_INT'), bands=[1, 3], undefined_value=123
+        ).execute(eopatch)
+
+        self.assertTrue(np.all(eopatch.data['DIV_ZERO_INT'] == 123))
+
 
 if __name__ == '__main__':
     unittest.main()

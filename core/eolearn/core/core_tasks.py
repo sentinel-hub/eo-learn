@@ -442,7 +442,7 @@ class MergeFeatureTask(ZipFeatureTask):
         return np.concatenate(f, axis=-1)
 
 
-class ExtractBandsTask(EOTask):
+class ExtractBandsTask(MapFeatureTask):
     """ Moves a subset of bands from one feature to a new one.
     """
     def __init__(self, input_feature, output_feature, bands):
@@ -454,24 +454,15 @@ class ExtractBandsTask(EOTask):
         :param bands: A list of bands to be moved.
         :type bands: list
         """
-        self.input_feature = next(self._parse_features(input_feature)())
-        self.output_feature = next(self._parse_features(output_feature)())
-
+        super().__init__(input_feature, output_feature)
         self.bands = bands
 
-    def execute(self, eopatch):
-        """
-        :param eopatch: An eopatch in which to move the bands.
-        :type eopatch: EOPatch
-        """
-        shape = eopatch[self.input_feature].shape
-
-        if not all(band < shape[-1] for band in self.bands):
+    def map_method(self, feature):
+        if not all(band < feature.shape[-1] for band in self.bands):
             raise ValueError("Band index out of feature's dimensions.")
 
-        eopatch[self.output_feature] = eopatch[self.input_feature][..., self.bands]
+        return feature[..., self.bands]
 
-        return eopatch
 
 class CreateEOPatchTask(EOTask):
     """Creates an EOPatch
