@@ -10,7 +10,7 @@ from eolearn.core import MapFeatureTask
 class EuclideanNormTask(MapFeatureTask):
     """ The task calculates the Euclidean Norm:
 
-        :math:`Norm = \sqrt{\sum_{i} B_i^2}`
+        :math:`Norm = \\sqrt{\\sum_{i} B_i^2}`
 
     where :math:`B_i` are the individual bands within a user-specified feature array.
     """
