@@ -57,20 +57,24 @@ class TestEOExecutor(unittest.TestCase):
                     self.assertTrue(time_stat in stats and isinstance(stats[time_stat], datetime.datetime))
 
     def test_execution_errors(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
-            executor.run(workers=5)
+        for multiprocess in [True, False]:
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
+                executor.run(workers=5, multiprocess=multiprocess)
 
-            for idx, stats in enumerate(executor.execution_stats):
-                if idx != 3:
-                    self.assertFalse('error' in stats, 'Workflow {} should be executed without errors'.format(idx))
-                else:
-                    self.assertTrue('error' in stats and stats['error'],
-                                    'This workflow should be executed with an error')
+                for idx, stats in enumerate(executor.execution_stats):
+                    if idx != 3:
+                        self.assertFalse('error' in stats, 'Workflow {} should be executed without errors'.format(idx))
+                    else:
+                        self.assertTrue('error' in stats and stats['error'],
+                                        'This workflow should be executed with an error')
+
+                self.assertEqual(executor.get_successful_executions(), [0, 1, 2])
+                self.assertEqual(executor.get_failed_executions(), [3])
 
     def test_report_creation(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
+            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name, save_logs=True)
             executor.run(workers=10)
             executor.make_report()
 

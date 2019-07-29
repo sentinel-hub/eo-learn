@@ -6,13 +6,16 @@ import sys
 import subprocess
 
 
-SUBPACKAGE_LIST = ['core',
-                   'coregistration',
-                   'features',
-                   'geometry',
-                   'io',
-                   'mask',
-                   'ml_tools']
+SUBPACKAGE_LIST = [
+    'core',
+    'coregistration',
+    'features',
+    'geometry',
+    'io',
+    'mask',
+    'ml_tools',
+    'visualization[FULL]'
+]
 
 
 def pip_command(name, args):

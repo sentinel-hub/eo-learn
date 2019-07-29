@@ -222,8 +222,7 @@ class FeatureParser:
             else:
                 if not isinstance(feature_name, str):
                     raise ValueError('Failed to parse {}, expected string'.format(feature_name))
-                else:
-                    raise ValueError('Failed to parse {}, expected string or Ellipsis'.format(new_feature_name))
+                raise ValueError('Failed to parse {}, expected string or Ellipsis'.format(new_feature_name))
         return feature_collection
 
     @staticmethod
@@ -471,3 +470,8 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
 
     return np.lib.pad(X, ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
                       'constant', constant_values=((pad_value, pad_value), (pad_value, pad_value)))
+
+
+def bgr_to_rgb(bgr):
+    """Converts Blue, Green, Red to Red, Green, Blue."""
+    return bgr[..., [2, 1, 0]]

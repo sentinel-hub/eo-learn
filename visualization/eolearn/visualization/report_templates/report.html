@@ -1,13 +1,21 @@
 <!DOCTYPE html>
 <html>
+
 <head lang="en">
     <meta charset="UTF-8">
     <title>{{ title }}</title>
 
     <style>
         {{ code_css }}
+
+        .content {
+          padding: 0 18px;
+          display: none;
+          overflow: hidden;
+        }
     </style>
 </head>
+
 <body>
     <h1>EO Workflow Report</h1>
 
@@ -21,7 +29,7 @@
         <h3>{{ task['title'] }}</h3>
         <ul>
             {% for key, value in task['args'].items() %}
-                <li>{{ key }} = {{ value }}</li>
+                <li> <pre> {{ key }} = {{ value }} </pre> </li>
             {% endfor %}
         </ul>
     {% endfor %}
@@ -48,9 +56,28 @@
             {{ execution['error'] }}
         {% endif %}
 
-        Log<br/>
-        <pre>{{ execution_logs[loop.index - 1] }}</pre>
+        <button class="collapsible">Logs</button>
+        <div class="content">
+          <pre>{{ execution_logs[loop.index - 1] }}</pre>
+        </div>
     {% endfor %}
+
+    <script>
+    var coll = document.getElementsByClassName("collapsible");
+    var i;
+
+    for (i = 0; i < coll.length; i++) {
+      coll[i].addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+    }
+    </script>
 
 </body>
 </html>

@@ -113,6 +113,14 @@ class TestEOPatch(unittest.TestCase):
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
 
+    def test_simplified_feature_operations(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+        feature = FeatureType.DATA, 'TEST-BANDS'
+        eop = EOPatch()
+
+        eop[feature] = bands
+        self.assertTrue(np.array_equal(eop[feature], bands), msg="Data numpy array not stored")
+
     def test_rename_feature(self):
         bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
 

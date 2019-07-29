@@ -67,11 +67,15 @@ class EOPatch:
     bbox = attr.ib(default=None)
     timestamp = attr.ib(factory=list)
 
-    def __setattr__(self, key, value):
+    def __setattr__(self, key, value, feature_name=None):
         """Raises TypeError if feature type attributes are not of correct type.
 
         In case they are a dictionary they are cast to _FeatureDict class
         """
+        if feature_name is not None and FeatureType.has_value(key):
+            self[key][feature_name] = value
+            return
+
         if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
@@ -102,37 +106,59 @@ class EOPatch:
         raise TypeError('Attribute {} requires value of type {} - '
                         'failed to parse given value'.format(feature_type, feature_type.type()))
 
-    def __getattribute__(self, key, load=True):
-        """ Handles lazy loading
+    def __getattribute__(self, key, load=True, feature_name=None):
+        """ Handles lazy loading and it can even provide a single feature from _FeatureDict
         """
         value = super().__getattribute__(key)
 
         if isinstance(value, _FileLoader) and load:
             value = value.load()
             setattr(self, key, value)
-            return getattr(self, key)
+            value = getattr(self, key)
+
+        if feature_name is not None and isinstance(value, _FeatureDict):
+            return value[feature_name]
 
         return value
 
     def __getitem__(self, feature_type):
-        """Provides features of requested feature type.
+        """ Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name)
 
         :param feature_type: Type of EOPatch feature
-        :type feature_type: FeatureType or str
+        :type feature_type: FeatureType or str or (FeatureType, str)
         :return: Dictionary of features
         """
-        return getattr(self, FeatureType(feature_type).value)
+        feature_name = None
+        if isinstance(feature_type, tuple):
+            self._check_tuple_key(feature_type)
+            feature_type, feature_name = feature_type
+
+        return self.__getattribute__(FeatureType(feature_type).value, feature_name=feature_name)
 
     def __setitem__(self, feature_type, value):
-        """Sets a new dictionary / list to the given FeatureType.
+        """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
+        (feature_type, feature_name)
 
         :param feature_type: Type of EOPatch feature
-        :type feature_type: FeatureType or str
+        :type feature_type: FeatureType or str or (FeatureType, str)
         :param value: New dictionary or list
         :type value: dict or list
         :return: Dictionary of features
         """
-        return setattr(self, FeatureType(feature_type).value, value)
+        feature_name = None
+        if isinstance(feature_type, tuple):
+            self._check_tuple_key(feature_type)
+            feature_type, feature_name = feature_type
+
+        return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
+
+    @staticmethod
+    def _check_tuple_key(key):
+        """ A helper function that checks a tuple, which should hold (feature_type, feature_name)
+        """
+        if len(key) != 2:
+            raise ValueError('Given element should be a feature_type or a tuple of (feature_type, feature_name),'
+                             'but {} found'.format(key))
 
     def __eq__(self, other):
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""
@@ -281,7 +307,7 @@ class EOPatch:
                 self[feature_type][new_feature_name] = self[feature_type][feature_name]
                 del self[feature_type][feature_name]
             else:
-                raise BaseException("Feature {} from attribute {} does not exist!".format(
+                raise ValueError("Feature {} from attribute {} does not exist!".format(
                     feature_name, feature_type.value))
         else:
             LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name)
@@ -758,6 +784,40 @@ class EOPatch:
         self.timestamp = good_timestamps
         return remove_from_patch
 
+    def plot(self, feature, rgb=None, rgb_factor=3.5, vdims=None, timestamp_column='TIMESTAMP',
+             geometry_column='geometry', pixel=False, mask=None):
+        """ Plots eopatch features
+
+        :param feature: feature of eopatch
+        :type feature: (FeatureType, str)
+        :param rgb: indexes of bands to create rgb image from
+        :type rgb: [int, int, int]
+        :param rgb_factor: factor for rgb bands multiplication
+        :type rgb_factor: float
+        :param vdims: value dimension for vector data
+        :type vdims: str
+        :param timestamp_column: name of the timestamp column, valid for vector data
+        :type timestamp_column: str
+        :param geometry_column: name of the geometry column, valid for vector data
+        :type geometry_column: str
+        :param pixel: plot values through time for one pixel
+        :type pixel: bool
+        :param mask: where eopatch[FeatureType.MASK] == False, value = 0
+        :type mask: str
+        :return: plot
+        :rtype: holovies/bokeh
+        """
+        try:
+            from eolearn.visualization import EOPatchVisualization
+        except ImportError:
+            raise RuntimeError('Subpackage eo-learn-visualization has to be installed with an option [FULL] in order '
+                               'to use plot method')
+
+        vis = EOPatchVisualization(self, feature=feature, rgb=rgb, rgb_factor=rgb_factor, vdims=vdims,
+                                   timestamp_column=timestamp_column, geometry_column=geometry_column,
+                                   pixel=pixel, mask=mask)
+        return vis.plot()
+
 
 class _FeatureDict(dict):
     """A dictionary structure that holds features of certain feature type.
@@ -900,7 +960,7 @@ class _FileLoader:
                       "anymore. Please save bounding box again, you can overwrite the existing one", DeprecationWarning,
                       stacklevel=4)
 
-        with open(gzip.open(path) if is_zipped else path, 'rb') as pickle_file:
+        with gzip.open(path) if is_zipped else open(path, 'rb') as pickle_file:
             crs_cnt = -1
             for _, arg, _ in pickletools.genops(pickle_file):
                 if arg == 'sentinelhub.constants CRS':

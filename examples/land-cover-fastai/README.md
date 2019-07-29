@@ -4,6 +4,16 @@ This example showcases how it’s possible to perform an automatic LULC classifi
 
 The workflow breaks down into training dataset generation, model training, and prediction. The notebook contains a detailed walkthrough. If this your first time working with LULC case using SentinelHub, eo-learn, or deep learning, you may find the following things helpful.
 
+### Setup
+
+In order to run the example, the `fastai` Python library need to be installed as follows:
+
+```bash
+pip install fastai
+```
+
+All the other dependecies are already installed with `eo-learn`.
+
 ### Step 1. Training data generation
 
 We used eo-learn package to fetch Sentinel-2 imagery from SentinelHub, and generate training image tiles as PNG to serve the deep learning model. Here are a few README if you want to learn more about how the training dataset was generated eo-learn and SentinelHub python packages: 1) [image file generation](https://github.com/sentinel-hub/eo-learn/tree/master/examples/land-cover-map) from a given shapefile/geojson of your area of interest; 2) [using EOPatches](https://github.com/sentinel-hub/eo-learn/tree/master/examples/land-cover-map) to save the Sentinel-2 imagery bands that is valid for the model.

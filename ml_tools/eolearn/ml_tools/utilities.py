@@ -7,7 +7,13 @@ import logging
 import itertools
 
 import numpy as np
-import matplotlib.pyplot as plt
+
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    import matplotlib
+    matplotlib.use('agg')
+    import matplotlib.pyplot as plt
 
 
 LOGGER = logging.getLogger(__name__)

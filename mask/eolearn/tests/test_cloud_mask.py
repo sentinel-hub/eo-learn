@@ -49,8 +49,8 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         cc = np.sum(eop_clm.mask['clm'][0]) / (w * h)
         ps = np.sum(eop_clm.data['clp'][0]) / (w * h)
         self.assertTrue(eop_clm.mask['clm'].ndim == 4)
-        self.assertAlmostEqual(cc, 0.7441071428571429, places=4)
-        self.assertAlmostEqual(ps, 0.5219069037079328, places=4)
+        self.assertAlmostEqual(cc, 0.737738, places=4)
+        self.assertAlmostEqual(ps, 0.520182, places=4)
 
 
 if __name__ == '__main__':

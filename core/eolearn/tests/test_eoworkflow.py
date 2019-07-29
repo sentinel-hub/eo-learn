@@ -5,7 +5,6 @@ import concurrent.futures
 from io import StringIO
 
 from hypothesis import given, strategies as st
-import networkx as nx
 
 from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults, LinearWorkflow
 from eolearn.core.eoworkflow import CyclicDependencyError, _UniqueIdGenerator
@@ -205,10 +204,7 @@ class TestGraph(unittest.TestCase):
         dot_file.write(dot.source)
         dot_file.seek(0)
 
-        graph = nx.drawing.nx_pydot.read_dot(dot_file)
-
-        self.assertEqual(graph.number_of_nodes(), 3)
-        self.assertEqual(graph.number_of_edges(), 2)
+        digraph = self.workflow.dependency_graph()
 
 
 class TestWorkflowResults(unittest.TestCase):

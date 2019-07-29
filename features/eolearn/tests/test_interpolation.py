@@ -1,12 +1,11 @@
-
 import unittest
 import os.path
-import numpy as np
 from datetime import datetime
+import numpy as np
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation, \
-    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling, KrigingInterpolation
+    AkimaInterpolation, LinearResampling, CubicResampling, NearestResampling, KrigingInterpolation, LegacyInterpolation
 
 
 class TestInterpolation(unittest.TestCase):
@@ -48,6 +47,19 @@ class TestInterpolation(unittest.TestCase):
     def setUpClass(cls):
 
         cls.test_cases = [
+            cls.InterpolationTestCase('linear', LegacyInterpolation('NDVI', result_interval=(0.0, 1.0),
+                                                                    mask_feature=(FeatureType.MASK, 'IS_VALID'),
+                                                                    unknown_value=10),
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
+                                      img_median=0.59765935),
+
+            cls.InterpolationTestCase('linear_change_timescale',
+                                      LegacyInterpolation('NDVI', result_interval=(0.0, 1.0),
+                                                          mask_feature=(FeatureType.MASK, 'IS_VALID'),
+                                                          unknown_value=10, scale_time=1),
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
+                                      img_median=0.597656965),
+
             cls.InterpolationTestCase('linear', LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                                     mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                                     unknown_value=10),
@@ -58,8 +70,8 @@ class TestInterpolation(unittest.TestCase):
                                       LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                           mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                           unknown_value=10, scale_time=1),
-                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
-                                      img_median=0.597656965),
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.7204042,
+                                      img_median=0.59765697),
 
             cls.InterpolationTestCase('cubic', CubicInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                                   mask_feature=(FeatureType.MASK, 'IS_VALID'),
@@ -115,11 +127,27 @@ class TestInterpolation(unittest.TestCase):
             cls.InterpolationTestCase('linear custom list', LinearInterpolation(
                 'NDVI', result_interval=(-0.2, 1.0),
                 resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
+                unknown_value=-2, parallel=True),
+                                      result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417,
+                                      img_median=0.5042224),
+
+            cls.InterpolationTestCase('linear with bands and multiple masks',
+                                      LinearInterpolation('BANDS-S2-L1C', result_interval=(0.0, 1.0), unknown_value=10,
+                                                          mask_feature=[(FeatureType.MASK, 'IS_VALID'),
+                                                                        (FeatureType.MASK_TIMELESS, 'RANDOM_UINT8'),
+                                                                        (FeatureType.LABEL, 'RANDOM_DIGIT')]),
+                                      result_len=68, img_min=0.000200, img_max=10.0, img_mean=0.3487376,
+                                      img_median=0.10036667),
+
+            cls.InterpolationTestCase('linear custom list', LegacyInterpolation(
+                'NDVI', result_interval=(-0.2, 1.0),
+                resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
                 unknown_value=-2),
                                       result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417,
                                       img_median=0.5042224),
+
             cls.InterpolationTestCase('linear with bands and multiple masks',
-                                      LinearInterpolation('BANDS-S2-L1C', result_interval=(0.0, 1.0), unknown_value=10,
+                                      LegacyInterpolation('BANDS-S2-L1C', result_interval=(0.0, 1.0), unknown_value=10,
                                                           mask_feature=[(FeatureType.MASK, 'IS_VALID'),
                                                                         (FeatureType.MASK_TIMELESS, 'RANDOM_UINT8'),
                                                                         (FeatureType.LABEL, 'RANDOM_DIGIT')]),

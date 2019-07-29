@@ -1,0 +1,6 @@
+eo-learn-core
+pydot
+graphviz>=0.10.1
+matplotlib
+jinja2
+pygments
