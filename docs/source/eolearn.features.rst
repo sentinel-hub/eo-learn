@@ -18,3 +18,4 @@ Submodules:
    eolearn.features.hog
    eolearn.features.blob
    eolearn.features.local_binary_pattern
+   eolearn.features.bands_extraction
