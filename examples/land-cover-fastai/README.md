@@ -24,7 +24,7 @@ We create a util script to read bands information and burned them into PNGs to f
 
 If it’s your first try to train a deep learning model on the cloud, we recommend you using a GPU machine to train the model. You can either use AWS EC2 machine (Deep learning AMI ami-6d720012), SageMaker ( detail setup can see [this instruction](https://github.com/sentinel-hub/eo-learn/blob/master/examples/tree-cover-keras/sagemaker.md)), Google colab, or other cloud providers’ services. We use AWS Deep Learn AMI p2.xlarge machine to run the notebook.
 
-The total training and prediction will take from 5 to 10 hours, depends on how long you want to train the model, will cost you from $5 to $10. If you used our pre-trained model weight “stage-8-50-ind“ (It’s in S3 bucket here), it will take less than 5 hours.  Google Colab provides credit for first users and it’d be free.
+The total training and prediction will take from 5 to 10 hours, depends on how long you want to train the model, will cost you from $5 to $10. If you used our pre-trained model weight “stage-8-50-ind“ (It’s in [S3 bucket](https://s3.amazonaws.com/query-planet-fastai-model)), it will take less than 5 hours.  Google Colab provides credit for first users and it’d be free.
 
 
 ### Step 3. Prediction and model inference
