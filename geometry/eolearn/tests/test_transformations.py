@@ -40,7 +40,7 @@ class TestVectorToRaster(unittest.TestCase):
         cls.raster_feature = FeatureType.MASK_TIMELESS, 'RASTERIZED_LULC'
 
         custom_dataframe = EOPatch.load(cls.TestCase.TEST_PATCH_FILENAME).vector_timeless['LULC']
-        custom_dataframe = custom_dataframe[custom_dataframe['AREA'] < 10 ** 3]
+        custom_dataframe = custom_dataframe[(custom_dataframe['AREA'] < 10 ** 3)]
 
         cls.test_cases = [
             cls.TestCase('basic test',
@@ -61,10 +61,18 @@ class TestVectorToRaster(unittest.TestCase):
                          img_min=1, img_max=13, img_mean=12.7093, img_median=13, img_dtype=np.uint16,
                          img_shape=(17, 17, 1)),
             cls.TestCase('deprecated parameters, single value, custom resolution',
-                         VectorToRaster(cls.raster_feature, custom_dataframe, values=14,
+                         VectorToRaster(vector_input=custom_dataframe, raster_feature=cls.raster_feature, values=14,
                                         raster_resolution=(32, 15), no_data_value=-1, raster_dtype=np.int32),
                          img_min=-1, img_max=14, img_mean=-0.8411, img_median=-1, img_dtype=np.int32,
-                         img_shape=(67, 31, 1))
+                         img_shape=(67, 31, 1)),
+            cls.TestCase('empty vector data test',
+                         VectorToRaster(vector_input=custom_dataframe[
+                                            (custom_dataframe.LULC_NAME == 'some_none_existent_name')],
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=0, img_mean=0, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
         ]
 
         for test_case in cls.test_cases:

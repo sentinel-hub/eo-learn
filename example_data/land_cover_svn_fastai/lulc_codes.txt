@@ -1,0 +1,11 @@
+NoData
+CultivatedLand
+Forest
+Grassland
+Shrubland
+Water
+Wetlands
+Tundra
+ArtificialSurface
+Bareland
+SnowandIce

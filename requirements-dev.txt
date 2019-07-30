@@ -1,5 +1,6 @@
 pytest>=4.0.0
 pytest-cov
+codecov
 pylint
 radon
 hypothesis
