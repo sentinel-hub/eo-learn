@@ -15,3 +15,4 @@ Submodules:
    eolearn.ml_tools.truth_transformations
    eolearn.ml_tools.utilities
    eolearn.ml_tools.validator
+   eolearn.ml_tools.train_set_mask
