@@ -29,13 +29,13 @@ install:
 
 script:
 - if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
-    pylint core/eolearn/core/*.py;
-    pylint coregistration/eolearn/coregistration/*.py;
-    pylint features/eolearn/features/*.py;
-    pylint geometry/eolearn/geometry/*.py;
-    pylint io/eolearn/io/*.py;
-    pylint mask/eolearn/mask/*.py;
-    pylint ml_tools/eolearn/ml_tools/*.py;
+    pylint core/eolearn/core/*.py &&
+    pylint coregistration/eolearn/coregistration/*.py &&
+    pylint features/eolearn/features/*.py &&
+    pylint geometry/eolearn/geometry/*.py &&
+    pylint io/eolearn/io/*.py &&
+    pylint mask/eolearn/mask/*.py &&
+    pylint ml_tools/eolearn/ml_tools/*.py &&
     pylint visualization/eolearn/visualization/*.py;
   fi
 - radon cc core/eolearn/core/*.py -a -nb
