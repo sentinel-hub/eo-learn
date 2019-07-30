@@ -57,9 +57,9 @@ class OSMInput(EOTask):
         # clip geometries to bounding box
         for feat in response['features']:
             geom = shape(feat['geometry'])
-            clipped_geom = geom.intersection(clip_shape)
             if self.polygonize:
-                clipped_geom = clipped_geom.convex_hull
+                geom = geom.convex_hull
+            clipped_geom = geom.intersection(clip_shape)
             feat['geometry'] = mapping(clipped_geom)
 
 
