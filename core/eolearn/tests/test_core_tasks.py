@@ -290,6 +290,25 @@ class TestCoreTasks(unittest.TestCase):
         patch = CreateEOPatchTask()(data={'bands': data}, bbox=bbox)
         self.assertTrue(np.array_equal(patch.data['bands'], data))
 
+    def test_kwargs(self):
+        patch = EOPatch()
+        shape = (3, 5, 5, 2)
+
+        data1 = np.random.randint(0, 5, size=shape)
+        data2 = np.random.randint(0, 5, size=shape)
+
+        patch[(FeatureType.DATA, 'D1')] = data1
+        patch[(FeatureType.DATA, 'D2')] = data2
+
+        patch = MapFeatureTask((FeatureType.DATA, 'D1'), (FeatureType.DATA_TIMELESS, 'MAX1'), np.max, axis=0)(patch)
+        patch = ZipFeatureTask({FeatureType.DATA: ['D1', 'D2']}, (FeatureType.DATA, 'MAX2'), np.maximum)(patch)
+
+        max1 = patch[(FeatureType.DATA_TIMELESS, 'MAX1')]
+        max2 = patch[(FeatureType.DATA, 'MAX2')]
+
+        self.assertTrue(np.array_equal(max1, np.max(data1, axis=0)))
+        self.assertTrue(np.array_equal(max2, np.maximum(data1, data2)))
+
 
 if __name__ == '__main__':
     unittest.main()
