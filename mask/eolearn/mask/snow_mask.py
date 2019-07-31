@@ -17,14 +17,23 @@ LOGGER = logging.getLogger(__name__)
 class SnowMask(EOTask):
     """
     The task calculates the snow mask using the given thresholds.
+
+    THe default values were optimised based on the Sentinel-2 L1C processing level. Values might not be optimal for L2A
+    processing level
     """
 
-    def __init__(self, data_feature, band_indices, dilation_size=0, ndsi_threshold=0.4, brightness_threshold=0.3):
+    NDVI_THRESHOLD = 0.1
+
+    def __init__(self, data_feature, band_indices, dilation_size=0, ndsi_threshold=0.4, brightness_threshold=0.3,
+                 undefined_value=np.NaN, mask_name='SNOW_MASK'):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
             containing the bands 2, 3, 7, 11, i.e. (FeatureType.DATA, 'BANDS')
         :type data_feature: tuple(FeatureType, str)
-        :param band_indices: A list containing the indices at which the required bands can be found in the data_feature
+        :param band_indices: A list containing the indices at which the required bands can be found in the data_feature.
+            The required bands are B03, B04, B08 and B11 and the indices should be provided in this order. If the
+            'BANDS' array contains all 13 L1C bands, then `band_indices=[2, 3, 7, 11]`. If the 'BANDS' are the 12 bands
+            with L2A values, then `band_indices=[2, 3, 7, 10]`
         :type band_indices: list(int)
         :param dilation_size: Size of the disk in pixels for performing dilation. Value 0 means do not perform
                               this post-processing step.
@@ -33,6 +42,8 @@ class SnowMask(EOTask):
         :type ndsi_threshold: float
         :param brightness_threshold: Minimum value of the red band for a pixel to be classified as bright
         :type brightness_threshold: float
+        :param undefined_value: Value assigned to invalid values derived form computation of normalised indices
+        :type undefined_value: float
         """
 
         self.bands_feature = self._parse_features(data_feature).next()
@@ -40,25 +51,29 @@ class SnowMask(EOTask):
         self.ndsi_threshold = ndsi_threshold
         self.brightness_threshold = brightness_threshold
         self.dilation_size = dilation_size
+        self.undefined_value = undefined_value
+        self.mask_name = mask_name
 
     def execute(self, eopatch):
-        bands = eopatch[self.bands_feature[0]][self.bands_feature[1]][:, :, :, self.band_indices]
-        dates = bands.shape[0]
-        ndsi = (bands[:, :, :, 0] - bands[:, :, :, 3]) / (bands[:, :, :, 0] + bands[:, :, :, 3])
+        bands = eopatch[self.bands_feature][..., self.band_indices]
+        with np.errstate(divide='ignore'):
+            # (B03 - B11) / (B03 + B11)
+            ndsi = (bands[..., 0] - bands[..., 3]) / (bands[..., 0] + bands[..., 3])
+            # (B08 - B04) / (B08 + B04)
+            ndvi = (bands[..., 2] - bands[..., 1]) / (bands[..., 2] + bands[..., 1])
 
-        ndvi = (bands[:, :, :, 2] - bands[:, :, :, 1]) / (bands[:, :, :, 2] + bands[:, :, :, 1])
+        ndsi_invalid, ndvi_invalid = ~np.isfinite(ndsi), ~np.isfinite(ndvi)
+        ndsi[ndsi_invalid] = self.undefined_value
+        ndvi[ndvi_invalid] = self.undefined_value
 
-        calc_truth = np.where(np.logical_and(np.logical_or(ndsi >= self.ndsi_threshold, np.abs(ndvi - 0.1) < 0.05),
-                                             bands[:, :, :, 0] >= self.brightness_threshold), 1, 0)
+        snow_mask = np.where(np.logical_and(np.logical_or(ndsi >= self.ndsi_threshold,
+                                                          np.abs(ndvi - self.NDVI_THRESHOLD) < self.NDVI_THRESHOLD / 2),
+                                            bands[..., 0] >= self.brightness_threshold), 1, 0)
         if self.dilation_size:
-            dilated_mask = np.zeros(shape=calc_truth)
-            for date in range(dates):
-                dilated_mask[date] = dilation(calc_truth[date], disk(self.dilation_size))
-            eopatch.add_feature(FeatureType.MASK, 'SNOW',
-                                dilated_mask.reshape(list(calc_truth.shape) + [1]).astype('uint8'))
-        else:
-            eopatch.add_feature(FeatureType.MASK, 'SNOW',
-                                calc_truth.reshape(list(calc_truth.shape) + [1]).astype('uint8'))
+            snow_mask = np.array([dilation(mask, disk(self.dilation_size)) for mask in snow_mask])
+
+        snow_mask[np.logical_or(ndsi_invalid, ndvi_invalid)] = self.undefined_value
+        eopatch.add_feature(FeatureType.MASK, self.mask_name, snow_mask[..., np.newaxis].astype('uint8'))
         return eopatch
 
 
