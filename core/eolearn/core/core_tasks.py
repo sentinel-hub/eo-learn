@@ -329,9 +329,9 @@ class MapFeatureTask(EOTask):
 
         .. code-block:: python
 
-            multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},   # input features
-                                       {FeatureType.MASK: ['m1', 'm2', 'm3']},  # output features
-                                       lambda f: f*2)                           # a function to apply to each feature
+            multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
+                                      {FeatureType.MASK: ['m1', 'm2', 'm3']},  # output features
+                                      lambda f: f*2)                           # a function to apply to each feature
 
             result = multiply(patch)
 
@@ -339,10 +339,10 @@ class MapFeatureTask(EOTask):
 
         .. code-block:: python
 
-            maximum = ZipFeatureTask({FeatureType.DATA: ['f1', 'f2']},  # input features
-                                     (FeatureType.MASK, 'm1'),          # output feature
-                                     np.maximum,                        # a function to apply to each feature
-                                     axis=0)                            # function's kwargs
+            maximum = MapFeatureTask((FeatureType.DATA: 'f1'),  # input features
+                                     (FeatureType.MASK, 'm1'),  # output feature
+                                     np.max,                    # a function to apply to each feature
+                                     axis=0)                    # function's kwargs
 
             result = multiply(patch)
     """
@@ -406,8 +406,8 @@ class ZipFeatureTask(EOTask):
         .. code-block:: python
 
             calc = ZipFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
-                                   (FeatureType.MASK, 'm1'),               # output feature
-                                   lambda f0, f1, f2: f0 / (f1 + f2))      # a function to apply to each feature
+                                  (FeatureType.MASK, 'm1'),                # output feature
+                                  lambda f0, f1, f2: f0 / (f1 + f2))       # a function to apply to each feature
 
             result = multiply(patch)
 
