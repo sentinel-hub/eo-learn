@@ -495,7 +495,7 @@ def map_image_slices(data, func2d):
         if output is None:
             output = np.zeros((data.shape[0],) + res.shape + (data.shape[3],), dtype=res.dtype)
         
-        output[i,...,j] = res
+        output[time_i,...,band_i] = res
     
     return output
 
