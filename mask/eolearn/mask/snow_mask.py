@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 
 class BaseSnowMask(EOTask):
     """ Base class for snow detection and masking"""
-    def __init__(self, data_feature, band_indices, dilation_size=0, undefined_value=np.NaN, mask_name='SNOW_MASK'):
+    def __init__(self, data_feature, band_indices, dilation_size=0, undefined_value=0, mask_name='SNOW_MASK'):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
         :type data_feature: tuple(FeatureType, str)
@@ -27,7 +27,7 @@ class BaseSnowMask(EOTask):
                               this post-processing step.
         :type dilation_size: int
         """
-        self.bands_feature = self._parse_features(data_feature).next()
+        self.bands_feature = next(self._parse_features(data_feature)())
         self.band_indices = band_indices
         self.dilation_size = dilation_size
         self.undefined_value = undefined_value
@@ -152,8 +152,8 @@ class TheiaSnowMask(BaseSnowMask):
         :type ndsi_params: (float, float, float)
         """
         super().__init__(data_feature, band_indices, **kwargs)
-        self.dem_feature = self._parse_features(dem_feature).next()
-        self.clm_feature = self._parse_features(cloud_mask_feature).next()
+        self.dem_feature = next(self._parse_features(dem_feature)())
+        self.clm_feature = next(self._parse_features(cloud_mask_feature)())
         self.dem_params = dem_params
         self.red_params = red_params
         self.ndsi_params = ndsi_params
@@ -176,7 +176,7 @@ class TheiaSnowMask(BaseSnowMask):
         :param input_array: input values
         :return: resampled values
         """
-        size = np.array(input_array.shape) // self.red_params[0]
+        size = np.array(input_array.shape[1:]) // self.red_params[0]
         resampled = [np.array(Image.fromarray(frame).resize(size, Image.BICUBIC).resize(frame.shape, Image.NEAREST))
                      for frame in input_array]
         return np.array(resampled)
@@ -211,15 +211,17 @@ class TheiaSnowMask(BaseSnowMask):
 
             for date, nbin in itertools.product(range(bands.shape[0]), range(nbins)):
                 if dem_hist_clear_pixels[date, nbin] > 0:
+                    dem_mask = np.logical_and(dem_edges[nbin] <= dem, dem < dem_edges[nbin + 1])
                     in_dem_range_clear = np.where(
-                        np.logical_and(dem_edges[nbin] <= dem < dem_edges[nbin + 1], np.logical_not(clm_pass1[date])))
+                        np.logical_and(dem_mask, np.logical_not(clm_pass1[date])))
                     snow_frac[date, nbin] = \
                         np.sum(snow_mask_pass1[date][in_dem_range_clear]) / dem_hist_clear_pixels[date, nbin]
         return snow_mask_pass1, snow_frac, dem_edges
 
     def _apply_second_pass(self, bands, ndsi, dem, clm_temp, snow_mask_pass1, snow_frac, dem_edges):
         """ Second pass of snow detection """
-        total_snow_frac = np.sum(snow_mask_pass1, axis=(1, 2)) / np.prod(bands.shape[[1, 2]])
+        _, height, width, _ = bands.shape
+        total_snow_frac = np.sum(snow_mask_pass1, axis=(1, 2)) / (height*width)
         snow_mask_pass2 = np.zeros(snow_mask_pass1.shape)
         for date in range(bands.shape[0]):
             if total_snow_frac[date] > self.ndsi_params[2]:
