@@ -482,16 +482,16 @@ def map_image_slices(data, func2d):
 
     Returns a new array with the combined results.
     
-    :param data: input array
-    :type data: array of shape (timestamps, rows, columns, channels)
+    :param data: input image array
+    :type data: numpy array of shape (timestamps, rows, columns, channels)
     :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
     :type func2d: function (rows, columns) -> (new_rows, new_columns)
     """
     
     idx = np.ndindex(data.shape[0], data.shape[3])
     output = None
-    for i,j in idx:
-        res = func2d(data[i,...,j])
+    for time_i,band_i in idx:
+        res = func2d(data[time_i,...,band_i])
         if output is None:
             output = np.zeros((data.shape[0],) + res.shape + (data.shape[3],), dtype=res.dtype)
         
@@ -504,8 +504,8 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
 
     To specify the new scale use one of `new_size` or `scale_factors` parameters.
     
-    :param data: input array
-    :type data: array of shape (timestamps, rows, columns, channels)
+    :param data: input image array
+    :type data: numpy array with shape (timestamps, rows, columns, channels)
     :param new_size: New size of the data (width, height)
     :type new_size: (int, int)
     :param scale_factors: Factors (fx,fy) by which to resize the image
@@ -528,7 +528,7 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     if new_size is not None and scale_factors is None:
         scale_factors = [new/old for old, new in zip(old_size, new_size)]
     elif scale_factors is not None and new_size is None:
-        new_size = [int(d * f) for d,f in zip(old_size, scale_factors)]
+        new_size = [int(size * factor) for size,factor in zip(old_size, scale_factors)]
     else:
         raise ValueError('Exactly one of the arguments new_size, scale_factors must be given.')
 
@@ -536,16 +536,15 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
         raise ValueError('Invalid interpolation method: %s' % interpolation)
 
     interpolation_method = INTER_METHODS[interpolation]
-    downscaling = scale_factors[0] < 1 or scale_factors[0] < 1
-    new_size = tuple(new_size)
+    downscaling = scale_factors[0] < 1 or scale_factors[1] < 1
 
     def _resize(image):
         # Perform anti-alias smoothing if downscaling
         if downscaling and anti_alias:
-            sx, sy = [((1/s) - 1)/2 for s in scale_factors]
-            image = cv2.GaussianBlur(image, (0,0), sigmaX=sx, sigmaY=sy, borderType=cv2.BORDER_REFLECT)
+            sigmaX, sigmaY = [((1/s) - 1)/2 for s in scale_factors]
+            image = cv2.GaussianBlur(image, (0,0), sigmaX=sigmaX, sigmaY=sigmaY, borderType=cv2.BORDER_REFLECT)
 
-        resized = cv2.resize(image, new_size, interpolation=interpolation_method)
+        resized = cv2.resize(image, tuple(new_size), interpolation=interpolation_method)
         
         return resized
 
