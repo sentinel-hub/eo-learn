@@ -14,8 +14,8 @@ import numpy as np
 import pandas as pd
 from geopandas import GeoSeries, GeoDataFrame
 
-from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from sentinelhub import CRS, bbox_to_dimensions
+from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)
 
