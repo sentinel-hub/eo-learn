@@ -1,29 +1,11 @@
 import unittest
 import numpy as np
 
-from eolearn.mask import CountValidTask, ClassFrequencyTask
+from eolearn.mask import ClassFrequencyTask
 from eolearn.core import EOPatch, FeatureType
 
 
 class TestMaskCounting(unittest.TestCase):
-    def test_count_values(self):
-        patch = EOPatch()
-
-        shape = (5, 3, 3, 2)
-
-        data = np.random.randint(0, 5, size=shape)
-        data[:, 0, 0, 0] = 0
-        data[:, 0, 1, 0] = 2
-
-        patch[(FeatureType.MASK, 'TEST')] = data
-
-        patch = CountValidTask((FeatureType.MASK, 'TEST'), (FeatureType.MASK_TIMELESS, 'COUNT'))(patch)
-
-        result = patch[(FeatureType.MASK_TIMELESS, 'COUNT')]
-
-        self.assertEqual(result[0, 0, 0], 0)
-        self.assertEqual(result[0, 1, 0], shape[0])
-
     def test_class_frequency(self):
         patch = EOPatch()
 

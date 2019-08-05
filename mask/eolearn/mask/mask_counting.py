@@ -7,24 +7,6 @@ import numpy as np
 from eolearn.core import MapFeatureTask
 
 
-class CountValidTask(MapFeatureTask):
-    """ Counts valid (non-zero) data through the temporal dimension.
-    """
-    def __init__(self, input_feature, output_feature):
-        """
-        :param input_feature: A source feature from which to read the values.
-        :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        :param output_feature: An output feature to which to write the counts.
-        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        """
-        super().__init__(input_feature, output_feature)
-
-    def map_method(self, feature):
-        """ Map method being applied to the feature that counts the valid data.
-        """
-        return np.count_nonzero(feature, axis=0)
-
-
 class ClassFrequencyTask(MapFeatureTask):
     """ Calculates frequencies of each provided class through the temporal dimension.
     """
