@@ -477,35 +477,50 @@ def bgr_to_rgb(bgr):
     """Converts Blue, Green, Red to Red, Green, Blue."""
     return bgr[..., [2, 1, 0]]
 
-def map_image_slices(data, func2d):
-    """Iterate over time and band dimensions and apply a function to each slice.
 
-    Returns a new array with the combined results.
+def map_over_axis(data, func, axis=0):
+    """Map function func over each slice along axis.
+    If func changes the number of dimensions, mapping axis is moved to the front.
+
+    Returns a new array with the combined results of mapping.
+
+
     
-    :param data: input image array
-    :type data: numpy array of shape (timestamps, rows, columns, channels)
-    :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
-    :type func2d: function (rows, columns) -> (new_rows, new_columns)
+    :param data: input array
+    :type data: np.array
+    :param func: Mapping function that is applied on each slice. Outputs must have the same shape for every slice.
+    :type func: function np.array -> np.array
+    :param axis: Axis over which to map the function.
+    :type axis: int
+
+    :example:
+
+    >>> data = np.ones((5,10,10))
+    >>> func = lambda x: np.zeros((7,20))
+    >>> res = map_over_axis(data,func,axis=0)
+    >>> res.shape
+    (5, 7, 20)
     """
+
+    # Move axis to front
+    data = np.moveaxis(data, axis, 0)
     
-    idx = np.ndindex(data.shape[0], data.shape[3])
-    output = None
-    for time_i,band_i in idx:
-        res = func2d(data[time_i,...,band_i])
-        if output is None:
-            output = np.zeros((data.shape[0],) + res.shape + (data.shape[3],), dtype=res.dtype)
-        
-        output[time_i,...,band_i] = res
+    res_mapped = [func(slice) for slice in data]
+    res = np.stack(res_mapped)
     
-    return output
+    # Move axis back if number of dimensions stays the same
+    if data.ndim == res.ndim:
+        res = np.moveaxis(res, 0, axis)
+    
+    return res
 
 def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, interpolation='linear'):
-    """Resizes the images acording to given size or scale factors.
+    """Resizes the image(s) acording to given size or scale factors.
 
     To specify the new scale use one of `new_size` or `scale_factors` parameters.
     
     :param data: input image array
-    :type data: numpy array with shape (timestamps, rows, columns, channels)
+    :type data: numpy array with shape (timestamps, height, width, channels), (height, width, channels), or (height, width)
     :param new_size: New size of the data (width, height)
     :type new_size: (int, int)
     :param scale_factors: Factors (fx,fy) by which to resize the image
@@ -522,8 +537,18 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
         'cubic': cv2.INTER_CUBIC
     }
 
+    # Number of dimensions of input data
+    ndims = data.ndim
+
+    # Width and height axis for dimensionality
+    width_height_axis = {
+        2: (1,0),
+        3: (1,0),
+        4: (2,1)
+    }
+
     # Old width and height
-    old_size = (data.shape[2], data.shape[1])
+    old_size = [data.shape[axis] for axis in width_height_axis[ndims]]
 
     if new_size is not None and scale_factors is None:
         scale_factors = [new/old for old, new in zip(old_size, new_size)]
@@ -538,7 +563,7 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     interpolation_method = INTER_METHODS[interpolation]
     downscaling = scale_factors[0] < 1 or scale_factors[1] < 1
 
-    def _resize(image):
+    def _resize2d(image):
         # Perform anti-alias smoothing if downscaling
         if downscaling and anti_alias:
             sigmaX, sigmaY = [((1/s) - 1)/2 for s in scale_factors]
@@ -548,7 +573,16 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
         
         return resized
 
-    # Apply _resize function to each image slice
-    resized = map_image_slices(data, _resize)
+    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2) # Map over channel dimension
+    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0) # Map over time dimension
 
-    return resized
+    # Choose a resize method based on number of dimensions
+    resize_methods = {
+        2: _resize2d,
+        3: _resize3d,
+        4: _resize4d
+    }
+
+    resize_method = resize_methods[ndims]
+
+    return resize_method(data)
