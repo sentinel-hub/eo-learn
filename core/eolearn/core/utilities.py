@@ -568,6 +568,7 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     def _resize2d(image):
         # Perform anti-alias smoothing if downscaling
         if downscaling and anti_alias:
+            # Sigma computation based on skimage resize implementation
             sigmaX, sigmaY = [((1/s) - 1)/2 for s in scale_factors]
             image = cv2.GaussianBlur(image, (0,0), sigmaX=sigmaX, sigmaY=sigmaY, borderType=cv2.BORDER_REFLECT)
 
