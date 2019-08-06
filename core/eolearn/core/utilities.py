@@ -521,9 +521,9 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     
     :param data: input image array
     :type data: numpy array with shape (timestamps, height, width, channels), (height, width, channels), or (height, width)
-    :param new_size: New size of the data (width, height)
+    :param new_size: New size of the data (height, width)
     :type new_size: (int, int)
-    :param scale_factors: Factors (fx,fy) by which to resize the image
+    :param scale_factors: Factors (fy,fx) by which to resize the image
     :type scale_factors: (float, float)
     :param anti_alias: Use anti aliasing smoothing operation when downsampling. Default is True.
     :type anti_alias: bool
@@ -540,19 +540,19 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     # Number of dimensions of input data
     ndims = data.ndim
 
-    # Width and height axis for dimensionality
-    width_height_axis = {
-        2: (1,0),
-        3: (1,0),
-        4: (2,1)
+    # Height and width axis indices for dimensionality
+    height_width_axis = {
+        2: (0,1),
+        3: (0,1),
+        4: (1,2)
     }
 
-    # Old width and height
-    old_size = [data.shape[axis] for axis in width_height_axis[ndims]]
+    # Old height and width
+    old_size = [data.shape[axis] for axis in height_width_axis[ndims]]
 
     if new_size is not None and scale_factors is None:
         if len(new_size) != 2 or any(not isinstance(value, int) for value in new_size):
-            raise ValueError('new_size must be a pair of integers (width, height).')
+            raise ValueError('new_size must be a pair of integers (height, width).')
         scale_factors = [new/old for old, new in zip(old_size, new_size)]
     elif scale_factors is not None and new_size is None:
         new_size = [int(size * factor) for size,factor in zip(old_size, scale_factors)]
@@ -569,10 +569,14 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
         # Perform anti-alias smoothing if downscaling
         if downscaling and anti_alias:
             # Sigma computation based on skimage resize implementation
-            sigmaX, sigmaY = [((1/s) - 1)/2 for s in scale_factors]
+            sigmas = [((1/s) - 1)/2 for s in scale_factors]
+
+            # Limit sigma values above 0
+            sigmaY, sigmaX = [max(1e-8, sigma) for sigma in sigmas]
             image = cv2.GaussianBlur(image, (0,0), sigmaX=sigmaX, sigmaY=sigmaY, borderType=cv2.BORDER_REFLECT)
 
-        resized = cv2.resize(image, tuple(new_size), interpolation=interpolation_method)
+        height, width = new_size
+        resized = cv2.resize(image, (width, height), interpolation=interpolation_method)
         
         return resized
 

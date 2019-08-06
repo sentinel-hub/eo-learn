@@ -138,7 +138,7 @@ class AddCloudMaskTask(EOTask):
 
             hr_res_x, hr_res_y = int(meta_info['size_x'].strip('m')), int(meta_info['size_y'].strip('m'))
             lr_res_x, lr_res_y = int(self.cm_size_x.strip('m')), int(self.cm_size_y.strip('m'))
-            rescale = (hr_res_x / lr_res_x, hr_res_y / lr_res_y)
+            rescale = (hr_res_y / lr_res_y, hr_res_x / lr_res_x)
 
         return rescale
 
@@ -183,8 +183,8 @@ class AddCloudMaskTask(EOTask):
         if rescale is None:
             return lr_array.reshape(lr_shape)
 
-        # Resize to reference shape (width, height)
-        output_size = (reference_shape[2], reference_shape[1])
+        # Resize to reference shape (height, width)
+        output_size = reference_shape[1:3]
         hr_array = resize_images(lr_array.reshape(lr_shape),
             new_size=output_size,
             interpolation=interp)
