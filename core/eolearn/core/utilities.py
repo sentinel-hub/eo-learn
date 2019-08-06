@@ -551,6 +551,8 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     old_size = [data.shape[axis] for axis in width_height_axis[ndims]]
 
     if new_size is not None and scale_factors is None:
+        if len(new_size) != 2 or any(not isinstance(value, int) for value in new_size):
+            raise ValueError('new_size must be a pair of integers (width, height).')
         scale_factors = [new/old for old, new in zip(old_size, new_size)]
     elif scale_factors is not None and new_size is None:
         new_size = [int(size * factor) for size,factor in zip(old_size, scale_factors)]
