@@ -525,10 +525,10 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
     :type new_size: (int, int)
     :param scale_factors: Factors (fx,fy) by which to resize the image
     :type scale_factors: (float, float)
-    :param anti_alias: Use anti aliasing smoothing operation when downsampling.
+    :param anti_alias: Use anti aliasing smoothing operation when downsampling. Default is True.
     :type anti_alias: bool
-    :param interpolation: Interpolation method used for resampling. One of 'nearest', 'linear', 'cubic'.
-    :type interpolation: bool
+    :param interpolation: Interpolation method used for resampling. One of 'nearest', 'linear', 'cubic'. Default is 'linear'.
+    :type interpolation: string
     """
 
     INTER_METHODS = {
