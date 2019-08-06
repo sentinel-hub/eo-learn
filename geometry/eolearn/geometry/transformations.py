@@ -179,7 +179,7 @@ class VectorToRaster(EOTask):
         feature_type, feature_name = self.raster_feature
 
         if self.write_to_existing and feature_name in eopatch[feature_type]:
-            raster = eopatch[feature_type][feature_name].squeeze(axis=-1)
+            raster = eopatch[self.raster_feature].squeeze(axis=-1)
 
             if (height, width) != raster.shape[:2]:
                 warnings.warn('Writing to existing raster with spatial dimensions {}, but dimensions {} were expected'
@@ -200,11 +200,14 @@ class VectorToRaster(EOTask):
         if eopatch.bbox is None:
             raise ValueError('EOPatch has to have a bounding box')
 
+        height, width = self._get_raster_shape(eopatch)
+
         rasterization_shapes = self._get_rasterization_shapes(eopatch)
         if not rasterization_shapes:
+            eopatch[self.raster_feature] = \
+                np.full((height, width, 1), self.no_data_value, dtype=self.raster_dtype)
             return eopatch
 
-        height, width = self._get_raster_shape(eopatch)
         affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
         raster = self._get_raster(eopatch, height, width)
@@ -212,8 +215,7 @@ class VectorToRaster(EOTask):
         rasterio.features.rasterize(rasterization_shapes, out=raster, transform=affine_transform,
                                     dtype=self.raster_dtype, **self.rasterio_params)
 
-        feature_type, feature_name = self.raster_feature
-        eopatch[feature_type][feature_name] = raster[..., np.newaxis]
+        eopatch[self.raster_feature] = raster[..., np.newaxis]
         return eopatch
 
 

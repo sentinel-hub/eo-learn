@@ -1,10 +1,13 @@
 import unittest
 import logging
 import datetime
+import os
+import copy
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
-    DuplicateFeature, InitializeFeature
+from eolearn.core import EOPatch, FeatureType, CRS, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
+    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
+    ExtractBandsTask, CreateEOPatchTask
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -14,6 +17,8 @@ class TestCoreTasks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                     '../../../example_data', 'TestEOPatch')
         cls.patch = EOPatch()
 
         cls.patch.data['bands'] = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
@@ -104,9 +109,9 @@ class TestCoreTasks(unittest.TestCase):
         feature_list = [(FeatureType.MASK, 'MASK1', 'D1'), (FeatureType.MASK, 'MASK2', 'D2')]
         patch = DuplicateFeature(feature_list).execute(patch)
 
-        self.assertTrue(duplicate_names.issubset(patch.mask.keys()), 'Duplicating multiple features failed.')
+        self.assertTrue(duplicate_names.issubset(patch.mask), 'Duplicating multiple features failed.')
 
-        patch = DuplicateFeature((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy_data=True)(patch)
+        patch = DuplicateFeature((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy=True)(patch)
         self.assertNotEqual(id(patch.mask['MASK1']), id(patch.mask['DEEP']))
         self.assertTrue(np.array_equal(patch.mask['MASK1'], patch.mask['DEEP']),
                         'Feature was not duplicated correctly. Data does not match.')
@@ -118,7 +123,7 @@ class TestCoreTasks(unittest.TestCase):
         # feature_list = [(FeatureType.MASK, 'MASK1', new) for new in duplicate_names]
         # patch = DuplicateFeature(feature_list).execute(patch)
 
-        # self.assertTrue(duplicate_names.issubset(patch.mask.keys()),
+        # self.assertTrue(duplicate_names.issubset(patch.mask),
         #                 'Duplicating single feature multiple times failed.')
 
     def test_initialize_feature(self):
@@ -155,7 +160,7 @@ class TestCoreTasks(unittest.TestCase):
 
         patch = InitializeFeature({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
         fail_msg = "Failed to initialize new features from a shape tuple."
-        self.assertTrue(new_names < set(patch.mask.keys()), msg=fail_msg)
+        self.assertTrue(new_names < set(patch.mask), msg=fail_msg)
         self.assertTrue(all(patch.mask[key].shape == shape for key in new_names))
         self.assertTrue(all(np.array_equal(patch.mask[key], compare_data) for key in new_names))
 
@@ -163,6 +168,127 @@ class TestCoreTasks(unittest.TestCase):
         fail_msg = "Failed to initialize new features from an existing feature."
         self.assertTrue(new_names < set(patch.data), msg=fail_msg)
         self.assertTrue(all(patch.data[key].shape == patch.data['bands'].shape for key in new_names))
+
+        self.assertRaises(ValueError, InitializeFeature, {FeatureType.DATA: new_names}, 1234)
+
+    def test_move_feature(self):
+        patch_src = EOPatch()
+        patch_dst = EOPatch()
+
+        shape = (10, 5, 5, 3)
+        size = np.product(shape)
+
+        shape_timeless = (5, 5, 3)
+        size_timeless = np.product(shape_timeless)
+
+        data = [np.random.randint(0, 100, size).reshape(*shape) for i in range(3)] + \
+               [np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for i in range(2)]
+
+        features = [(FeatureType.DATA, 'D1'),
+                    (FeatureType.DATA, 'D2'),
+                    (FeatureType.MASK, 'M1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless2')]
+
+        for feat, dat in zip(features, data):
+            patch_src = AddFeature(feat)(patch_src, dat)
+
+        patch_dst = MoveFeature(features)(patch_src, patch_dst)
+
+        for i, feature in enumerate(features):
+            self.assertTrue(id(data[i]) == id(patch_dst[feature]))
+            self.assertTrue(np.array_equal(data[i], patch_dst[feature]))
+
+        patch_dst = EOPatch()
+        patch_dst = MoveFeature(features, deep_copy=True)(patch_src, patch_dst)
+
+        for i, feature in enumerate(features):
+            self.assertTrue(id(data[i]) != id(patch_dst[feature]))
+            self.assertTrue(np.array_equal(data[i], patch_dst[feature]))
+
+    def test_merge_features(self):
+        patch = EOPatch()
+
+        shape = (10, 5, 5, 3)
+        size = np.product(shape)
+
+        shape_timeless = (5, 5, 3)
+        size_timeless = np.product(shape_timeless)
+
+        data = [np.random.randint(0, 100, size).reshape(*shape) for _ in range(3)] + \
+               [np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for _ in range(2)]
+
+        features = [(FeatureType.DATA, 'D1'),
+                    (FeatureType.DATA, 'D2'),
+                    (FeatureType.MASK, 'M1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless1'),
+                    (FeatureType.MASK_TIMELESS, 'MTless2')]
+
+        for feat, dat in zip(features, data):
+            patch = AddFeature(feat)(patch, dat)
+
+        patch = MergeFeatureTask(features[:3], (FeatureType.MASK, 'merged'))(patch)
+        patch = MergeFeatureTask(features[3:], (FeatureType.MASK_TIMELESS, 'merged_timeless'))(patch)
+
+        expected = np.concatenate([patch[f] for f in features[:3]], axis=-1)
+
+        self.assertTrue(np.array_equal(patch.mask['merged'], expected))
+
+    def test_zip_features(self):
+        patch = EOPatch.load(self.data_path)
+
+        merge = ZipFeatureTask({FeatureType.DATA: ['CLP', 'NDVI', 'BANDS-S2-L1C']}, # input features
+                               (FeatureType.DATA, 'MERGED'),                        # output feature
+                               lambda *f: np.concatenate(f, axis=-1))
+
+        patch = merge(patch)
+
+        expected = np.concatenate([patch.data['CLP'], patch.data['NDVI'], patch.data['BANDS-S2-L1C']], axis=-1)
+        self.assertTrue(np.array_equal(patch.data['MERGED'], expected))
+
+        zip_fail = ZipFeatureTask({FeatureType.DATA: ['CLP', 'NDVI']}, (FeatureType.DATA, 'MERGED'))
+        self.assertRaises(NotImplementedError, zip_fail, patch)
+
+    def test_map_features(self):
+        patch = EOPatch.load(self.data_path)
+
+        move = MapFeatureTask({FeatureType.DATA: ['CLP', 'NDVI', 'BANDS-S2-L1C']},
+                              {FeatureType.DATA: ['CLP2', 'NDVI2', 'BANDS-S2-L1C2']}, copy.deepcopy)
+
+        patch = move(patch)
+
+        self.assertTrue(np.array_equal(patch.data['CLP'], patch.data['CLP2']))
+        self.assertTrue(np.array_equal(patch.data['NDVI'], patch.data['NDVI2']))
+        self.assertTrue(np.array_equal(patch.data['BANDS-S2-L1C'], patch.data['BANDS-S2-L1C2']))
+
+        self.assertTrue(id(patch.data['CLP']) != id(patch.data['CLP2']))
+        self.assertTrue(id(patch.data['NDVI']) != id(patch.data['NDVI2']))
+        self.assertTrue(id(patch.data['BANDS-S2-L1C']) != id(patch.data['BANDS-S2-L1C2']))
+
+        map_fail = MapFeatureTask({FeatureType.DATA: ['CLP', 'NDVI']}, {FeatureType.DATA: ['CLP2', 'NDVI2', ]})
+        self.assertRaises(NotImplementedError, map_fail, patch)
+
+        f_in, f_out = {FeatureType.DATA: ['CLP', 'NDVI']}, {FeatureType.DATA: ['CLP2']}
+        self.assertRaises(ValueError, MapFeatureTask, f_in, f_out)
+
+    def test_extract_bands(self):
+        patch = EOPatch.load(self.data_path)
+
+        bands = [2, 4, 8]
+        move_bands = ExtractBandsTask((FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA, 'MOVED_BANDS'), bands)
+        patch = move_bands(patch)
+        self.assertTrue(np.array_equal(patch.data['MOVED_BANDS'], patch.data['REFERENCE_SCENES'][..., bands]))
+
+        bands = [2, 4, 16]
+        move_bands = ExtractBandsTask((FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA, 'MOVED_BANDS'), bands)
+        self.assertRaises(ValueError, move_bands, patch)
+
+    def test_create_eopatch(self):
+        data = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+        bbox = [5.60, 52.68, 5.75, 52.63, CRS.WGS84]
+
+        patch = CreateEOPatchTask()(data={'bands': data}, bbox=bbox)
+        self.assertTrue(np.array_equal(patch.data['bands'], data))
 
 
 if __name__ == '__main__':
