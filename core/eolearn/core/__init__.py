@@ -14,8 +14,7 @@ from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFea
     DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
     ExtractBandsTask, CreateEOPatchTask
 
-from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser,\
-    map_over_axis, resize_images
+from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
 
 
 __version__ = '0.5.2'

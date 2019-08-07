@@ -8,7 +8,8 @@ import numpy as np
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
-from eolearn.core import EOTask, get_common_timestamps, resize_images
+from eolearn.core import EOTask, get_common_timestamps
+from .utilities import resize_images
 
 
 INTERP_METHODS = ['nearest', 'linear']
