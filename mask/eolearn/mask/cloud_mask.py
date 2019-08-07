@@ -5,7 +5,6 @@ Module for cloud masking
 import logging
 
 import numpy as np
-import scipy.ndimage
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
@@ -159,10 +158,10 @@ class AddCloudMaskTask(EOTask):
         # Rescaling factor in spatial (width, height) dimensions
         rescale = self._get_rescale_factors(hr_array.shape[1:3], meta_info)
 
-        lr_array = resize_images(hr_array, 
-            scale_factors=rescale, 
-            anti_alias=smooth, 
-            interpolation=interp)
+        lr_array = resize_images(hr_array,
+                                 scale_factors=rescale,
+                                 anti_alias=smooth,
+                                 interpolation=interp)
 
         return lr_array, rescale
 
@@ -177,7 +176,6 @@ class AddCloudMaskTask(EOTask):
         :param interp: Interpolation method ot be used in upsampling. Default is `'linear'`
         :return: Upsampled array. The array has 4 dimensions, the last one being of size 1
         """
-        hr_shape = reference_shape + (1,)
         lr_shape = lr_array.shape + (1,)
 
         if rescale is None:
@@ -186,8 +184,8 @@ class AddCloudMaskTask(EOTask):
         # Resize to reference shape (height, width)
         output_size = reference_shape[1:3]
         hr_array = resize_images(lr_array.reshape(lr_shape),
-            new_size=output_size,
-            interpolation=interp)
+                                 new_size=output_size,
+                                 interpolation=interp)
 
         return hr_array
 
