@@ -1,6 +1,7 @@
 """
 Module for computing the Histogram of gradient in EOPatch
 
+Credits:
 Copyright (c) 2018-2019 Hugo Fournier (Magellium)
 Copyright (c) 2017-2019 Matej Aleksandrov, Devis Peresutti (Sinergise)
 

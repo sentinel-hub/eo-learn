@@ -1,4 +1,5 @@
 """
+Credits:
 Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
 Copyright (c) 2017-2019 Matej Aleksandrov, Matic Lubej, Devis Peresutti (Sinergise)
 
