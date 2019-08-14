@@ -87,15 +87,23 @@ class TestCoreTasks(unittest.TestCase):
         feature_name = 'CLOUD MASK'
         new_feature_name = 'CLM'
 
-        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, cloud_mask)
+        patch = copy.deepcopy(self.patch)
+
+        patch = AddFeature((FeatureType.MASK, feature_name))(patch, cloud_mask)
         self.assertTrue(np.array_equal(patch.mask[feature_name], cloud_mask), 'Feature was not added')
 
-        patch = RenameFeature((FeatureType.MASK, feature_name, new_feature_name))(self.patch)
+        patch = RenameFeature((FeatureType.MASK, feature_name, new_feature_name))(patch)
         self.assertTrue(np.array_equal(patch.mask[new_feature_name], cloud_mask), 'Feature was not renamed')
         self.assertFalse(feature_name in patch[FeatureType.MASK], 'Old feature still exists')
 
         patch = RemoveFeature((FeatureType.MASK, new_feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
+
+        patch = RemoveFeature(FeatureType.MASK_TIMELESS)(patch)
+        self.assertEqual(len(patch.mask_timeless), 0, 'mask_timeless features were not removed')
+
+        patch = RemoveFeature((FeatureType.MASK, ...))(patch)
+        self.assertEqual(len(patch.mask), 0, 'mask features were not removed')
 
     def test_duplicate_feature(self):
         mask_data = np.arange(10).reshape(5, 2, 1, 1)

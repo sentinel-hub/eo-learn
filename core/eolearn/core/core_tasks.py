@@ -154,7 +154,7 @@ class RemoveFeature(EOTask):
         :return: input EOPatch without the specified feature
         :rtype: EOPatch
         """
-        for feature_type, feature_name in self.feature_gen(eopatch):
+        for feature_type, feature_name in list(self.feature_gen(eopatch)):
             if feature_name is ...:
                 eopatch.reset_feature_type(feature_type)
             else:
