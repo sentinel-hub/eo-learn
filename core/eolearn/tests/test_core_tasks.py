@@ -224,6 +224,17 @@ class TestCoreTasks(unittest.TestCase):
             self.assertTrue(id(data[i]) != id(patch_dst[feature]))
             self.assertTrue(np.array_equal(data[i], patch_dst[feature]))
 
+        features = [(FeatureType.MASK_TIMELESS, ...)]
+        patch_dst = EOPatch()
+        patch_dst = MoveFeature(features)(patch_src, patch_dst)
+
+        self.assertTrue(FeatureType.MASK_TIMELESS in patch_dst.get_features().keys())
+        self.assertFalse(FeatureType.DATA in patch_dst.get_features().keys())
+
+        self.assertTrue('MTless1' in patch_dst.get_feature(FeatureType.MASK_TIMELESS).keys())
+        self.assertTrue('MTless2' in patch_dst.get_feature(FeatureType.MASK_TIMELESS).keys())
+
+
     def test_merge_features(self):
         patch = EOPatch()
 

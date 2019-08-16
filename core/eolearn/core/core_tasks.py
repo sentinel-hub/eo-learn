@@ -294,7 +294,7 @@ class MoveFeature(EOTask):
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
-        self.features = self._parse_features(features)
+        self.feature_gen = self._parse_features(features)
         self.deep = deep_copy
 
     def execute(self, src_eopatch, dst_eopatch):
@@ -307,7 +307,7 @@ class MoveFeature(EOTask):
         :rtype: EOPatch
         """
 
-        for feature in self.features:
+        for feature in self.feature_gen(src_eopatch):
             if self.deep:
                 dst_eopatch[feature] = copy.deepcopy(src_eopatch[feature])
             else:
