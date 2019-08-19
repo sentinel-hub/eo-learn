@@ -49,16 +49,14 @@ omit = setup.py
     mask/setup.py
     mask/eolearn/tests/*
     mask/eolearn/__init__.py
-
-    ml_tools/eolearn/tests/*
-    visualization/eolearn/tests/*
+    mask/eolearn/mask/__init__.py
 
     ml_tools/setup.py
-    visualization/setup.py
-
+    ml_tools/eolearn/tests/*
     ml_tools/eolearn/__init__.py
-    visualization/eolearn/__init__.py
-
-    mask/eolearn/mask/__init__.py
     ml_tools/eolearn/ml_tools/__init__.py
+
+    visualization/setup.py
+    visualization/eolearn/tests/*
+    visualization/eolearn/__init__.py
     visualization/eolearn/visualization/__init__.py
