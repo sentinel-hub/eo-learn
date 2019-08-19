@@ -71,33 +71,46 @@ class TestFeatureManipulation(unittest.TestCase):
 
         eopatch[feature][0, 0, 0, :] = np.nan
 
+        def execute_fillout(eopatch, feature, **kwargs):
+            input_array = eopatch[feature]
+            eopatch = ValueFilloutTask(feature, **kwargs)(eopatch)
+            output_array = eopatch[feature]
+            return eopatch, input_array, output_array
+
         # filling forward temporally should not fill nans
-        eopatch = ValueFilloutTask(feature, operations='f', axis=0)(eopatch)
-        self.assertTrue(np.isnan(eopatch[feature][0, 0, 0, :]).all())
+        eopatch, input_array, output_array = execute_fillout(eopatch, feature, operations='f', axis=0)
+        compare_mask = ~np.isnan(input_array)
+        self.assertTrue(np.isnan(output_array[0, 0, 0, :]).all())
+        self.assertTrue(np.array_equal(input_array[compare_mask], output_array[compare_mask]))
+        self.assertNotEqual(id(input_array), id(output_array))
 
         # filling in any direction along axis=-1 should also not fill nans since all neighbors are nans
-        eopatch = ValueFilloutTask(feature, operations='fb', axis=-1)(eopatch)
-        self.assertTrue(np.isnan(eopatch[feature][0, 0, 0, :]).all())
+        eopatch, input_array, output_array = execute_fillout(eopatch, feature, operations='fb', axis=-1)
+        self.assertTrue(np.isnan(output_array[0, 0, 0, :]).all())
+        self.assertNotEqual(id(input_array), id(output_array))
 
         # filling nans backwards temporally should fill nans
-        eopatch = ValueFilloutTask(feature, operations='b', axis=0)(eopatch)
-        self.assertFalse(np.isnan(eopatch[feature]).any())
+        eopatch, input_array, output_array = execute_fillout(eopatch, feature, operations='b', axis=0)
+        self.assertFalse(np.isnan(output_array).any())
+        self.assertNotEqual(id(input_array), id(output_array))
 
         # try filling something else than nan (e.g.: -1)
         eopatch[feature][0, :, 0, 0] = -1
-        eopatch = ValueFilloutTask(feature, operations='b', value=-1, axis=-1)(eopatch)
-        # !!
-        self.assertFalse(np.isnan(eopatch[feature]).any())
+        eopatch, input_array, output_array = execute_fillout(eopatch, feature, operations='b', value=-1, axis=-1)
+        self.assertFalse((output_array == -1).any())
+        self.assertNotEqual(id(input_array), id(output_array))
 
         # [nan, 1, nan, 2, ... ]  ---('fb')---> [1, 1, 1, 2, ... ]
         eopatch[feature][0, 0, 0, 0:4] = [np.nan, 1, np.nan, 2]
-        eopatch = ValueFilloutTask(feature, operations='fb', axis=-1)(eopatch)
-        self.assertTrue(np.array_equal(eopatch[feature][0, 0, 0, 0:4], [1, 1, 1, 2]))
+        eopatch, input_array, output_array = execute_fillout(eopatch, feature, operations='fb', axis=-1)
+        self.assertTrue(np.array_equal(output_array[0, 0, 0, 0:4], [1, 1, 1, 2]))
+        self.assertNotEqual(id(input_array), id(output_array))
 
         # [nan, 1, nan, 2, ... ]  ---('bf')---> [1, 1, 2, 2, ... ]
         eopatch[feature][0, 0, 0, 0:4] = [np.nan, 1, np.nan, 2]
-        eopatch = ValueFilloutTask(feature, operations='bf', axis=-1)(eopatch)
-        self.assertTrue(np.array_equal(eopatch[feature][0, 0, 0, 0:4], [1, 1, 2, 2]))
+        eopatch, input_array, output_array = execute_fillout(eopatch, feature, operations='bf', axis=-1)
+        self.assertTrue(np.array_equal(output_array[0, 0, 0, 0:4], [1, 1, 2, 2]))
+        self.assertNotEqual(id(input_array), id(output_array))
 
 
 if __name__ == '__main__':
