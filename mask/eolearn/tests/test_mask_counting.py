@@ -19,16 +19,17 @@ class TestMaskCounting(unittest.TestCase):
 
         classes = [2, 1, 55]
 
-        input_feature = (FeatureType.MASK, 'TEST')
-        output_feature = (FeatureType.DATA_TIMELESS, 'FREQ')
+        in_feature = (FeatureType.MASK, 'TEST')
+        out_feature = (FeatureType.DATA_TIMELESS, 'FREQ')
 
-        self.assertRaises(ValueError, ClassFrequencyTask, input_feature, output_feature, classes=['a', 'b'])
-        self.assertRaises(ValueError, ClassFrequencyTask, input_feature, output_feature, classes=4)
-        self.assertRaises(ValueError, ClassFrequencyTask, input_feature, output_feature, classes=None)
+        self.assertRaises(ValueError, ClassFrequencyTask, in_feature, out_feature, classes=['a', 'b'])
+        self.assertRaises(ValueError, ClassFrequencyTask, in_feature, out_feature, classes=4)
+        self.assertRaises(ValueError, ClassFrequencyTask, in_feature, out_feature, classes=None)
+        self.assertRaises(ValueError, ClassFrequencyTask, in_feature, out_feature, classes=[1, 2, 3], no_data_value=2)
 
-        patch = ClassFrequencyTask(input_feature, output_feature, classes)(patch)
+        patch = ClassFrequencyTask(in_feature, out_feature, classes)(patch)
 
-        result = patch[output_feature]
+        result = patch[out_feature]
 
         # all zeros through the temporal dimension should result in nan
         self.assertTrue(np.isnan(result[0, 0, 0]))
@@ -38,6 +39,9 @@ class TestMaskCounting(unittest.TestCase):
 
         # frequency of 55 should be 0
         self.assertTrue(np.all(result[1:, :, -2] == 0))
+
+        self.assertTrue(result.shape == (5, 5, 6))
+
 
 if __name__ == '__main__':
     unittest.main()
