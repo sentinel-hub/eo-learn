@@ -1,7 +1,7 @@
-eolearn.ml\_tools.train_set_mask
+eolearn.ml\_tools.train_split
 ===========================
 
-.. automodule:: eolearn.ml_tools.train_set_mask
+.. automodule:: eolearn.ml_tools.train_split
     :members:
     :undoc-members:
     :show-inheritance:
