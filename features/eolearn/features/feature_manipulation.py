@@ -16,8 +16,8 @@ import datetime as dt
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
 from sentinelhub.time_utils import iso_to_datetime
+from eolearn.core import EOTask, FeatureType
 
 
 LOGGER = logging.getLogger(__name__)
