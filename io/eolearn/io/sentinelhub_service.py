@@ -300,17 +300,31 @@ class S2L2AWCSInput(SentinelHubWCSInput):
 class S1IWWMSInput(SentinelHubWMSInput):
     """
     Task for creating EOPatches and filling them with Sentinel-1 IW GRD data using Sentinel Hub's WMS request.
+
+    :param orbit: String specifying the orbit hte data belongs to. Options are `'both'`, `'ascending'` and
+        `'descending'`. Default is `'both'`
+    :type orbit: str
     """
-    def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL1_IW, **kwargs)
+    def __init__(self, layer, orbit='both', **kwargs):
+        data_source = {'both': DataSource.SENTINEL1_IW,
+                       'ascending': DataSource.SENTINEL1_IW_ASC,
+                       'descending': DataSource.SENTINEL1_IW_DES}[orbit]
+        super().__init__(layer=layer, data_source=data_source, **kwargs)
 
 
 class S1IWWCSInput(SentinelHubWCSInput):
     """
     Task for creating EOPatches and filling them with Sentinel-1 IW GRD data using Sentinel Hub's WCS request.
+
+    :param orbit: String specifying the orbit hte data belongs to. Options are `'both'`, `'ascending'` and
+        `'descending'`. Default is `'both'`
+    :type orbit: str
     """
-    def __init__(self, layer, **kwargs):
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL1_IW, **kwargs)
+    def __init__(self, layer, orbit='both', **kwargs):
+        data_source = {'both': DataSource.SENTINEL1_IW,
+                       'ascending': DataSource.SENTINEL1_IW_ASC,
+                       'descending': DataSource.SENTINEL1_IW_DES}[orbit]
+        super().__init__(layer=layer, data_source=data_source, **kwargs)
 
 
 class DEMWMSInput(SentinelHubWMSInput):
