@@ -12,3 +12,4 @@ Submodules:
 
    eolearn.mask.cloud_mask
    eolearn.mask.masking
+   eolearn.mask.mask_counting
