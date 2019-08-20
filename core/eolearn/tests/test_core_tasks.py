@@ -1,3 +1,13 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import unittest
 import logging
 import datetime
@@ -77,15 +87,23 @@ class TestCoreTasks(unittest.TestCase):
         feature_name = 'CLOUD MASK'
         new_feature_name = 'CLM'
 
-        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, cloud_mask)
+        patch = copy.deepcopy(self.patch)
+
+        patch = AddFeature((FeatureType.MASK, feature_name))(patch, cloud_mask)
         self.assertTrue(np.array_equal(patch.mask[feature_name], cloud_mask), 'Feature was not added')
 
-        patch = RenameFeature((FeatureType.MASK, feature_name, new_feature_name))(self.patch)
+        patch = RenameFeature((FeatureType.MASK, feature_name, new_feature_name))(patch)
         self.assertTrue(np.array_equal(patch.mask[new_feature_name], cloud_mask), 'Feature was not renamed')
         self.assertFalse(feature_name in patch[FeatureType.MASK], 'Old feature still exists')
 
         patch = RemoveFeature((FeatureType.MASK, new_feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
+
+        patch = RemoveFeature(FeatureType.MASK_TIMELESS)(patch)
+        self.assertEqual(len(patch.mask_timeless), 0, 'mask_timeless features were not removed')
+
+        patch = RemoveFeature((FeatureType.MASK, ...))(patch)
+        self.assertEqual(len(patch.mask), 0, 'mask features were not removed')
 
     def test_duplicate_feature(self):
         mask_data = np.arange(10).reshape(5, 2, 1, 1)
@@ -205,6 +223,17 @@ class TestCoreTasks(unittest.TestCase):
         for i, feature in enumerate(features):
             self.assertTrue(id(data[i]) != id(patch_dst[feature]))
             self.assertTrue(np.array_equal(data[i], patch_dst[feature]))
+
+        features = [(FeatureType.MASK_TIMELESS, ...)]
+        patch_dst = EOPatch()
+        patch_dst = MoveFeature(features)(patch_src, patch_dst)
+
+        self.assertTrue(FeatureType.MASK_TIMELESS in patch_dst.get_features())
+        self.assertFalse(FeatureType.DATA in patch_dst.get_features())
+
+        self.assertTrue('MTless1' in patch_dst.get_feature(FeatureType.MASK_TIMELESS))
+        self.assertTrue('MTless2' in patch_dst.get_feature(FeatureType.MASK_TIMELESS))
+
 
     def test_merge_features(self):
         patch = EOPatch()

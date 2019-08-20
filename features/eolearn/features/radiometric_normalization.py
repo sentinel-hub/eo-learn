@@ -1,5 +1,12 @@
 """
 Module for radiometric normalization
+
+Credits:
+Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
+Copyright (c) 2017-2019 Matej Aleksandrov, Matic Lubej, Devis Peresutti (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import numpy as np

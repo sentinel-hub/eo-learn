@@ -1,5 +1,13 @@
 """
 A collection of most basic EOTasks
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import os
@@ -146,7 +154,7 @@ class RemoveFeature(EOTask):
         :return: input EOPatch without the specified feature
         :rtype: EOPatch
         """
-        for feature_type, feature_name in self.feature_gen(eopatch):
+        for feature_type, feature_name in list(self.feature_gen(eopatch)):
             if feature_name is ...:
                 eopatch.reset_feature_type(feature_type)
             else:
@@ -286,7 +294,7 @@ class MoveFeature(EOTask):
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
-        self.features = self._parse_features(features)
+        self.feature_gen = self._parse_features(features)
         self.deep = deep_copy
 
     def execute(self, src_eopatch, dst_eopatch):
@@ -299,7 +307,7 @@ class MoveFeature(EOTask):
         :rtype: EOPatch
         """
 
-        for feature in self.features:
+        for feature in self.feature_gen(src_eopatch):
             if self.deep:
                 dst_eopatch[feature] = copy.deepcopy(src_eopatch[feature])
             else:

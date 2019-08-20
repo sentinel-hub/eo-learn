@@ -15,6 +15,9 @@
 import os
 import shutil
 
+import sphinx.ext.autodoc
+
+
 # -- Project information -----------------------------------------------------
 
 # General information about the project.
@@ -181,6 +184,10 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+# -- Options for Credits ----------------------------------------------
+
+def setup(app):
+    app.connect('autodoc-process-docstring', sphinx.ext.autodoc.between('Credits:', what=['module'], exclude=True))
 
 # -- Options for Epub output ----------------------------------------------
 
