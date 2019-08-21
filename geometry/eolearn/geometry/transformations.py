@@ -210,18 +210,27 @@ class VectorToRaster(EOTask):
 
         return np.ones((height, width), dtype=self.raster_dtype) * self.no_data_value
 
-    @staticmethod
-    def _get_class_overlap_mask(class_masks):
-        """ Returns a mask showing where class_masks overlap.
+    def rasterize_overlapped(self, shapes, out, **rasterize_args):
+        """ Rasterize overlapped classes.
+
+        :param shapes: Shapes to be rasterized.
+        :type shapes: an iterable of pairs (rasterio.polygon, int)
+        :param out: A numpy array to which to rasterize polygon classes.
+        :type out: numpy.ndarray
+        :param rasterize_args: Keyword arguments to be passed to `rasterio.features.rasterize`.
+        :type rasterize_args: dict
         """
-        disagreement_mask = np.zeros(class_masks[0].shape, dtype=np.bool)
-        value_mask = np.copy(class_masks[0])
+        rasters = [rasterio.features.rasterize([shape], out=np.copy(out), **rasterize_args) for shape in shapes]
 
-        for mask in class_masks[1:]:
-            disagreement_mask[(value_mask != 0) & (mask != 0) & (mask != value_mask)] = True
-            value_mask[mask != 0] = mask[mask != 0]
+        overlap_mask = np.zeros(out.shape, dtype=np.bool)
+        no_data = self.no_data_value
 
-        return disagreement_mask
+        out[:] = rasters[0][:]
+        for raster in rasters[1:]:
+            overlap_mask[(out != no_data) & (raster != no_data) & (raster != out)] = True
+            out[raster != no_data] = raster[raster != no_data]
+
+        out[overlap_mask] = self.overlap_value
 
     def execute(self, eopatch):
         """ Execute method
@@ -246,15 +255,9 @@ class VectorToRaster(EOTask):
         affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
         rasterize_args = dict(self.rasterio_params, transform=affine_transform, dtype=self.raster_dtype)
 
-        if self.overlap_value is not None:
-            itr = ((shape, self._get_raster(eopatch, height, width)) for shape in rasterization_shapes)
-            rasters = [rasterio.features.rasterize([shape], out=raster, **rasterize_args) for shape, raster in itr]
-            raster = np.bitwise_or.reduce(rasters, axis=0)
-            overlap = self._get_class_overlap_mask(rasters)
-            raster[overlap] = self.overlap_value
-        else:
-            raster = self._get_raster(eopatch, height, width)
-            rasterio.features.rasterize(rasterization_shapes, out=raster, **rasterize_args)
+        raster = self._get_raster(eopatch, height, width)
+        rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
+        rasterize_func(rasterization_shapes, out=raster, **rasterize_args)
 
         eopatch[self.raster_feature] = raster[..., np.newaxis]
         return eopatch
