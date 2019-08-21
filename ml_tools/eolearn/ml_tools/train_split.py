@@ -1,16 +1,18 @@
 """
 Tasks used for train set preparation.
 """
-import warnings
 import numpy as np
 
 from eolearn.core import EOTask
 
 
 class TrainSplitTask(EOTask):
-    """ Randomly assigns each value to a class of values by generating a class mask. Classes are defined by a list of
-    cumulative probabilities, passed as the *bins* argument, the same way as the *bins* argument in
-    `numpy.digitize <https://docs.scipy.org/doc/numpy/reference/generated/numpy.digitize.html>`_.
+    """ Randomly assigns each value to a class of values by generating a class mask.
+
+    Classes are defined by a list of cumulative probabilities, passed as the *bins* argument, the same way as the *bins*
+    argument in `numpy.digitize <https://docs.scipy.org/doc/numpy/reference/generated/numpy.digitize.html>`_. Valid
+    classes are enumerated from 1 onwards and if no_data_value is provided, all values equal to it get assigned to class
+    0.
     """
 
     def __init__(self, feature, bins, no_data_value=None):
@@ -46,18 +48,20 @@ class TrainSplitTask(EOTask):
         np.random.seed(seed)
 
         ftype, fname, new_name = self.feature
-        data = np.copy(eopatch[(ftype, fname)])
-
+        data = eopatch[(ftype, fname)]
         classes = set(np.unique(data)) - {self.no_data_value}
+
+        class_masks = [data == class_mask for class_mask in classes]
+        if self.no_data_value:
+            class_masks = [class_mask & (data != self.no_data_value) for class_mask in class_masks]
+
         rands = np.random.rand(len(classes))
-        split = np.digitize(rands, self.bins)
+        split = np.digitize(rands, self.bins) + 1
+        output_mask = np.zeros_like(data)
 
-        if self.no_data_value in split:
-            warnings.warn('TrainSplitTask: no_data_value found in split_classes.')
+        for class_mask, split_class in zip(class_masks, split):
+            output_mask[class_mask] = split_class
 
-        for value_class, split_class in zip(classes, split):
-            data[data == value_class] = split_class
-
-        eopatch[ftype][new_name] = data
+        eopatch[ftype][new_name] = output_mask
 
         return eopatch

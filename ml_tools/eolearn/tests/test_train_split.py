@@ -19,7 +19,7 @@ class TestTrainSet(unittest.TestCase):
         self.assertRaises(ValueError, TrainSplitTask, input_mask_feature, 1.5)
         self.assertRaises(ValueError, TrainSplitTask, input_mask_feature, [0.5, 0.3, 0.7])
 
-        shape = (1000, 1000, 1)
+        shape = (1000, 1000, 3)
         size = np.prod(shape)
 
         data = np.random.randint(10, size=shape, dtype=np.int)
@@ -33,9 +33,10 @@ class TestTrainSet(unittest.TestCase):
         patch[input_label_feature] = data.copy().reshape((size,))
 
         bins = [0.2, 0.5, 0.8]
+        expected_unique = set(range(1, len(bins) + 2))
 
         patch = TrainSplitTask((*input_mask_feature, new_name), bins)(patch, seed=1)
-        self.assertTrue(set(np.unique(patch[new_mask_feature])) <= set(range(len(bins) + 1)))
+        self.assertTrue(set(np.unique(patch[new_mask_feature])) <= expected_unique)
 
         result_seed1 = np.copy(patch[new_mask_feature])
         unique = (np.unique(result_seed1[i_1:i_2, j_1:j_2, :], return_counts=True) for i_1, i_2, j_1, j_2 in indices)
@@ -49,30 +50,35 @@ class TestTrainSet(unittest.TestCase):
         # seed=2 should produce different result than seed=1
         patch = TrainSplitTask((*input_mask_feature, new_name), bins)(patch, seed=2)
         result_seed2 = np.copy(patch[new_mask_feature])
-        self.assertTrue(set(np.unique(result_seed2)) <= set(range(len(bins) + 1)))
+        self.assertTrue(set(np.unique(result_seed2)) <= expected_unique)
         self.assertFalse(np.array_equal(result_seed1, result_seed2))
 
         # test with seed 1 should produce the same result as before
         patch = TrainSplitTask((*input_mask_feature, new_name), bins)(patch, seed=1)
         result_seed_equal = patch[new_mask_feature]
-        self.assertTrue(set(np.unique(result_seed2)) <= set(range(len(bins) + 1)))
+        self.assertTrue(set(np.unique(result_seed2)) <= expected_unique)
         self.assertTrue(np.array_equal(result_seed1, result_seed_equal))
 
         # test LABEL_TIMELESS
         patch = TrainSplitTask((*input_label_feature, new_name), bins)(patch)
         result_label = patch[new_label_feature]
-        self.assertTrue(set(np.unique(result_label)) <= set(range(len(bins) + 1)))
+        self.assertTrue(set(np.unique(result_label)) <= expected_unique)
 
-        shape = (10, 20, 20, 3)
+        shape = (10, 100, 100, 3)
         size = np.prod(shape)
 
+        # test FeatureType.DATA and no_data_value=2
+
         bins = [0.2, 0.5, 0.7, 0.8]
-        patch[(FeatureType.DATA, 'TEST')] = np.random.randint(10, 30, size=shape)
+        expected_unique = set(range(0, len(bins) + 2))
 
-        with self.assertWarns(Warning):
-            patch = TrainSplitTask((FeatureType.DATA, 'TEST', 'BINS'), bins, no_data_value=2)(patch, seed=1)
+        data = np.random.randint(10, size=shape)
+        patch[(FeatureType.DATA, 'TEST')] = data
 
-        self.assertTrue(set(np.unique(patch[(FeatureType.DATA, 'BINS')])) <= set(range(len(bins) + 1)))
+        patch = TrainSplitTask((FeatureType.DATA, 'TEST', 'BINS'), bins, no_data_value=2)(patch, seed=542)
+
+        self.assertTrue(set(np.unique(patch[(FeatureType.DATA, 'BINS')])) <= expected_unique)
+        self.assertTrue(np.all(patch[(FeatureType.DATA, 'BINS')][data == 2] == 0))
 
 
 if __name__ == '__main__':
