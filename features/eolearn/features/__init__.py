@@ -8,7 +8,7 @@ from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpol
     BSplineInterpolation, AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling, \
     KrigingInterpolation, LegacyInterpolation
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
-from .feature_manipulation import SimpleFilterTask, FilterTimeSeries
+from .feature_manipulation import SimpleFilterTask, FilterTimeSeries, ValueFilloutTask
 from .haralick import HaralickTask
 from .radiometric_normalization import ReferenceScenes, HistogramMatching, BlueCompositing, HOTCompositing, \
     MaxNDVICompositing, MaxNDWICompositing, MaxRatioCompositing

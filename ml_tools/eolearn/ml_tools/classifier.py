@@ -1,5 +1,13 @@
 """
 Module for classification helper classes and classification task.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 # pylint: disable=invalid-name
 
