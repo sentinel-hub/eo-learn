@@ -15,6 +15,7 @@ import numpy as np
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.geometry import VectorToRaster, RasterToVector
+from shapely.geometry import Polygon
 
 
 class TestVectorToRaster(unittest.TestCase):
@@ -120,6 +121,76 @@ class TestVectorToRaster(unittest.TestCase):
             with self.subTest(msg='Test case {}'.format(test_case.name)):
                 self.assertEqual(test_case.img_shape, data.shape,
                                  msg="Expected shape {}, got {}".format(test_case.img_shape, data.shape))
+
+    def test_polygon_overlap(self):
+        patch_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data', 'TestEOPatch')
+        patch = EOPatch.load(patch_path)
+
+        # create two test bboxes to overlap existing classes
+        bounds = patch.vector_timeless['LULC'].total_bounds
+        test_bounds1 = bounds[0] + 500, bounds[1] + 1000, bounds[2] - 1450, bounds[3] - 1650
+        test_bounds2 = bounds[0] + 300, bounds[1] + 1400, bounds[2] - 1750, bounds[3] - 1300
+
+        dframe = patch.vector_timeless['LULC'][0:50]
+
+        # override 0th row with a test polygon of class 10
+        test_row = dframe.index[0]
+        dframe.at[test_row, 'LULC_ID'] = 10
+        dframe.at[test_row, 'geometry'] = Polygon.from_bounds(*test_bounds1)
+
+        # override the last row with a test polygon of class 5
+        test_row = dframe.index[-1]
+        dframe.at[test_row, 'LULC_ID'] = 5
+        dframe.at[test_row, 'geometry'] = Polygon.from_bounds(*test_bounds2)
+
+        patch.vector_timeless['TEST'] = dframe
+
+        shape_feature = FeatureType.DATA, 'BANDS-S2-L1C'
+
+        # no overlap
+        patch = VectorToRaster(dframe[1:-1], (FeatureType.MASK_TIMELESS, 'OVERLAP_0'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=5)(patch)
+
+        # overlap without taking intersection into account
+        patch = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_1'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=None)(patch)
+
+        # overlap without setting intersections to 0
+        patch = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_2'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=0)(patch)
+
+        # overlap without setting intersections to class 7
+        patch = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_3'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=7)(patch)
+
+        # separately render bboxes for comparisons in asserts
+        patch = VectorToRaster(dframe[:1], (FeatureType.MASK_TIMELESS, 'TEST_BBOX1'),
+                               values_column='LULC_ID', raster_shape=shape_feature)(patch)
+        patch = VectorToRaster(dframe[-1:], (FeatureType.MASK_TIMELESS, 'TEST_BBOX2'),
+                               values_column='LULC_ID', raster_shape=shape_feature)(patch)
+
+        bbox1 = patch.mask_timeless['TEST_BBOX1']
+        bbox2 = patch.mask_timeless['TEST_BBOX2']
+
+        overlap0 = patch.mask_timeless['OVERLAP_0']
+        overlap1 = patch.mask_timeless['OVERLAP_1']
+        overlap2 = patch.mask_timeless['OVERLAP_2']
+
+        # 4 gets partially covered by 5
+        self.assertTrue(np.count_nonzero(overlap0 == 4) > np.count_nonzero(overlap1 == 4))
+        # 2 doesn't get covered, stays the same
+        self.assertTrue(np.count_nonzero(overlap0 == 2) == np.count_nonzero(overlap1 == 2))
+        # 10 is bbox2 and it gets covered by other classes
+        self.assertTrue(np.count_nonzero(bbox1) > np.count_nonzero(overlap1 == 10))
+        # 5 is bbox1 and it is rendered on top of all others, so it doesn't get covered
+        self.assertTrue(np.count_nonzero(bbox2) == np.count_nonzero(overlap1 == 5))
+
+        # all classes have their parts intersected, so the sum should reduce
+        self.assertTrue(np.count_nonzero(bbox1) > np.count_nonzero(overlap2 == 10))
+        self.assertTrue(np.count_nonzero(bbox2) > np.count_nonzero(overlap2 == 5))
+        self.assertTrue(np.count_nonzero(overlap0 == 4) > np.count_nonzero(overlap2 == 4))
+        # 2 gets covered completely
+        self.assertTrue(np.count_nonzero(overlap2 == 2) == 0)
 
 
 class TestRasterToVector(unittest.TestCase):
