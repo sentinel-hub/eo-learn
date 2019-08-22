@@ -155,6 +155,10 @@ class VectorToRaster(EOTask):
         if vector_data.empty:
             return None
 
+        if self.buffer:
+            vector_data.geometry = vector_data.geometry.buffer(self.buffer)
+            vector_data = vector_data[~vector_data.is_empty]
+
         if not vector_data.geometry.is_valid.all():
             warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
             vector_data.geometry = vector_data.geometry.buffer(0)
@@ -170,10 +174,6 @@ class VectorToRaster(EOTask):
         if self.values is not None:
             values = [self.values] if isinstance(self.values, (int, float)) else self.values
             vector_data = vector_data[vector_data[self.values_column].isin(values)]
-
-        if self.buffer:
-            vector_data = vector_data.buffer(self.buffer)
-            vector_data = vector_data[vector_data.is_valid]
 
         if group_classes:
             classes = np.unique(vector_data[self.values_column])
