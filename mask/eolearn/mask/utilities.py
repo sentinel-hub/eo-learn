@@ -5,6 +5,7 @@ Utilities for cloud masking
 import numpy as np
 import cv2
 
+
 def map_over_axis(data, func, axis=0):
     """Map function func over each slice along axis.
     If func changes the number of dimensions, mapping axis is moved to the front.
@@ -40,6 +41,7 @@ def map_over_axis(data, func, axis=0):
         res = np.moveaxis(res, 0, axis)
 
     return res
+
 
 def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, interpolation='linear'):
     """Resizes the image(s) acording to given size or scale factors.
