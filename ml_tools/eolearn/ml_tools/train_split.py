@@ -51,9 +51,9 @@ class TrainSplitTask(EOTask):
         data = eopatch[(ftype, fname)]
         classes = set(np.unique(data)) - {self.no_data_value}
 
-        class_masks = [data == class_mask for class_mask in classes]
+        class_masks = (data == class_mask for class_mask in classes)
         if self.no_data_value:
-            class_masks = [class_mask & (data != self.no_data_value) for class_mask in class_masks]
+            class_masks = (class_mask & (data != self.no_data_value) for class_mask in class_masks)
 
         rands = np.random.rand(len(classes))
         split = np.digitize(rands, self.bins) + 1
