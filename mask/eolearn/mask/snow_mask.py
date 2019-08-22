@@ -6,10 +6,10 @@ import logging
 import itertools
 
 import numpy as np
-from PIL import Image
 from skimage.morphology import disk, binary_dilation
 
 from eolearn.core import EOTask, FeatureType
+from .utilities import resize_images
 
 
 LOGGER = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ class SnowMask(BaseSnowMask):
     """
     The task calculates the snow mask using the given thresholds.
 
-    THe default values were optimised based on the Sentinel-2 L1C processing level. Values might not be optimal for L2A
+    The default values were optimised based on the Sentinel-2 L1C processing level. Values might not be optimal for L2A
     processing level
     """
 
@@ -176,14 +176,16 @@ class TheiaSnowMask(BaseSnowMask):
         :param input_array: input values
         :return: resampled values
         """
-        size = np.array(input_array.shape[1:]) // self.red_params[0]
-        resampled = [np.array(Image.fromarray(frame).resize(size, Image.BICUBIC).resize(frame.shape, Image.NEAREST))
-                     for frame in input_array]
-        return np.array(resampled)
+        height, width = input_array.shape[1:]
+        size = (height // self.red_params[0], width // self.red_params[0])
+        return resize_images(resize_images(input_array[..., np.newaxis], new_size=size),
+                             new_size=(height, width)).squeeze()
 
     def _adjust_cloud_mask(self, bands, cloud_mask, dem, b10):
-        """ Adjust existing cloud mask using cirrus band if L1C data and resampled red band """
-        # add to the existing cloud mask pixels found thresholding down-sampled red band and cirrus band/DEM
+        """ Adjust existing cloud mask using cirrus band if L1C data and resampled red band
+
+        Add to the existing cloud mask pixels found thresholding down-sampled red band and cirrus band/DEM
+        """
         clm_b10 = np.where(b10 > self.B10_THR + self.DEM_FACTOR * dem, 1, 0) \
             if b10 is not None else np.ones(shape=cloud_mask.shape, dtype=np.uint8)
         return np.logical_or(
