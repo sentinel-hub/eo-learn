@@ -328,8 +328,8 @@ class MapFeatureTask(EOTask):
                 def map_function(self, f):
                     return f * 2
 
-            multiply = MultiplyFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
-                                        {FeatureType.MASK: ['m1', 'm2', 'm3']}) # output features
+            multiply = MultiplyFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
+                                        {FeatureType.MASK: ['m1', 'm2', 'm3']})  # output features
 
             result = multiply(patch)
 
@@ -337,13 +337,24 @@ class MapFeatureTask(EOTask):
 
         .. code-block:: python
 
-            multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
-                                       {FeatureType.MASK: ['m1', 'm2', 'm3']}, # output features
-                                       lambda f: f*2)                          # function to apply to each feature
+            multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
+                                      {FeatureType.MASK: ['m1', 'm2', 'm3']},  # output features
+                                      lambda f: f*2)                           # a function to apply to each feature
+
+            result = multiply(patch)
+
+        Example using a np.max and it's kwargs passed as arguments to the MapFeatureTask:
+
+        .. code-block:: python
+
+            maximum = MapFeatureTask((FeatureType.DATA: 'f1'),  # input features
+                                     (FeatureType.MASK, 'm1'),  # output feature
+                                     np.max,                    # a function to apply to each feature
+                                     axis=0)                    # function's kwargs
 
             result = multiply(patch)
     """
-    def __init__(self, input_features, output_features, map_function=None):
+    def __init__(self, input_features, output_features, map_function=None, **kwargs):
         """
         :param input_features: A collection of the input features to be mapped.
         :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
@@ -351,10 +362,11 @@ class MapFeatureTask(EOTask):
         :type output_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param map_function: A function or lambda to be applied to the input data.
         :raises ValueError: Raises an exception when passing feature collections with different lengths.
-
+        :param kwargs: kwargs to be passed to the map function.
         """
         self.input_features = list(self._parse_features(input_features))
         self.output_feature = list(self._parse_features(output_features))
+        self.kwargs = kwargs
 
         if len(self.input_features) != len(self.output_feature):
             raise ValueError('The number of input and output features must match.')
@@ -369,7 +381,7 @@ class MapFeatureTask(EOTask):
         :rtype: EOPatch
         """
         for input_features, output_feature in zip(self.input_features, self.output_feature):
-            eopatch[output_feature] = self.function(eopatch[input_features])
+            eopatch[output_feature] = self.function(eopatch[input_features], **self.kwargs)
 
         return eopatch
 
@@ -401,23 +413,36 @@ class ZipFeatureTask(EOTask):
 
         .. code-block:: python
 
-            calc = ZipFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
-                                   (FeatureType.MASK, 'm1'),               # output feature
-                                   lambda f0, f1, f2: f0 / (f1 + f2))      # function to apply to each feature
+            calc = ZipFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
+                                  (FeatureType.MASK, 'm1'),                # output feature
+                                  lambda f0, f1, f2: f0 / (f1 + f2))       # a function to apply to each feature
+
+            result = multiply(patch)
+
+        Example using a np.maximum and it's kwargs passed as arguments to the ZipFeatureTask:
+
+        .. code-block:: python
+
+            maximum = ZipFeatureTask({FeatureType.DATA: ['f1', 'f2']},  # input features
+                                     (FeatureType.MASK, 'm1'),          # output feature
+                                     np.maximum,                        # a function to apply to each feature
+                                     dtype=np.float64)                  # function's kwargs
 
             result = multiply(patch)
     """
-    def __init__(self, input_features, output_feature, zip_function=None):
+    def __init__(self, input_features, output_feature, zip_function=None, **kwargs):
         """
         :param input_features: A collection of the input features to be mapped.
         :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature object to which to assign the the data.
         :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param zip_function: A function or lambda to be applied to the input data.
+        :param kwargs: kwargs to be passed to the zip function.
         """
         self.input_features = list(self._parse_features(input_features))
         self.output_feature = next(self._parse_features(output_feature)())
         self.function = zip_function if zip_function else self.zip_method
+        self.kwargs = kwargs
 
     def execute(self, eopatch):
         """
@@ -428,7 +453,7 @@ class ZipFeatureTask(EOTask):
         """
         data = [eopatch[feature] for feature in self.input_features]
 
-        eopatch[self.output_feature] = self.function(*data)
+        eopatch[self.output_feature] = self.function(*data, **self.kwargs)
 
         return eopatch
 
