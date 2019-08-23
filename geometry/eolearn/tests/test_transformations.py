@@ -84,6 +84,22 @@ class TestVectorToRaster(unittest.TestCase):
                                         raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
                          img_min=0, img_max=0, img_mean=0, img_median=0, img_dtype=np.uint8,
                          img_shape=(101, 100, 1)),
+            cls.TestCase('negative polygon buffering',
+                         VectorToRaster(vector_input=custom_dataframe,
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        buffer=-2,
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=8, img_mean=0.0229, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
+            cls.TestCase('positive polygon buffering',
+                         VectorToRaster(vector_input=custom_dataframe,
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        buffer=2,
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=8, img_mean=0.0664, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
         ]
 
         for test_case in cls.test_cases:

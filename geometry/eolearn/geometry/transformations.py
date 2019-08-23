@@ -40,7 +40,7 @@ class VectorToRaster(EOTask):
     """
     def __init__(self, vector_input, raster_feature, *, values=None, values_column=None, raster_shape=None,
                  raster_resolution=None, raster_dtype=np.uint8, no_data_value=0, write_to_existing=False,
-                 overlap_value=None, **rasterio_params):
+                 overlap_value=None, buffer=0, **rasterio_params):
         """
         :param vector_input: Vector data to be used for rasterization. It can be given as a feature in `EOPatch` or
             as an independent geopandas `GeoDataFrame`.
@@ -73,6 +73,8 @@ class VectorToRaster(EOTask):
             rasterization overlays polygon as it is the default behavior of `rasterio.features.rasterize`.
         :type overlap_value: raster's dtype
         :type write_to_existing: bool
+        :param buffer: Buffer value passed to vector_data.buffer() before rasterization. If 0, no buffering is done.
+        :type buffer: float
         :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently
             available parameters are `all_touched` and `merge_alg`
         """
@@ -94,6 +96,7 @@ class VectorToRaster(EOTask):
         self.write_to_existing = write_to_existing
         self.rasterio_params = rasterio_params
         self.overlap_value = overlap_value
+        self.buffer = buffer
 
     @staticmethod
     def _parse_main_params(vector_input, raster_feature):
@@ -151,6 +154,10 @@ class VectorToRaster(EOTask):
 
         if vector_data.empty:
             return None
+
+        if self.buffer:
+            vector_data.geometry = vector_data.geometry.buffer(self.buffer)
+            vector_data = vector_data[~vector_data.is_empty]
 
         if not vector_data.geometry.is_valid.all():
             warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
