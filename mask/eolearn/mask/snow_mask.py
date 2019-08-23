@@ -31,7 +31,8 @@ class BaseSnowMask(EOTask):
         self.band_indices = band_indices
         self.dilation_size = dilation_size
         self.undefined_value = undefined_value
-        self.mask_name = mask_name
+        self.mask_feature = (FeatureType.MASK if self.bands_feature[0] is FeatureType.DATA else
+                             FeatureType.MASK_TIMELESS, mask_name)
 
     def _apply_dilation(self, snow_masks):
         """ Apply binary dilation for each mask in the series """
@@ -92,7 +93,7 @@ class SnowMask(BaseSnowMask):
 
         snow_mask[np.logical_or(ndsi_invalid, ndvi_invalid)] = self.undefined_value
 
-        eopatch.add_feature(FeatureType.MASK, self.mask_name, snow_mask[..., np.newaxis].astype(np.uint8))
+        eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(np.bool)
         return eopatch
 
 
@@ -258,6 +259,6 @@ class TheiaSnowMask(BaseSnowMask):
 
         snow_mask = self._apply_dilation(np.logical_or(snow_mask_pass1, snow_mask_pass2))
 
-        eopatch.add_feature(FeatureType.MASK, self.mask_name, snow_mask[..., np.newaxis].astype(np.uint8))
+        eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(np.bool)
 
         return eopatch

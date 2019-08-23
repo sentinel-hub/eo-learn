@@ -72,14 +72,14 @@ class TestSnowMaskingTasks(unittest.TestCase):
             eop = task(self.eop)
 
             # Check shape and type
-            self._check_shape(eop.mask[task.mask_name], self.eop.data['BANDS-S2-L1C'])
-            self.assertTrue(eop.mask[task.mask_name].dtype == np.uint8)
+            self._check_shape(eop.mask[task.mask_feature[1]], self.eop.data['BANDS-S2-L1C'])
+            self.assertTrue(eop.mask[task.mask_feature[1]].dtype == np.bool)
 
-            snow_pixels = np.sum(eop.mask[task.mask_name], axis=(1, 2, 3))
+            snow_pixels = np.sum(eop.mask[task.mask_feature[1]], axis=(1, 2, 3))
             self.assertEqual(np.sum(snow_pixels), results[0],
-                             'Sum of snowy pixels does not match for task {}'.format(task.mask_name))
+                             'Sum of snowy pixels does not match for task {}'.format(task.mask_feature[1]))
             self.assertEqual(snow_pixels[-4], results[1],
-                             'Snowy pixels on specified frame does not match for task {}'.format(task.mask_name))
+                             'Snowy pixels on specified frame does not match for task {}'.format(task.mask_feature[1]))
 
 
 if __name__ == '__main__':
