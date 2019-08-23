@@ -7,7 +7,7 @@ from eolearn.ml_tools import TrainTestSplitTask
 
 class TestTrainSet(unittest.TestCase):
 
-    def test_train_set_mask(self):
+    def test_train_split(self):
         new_name = 'TEST_TRAIN_MASK'
 
         input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
@@ -18,6 +18,8 @@ class TestTrainSet(unittest.TestCase):
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, None)
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, 1.5)
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, [0.5, 0.3, 0.7])
+        self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, [0.5, 0.3, 0.7], split_type=None)
+        self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, [0.5, 0.3, 0.7], split_type='nonsense')
 
         shape = (1000, 1000, 3)
         size = np.prod(shape)
@@ -79,6 +81,27 @@ class TestTrainSet(unittest.TestCase):
 
         self.assertTrue(set(np.unique(patch[(FeatureType.DATA, 'BINS')])) <= expected_unique)
         self.assertTrue(np.all(patch[(FeatureType.DATA, 'BINS')][data == 2] == 0))
+
+    def test_train_split_random(self):
+        new_name = 'TEST_TRAIN_MASK'
+        input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
+
+        shape = (1000, 1000, 3)
+
+        input_data = np.random.randint(10, size=shape, dtype=np.int)
+        patch = EOPatch()
+        patch[input_mask_feature] = input_data
+
+        bins = [0.2, 0.6]
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='random')(patch, seed=1)
+
+        output_data = patch[(FeatureType.MASK_TIMELESS, new_name)]
+        unique, counts = np.unique(output_data, return_counts=True)
+        class_percentages = np.round(counts / input_data.size, 1)
+        expected_unique = list(range(1, len(bins) + 2))
+
+        self.assertTrue(np.array_equal(unique, expected_unique))
+        self.assertTrue(np.array_equal(class_percentages, [0.2, 0.4, 0.4]))
 
 
 if __name__ == '__main__':
