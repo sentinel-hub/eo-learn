@@ -6,7 +6,7 @@ import numpy as np
 from eolearn.core import EOTask
 
 
-class TrainSplitTask(EOTask):
+class TrainTestSplitTask(EOTask):
     """ Randomly assigns each value to a class of values by generating a class mask.
 
     Classes are defined by a list of cumulative probabilities, passed as the *bins* argument, the same way as the *bins*
@@ -40,7 +40,7 @@ class TrainSplitTask(EOTask):
         """
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
-        :param seed: An argument to be passed to numpy.random.seed function.
+        :param seed: An argument to be passed to numpy.random.seed functionu
         :type seed: numpy.int64
         :return: Input EOPatch with the train set mask.
         :rtype: EOPatch
