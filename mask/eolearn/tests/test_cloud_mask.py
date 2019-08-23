@@ -20,7 +20,7 @@ from eolearn.core import EOPatch, FeatureType
 class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
 
     TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
-                                           'TestEOPatch')
+                                       'TestEOPatch')
 
     FEATURES_TO_LOAD = [
         (FeatureType.DATA, 'BANDS-S2-L1C', 'CLP'),
@@ -68,7 +68,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
 
         # Classifier is run on downscaled version of data array
         add_cm = AddCloudMaskTask(classifier, 'ALL_DATA', cm_size_y='20m', cm_size_x='20m',
-            cmask_feature='CLM_TEST', cprobs_feature='CLP_TEST')
+                                  cmask_feature='CLM_TEST', cprobs_feature='CLP_TEST')
         eop_clm = add_cm(self.eop)
         
         # Check shape and type
@@ -91,8 +91,8 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
     def test_wms_request(self):
         classifier = get_s2_pixel_cloud_detector(all_bands=False)
         # Classifier is run on new request of data array
-        add_cm = AddCloudMaskTask(classifier, 'BANDS-S2-L1C', cm_size_x='20m', cm_size_y='20m', 
-            cmask_feature='CLM_TEST', cprobs_feature='CLP_TEST')
+        add_cm = AddCloudMaskTask(classifier, 'BANDS-S2-L1C', cm_size_x='20m', cm_size_y='20m',
+                                  cmask_feature='CLM_TEST', cprobs_feature='CLP_TEST')
         eop_clm = add_cm(self.eop)
 
         # Check shape and type
