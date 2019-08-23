@@ -7,12 +7,25 @@ from eolearn.core import EOTask
 
 
 class TrainTestSplitTask(EOTask):
-    """ Randomly assigns each value to a class of values by generating a class mask.
+    """ Randomly assign each or group of pixels to a train, test, and/or validation sets.
+
+    The group of pixels is defined by an input feature (i.e. MASK_TIMELESS with polygon ids, or connected component id,
+    or similar that groups pixels with similar properties). By default pixels get assigned to a subset 'per_class'. If
+    split_type is set to 'random', then pixels get randomly assigned to a subset, regardless of their class.
 
     Classes are defined by a list of cumulative probabilities, passed as the *bins* argument, the same way as the *bins*
     argument in `numpy.digitize <https://docs.scipy.org/doc/numpy/reference/generated/numpy.digitize.html>`_. Valid
-    classes are enumerated from 1 onwards and if no_data_value is provided, all values equal to it get assigned to class
+    classes are enumerated from 1 onward and if no_data_value is provided, all values equal to it get assigned to class
     0.
+
+    To get a train/test split as 80/20, bins argument should be provided as `bins=[0.8]`.
+
+    To get a train/val/test split as 60/20/20, bins argument should be provided as `bins=[0.6, 0.8]`.
+
+    Splits can also be made into as many subsets as desired, e.g.: `bins=[0.1, 0.2, 0.3, 0.7, 0.9]`
+
+    After the execution of this task an EOPatch will have a new (FeatureType, new_name) feature where each pixel will
+    have a value representing the train, test and/or validation set.
     """
 
     def __init__(self, feature, bins, split_type='per_class', no_data_value=None):
@@ -46,7 +59,7 @@ class TrainTestSplitTask(EOTask):
         """
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
-        :param seed: An argument to be passed to numpy.random.seed functionu
+        :param seed: An argument to be passed to numpy.random.seed function.
         :type seed: numpy.int64
         :return: Input EOPatch with the train set mask.
         :rtype: EOPatch
