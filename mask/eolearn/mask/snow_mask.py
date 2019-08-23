@@ -31,8 +31,7 @@ class BaseSnowMask(EOTask):
         self.band_indices = band_indices
         self.dilation_size = dilation_size
         self.undefined_value = undefined_value
-        self.mask_feature = (FeatureType.MASK if self.bands_feature[0] is FeatureType.DATA else
-                             FeatureType.MASK_TIMELESS, mask_name)
+        self.mask_feature = (FeatureType.MASK, mask_name)
 
     def _apply_dilation(self, snow_masks):
         """ Apply binary dilation for each mask in the series """
