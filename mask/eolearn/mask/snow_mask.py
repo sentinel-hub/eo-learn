@@ -226,14 +226,14 @@ class TheiaSnowMask(BaseSnowMask):
         total_snow_frac = np.sum(snow_mask_pass1, axis=(1, 2)) / (height*width)
         snow_mask_pass2 = np.zeros(snow_mask_pass1.shape)
         for date in range(bands.shape[0]):
-            if total_snow_frac[date] > self.ndsi_params[2]:
-                if snow_frac is not None and np.any(snow_frac[date] > self.dem_params[1]):
-                    z_s = dem_edges[max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]
-                    snow_mask_pass2[date, :, :] = np.where(
-                        np.logical_and(dem > z_s, np.logical_and(
-                            np.logical_not(clm_temp[date]),
-                            np.logical_and(ndsi[date] > self.ndsi_params[1],
-                                           bands[date, ..., 1] > self.red_params[-1]))), 1, 0)
+            if (total_snow_frac[date] > self.ndsi_params[2]) and \
+                    (snow_frac is not None and np.any(snow_frac[date] > self.dem_params[1])):
+                z_s = dem_edges[max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]
+                snow_mask_pass2[date, :, :] = np.where(
+                    np.logical_and(dem > z_s, np.logical_and(
+                        np.logical_not(clm_temp[date]),
+                        np.logical_and(ndsi[date] > self.ndsi_params[1],
+                                       bands[date, ..., 1] > self.red_params[-1]))), 1, 0)
         return snow_mask_pass2
 
     def execute(self, eopatch):
