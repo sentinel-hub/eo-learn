@@ -30,18 +30,6 @@ LOGGER = logging.getLogger(__name__)
 class EOExecutor:
     """ Simultaneously executes a workflow with different input arguments. In the process it monitors execution and
     handles errors. It can also save logs and create a html report about each execution.
-
-    :param workflow: A prepared instance of EOWorkflow class
-    :type workflow: EOWorkflow
-    :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the workflow.
-        `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The content of such
-        dictionary will be used as `input_args` parameter in `EOWorkflow.execution` method. Check `EOWorkflow.execution`
-        for definition of a dictionary structure.
-    :type execution_args: list(dict(EOTask: dict(str: object) or tuple(object)))
-    :param save_logs: Flag used to specify if execution log files should be saved locally on disk
-    :type save_logs: bool
-    :param logs_folder: A folder where logs and execution report should be saved
-    :type logs_folder: str
     """
     REPORT_FILENAME = 'report.html'
 
@@ -49,11 +37,27 @@ class EOExecutor:
     STATS_END_TIME = 'end_time'
     STATS_ERROR = 'error'
 
-    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.'):
+    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', execution_names=None):
+        """
+        :param workflow: A prepared instance of EOWorkflow class
+        :type workflow: EOWorkflow
+        :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the
+            workflow. `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The
+            content of such dictionary will be used as `input_args` parameter in `EOWorkflow.execution` method.
+            Check `EOWorkflow.execution` for definition of a dictionary structure.
+        :type execution_args: list(dict(EOTask: dict(str: object) or tuple(object)))
+        :param save_logs: Flag used to specify if execution log files should be saved locally on disk
+        :type save_logs: bool
+        :param logs_folder: A folder where logs and execution report should be saved
+        :type logs_folder: str
+        :param execution_names: A list of execution names, which will be shown in execution report
+        :type execution_names: list(str) or None
+        """
         self.workflow = workflow
         self.execution_args = self._parse_execution_args(execution_args)
         self.save_logs = save_logs
         self.logs_folder = logs_folder
+        self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
 
         self.report_folder = None
         self.execution_logs = None
@@ -67,6 +71,18 @@ class EOExecutor:
             raise ValueError("Parameter 'execution_args' should be a list")
 
         return [EOWorkflow.parse_input_args(input_args) for input_args in execution_args]
+
+    @staticmethod
+    def _parse_execution_names(execution_names, execution_args):
+        """ Parses a list of execution names
+        """
+        if execution_names is None:
+            return list(map(str, range(1, len(execution_args) + 1)))
+
+        if not isinstance(execution_names, list) or len(execution_names) != len(execution_args):
+            raise ValueError("Parameter 'execution_names' has to be a list of the same size as the list of "
+                             "execution arguments")
+        return execution_names
 
     def run(self, workers=1, multiprocess=True):
         """ Runs the executor with n workers.

@@ -72,6 +72,7 @@ class EOExecutorVisualization:
                                task_source=task_source,
                                execution_stats=execution_stats,
                                execution_logs=self.eoexecutor.execution_logs,
+                               execution_names=self.eoexecutor.execution_names,
                                code_css=formatter.get_style_defs())
 
         if not os.path.isdir(self.eoexecutor.report_folder):

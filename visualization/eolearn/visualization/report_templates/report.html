@@ -42,7 +42,7 @@
     <h2>Executions</h2>
 
     {% for execution in execution_stats %}
-        <h3>Execution {{ loop.index }}</h3>
+        <h3>Execution {{ execution_names[loop.index - 1] }}</h3>
 
         Statistics<br/>
         <ul>
