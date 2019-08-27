@@ -9,7 +9,6 @@ file in the root directory of this source tree.
 """
 
 import unittest
-import os
 import logging
 import tempfile
 import datetime
@@ -81,14 +80,6 @@ class TestEOExecutor(unittest.TestCase):
 
                 self.assertEqual(executor.get_successful_executions(), [0, 1, 2])
                 self.assertEqual(executor.get_failed_executions(), [3])
-
-    def test_report_creation(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name, save_logs=True)
-            executor.run(workers=10)
-            executor.make_report()
-
-            self.assertTrue(os.path.exists(executor.get_report_filename()), 'Execution report was not created')
 
 
 if __name__ == '__main__':
