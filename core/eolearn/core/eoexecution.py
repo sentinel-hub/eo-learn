@@ -105,8 +105,8 @@ class EOExecutor:
             os.mkdir(self.report_folder)
 
         execution_num = len(self.execution_args)
-        log_paths = [self._get_log_filename(idx) if self.save_logs else None
-                     for idx in range(execution_num)]
+        log_paths = [self._get_log_filename(name) if self.save_logs else None
+                     for name in self.execution_names]
 
         processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
                                                                                                log_paths)]
@@ -167,10 +167,10 @@ class EOExecutor:
         return os.path.join(self.logs_folder,
                             'eoexecution-report-{}'.format(dt.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
 
-    def _get_log_filename(self, execution_nb):
+    def _get_log_filename(self, execution_name):
         """ Returns file path of a log file
         """
-        return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
+        return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_name))
 
     def get_successful_executions(self):
         """ Returns a list of IDs of successful executions. The IDs are integers from interval

@@ -9,6 +9,7 @@ file in the root directory of this source tree.
 """
 
 import unittest
+import os
 import logging
 import tempfile
 import datetime
@@ -47,13 +48,22 @@ class TestEOExecutor(unittest.TestCase):
         ]
 
     def test_execution_logs(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, save_logs=True, logs_folder=tmp_dir_name)
-            executor.run()
+        for execution_names in [None, [4, 'x', 'y', 'z']]:
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                executor = EOExecutor(self.workflow, self.execution_args, save_logs=True, logs_folder=tmp_dir_name,
+                                      execution_names=execution_names)
+                executor.run()
 
-            self.assertEqual(len(executor.execution_logs), 4)
-            for log in executor.execution_logs:
-                self.assertTrue(len(log.split()) >= 3)
+                self.assertEqual(len(executor.execution_logs), 4)
+                for log in executor.execution_logs:
+                    self.assertTrue(len(log.split()) >= 3)
+
+                log_filenames = sorted(os.listdir(executor.report_folder))
+                self.assertEqual(len(log_filenames), 4)
+
+                if execution_names:
+                    for name, log_filename in zip(execution_names, log_filenames):
+                        self.assertTrue(log_filename == 'eoexecution-{}.log'.format(name))
 
     def test_execution_stats(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
