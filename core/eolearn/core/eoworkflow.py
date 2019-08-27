@@ -154,20 +154,6 @@ class EOWorkflow:
 
         return topological_order
 
-    @staticmethod
-    def make_linear_workflow(*tasks, **kwargs):
-        """ Factory method for creating linear workflows
-
-        :param tasks: EOTask's t1,t2,...,tk with dependencies t1->t2->...->tk
-        :param kwargs: Optional keyword arguments (such as workflow name) forwarded to the constructor
-        :return: A new EO workflow instance
-        :rtype: EOWorkflow
-        """
-        warnings.warn("Method 'make_linear_workflow' will soon be removed. Use LinearWorkflow class instead",
-                      DeprecationWarning, stacklevel=2)
-
-        return LinearWorkflow(*tasks, **kwargs)
-
     def execute(self, input_args=None, monitor=False):
         """ Executes the workflow
 
