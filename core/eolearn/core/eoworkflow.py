@@ -169,9 +169,10 @@ class EOWorkflow:
 
         input_args = self.parse_input_args(input_args)
 
-        results = self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor)
+        results = WorkflowResults(self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor))
 
-        return WorkflowResults(results)
+        LOGGER.debug('Workflow finished with %s', repr(results))
+        return results
 
     @staticmethod
     def parse_input_args(input_args):
@@ -243,10 +244,10 @@ class EOWorkflow:
 
     def _relax_dependencies(self, *, dependency, out_degrees, intermediate_results):
         """ Relaxes dependencies incurred by ``task_id``. After the task with ID ``task_id`` has been successfully
-        executed, all the tasks it depended on are upadted. If ``task_id`` was the last remaining dependency of a task
+        executed, all the tasks it depended on are updated. If ``task_id`` was the last remaining dependency of a task
         ``t`` then ``t``'s result is removed from memory and, depending on ``remove_intermediate``, from disk.
 
-        :param dependency: A workflow dependecy
+        :param dependency: A workflow dependency
         :type dependency: Dependency
         :param out_degrees: Out-degrees of tasks
         :type out_degrees: dict
@@ -362,7 +363,7 @@ class Dependency:
 
     :param task: An instance of EOTask
     :type task: EOTask
-    :param inputs: A list of EOTask instances which are dependenies of the given `task`
+    :param inputs: A list of EOTask instances which are dependencies of the given `task`
     :type inputs: list(EOTask) or EOTask
     :param name: Name of the Dependency node
     :type name: str or None
