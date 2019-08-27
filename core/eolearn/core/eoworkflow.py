@@ -169,9 +169,9 @@ class EOWorkflow:
 
         input_args = self.parse_input_args(input_args)
 
-        _, intermediate_results = self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor)
+        results = self._execute_tasks(input_args=input_args, out_degs=out_degs, monitor=monitor)
 
-        return WorkflowResults(intermediate_results)
+        return WorkflowResults(results)
 
     @staticmethod
     def parse_input_args(input_args):
@@ -197,11 +197,9 @@ class EOWorkflow:
         :param out_degs: Dictionary mapping vertices (task IDs) to their out-degrees. (The out-degree equals the number
         of tasks that depend on this task.)
         :type out_degs: Dict
-        :return: An immutable mapping containing results of terminal tasks
-        :rtype: WorkflowResults
+        :return: A dictionary mapping dependencies to task results
+        :rtype: dict
         """
-        done_tasks = set()
-
         intermediate_results = {}
 
         for dep in self.ordered_dependencies:
@@ -216,7 +214,7 @@ class EOWorkflow:
                                      out_degrees=out_degs,
                                      intermediate_results=intermediate_results)
 
-        return done_tasks, intermediate_results
+        return intermediate_results
 
     def _execute_task(self, *, dependency, input_args, intermediate_results, monitor):
         """ Executes a task of the workflow
@@ -407,7 +405,7 @@ class WorkflowResults(collections.Mapping):
     [1] https://docs.python.org/3.6/library/collections.abc.html#collections-abstract-base-classes
     """
     def __init__(self, results):
-        self._result = dict(results)
+        self._result = results
         self._uuid_dict = {dep.task.private_task_config.uuid: dep for dep in results}
 
     def __getitem__(self, item):
@@ -458,8 +456,8 @@ class WorkflowResults(collections.Mapping):
         repr_list = ['{}('.format(self.__class__.__name__)]
 
         for _, dep in self._uuid_dict.items():
-            repr_list.append('{}({}): {}'.format(Dependency.__name__, dep.name,
-                                                 repr(self._result[dep])))
+            repr_list.append('{}({}):\n    {}'.format(Dependency.__name__, dep.name,
+                                                      repr(self._result[dep]).replace('\n', '\n    ')))
 
         return '\n  '.join(repr_list) + '\n)'
 

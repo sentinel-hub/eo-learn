@@ -90,7 +90,6 @@ class TestEOWorkflow(unittest.TestCase):
             input_task1: {'val': 15},
             input_task2: {'val': 3}
         })
-
         self.assertEqual(result1[divide_task], 5)
 
         result2 = workflow.execute({
@@ -169,6 +168,9 @@ class TestEOWorkflow(unittest.TestCase):
         self.assertEqual(items[0][1], 42)
         self.assertEqual(result[dep], 42)
 
+        expected_repr = 'WorkflowResults(\n  Dependency(DummyTask):\n    42\n)'
+        self.assertEqual(repr(result), expected_repr)
+
     @given(
         st.lists(
             st.tuples(
@@ -192,10 +194,6 @@ class TestEOWorkflow(unittest.TestCase):
                 lambda P, Q: P and Q,
                 [ver2pos[u] < ver2pos[v] for u, v in edges]
             ))
-
-
-class TestWorkflowResults(unittest.TestCase):
-    pass
 
 
 class TestUniqueIdGenerator(unittest.TestCase):
