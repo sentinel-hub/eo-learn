@@ -37,7 +37,7 @@ class TestTrainSet(unittest.TestCase):
         bins = [0.2, 0.5, 0.8]
         expected_unique = set(range(1, len(bins) + 2))
 
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins)(patch, seed=1)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_class')(patch, seed=1)
         self.assertTrue(set(np.unique(patch[new_mask_feature])) <= expected_unique)
 
         result_seed1 = np.copy(patch[new_mask_feature])
@@ -50,26 +50,26 @@ class TestTrainSet(unittest.TestCase):
             self.assertTrue(unique_counts[0] == expected_count)
 
         # seed=2 should produce different result than seed=1
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins)(patch, seed=2)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_class')(patch, seed=2)
         result_seed2 = np.copy(patch[new_mask_feature])
         self.assertTrue(set(np.unique(result_seed2)) <= expected_unique)
         self.assertFalse(np.array_equal(result_seed1, result_seed2))
 
         # test with seed 1 should produce the same result as before
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins)(patch, seed=1)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_class')(patch, seed=1)
         result_seed_equal = patch[new_mask_feature]
         self.assertTrue(set(np.unique(result_seed2)) <= expected_unique)
         self.assertTrue(np.array_equal(result_seed1, result_seed_equal))
 
         # test LABEL_TIMELESS
-        patch = TrainTestSplitTask((*input_label_feature, new_name), bins)(patch)
+        patch = TrainTestSplitTask((*input_label_feature, new_name), bins, split_type='per_class')(patch)
         result_label = patch[new_label_feature]
         self.assertTrue(set(np.unique(result_label)) <= expected_unique)
 
         shape = (10, 100, 100, 3)
         size = np.prod(shape)
 
-        # test FeatureType.DATA and no_data_value=2
+        # test FeatureType.DATA and ignore_values=[2]
 
         bins = [0.2, 0.5, 0.7, 0.8]
         expected_unique = set(range(0, len(bins) + 2))
@@ -77,7 +77,10 @@ class TestTrainSet(unittest.TestCase):
         data = np.random.randint(10, size=shape)
         patch[(FeatureType.DATA, 'TEST')] = data
 
-        patch = TrainTestSplitTask((FeatureType.DATA, 'TEST', 'BINS'), bins, no_data_value=2)(patch, seed=542)
+        split_task = TrainTestSplitTask((FeatureType.DATA, 'TEST', 'BINS'), bins, split_type='per_class',
+                                        ignore_values=[2])
+
+        patch = split_task(patch, seed=542)
 
         self.assertTrue(set(np.unique(patch[(FeatureType.DATA, 'BINS')])) <= expected_unique)
         self.assertTrue(np.all(patch[(FeatureType.DATA, 'BINS')][data == 2] == 0))
