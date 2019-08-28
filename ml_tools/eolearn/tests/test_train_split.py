@@ -82,7 +82,7 @@ class TestTrainSet(unittest.TestCase):
         self.assertTrue(set(np.unique(patch[(FeatureType.DATA, 'BINS')])) <= expected_unique)
         self.assertTrue(np.all(patch[(FeatureType.DATA, 'BINS')][data == 2] == 0))
 
-    def test_train_split_random(self):
+    def test_train_split_per_pixel(self):
         new_name = 'TEST_TRAIN_MASK'
         input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
 
@@ -93,7 +93,7 @@ class TestTrainSet(unittest.TestCase):
         patch[input_mask_feature] = input_data
 
         bins = [0.2, 0.6]
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='random')(patch, seed=1)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_pixel')(patch, seed=1)
 
         output_data = patch[(FeatureType.MASK_TIMELESS, new_name)]
         unique, counts = np.unique(output_data, return_counts=True)
@@ -102,6 +102,41 @@ class TestTrainSet(unittest.TestCase):
 
         self.assertTrue(np.array_equal(unique, expected_unique))
         self.assertTrue(np.array_equal(class_percentages, [0.2, 0.4, 0.4]))
+
+    def test_train_split_per_value(self):
+        """ Test if class ids get assigned to the same subclasses in multiple eopatches
+        """
+        new_name = 'TEST_TRAIN_MASK'
+        input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
+
+        shape = (1000, 1000, 3)
+
+        input1 = np.random.randint(10, size=shape, dtype=np.int)
+        input2 = np.random.randint(10, size=shape, dtype=np.int)
+
+        patch1 = EOPatch()
+        patch1[input_mask_feature] = input1
+
+        patch2 = EOPatch()
+        patch2[input_mask_feature] = input2
+
+        bins = [0.2, 0.6]
+
+        split_task = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_value')
+
+        # seeds should get ignored when splitting 'per_value'
+        patch1 = split_task(patch1, seed=1)
+        patch2 = split_task(patch2, seed=1)
+
+        otuput1 = patch1[(FeatureType.MASK_TIMELESS, new_name)]
+        otuput2 = patch2[(FeatureType.MASK_TIMELESS, new_name)]
+
+        unique = set(np.unique(input1)) | set(np.unique(input2))
+
+        for uniq in unique:
+            folds1 = otuput1[input1 == uniq]
+            folds2 = otuput2[input2 == uniq]
+            self.assertTrue(np.array_equal(np.unique(folds1), np.unique(folds2)))
 
 
 if __name__ == '__main__':
