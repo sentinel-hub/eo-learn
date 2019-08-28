@@ -4,7 +4,7 @@ Tasks used for train set preparation.
 from enum import Enum
 import numpy as np
 
-from eolearn.core import EOTask
+from eolearn.core import EOTask, FeatureType
 
 
 class TrainTestSplitType(Enum):
@@ -58,9 +58,10 @@ class TrainTestSplitTask(EOTask):
         :param split_type: Valye split type, either 'per_pixel', 'per_class' or 'per_value'.
         :type split_type: str
         :param ignore_values: A list of values to ignore and not assign them to any subsets.
-        :type ignore_values: a list of any valid numpy.dtype
+        :type ignore_values: a list of integers
         """
-        self.feature = next(self._parse_features(feature, new_names=True)())
+        allowed_types = [FeatureType.MASK_TIMELESS]
+        self.feature = next(self._parse_features(feature, new_names=True, allowed_feature_types=allowed_types)())
 
         if np.isscalar(bins):
             bins = [bins]
