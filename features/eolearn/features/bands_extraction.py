@@ -49,7 +49,9 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
 
         :math:`NDI = \\dfrac{A-B+c}{A+B+c}`,
 
-        where c is provided as the *constant* argument.
+        where c is provided as the *constant* argument. For the reasoning behind using the constant in the equation,
+        check the article `Using NDVI with atmospherically corrected data
+        <http://www.cesbio.ups-tlse.fr/multitemp/?p=12746>`_.
     """
 
     def __init__(self, input_feature, output_feature, bands, constant=0, undefined_value=np.nan):
