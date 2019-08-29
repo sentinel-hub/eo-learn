@@ -11,9 +11,7 @@ class TestTrainSet(unittest.TestCase):
         new_name = 'TEST_TRAIN_MASK'
 
         input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
-        input_label_feature = (FeatureType.LABEL_TIMELESS, 'TEST')
         new_mask_feature = (FeatureType.MASK_TIMELESS, new_name)
-        new_label_feature = (FeatureType.LABEL_TIMELESS, new_name)
 
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, None)
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, 1.5)
@@ -22,8 +20,6 @@ class TestTrainSet(unittest.TestCase):
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, [0.5, 0.3, 0.7], split_type='nonsense')
 
         shape = (1000, 1000, 3)
-        size = np.prod(shape)
-
         data = np.random.randint(10, size=shape, dtype=np.int)
 
         indices = [(0, 2, 0, 2), (0, 2, 2, 4), (2, 4, 0, 2), (2, 4, 2, 4), (0, 4, 4, 8), (4, 8, 0, 4), (4, 8, 4, 8)]
@@ -32,12 +28,11 @@ class TestTrainSet(unittest.TestCase):
 
         patch = EOPatch()
         patch[input_mask_feature] = data
-        patch[input_label_feature] = data.copy().reshape((size,))
 
         bins = [0.2, 0.5, 0.8]
         expected_unique = set(range(1, len(bins) + 2))
 
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins)(patch, seed=1)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_class')(patch, seed=1)
         self.assertTrue(set(np.unique(patch[new_mask_feature])) <= expected_unique)
 
         result_seed1 = np.copy(patch[new_mask_feature])
@@ -50,39 +45,34 @@ class TestTrainSet(unittest.TestCase):
             self.assertTrue(unique_counts[0] == expected_count)
 
         # seed=2 should produce different result than seed=1
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins)(patch, seed=2)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_class')(patch, seed=2)
         result_seed2 = np.copy(patch[new_mask_feature])
         self.assertTrue(set(np.unique(result_seed2)) <= expected_unique)
         self.assertFalse(np.array_equal(result_seed1, result_seed2))
 
         # test with seed 1 should produce the same result as before
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins)(patch, seed=1)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_class')(patch, seed=1)
         result_seed_equal = patch[new_mask_feature]
         self.assertTrue(set(np.unique(result_seed2)) <= expected_unique)
         self.assertTrue(np.array_equal(result_seed1, result_seed_equal))
 
-        # test LABEL_TIMELESS
-        patch = TrainTestSplitTask((*input_label_feature, new_name), bins)(patch)
-        result_label = patch[new_label_feature]
-        self.assertTrue(set(np.unique(result_label)) <= expected_unique)
-
-        shape = (10, 100, 100, 3)
-        size = np.prod(shape)
-
-        # test FeatureType.DATA and no_data_value=2
+        # test ignore_values=[2]
 
         bins = [0.2, 0.5, 0.7, 0.8]
         expected_unique = set(range(0, len(bins) + 2))
 
         data = np.random.randint(10, size=shape)
-        patch[(FeatureType.DATA, 'TEST')] = data
+        patch[(FeatureType.MASK_TIMELESS, 'TEST')] = data
 
-        patch = TrainTestSplitTask((FeatureType.DATA, 'TEST', 'BINS'), bins, no_data_value=2)(patch, seed=542)
+        split_task = TrainTestSplitTask((FeatureType.MASK_TIMELESS, 'TEST', 'BINS'), bins, split_type='per_class',
+                                        ignore_values=[2])
 
-        self.assertTrue(set(np.unique(patch[(FeatureType.DATA, 'BINS')])) <= expected_unique)
-        self.assertTrue(np.all(patch[(FeatureType.DATA, 'BINS')][data == 2] == 0))
+        patch = split_task(patch, seed=542)
 
-    def test_train_split_random(self):
+        self.assertTrue(set(np.unique(patch[(FeatureType.MASK_TIMELESS, 'BINS')])) <= expected_unique)
+        self.assertTrue(np.all(patch[(FeatureType.MASK_TIMELESS, 'BINS')][data == 2] == 0))
+
+    def test_train_split_per_pixel(self):
         new_name = 'TEST_TRAIN_MASK'
         input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
 
@@ -93,7 +83,7 @@ class TestTrainSet(unittest.TestCase):
         patch[input_mask_feature] = input_data
 
         bins = [0.2, 0.6]
-        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='random')(patch, seed=1)
+        patch = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_pixel')(patch, seed=1)
 
         output_data = patch[(FeatureType.MASK_TIMELESS, new_name)]
         unique, counts = np.unique(output_data, return_counts=True)
@@ -102,6 +92,41 @@ class TestTrainSet(unittest.TestCase):
 
         self.assertTrue(np.array_equal(unique, expected_unique))
         self.assertTrue(np.array_equal(class_percentages, [0.2, 0.4, 0.4]))
+
+    def test_train_split_per_value(self):
+        """ Test if class ids get assigned to the same subclasses in multiple eopatches
+        """
+        new_name = 'TEST_TRAIN_MASK'
+        input_mask_feature = (FeatureType.MASK_TIMELESS, 'TEST')
+
+        shape = (1000, 1000, 3)
+
+        input1 = np.random.randint(10, size=shape, dtype=np.int)
+        input2 = np.random.randint(10, size=shape, dtype=np.int)
+
+        patch1 = EOPatch()
+        patch1[input_mask_feature] = input1
+
+        patch2 = EOPatch()
+        patch2[input_mask_feature] = input2
+
+        bins = [0.2, 0.6]
+
+        split_task = TrainTestSplitTask((*input_mask_feature, new_name), bins, split_type='per_value')
+
+        # seeds should get ignored when splitting 'per_value'
+        patch1 = split_task(patch1, seed=1)
+        patch2 = split_task(patch2, seed=1)
+
+        otuput1 = patch1[(FeatureType.MASK_TIMELESS, new_name)]
+        otuput2 = patch2[(FeatureType.MASK_TIMELESS, new_name)]
+
+        unique = set(np.unique(input1)) | set(np.unique(input2))
+
+        for uniq in unique:
+            folds1 = otuput1[input1 == uniq]
+            folds2 = otuput2[input2 == uniq]
+            self.assertTrue(np.array_equal(np.unique(folds1), np.unique(folds2)))
 
 
 if __name__ == '__main__':
