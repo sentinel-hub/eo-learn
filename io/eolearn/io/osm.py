@@ -21,11 +21,12 @@ class OSMInput(EOTask):
     :type query: str
     :param polygonize: Whether or not to treat ways as polygons, defaults to True
     :type polygonize: bool
-    :param overpass_opts: Options to pass to the Overpass API constructor, see: https://github.com/mvexel/overpass-api-python-wrapper#api-constructor
+    :param overpass_opts: Options to pass to the Overpass API constructor,
+    see: https://github.com/mvexel/overpass-api-python-wrapper#api-constructor
     :type overpass_opts: dict
     """
 
-    def __init__(self, feature_name, query, polygonize=True, overpass_opts={}):
+    def __init__(self, feature_name, query, polygonize=True, overpass_opts=None):
         self.feature_name = feature_name
         self.query = query
         self.polygonize = polygonize
@@ -52,7 +53,7 @@ class OSMInput(EOTask):
         osm_bbox = tuple([*ll_bounds.reverse()])
 
         # make the overpass request
-        response = self.api.get(f'{self.query}{osm_bbox}', verbosity='geom')
+        response = self.api.get('{}{}'.format(self.query, osm_bbox), verbosity='geom')
 
         # clip geometries to bounding box
         for feat in response['features']:
@@ -61,7 +62,6 @@ class OSMInput(EOTask):
                 geom = geom.convex_hull
             clipped_geom = geom.intersection(clip_shape)
             feat['geometry'] = mapping(clipped_geom)
-
 
         # import to geopandas, transform and return
         gdf = geopandas.GeoDataFrame.from_features(response['features'])
