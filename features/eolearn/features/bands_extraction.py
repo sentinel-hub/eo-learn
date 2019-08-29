@@ -49,12 +49,12 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
 
         :math:`NDI = \\dfrac{A-B+c}{A+B+c}`,
 
-        where c is provided as the *constant* argument. For the reasoning behind using the constant in the equation,
-        check the article `Using NDVI with atmospherically corrected data
+        where c is provided as the *acorvi_constant* argument. For the reasoning behind using the acorvi_constant in the
+        equation, check the article `Using NDVI with atmospherically corrected data
         <http://www.cesbio.ups-tlse.fr/multitemp/?p=12746>`_.
     """
 
-    def __init__(self, input_feature, output_feature, bands, constant=0, undefined_value=np.nan):
+    def __init__(self, input_feature, output_feature, bands, acorvi_constant=0, undefined_value=np.nan):
         """
         :param input_feature: A source feature from which to take the bands.
         :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
@@ -62,8 +62,8 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
         :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param bands: A list of bands from which to calculate the NDI.
         :type bands: list
-        :param constant: A constant to be used in the NDI calculation. It is set to 0 by default.
-        :type constant: float
+        :param acorvi_constant: A constant to be used in the NDI calculation. It is set to 0 by default.
+        :type acorvi_constant: float
         :param undefined_value: A value to override any calculation result that is not a finite value (e.g.: inf, nan).
         """
         super().__init__(input_feature, output_feature)
@@ -73,7 +73,7 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
 
         self.band_a, self.band_b = bands
         self.undefined_value = undefined_value
-        self.constant = constant
+        self.acorvi_constant = acorvi_constant
 
     def map_method(self, feature):
         """
@@ -83,7 +83,7 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
         band_a, band_b = feature[..., self.band_a], feature[..., self.band_b]
 
         with np.errstate(divide='ignore'):
-            ndi = (band_a - band_b + self.constant) / (band_a + band_b + self.constant)
+            ndi = (band_a - band_b + self.acorvi_constant) / (band_a + band_b + self.acorvi_constant)
 
         ndi[~np.isfinite(ndi)] = self.undefined_value
 
