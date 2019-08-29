@@ -13,17 +13,41 @@
           display: none;
           overflow: hidden;
         }
+
+        .exec-status {
+            color: black;
+            padding: 10px 10px;
+            margin: 1px;
+            border-radius: 4px;
+            float: left;
+        }
+
+        p {
+            overflow: auto;
+        }
     </style>
 </head>
 
 <body>
-    <h1>EO Workflow Report</h1>
+    <h1>Execution Report</h1>
 
-    <h2>Dependency graph</h2>
+    <h2>EOWorkflow dependency graph</h2>
 
     <img src="data:image/png;base64,{{ dependency_graph | safe }}" />
 
-    <h2>Tasks</h2>
+    <h2>Execution status</h2>
+
+    <p>
+        {% for execution in execution_stats %}
+            <a class="exec-status"
+               title="Execution {{ execution_names[loop.index - 1] }}"
+               href="#execution{{ loop.index }}"
+               style="background-color: {{ 'red' if 'error' in execution else 'green' }};"
+            ></a>
+        {% endfor %}
+    </p>
+
+    <h2 id="Tasks">Tasks</h2>
 
     {% for task in task_descriptions %}
         <h3>{{ task['title'] }}</h3>
@@ -42,15 +66,14 @@
     <h2>Executions</h2>
 
     {% for execution in execution_stats %}
-        <h3>Execution {{ execution_names[loop.index - 1] }}</h3>
+        <h3 id="execution{{ loop.index }}">Execution {{ execution_names[loop.index - 1] }}</h3>
 
         Statistics<br/>
         <ul>
             <li>Start time: {{ execution['start_time'] | datetime }}</li>
             <li>End time: {{ execution['end_time'] | datetime }}</li>
-            <li>Elapsed time: {{ timedelta(execution['start_time'], execution['end_time']) }}</li>
+            <li>Duration: {{ timedelta(execution['start_time'], execution['end_time']) }}</li>
         </ul>
-
         {% if 'error' in execution %}
             Error<br/>
             {{ execution['error'] }}
