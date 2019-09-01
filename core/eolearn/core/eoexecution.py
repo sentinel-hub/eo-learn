@@ -36,6 +36,7 @@ class EOExecutor:
     STATS_START_TIME = 'start_time'
     STATS_END_TIME = 'end_time'
     STATS_ERROR = 'error'
+    RESULTS = 'results'
 
     def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', execution_names=None):
         """
@@ -86,7 +87,7 @@ class EOExecutor:
                              "execution arguments")
         return execution_names
 
-    def run(self, workers=1, multiprocess=True):
+    def run(self, workers=1, multiprocess=True, return_results=False):
         """ Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -101,6 +102,11 @@ class EOExecutor:
             `concurrent.futures.ProcessPoolExecutor`.
             In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
         :type multiprocess: bool
+        :param return_results: If `True` this method will return a list of all results of the execution. Note that
+            this might exceed the available memory. By default this parameter is set to `False`.
+        :type: bool
+        :return: If `return_results` is set to `True` it will return a list of results, otherwise it will return `None`
+        :rtype: None or list(eolearn.core.WorkflowResults)
         """
         self.start_time = dt.datetime.now()
         self.report_folder = self._get_report_folder()
@@ -111,8 +117,8 @@ class EOExecutor:
         log_paths = [self._get_log_filename(name) if self.save_logs else None
                      for name in self.execution_names]
 
-        processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
-                                                                                               log_paths)]
+        processing_args = [(self.workflow, init_args, log_path, return_results)
+                           for init_args, log_path in zip(self.execution_args, log_paths)]
 
         if workers == 1:
             processing_type = 'single process'
@@ -137,11 +143,13 @@ class EOExecutor:
                 with open(log_path) as fin:
                     self.execution_logs[idx] = fin.read()
 
+        return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
+
     @classmethod
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
-        workflow, input_args, log_path = process_args
+        workflow, input_args, log_path, return_results = process_args
 
         if log_path:
             logger = logging.getLogger()
@@ -151,9 +159,14 @@ class EOExecutor:
 
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
-            _ = workflow.execute(input_args, monitor=True)
+            results = workflow.execute(input_args, monitor=True)
+
+            if return_results:
+                stats[cls.RESULTS] = results
+
         except BaseException:
             stats[cls.STATS_ERROR] = traceback.format_exc()
+
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
         if log_path:

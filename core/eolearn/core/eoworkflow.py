@@ -422,7 +422,7 @@ class WorkflowResults(collections.Mapping):
 
     def __contains__(self, item):
         if isinstance(item, EOTask):
-            item = self._uuid_dict[item.private_task_config.uuid]
+            item = self._uuid_dict.get(item.private_task_config.uuid, item)
         return item in self._result
 
     def __eq__(self, other):
