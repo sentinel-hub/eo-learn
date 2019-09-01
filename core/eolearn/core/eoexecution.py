@@ -59,7 +59,9 @@ class EOExecutor:
         self.logs_folder = logs_folder
         self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
 
+        self.start_time = None
         self.report_folder = None
+        self.general_stats = {}
         self.execution_logs = None
         self.execution_stats = None
 
@@ -100,6 +102,7 @@ class EOExecutor:
             In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
         :type multiprocess: bool
         """
+        self.start_time = dt.datetime.now()
         self.report_folder = self._get_report_folder()
         if self.save_logs and not os.path.isdir(self.report_folder):
             os.mkdir(self.report_folder)
@@ -112,13 +115,21 @@ class EOExecutor:
                                                                                                log_paths)]
 
         if workers == 1:
+            processing_type = 'single process'
             self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
         else:
-            pool_executor_class = concurrent.futures.ProcessPoolExecutor if multiprocess else \
-                concurrent.futures.ThreadPoolExecutor
+            if multiprocess:
+                pool_executor_class = concurrent.futures.ProcessPoolExecutor
+                processing_type = 'multiprocessing'
+            else:
+                pool_executor_class = concurrent.futures.ThreadPoolExecutor
+                processing_type = 'multithreading'
+
             with pool_executor_class(max_workers=workers) as executor:
                 self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
                                                  total=len(processing_args)))
+
+        self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         self.execution_logs = [None] * execution_num
         if self.save_logs:
@@ -161,11 +172,24 @@ class EOExecutor:
 
         return handler
 
+    def _prepare_general_stats(self, workers, processing_type):
+        """ Prepares a dictionary with a general statistics about executions
+        """
+        failed_count = sum(self.STATS_ERROR in stats for stats in self.execution_stats)
+        return {
+            self.STATS_START_TIME: self.start_time,
+            self.STATS_END_TIME: dt.datetime.now(),
+            'finished': len(self.execution_stats) - failed_count,
+            'failed': failed_count,
+            'processing_type': processing_type,
+            'workers': workers
+        }
+
     def _get_report_folder(self):
         """ Returns file path of folder where report will be saved
         """
         return os.path.join(self.logs_folder,
-                            'eoexecution-report-{}'.format(dt.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
+                            'eoexecution-report-{}'.format(self.start_time.strftime("%Y_%m_%d-%H_%M_%S")))
 
     def _get_log_filename(self, execution_name):
         """ Returns file path of a log file

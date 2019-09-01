@@ -69,19 +69,25 @@
 
         <ul>
             <li>
-                Start time:
+                Start time: {{ general_stats['start_time'] | datetime }}
             </li>
             <li>
-                End time:
+                End time: {{ general_stats['end_time'] | datetime }}
             </li>
             <li>
-                Duration:
+                Duration: {{ timedelta(general_stats['start_time'], general_stats['end_time']) }}
             </li>
             <li>
-                Number of finished workflows:
+                Number of finished executions: {{ general_stats['finished'] }}
             </li>
             <li>
-                Number of failed workflows:
+                Number of failed executions: {{ general_stats['failed'] }}
+            </li>
+            <li>
+                Processing type: {{ general_stats['processing_type'] }}
+            </li>
+            <li>
+                Number of workers: {{ general_stats['workers'] }}
             </li>
         </ul>
 

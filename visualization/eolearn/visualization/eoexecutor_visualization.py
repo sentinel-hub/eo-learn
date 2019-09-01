@@ -65,6 +65,7 @@ class EOExecutorVisualization:
         template = self._get_template()
 
         html = template.render(dependency_graph=dependency_graph,
+                               general_stats=self.eoexecutor.general_stats,
                                task_descriptions=self._get_task_descriptions(),
                                task_sources=self._render_task_sources(formatter),
                                execution_stats=self._render_execution_errors(formatter),
