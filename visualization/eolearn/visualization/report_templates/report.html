@@ -12,6 +12,10 @@
             text-align: center;
         }
 
+        h2, h3, h4 {
+            margin-block-end: 0px;
+        }
+
         p {
             overflow: auto;
         }
@@ -19,6 +23,10 @@
         .indent {
             margin-left: 20px;
             overflow: auto;
+        }
+
+        .margined-div {
+            margin-block-start: 1em
         }
 
         .exec-status {
@@ -37,7 +45,7 @@
             background-color: red;
         }
 
-        .logs-content {
+        .collapsible-content {
           padding: 0 18px;
           display: none;
           overflow: hidden;
@@ -47,15 +55,15 @@
 </head>
 
 <body>
-    <h1>EOExecution Report</h1>
+    <h1> EOExecution Report </h1>
 
-    <h2>EOWorkflow dependency graph</h2>
+    <h2> EOWorkflow dependency graph </h2>
 
     <div class="indent">
         <img src="data:image/png;base64,{{ dependency_graph | safe }}" />
     </div>
 
-    <h2>Execution status</h2>
+    <h2> Execution status </h2>
 
     <div class="indent">
 
@@ -87,37 +95,61 @@
         </p>
 
         <div class="indent">
-            <a class="exec-status exec-finished"></a> ... Execution successfully finished
+            <a class="exec-status exec-finished"></a> &nbsp;... Execution successfully finished
         </div>
         <div class="indent">
-            <a class="exec-status exec-failed"></a> ... Execution failed because of an error
+            <a class="exec-status exec-failed"></a> &nbsp;... Execution failed because of an error
         </div>
 
     </div>
 
-    <h2 id="EOTasks">Tasks</h2>
+    <h2> EOTasks </h2>
 
     <div class="indent">
-        {% for task in task_descriptions %}
-            <h3>{{ task['title'] }}</h3>
-            <ul>
-                {% for key, value in task['args'].items() %}
-                    <li> <pre> {{ key }} = {{ value }} </pre> </li>
-                {% endfor %}
-            </ul>
-        {% endfor %}
 
-        {% for task_title, task_source in task_source.items() %}
-            <h3>{{ task_title }}</h3>
-            {{ task_source }}
+        <h3> Initialization parameters </h3>
+
+        <div class="indent">
+        {% for task in task_descriptions %}
+            <h4> {{ task['name'] }} </h4>
+
+            {% if  task['args'] %}
+                <ul>
+                    {% for key, value in task['args'].items() %}
+                        <li> <pre> {{ key }} = {{ value }} </pre> </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p></p>
+            {% endif %}
+
         {% endfor %}
+        </div>
+
+        <h3> Source code of custom tasks </h3>
+
+        <div class="indent">
+            {% for task_title, task_source in task_sources.items() %}
+                <h4> {{ task_title }} </h4>
+
+                <div class="indent">
+                    {% if task_source is none %}
+                        <p>
+                            Cannot collect source code of a task which is not defined in a .py file
+                        </p>
+                    {% else %}
+                        {{ task_source }}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
     </div>
 
-    <h2>Execution details</h2>
+    <h2> Execution details </h2>
 
     <div class="indent">
         {% for execution in execution_stats %}
-            <h3 id="execution{{ loop.index }}">Execution {{ execution_names[loop.index - 1] }}</h3>
+            <h3 id="execution{{ loop.index }}"> Execution {{ execution_names[loop.index - 1] }} </h3>
 
             <div class="indent">
                 Statistics<br/>
@@ -132,7 +164,7 @@
                 {% endif %}
 
                 <button class="collapsible">Logs</button>
-                <div class="logs-content">
+                <div class="collapsible-content">
                   <pre>{{ execution_logs[loop.index - 1] }}</pre>
                 </div>
             </div>

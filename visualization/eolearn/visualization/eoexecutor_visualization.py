@@ -15,6 +15,7 @@ import inspect
 import warnings
 import base64
 import copy
+from collections import OrderedDict
 
 try:
     import matplotlib.pyplot as plt
@@ -59,18 +60,14 @@ class EOExecutorVisualization:
                           "to the python package) to have the dependency graph in the final report!".format(ex),
                           Warning, stacklevel=2)
 
-        task_descriptions = self._get_task_descriptions()
-
         formatter = HtmlFormatter(linenos=True)
-        task_source = self._render_task_source(formatter)
-        execution_stats = self._render_execution_errors(formatter)
 
         template = self._get_template()
 
         html = template.render(dependency_graph=dependency_graph,
-                               task_descriptions=task_descriptions,
-                               task_source=task_source,
-                               execution_stats=execution_stats,
+                               task_descriptions=self._get_task_descriptions(),
+                               task_sources=self._render_task_sources(formatter),
+                               execution_stats=self._render_execution_errors(formatter),
                                execution_logs=self.eoexecutor.execution_logs,
                                execution_names=self.eoexecutor.execution_names,
                                code_css=formatter.get_style_defs())
@@ -92,28 +89,24 @@ class EOExecutorVisualization:
         """
         descriptions = []
 
-        for task_id, dependency in self.eoexecutor.workflow.uuid_dict.items():
-            task = dependency.task
-
-            init_args = {key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
-                         task.private_task_config.init_args.items()}
-
-            desc = {
-                'title': "{}_{} ({})".format(task.__class__.__name__, task_id[:6], task.__module__),
-                'args': init_args
-            }
-            descriptions.append(desc)
+        for task_name, task in self.eoexecutor.workflow.get_tasks().items():
+            descriptions.append({
+                'name': "{} ({}_{})".format(task_name, task.__class__.__name__, task.private_task_config.uuid[:6]),
+                'args': {
+                    key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
+                    task.private_task_config.init_args.items()
+                }
+            })
 
         return descriptions
 
-    def _render_task_source(self, formatter):
-        """ Collects source code of each costum task
+    def _render_task_sources(self, formatter):
+        """ Renders source code of EOTasks
         """
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
-        sources = {}
+        sources = OrderedDict()
 
-        for dep in self.eoexecutor.workflow.dependencies:
-            task = dep.task
+        for task in self.eoexecutor.workflow.get_tasks().values():
             if task.__module__.startswith("eolearn"):
                 continue
 
@@ -128,7 +121,7 @@ class EOExecutorVisualization:
                 # Jupyter notebook does not have __file__ method to collect source code
                 # StackOverflow provides no solutions
                 # Could be investigated further by looking into Jupyter Notebook source code
-                source = 'Cannot collect source code of a task which is not defined in a .py file'
+                source = None
 
             sources[key] = source
 
