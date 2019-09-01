@@ -8,10 +8,17 @@
     <style>
         {{ code_css }}
 
-        .content {
-          padding: 0 18px;
-          display: none;
-          overflow: hidden;
+        h1 {
+            text-align: center;
+        }
+
+        p {
+            overflow: auto;
+        }
+
+        .indent {
+            margin-left: 20px;
+            overflow: auto;
         }
 
         .exec-status {
@@ -22,68 +29,115 @@
             float: left;
         }
 
-        p {
-            overflow: auto;
+        .exec-finished {
+            background-color: green;
         }
+
+        .exec-failed {
+            background-color: red;
+        }
+
+        .logs-content {
+          padding: 0 18px;
+          display: none;
+          overflow: hidden;
+        }
+
     </style>
 </head>
 
 <body>
-    <h1>Execution Report</h1>
+    <h1>EOExecution Report</h1>
 
     <h2>EOWorkflow dependency graph</h2>
 
-    <img src="data:image/png;base64,{{ dependency_graph | safe }}" />
+    <div class="indent">
+        <img src="data:image/png;base64,{{ dependency_graph | safe }}" />
+    </div>
 
     <h2>Execution status</h2>
 
-    <p>
-        {% for execution in execution_stats %}
-            <a class="exec-status"
-               title="Execution {{ execution_names[loop.index - 1] }}"
-               href="#execution{{ loop.index }}"
-               style="background-color: {{ 'red' if 'error' in execution else 'green' }};"
-            ></a>
-        {% endfor %}
-    </p>
+    <div class="indent">
 
-    <h2 id="Tasks">Tasks</h2>
-
-    {% for task in task_descriptions %}
-        <h3>{{ task['title'] }}</h3>
         <ul>
-            {% for key, value in task['args'].items() %}
-                <li> <pre> {{ key }} = {{ value }} </pre> </li>
+            <li>
+                Start time:
+            </li>
+            <li>
+                End time:
+            </li>
+            <li>
+                Duration:
+            </li>
+            <li>
+                Number of finished workflows:
+            </li>
+            <li>
+                Number of failed workflows:
+            </li>
+        </ul>
+
+        <p>
+            {% for execution in execution_stats %}
+                <a class="exec-status {{ 'exec-failed' if 'error' in execution else 'exec-finished' }}"
+                   title="Execution {{ execution_names[loop.index - 1] }}"
+                   href="#execution{{ loop.index }}"
+                ></a>
             {% endfor %}
-        </ul>
-    {% endfor %}
+        </p>
 
-    {% for task_title, task_source in task_source.items() %}
-        <h3>{{ task_title }}</h3>
-        {{ task_source }}
-   {% endfor %}
-
-    <h2>Executions</h2>
-
-    {% for execution in execution_stats %}
-        <h3 id="execution{{ loop.index }}">Execution {{ execution_names[loop.index - 1] }}</h3>
-
-        Statistics<br/>
-        <ul>
-            <li>Start time: {{ execution['start_time'] | datetime }}</li>
-            <li>End time: {{ execution['end_time'] | datetime }}</li>
-            <li>Duration: {{ timedelta(execution['start_time'], execution['end_time']) }}</li>
-        </ul>
-        {% if 'error' in execution %}
-            Error<br/>
-            {{ execution['error'] }}
-        {% endif %}
-
-        <button class="collapsible">Logs</button>
-        <div class="content">
-          <pre>{{ execution_logs[loop.index - 1] }}</pre>
+        <div class="indent">
+            <a class="exec-status exec-finished"></a> ... Execution successfully finished
         </div>
-    {% endfor %}
+        <div class="indent">
+            <a class="exec-status exec-failed"></a> ... Execution failed because of an error
+        </div>
+
+    </div>
+
+    <h2 id="EOTasks">Tasks</h2>
+
+    <div class="indent">
+        {% for task in task_descriptions %}
+            <h3>{{ task['title'] }}</h3>
+            <ul>
+                {% for key, value in task['args'].items() %}
+                    <li> <pre> {{ key }} = {{ value }} </pre> </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+
+        {% for task_title, task_source in task_source.items() %}
+            <h3>{{ task_title }}</h3>
+            {{ task_source }}
+        {% endfor %}
+    </div>
+
+    <h2>Execution details</h2>
+
+    <div class="indent">
+        {% for execution in execution_stats %}
+            <h3 id="execution{{ loop.index }}">Execution {{ execution_names[loop.index - 1] }}</h3>
+
+            <div class="indent">
+                Statistics<br/>
+                <ul>
+                    <li>Start time: {{ execution['start_time'] | datetime }}</li>
+                    <li>End time: {{ execution['end_time'] | datetime }}</li>
+                    <li>Duration: {{ timedelta(execution['start_time'], execution['end_time']) }}</li>
+                </ul>
+                {% if 'error' in execution %}
+                    Error<br/>
+                    {{ execution['error'] }}
+                {% endif %}
+
+                <button class="collapsible">Logs</button>
+                <div class="logs-content">
+                  <pre>{{ execution_logs[loop.index - 1] }}</pre>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 
     <script>
     var coll = document.getElementsByClassName("collapsible");
