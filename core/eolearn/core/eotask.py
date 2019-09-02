@@ -76,8 +76,10 @@ class EOTask(ABC):
 
         if caught_exception is not None:  # Exception is not raised in except statement to prevent duplicated traceback
             exception, traceback = caught_exception
-            raise type(exception)('During execution of task {}: {}'.format(self.__class__.__name__,
-                                                                           exception)).with_traceback(traceback)
+
+            exception = exception.with_traceback(traceback)
+            exception.errmsg = 'During execution of task {}: {}'.format(self.__class__.__name__, exception)
+            raise exception
 
         self.private_task_config.end_time = datetime.datetime.now()
         return return_value
