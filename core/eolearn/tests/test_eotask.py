@@ -30,19 +30,19 @@ class ExceptionTestingTask(EOTask):
         self.task_arg = task_arg
 
     def execute(self, exec_param):
-        # try raising a subclassed exception
+        # try raising a subclassed exception with an unsupported __init__ arguments signature
         if self.task_arg == 'test_exception':
             raise TestException(1, 2)
 
-        # try raising a failed subclassed exception (wrong exception init parameters)
+        # try raising a subclassed exception with an unsupported __init__ arguments signature without initializing it
         if self.task_arg == 'test_exception_fail':
             raise TestException
 
-        # raise some standard error
+        # raise one of the standard errors
         if self.task_arg == 'value_error':
-            raise ValueError
+            raise ValueError('Testing value error.')
 
-        return self.task_arg + exec_param
+        return self.task_arg + ' ' + exec_param
 
 
 class TestEOTask(unittest.TestCase):
@@ -84,8 +84,7 @@ class TestCompositeTask(unittest.TestCase):
 
         task = ExceptionTestingTask('success')
 
-        self.assertEqual(task('test'), 'successtest')
-
+        self.assertEqual(task('test'), 'success test')
 
 
 if __name__ == '__main__':
