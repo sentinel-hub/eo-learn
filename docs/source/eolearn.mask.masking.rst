@@ -1,5 +1,5 @@
 eolearn.mask.masking
-=========================
+====================
 
 .. automodule:: eolearn.mask.masking
     :members:
