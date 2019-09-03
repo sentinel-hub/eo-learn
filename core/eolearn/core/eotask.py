@@ -73,7 +73,7 @@ class EOTask(ABC):
             self.private_task_config.end_time = datetime.datetime.now()
             return return_value
         except BaseException as exception:
-            exception, traceback = exception, sys.exc_info()[2]
+            traceback = sys.exc_info()[2]
 
             # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
             try:
