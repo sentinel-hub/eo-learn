@@ -80,9 +80,9 @@ class EOExecutor:
         """ Parses a list of execution names
         """
         if execution_names is None:
-            return list(map(str, range(1, len(execution_args) + 1)))
+            return [str(num) for num in range(1, len(execution_args) + 1)]
 
-        if not isinstance(execution_names, list) or len(execution_names) != len(execution_args):
+        if not isinstance(execution_names, (list, tuple)) or len(execution_names) != len(execution_args):
             raise ValueError("Parameter 'execution_names' has to be a list of the same size as the list of "
                              "execution arguments")
         return execution_names
@@ -114,8 +114,7 @@ class EOExecutor:
             os.mkdir(self.report_folder)
 
         execution_num = len(self.execution_args)
-        log_paths = [self._get_log_filename(name) if self.save_logs else None
-                     for name in self.execution_names]
+        log_paths = self._get_log_paths()
 
         processing_args = [(self.workflow, init_args, log_path, return_results)
                            for init_args, log_path in zip(self.execution_args, log_paths)]
@@ -204,16 +203,20 @@ class EOExecutor:
         return os.path.join(self.logs_folder,
                             'eoexecution-report-{}'.format(self.start_time.strftime("%Y_%m_%d-%H_%M_%S")))
 
-    def _get_log_filename(self, execution_name):
-        """ Returns file path of a log file
+    def _get_log_paths(self):
+        """ Returns a list of file paths containing logs
         """
-        return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_name))
+        if self.save_logs:
+            return [os.path.join(self.report_folder, 'eoexecution-{}.log'.format(name))
+                    for name in self.execution_names]
+
+        return [None] * len(self.execution_names)
 
     def get_successful_executions(self):
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_args) - 1]`, sorted in increasing order.
 
-        :return: List of succesful execution IDs
+        :return: List of successful execution IDs
         :rtype: list(int)
         """
         return [idx for idx, stats in enumerate(self.execution_stats) if self.STATS_ERROR not in stats]

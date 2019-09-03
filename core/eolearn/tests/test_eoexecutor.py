@@ -84,7 +84,6 @@ class TestEOExecutor(unittest.TestCase):
                     self.assertTrue(time_stat in stats and isinstance(stats[time_stat], datetime.datetime))
 
     def test_execution_errors(self):
-        print(self.execution_args)
         for multiprocess in [True, False]:
             with tempfile.TemporaryDirectory() as tmp_dir_name:
                 executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)
@@ -94,7 +93,6 @@ class TestEOExecutor(unittest.TestCase):
                     if idx != 3:
                         self.assertFalse('error' in stats, 'Workflow {} should be executed without errors'.format(idx))
                     else:
-                        print(stats, idx)
                         self.assertTrue('error' in stats and stats['error'],
                                         'This workflow should be executed with an error')
 
@@ -119,6 +117,16 @@ class TestEOExecutor(unittest.TestCase):
                         self.assertTrue(self.task not in workflow_results)
             else:
                 self.assertEqual(results, None)
+
+    def test_exceptions(self):
+
+        with self.assertRaises(ValueError):
+            EOExecutor(self.workflow, {})
+
+        with self.assertRaises(ValueError):
+            EOExecutor(self.workflow, self.execution_args, execution_names={1, 2, 3, 4})
+        with self.assertRaises(ValueError):
+            EOExecutor(self.workflow, self.execution_args, execution_names=['a', 'b'])
 
 
 if __name__ == '__main__':

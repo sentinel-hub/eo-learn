@@ -195,6 +195,16 @@ class TestEOWorkflow(unittest.TestCase):
                 [ver2pos[u] < ver2pos[v] for u, v in edges]
             ))
 
+    def test_exceptions(self):
+
+        for params in [(None,),
+                       (InputTask(), 'a string'),
+                       (InputTask(), ('something', InputTask())),
+                       ((InputTask(), 'name', 'something else'),),
+                       (('task', 'name'),)]:
+            with self.assertRaises(ValueError):
+                LinearWorkflow(*params)
+
 
 class TestUniqueIdGenerator(unittest.TestCase):
     def test_exceeding_max_uuids(self):
