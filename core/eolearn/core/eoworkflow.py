@@ -457,8 +457,10 @@ class WorkflowResults(collections.Mapping):
         repr_list = ['{}('.format(self.__class__.__name__)]
 
         for _, dep in self._uuid_dict.items():
-            repr_list.append('{}({}):\n    {}'.format(Dependency.__name__, dep.name,
-                                                      repr(self._result[dep]).replace('\n', '\n    ')))
+            result_repr = repr(self._result[dep]).replace('\n', '\n    ')
+            dependency_repr = '{}({}):\n    {}'.format(Dependency.__name__, dep.name, result_repr)
+
+            repr_list.append(dependency_repr)
 
         return '\n  '.join(repr_list) + '\n)'
 
