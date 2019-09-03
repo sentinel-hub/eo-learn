@@ -17,4 +17,4 @@ from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFea
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
 
 
-__version__ = '0.5.2'
+__version__ = '0.6.0'
