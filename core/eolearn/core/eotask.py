@@ -75,12 +75,14 @@ class EOTask(ABC):
         except BaseException as exception:
             exception, traceback = exception, sys.exc_info()[2]
 
-            # Some special exceptions don't accept error message as a parameter and a TypeError is raised in such case.
+            # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
             try:
                 errmsg = 'During execution of task {}: {}'.format(self.__class__.__name__, exception)
-                raise type(exception)(errmsg).with_traceback(traceback)
+                extended_exception = type(exception)(errmsg)
             except TypeError:
-                raise exception
+                extended_exception = exception
+
+            raise extended_exception.with_traceback(traceback)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):

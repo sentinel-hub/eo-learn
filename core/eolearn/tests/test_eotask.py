@@ -76,16 +76,17 @@ class TestCompositeTask(unittest.TestCase):
         task = ExceptionTestingTask('test_exception')
         self.assertRaises(TestException, task, 'test')
 
-        task = ExceptionTestingTask('test_exception_fail')
-        self.assertRaises(TypeError, task, 'test')
-
-        task = ExceptionTestingTask('value_error')
-        self.assertRaises(ValueError, task, 'test')
-
         task = ExceptionTestingTask('success')
-
         self.assertEqual(task('test'), 'success test')
 
+        for parameter, exception_type in [('test_exception_fail', TypeError), ('value_error', ValueError)]:
+            task = ExceptionTestingTask(parameter)
+            self.assertRaises(exception_type, task, 'test')
+            try:
+                task('test')
+            except exception_type as exception:
+                message = str(exception)
+                self.assertTrue(message.startswith('During execution of task ExceptionTestingTask: '))
 
 if __name__ == '__main__':
     unittest.main()
