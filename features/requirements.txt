@@ -3,3 +3,5 @@ numpy
 scipy
 python-dateutil
 scikit-image
+scikit-learn
+numba>=0.43.1

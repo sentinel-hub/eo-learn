@@ -1,5 +1,13 @@
 """
 Module for adding data obtained from sentinelhub package to existing EOPatches
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
@@ -117,10 +125,10 @@ class AddGeopediaFeature(EOTask):
                         'cultivated land': (1,[193, 243, 249, 255]),
                         'forest': (2,[73, 119, 20, 255]),
                         'grassland': (3,[95, 208, 169, 255]),
-                        'schrubland': (4,[112, 179, 62, 255]),
+                        'shrubland': (4,[112, 179, 62, 255]),
                         'water': (5,[154, 86, 1, 255]),
                         'wetland': (6,[244, 206, 126, 255]),
-                        'thundra': (7,[50, 100, 100, 255]),
+                        'tundra': (7,[50, 100, 100, 255]),
                         'artificial surface': (8,[20, 47, 147, 255]),
                         'bareland': (9,[202, 202, 202, 255]),
                         'snow and ice': (10,[251, 237, 211, 255])}

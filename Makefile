@@ -18,6 +18,7 @@ pylint:
 	$(PYLINT) io/eolearn/io/*.py
 	$(PYLINT) mask/eolearn/mask/*.py
 	$(PYLINT) ml_tools/eolearn/ml_tools/*.py
+	$(PYLINT) visualization/eolearn/visualization/*.py
 
 .ONESHELL:
 build-core:
@@ -76,6 +77,14 @@ build-ml-tools:
 	rm LICENSE
 
 .ONESHELL:
+build-visualization:
+	cd visualization
+	cp ../LICENSE LICENSE
+	rm -r dist
+	$(PYTHON) setup.py sdist
+	rm LICENSE
+
+.ONESHELL:
 build-abstract-package:
 	rm -r dist
 	$(PYTHON) setup.py sdist
@@ -101,6 +110,9 @@ upload-mask: build-mask
 upload-ml-tools: build-ml-tools
 	twine upload ml_tools/dist/*
 
+upload-visualization: build-visualization
+	twine upload visualization/dist/*
+
 upload-abstract-package: build-abstract-package
 	twine upload dist/*
 
@@ -112,6 +124,7 @@ upload-all: \
 	upload-io \
 	upload-mask \
 	upload-ml-tools \
+	upload-visualization \
 	upload-abstract-package
 
 # For testing:
@@ -137,6 +150,9 @@ test-upload-mask: build-mask
 test-upload-ml-tools: build-ml-tools
 	twine upload --repository testpypi ml_tools/dist/*
 
+test-upload-visualization: build-visualization
+	twine upload --repository testpypi visualization/dist/*
+
 test-upload-abstract-package: build-abstract-package
 	twine upload --repository testpypi dist/*
 
@@ -148,4 +164,5 @@ test-upload-all: \
 	test-upload-io \
 	test-upload-mask \
 	test-upload-ml-tools \
+	test-upload-visualization \
 	test-upload-abstract-package

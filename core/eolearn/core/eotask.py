@@ -5,13 +5,20 @@ instance invokes the execute method. EO tasks are meant primarily to operate on 
 
 EO task classes are generally lightweight (i.e. not too complicated), short, and do one thing well. For example, an
 EO task might take as input an EOPatch containing cloud mask and return as a result the cloud coverage for that mask.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import sys
 import logging
 import datetime
 import inspect
-import copy
 from collections import OrderedDict
 from abc import ABC, abstractmethod
 
@@ -31,10 +38,10 @@ class EOTask(ABC):
 
         init_args = OrderedDict()
         for arg, value in zip(inspect.getfullargspec(self.__init__).args[1: len(args) + 1], args):
-            init_args[arg] = copy.deepcopy(value)
+            init_args[arg] = repr(value)
         for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1:]:
             if arg in kwargs:
-                init_args[arg] = copy.deepcopy(kwargs[arg])
+                init_args[arg] = repr(kwargs[arg])
 
         self.private_task_config = _PrivateTaskConfig(init_args=init_args)
 
@@ -61,19 +68,21 @@ class EOTask(ABC):
         """
         self.private_task_config.start_time = datetime.datetime.now()
 
-        caught_exception = None
         try:
             return_value = self.execute(*eopatches, **kwargs)
+            self.private_task_config.end_time = datetime.datetime.now()
+            return return_value
         except BaseException as exception:
-            caught_exception = exception, sys.exc_info()[2]
+            traceback = sys.exc_info()[2]
 
-        if caught_exception is not None:  # Exception is not raised in except statement to prevent duplicated traceback
-            exception, traceback = caught_exception
-            raise type(exception)('During execution of task {}: {}'.format(self.__class__.__name__,
-                                                                           exception)).with_traceback(traceback)
+            # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
+            try:
+                errmsg = 'During execution of task {}: {}'.format(self.__class__.__name__, exception)
+                extended_exception = type(exception)(errmsg)
+            except TypeError:
+                extended_exception = exception
 
-        self.private_task_config.end_time = datetime.datetime.now()
-        return return_value
+            raise extended_exception.with_traceback(traceback)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):

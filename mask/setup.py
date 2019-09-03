@@ -26,17 +26,19 @@ def get_version():
     return version
 
 
-setup(name='eo-learn-mask',
-      python_requires='>=3.5',
-      version=get_version(),
-      description='A collection of masking utilities and EOTasks',
-      long_description=get_long_description(),
-      long_description_content_type='text/markdown',
-      url='https://github.com/sentinel-hub/eo-learn',
-      author='Sinergise EO research team',
-      author_email='eoresearch@sinergise.com',
-      license='MIT',
-      packages=find_packages(),
-      include_package_data=True,
-      install_requires=parse_requirements("requirements.txt"),
-      zip_safe=False)
+setup(
+    name='eo-learn-mask',
+    python_requires='>=3.5',
+    version=get_version(),
+    description='A collection of masking utilities and EOTasks',
+    long_description=get_long_description(),
+    long_description_content_type='text/markdown',
+    url='https://github.com/sentinel-hub/eo-learn',
+    author='Sinergise EO research team',
+    author_email='eoresearch@sinergise.com',
+    license='MIT',
+    packages=find_packages(),
+    include_package_data=True,
+    install_requires=parse_requirements("requirements.txt"),
+    zip_safe=False
+)

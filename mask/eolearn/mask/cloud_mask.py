@@ -1,15 +1,23 @@
 """
 Module for cloud masking
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
 
 import numpy as np
-import scipy.ndimage
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
 from eolearn.core import EOTask, get_common_timestamps
+from .utilities import resize_images
 
 
 INTERP_METHODS = ['nearest', 'linear']
@@ -156,15 +164,13 @@ class AddCloudMaskTask(EOTask):
         if (self.cm_size_y is None) and (self.cm_size_x is None):
             return hr_array, None
 
-        # Rescaling factor in spatial (height, width) dimensions
+        # Rescaling factor in spatial (width, height) dimensions
         rescale = self._get_rescale_factors(hr_array.shape[1:3], meta_info)
 
-        if smooth:
-            sigma = (0,) + tuple(int(1/x) for x in rescale) + (0,)
-            hr_array = scipy.ndimage.gaussian_filter(hr_array, sigma)
-
-        lr_array = scipy.ndimage.interpolation.zoom(hr_array, (1.0,) + rescale + (1.0,),
-                                                    order=INTERP_METHODS.index(interp), mode='nearest')
+        lr_array = resize_images(hr_array,
+                                 scale_factors=rescale,
+                                 anti_alias=smooth,
+                                 interpolation=interp)
 
         return lr_array, rescale
 
@@ -179,22 +185,16 @@ class AddCloudMaskTask(EOTask):
         :param interp: Interpolation method ot be used in upsampling. Default is `'linear'`
         :return: Upsampled array. The array has 4 dimensions, the last one being of size 1
         """
-        hr_shape = reference_shape + (1,)
         lr_shape = lr_array.shape + (1,)
 
         if rescale is None:
             return lr_array.reshape(lr_shape)
 
-        out_array = scipy.ndimage.interpolation.zoom(lr_array.reshape(lr_shape),
-                                                     (1.0,) + tuple(1 / x for x in rescale) + (1.0,),
-                                                     output=lr_array.dtype, order=INTERP_METHODS.index(interp),
-                                                     mode='nearest')
-
-        # Padding and cropping might be needed to get to the reference shape
-        out_shape = out_array.shape
-        padding = tuple((0, np.max((h-o, 0))) for h, o in zip(hr_shape, out_shape))
-        hr_array = np.pad(out_array, padding, 'edge')
-        hr_array = hr_array[:, :hr_shape[1], :hr_shape[2], :]
+        # Resize to reference shape (height, width)
+        output_size = reference_shape[1:3]
+        hr_array = resize_images(lr_array.reshape(lr_shape),
+                                 new_size=output_size,
+                                 interpolation=interp)
 
         return hr_array
 
@@ -263,7 +263,11 @@ class AddCloudMaskTask(EOTask):
                                'eopatch due to unavailability of %s!', str(rm_frame), self.data_feature)
 
             # Get reference shape from first item in data dictionary
-            reference_shape = next(iter(eopatch.data.values())).shape[:3]
+            if not eopatch.data:
+                raise ValueError('Given EOPatch does not have any data feature')
+
+            reference_data_feature = sorted(eopatch.data)[0]
+            reference_shape = eopatch.data[reference_data_feature].shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
         clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)

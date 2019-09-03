@@ -1,5 +1,12 @@
 """
 Module for radiometric normalization
+
+Credits:
+Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
+Copyright (c) 2017-2019 Matej Aleksandrov, Matic Lubej, Devis Peresutti (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import numpy as np
@@ -39,11 +46,11 @@ class ReferenceScenes(EOTask):
         valid_frac = list(eopatch[valid_fraction_feature_type][valid_fraction_feature_name].flatten())
         data = eopatch[feature_type][feature_name]
 
-        self.number = data.shape[0] if self.number is None else self.number
+        number = data.shape[0] if self.number is None else self.number
 
         eopatch[feature_type][new_feature_name] = np.array([data[x] for _, x in
                                                             sorted(zip(valid_frac, range(data.shape[0])), reverse=True)
-                                                            if x <= self.number-1])
+                                                            if x <= number-1])
 
         return eopatch
 

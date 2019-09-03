@@ -8,5 +8,6 @@ from .classifier import ImageBaseClassifier, ImagePixelClassifier, ImagePatchCla
 from .validator import SGMLBaseValidator
 from .postprocessing import MorphologicalOperations, MorphologicalStructFactory, PostprocessingTask,\
     MorphologicalFilterTask
+from .train_test_split import TrainTestSplitTask
 
-__version__ = '0.4.2'
+__version__ = '0.6.0'

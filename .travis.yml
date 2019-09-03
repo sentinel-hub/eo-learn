@@ -13,20 +13,31 @@ before_install:
 - sudo add-apt-repository -y ppa:jonathonf/backports
 - sudo apt-get -qq update
 - sudo apt-get install -y libgdal-dev
+- sudo apt-get install graphviz
+- sudo apt-get install proj-bin
+- sudo apt-get install gcc
+- sudo apt-get install libproj-dev
 
 install:
 - pip install -r requirements-dev.txt --upgrade
-- python install_all.py
+- if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
+    python install_all.py -e;
+  else
+    python install_all.py;
+  fi
 - pip install pandas==0.23.4  # This is temporal solution
 
 script:
-- pylint core/eolearn/core/*.py
-- pylint coregistration/eolearn/coregistration/*.py
-- pylint features/eolearn/features/*.py
-- pylint geometry/eolearn/geometry/*.py
-- pylint io/eolearn/io/*.py
-- pylint mask/eolearn/mask/*.py
-- pylint ml_tools/eolearn/ml_tools/*.py
+- if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
+    pylint core/eolearn/core/*.py &&
+    pylint coregistration/eolearn/coregistration/*.py &&
+    pylint features/eolearn/features/*.py &&
+    pylint geometry/eolearn/geometry/*.py &&
+    pylint io/eolearn/io/*.py &&
+    pylint mask/eolearn/mask/*.py &&
+    pylint ml_tools/eolearn/ml_tools/*.py &&
+    pylint visualization/eolearn/visualization/*.py;
+  fi
 - radon cc core/eolearn/core/*.py -a -nb
 - radon cc coregistration/eolearn/coregistration/*.py -a -nb
 - radon cc features/eolearn/features/*.py -a -nb
@@ -34,5 +45,16 @@ script:
 - radon cc io/eolearn/io/*.py -a -nb
 - radon cc mask/eolearn/mask/*.py -a -nb
 - radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
+- radon cc visualization/eolearn/visualization/*.py -a -nb
 - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then pytest --ignore io/eolearn/tests; fi'
-- 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest ; fi'
+- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+    if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
+      pytest -c=.coveragerc;
+    else
+      pytest;
+    fi
+  fi
+- 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
+
+after_success:
+- if [ $TRAVIS_PYTHON_VERSION == '3.6' ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then codecov; fi

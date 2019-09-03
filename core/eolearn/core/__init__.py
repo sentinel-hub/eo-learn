@@ -10,9 +10,11 @@ from .eotask import EOTask, CompositeTask
 from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
 from .eoexecution import EOExecutor
 
-from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFeature, RemoveFeature, RenameFeature
-from .plots import bgr_to_rgb, IndexTracker, PatchShowTask
-from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps
+from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFeature, RemoveFeature, RenameFeature,\
+    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
+    ExtractBandsTask, CreateEOPatchTask
+
+from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
 
 
-__version__ = '0.4.2'
+__version__ = '0.6.0'

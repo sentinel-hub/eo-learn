@@ -1,3 +1,13 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import unittest
 import logging
 import os
@@ -112,6 +122,14 @@ class TestEOPatch(unittest.TestCase):
         eop.data['bands'] = bands
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
+
+    def test_simplified_feature_operations(self):
+        bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+        feature = FeatureType.DATA, 'TEST-BANDS'
+        eop = EOPatch()
+
+        eop[feature] = bands
+        self.assertTrue(np.array_equal(eop[feature], bands), msg="Data numpy array not stored")
 
     def test_rename_feature(self):
         bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
