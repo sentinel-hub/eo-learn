@@ -68,19 +68,21 @@ class EOTask(ABC):
         """
         self.private_task_config.start_time = datetime.datetime.now()
 
-        caught_exception = None
         try:
             return_value = self.execute(*eopatches, **kwargs)
+            self.private_task_config.end_time = datetime.datetime.now()
+            return return_value
         except BaseException as exception:
-            caught_exception = exception, sys.exc_info()[2]
+            exception, traceback = exception, sys.exc_info()[2]
 
-        if caught_exception is not None:  # Exception is not raised in except statement to prevent duplicated traceback
-            exception, traceback = caught_exception
-            raise type(exception)('During execution of task {}: {}'.format(self.__class__.__name__,
-                                                                           exception)).with_traceback(traceback)
+            # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
+            try:
+                errmsg = 'During execution of task {}: {}'.format(self.__class__.__name__, exception)
+                extended_exception = type(exception)(errmsg)
+            except TypeError:
+                extended_exception = exception
 
-        self.private_task_config.end_time = datetime.datetime.now()
-        return return_value
+            raise extended_exception.with_traceback(traceback)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
