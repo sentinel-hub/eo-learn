@@ -14,7 +14,7 @@ import logging
 import tempfile
 import datetime
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor
+from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -32,29 +32,46 @@ class ExampleTask(EOTask):
             raise Exception
 
 
+class FooTask(EOTask):
+
+    @staticmethod
+    def execute(*_, **__):
+        return 42
+
+
 class TestEOExecutor(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        task = ExampleTask()
-        cls.workflow = EOWorkflow([(task, []),
-                                   Dependency(task=ExampleTask(), inputs=[task, task])])
+        cls.task = ExampleTask()
+        cls.final_task = FooTask()
+        cls.workflow = EOWorkflow([(cls.task, []),
+                                   Dependency(task=cls.final_task, inputs=[cls.task, cls.task])])
 
         cls.execution_args = [
-            {task: {'arg1': 1}},
+            {cls.task: {'arg1': 1}},
             {},
-            {task: {'arg1': 3, 'arg3': 10}},
-            {task: {'arg1': None}}
+            {cls.task: {'arg1': 3, 'arg3': 10}},
+            {cls.task: {'arg1': None}}
         ]
 
     def test_execution_logs(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, save_logs=True, logs_folder=tmp_dir_name)
-            executor.run()
+        for execution_names in [None, [4, 'x', 'y', 'z']]:
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                executor = EOExecutor(self.workflow, self.execution_args, save_logs=True, logs_folder=tmp_dir_name,
+                                      execution_names=execution_names)
+                executor.run()
 
-            self.assertEqual(len(executor.execution_logs), 4)
-            for log in executor.execution_logs:
-                self.assertTrue(len(log.split()) >= 3)
+                self.assertEqual(len(executor.execution_logs), 4)
+                for log in executor.execution_logs:
+                    self.assertTrue(len(log.split()) >= 3)
+
+                log_filenames = sorted(os.listdir(executor.report_folder))
+                self.assertEqual(len(log_filenames), 4)
+
+                if execution_names:
+                    for name, log_filename in zip(execution_names, log_filenames):
+                        self.assertTrue(log_filename == 'eoexecution-{}.log'.format(name))
 
     def test_execution_stats(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
@@ -82,13 +99,34 @@ class TestEOExecutor(unittest.TestCase):
                 self.assertEqual(executor.get_successful_executions(), [0, 1, 2])
                 self.assertEqual(executor.get_failed_executions(), [3])
 
-    def test_report_creation(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name, save_logs=True)
-            executor.run(workers=10)
-            executor.make_report()
+    def test_execution_results(self):
+        for return_results in [True, False]:
 
-            self.assertTrue(os.path.exists(executor.get_report_filename()), 'Execution report was not created')
+            executor = EOExecutor(self.workflow, self.execution_args)
+            results = executor.run(workers=2, multiprocess=True, return_results=return_results)
+
+            if return_results:
+                self.assertTrue(isinstance(results, list))
+
+                for idx, workflow_results in enumerate(results):
+                    if idx == 3:
+                        self.assertEqual(workflow_results, None)
+                    else:
+                        self.assertTrue(isinstance(workflow_results, WorkflowResults))
+                        self.assertEqual(workflow_results[self.final_task], 42)
+                        self.assertTrue(self.task not in workflow_results)
+            else:
+                self.assertEqual(results, None)
+
+    def test_exceptions(self):
+
+        with self.assertRaises(ValueError):
+            EOExecutor(self.workflow, {})
+
+        with self.assertRaises(ValueError):
+            EOExecutor(self.workflow, self.execution_args, execution_names={1, 2, 3, 4})
+        with self.assertRaises(ValueError):
+            EOExecutor(self.workflow, self.execution_args, execution_names=['a', 'b'])
 
 
 if __name__ == '__main__':

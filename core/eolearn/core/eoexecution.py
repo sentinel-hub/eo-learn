@@ -30,32 +30,39 @@ LOGGER = logging.getLogger(__name__)
 class EOExecutor:
     """ Simultaneously executes a workflow with different input arguments. In the process it monitors execution and
     handles errors. It can also save logs and create a html report about each execution.
-
-    :param workflow: A prepared instance of EOWorkflow class
-    :type workflow: EOWorkflow
-    :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the workflow.
-        `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The content of such
-        dictionary will be used as `input_args` parameter in `EOWorkflow.execution` method. Check `EOWorkflow.execution`
-        for definition of a dictionary structure.
-    :type execution_args: list(dict(EOTask: dict(str: object) or tuple(object)))
-    :param save_logs: Flag used to specify if execution log files should be saved locally on disk
-    :type save_logs: bool
-    :param logs_folder: A folder where logs and execution report should be saved
-    :type logs_folder: str
     """
     REPORT_FILENAME = 'report.html'
 
     STATS_START_TIME = 'start_time'
     STATS_END_TIME = 'end_time'
     STATS_ERROR = 'error'
+    RESULTS = 'results'
 
-    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.'):
+    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', execution_names=None):
+        """
+        :param workflow: A prepared instance of EOWorkflow class
+        :type workflow: EOWorkflow
+        :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the
+            workflow. `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The
+            content of such dictionary will be used as `input_args` parameter in `EOWorkflow.execution` method.
+            Check `EOWorkflow.execution` for definition of a dictionary structure.
+        :type execution_args: list(dict(EOTask: dict(str: object) or tuple(object)))
+        :param save_logs: Flag used to specify if execution log files should be saved locally on disk
+        :type save_logs: bool
+        :param logs_folder: A folder where logs and execution report should be saved
+        :type logs_folder: str
+        :param execution_names: A list of execution names, which will be shown in execution report
+        :type execution_names: list(str) or None
+        """
         self.workflow = workflow
         self.execution_args = self._parse_execution_args(execution_args)
         self.save_logs = save_logs
         self.logs_folder = logs_folder
+        self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
 
+        self.start_time = None
         self.report_folder = None
+        self.general_stats = {}
         self.execution_logs = None
         self.execution_stats = None
 
@@ -68,7 +75,19 @@ class EOExecutor:
 
         return [EOWorkflow.parse_input_args(input_args) for input_args in execution_args]
 
-    def run(self, workers=1, multiprocess=True):
+    @staticmethod
+    def _parse_execution_names(execution_names, execution_args):
+        """ Parses a list of execution names
+        """
+        if execution_names is None:
+            return [str(num) for num in range(1, len(execution_args) + 1)]
+
+        if not isinstance(execution_names, (list, tuple)) or len(execution_names) != len(execution_args):
+            raise ValueError("Parameter 'execution_names' has to be a list of the same size as the list of "
+                             "execution arguments")
+        return execution_names
+
+    def run(self, workers=1, multiprocess=True, return_results=False):
         """ Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -83,26 +102,39 @@ class EOExecutor:
             `concurrent.futures.ProcessPoolExecutor`.
             In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
         :type multiprocess: bool
+        :param return_results: If `True` this method will return a list of all results of the execution. Note that
+            this might exceed the available memory. By default this parameter is set to `False`.
+        :type: bool
+        :return: If `return_results` is set to `True` it will return a list of results, otherwise it will return `None`
+        :rtype: None or list(eolearn.core.WorkflowResults)
         """
+        self.start_time = dt.datetime.now()
         self.report_folder = self._get_report_folder()
         if self.save_logs and not os.path.isdir(self.report_folder):
             os.mkdir(self.report_folder)
 
         execution_num = len(self.execution_args)
-        log_paths = [self._get_log_filename(idx) if self.save_logs else None
-                     for idx in range(execution_num)]
+        log_paths = self._get_log_paths()
 
-        processing_args = [(self.workflow, init_args, log_path) for init_args, log_path in zip(self.execution_args,
-                                                                                               log_paths)]
+        processing_args = [(self.workflow, init_args, log_path, return_results)
+                           for init_args, log_path in zip(self.execution_args, log_paths)]
 
         if workers == 1:
+            processing_type = 'single process'
             self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
         else:
-            pool_executor_class = concurrent.futures.ProcessPoolExecutor if multiprocess else \
-                concurrent.futures.ThreadPoolExecutor
+            if multiprocess:
+                pool_executor_class = concurrent.futures.ProcessPoolExecutor
+                processing_type = 'multiprocessing'
+            else:
+                pool_executor_class = concurrent.futures.ThreadPoolExecutor
+                processing_type = 'multithreading'
+
             with pool_executor_class(max_workers=workers) as executor:
                 self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
                                                  total=len(processing_args)))
+
+        self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         self.execution_logs = [None] * execution_num
         if self.save_logs:
@@ -110,11 +142,13 @@ class EOExecutor:
                 with open(log_path) as fin:
                     self.execution_logs[idx] = fin.read()
 
+        return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
+
     @classmethod
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
-        workflow, input_args, log_path = process_args
+        workflow, input_args, log_path, return_results = process_args
 
         if log_path:
             logger = logging.getLogger()
@@ -124,9 +158,14 @@ class EOExecutor:
 
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
-            _ = workflow.execute(input_args, monitor=True)
+            results = workflow.execute(input_args, monitor=True)
+
+            if return_results:
+                stats[cls.RESULTS] = results
+
         except BaseException:
             stats[cls.STATS_ERROR] = traceback.format_exc()
+
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
         if log_path:
@@ -145,22 +184,39 @@ class EOExecutor:
 
         return handler
 
+    def _prepare_general_stats(self, workers, processing_type):
+        """ Prepares a dictionary with a general statistics about executions
+        """
+        failed_count = sum(self.STATS_ERROR in stats for stats in self.execution_stats)
+        return {
+            self.STATS_START_TIME: self.start_time,
+            self.STATS_END_TIME: dt.datetime.now(),
+            'finished': len(self.execution_stats) - failed_count,
+            'failed': failed_count,
+            'processing_type': processing_type,
+            'workers': workers
+        }
+
     def _get_report_folder(self):
         """ Returns file path of folder where report will be saved
         """
         return os.path.join(self.logs_folder,
-                            'eoexecution-report-{}'.format(dt.datetime.now().strftime("%Y_%m_%d-%H_%M_%S")))
+                            'eoexecution-report-{}'.format(self.start_time.strftime("%Y_%m_%d-%H_%M_%S")))
 
-    def _get_log_filename(self, execution_nb):
-        """ Returns file path of a log file
+    def _get_log_paths(self):
+        """ Returns a list of file paths containing logs
         """
-        return os.path.join(self.report_folder, 'eoexecution-{}.log'.format(execution_nb))
+        if self.save_logs:
+            return [os.path.join(self.report_folder, 'eoexecution-{}.log'.format(name))
+                    for name in self.execution_names]
+
+        return [None] * len(self.execution_names)
 
     def get_successful_executions(self):
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_args) - 1]`, sorted in increasing order.
 
-        :return: List of succesful execution IDs
+        :return: List of successful execution IDs
         :rtype: list(int)
         """
         return [idx for idx, stats in enumerate(self.execution_stats) if self.STATS_ERROR not in stats]

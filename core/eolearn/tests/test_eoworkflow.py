@@ -12,7 +12,6 @@ import unittest
 import logging
 import functools
 import concurrent.futures
-from io import StringIO
 
 from hypothesis import given, strategies as st
 
@@ -66,10 +65,10 @@ class TestEOWorkflow(unittest.TestCase):
         input_task2 = InputTask()
         divide_task = DivideTask()
 
-        workflow = EOWorkflow(dependencies=[
-            Dependency(task=input_task1, inputs=[]),
-            Dependency(task=input_task2, inputs=[]),
-            Dependency(task=divide_task, inputs=[input_task1, input_task2])
+        workflow = EOWorkflow([
+            (input_task1, []),
+            (input_task2, [], 'some name'),
+            Dependency(task=divide_task, inputs=[input_task1, input_task2], name='some name')
         ])
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
@@ -91,7 +90,6 @@ class TestEOWorkflow(unittest.TestCase):
             input_task1: {'val': 15},
             input_task2: {'val': 3}
         })
-
         self.assertEqual(result1[divide_task], 5)
 
         result2 = workflow.execute({
@@ -112,13 +110,13 @@ class TestEOWorkflow(unittest.TestCase):
         in_task = InputTask()
         inc_task = Inc()
         pow_task = Pow()
-        eow = LinearWorkflow(in_task, inc_task, pow_task)
+        eow = LinearWorkflow((in_task, 'task name'), inc_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
-            inc_task: {'d': 2},
+            inc_task: {'d': 2},  # Note that this will assign value only to one instance of Inc task
             pow_task: {'n': 3}
         })
-        self.assertEqual(res[pow_task], (2+2)**3)
+        self.assertEqual(res[pow_task], (2 + 2 + 1) ** 3)
 
     def test_get_tasks(self):
         in_task = InputTask()
@@ -170,6 +168,9 @@ class TestEOWorkflow(unittest.TestCase):
         self.assertEqual(items[0][1], 42)
         self.assertEqual(result[dep], 42)
 
+        expected_repr = 'WorkflowResults(\n  Dependency(DummyTask):\n    42\n)'
+        self.assertEqual(repr(result), expected_repr)
+
     @given(
         st.lists(
             st.tuples(
@@ -194,31 +195,15 @@ class TestEOWorkflow(unittest.TestCase):
                 [ver2pos[u] < ver2pos[v] for u, v in edges]
             ))
 
+    def test_exceptions(self):
 
-class TestGraph(unittest.TestCase):
-
-    def setUp(self):
-        input_task1 = InputTask()
-        input_task2 = InputTask()
-        divide_task = DivideTask()
-
-        self.workflow = EOWorkflow(dependencies=[
-            Dependency(task=input_task1, inputs=[]),
-            Dependency(task=input_task2, inputs=[]),
-            Dependency(task=divide_task, inputs=[input_task1, input_task2])
-        ])
-
-    def test_graph_nodes_and_edges(self):
-        dot = self.workflow.get_dot()
-        dot_file = StringIO()
-        dot_file.write(dot.source)
-        dot_file.seek(0)
-
-        digraph = self.workflow.dependency_graph()
-
-
-class TestWorkflowResults(unittest.TestCase):
-    pass
+        for params in [(None,),
+                       (InputTask(), 'a string'),
+                       (InputTask(), ('something', InputTask())),
+                       ((InputTask(), 'name', 'something else'),),
+                       (('task', 'name'),)]:
+            with self.assertRaises(ValueError):
+                LinearWorkflow(*params)
 
 
 class TestUniqueIdGenerator(unittest.TestCase):
