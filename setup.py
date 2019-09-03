@@ -8,7 +8,8 @@ def get_long_description():
     with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 
-    return long_description
+    # Removes lines with an image from description
+    return '\n'.join(line for line in long_description.split('\n') if not line.strip().startswith('<img'))
 
 
 def parse_requirements(file):
