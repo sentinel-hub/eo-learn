@@ -88,5 +88,6 @@ class TestCompositeTask(unittest.TestCase):
                 message = str(exception)
                 self.assertTrue(message.startswith('During execution of task ExceptionTestingTask: '))
 
+
 if __name__ == '__main__':
     unittest.main()

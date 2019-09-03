@@ -91,10 +91,11 @@ class ExportToTiff(BaseLocalIo):
         :param folder: A directory containing image files or a path of an image file
         :type folder: str
         :param band_indices: Bands to be added to tiff image. Bands are represented by their 0-based index as tuple
-        in the inclusive interval form `(start_band, end_band)` or as list in the form `[band_1, band_2,...,band_n]`.
+            in the inclusive interval form `(start_band, end_band)` or as list in the form
+            `[band_1, band_2,...,band_n]`.
         :type band_indices: tuple or list or None
         :param date_indices: Dates to be added to tiff image. Dates are represented by their 0-based index as tuple
-        in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
+            in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
         :type date_indices: tuple or list or None
         :param image_dtype: Type of data to be exported into tiff image
         :type image_dtype: numpy.dtype
@@ -155,7 +156,7 @@ class ExportToTiff(BaseLocalIo):
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
-        of task initialization.
+            of task initialization.
         :type filename: str or None
         :return: Unchanged input EOPatch
         :rtype: EOPatch
@@ -217,11 +218,11 @@ class ImportFromTiff(BaseLocalIo):
         :param folder: A directory containing image files or a path of an image file
         :type folder: str
         :param timestamp_size: In case data will be imported into time-dependant feature this parameter can be used to
-        specify time dimension. If not specified, time dimension will be the same as size of FeatureType.TIMESTAMP
-        feature. If FeatureType.TIMESTAMP does not exist it will be set to 1.
-        When converting data into a feature channels of given tiff image should be in order
-        T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
-        where T and B are the time and band indices.
+            specify time dimension. If not specified, time dimension will be the same as size of FeatureType.TIMESTAMP
+            feature. If FeatureType.TIMESTAMP does not exist it will be set to 1.
+            When converting data into a feature channels of given tiff image should be in order
+            T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
+            where T and B are the time and band indices.
         :type timestamp_size: int
         :param image_dtype: Type of data of new feature imported from tiff image
         :type image_dtype: numpy.dtype
@@ -264,7 +265,7 @@ class ImportFromTiff(BaseLocalIo):
         :param eopatch: input EOPatch or None if a new EOPatch should be created
         :type eopatch: EOPatch or None
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
-        of task initialization.
+            of task initialization.
         :type filename: str or None
         :return: New EOPatch with added raster layer
         :rtype: EOPatch
