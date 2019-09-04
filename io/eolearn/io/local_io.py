@@ -5,7 +5,7 @@ Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
 Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
-Copyright (c) 2018-2019 William Ouellette
+Copyright (c) 2018-2019 William Ouellette (TomTom)
 Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
 
 This source code is licensed under the MIT license found in the LICENSE
@@ -165,9 +165,7 @@ class ExportToTiff(BaseLocalIo):
         :rtype: EOPatch
         """
         feature_type, feature_name = next(self.feature(eopatch))
-        array = eopatch[feature_type][feature_name]
-
-        array_sub = self._get_bands_subset(array)
+        array_sub = self._get_bands_subset(eopatch[feature_type][feature_name])
 
         if feature_type.is_time_dependent():
             array_sub = self._get_dates_subset(array_sub, eopatch.timestamp)
