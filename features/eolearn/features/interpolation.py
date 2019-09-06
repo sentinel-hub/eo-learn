@@ -252,7 +252,7 @@ class InterpolationTask(EOTask):
         if copy_features:
             existing_features = set(new_eopatch.get_feature_list())
 
-            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features:
+            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features(old_eopatch):
                 new_feature = copy_feature_type, copy_new_feature_name
 
                 if new_feature in existing_features:
