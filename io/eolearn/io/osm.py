@@ -65,7 +65,7 @@ class OSMInput(EOTask):
 
         # import to geopandas, transform and return
         gdf = geopandas.GeoDataFrame.from_features(response['features'])
-        gdf.crs = {'init' :'epsg:4326'}
+        gdf.crs = {'init' :'epsg:4326'} # all Osmium data is returned with this CRS
         gdf = gdf.to_crs({'init': eopatch.bbox.crs.ogc_string()})
         eopatch[FeatureType.VECTOR_TIMELESS][self.feature_name] = gdf
         return eopatch
