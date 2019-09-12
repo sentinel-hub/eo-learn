@@ -4,7 +4,7 @@ import logging
 
 from eolearn.core import EOPatch, FeatureType
 
-from features.eolearn.features import ClusteringTask
+from eolearn.features import ClusteringTask
 
 import numpy as np
 

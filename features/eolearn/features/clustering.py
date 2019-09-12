@@ -3,9 +3,9 @@ Module for computing clusters in EOPatch
 """
 
 import numpy as np
-from eolearn.core import EOTask, FeatureType
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.image import grid_to_graph
+from eolearn.core import EOTask, FeatureType
 
 
 class ClusteringTask(EOTask):
@@ -54,7 +54,6 @@ class ClusteringTask(EOTask):
         self.distance_threshold = distance_threshold
         self.affinity = affinity
         self.linkage = linkage
-        self.data_name = features,
         self.new_feature_name = new_feature_name
         self.n_clusters = n_clusters
         self.compute_full_tree = 'auto'
@@ -76,11 +75,11 @@ class ClusteringTask(EOTask):
 
         feature = EOTask._parse_features(features)
         data = None
-        for v in feature:
+        for i in feature:
             if data is None:
-                data = eopatch.data_timeless[v[1]]
+                data = eopatch.data_timeless[i[1]]
             else:
-                data = np.concatenate((data, eopatch.data_timeless[v[1]]), axis=2)
+                data = np.concatenate((data, eopatch.data_timeless[i[1]]), axis=2)
 
         return data
 
@@ -95,21 +94,18 @@ class ClusteringTask(EOTask):
 
         # Reshapes the data, because AgglomerativeClustering method only takes one dimensional arrays of vectors
         org_shape = data.shape
-        data_long = np.reshape(data, (-1, org_shape[-1]))
-        org_length = len(data_long)
+        data = np.reshape(data, (-1, org_shape[-1]))
+        org_length = len(data)
 
         graph_args = {'n_x': org_shape[0], 'n_y': org_shape[1]}
-        former = None
+        locations = None
 
         # All connections to masked pixels are removed
         if self.mask_name is not None:
             mask = eopatch.mask_timeless[self.mask_name].squeeze()
             graph_args['mask'] = mask
-            mask_long = np.ravel(mask)
-            locations = [i for i, elem in enumerate(mask_long) if elem == 0]
-            tracker = range(org_length)
-            data_long = np.delete(data_long, locations, axis=0)
-            former = np.delete(tracker, locations)
+            locations = [i for i, elem in enumerate(np.ravel(mask)) if elem == 0]
+            data = np.delete(data, locations, axis=0)
 
         # If connectivity is not set, it uses pixel-to-pixel connections
         if not self.connectivity:
@@ -121,14 +117,14 @@ class ClusteringTask(EOTask):
                                         n_clusters=self.n_clusters,
                                         compute_full_tree=self.compute_full_tree)
 
-        model.fit(data_long)
+        model.fit(data)
         trimmed_labels = model.labels_
         if self.remove_small > 0:
 
             # Counts how many pixels covers each cluster
             labels = np.zeros(model.n_clusters_)
-            for x in trimmed_labels:
-                labels[x] += 1
+            for i in trimmed_labels:
+                labels[i] += 1
 
             # Sets to -1 all pixels corresponding to too small clusters
             for i, no_lab in enumerate(labels):
@@ -138,12 +134,12 @@ class ClusteringTask(EOTask):
         # Transforms data back to original shape and setting all masked regions to -1
         if self.mask_name is not None:
             new_data = [-1] * org_length
-            for f, val in zip(former, trimmed_labels):
-                new_data[f] = val
+            for i, val in zip(np.delete(range(org_length), locations), trimmed_labels):
+                new_data[i] = val
             trimmed_labels = new_data
 
-        packed_labels = np.reshape(trimmed_labels, org_shape[:-1])
+        trimmed_labels = np.reshape(trimmed_labels, org_shape[:-1])
 
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.new_feature_name, packed_labels[..., np.newaxis])
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.new_feature_name, trimmed_labels[..., np.newaxis])
 
         return eopatch
