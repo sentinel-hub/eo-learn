@@ -347,10 +347,10 @@ class AddMultiCloudMaskTask(EOTask):
             classifier_dir = os.path.dirname(__file__)
 
             if mono_classifier is None:
-                mono_classifier = joblib.load(os.path.join(classifier_dir, MONO_CLASSIFIER_NAME))
+                mono_classifier = joblib.load(os.path.join(classifier_dir, 'models', MONO_CLASSIFIER_NAME))
 
             if multi_classifier is None:
-                multi_classifier = joblib.load(os.path.join(classifier_dir, MULTI_CLASSIFIER_NAME))
+                multi_classifier = joblib.load(os.path.join(classifier_dir, 'models', MULTI_CLASSIFIER_NAME))
 
         self.mono_classifier = mono_classifier
         self.multi_classifier = multi_classifier
