@@ -321,7 +321,7 @@ class AddTwinCloudMaskTask(EOTask):
         - before thresholding, probabilities are averaged with a disk of size 1
         - after thresholding, the mask is dilated with a disk of size 1
     """
-    
+
     def __init__(self,
                  mono_classifier=None,
                  multi_classifier=None,
@@ -341,71 +341,71 @@ class AddTwinCloudMaskTask(EOTask):
                  average_over=1,
                  dilation_size=1
                 ):
-        
+
         # Load classifiers
         if mono_classifier is None or multi_classifier is None:
             classifier_dir = os.path.dirname(__file__)
-            
+
             if mono_classifier is None:
                 mono_classifier = joblib.load(os.path.join(classifier_dir, MONO_CLASSIFIER_NAME))
-            
+
             if multi_classifier is None:
                 multi_classifier = joblib.load(os.path.join(classifier_dir, MULTI_CLASSIFIER_NAME))
 
         self.mono_classifier = mono_classifier
         self.multi_classifier = multi_classifier
-                
+
         # Set data info
         self.data_feature = data_feature
         self.is_data_feature = is_data_feature
         self.band_indices = (0,1,3,4,7,8,9,10,11,12) if all_bands else tuple(range(10))
-        
+
         # If only resolution of the source is specified, the sigma alone can be adjusted
         if src_res is not None and proc_res is None:
-            
+
             src_res_ = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
-            
+
             self.sigma = 100. / src_res_
             self.scale_factors = None
-            
+
         # If both resolution of the source and mid-product is specified, resizing is taken into account
         elif src_res is not None and proc_res is not None:
-            
+
             src_res_ = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
             proc_res_ = proc_res if type(proc_res) == int else int(re.match('\d+', proc_res).group())
-            
+
             self.sigma = 100. / proc_res_
             self.scale_factors = (src_res_ / proc_res_,)*2
-            
+
         # In any other case, no resizing is performed and sigma is set to a non-volatile level
         else:
-            
+
             self.sigma = 1.0
             self.scale_factors = None
-        
+
         # Set max frames for single iteration
         self.max_proc_frames = max_proc_frames
-        
+
         # Set feature info
         self.mono_proba_feature = mono_proba_feature
         self.multi_proba_feature = multi_proba_feature
         self.mono_mask_feature = mono_mask_feature
         self.multi_mask_feature = multi_mask_feature
         self.mask_feature = mask_feature
-        
+
         # Set thresholding and morph. ops. parameters and kernels
         self.mono_threshold = mono_threshold
         self.multi_threshold = multi_threshold
-        
+
         self.average_over = average_over
         self.dilation_size = dilation_size
-        
+
         if average_over is not None and average_over > 0:
             self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
-            
+
         if dilation_size is not None and dilation_size > 0:
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
-            
+
     @staticmethod
     def _get_max(x):
         return np.ma.max(x, axis=0).data
@@ -421,7 +421,7 @@ class AddTwinCloudMaskTask(EOTask):
     @staticmethod
     def _get_std(x):
         return np.ma.std(x, axis=0).data
-    
+
     def _frame_indices(self, num_of_frames, target_idx):
         """
         Returns frame indices within a given time window, with the target index relative to it.
@@ -442,25 +442,25 @@ class AddTwinCloudMaskTask(EOTask):
         nt_rel = target_idx - nt_min
 
         return nt_min, nt_max, nt_rel
-    
+
     def _red_ssim(self, x, y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, c1=1e-6, c2=1e-5):
         """
         Slightly reduced (pre-computed) SSIM computation.
         """
-        
+
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
         x = x.astype(np.float64) * valid_mask
         y = y.astype(np.float64) * valid_mask
-        
-        # Init        
+
+        # Init
         mu1_2 = mu1 * mu1
         mu2_2 = mu2 * mu2
         mu1_mu2 = mu1 * mu2
-        
+
         sigma12 = cv2.GaussianBlur((x*y).astype(np.float64), (0,0), self.sigma, borderType=cv2.BORDER_REFLECT)
         sigma12 -= mu1_mu2
-        
+
         # Formula
         tmp1 = 2. * mu1_mu2 + c1
         tmp2 = 2. * sigma12 + c2
@@ -471,36 +471,36 @@ class AddTwinCloudMaskTask(EOTask):
         den = tmp1 * tmp2
 
         return np.divide(num, den)
-    
+
     def _win_avg(self, x):
         """
         Spatial window average.
         """
-        
+
         return cv2.GaussianBlur(x.astype(np.float64), (0,0), self.sigma, borderType=cv2.BORDER_REFLECT)
-    
+
     def _win_prevar(self, x):
         """
         Incomplete spatial window variance.
         """
-        
+
         return cv2.GaussianBlur((x*x).astype(np.float64), (0,0), self.sigma, borderType=cv2.BORDER_REFLECT)
-    
+
     def _resize(self, x):
         downscaling = self.scale_factors[0] < 1 or self.scale_factors[0] < 1
         old_size = (x.shape[1], x.shape[0])
         new_size = tuple([int(d * f) for d,f in zip(old_size, self.scale_factors)])
-        
+
         # Perform anti-alias smoothing if downscaling
         if downscaling:
             sx, sy = [((1/s) - 1)/2 for s in self.scale_factors]
             x = cv2.GaussianBlur(x, (0,0), sigmaX=sx, sigmaY=sy, borderType=cv2.BORDER_REFLECT)
 
         return cv2.resize(x, new_size, interpolation=cv2.INTER_LINEAR)
-    
+
     def _average(self, x):
         return cv2.filter2D(x.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
-    
+
     def _dilate(self, x):
         return (cv2.dilate(x.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
 
@@ -518,20 +518,20 @@ class AddTwinCloudMaskTask(EOTask):
 
         t = data.shape[0]
         b = data.shape[3]
-        
+
         indices = np.ndindex(t,b)
         output = None
-        
+
         for i,j in indices:
             res = func2d(data[i,...,j])
-            
+
             if output is None:
                 output = np.empty((t, *res.shape, b), dtype=res.dtype)
 
             output[i,...,j] = res
 
         return output
-    
+
     def _resize_all(self, data, new_size=None, scale_factors=None, anti_alias=True, interpolation=cv2.INTER_LINEAR):
         """
         Resizes the images acording to given size or scale factors.
@@ -548,16 +548,16 @@ class AddTwinCloudMaskTask(EOTask):
         :param interpolation: Interpolation method used for resampling. One of 'nearest', 'linear', 'cubic'.
         :type interpolation: bool
         """
-        
+
         # Old width and height
         old_size = (data.shape[2], data.shape[1])
 
         if new_size is not None and scale_factors is None:
             scale_factors = [new/old for old, new in zip(old_size, new_size)]
-            
+
         elif scale_factors is not None and new_size is None:
             new_size = [int(d * f) for d,f in zip(old_size, scale_factors)]
-            
+
         else:
             raise ValueError('Exactly one of the arguments new_size, scale_factors must be given.')
 
@@ -565,7 +565,7 @@ class AddTwinCloudMaskTask(EOTask):
         new_size = tuple(new_size)
 
         def _resize(image):
-            
+
             # Perform anti-alias smoothing if downscaling
             if downscaling and anti_alias:
                 sx, sy = [((1/s) - 1)/2 for s in scale_factors]
@@ -579,28 +579,28 @@ class AddTwinCloudMaskTask(EOTask):
         resized = self._map_sequence(data, _resize)
 
         return resized
-    
+
     def _average_all(self, data):
         return self._map_sequence(data, self._average)
-    
+
     def _dilate_all(self, data):
         return self._map_sequence(data, self._dilate)
-    
+
     def _ssim_stats(self, bands, is_data, mu, var, nt_rel):
-        
+
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
         ssim_std = np.empty_like(ssim_max)
-        
+
         bands_r = np.delete(bands, nt_rel, axis=0)
         mu_r = np.delete(mu, nt_rel, axis=0)
         var_r = np.delete(var, nt_rel, axis=0)
-        
+
         n_frames = bands_r.shape[0]
         n_bands = bands_r.shape[-1]
-        
+
         valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel,...,0].reshape(1,*is_data.shape[1:-1],1)
-        
+
         for b_i in range(n_bands):
             local_ssim = []
 
@@ -621,60 +621,60 @@ class AddTwinCloudMaskTask(EOTask):
             ssim_max[0,...,b_i] = self._get_max(local_ssim)
             ssim_mean[0,...,b_i] = self._get_mean(local_ssim)
             ssim_std[0,...,b_i] = self._get_std(local_ssim)
-            
+
         return ssim_max, ssim_mean, ssim_std
-    
+
     def _mono_iterations(self, bands):
-        
+
         # Init
         mono_proba = np.empty((np.prod(bands.shape[:-1]),1))
         img_size = np.prod(bands.shape[1:-1])
-        
+
         t = bands.shape[0]
-        
+
         for t_i in range(0, t, self.max_proc_frames):
-            
+
             # Extract mono features
             nt_min = t_i
             nt_max = min(t_i+self.max_proc_frames, t)
-            
+
             bands_t = bands[nt_min:nt_max]
-            
+
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
-            
+
             # Run mono classifier
             mono_proba[nt_min*img_size:nt_max*img_size] = self.mono_classifier.predict_proba(mono_features)[...,1:]
-            
+
         return mono_proba
-    
+
     def _multi_iterations(self, bands, is_data):
-        
+
         # Init
         multi_proba = np.empty((np.prod(bands.shape[:-1]),1))
         img_size = np.prod(bands.shape[1:-1])
-        
+
         t = bands.shape[0]
-        
+
         loc_mu = None
         loc_var = None
-        
+
         prev_nt_min = None
         prev_nt_max = None
         prev_nt_rel = None
-        
+
         for t_i in range(t):
-            
+
             # Extract temporal window indices
             nt_min, nt_max, nt_rel = self._frame_indices(t, t_i)
-            
+
             bands_t = bands[nt_min:nt_max]
             is_data_t = is_data[nt_min:nt_max]
-            
+
             bands_i = bands_t[nt_rel][None,...]
             is_data_i = is_data_t[nt_rel][None,...]
-            
+
             masked_bands = np.ma.array(bands_t, mask=~is_data_t.repeat(bands_t.shape[-1],axis=-1))
-            
+
             # Add window averages and variances to local data
             if loc_mu is None:
                 win_avg_bands = self._map_sequence(bands_t, self._win_avg)
@@ -685,38 +685,38 @@ class AddTwinCloudMaskTask(EOTask):
                 true_win_avg = win_avg_bands / win_avg_is_data
 
                 loc_mu = true_win_avg
-                
+
                 win_prevars = self._map_sequence(bands_t, self._win_prevar)
                 win_prevars -= loc_mu*loc_mu
-                
+
                 loc_var = win_prevars
-                
+
             elif prev_nt_min != nt_min or prev_nt_max != nt_max:
-                
+
                 win_avg_bands = self._map_sequence(bands_t[-1][None,...], self._win_avg)
                 win_avg_is_data = self._map_sequence(is_data_t[-1][None,...], self._win_avg)
 
                 win_avg_is_data[win_avg_is_data == 0.] = 1.
                 # win_avg_is_data[~is_data_t[-1][None,...]] == 1.
                 true_win_avg = win_avg_bands / win_avg_is_data
-                
+
                 loc_mu[:-1] = loc_mu[1:]
                 loc_mu[-1] = true_win_avg[0]
-                
+
                 win_prevars = self._map_sequence(bands_t[-1][None,...], self._win_prevar)
                 win_prevars[0] -= loc_mu[-1]*loc_mu[-1]
-                
+
                 loc_var[:-1] = loc_var[1:]
                 loc_var[-1] = win_prevars[0]
-            
+
             # Compute SSIM stats
             ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
-        
+
             ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3*ssim_max.shape[-1]))
             ssim_interweaved[...,0::3] = ssim_max
             ssim_interweaved[...,1::3] = ssim_mean
             ssim_interweaved[...,2::3] = ssim_std
-            
+
             # Compute temporal stats
             temp_min = self._get_min(masked_bands)[None,...]
             temp_mean = self._get_mean(masked_bands)[None,...]
@@ -724,18 +724,18 @@ class AddTwinCloudMaskTask(EOTask):
             temp_interweaved = np.empty((*temp_min.shape[:-1], 2*temp_min.shape[-1]))
             temp_interweaved[...,0::2] = temp_min
             temp_interweaved[...,1::2] = temp_mean
-            
+
             # Compute difference stats
             t_all = len(bands_t)
             t_rest = t_all-1
-            
+
             diff_max = (masked_bands[nt_rel][None,...] - temp_min).data
             diff_mean = (masked_bands[nt_rel][None,...]*(1. + 1./t_rest) - t_all*temp_mean/t_rest).data
 
             diff_interweaved = np.empty((*diff_max.shape[:-1], 2*diff_max.shape[-1]))
             diff_interweaved[...,0::2] = diff_max
             diff_interweaved[...,1::2] = diff_mean
-            
+
             # Put it all together
             multi_features = np.concatenate((bands_i,
                                              loc_mu[nt_rel][None,...],
@@ -745,115 +745,114 @@ class AddTwinCloudMaskTask(EOTask):
                                             ),
                                             axis=3
                                            )
-            
+
             multi_features = multi_features.reshape(np.prod(multi_features.shape[:-1]), multi_features.shape[-1])
-            
+
             # Run multi classifier
             multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[...,1:]
-            
+
             prev_nt_min = nt_min
             prev_nt_max = nt_max
             prev_nt_rel = nt_rel
-            
+
         return multi_proba
-    
+
     def execute(self, eopatch):
         """
         Add optional features (cloud probabilities and masks) to an EOPatch instance.
-        
+
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
         """
-        
+
         # Get data
         bands = eopatch.data[self.data_feature][...,self.band_indices].astype(np.float32)
         is_data = eopatch.mask[self.is_data_feature].astype(bool)
-        
+
         # Downscale if specified
         if self.scale_factors is not None:
             original_shape = bands.shape[1:-1]
-                             
+
             bands = self._resize_all(bands.astype(np.float32), scale_factors=self.scale_factors)
             is_data = self._resize_all(is_data.astype(np.uint8), scale_factors=self.scale_factors).astype(np.bool)
-        
+
         new_shape = bands.shape[1:-1]
-        
+
         # Use only s2cloudless
         if self.multi_proba_feature is None and self.multi_mask_feature is None and self.mask_feature is None:
-            
+
             # Run mono extraction and classification iters
             mono_proba = self._mono_iterations(bands)
             multi_proba = None
-        
+
         # Use only the SSIM-based multi-temporal classifier
         elif self.mono_proba_feature is None and self.mono_mask_feature is None and self.mask_feature is None:
-            
+
             # Run multi extraction and classification iters
             multi_proba = self._multi_iterations(bands, is_data)
             mono_proba = None
-        
+
         # Otherwise, use InterSSIM
         else:
-            
+
             # Run multi extraction and classification iters
             multi_proba = self._multi_iterations(bands, is_data)
-            
+
             # Run mono extraction and classification iters
             mono_proba = self._mono_iterations(bands)
-            
+
         # Reshape
         if mono_proba is not None:
             mono_proba = mono_proba.reshape(*bands.shape[:-1], 1)
-        
+
         if multi_proba is not None:
             multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
-            
+
         # Upscale (rescale) if specified
         if self.scale_factors is not None:
             if mono_proba is not None:
                 mono_proba = self._resize_all(mono_proba, new_size=original_shape)
-            
+
             if multi_proba is not None:
                 multi_proba = self._resize_all(multi_proba, new_size=original_shape)
-                
+
         # Average over and threshold
         if self.mono_mask_feature is not None or self.mask_feature is not None:
             mono_mask = self._average_all(mono_proba) >= self.mono_threshold
-            
+
         if self.multi_mask_feature is not None or self.mask_feature is not None:
             multi_mask = self._average_all(multi_proba) >= self.multi_threshold
-        
+
         # Intersect
         if self.mask_feature is not None:
             inter_mask = mono_mask & multi_mask
-        
+
         # Dilate
         if self.mono_mask_feature is not None:
             mono_mask = self._dilate_all(mono_mask)
-            
+
         if self.multi_mask_feature is not None:
             multi_mask = self._dilate_all(multi_mask)
-            
+
         if self.mask_feature is not None:
             inter_mask = self._dilate_all(inter_mask)
-        
+
         # Add features
         is_data = eopatch.mask[self.is_data_feature].astype(bool)
-        
+
         if self.mono_proba_feature is not None:
             eopatch.data[self.mono_proba_feature] = mono_proba * is_data
-            
+
         if self.multi_proba_feature is not None:
             eopatch.data[self.multi_proba_feature] = multi_proba * is_data
-            
+
         if self.mono_mask_feature is not None:
             eopatch.mask[self.mono_mask_feature] = mono_mask * is_data
-            
+
         if self.multi_mask_feature is not None:
             eopatch.mask[self.multi_mask_feature] = multi_mask * is_data
-            
+
         if self.mask_feature is not None:
             eopatch.mask[self.mask_feature] = inter_mask * is_data
 
         return eopatch
-    
