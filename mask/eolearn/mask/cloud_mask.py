@@ -23,7 +23,7 @@ from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, Mime
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
 from eolearn.core import EOPatch, EOTask, get_common_timestamps
-from .utilities import resize_images
+from .utilities import resize_images, map_over_axis
 
 
 INTERP_METHODS = ['nearest', 'linear']
@@ -517,69 +517,12 @@ class AddTwinCloudMaskTask(EOTask):
         :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
 
-        t = data.shape[0]
-        b = data.shape[3]
+        func3d = lambda x: map_over_axis(x, func2d, axis=2) # Map over channel dimension on 3d tensor
+        func4d = lambda x: map_over_axis(x, func3d, axis=0) # Map over time dimension on 4d tensor
 
-        indices = np.ndindex(t,b)
-        output = None
-
-        for i,j in indices:
-            res = func2d(data[i,...,j])
-
-            if output is None:
-                output = np.empty((t, *res.shape, b), dtype=res.dtype)
-
-            output[i,...,j] = res
+        output = func4d(data)
 
         return output
-
-    def _resize_all(self, data, new_size=None, scale_factors=None, anti_alias=True, interpolation=cv2.INTER_LINEAR):
-        """
-        Resizes the images acording to given size or scale factors.
-        To specify the new scale use one of `new_size` or `scale_factors` parameters.
-
-        :param data: input array
-        :type data: array of shape (timestamps, rows, columns, channels)
-        :param new_size: New size of the data (width, height)
-        :type new_size: (int, int)
-        :param scale_factors: Factors (fx,fy) by which to resize the image
-        :type scale_factors: (float, float)
-        :param anti_alias: Use anti aliasing smoothing operation when downsampling.
-        :type anti_alias: bool
-        :param interpolation: Interpolation method used for resampling. One of 'nearest', 'linear', 'cubic'.
-        :type interpolation: bool
-        """
-
-        # Old width and height
-        old_size = (data.shape[2], data.shape[1])
-
-        if new_size is not None and scale_factors is None:
-            scale_factors = [new/old for old, new in zip(old_size, new_size)]
-
-        elif scale_factors is not None and new_size is None:
-            new_size = [int(d * f) for d,f in zip(old_size, scale_factors)]
-
-        else:
-            raise ValueError('Exactly one of the arguments new_size, scale_factors must be given.')
-
-        downscaling = scale_factors[0] < 1 or scale_factors[0] < 1
-        new_size = tuple(new_size)
-
-        def _resize(image):
-
-            # Perform anti-alias smoothing if downscaling
-            if downscaling and anti_alias:
-                sx, sy = [((1/s) - 1)/2 for s in scale_factors]
-                image = cv2.GaussianBlur(image, (0,0), sigmaX=sx, sigmaY=sy, borderType=cv2.BORDER_REFLECT)
-
-            resized = cv2.resize(image, new_size, interpolation=interpolation)
-
-            return resized
-
-        # Apply _resize function to each image slice
-        resized = self._map_sequence(data, _resize)
-
-        return resized
 
     def _average_all(self, data):
         if self.avg_kernel is not None:
@@ -780,8 +723,8 @@ class AddTwinCloudMaskTask(EOTask):
         if self.scale_factors is not None:
             original_shape = bands.shape[1:-1]
 
-            bands = self._resize_all(bands.astype(np.float32), scale_factors=self.scale_factors)
-            is_data = self._resize_all(is_data.astype(np.uint8), scale_factors=self.scale_factors).astype(np.bool)
+            bands = resize_images(bands.astype(np.float32), scale_factors=self.scale_factors)
+            is_data = resize_images(is_data.astype(np.uint8), scale_factors=self.scale_factors).astype(np.bool)
 
         new_shape = bands.shape[1:-1]
 
@@ -818,10 +761,10 @@ class AddTwinCloudMaskTask(EOTask):
         # Upscale (rescale) if specified
         if self.scale_factors is not None:
             if mono_proba is not None:
-                mono_proba = self._resize_all(mono_proba, new_size=original_shape)
+                mono_proba = resize_images(mono_proba, new_size=original_shape)
 
             if multi_proba is not None:
-                multi_proba = self._resize_all(multi_proba, new_size=original_shape)
+                multi_proba = resize_images(multi_proba, new_size=original_shape)
 
         # Average over and threshold
         if self.mono_mask_feature is not None or self.mask_feature is not None:
