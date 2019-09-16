@@ -304,7 +304,7 @@ def get_s2_pixel_cloud_detector(threshold=0.4, average_over=4, dilation_size=2, 
 MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.1.joblib.dat'
 MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
 
-class AddTwinCloudMaskTask(EOTask):
+class AddMultiCloudMaskTask(EOTask):
     """This EOTask wraps around s2cloudless and the SSIM-based multi-temporal classifier.
 
     By default:

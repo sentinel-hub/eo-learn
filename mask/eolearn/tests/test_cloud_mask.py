@@ -13,7 +13,7 @@ import unittest
 import os
 import numpy as np
 
-from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector, AddTwinCloudMaskTask
+from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector, AddMultiCloudMaskTask
 from eolearn.core import EOPatch, FeatureType
 
 
@@ -108,7 +108,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         self.assertAlmostEqual(np.mean(eop_clm.data['CLP_TEST']), mean_clp_provided, places=2)
 
 
-class TestAddTwinCloudMaskTask(unittest.TestCase):
+class TestAddMultiCloudMaskTask(unittest.TestCase):
 
     TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
                                        'TestEOPatch')
@@ -128,7 +128,7 @@ class TestAddTwinCloudMaskTask(unittest.TestCase):
         cls.eop.rename_feature(FeatureType.DATA, 'BANDS-S2-L1C', 'ALL_DATA')
 
     def test_raises_errors(self):
-        add_tcm = AddTwinCloudMaskTask(data_feature='bands')
+        add_tcm = AddMultiCloudMaskTask(data_feature='bands')
 
         self.assertRaises(ValueError, add_tcm, self.eop)
 
@@ -142,7 +142,7 @@ class TestAddTwinCloudMaskTask(unittest.TestCase):
     def test_cloud_coverage(self):
 
         # Classifier is run on same resolution as data array
-        add_tcm = AddTwinCloudMaskTask(data_feature='BANDS-S2-L1C',
+        add_tcm = AddMultiCloudMaskTask(data_feature='BANDS-S2-L1C',
                                        src_res='10m',
                                        mono_proba_feature='CLP_S2C',
                                        mask_feature='CLM_INTERSSIM',
@@ -164,7 +164,7 @@ class TestAddTwinCloudMaskTask(unittest.TestCase):
         self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=3)
 
         # Classifier is run on downscaled version of data array
-        add_tcm = AddTwinCloudMaskTask(data_feature='BANDS-S2-L1C',
+        add_tcm = AddMultiCloudMaskTask(data_feature='BANDS-S2-L1C',
                                        src_res='10m',
                                        proc_res='120m',
                                        mono_proba_feature='CLP_S2C',
