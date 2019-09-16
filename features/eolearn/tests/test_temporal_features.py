@@ -8,14 +8,15 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+import os.path
 import unittest
 import numpy as np
 
 from datetime import date, timedelta
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask,\
-    AddSpatioTemporalFeaturesTask
+from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask, \
+    AddSpatioTemporalFeaturesTask, AddStreamTemporalFeaturesTask
 
 
 def perdelta(start, end, delta):
@@ -26,6 +27,7 @@ def perdelta(start, end, delta):
 
 
 class TestTemporalFeaturesTasks(unittest.TestCase):
+    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'TestInputs', 'TestPatch')
 
     def test_temporal_indices(self):
         """ Test case for computation of argmax/argmin of NDVI and another band
@@ -163,6 +165,34 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         self.assertTrue(np.array_equal(new_eopatch.data_timeless['STF'][:, :, 3*c:4*c], 8*np.ones((h, w, c))))
         self.assertTrue(np.array_equal(new_eopatch.data_timeless['STF'][:, :, 4*c:5*c], 9*np.ones((h, w, c))))
 
+    def test_streamtemporalfeatures_task(self):
+        patch = EOPatch.load(self.TEST_PATCH_FILENAME)
+
+        task = AddStreamTemporalFeaturesTask(data_feature="ndvi", ndvi_feature_name="ndvi")
+
+        task.execute(patch)
+
+        dates = perdelta(date(2018, 3, 1), date(2018, 3, 21), timedelta(days=1))
+        patch = EOPatch(timestamp=list(dates))
+        ndvi = np.array([1, 2, 4, -1, -2, 3, 5, 7, 9, 10, 12, 11, 12, 12, 11, 9, 7, 3, -1, 2]).reshape(-1, 1, 1, 1)
+        names = ['NDVI_max_val', 'NDVI_min_val', 'NDVI_mean_val', 'NDVI_sd_val', 'NDVI_diff_max', 'NDVI_diff_min',
+                 'NDVI_diff_diff', 'NDVI_max_mean_feature', 'NDVI_max_mean_len', 'NDVI_max_mean_surf', 'NDVI_pos_len',
+                 'NDVI_pos_surf', 'NDVI_pos_rate', 'NDVI_pos_tran', 'NDVI_neg_len', 'NDVI_neg_surf', 'NDVI_neg_rate',
+                 'NDVI_neg_tran']
+        values = np.array(
+            [12., -2., 5.8, 4.66476152, 5., 0., 5., 12., 12., 120., 8., 70.,
+             1.75, 1., 5., 40.5, -2.6, 1.])
+
+        patch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
+        task = AddStreamTemporalFeaturesTask(data_feature="NDVI",
+                                             ndvi_feature_name="NDVI")
+
+        task.execute(patch)
+
+        result = task.get_data(patch)
+
+        self.assertEqual(result[0], names)
+        self.assertTrue(np.allclose(result[1], values))
 
 if __name__ == '__main__':
     unittest.main()
