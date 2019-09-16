@@ -13,7 +13,7 @@ import unittest
 import os
 import numpy as np
 
-from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector
+from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector, AddTwinCloudMaskTask
 from eolearn.core import EOPatch, FeatureType
 
 
@@ -106,6 +106,89 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         mean_clp_provided = np.mean(eop_clm.data['CLP'])
         self.assertAlmostEqual(np.mean(eop_clm.mask['CLM_TEST']), mean_clm_provided, places=2)
         self.assertAlmostEqual(np.mean(eop_clm.data['CLP_TEST']), mean_clp_provided, places=2)
+
+
+class TestAddTwinCloudMaskTask(unittest.TestCase):
+
+    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
+                                       'TestEOPatch')
+
+    FEATURES_TO_LOAD = [
+        (FeatureType.DATA, 'BANDS-S2-L1C', 'CLP'),
+        (FeatureType.MASK, 'CLM', 'IS_DATA'),
+        (FeatureType.LABEL, 'IS_CLOUDLESS'),
+        FeatureType.META_INFO,
+        FeatureType.TIMESTAMP,
+        FeatureType.BBOX
+    ]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.eop = EOPatch.load(cls.TEST_PATCH_FILENAME, features=cls.FEATURES_TO_LOAD)
+        cls.eop.rename_feature(FeatureType.DATA, 'BANDS-S2-L1C', 'ALL_DATA')
+
+    def test_raises_errors(self):
+        add_tcm = AddTwinCloudMaskTask(data_feature='bands')
+
+        self.assertRaises(ValueError, add_tcm, self.eop)
+
+    def _check_shape(self, output, data):
+        """Checks that shape of data and output match."""
+
+        self.assertTrue(output.ndim == 4)
+        self.assertTrue(output.shape[:-1] == data.shape[:-1])
+        self.assertTrue(output.shape[-1] == 1)
+
+    def test_cloud_coverage(self):
+
+        # Classifier is run on same resolution as data array
+        add_tcm = AddTwinCloudMaskTask(data_feature='BANDS-S2-L1C',
+                                       src_res='10m',
+                                       mono_proba_feature='CLP_S2C',
+                                       mask_feature='CLM_INTERSSIM',
+                                       average_over=16,
+                                       dilation_size=8
+                                      )
+        eop_clm = add_tcm(self.eop)
+
+        # Check shape and type
+        self._check_shape(eop_clm.mask['CLM_INTERSSIM'], eop_clm.data['ALL_DATA'])
+        self._check_shape(eop_clm.data['CLP_INTERSSIM'], eop_clm.data['ALL_DATA'])
+        self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == np.bool)
+        self.assertTrue(eop_clm.data['CLP_INTERSSIM'].dtype == np.float32)
+
+        # Compare mean cloud coverage with provided reference
+        mean_clm_provided = np.mean(eop_clm.mask['CLM'])
+        mean_clp_provided = np.mean(eop_clm.data['CLP'])
+        self.assertAlmostEqual(np.mean(eop_clm.mask['CLM_INTERSSIM']), mean_clm_provided, places=2)
+        self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=3)
+
+        # Classifier is run on downscaled version of data array
+        add_tcm = AddTwinCloudMaskTask(data_feature='BANDS-S2-L1C',
+                                       src_res='10m',
+                                       proc_res='120m',
+                                       mono_proba_feature='CLP_S2C',
+                                       mask_feature='CLM_INTERSSIM',
+                                       average_over=16,
+                                       dilation_size=8
+                                      )
+        eop_clm = add_tcm(self.eop)
+
+        # Check shape and type
+        self._check_shape(eop_clm.mask['CLM_INTERSSIM'], eop_clm.data['ALL_DATA'])
+        self._check_shape(eop_clm.data['CLP_INTERSSIM'], eop_clm.data['ALL_DATA'])
+        self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == np.bool)
+        self.assertTrue(eop_clm.data['CLP_INTERSSIM'].dtype == np.float32)
+
+        # Compare mean cloud coverage with provided reference
+        mean_clm_provided = np.mean(eop_clm.mask['CLM'])
+        mean_clp_provided = np.mean(eop_clm.data['CLP'])
+        self.assertAlmostEqual(np.mean(eop_clm.mask['CLM_INTERSSIM']), mean_clm_provided, places=2)
+        self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=2)
+
+        # Check if most of the same times are flagged as cloudless
+        cloudless = np.mean(eop_clm.mask['CLM_INTERSSIM'], axis=(1,2,3)) == 0
+        self.assertTrue(np.mean(cloudless == eop_clm.label['IS_CLOUDLESS'][:,0]) > 0.94)
 
 
 if __name__ == '__main__':
