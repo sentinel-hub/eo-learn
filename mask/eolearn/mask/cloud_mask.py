@@ -777,32 +777,25 @@ class AddTwinCloudMaskTask(EOTask):
         if self.mask_feature is not None:
             inter_mask = mono_mask & multi_mask
 
-        # Dilate
+        # Add features
+        is_data = eopatch.mask[self.is_data_feature].astype(bool)
+
         if self.mono_mask_feature is not None:
             mono_mask = self._dilate_all(mono_mask)
+            eopatch.mask[self.mono_mask_feature] = (mono_mask * is_data).astype(bool)
 
         if self.multi_mask_feature is not None:
             multi_mask = self._dilate_all(multi_mask)
+            eopatch.mask[self.multi_mask_feature] = (multi_mask * is_data).astype(bool)
 
         if self.mask_feature is not None:
             inter_mask = self._dilate_all(inter_mask)
-
-        # Add features
-        is_data = eopatch.mask[self.is_data_feature].astype(bool)
+            eopatch.mask[self.mask_feature] = (inter_mask * is_data).astype(bool)
 
         if self.mono_proba_feature is not None:
             eopatch.data[self.mono_proba_feature] = (mono_proba * is_data).astype(np.float32)
 
         if self.multi_proba_feature is not None:
             eopatch.data[self.multi_proba_feature] = (multi_proba * is_data).astype(np.float32)
-
-        if self.mono_mask_feature is not None:
-            eopatch.mask[self.mono_mask_feature] = (mono_mask * is_data).astype(bool)
-
-        if self.multi_mask_feature is not None:
-            eopatch.mask[self.multi_mask_feature] = (multi_mask * is_data).astype(bool)
-
-        if self.mask_feature is not None:
-            eopatch.mask[self.mask_feature] = (inter_mask * is_data).astype(bool)
 
         return eopatch
