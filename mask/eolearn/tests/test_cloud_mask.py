@@ -130,7 +130,7 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
     def test_raises_errors(self):
         add_tcm = AddMultiCloudMaskTask(data_feature='bands')
 
-        self.assertRaises(ValueError, add_tcm, self.eop)
+        self.assertRaises(KeyError, add_tcm, self.eop)
 
     def _check_shape(self, output, data):
         """Checks that shape of data and output match."""
@@ -142,29 +142,29 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
     def test_cloud_coverage(self):
 
         # Classifier is run on same resolution as data array
-        add_tcm = AddMultiCloudMaskTask(data_feature='BANDS-S2-L1C',
-                                       src_res='10m',
-                                       mono_proba_feature='CLP_S2C',
-                                       mask_feature='CLM_INTERSSIM',
-                                       average_over=16,
-                                       dilation_size=8
+        add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
+                                        src_res='10m',
+                                        mono_proba_feature='CLP_S2C',
+                                        mask_feature='CLM_INTERSSIM',
+                                        average_over=16,
+                                        dilation_size=8
                                       )
         eop_clm = add_tcm(self.eop)
 
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_INTERSSIM'], eop_clm.data['ALL_DATA'])
-        self._check_shape(eop_clm.data['CLP_INTERSSIM'], eop_clm.data['ALL_DATA'])
+        self._check_shape(eop_clm.data['CLP_S2C'], eop_clm.data['ALL_DATA'])
         self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == np.bool)
-        self.assertTrue(eop_clm.data['CLP_INTERSSIM'].dtype == np.float32)
+        self.assertTrue(eop_clm.data['CLP_S2C'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference
         mean_clm_provided = np.mean(eop_clm.mask['CLM'])
         mean_clp_provided = np.mean(eop_clm.data['CLP'])
         self.assertAlmostEqual(np.mean(eop_clm.mask['CLM_INTERSSIM']), mean_clm_provided, places=2)
-        self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=3)
+        self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=2)
 
         # Classifier is run on downscaled version of data array
-        add_tcm = AddMultiCloudMaskTask(data_feature='BANDS-S2-L1C',
+        add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
                                        src_res='10m',
                                        proc_res='120m',
                                        mono_proba_feature='CLP_S2C',
@@ -176,15 +176,15 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
 
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_INTERSSIM'], eop_clm.data['ALL_DATA'])
-        self._check_shape(eop_clm.data['CLP_INTERSSIM'], eop_clm.data['ALL_DATA'])
+        self._check_shape(eop_clm.data['CLP_S2C'], eop_clm.data['ALL_DATA'])
         self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == np.bool)
-        self.assertTrue(eop_clm.data['CLP_INTERSSIM'].dtype == np.float32)
+        self.assertTrue(eop_clm.data['CLP_S2C'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference
         mean_clm_provided = np.mean(eop_clm.mask['CLM'])
         mean_clp_provided = np.mean(eop_clm.data['CLP'])
         self.assertAlmostEqual(np.mean(eop_clm.mask['CLM_INTERSSIM']), mean_clm_provided, places=2)
-        self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=2)
+        self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=1)
 
         # Check if most of the same times are flagged as cloudless
         cloudless = np.mean(eop_clm.mask['CLM_INTERSSIM'], axis=(1,2,3)) == 0
