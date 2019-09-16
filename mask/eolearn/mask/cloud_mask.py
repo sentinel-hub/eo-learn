@@ -397,14 +397,15 @@ class AddTwinCloudMaskTask(EOTask):
         self.mono_threshold = mono_threshold
         self.multi_threshold = multi_threshold
 
-        self.average_over = average_over
-        self.dilation_size = dilation_size
-
         if average_over is not None and average_over > 0:
             self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
+        else:
+            self.avg_kernel = None
 
         if dilation_size is not None and dilation_size > 0:
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
+        else:
+            self.dil_kernel = None
 
     @staticmethod
     def _get_max(x):
@@ -581,10 +582,16 @@ class AddTwinCloudMaskTask(EOTask):
         return resized
 
     def _average_all(self, data):
-        return self._map_sequence(data, self._average)
+        if self.avg_kernel is not None:
+            return self._map_sequence(data, self._average)
+        else:
+            return data
 
     def _dilate_all(self, data):
-        return self._map_sequence(data, self._dilate)
+        if self.dil_kernel is not None:
+            return self._map_sequence(data, self._dilate)
+        else:
+            return data
 
     def _ssim_stats(self, bands, is_data, mu, var, nt_rel):
 
