@@ -11,7 +11,6 @@ file in the root directory of this source tree.
 """
 
 import os
-import re
 import logging
 
 import joblib
@@ -443,8 +442,8 @@ class AddMultiCloudMaskTask(EOTask):
                 sigma = 100. / proc_res
             else:
                 rescale = (1., 1.)
-                # TODO: is only x resolution enough?
-                sigma = 100. / hr_res_x
+                res = (hr_res_x + hr_res_y) / 2.
+                sigma = 100. / res
 
         return rescale, sigma
 
@@ -608,7 +607,7 @@ class AddMultiCloudMaskTask(EOTask):
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
             # Run mono classifier
-            mono_proba[nt_min*img_size:nt_max*img_size] = self.mono_classifier.predict_proba(mono_features)[...,1:]
+            mono_proba[nt_min*img_size:nt_max*img_size] = self.mono_classifier.predict_proba(mono_features)[..., 1:]
 
         return mono_proba
 
@@ -675,18 +674,9 @@ class AddMultiCloudMaskTask(EOTask):
             # Compute SSIM stats
             ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
 
-            ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3*ssim_max.shape[-1]))
-            ssim_interweaved[..., 0::3] = ssim_max
-            ssim_interweaved[..., 1::3] = ssim_mean
-            ssim_interweaved[..., 2::3] = ssim_std
-
             # Compute temporal stats
             temp_min = self._get_min(masked_bands)[None, ...]
             temp_mean = self._get_mean(masked_bands)[None, ...]
-
-            temp_interweaved = np.empty((*temp_min.shape[:-1], 2*temp_min.shape[-1]))
-            temp_interweaved[..., 0::2] = temp_min
-            temp_interweaved[..., 1::2] = temp_mean
 
             # Compute difference stats
             t_all = len(bands_t)
@@ -695,21 +685,18 @@ class AddMultiCloudMaskTask(EOTask):
             diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
             diff_mean = (masked_bands[nt_rel][None, ...]*(1. + 1./t_rest) - t_all*temp_mean/t_rest).data
 
-            diff_interweaved = np.empty((*diff_max.shape[:-1], 2*diff_max.shape[-1]))
-            diff_interweaved[..., 0::2] = diff_max
-            diff_interweaved[..., 1::2] = diff_mean
-
-            # Put it all together
-            multi_features = np.concatenate((bands_i,
-                                             loc_mu[nt_rel][None, ...],
-                                             ssim_interweaved,
-                                             temp_interweaved,
-                                             diff_interweaved
-                                            ),
-                                            axis=3
-                                           )
-
-            multi_features = multi_features.reshape(np.prod(multi_features.shape[:-1]), multi_features.shape[-1])
+            # Interweave and concatenate
+            multi_features = self._concatenate(bands_i,
+                                               loc_mu,
+                                               nt_rel,
+                                               ssim_max,
+                                               ssim_mean,
+                                               ssim_std,
+                                               temp_min,
+                                               temp_mean,
+                                               diff_max,
+                                               diff_mean
+                                              )
 
             # Run multi classifier
             multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[..., 1:]
@@ -718,6 +705,40 @@ class AddMultiCloudMaskTask(EOTask):
             prev_nt_max = nt_max
 
         return multi_proba
+
+    @staticmethod
+    def _concatenate(bands_i, loc_mu, nt_rel, ssim_max, ssim_mean, ssim_std, temp_min, temp_mean, diff_max, diff_mean):
+        """
+        Interweaves and concatenates raw and aggregated data into features for the multi-temporal classifier.
+        """
+
+        # Interweave
+        ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3*ssim_max.shape[-1]))
+        ssim_interweaved[..., 0::3] = ssim_max
+        ssim_interweaved[..., 1::3] = ssim_mean
+        ssim_interweaved[..., 2::3] = ssim_std
+
+        temp_interweaved = np.empty((*temp_min.shape[:-1], 2*temp_min.shape[-1]))
+        temp_interweaved[..., 0::2] = temp_min
+        temp_interweaved[..., 1::2] = temp_mean
+
+        diff_interweaved = np.empty((*diff_max.shape[:-1], 2*diff_max.shape[-1]))
+        diff_interweaved[..., 0::2] = diff_max
+        diff_interweaved[..., 1::2] = diff_mean
+
+        # Put it all together
+        multi_features = np.concatenate((bands_i,
+                                         loc_mu[nt_rel][None, ...],
+                                         ssim_interweaved,
+                                         temp_interweaved,
+                                         diff_interweaved
+                                         ),
+                                        axis=3
+                                        )
+
+        multi_features = multi_features.reshape(np.prod(multi_features.shape[:-1]), multi_features.shape[-1])
+
+        return multi_features
 
     def execute(self, eopatch):
         """
