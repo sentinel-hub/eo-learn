@@ -305,21 +305,23 @@ MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.1.joblib.dat'
 MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
 
 class AddMultiCloudMaskTask(EOTask):
-    """This EOTask wraps around s2cloudless and the SSIM-based multi-temporal classifier.
+    """ This task wraps around s2cloudless and the SSIM-based multi-temporal classifier.
+    Its intended output is a cloud mask that is based on the outputs of both
+    individual classifiers (a dilated intersection of individual binary masks).
+    Additional cloud masks and probabilities can be added for either classifier or both.
 
-    By default:
-        - loads s2cloudless and the SSIM-based multi-temporal classifier
-        - considers "BANDS-S2-L1C" and "IS_DATA" to be the relevant data names
-        - considers all 13 bands to be present in the data
-        - performs no scaling mid-processing
-        - considers 11 frames (including the target, for multi) in single batch iteration
-        - does not save cloud probabilities
-        - does not save individual cloud masks
-        - only saves the intersection of twin binary masks as "CLM_INTERSSIM"
-        - the threshold for mono classifier's probabilities is set to 0.4
-        - the threshold for multi classifier's probabilities is set to 0.5
-        - before thresholding, probabilities are averaged with a disk of size 1
-        - after thresholding, the mask is dilated with a disk of size 1
+    The task computes cloud probabilities and binary masks
+
+    Prior to feature extraction and classification, it is recommended that the input be
+    downscaled by specifying the source and processing resolutions. This should be done
+    for the following reasons:
+        - faster execution
+        - lower memory consumption
+        - noise mitigation
+
+    Resizing is performed with linear interpolation. After classification, the cloud
+    probabilities are themselves upscaled to the original dimensions, before proceeding
+    with masking operations.
     """
 
     def __init__(self,
