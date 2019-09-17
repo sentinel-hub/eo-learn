@@ -411,7 +411,6 @@ class AddMultiCloudMaskTask(EOTask):
 
         # Processing resolution
         self.processing_resolution = processing_resolution
-        self.scale_factors = (1., 1.)
         self.sigma = 1.
 
         # Set max frames for single iteration
@@ -799,60 +798,44 @@ class AddMultiCloudMaskTask(EOTask):
         is_data = eopatch.mask[self.is_data_feature].astype(bool)
 
         original_shape = bands.shape[1:-1]
-        self.scale_factors, self.sigma = self._parse_resolution_data(original_shape, eopatch.meta_info)
+        scale_factors, self.sigma = self._parse_resolution_data(original_shape, eopatch.meta_info)
 
         mono_proba_feature, mono_mask_feature = self.mono_features
         multi_proba_feature, multi_mask_feature = self.multi_features
 
         # Downscale if specified
-        if self.scale_factors is not None:
-            bands = resize_images(bands.astype(np.float32), scale_factors=self.scale_factors)
-            is_data = resize_images(is_data.astype(np.uint8), scale_factors=self.scale_factors).astype(np.bool)
+        if scale_factors is not None:
+            bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
+            is_data = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(np.bool)
 
-        # Use only s2cloudless
-        if multi_proba_feature is None and multi_mask_feature is None and self.mask_feature is None:
 
-            # Run mono extraction and classification iters
+        mono_proba = None
+        multi_proba = None
+
+        # Run s2cloudless if needed
+        if any(feature is not None for feature in [self.mask_feature, mono_mask_feature, mono_proba_feature]):
             mono_proba = self._mono_iterations(bands)
-            multi_proba = None
-
-        # Use only the SSIM-based multi-temporal classifier
-        elif mono_proba_feature is None and mono_mask_feature is None and self.mask_feature is None:
-
-            # Run multi extraction and classification iters
-            multi_proba = self._multi_iterations(bands, is_data)
-            mono_proba = None
-
-        # Otherwise, use InterSSIM
-        else:
-
-            # Run multi extraction and classification iters
-            multi_proba = self._multi_iterations(bands, is_data)
-
-            # Run mono extraction and classification iters
-            mono_proba = self._mono_iterations(bands)
-
-        # Reshape
-        if mono_proba is not None:
             mono_proba = mono_proba.reshape(*bands.shape[:-1], 1)
 
-        if multi_proba is not None:
-            multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
-
-        # Upscale (rescale) if specified
-        if self.scale_factors is not None:
-            if mono_proba is not None:
+            # Upscale if necessary
+            if scale_factors is not None:
                 mono_proba = resize_images(mono_proba, new_size=original_shape)
 
-            if multi_proba is not None:
-                multi_proba = resize_images(multi_proba, new_size=original_shape)
-
-        # Average over and threshold
-        if mono_mask_feature is not None or self.mask_feature is not None:
+            # Average over and threshold
             mono_mask = self._average_all(mono_proba) >= self.mono_threshold
 
-        if multi_mask_feature is not None or self.mask_feature is not None:
+        # Run SSIM-based multi-temporal classifier if needed
+        if any(feature is not None for feature in [self.mask_feature, multi_mask_feature, multi_proba_feature]):
+            multi_proba = self._multi_iterations(bands, is_data)
+            multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
+
+            # Upscale if necessary
+            if scale_factors is not None:
+                multi_proba = resize_images(multi_proba, new_size=original_shape)
+
+            # Average over and threshold
             multi_mask = self._average_all(multi_proba) >= self.multi_threshold
+
 
         # Intersect
         if self.mask_feature is not None:
