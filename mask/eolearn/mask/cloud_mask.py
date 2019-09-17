@@ -360,12 +360,12 @@ class AddMultiCloudMaskTask(EOTask):
         # Set data info
         self.data_feature = data_feature
         self.is_data_feature = is_data_feature
-        self.band_indices = (0,1,3,4,7,8,9,10,11,12) if all_bands else tuple(range(10))
+        self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
 
         # If only resolution of the source is specified, the sigma alone can be adjusted
         if src_res is not None and proc_res is None:
 
-            src_res = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
+            src_res = src_res if isinstance(src_res, int) else int(re.match(r'\d+', src_res).group())
 
             self.sigma = 100. / src_res
             self.scale_factors = None
@@ -373,8 +373,8 @@ class AddMultiCloudMaskTask(EOTask):
         # If both resolution of the source and mid-product is specified, resizing is taken into account
         elif src_res is not None and proc_res is not None:
 
-            src_res = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
-            proc_res = proc_res if type(proc_res) == int else int(re.match('\d+', proc_res).group())
+            src_res = src_res if isinstance(src_res, int) else int(re.match(r'\d+', src_res).group())
+            proc_res = proc_res if isinstance(proc_res, int) else int(re.match(r'\d+', proc_res).group())
 
             self.sigma = 100. / proc_res
             self.scale_factors = (src_res / proc_res,)*2
@@ -410,20 +410,20 @@ class AddMultiCloudMaskTask(EOTask):
             self.dil_kernel = None
 
     @staticmethod
-    def _get_max(x):
-        return np.ma.max(x, axis=0).data
+    def _get_max(data):
+        return np.ma.max(data, axis=0).data
 
     @staticmethod
-    def _get_min(x):
-        return np.ma.min(x, axis=0).data
+    def _get_min(data):
+        return np.ma.min(data, axis=0).data
 
     @staticmethod
-    def _get_mean(x):
-        return np.ma.mean(x, axis=0).data
+    def _get_mean(data):
+        return np.ma.mean(data, axis=0).data
 
     @staticmethod
-    def _get_std(x):
-        return np.ma.std(x, axis=0).data
+    def _get_std(data):
+        return np.ma.std(data, axis=0).data
 
     def _frame_indices(self, num_of_frames, target_idx):
         """
@@ -446,66 +446,55 @@ class AddMultiCloudMaskTask(EOTask):
 
         return nt_min, nt_max, nt_rel
 
-    def _red_ssim(self, x, y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, c1=1e-6, c2=1e-5):
+    def _red_ssim(self, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5):
         """
         Slightly reduced (pre-computed) SSIM computation.
         """
 
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
-        x = x.astype(np.float64) * valid_mask
-        y = y.astype(np.float64) * valid_mask
+        data_x = data_x.astype(np.float64) * valid_mask
+        data_y = data_y.astype(np.float64) * valid_mask
 
         # Init
         mu1_2 = mu1 * mu1
         mu2_2 = mu2 * mu2
         mu1_mu2 = mu1 * mu2
 
-        sigma12 = cv2.GaussianBlur((x*y).astype(np.float64), (0,0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        sigma12 = cv2.GaussianBlur(
+            (data_x*data_y).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
         sigma12 -= mu1_mu2
 
         # Formula
-        tmp1 = 2. * mu1_mu2 + c1
-        tmp2 = 2. * sigma12 + c2
+        tmp1 = 2. * mu1_mu2 + const1
+        tmp2 = 2. * sigma12 + const2
         num = tmp1 * tmp2
 
-        tmp1 = mu1_2 + mu2_2 + c1
-        tmp2 = sigma1_2 + sigma2_2 + c2
+        tmp1 = mu1_2 + mu2_2 + const1
+        tmp2 = sigma1_2 + sigma2_2 + const2
         den = tmp1 * tmp2
 
         return np.divide(num, den)
 
-    def _win_avg(self, x):
+    def _win_avg(self, data):
         """
         Spatial window average.
         """
 
-        return cv2.GaussianBlur(x.astype(np.float64), (0,0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        return cv2.GaussianBlur(data.astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _win_prevar(self, x):
+    def _win_prevar(self, data):
         """
         Incomplete spatial window variance.
         """
 
-        return cv2.GaussianBlur((x*x).astype(np.float64), (0,0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        return cv2.GaussianBlur((data*data).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _resize(self, x):
-        downscaling = self.scale_factors[0] < 1 or self.scale_factors[0] < 1
-        old_size = (x.shape[1], x.shape[0])
-        new_size = tuple([int(d * f) for d,f in zip(old_size, self.scale_factors)])
+    def _average(self, data):
+        return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
 
-        # Perform anti-alias smoothing if downscaling
-        if downscaling:
-            sx, sy = [((1/s) - 1)/2 for s in self.scale_factors]
-            x = cv2.GaussianBlur(x, (0,0), sigmaX=sx, sigmaY=sy, borderType=cv2.BORDER_REFLECT)
-
-        return cv2.resize(x, new_size, interpolation=cv2.INTER_LINEAR)
-
-    def _average(self, x):
-        return cv2.filter2D(x.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
-
-    def _dilate(self, x):
-        return (cv2.dilate(x.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
+    def _dilate(self, data):
+        return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
 
     @staticmethod
     def _map_sequence(data, func2d):
@@ -538,57 +527,58 @@ class AddMultiCloudMaskTask(EOTask):
         else:
             return data
 
-    def _ssim_stats(self, bands, is_data, mu, var, nt_rel):
+    def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel):
 
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
         ssim_std = np.empty_like(ssim_max)
 
         bands_r = np.delete(bands, nt_rel, axis=0)
-        mu_r = np.delete(mu, nt_rel, axis=0)
+        win_avg_r = np.delete(win_avg, nt_rel, axis=0)
         var_r = np.delete(var, nt_rel, axis=0)
 
         n_frames = bands_r.shape[0]
         n_bands = bands_r.shape[-1]
 
-        valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel,...,0].reshape(1,*is_data.shape[1:-1],1)
+        valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel, ..., 0].reshape(
+            1, *is_data.shape[1:-1], 1)
 
         for b_i in range(n_bands):
             local_ssim = []
 
             for t_j in range(n_frames):
-                ssim_ij = self._red_ssim(bands[nt_rel,...,b_i],
-                                         bands_r[t_j,...,b_i],
-                                         valid_mask[t_j,...,0],
-                                         mu[nt_rel,...,b_i],
-                                         mu_r[t_j,...,b_i],
-                                         var[nt_rel,...,b_i],
-                                         var_r[t_j,...,b_i]
-                                        )
+                ssim_ij = self._red_ssim(bands[nt_rel, ..., b_i],
+                                         bands_r[t_j, ..., b_i],
+                                         valid_mask[t_j, ..., 0],
+                                         win_avg[nt_rel, ..., b_i],
+                                         win_avg_r[t_j, ..., b_i],
+                                         var[nt_rel, ..., b_i],
+                                         var_r[t_j, ..., b_i]
+                                         )
 
                 local_ssim.append(ssim_ij)
 
             local_ssim = np.ma.array(np.stack(local_ssim), mask=~valid_mask)
 
-            ssim_max[0,...,b_i] = self._get_max(local_ssim)
-            ssim_mean[0,...,b_i] = self._get_mean(local_ssim)
-            ssim_std[0,...,b_i] = self._get_std(local_ssim)
+            ssim_max[0, ..., b_i] = self._get_max(local_ssim)
+            ssim_mean[0, ..., b_i] = self._get_mean(local_ssim)
+            ssim_std[0, ..., b_i] = self._get_std(local_ssim)
 
         return ssim_max, ssim_mean, ssim_std
 
     def _mono_iterations(self, bands):
 
         # Init
-        mono_proba = np.empty((np.prod(bands.shape[:-1]),1))
+        mono_proba = np.empty((np.prod(bands.shape[:-1]), 1))
         img_size = np.prod(bands.shape[1:-1])
 
-        t = bands.shape[0]
+        n_times = bands.shape[0]
 
-        for t_i in range(0, t, self.max_proc_frames):
+        for t_i in range(0, n_times, self.max_proc_frames):
 
             # Extract mono features
             nt_min = t_i
-            nt_max = min(t_i+self.max_proc_frames, t)
+            nt_max = min(t_i+self.max_proc_frames, n_times)
 
             bands_t = bands[nt_min:nt_max]
 
@@ -602,30 +592,28 @@ class AddMultiCloudMaskTask(EOTask):
     def _multi_iterations(self, bands, is_data):
 
         # Init
-        multi_proba = np.empty((np.prod(bands.shape[:-1]),1))
+        multi_proba = np.empty((np.prod(bands.shape[:-1]), 1))
         img_size = np.prod(bands.shape[1:-1])
 
-        t = bands.shape[0]
+        n_times = bands.shape[0]
 
         loc_mu = None
         loc_var = None
 
         prev_nt_min = None
         prev_nt_max = None
-        prev_nt_rel = None
 
-        for t_i in range(t):
+        for t_i in range(n_times):
 
             # Extract temporal window indices
-            nt_min, nt_max, nt_rel = self._frame_indices(t, t_i)
+            nt_min, nt_max, nt_rel = self._frame_indices(n_times, t_i)
 
             bands_t = bands[nt_min:nt_max]
             is_data_t = is_data[nt_min:nt_max]
 
-            bands_i = bands_t[nt_rel][None,...]
-            is_data_i = is_data_t[nt_rel][None,...]
+            bands_i = bands_t[nt_rel][None, ...]
 
-            masked_bands = np.ma.array(bands_t, mask=~is_data_t.repeat(bands_t.shape[-1],axis=-1))
+            masked_bands = np.ma.array(bands_t, mask=~is_data_t.repeat(bands_t.shape[-1], axis=-1))
 
             # Add window averages and variances to local data
             if loc_mu is None:
@@ -645,8 +633,8 @@ class AddMultiCloudMaskTask(EOTask):
 
             elif prev_nt_min != nt_min or prev_nt_max != nt_max:
 
-                win_avg_bands = self._map_sequence(bands_t[-1][None,...], self._win_avg)
-                win_avg_is_data = self._map_sequence(is_data_t[-1][None,...], self._win_avg)
+                win_avg_bands = self._map_sequence(bands_t[-1][None, ...], self._win_avg)
+                win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], self._win_avg)
 
                 win_avg_is_data[win_avg_is_data == 0.] = 1.
                 # win_avg_is_data[~is_data_t[-1][None,...]] == 1.
@@ -655,7 +643,7 @@ class AddMultiCloudMaskTask(EOTask):
                 loc_mu[:-1] = loc_mu[1:]
                 loc_mu[-1] = true_win_avg[0]
 
-                win_prevars = self._map_sequence(bands_t[-1][None,...], self._win_prevar)
+                win_prevars = self._map_sequence(bands_t[-1][None, ...], self._win_prevar)
                 win_prevars[0] -= loc_mu[-1]*loc_mu[-1]
 
                 loc_var[:-1] = loc_var[1:]
@@ -665,32 +653,32 @@ class AddMultiCloudMaskTask(EOTask):
             ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
 
             ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3*ssim_max.shape[-1]))
-            ssim_interweaved[...,0::3] = ssim_max
-            ssim_interweaved[...,1::3] = ssim_mean
-            ssim_interweaved[...,2::3] = ssim_std
+            ssim_interweaved[..., 0::3] = ssim_max
+            ssim_interweaved[..., 1::3] = ssim_mean
+            ssim_interweaved[..., 2::3] = ssim_std
 
             # Compute temporal stats
-            temp_min = self._get_min(masked_bands)[None,...]
-            temp_mean = self._get_mean(masked_bands)[None,...]
+            temp_min = self._get_min(masked_bands)[None, ...]
+            temp_mean = self._get_mean(masked_bands)[None, ...]
 
             temp_interweaved = np.empty((*temp_min.shape[:-1], 2*temp_min.shape[-1]))
-            temp_interweaved[...,0::2] = temp_min
-            temp_interweaved[...,1::2] = temp_mean
+            temp_interweaved[..., 0::2] = temp_min
+            temp_interweaved[..., 1::2] = temp_mean
 
             # Compute difference stats
             t_all = len(bands_t)
             t_rest = t_all-1
 
-            diff_max = (masked_bands[nt_rel][None,...] - temp_min).data
-            diff_mean = (masked_bands[nt_rel][None,...]*(1. + 1./t_rest) - t_all*temp_mean/t_rest).data
+            diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
+            diff_mean = (masked_bands[nt_rel][None, ...]*(1. + 1./t_rest) - t_all*temp_mean/t_rest).data
 
             diff_interweaved = np.empty((*diff_max.shape[:-1], 2*diff_max.shape[-1]))
-            diff_interweaved[...,0::2] = diff_max
-            diff_interweaved[...,1::2] = diff_mean
+            diff_interweaved[..., 0::2] = diff_max
+            diff_interweaved[..., 1::2] = diff_mean
 
             # Put it all together
             multi_features = np.concatenate((bands_i,
-                                             loc_mu[nt_rel][None,...],
+                                             loc_mu[nt_rel][None, ...],
                                              ssim_interweaved,
                                              temp_interweaved,
                                              diff_interweaved
@@ -701,11 +689,10 @@ class AddMultiCloudMaskTask(EOTask):
             multi_features = multi_features.reshape(np.prod(multi_features.shape[:-1]), multi_features.shape[-1])
 
             # Run multi classifier
-            multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[...,1:]
+            multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[..., 1:]
 
             prev_nt_min = nt_min
             prev_nt_max = nt_max
-            prev_nt_rel = nt_rel
 
         return multi_proba
 
@@ -718,7 +705,7 @@ class AddMultiCloudMaskTask(EOTask):
         """
 
         # Get data
-        bands = eopatch.data[self.data_feature][...,self.band_indices].astype(np.float32)
+        bands = eopatch.data[self.data_feature][..., self.band_indices].astype(np.float32)
         is_data = eopatch.mask[self.is_data_feature].astype(bool)
 
         # Downscale if specified
@@ -727,8 +714,6 @@ class AddMultiCloudMaskTask(EOTask):
 
             bands = resize_images(bands.astype(np.float32), scale_factors=self.scale_factors)
             is_data = resize_images(is_data.astype(np.uint8), scale_factors=self.scale_factors).astype(np.bool)
-
-        new_shape = bands.shape[1:-1]
 
         # Use only s2cloudless
         if self.multi_proba_feature is None and self.multi_mask_feature is None and self.mask_feature is None:
