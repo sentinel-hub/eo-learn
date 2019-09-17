@@ -12,9 +12,9 @@ file in the root directory of this source tree.
 
 import os
 import re
-import joblib
 import logging
 
+import joblib
 import numpy as np
 import cv2
 from skimage.morphology import disk
@@ -22,7 +22,7 @@ from skimage.morphology import disk
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
-from eolearn.core import EOPatch, EOTask, get_common_timestamps
+from eolearn.core import EOTask, get_common_timestamps
 from .utilities import resize_images, map_over_axis
 
 
@@ -330,13 +330,10 @@ class AddMultiCloudMaskTask(EOTask):
                  data_feature='BANDS-S2-L1C',
                  is_data_feature='IS_DATA',
                  all_bands=True,
-                 src_res=None,
-                 proc_res=None,
+                 processing_resolution=None,
                  max_proc_frames=11,
-                 mono_proba_feature=None,
-                 multi_proba_feature=None,
-                 mono_mask_feature=None,
-                 multi_mask_feature=None,
+                 mono_features=None,
+                 multi_features=None,
                  mask_feature='CLM_INTERSSIM',
                  mono_threshold=0.4,
                  multi_threshold=0.5,
@@ -362,37 +359,25 @@ class AddMultiCloudMaskTask(EOTask):
         self.is_data_feature = is_data_feature
         self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
 
-        # If only resolution of the source is specified, the sigma alone can be adjusted
-        if src_res is not None and proc_res is None:
-
-            src_res = src_res if isinstance(src_res, int) else int(re.match(r'\d+', src_res).group())
-
-            self.sigma = 100. / src_res
-            self.scale_factors = None
-
-        # If both resolution of the source and mid-product is specified, resizing is taken into account
-        elif src_res is not None and proc_res is not None:
-
-            src_res = src_res if isinstance(src_res, int) else int(re.match(r'\d+', src_res).group())
-            proc_res = proc_res if isinstance(proc_res, int) else int(re.match(r'\d+', proc_res).group())
-
-            self.sigma = 100. / proc_res
-            self.scale_factors = (src_res / proc_res,)*2
-
-        # In any other case, no resizing is performed and sigma is set to a non-volatile level
-        else:
-
-            self.sigma = 1.0
-            self.scale_factors = None
+        # Processing resolution
+        self.processing_resolution = processing_resolution
+        self.scale_factors = (1., 1.)
+        self.sigma = 1.
 
         # Set max frames for single iteration
         self.max_proc_frames = max_proc_frames
 
         # Set feature info
-        self.mono_proba_feature = mono_proba_feature
-        self.multi_proba_feature = multi_proba_feature
-        self.mono_mask_feature = mono_mask_feature
-        self.multi_mask_feature = multi_mask_feature
+        if mono_features is not None and isinstance(mono_features, tuple):
+            self.mono_features = mono_features
+        else:
+            self.mono_features = (None, None)
+
+        if multi_features is not None and isinstance(multi_features, tuple):
+            self.multi_features = multi_features
+        else:
+            self.multi_features = (None, None)
+
         self.mask_feature = mask_feature
 
         # Set thresholding and morph. ops. parameters and kernels
@@ -424,6 +409,44 @@ class AddMultiCloudMaskTask(EOTask):
     @staticmethod
     def _get_std(data):
         return np.ma.std(data, axis=0).data
+
+    def _parse_resolution_data(self, reference_shape, meta_info):
+        """ Compute the resampling factor for height and width of the input array
+
+        :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
+        :type reference_shape: tuple of ints
+        :param meta_info: Meta-info dictionary of input eopatch. Defines OGC request and parameters used to create the
+                            eopatch
+        :return: Rescale factor for rows and columns
+        :rtype: tuple of floats
+        """
+        # Figure out resampling size
+        height, width = reference_shape
+
+        service_type = ServiceType(meta_info['service_type'])
+
+        if service_type == ServiceType.WMS:
+            if self.processing_resolution is not None:
+                rescale = (self.processing_resolution / height, self.processing_resolution / width)
+            else:
+                rescale = (1., 1.)
+
+            # Use default sigma value, since resolution is unknown
+            sigma = 1.0
+
+        elif service_type == ServiceType.WCS:
+            hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), int(meta_info['size_y'].strip('m'))
+
+            if self.processing_resolution is not None:
+                proc_res = float(self.processing_resolution.strip('m'))
+                rescale = (hr_res_y / proc_res, hr_res_x / proc_res)
+                sigma = 100. / proc_res
+            else:
+                rescale = (1., 1.)
+                # TODO: is only x resolution enough?
+                sigma = 100. / hr_res_x
+
+        return rescale, sigma
 
     def _frame_indices(self, num_of_frames, target_idx):
         """
@@ -708,22 +731,26 @@ class AddMultiCloudMaskTask(EOTask):
         bands = eopatch.data[self.data_feature][..., self.band_indices].astype(np.float32)
         is_data = eopatch.mask[self.is_data_feature].astype(bool)
 
+        original_shape = bands.shape[1:-1]
+        self.scale_factors, self.sigma = self._parse_resolution_data(original_shape, eopatch.meta_info)
+
+        mono_proba_feature, mono_mask_feature = self.mono_features
+        multi_proba_feature, multi_mask_feature = self.multi_features
+
         # Downscale if specified
         if self.scale_factors is not None:
-            original_shape = bands.shape[1:-1]
-
             bands = resize_images(bands.astype(np.float32), scale_factors=self.scale_factors)
             is_data = resize_images(is_data.astype(np.uint8), scale_factors=self.scale_factors).astype(np.bool)
 
         # Use only s2cloudless
-        if self.multi_proba_feature is None and self.multi_mask_feature is None and self.mask_feature is None:
+        if multi_proba_feature is None and multi_mask_feature is None and self.mask_feature is None:
 
             # Run mono extraction and classification iters
             mono_proba = self._mono_iterations(bands)
             multi_proba = None
 
         # Use only the SSIM-based multi-temporal classifier
-        elif self.mono_proba_feature is None and self.mono_mask_feature is None and self.mask_feature is None:
+        elif mono_proba_feature is None and mono_mask_feature is None and self.mask_feature is None:
 
             # Run multi extraction and classification iters
             multi_proba = self._multi_iterations(bands, is_data)
@@ -754,10 +781,10 @@ class AddMultiCloudMaskTask(EOTask):
                 multi_proba = resize_images(multi_proba, new_size=original_shape)
 
         # Average over and threshold
-        if self.mono_mask_feature is not None or self.mask_feature is not None:
+        if mono_mask_feature is not None or self.mask_feature is not None:
             mono_mask = self._average_all(mono_proba) >= self.mono_threshold
 
-        if self.multi_mask_feature is not None or self.mask_feature is not None:
+        if multi_mask_feature is not None or self.mask_feature is not None:
             multi_mask = self._average_all(multi_proba) >= self.multi_threshold
 
         # Intersect
@@ -767,22 +794,22 @@ class AddMultiCloudMaskTask(EOTask):
         # Add features
         is_data = eopatch.mask[self.is_data_feature].astype(bool)
 
-        if self.mono_mask_feature is not None:
+        if mono_mask_feature is not None:
             mono_mask = self._dilate_all(mono_mask)
-            eopatch.mask[self.mono_mask_feature] = (mono_mask * is_data).astype(bool)
+            eopatch.mask[mono_mask_feature] = (mono_mask * is_data).astype(bool)
 
-        if self.multi_mask_feature is not None:
+        if multi_mask_feature is not None:
             multi_mask = self._dilate_all(multi_mask)
-            eopatch.mask[self.multi_mask_feature] = (multi_mask * is_data).astype(bool)
+            eopatch.mask[multi_mask_feature] = (multi_mask * is_data).astype(bool)
 
         if self.mask_feature is not None:
             inter_mask = self._dilate_all(inter_mask)
             eopatch.mask[self.mask_feature] = (inter_mask * is_data).astype(bool)
 
-        if self.mono_proba_feature is not None:
-            eopatch.data[self.mono_proba_feature] = (mono_proba * is_data).astype(np.float32)
+        if mono_proba_feature is not None:
+            eopatch.data[mono_proba_feature] = (mono_proba * is_data).astype(np.float32)
 
-        if self.multi_proba_feature is not None:
-            eopatch.data[self.multi_proba_feature] = (multi_proba * is_data).astype(np.float32)
+        if multi_proba_feature is not None:
+            eopatch.data[multi_proba_feature] = (multi_proba * is_data).astype(np.float32)
 
         return eopatch

@@ -143,8 +143,7 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
 
         # Classifier is run on same resolution as data array
         add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
-                                        src_res='10m',
-                                        mono_proba_feature='CLP_S2C',
+                                        mono_features=('CLP_S2C', None),
                                         mask_feature='CLM_INTERSSIM',
                                         average_over=16,
                                         dilation_size=8
@@ -165,9 +164,8 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
 
         # Classifier is run on downscaled version of data array
         add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
-                                       src_res='10m',
-                                       proc_res='120m',
-                                       mono_proba_feature='CLP_S2C',
+                                       processing_resolution='120m',
+                                       mono_features=('CLP_S2C', None),
                                        mask_feature='CLM_INTERSSIM',
                                        average_over=16,
                                        dilation_size=8
