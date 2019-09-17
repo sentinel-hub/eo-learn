@@ -365,19 +365,19 @@ class AddMultiCloudMaskTask(EOTask):
         # If only resolution of the source is specified, the sigma alone can be adjusted
         if src_res is not None and proc_res is None:
 
-            src_res_ = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
+            src_res = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
 
-            self.sigma = 100. / src_res_
+            self.sigma = 100. / src_res
             self.scale_factors = None
 
         # If both resolution of the source and mid-product is specified, resizing is taken into account
         elif src_res is not None and proc_res is not None:
 
-            src_res_ = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
-            proc_res_ = proc_res if type(proc_res) == int else int(re.match('\d+', proc_res).group())
+            src_res = src_res if type(src_res) == int else int(re.match('\d+', src_res).group())
+            proc_res = proc_res if type(proc_res) == int else int(re.match('\d+', proc_res).group())
 
-            self.sigma = 100. / proc_res_
-            self.scale_factors = (src_res_ / proc_res_,)*2
+            self.sigma = 100. / proc_res
+            self.scale_factors = (src_res / proc_res,)*2
 
         # In any other case, no resizing is performed and sigma is set to a non-volatile level
         else:
