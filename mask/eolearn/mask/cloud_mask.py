@@ -446,18 +446,22 @@ class AddMultiCloudMaskTask(EOTask):
 
     @staticmethod
     def _get_max(data):
+        """Timewise max for masked arrays."""
         return np.ma.max(data, axis=0).data
 
     @staticmethod
     def _get_min(data):
+        """Timewise min for masked arrays."""
         return np.ma.min(data, axis=0).data
 
     @staticmethod
     def _get_mean(data):
+        """Timewise mean for masked arrays."""
         return np.ma.mean(data, axis=0).data
 
     @staticmethod
     def _get_std(data):
+        """Timewise std for masked arrays."""
         return np.ma.std(data, axis=0).data
 
     def _parse_resolution_data(self, reference_shape, meta_info):
@@ -499,9 +503,7 @@ class AddMultiCloudMaskTask(EOTask):
         return rescale, sigma
 
     def _frame_indices(self, num_of_frames, target_idx):
-        """
-        Returns frame indices within a given time window, with the target index relative to it.
-        """
+        """Returns frame indices within a given time window, with the target index relative to it."""
 
         # Get reach
         nt_min = target_idx - self.max_proc_frames//2
@@ -520,9 +522,7 @@ class AddMultiCloudMaskTask(EOTask):
         return nt_min, nt_max, nt_rel
 
     def _red_ssim(self, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5):
-        """
-        Slightly reduced (pre-computed) SSIM computation.
-        """
+        """Slightly reduced (pre-computed) SSIM computation."""
 
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
@@ -550,16 +550,12 @@ class AddMultiCloudMaskTask(EOTask):
         return np.divide(num, den)
 
     def _win_avg(self, data):
-        """
-        Spatial window average.
-        """
+        """Spatial window average."""
 
         return cv2.GaussianBlur(data.astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
     def _win_prevar(self, data):
-        """
-        Incomplete spatial window variance.
-        """
+        """Incomplete spatial window variance."""
 
         return cv2.GaussianBlur((data*data).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
@@ -760,9 +756,7 @@ class AddMultiCloudMaskTask(EOTask):
 
     @staticmethod
     def _concatenate(bands_i, loc_mu, nt_rel, ssim_max, ssim_mean, ssim_std, temp_min, temp_mean, diff_max, diff_mean):
-        """
-        Interweaves and concatenates raw and aggregated data into features for the multi-temporal classifier.
-        """
+        """Interweaves and concatenates raw and aggregated data into features for the multi-temporal classifier."""
 
         # Interweave
         ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3*ssim_max.shape[-1]))
@@ -794,7 +788,7 @@ class AddMultiCloudMaskTask(EOTask):
 
     def execute(self, eopatch):
         """
-        Add optional features (cloud probabilities and masks) to an EOPatch instance.
+        Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
