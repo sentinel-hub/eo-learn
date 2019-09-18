@@ -680,70 +680,14 @@ class AddMultiCloudMaskTask(EOTask):
             bands_t = bands[nt_min:nt_max]
             is_data_t = is_data[nt_min:nt_max]
 
-            bands_i = bands_t[nt_rel][None, ...]
-
             masked_bands = np.ma.array(bands_t, mask=~is_data_t.repeat(bands_t.shape[-1], axis=-1))
 
             # Add window averages and variances to local data
-            if loc_mu is None:
-                win_avg_bands = self._map_sequence(bands_t, self._win_avg)
-                win_avg_is_data = self._map_sequence(is_data_t, self._win_avg)
-
-                win_avg_is_data[win_avg_is_data == 0.] = 1.
-                # win_avg_is_data[~is_data_t] = 1.
-                true_win_avg = win_avg_bands / win_avg_is_data
-
-                loc_mu = true_win_avg
-
-                win_prevars = self._map_sequence(bands_t, self._win_prevar)
-                win_prevars -= loc_mu*loc_mu
-
-                loc_var = win_prevars
-
-            elif prev_nt_min != nt_min or prev_nt_max != nt_max:
-
-                win_avg_bands = self._map_sequence(bands_t[-1][None, ...], self._win_avg)
-                win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], self._win_avg)
-
-                win_avg_is_data[win_avg_is_data == 0.] = 1.
-                # win_avg_is_data[~is_data_t[-1][None,...]] == 1.
-                true_win_avg = win_avg_bands / win_avg_is_data
-
-                loc_mu[:-1] = loc_mu[1:]
-                loc_mu[-1] = true_win_avg[0]
-
-                win_prevars = self._map_sequence(bands_t[-1][None, ...], self._win_prevar)
-                win_prevars[0] -= loc_mu[-1]*loc_mu[-1]
-
-                loc_var[:-1] = loc_var[1:]
-                loc_var[-1] = win_prevars[0]
-
-            # Compute SSIM stats
-            ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
-
-            # Compute temporal stats
-            temp_min = self._get_min(masked_bands)[None, ...]
-            temp_mean = self._get_mean(masked_bands)[None, ...]
-
-            # Compute difference stats
-            t_all = len(bands_t)
-            t_rest = t_all-1
-
-            diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
-            diff_mean = (masked_bands[nt_rel][None, ...]*(1. + 1./t_rest) - t_all*temp_mean/t_rest).data
+            if loc_mu is None or prev_nt_min != nt_min or prev_nt_max != nt_max:
+                loc_mu, loc_var = self._update_batches(loc_mu, loc_var, bands_t, is_data_t)
 
             # Interweave and concatenate
-            multi_features = self._concatenate(bands_i,
-                                               loc_mu,
-                                               nt_rel,
-                                               ssim_max,
-                                               ssim_mean,
-                                               ssim_std,
-                                               temp_min,
-                                               temp_mean,
-                                               diff_max,
-                                               diff_mean
-                                              )
+            multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
             # Run multi classifier
             multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[..., 1:]
@@ -753,9 +697,59 @@ class AddMultiCloudMaskTask(EOTask):
 
         return multi_proba
 
-    @staticmethod
-    def _concatenate(bands_i, loc_mu, nt_rel, ssim_max, ssim_mean, ssim_std, temp_min, temp_mean, diff_max, diff_mean):
-        """Interweaves and concatenates raw and aggregated data into features for the multi-temporal classifier."""
+    def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t):
+        """Updates window variance and mean values for a batch"""
+
+        # Add window averages and variances to local data
+        if loc_mu is None:
+            win_avg_bands = self._map_sequence(bands_t, self._win_avg)
+            win_avg_is_data = self._map_sequence(is_data_t, self._win_avg)
+
+            win_avg_is_data[win_avg_is_data == 0.] = 1.
+
+            loc_mu = win_avg_bands / win_avg_is_data
+
+            win_prevars = self._map_sequence(bands_t, self._win_prevar)
+            win_prevars -= loc_mu*loc_mu
+
+            loc_var = win_prevars
+
+        else:
+
+            win_avg_bands = self._map_sequence(
+                bands_t[-1][None, ...], self._win_avg)
+            win_avg_is_data = self._map_sequence(
+                is_data_t[-1][None, ...], self._win_avg)
+
+            win_avg_is_data[win_avg_is_data == 0.] = 1.
+
+            loc_mu[:-1] = loc_mu[1:]
+            loc_mu[-1] = (win_avg_bands / win_avg_is_data)[0]
+
+            win_prevars = self._map_sequence(
+                bands_t[-1][None, ...], self._win_prevar)
+            win_prevars[0] -= loc_mu[-1]*loc_mu[-1]
+
+            loc_var[:-1] = loc_var[1:]
+            loc_var[-1] = win_prevars[0]
+
+        return loc_mu, loc_var
+
+    def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands):
+        """Extracts features for a batch."""
+
+        # Compute SSIM stats
+        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
+
+        # Compute temporal stats
+        temp_min = self._get_min(masked_bands)[None, ...]
+        temp_mean = self._get_mean(masked_bands)[None, ...]
+
+        # Compute difference stats
+        t_all = len(bands_t)
+
+        diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
+        diff_mean = (masked_bands[nt_rel][None, ...]*(1. + 1./(t_all-1)) - t_all*temp_mean/(t_all-1)).data
 
         # Interweave
         ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3*ssim_max.shape[-1]))
@@ -772,7 +766,7 @@ class AddMultiCloudMaskTask(EOTask):
         diff_interweaved[..., 1::2] = diff_mean
 
         # Put it all together
-        multi_features = np.concatenate((bands_i,
+        multi_features = np.concatenate((bands_t[nt_rel][None, ...],
                                          loc_mu[nt_rel][None, ...],
                                          ssim_interweaved,
                                          temp_interweaved,
