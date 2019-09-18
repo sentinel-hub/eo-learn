@@ -657,7 +657,7 @@ class AddMultiCloudMaskTask(EOTask):
 
         return mono_proba
 
-    # pylint: disable=unsupported-assignment-operation
+
     def _multi_iterations(self, bands, is_data):
 
         # Init
