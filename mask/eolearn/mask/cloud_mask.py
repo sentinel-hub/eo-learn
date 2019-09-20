@@ -365,8 +365,9 @@ class AddMultiCloudMaskTask(EOTask):
                           the required 10. Default value:  `True`.
         :type all_bands: bool
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks.
+                                      Resolution is given as a pair of x and y resolutions.
                                       Default is `None` (source resolution).
-        :type processing_resolution: str or int
+        :type processing_resolution: (str, str) or (int, int)
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
                                 considered in a single batch iteration (To keep memory usage at agreeable levels,
                                 the task operates on smaller batches of time frames). Default value:  `11`.
@@ -483,7 +484,8 @@ class AddMultiCloudMaskTask(EOTask):
 
         if service_type == ServiceType.WMS:
             if self.processing_resolution is not None:
-                rescale = (self.processing_resolution / height, self.processing_resolution / width)
+                pres_x, pres_y = self.processing_resolution
+                rescale = (pres_y / height, pres_x / width)
             else:
                 rescale = (1., 1.)
 
@@ -494,13 +496,15 @@ class AddMultiCloudMaskTask(EOTask):
             hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), float(meta_info['size_y'].strip('m'))
 
             if self.processing_resolution is not None:
-                proc_res = float(self.processing_resolution.strip('m'))
-                rescale = (hr_res_y / proc_res, hr_res_x / proc_res)
-                sigma = 100. / proc_res
+                pres_x, pres_y = [float(res.strip('m')) for res in self.processing_resolution]
+                pres = (pres_x + pres_y) / 2.0
+
+                rescale = (hr_res_y / pres_y, hr_res_x / pres_x)
             else:
+                pres = (hr_res_x + hr_res_y) / 2.
                 rescale = (1., 1.)
-                res = (hr_res_x + hr_res_y) / 2.
-                sigma = 100. / res
+
+            sigma = 100. / pres
 
         return rescale, sigma
 
