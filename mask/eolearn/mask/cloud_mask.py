@@ -340,18 +340,21 @@ class AddMultiCloudMaskTask(EOTask):
         """Constructor.
 
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
-                                Default value: None (s2cloudless is used)
-        :type mono_classifier: sklearn Estimator that works on the 10 selected reflectance bands
+                                Must work on the 10 selected reflectance bands as features
                                 (`B01`, `B02`, `B04`, `B05`, `B08`, `B8A`, `B09`, `B10`, `B11`, `B12`)
+                                Default value: None (s2cloudless is used)
+        :type mono_classifier: sklearn Estimator
         :param multi_classifier: Classifier used for multi-temporal cloud detection.
+                                 Must work on the 90 multi-temporal features:
+                                    - raw reflectance value in the target frame,
+                                    - average value within a spatial window in the target frame,
+                                    - maximum, mean and standard deviation of the structural similarity (SSIM)
+                                    - indices between a spatial window in the target frame and every other,
+                                    - minimum and mean reflectance of all available time frames,
+                                    - maximum and mean difference in reflectances between the target frame
+                                      and every other.
                                  Default value: None (SSIM-based model is used)
-        :type multi_classifier: sklearn Estimator that works on the 90 multi-temporal features:
-                                 - raw reflectance value in the target frame,
-                                 - average value within a spatial window in the target frame,
-                                 - maximum, mean and standard deviation of the structural similarity (SSIM)
-                                 - indices between a spatial window in the target frame and every other,
-                                 - minimum and mean reflectance of all available time frames,
-                                 - maximum and mean difference in reflectances between the target frame and every other.
+        :type multi_classifier: sklearn Estimator
         :param data_feature: Name of the key in the `eopatch.data` dictionary, which stores raw reflectance data.
                              Default value:  `'BANDS-S2-L1C'`.
         :type data_feature: str
@@ -488,7 +491,7 @@ class AddMultiCloudMaskTask(EOTask):
             sigma = 1.0
 
         elif service_type == ServiceType.WCS:
-            hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), int(meta_info['size_y'].strip('m'))
+            hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), float(meta_info['size_y'].strip('m'))
 
             if self.processing_resolution is not None:
                 proc_res = float(self.processing_resolution.strip('m'))
