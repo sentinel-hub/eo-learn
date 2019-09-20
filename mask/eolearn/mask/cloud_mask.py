@@ -365,9 +365,10 @@ class AddMultiCloudMaskTask(EOTask):
                           the required 10. Default value:  `True`.
         :type all_bands: bool
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks.
-                                      Resolution is given as a pair of x and y resolutions.
+                                      Resolution is given as a pair of x and y resolutions. If a single value is
+                                      given, it is used for both dimensions.
                                       Default is `None` (source resolution).
-        :type processing_resolution: (str, str) or (int, int)
+        :type processing_resolution: (str, str) or (int, int) or str or int
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
                                 considered in a single batch iteration (To keep memory usage at agreeable levels,
                                 the task operates on smaller batches of time frames). Default value:  `11`.
@@ -413,8 +414,12 @@ class AddMultiCloudMaskTask(EOTask):
         self.is_data_feature = is_data_feature
         self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
 
-        # Processing resolution
-        self.processing_resolution = processing_resolution
+        # If single resolution given, use for both
+        if isinstance(processing_resolution, (str, int)):
+            self.processing_resolution = (processing_resolution, ) * 2
+        else:
+            self.processing_resolution = processing_resolution
+
         self.sigma = 1.
 
         # Set max frames for single iteration
