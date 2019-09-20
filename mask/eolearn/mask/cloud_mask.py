@@ -21,7 +21,7 @@ from skimage.morphology import disk
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 
-from eolearn.core import EOTask, get_common_timestamps
+from eolearn.core import EOTask, get_common_timestamps, FeatureType
 from .utilities import resize_images, map_over_axis
 
 
@@ -410,8 +410,8 @@ class AddMultiCloudMaskTask(EOTask):
         self.multi_classifier = multi_classifier
 
         # Set data info
-        self.data_feature = data_feature
-        self.is_data_feature = is_data_feature
+        self.data_feature = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
+        self.is_data_feature = self._parse_features(is_data_feature, default_feature_type=FeatureType.MASK)
         self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
 
         # If single resolution given, use for both
@@ -799,9 +799,12 @@ class AddMultiCloudMaskTask(EOTask):
         :return: `EOPatch` with additional features
         """
 
-        # Get data
-        bands = eopatch.data[self.data_feature][..., self.band_indices].astype(np.float32)
-        is_data = eopatch.mask[self.is_data_feature].astype(bool)
+        # Get data and is_data
+        feature_type, feature_name = next(self.data_feature(eopatch))
+        bands = eopatch[feature_type][feature_name][..., self.band_indices].astype(np.float32)
+
+        feature_type, feature_name = next(self.is_data_feature(eopatch))
+        is_data = eopatch[feature_type][feature_name].astype(bool)
 
         original_shape = bands.shape[1:-1]
         scale_factors, self.sigma = self._parse_resolution_data(original_shape, eopatch.meta_info)
@@ -812,7 +815,7 @@ class AddMultiCloudMaskTask(EOTask):
         # Downscale if specified
         if scale_factors is not None:
             bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
-            is_data = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(np.bool)
+            is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(np.bool)
 
 
         mono_proba = None
@@ -832,7 +835,7 @@ class AddMultiCloudMaskTask(EOTask):
 
         # Run SSIM-based multi-temporal classifier if needed
         if any(feature is not None for feature in [self.mask_feature, multi_mask_feature, multi_proba_feature]):
-            multi_proba = self._multi_iterations(bands, is_data)
+            multi_proba = self._multi_iterations(bands, is_data_sm)
             multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
 
             # Upscale if necessary
@@ -846,9 +849,6 @@ class AddMultiCloudMaskTask(EOTask):
         # Intersect
         if self.mask_feature is not None:
             inter_mask = mono_mask & multi_mask
-
-        # Add features
-        is_data = eopatch.mask[self.is_data_feature].astype(bool)
 
         if mono_mask_feature is not None:
             mono_mask = self._dilate_all(mono_mask)

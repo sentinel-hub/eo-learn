@@ -130,7 +130,7 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
     def test_raises_errors(self):
         add_tcm = AddMultiCloudMaskTask(data_feature='bands')
 
-        self.assertRaises(KeyError, add_tcm, self.eop)
+        self.assertRaises(ValueError, add_tcm, self.eop)
 
     def _check_shape(self, output, data):
         """Checks that shape of data and output match."""
