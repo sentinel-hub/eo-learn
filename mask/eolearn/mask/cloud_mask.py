@@ -319,6 +319,22 @@ class AddMultiCloudMaskTask(EOTask):
     Resizing is performed with linear interpolation. After classification, the cloud
     probabilities are themselves upscaled to the original dimensions, before proceeding
     with masking operations.
+
+    Example usage:
+    ```python
+    # Only output the combined mask
+    task1 = AddMultiCloudMaskTask(processing_resolution='120m',
+                                  mask_feature='CLM_INTERSSIM',
+                                  average_over=16,
+                                  dilation_size=8)
+
+    # Only output monotemporal masks. Only monotemporal processing is done.
+    task2 = AddMultiCloudMaskTask(processing_resolution='120m',
+                                  mono_features=(None, 'CLM_S2C'),
+                                  mask_feature=None,
+                                  average_over=16,
+                                  dilation_size=8)
+    ```
     """
 
     def __init__(self,
@@ -382,8 +398,9 @@ class AddMultiCloudMaskTask(EOTask):
                                added to `eopatch.mask`. By default, none of them are added.
         :type multi_features: (str | None, str | None)
         :param mask_feature: Name of the output intersection feature. The masks are added to the `eopatch.mask`
-                             attribute dictionary. Default value: `'CLM_INTERSSIM'`.
-        :type mask_feature: str
+                             attribute dictionary. Default value: `'CLM_INTERSSIM'`. If None, the intersection
+                             feature is not computed.
+        :type mask_feature: str | None
         :param mono_threshold: Cloud probability threshold for the mono classifier. Default value: `0.4`.
         :type mono_threshold: float
         :param multi_threshold: Cloud probability threshold for the multi classifier. Default value: `0.5`.
