@@ -7,6 +7,6 @@ from .sentinelhub_service import SentinelHubOGCInput, SentinelHubWMSInput, Senti
     DEMWMSInput, DEMWCSInput, AddSen2CorClassificationFeature
 from .geopedia import AddGeopediaFeature
 from .local_io import ExportToTiff
-from .tile_io import MapboxXYZInput
+from .tile_io import TileMapServiceInput
 
 __version__ = '0.4.2'
