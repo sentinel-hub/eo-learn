@@ -303,6 +303,7 @@ def get_s2_pixel_cloud_detector(threshold=0.4, average_over=4, dilation_size=2, 
 MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.1.joblib.dat'
 MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
 
+
 class AddMultiCloudMaskTask(EOTask):
     """ This task wraps around s2cloudless and the SSIM-based multi-temporal classifier.
     Its intended output is a cloud mask that is based on the outputs of both
@@ -351,8 +352,7 @@ class AddMultiCloudMaskTask(EOTask):
                  mono_threshold=0.4,
                  multi_threshold=0.5,
                  average_over=1,
-                 dilation_size=1
-                ):
+                 dilation_size=1):
         """Constructor.
 
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
@@ -504,29 +504,33 @@ class AddMultiCloudMaskTask(EOTask):
 
         service_type = ServiceType(meta_info['service_type'])
 
+        # Default sigma and rescale values
+        sigma = 1.0
+        rescale = (1., 1.)
+
         if service_type == ServiceType.WMS:
+            # With WMS we can only compute rescaling factors
             if self.processing_resolution is not None:
                 pres_x, pres_y = self.processing_resolution
                 rescale = (pres_y / height, pres_x / width)
-            else:
-                rescale = (1., 1.)
-
-            # Use default sigma value, since resolution is unknown
-            sigma = 1.0
 
         elif service_type == ServiceType.WCS:
             hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), float(meta_info['size_y'].strip('m'))
 
             if self.processing_resolution is not None:
+                # If processing resolution is given use it to calculate rescale factors and sigma
                 pres_x, pres_y = [float(res.strip('m')) for res in self.processing_resolution]
                 pres = (pres_x + pres_y) / 2.0
 
                 rescale = (hr_res_y / pres_y, hr_res_x / pres_x)
             else:
+                # If processing resolution is not given use the source resolution for sigma computation
                 pres = (hr_res_x + hr_res_y) / 2.
-                rescale = (1., 1.)
 
             sigma = 100. / pres
+
+        else:
+            raise ValueError("Unknown service type %s." % service_type)
 
         return rescale, sigma
 
@@ -605,8 +609,10 @@ class AddMultiCloudMaskTask(EOTask):
         :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
 
-        func3d = lambda x: map_over_axis(x, func2d, axis=2) # Map over channel dimension on 3d tensor
-        func4d = lambda x: map_over_axis(x, func3d, axis=0) # Map over time dimension on 4d tensor
+        # Map over channel dimension on 3d tensor
+        def func3d(x): return map_over_axis(x, func2d, axis=2)
+        # Map over time dimension on 4d tensor
+        def func4d(x): return map_over_axis(x, func3d, axis=0)
 
         output = func4d(data)
 
@@ -685,7 +691,6 @@ class AddMultiCloudMaskTask(EOTask):
             mono_proba[nt_min*img_size:nt_max*img_size] = self.mono_classifier.predict_proba(mono_features)[..., 1:]
 
         return mono_proba
-
 
     def _multi_iterations(self, bands, is_data):
 
@@ -829,6 +834,7 @@ class AddMultiCloudMaskTask(EOTask):
         mono_proba_feature, mono_mask_feature = self.mono_features
         multi_proba_feature, multi_mask_feature = self.multi_features
 
+        is_data_sm = is_data
         # Downscale if specified
         if scale_factors is not None:
             bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
@@ -862,11 +868,6 @@ class AddMultiCloudMaskTask(EOTask):
             # Average over and threshold
             multi_mask = self._average_all(multi_proba) >= self.multi_threshold
 
-
-        # Intersect
-        if self.mask_feature is not None:
-            inter_mask = mono_mask & multi_mask
-
         if mono_mask_feature is not None:
             mono_mask = self._dilate_all(mono_mask)
             eopatch.mask[mono_mask_feature] = (mono_mask * is_data).astype(bool)
@@ -875,7 +876,9 @@ class AddMultiCloudMaskTask(EOTask):
             multi_mask = self._dilate_all(multi_mask)
             eopatch.mask[multi_mask_feature] = (multi_mask * is_data).astype(bool)
 
+        # Intersect
         if self.mask_feature is not None:
+            inter_mask = mono_mask & multi_mask
             inter_mask = self._dilate_all(inter_mask)
             eopatch.mask[self.mask_feature] = (inter_mask * is_data).astype(bool)
 

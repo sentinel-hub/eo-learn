@@ -8,9 +8,9 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import pytest
-import unittest
 import os
+import unittest
+import pytest
 import numpy as np
 
 from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector, AddMultiCloudMaskTask
@@ -70,7 +70,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         add_cm = AddCloudMaskTask(classifier, 'ALL_DATA', cm_size_y='20m', cm_size_x='20m',
                                   cmask_feature='CLM_TEST', cprobs_feature='CLP_TEST')
         eop_clm = add_cm(self.eop)
-        
+
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_TEST'], eop_clm.data['ALL_DATA'])
         self._check_shape(eop_clm.data['CLP_TEST'], eop_clm.data['ALL_DATA'])
@@ -84,8 +84,9 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         self.assertAlmostEqual(np.mean(eop_clm.data['CLP_TEST']), mean_clp_provided, places=2)
 
         # Check if same times are flagged as cloudless
-        cloudless = np.mean(eop_clm.mask['CLM_TEST'], axis=(1,2,3)) == 0
-        self.assertTrue(np.all(cloudless == eop_clm.label['IS_CLOUDLESS'][:,0]))
+        cloudless = np.mean(eop_clm.mask['CLM_TEST'], axis=(1, 2, 3)) == 0
+        self.assertTrue(
+            np.all(cloudless == eop_clm.label['IS_CLOUDLESS'][:, 0]))
 
     @pytest.mark.xfail
     def test_wms_request(self):
@@ -146,8 +147,7 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
                                         mono_features=('CLP_S2C', None),
                                         mask_feature='CLM_INTERSSIM',
                                         average_over=16,
-                                        dilation_size=8
-                                      )
+                                        dilation_size=8)
         eop_clm = add_tcm(self.eop)
 
         # Check shape and type
@@ -164,12 +164,11 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
 
         # Classifier is run on downscaled version of data array
         add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
-                                       processing_resolution='120m',
-                                       mono_features=('CLP_S2C', None),
-                                       mask_feature='CLM_INTERSSIM',
-                                       average_over=16,
-                                       dilation_size=8
-                                      )
+                                        processing_resolution='120m',
+                                        mono_features=('CLP_S2C', None),
+                                        mask_feature='CLM_INTERSSIM',
+                                        average_over=16,
+                                        dilation_size=8)
         eop_clm = add_tcm(self.eop)
 
         # Check shape and type
@@ -185,8 +184,8 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
         self.assertAlmostEqual(np.mean(eop_clm.data['CLP_S2C']), mean_clp_provided, places=1)
 
         # Check if most of the same times are flagged as cloudless
-        cloudless = np.mean(eop_clm.mask['CLM_INTERSSIM'], axis=(1,2,3)) == 0
-        self.assertTrue(np.mean(cloudless == eop_clm.label['IS_CLOUDLESS'][:,0]) > 0.94)
+        cloudless = np.mean(eop_clm.mask['CLM_INTERSSIM'], axis=(1, 2, 3)) == 0
+        self.assertTrue(np.mean(cloudless == eop_clm.label['IS_CLOUDLESS'][:, 0]) > 0.94)
 
 
 if __name__ == '__main__':
