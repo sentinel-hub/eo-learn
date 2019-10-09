@@ -2,8 +2,7 @@ import unittest
 
 import numpy as np
 from eolearn.core import EOPatch
-from features.eolearn.features.doubly_logistic_approximation import \
-    DoublyLogisticApproximationTask
+from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
 from datetime import datetime
 
 
