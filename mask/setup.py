@@ -40,7 +40,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={'eolearn.mask': [
-        'models/pixel_s2_cloud_detector_lightGBM_v0.1.joblib.dat',
+        'models/pixel_s2_cloud_detector_lightGBM_v0.2.joblib.dat',
         'models/ssim_s2_cloud_detector_lightGBM_v0.2.joblib.dat',
         ]},
     install_requires=parse_requirements("requirements.txt"),
