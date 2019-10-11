@@ -1,55 +1,59 @@
-from sentinelhub import MimeType, CRS, SentinelHubRequest, SentinelHubOutput, SentinelHubBounds,\
-    SentinelHubData, SentinelHubOutputResponse, SentinelHubWrapper, SHConfig, SentinelhubSession, WebFeatureService, \
-    decoding, MimeType, DataSource, SentinelhubClient, BBox
-
-from eolearn.core import EOPatch, EOTask, FeatureType
-from sentinelhub import parse_time_interval
 import tarfile
-import json
-import tifffile as tiff
 import numpy as np
 import io
 from copy import deepcopy
 import datetime as dt
 
+from sentinelhub import MimeType, CRS, SentinelHubRequest, SentinelHubOutput, SentinelHubBounds, SentinelHubData,\
+    SentinelHubOutputResponse, SentinelHubWrapper, WebFeatureService, decoding, MimeType, DataSource, \
+    SentinelhubClient, parse_time_interval
+
+from eolearn.core import EOPatch, EOTask, FeatureType
+
 
 EVALSCRIPT = """
     function setup() {
         return {
-            input: ["B02", "B03", "B04"],
-            output: { id:"default", bands: 3}
+            input: [{
+                bands: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"],
+                units: "DN"
+            }],
+            output: {
+                id:"default",
+                bands: 13,
+                sampleType: SampleType.UINT16
+            }
         }
     }
 
     function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {
-        outputMetadata.userData = { "metadata":  JSON.stringify(inputMetadata) }
+        outputMetadata.userData = { "norm_factor":  inputMetadata.normalizationFactor }
     }
 
     function evaluatePixel(sample) {
-        return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02];
+        return [ sample.B01, sample.B02, sample.B03, sample.B04, sample.B05, sample.B06,
+                 sample.B07, sample.B08, sample.B8A, sample.B09, sample.B10, sample.B11, sample.B12]
     }
 """
 
+
 def tar_to_numpy(data):
+    tar = tarfile.open(fileobj=io.BytesIO(data))
+
+    img_member = tar.getmember('default.tif')
+    file = tar.extractfile(img_member)
+    image = decoding.decode_image(file.read(), MimeType.TIFF_d16)
+    image = image.astype(np.int16)
+
     try:
-        tar = tarfile.open(fileobj=io.BytesIO(data))
-
-        img_member = tar.getmember('default.tif')
-        file = tar.extractfile(img_member)
-        image = decoding.decode_image(file.read(), MimeType.TIFF_d16)
-        image = image.astype(np.int16)
-
         json_member = tar.getmember('userdata.json')
         file = tar.extractfile(json_member)
         meta_obj = decoding.decode_data(file.read(), MimeType.JSON)
+        norm_factor = meta_obj['norm_factor']
+    except TypeError:
+        norm_factor = 0
 
-        # decode_data only accepts encoded bytes, not str
-        meta_dict = json.loads(meta_obj['metadata'])
-        norm_factor = meta_dict['normalizationFactor']
-
-        return image, norm_factor
-    except:
-        return None
+    return image, norm_factor
 
 def copy_format_request(request, date):
     date_from, date_to = date, date + dt.timedelta(seconds=1)
@@ -62,22 +66,39 @@ def copy_format_request(request, date):
         time_range['to'] = time_to
     return request
 
-class Sentinelhub16bitInput(EOTask):
-    def __init__(self, feature_name, time_range, size_x, size_y, bbox):
+
+class SentinelHubProcessingInput(EOTask):
+    def __init__(self, feature_name, time_range, size_x, size_y, bbox, maxcc=1.0, time_difference=-1):
         self.time_range = parse_time_interval(time_range)
         self.size_x = size_x
         self.size_y = size_y
         self.feature_name = feature_name
         self.bbox = bbox
+        self.maxcc = maxcc
+        self.time_difference = dt.timedelta(seconds=time_difference)
 
     def execute(self, eopatch=None):
         # ------------------- get dates -------------------
 
         wfs = WebFeatureService(
-            bbox=self.bbox, time_interval=self.time_range, data_source=DataSource.SENTINEL2_L1C, maxcc=1.0
+            bbox=self.bbox, time_interval=self.time_range, data_source=DataSource.SENTINEL2_L1C, maxcc=self.maxcc
         )
 
         dates = wfs.get_dates()
+
+        if len(dates) <= 1:
+            return dates
+
+        sorted_dates = sorted(dates)
+
+        separate_dates = [sorted_dates[0]]
+        for curr_date in sorted_dates[1:]:
+            if curr_date - separate_dates[-1] > self.time_difference:
+                separate_dates.append(curr_date)
+
+        dates = separate_dates
+
+        # iter_pairs = ((d1, d2) for d1, d2 in zip(sorted_dates[:-1], sorted_dates[1:]))
 
         # ------------------- build request -------------------
 
@@ -103,21 +124,24 @@ class Sentinelhub16bitInput(EOTask):
 
         # ------------------- map dates to the built request -------------------
 
-        client = SentinelhubClient()
+        client = SentinelhubClient(cache_dir='cache_dir')
         images = [(date, client.get(req, decoder=tar_to_numpy)) for req, date in requests]
-        images = [(date, img) for date, img in images if img is not None]
-        images = sorted(images, key=lambda x: x[0])
-        dates = [date for date, img in images]
 
-        norm_factor = [img[1][1] for img in images]
-        arrays = [img[1][0] for img in images]
+        images = [(date, img) for date, img in images if img is not None]
+        dates = [date for date, img in images]
 
         if eopatch is None:
             eopatch = EOPatch()
 
-        eopatch.timestamp = dates
+        # norm_factor = [img[1][1] for img in images]
+        # arrays = [img[1][0] for img in images]
+
+        # eopatch.timestamp = dates
+        # eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(arrays)
+        # eopatch[(FeatureType.SCALAR, 'norm_factor')] = np.asarray(norm_factor)[:,np.newaxis]
+
+        arrays = [(img * norm_factor).astype(np.float32) for date, (img, norm_factor) in images]
         eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(arrays)
-        eopatch[(FeatureType.SCALAR, 'norm_factor')] = np.asarray(norm_factor)[:,np.newaxis]
 
         return eopatch
 
