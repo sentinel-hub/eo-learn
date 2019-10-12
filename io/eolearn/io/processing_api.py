@@ -70,15 +70,14 @@ def tar_to_numpy(data):
     image = decoding.decode_image(file.read(), MimeType.TIFF_d16)
     image = image.astype(np.int16)
 
-    try:
-        json_member = tar.getmember('userdata.json')
-        file = tar.extractfile(json_member)
-        meta_obj = decoding.decode_data(file.read(), MimeType.JSON)
-        norm_factor = meta_obj['norm_factor']
-    except TypeError:
-        norm_factor = 0
+    json_member = tar.getmember('userdata.json')
+    file = tar.extractfile(json_member)
+    meta_obj = decoding.decode_data(file.read(), MimeType.JSON)
 
-    return image, norm_factor
+    if meta_obj is None:
+        return image, 0
+
+    return image, meta_obj['norm_factor']
 
 def copy_format_request(request, date):
     date_from, date_to = date, date + dt.timedelta(seconds=1)
