@@ -17,9 +17,8 @@ import joblib
 import numpy as np
 import cv2
 from skimage.morphology import disk
-
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType
 from .utilities import resize_images, map_over_axis
@@ -609,9 +608,11 @@ class AddMultiCloudMaskTask(EOTask):
         """
 
         # Map over channel dimension on 3d tensor
-        def func3d(x): return map_over_axis(x, func2d, axis=2)
+        def func3d(dim):
+            return map_over_axis(dim, func2d, axis=2)
         # Map over time dimension on 4d tensor
-        def func4d(x): return map_over_axis(x, func3d, axis=0)
+        def func4d(dim):
+            return map_over_axis(dim, func3d, axis=0)
 
         output = func4d(data)
 
