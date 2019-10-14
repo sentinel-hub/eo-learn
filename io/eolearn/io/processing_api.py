@@ -44,18 +44,18 @@ def tar_to_numpy(data):
     tar = tarfile.open(fileobj=io.BytesIO(data))
 
     img_member = tar.getmember('default.tif')
-    file = tar.extractfile(img_member)
-    image = decoding.decode_image(file.read(), MimeType.TIFF_d16)
-    image = image.astype(np.int16)
+    img_file = tar.extractfile(img_member)
+    image = decoding.decode_image(img_file.read(), MimeType.TIFF_d16)
 
     json_member = tar.getmember('userdata.json')
-    file = tar.extractfile(json_member)
-    meta_obj = decoding.decode_data(file.read(), MimeType.JSON)
+    json_file = tar.extractfile(json_member)
+    meta_obj = decoding.decode_data(json_file.read(), MimeType.JSON)
 
-    if meta_obj is None:
-        return image, 0
+    if meta_obj is not None:
+        norm_factor = meta_obj['norm_factor']
+        image = image * norm_factor
 
-    return image, meta_obj['norm_factor']
+    return image.astype(np.float32)
 
 def request_from_date(request, date):
     ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
@@ -74,19 +74,19 @@ def request_from_date(request, date):
 class SentinelHubProcessingInput(EOTask):
     ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     '''
-    def __init__(self, feature_name, time_range, size_x, size_y, bbox, maxcc=1.0, time_difference=-1,
-                 data_source=DataSource.SENTINEL2_L1C, bands=None, cache_dir=None):
+    def __init__(self, feature_name, size_x, size_y, bbox, time_range, data_source, maxcc=1.0, time_difference=-1,
+                 bands=None, cache_dir=None):
         """
         :param feature_name: Target feature into which to save the downloaded images.
         """
 
-        self.time_range = parse_time_interval(time_range)
+        self.feature_name = feature_name
         self.size_x = size_x
         self.size_y = size_y
-        self.feature_name = feature_name
         self.bbox = bbox
-        self.maxcc = maxcc
+        self.time_range = parse_time_interval(time_range)
         self.data_source = data_source
+        self.maxcc = maxcc
         self.time_difference = dt.timedelta(seconds=time_difference)
         self.bands = data_source.bands() if bands is None else bands
         self.cache_dir = cache_dir
@@ -108,17 +108,12 @@ class SentinelHubProcessingInput(EOTask):
 
         dates = wfs.get_dates()
 
-        if len(dates) <= 1:
-            return dates
+        if len(dates) == 0:
+            raise ValueError("No available images for requested time range: {}".format(self.time_range))
 
         dates = sorted(dates)
-
-        cleaned_dates = [dates[0]]
-        for curr_date in dates[1:]:
-            if curr_date - cleaned_dates[-1] > self.time_difference:
-                cleaned_dates.append(curr_date)
-
-        return cleaned_dates
+        dates = [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
+        return dates
 
     def execute(self, eopatch=None):
         ''' Make a WFS request to get valid dates, download an image for each valid date and store it in an EOPatch
@@ -142,19 +137,14 @@ class SentinelHubProcessingInput(EOTask):
 
         headers = {"accept": "application/tar", 'content-type': 'application/json'}
 
-        requests = [(request_from_date(request, date), date) for date in dates]
-
         client = SentinelhubClient(cache_dir=self.cache_dir)
-        images = [(date, client.get(req, decoder=tar_to_numpy, headers=headers)) for req, date in requests]
 
-        images = [(date, img) for date, img in images if img is not None]
-        dates = [date for date, img in images]
+        requests = (request_from_date(request, date) for date in dates)
+        images = (client.get(req, headers=headers) for req in requests)
+        images = [tar_to_numpy(img) for img in images]
 
-        if eopatch is None:
-            eopatch = EOPatch()
-
-        arrays = [(img * norm_factor).astype(np.float32) for date, (img, norm_factor) in images]
+        eopatch = EOPatch() if eopatch is None else eopatch
         shape = len(dates), self.size_y, self.size_x, len(self.bands)
-        eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(arrays).reshape(*shape)
+        eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(images).reshape(*shape)
 
         return eopatch
