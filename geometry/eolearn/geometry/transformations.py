@@ -146,8 +146,9 @@ class VectorToRaster(EOTask):
             raise ValueError('Cannot recognize CRS of vector data')
         vector_data_crs = CRS(vector_data.crs['init'])
         if eopatch.bbox.crs is not vector_data_crs:
-            raise ValueError("Vector data and EOPatch should be in the same CRS, found '{}' and '{}'"
-                             "".format(eopatch.bbox.crs, vector_data_crs))
+            warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
+                          'each execution', RuntimeWarning)
+            vector_data = vector_data.to_crs(epsg=eopatch.bbox.crs.epsg)
 
         bbox_poly = eopatch.bbox.geometry
         vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
