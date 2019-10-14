@@ -13,8 +13,8 @@ file in the root directory of this source tree.
 import logging
 
 import numpy as np
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
 from eolearn.core import EOTask, get_common_timestamps
 from .utilities import resize_images

@@ -218,7 +218,8 @@ class EOPatchVisualization:
         for column in geodataframe.columns:
             if column == self.timestamp_column:
                 continue
-            elif column == self.geometry_column:
+
+            if column == self.geometry_column:
                 dataframe[column] = dummy_geometry
             elif column == 'valid':
                 dataframe[column] = False
