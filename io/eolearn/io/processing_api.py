@@ -1,68 +1,46 @@
-import tarfile
-import numpy as np
+''' An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
+'''
 import io
+import json
+import tarfile
 from copy import deepcopy
 import datetime as dt
+import numpy as np
 
-from sentinelhub import MimeType, CRS, SentinelHubRequest, SentinelHubOutput, SentinelHubBounds, SentinelHubData,\
-    SentinelHubOutputResponse, SentinelHubWrapper, WebFeatureService, decoding, MimeType, DataSource, \
-    SentinelhubClient, parse_time_interval
+from sentinelhub import SentinelHubRequest, SentinelHubOutput, SentinelHubBounds, SentinelHubData, \
+    SentinelHubOutputResponse, WebFeatureService, decoding, MimeType, DataSource, SentinelhubClient, \
+    parse_time_interval
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 
-
-EVALSCRIPT_L1C = """
-    function setup() {
-        return {
-            input: [{
-                bands: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"],
+EVALSCRIPT = """
+    function setup() {{
+        return {{
+            input: [{{
+                bands: {bands},
                 units: "DN"
-            }],
-            output: {
+            }}],
+            output: {{
                 id:"default",
-                bands: 13,
+                bands: {num_bands},
                 sampleType: SampleType.UINT16
-            }
-        }
-    }
+            }}
+        }}
+    }}
 
-    function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {
-        outputMetadata.userData = { "norm_factor":  inputMetadata.normalizationFactor }
-    }
+    function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {{
+        outputMetadata.userData = {{ "norm_factor":  inputMetadata.normalizationFactor }}
+    }}
 
-    function evaluatePixel(sample) {
-        return [ sample.B01, sample.B02, sample.B03, sample.B04, sample.B05, sample.B06,
-                 sample.B07, sample.B08, sample.B8A, sample.B09, sample.B10, sample.B11, sample.B12]
-    }
-"""
-
-EVALSCRIPT_L2A = """
-    function setup() {
-        return {
-            input: [{
-                bands: ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"],
-                units: "DN"
-            }],
-            output: {
-                id:"default",
-                bands: 12,
-                sampleType: SampleType.UINT16
-            }
-        }
-    }
-
-    function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {
-        outputMetadata.userData = { "norm_factor":  inputMetadata.normalizationFactor }
-    }
-
-    function evaluatePixel(sample) {
-        return [ sample.B01, sample.B02, sample.B03, sample.B04, sample.B05, sample.B06,
-                 sample.B07, sample.B08, sample.B8A, sample.B09, sample.B11, sample.B12]
-    }
+    function evaluatePixel(sample) {{
+        return {samples}
+    }}
 """
 
 
 def tar_to_numpy(data):
+    ''' A decoder to convert response bytes into a (image: np.ndarray, nomr_factor: int) tuple
+    '''
     tar = tarfile.open(fileobj=io.BytesIO(data))
 
     img_member = tar.getmember('default.tif')
@@ -79,12 +57,14 @@ def tar_to_numpy(data):
 
     return image, meta_obj['norm_factor']
 
-def copy_format_request(request, date):
+def request_from_date(request, date):
+    ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
+    '''
     date_from, date_to = date, date + dt.timedelta(seconds=1)
     time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
 
     request = deepcopy(request)
-    for data in request.body['input']['data']:
+    for data in request['input']['data']:
         time_range = data['dataFilter']['timeRange']
         time_range['from'] = time_from
         time_range['to'] = time_to
@@ -92,8 +72,13 @@ def copy_format_request(request, date):
 
 
 class SentinelHubProcessingInput(EOTask):
-    def __init__(self, feature_name, time_range, size_x, size_y, bbox, maxcc=1.0, time_difference=-1, store='16bit',
-                 data_source=DataSource.SENTINEL2_L1C):
+    ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
+    '''
+    def __init__(self, feature_name, time_range, size_x, size_y, bbox, maxcc=1.0, time_difference=-1,
+                 data_source=DataSource.SENTINEL2_L1C, bands=None, cache_dir=None):
+        """
+        :param feature_name: Target feature into which to save the downloaded images.
+        """
 
         self.time_range = parse_time_interval(time_range)
         self.size_x = size_x
@@ -101,13 +86,22 @@ class SentinelHubProcessingInput(EOTask):
         self.feature_name = feature_name
         self.bbox = bbox
         self.maxcc = maxcc
-        self.store = store
         self.data_source = data_source
         self.time_difference = dt.timedelta(seconds=time_difference)
+        self.bands = data_source.bands() if bands is None else bands
+        self.cache_dir = cache_dir
 
-    def execute(self, eopatch=None):
-        # ------------------- get dates -------------------
+    def generate_evalscript(self):
+        ''' Generate the evalscript to be passed with the request, based on chosen bands
+        '''
+        samples = ', '.join(['sample.{}'.format(band) for band in self.bands])
+        samples = '[{}]'.format(samples)
+        script = EVALSCRIPT.format(bands=json.dumps(self.bands), num_bands=len(self.bands), samples=samples)
+        return script
 
+    def get_dates(self):
+        ''' Make a WebFeatureService request to get dates and clean them according to self.time_difference
+        '''
         wfs = WebFeatureService(
             bbox=self.bbox, time_interval=self.time_range, data_source=self.data_source, maxcc=self.maxcc
         )
@@ -117,54 +111,41 @@ class SentinelHubProcessingInput(EOTask):
         if len(dates) <= 1:
             return dates
 
-        sorted_dates = sorted(dates)
+        dates = sorted(dates)
 
-        separate_dates = [sorted_dates[0]]
-        for curr_date in sorted_dates[1:]:
-            if curr_date - separate_dates[-1] > self.time_difference:
-                separate_dates.append(curr_date)
+        cleaned_dates = [dates[0]]
+        for curr_date in dates[1:]:
+            if curr_date - cleaned_dates[-1] > self.time_difference:
+                cleaned_dates.append(curr_date)
 
-        dates = separate_dates
+        return cleaned_dates
 
-        # iter_pairs = ((d1, d2) for d1, d2 in zip(sorted_dates[:-1], sorted_dates[1:]))
+    def execute(self, eopatch=None):
+        ''' Make a WFS request to get valid dates, download an image for each valid date and store it in an EOPatch
 
-        # ------------------- build request -------------------
+        :param eopatch: input EOPatch
+        :type eopatch: EOPatch
+        '''
+        dates = self.get_dates()
 
         responses = [
             SentinelHubOutputResponse('default', 'image/tiff'),
             SentinelHubOutputResponse('userdata', 'application/json')
         ]
 
-        # TODO: temporary solution, DataSource itself should support such mapping
-        data_type = {
-            DataSource.SENTINEL2_L1C: 'S2L1C',
-            DataSource.SENTINEL2_L2A: 'S2L2A'
-        }[self.data_source]
-
-        evalscript = {
-            DataSource.SENTINEL2_L1C: EVALSCRIPT_L1C,
-            DataSource.SENTINEL2_L2A: EVALSCRIPT_L2A
-        }[self.data_source]
-
-        body = SentinelHubRequest(
+        request = SentinelHubRequest(
             bounds=SentinelHubBounds(crs=self.bbox.crs.opengis_string, bbox=list(self.bbox)),
-            data=[SentinelHubData(data_type=data_type)],
+            data=[SentinelHubData(data_type=self.data_source.api_identifier())],
             output=SentinelHubOutput(size_x=self.size_x, size_y=self.size_y, responses=responses),
-            evalscript=evalscript
+            evalscript=self.generate_evalscript()
         )
 
-        request = SentinelHubWrapper(
-            body=body, headers={"accept": "application/tar", 'content-type': 'application/json'}
-        )
+        headers = {"accept": "application/tar", 'content-type': 'application/json'}
 
-        # ------------------- map dates to the built request -------------------
+        requests = [(request_from_date(request, date), date) for date in dates]
 
-        requests = [(copy_format_request(request, date), date) for date in dates]
-
-        # ------------------- map dates to the built request -------------------
-
-        client = SentinelhubClient(cache_dir='cache_dir')
-        images = [(date, client.get(req, decoder=tar_to_numpy)) for req, date in requests]
+        client = SentinelhubClient(cache_dir=self.cache_dir)
+        images = [(date, client.get(req, decoder=tar_to_numpy, headers=headers)) for req, date in requests]
 
         images = [(date, img) for date, img in images if img is not None]
         dates = [date for date, img in images]
@@ -172,15 +153,8 @@ class SentinelHubProcessingInput(EOTask):
         if eopatch is None:
             eopatch = EOPatch()
 
-        if self.store == '16bit':
-            norm_factor = [img[1][1] for img in images]
-            arrays = [img[1][0] for img in images]
-
-            eopatch.timestamp = dates
-            eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(arrays)
-            eopatch[(FeatureType.SCALAR, 'norm_factor')] = np.asarray(norm_factor)[:, np.newaxis]
-        elif self.store == '32bit':
-            arrays = [(img * norm_factor).astype(np.float32) for date, (img, norm_factor) in images]
-            eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(arrays)
+        arrays = [(img * norm_factor).astype(np.float32) for date, (img, norm_factor) in images]
+        shape = len(dates), self.size_y, self.size_x, len(self.bands)
+        eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(arrays).reshape(*shape)
 
         return eopatch
