@@ -50,12 +50,9 @@ def tar_to_numpy(data):
     json_member = tar.getmember('userdata.json')
     json_file = tar.extractfile(json_member)
     meta_obj = decoding.decode_data(json_file.read(), MimeType.JSON)
+    norm_factor = 0 if meta_obj is None else meta_obj['norm_factor']
 
-    if meta_obj is not None:
-        norm_factor = meta_obj['norm_factor']
-        image = image * norm_factor
-
-    return image.astype(np.float32)
+    return image.astype(np.float32), norm_factor
 
 def request_from_date(request, date):
     ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
@@ -88,8 +85,10 @@ class SentinelHubProcessingInput(EOTask):
         self.data_source = data_source
         self.maxcc = maxcc
         self.time_difference = dt.timedelta(seconds=time_difference)
-        self.bands = data_source.bands() if bands is None else bands
         self.cache_dir = cache_dir
+
+        self.bands = data_source.bands() if bands is None else bands
+        self.bands.append('dataMask')
 
     def generate_evalscript(self):
         ''' Generate the evalscript to be passed with the request, based on chosen bands
@@ -144,7 +143,15 @@ class SentinelHubProcessingInput(EOTask):
         images = [tar_to_numpy(img) for img in images]
 
         eopatch = EOPatch() if eopatch is None else eopatch
-        shape = len(dates), self.size_y, self.size_x, len(self.bands)
-        eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(images).reshape(*shape)
+
+        shape = len(dates), self.size_y, self.size_x
+
+        if 'dataMask' in self.bands:
+            is_data_arrays = [img[..., -1:] for img, norm_factor in images]
+            eopatch[(FeatureType.MASK, 'IS_DATA')] = np.asarray(is_data_arrays).reshape(*shape, 1)
+
+        img_bands = len(self.bands) - 1 if 'dataMask' in self.bands else len(self.bands)
+        img_arrays = [img[..., slice(img_bands)] * norm_factor for img, norm_factor in images]
+        eopatch[(FeatureType.DATA, self.feature_name)] = np.asarray(img_arrays).reshape(*shape, img_bands)
 
         return eopatch
