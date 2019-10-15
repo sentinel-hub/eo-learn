@@ -3,9 +3,11 @@
 import io
 import json
 import tarfile
+import concurrent
 from copy import deepcopy
 import datetime as dt
 import numpy as np
+
 
 from sentinelhub import SentinelHubRequest, SentinelHubOutput, SentinelHubBounds, SentinelHubData, \
     SentinelHubOutputResponse, WebFeatureService, decoding, MimeType, DataSource, SentinelhubClient, \
@@ -138,8 +140,12 @@ class SentinelHubProcessingInput(EOTask):
 
         client = SentinelhubClient(cache_dir=self.cache_dir)
 
-        requests = (request_from_date(request, date) for date in dates)
-        images = (client.get(req, headers=headers) for req in requests)
+        requests = [request_from_date(request, date) for date in dates]
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            responses = [executor.submit(client.get, request, headers=headers) for request in requests]
+
+        images = [response.result() for response in responses]
         images = [tar_to_numpy(img) for img in images]
 
         eopatch = EOPatch() if eopatch is None else eopatch
