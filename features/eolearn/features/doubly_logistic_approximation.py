@@ -8,7 +8,10 @@ from eolearn.core import EOTask
 
 
 def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5):
-    # pylint: invalid-name
+    # pylint: disable=invalid-name,locally-disabled
+    """
+    Function that is passed to scipy.optimize
+    """
     return initial_value + scale * np.piecewise(middle, [middle < a1, middle >= a1],
                                                 [lambda y: np.exp(-((a1 - y) / a4) ** a5),
                                                  lambda y: np.exp(-((y - a1) / a2) ** a3)])
