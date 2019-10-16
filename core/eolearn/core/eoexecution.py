@@ -171,7 +171,7 @@ class EOExecutor:
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
         if log_path:
-            logger.info(msg='Pipeline failed.' if cls.STATS_ERROR else 'Pipeline finished.')
+            logger.info(msg='Pipeline failed.' if cls.STATS_ERROR in stats else 'Pipeline finished.')
             handler.close()
             logger.removeHandler(handler)
 
