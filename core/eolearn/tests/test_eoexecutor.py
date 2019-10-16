@@ -73,6 +73,44 @@ class TestEOExecutor(unittest.TestCase):
                     for name, log_filename in zip(execution_names, log_filenames):
                         self.assertTrue(log_filename == 'eoexecution-{}.log'.format(name))
 
+    def test_execution_logs_multiprocess(self):
+        for execution_names in [None, [4, 'x', 'y', 'z']]:
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                executor = EOExecutor(self.workflow, self.execution_args, save_logs=True,
+                                      logs_folder=tmp_dir_name,
+                                      execution_names=execution_names)
+                executor.run(workers=3, multiprocess=True)
+
+                self.assertEqual(len(executor.execution_logs), 4)
+                for log in executor.execution_logs:
+                    self.assertTrue(len(log.split()) >= 3)
+
+                log_filenames = sorted(os.listdir(executor.report_folder))
+                self.assertEqual(len(log_filenames), 4)
+
+                if execution_names:
+                    for name, log_filename in zip(execution_names, log_filenames):
+                        self.assertTrue(log_filename == 'eoexecution-{}.log'.format(name))
+
+    def test_execution_logs_multithread(self):
+        for execution_names in [None, [4, 'x', 'y', 'z']]:
+            with tempfile.TemporaryDirectory() as tmp_dir_name:
+                executor = EOExecutor(self.workflow, self.execution_args, save_logs=True,
+                                      logs_folder=tmp_dir_name,
+                                      execution_names=execution_names)
+                executor.run(workers=3, multiprocess=False)
+
+                self.assertEqual(len(executor.execution_logs), 4)
+                for log in executor.execution_logs:
+                    self.assertTrue(len(log.split()) >= 3)
+
+                log_filenames = sorted(os.listdir(executor.report_folder))
+                self.assertEqual(len(log_filenames), 4)
+
+                if execution_names:
+                    for name, log_filename in zip(execution_names, log_filenames):
+                        self.assertTrue(log_filename == 'eoexecution-{}.log'.format(name))
+
     def test_execution_stats(self):
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name)

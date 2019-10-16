@@ -16,6 +16,7 @@ file in the root directory of this source tree.
 
 import os
 import logging
+import threading
 import traceback
 import concurrent.futures
 import datetime as dt
@@ -23,6 +24,8 @@ import datetime as dt
 from tqdm.auto import tqdm
 
 from .eoworkflow import EOWorkflow
+
+from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -149,15 +152,14 @@ class EOExecutor:
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, return_results = process_args
-
-        if log_path:
-            logger = logging.getLogger()
-            logger.setLevel(logging.DEBUG)
-            handler = cls._get_log_handler(log_path)
-            logger.addHandler(handler)
-
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
+            if log_path:
+                logger = logging.getLogger()
+                logger.setLevel(logging.DEBUG)
+                handler = cls._get_log_handler(log_path)
+                logger.addHandler(handler)
+
             results = workflow.execute(input_args, monitor=True)
 
             if return_results:
@@ -169,6 +171,7 @@ class EOExecutor:
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
         if log_path:
+            logger.info(msg='Pipeline failed.' if cls.STATS_ERROR else 'Pipeline finished.')
             handler.close()
             logger.removeHandler(handler)
 
@@ -181,6 +184,7 @@ class EOExecutor:
         handler = logging.FileHandler(log_path)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
+        handler.addFilter(LogFileFilter(thread_name=threading.currentThread().getName()))
 
         return handler
 
