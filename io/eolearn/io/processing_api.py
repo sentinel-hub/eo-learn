@@ -9,9 +9,8 @@ import datetime as dt
 import numpy as np
 
 
-from sentinelhub import SentinelHubRequest, SentinelHubOutput, SentinelHubBounds, SentinelHubData, \
-    SentinelHubOutputResponse, WebFeatureService, decoding, MimeType, DataSource, SentinelhubClient, \
-    parse_time_interval
+from sentinelhub import WebFeatureService, decoding, MimeType, DataSource, SentinelHubClient, parse_time_interval
+import sentinelhub.sentinelhub_request as shr
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 
@@ -125,27 +124,30 @@ class SentinelHubProcessingInput(EOTask):
         dates = self.get_dates()
 
         responses = [
-            SentinelHubOutputResponse('default', 'image/tiff'),
-            SentinelHubOutputResponse('userdata', 'application/json')
+            shr.response('default', 'image/tiff'),
+            shr.response('userdata', 'application/json')
         ]
 
-        request = SentinelHubRequest(
-            bounds=SentinelHubBounds(crs=self.bbox.crs.opengis_string, bbox=list(self.bbox)),
-            data=[SentinelHubData(data_type=self.data_source.api_identifier())],
-            output=SentinelHubOutput(size_x=self.size_x, size_y=self.size_y, responses=responses),
+        request = shr.body(
+            request_bounds=shr.bounds(crs=self.bbox.crs.opengis_string, bbox=list(self.bbox)),
+            request_data=[shr.data(data_type=self.data_source.api_identifier())],
+            request_output=shr.output(size_x=self.size_x, size_y=self.size_y, responses=responses),
             evalscript=self.generate_evalscript()
         )
 
         headers = {"accept": "application/tar", 'content-type': 'application/json'}
 
-        client = SentinelhubClient(cache_dir=self.cache_dir)
+        client = SentinelHubClient(cache_dir=self.cache_dir)
 
         requests = [request_from_date(request, date) for date in dates]
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             responses = [executor.submit(client.get, request, headers=headers) for request in requests]
-
         images = [response.result() for response in responses]
+
+        # responses = [client.get(request, headers=headers) for request in requests]
+        # images = responses
+
         images = [tar_to_numpy(img) for img in images]
 
         eopatch = EOPatch() if eopatch is None else eopatch
