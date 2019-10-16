@@ -3,16 +3,18 @@
 import io
 import json
 import tarfile
+import logging
 import concurrent
 from copy import deepcopy
 import datetime as dt
 import numpy as np
 
-
 from sentinelhub import WebFeatureService, decoding, MimeType, DataSource, SentinelHubClient, parse_time_interval
 import sentinelhub.sentinelhub_request as shr
 
 from eolearn.core import EOPatch, EOTask, FeatureType
+
+LOGGER = logging.getLogger(__name__)
 
 EVALSCRIPT = """
     function setup() {{
@@ -77,7 +79,6 @@ class SentinelHubProcessingInput(EOTask):
         """
         :param feature_name: Target feature into which to save the downloaded images.
         """
-
         self.feature_name = feature_name
         self.size_x = size_x
         self.size_y = size_y
@@ -141,12 +142,17 @@ class SentinelHubProcessingInput(EOTask):
 
         requests = [request_from_date(request, date) for date in dates]
 
+        LOGGER.debug('Starting {} processing requests'.format(len(requests)))
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             responses = [executor.submit(client.get, request, headers=headers) for request in requests]
         images = [response.result() for response in responses]
 
         # responses = [client.get(request, headers=headers) for request in requests]
         # images = responses
+
+        LOGGER.debug('Downloads complete')
+
 
         images = [tar_to_numpy(img) for img in images]
 
