@@ -59,9 +59,7 @@ class SentinelHubProcessingInput(EOTask):
         self.maxcc = maxcc
         self.time_difference = dt.timedelta(seconds=time_difference)
         self.cache_dir = cache_dir
-
         self.bands = data_source.bands() if bands is None else bands
-        self.bands.append('dataMask')
 
     @staticmethod
     def request_from_date(request, date):
@@ -139,7 +137,7 @@ class SentinelHubProcessingInput(EOTask):
         LOGGER.debug('Downloads complete')
 
         images = (decode_tar(img) for img in images)
-        images = [(img, metadata.get('norm_factor', 0) if metadata else 0) for img, metadata in images]
+        images = [(img.astype(np.float32), meta.get('norm_factor', 0) if meta else 0) for img, meta in images]
 
         eopatch = EOPatch() if eopatch is None else eopatch
 
@@ -147,7 +145,7 @@ class SentinelHubProcessingInput(EOTask):
 
         if 'dataMask' in self.bands:
             is_data_arrays = [img[..., -1:] for img, norm_factor in images]
-            eopatch[(FeatureType.MASK, 'IS_DATA')] = np.asarray(is_data_arrays).reshape(*shape, 1)
+            eopatch[(FeatureType.MASK, 'IS_DATA')] = np.asarray(is_data_arrays).reshape(*shape, 1).astype(np.bool)
 
         img_bands = len(self.bands) - 1 if 'dataMask' in self.bands else len(self.bands)
         img_arrays = [img[..., slice(img_bands)] * norm_factor for img, norm_factor in images]
