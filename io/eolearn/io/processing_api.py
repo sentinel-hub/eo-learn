@@ -1,10 +1,7 @@
 ''' An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
 '''
-import io
 import json
-import tarfile
 import logging
-import concurrent
 from copy import deepcopy
 import datetime as dt
 import numpy as np
@@ -120,20 +117,11 @@ class SentinelHubProcessingInput(EOTask):
         )
 
         headers = {"accept": "application/tar", 'content-type': 'application/json'}
-
-        client = SentinelHubClient(cache_dir=self.cache_dir)
-
         requests = [self.request_from_date(request, date) for date in dates]
 
         LOGGER.debug('Starting %d processing requests', len(requests))
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            responses = [executor.submit(client.get, request, headers=headers) for request in requests]
-        images = [response.result() for response in responses]
-
-        # responses = [client.get(request, headers=headers) for request in requests]
-        # images = responses
-
+        client = SentinelHubClient(cache_dir=self.cache_dir)
+        images = client.download_list(requests, headers=headers, max_workers=5)
         LOGGER.debug('Downloads complete')
 
         images = (decode_tar(img) for img in images)
