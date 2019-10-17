@@ -9,7 +9,8 @@ from copy import deepcopy
 import datetime as dt
 import numpy as np
 
-from sentinelhub import WebFeatureService, decoding, MimeType, DataSource, SentinelHubClient, parse_time_interval
+from sentinelhub import WebFeatureService, MimeType, DataSource, SentinelHubClient, parse_time_interval
+from sentinelhub.decoding import decode_tar
 import sentinelhub.sentinelhub_request as shr
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -41,36 +42,6 @@ EVALSCRIPT = """
 """
 
 
-def tar_to_numpy(data):
-    ''' A decoder to convert response bytes into a (image: np.ndarray, nomr_factor: int) tuple
-    '''
-    tar = tarfile.open(fileobj=io.BytesIO(data))
-
-    img_member = tar.getmember('default.tif')
-    img_file = tar.extractfile(img_member)
-    image = decoding.decode_image(img_file.read(), MimeType.TIFF_d16)
-
-    json_member = tar.getmember('userdata.json')
-    json_file = tar.extractfile(json_member)
-    meta_obj = decoding.decode_data(json_file.read(), MimeType.JSON)
-    norm_factor = 0 if meta_obj is None else meta_obj['norm_factor']
-
-    return image.astype(np.float32), norm_factor
-
-def request_from_date(request, date):
-    ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
-    '''
-    date_from, date_to = date, date + dt.timedelta(seconds=1)
-    time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
-
-    request = deepcopy(request)
-    for data in request['input']['data']:
-        time_range = data['dataFilter']['timeRange']
-        time_range['from'] = time_from
-        time_range['to'] = time_to
-    return request
-
-
 class SentinelHubProcessingInput(EOTask):
     ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     '''
@@ -91,6 +62,20 @@ class SentinelHubProcessingInput(EOTask):
 
         self.bands = data_source.bands() if bands is None else bands
         self.bands.append('dataMask')
+
+    @staticmethod
+    def request_from_date(request, date):
+        ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
+        '''
+        date_from, date_to = date, date + dt.timedelta(seconds=1)
+        time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
+
+        request = deepcopy(request)
+        for data in request['input']['data']:
+            time_range = data['dataFilter']['timeRange']
+            time_range['from'] = time_from
+            time_range['to'] = time_to
+        return request
 
     def generate_evalscript(self):
         ''' Generate the evalscript to be passed with the request, based on chosen bands
@@ -140,9 +125,9 @@ class SentinelHubProcessingInput(EOTask):
 
         client = SentinelHubClient(cache_dir=self.cache_dir)
 
-        requests = [request_from_date(request, date) for date in dates]
+        requests = [self.request_from_date(request, date) for date in dates]
 
-        LOGGER.debug('Starting {} processing requests'.format(len(requests)))
+        LOGGER.debug('Starting %d processing requests', len(requests))
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             responses = [executor.submit(client.get, request, headers=headers) for request in requests]
@@ -153,8 +138,8 @@ class SentinelHubProcessingInput(EOTask):
 
         LOGGER.debug('Downloads complete')
 
-
-        images = [tar_to_numpy(img) for img in images]
+        images = (decode_tar(img) for img in images)
+        images = [(img, metadata.get('norm_factor', 0) if metadata else 0) for img, metadata in images]
 
         eopatch = EOPatch() if eopatch is None else eopatch
 
