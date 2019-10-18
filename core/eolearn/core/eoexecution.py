@@ -16,6 +16,7 @@ file in the root directory of this source tree.
 
 import os
 import logging
+import threading
 import traceback
 import concurrent.futures
 import datetime as dt
@@ -23,6 +24,8 @@ import datetime as dt
 from tqdm.auto import tqdm
 
 from .eoworkflow import EOWorkflow
+
+from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -145,17 +148,36 @@ class EOExecutor:
         return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
 
     @classmethod
+    def _try_add_logging(cls, log_path):
+        if log_path:
+            try:
+                logger = logging.getLogger()
+                logger.setLevel(logging.DEBUG)
+                handler = cls._get_log_handler(log_path=log_path)
+                logger.addHandler(handler)
+                return logger, handler
+            except BaseException:
+                pass
+
+        return None, None
+
+    @classmethod
+    def _try_remove_logging(cls, log_path, logger, handler, stats):
+        if log_path:
+            try:
+                logger.info(msg='Pipeline failed.' if cls.STATS_ERROR in stats else 'Pipeline finished.')
+                handler.close()
+                logger.removeHandler(handler)
+            except BaseException:
+                pass
+
+
+    @classmethod
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, return_results = process_args
-
-        if log_path:
-            logger = logging.getLogger()
-            logger.setLevel(logging.DEBUG)
-            handler = cls._get_log_handler(log_path)
-            logger.addHandler(handler)
-
+        logger, handler = cls._try_add_logging(log_path)
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
             results = workflow.execute(input_args, monitor=True)
@@ -165,12 +187,9 @@ class EOExecutor:
 
         except BaseException:
             stats[cls.STATS_ERROR] = traceback.format_exc()
-
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
-        if log_path:
-            handler.close()
-            logger.removeHandler(handler)
+        cls._try_remove_logging(log_path, logger, handler, stats)
 
         return stats
 
@@ -181,6 +200,7 @@ class EOExecutor:
         handler = logging.FileHandler(log_path)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
+        handler.addFilter(LogFileFilter(thread_name=threading.currentThread().getName()))
 
         return handler
 
