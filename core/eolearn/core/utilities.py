@@ -26,9 +26,9 @@ class LogFileFilter(Filter):
     """ Filters log messages passed to log file
     """
 
-    def __init__(self, thread_name, name=''):
+    def __init__(self, thread_name, *args, **kwargs):
         self.thread_name = thread_name
-        super().__init__(name=name)
+        super().__init__(*args, **kwargs)
 
     def filter(self, record):
         """ Shows everything from the thread that it was initialized in.

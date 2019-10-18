@@ -148,18 +148,38 @@ class EOExecutor:
         return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
 
     @classmethod
+    def _try_add_logging(cls, log_path):
+        if log_path:
+            try:
+                logger = logging.getLogger()
+                logger.setLevel(logging.DEBUG)
+                handler = cls._get_log_handler(log_path=log_path)
+                logger.addHandler(handler)
+                return logger, handler
+            except BaseException:
+                pass
+
+        return None, None
+
+    @classmethod
+    def _try_remove_logging(cls, log_path, logger, handler, stats):
+        if log_path:
+            try:
+                logger.info(msg='Pipeline failed.' if cls.STATS_ERROR in stats else 'Pipeline finished.')
+                handler.close()
+                logger.removeHandler(handler)
+            except BaseException:
+                pass
+
+
+    @classmethod
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, return_results = process_args
+        logger, handler = cls._try_add_logging(log_path)
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
-            if log_path:
-                logger = logging.getLogger()
-                logger.setLevel(logging.DEBUG)
-                handler = cls._get_log_handler(log_path)
-                logger.addHandler(handler)
-
             results = workflow.execute(input_args, monitor=True)
 
             if return_results:
@@ -167,13 +187,9 @@ class EOExecutor:
 
         except BaseException:
             stats[cls.STATS_ERROR] = traceback.format_exc()
-
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
-        if log_path:
-            logger.info(msg='Pipeline failed.' if cls.STATS_ERROR in stats else 'Pipeline finished.')
-            handler.close()
-            logger.removeHandler(handler)
+        cls._try_remove_logging(log_path, logger, handler, stats)
 
         return stats
 
