@@ -43,7 +43,7 @@ class SentinelHubProcessingInput(EOTask):
     ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     '''
     def __init__(self, feature_name, size_x, size_y, bbox, time_range, data_source, maxcc=1.0, time_difference=-1,
-                 bands=None, cache_dir=None):
+                 bands=None, cache_dir=None, max_threads=5):
         """
         :param feature_name: Target feature into which to save the downloaded images.
         """
@@ -57,6 +57,7 @@ class SentinelHubProcessingInput(EOTask):
         self.time_difference = dt.timedelta(seconds=time_difference)
         self.cache_dir = cache_dir
         self.bands = data_source.bands() if bands is None else bands
+        self.max_threads = max_threads
 
     @staticmethod
     def request_from_date(request, date):
@@ -119,9 +120,9 @@ class SentinelHubProcessingInput(EOTask):
         headers = {"accept": "application/tar", 'content-type': 'application/json'}
         requests = [self.request_from_date(request, date) for date in dates]
 
-        LOGGER.debug('Starting %d processing requests', len(requests))
+        LOGGER.debug('Starting %d processing requests with %d threads.', len(requests), self.max_threads)
         client = SentinelHubClient(cache_dir=self.cache_dir)
-        images = client.download_list(requests, headers=headers, max_workers=5)
+        images = client.download_list(requests, headers=headers, max_threads=self.max_threads)
         LOGGER.debug('Downloads complete')
 
         images = (decode_tar(img) for img in images)
