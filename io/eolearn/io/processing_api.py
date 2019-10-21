@@ -6,7 +6,8 @@ from copy import deepcopy
 import datetime as dt
 import numpy as np
 
-from sentinelhub import WebFeatureService, MimeType, DataSource, SentinelHubClient, parse_time_interval
+from sentinelhub import WebFeatureService, MimeType, DataSource, SentinelHubDownloadClient, parse_time_interval, \
+    DownloadRequest
 from sentinelhub.decoding import decode_tar
 import sentinelhub.sentinelhub_request as shr
 
@@ -117,12 +118,15 @@ class SentinelHubProcessingInput(EOTask):
             evalscript=self.generate_evalscript()
         )
 
+        url = 'https://services.sentinel-hub.com/api/v1/process'
         headers = {"accept": "application/tar", 'content-type': 'application/json'}
-        requests = [self.request_from_date(request, date) for date in dates]
+        payloads = [self.request_from_date(request, date) for date in dates]
+        request_args = dict(url=url, headers=headers, save_response=False, request_type='POST')
+        request_list = [DownloadRequest(post_values=payload, **request_args) for payload in payloads]
 
-        LOGGER.debug('Starting %d processing requests with %d threads.', len(requests), self.max_threads)
-        client = SentinelHubClient(cache_dir=self.cache_dir)
-        images = client.download_list(requests, headers=headers, max_threads=self.max_threads)
+        LOGGER.debug('Starting %d processing requests.', len(request_list))
+        client = SentinelHubDownloadClient()
+        images = client.download_data(request_list)
         LOGGER.debug('Downloads complete')
 
         images = (decode_tar(img) for img in images)
