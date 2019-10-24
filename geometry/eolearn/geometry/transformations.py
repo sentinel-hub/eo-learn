@@ -13,17 +13,17 @@ file in the root directory of this source tree.
 import logging
 import warnings
 
-import shapely.geometry
-import shapely.wkt
-import shapely.ops
-import rasterio.features
-import rasterio.transform
 import numpy as np
 import pandas as pd
+import rasterio.features
+import rasterio.transform
+import shapely.geometry
+import shapely.ops
+import shapely.wkt
+from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
-from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)
 
@@ -159,6 +159,10 @@ class VectorToRaster(EOTask):
         if self.buffer:
             vector_data.geometry = vector_data.geometry.buffer(self.buffer)
             vector_data = vector_data[~vector_data.is_empty]
+
+            # vector_data could be empty as a result of (negative) buffer
+            if vector_data.empty:
+                return None
 
         if not vector_data.geometry.is_valid.all():
             warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
