@@ -262,6 +262,7 @@ class EOExecutor:
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         try:
+            # pylint: disable=C0415
             from eolearn.visualization import EOExecutorVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to create EOExecutor '
