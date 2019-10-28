@@ -103,6 +103,7 @@ class VectorToRaster(EOTask):
         """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
         """
         if VectorToRaster._is_geopandas_object(raster_feature):
+            # pylint: disable=W1114
             warnings.warn('In the new version of VectorToRaster task order of parameters changed. Parameter for '
                           'specifying vector data or feature has to be before parameter specifying new raster feature',
                           DeprecationWarning, stacklevel=3)
