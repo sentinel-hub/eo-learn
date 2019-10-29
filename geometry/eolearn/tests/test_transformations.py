@@ -53,6 +53,8 @@ class TestVectorToRaster(unittest.TestCase):
         custom_dataframe = EOPatch.load(cls.TestCase.TEST_PATCH_FILENAME).vector_timeless['LULC']
         custom_dataframe = custom_dataframe[(custom_dataframe['AREA'] < 10 ** 3)]
 
+        reprojected_dataframe = custom_dataframe.to_crs(epsg=3857)
+
         cls.test_cases = [
             cls.TestCase('basic test',
                          VectorToRaster(cls.vector_feature, cls.raster_feature, values_column='LULC_ID',
@@ -99,6 +101,13 @@ class TestVectorToRaster(unittest.TestCase):
                                         buffer=2,
                                         raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
                          img_min=0, img_max=8, img_mean=0.0664, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
+            cls.TestCase('different crs',
+                         VectorToRaster(vector_input=reprojected_dataframe,
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=8, img_mean=0.042079, img_median=0, img_dtype=np.uint8,
                          img_shape=(101, 100, 1)),
         ]
 

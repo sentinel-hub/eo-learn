@@ -816,6 +816,7 @@ class EOPatch:
         :rtype: holovies/bokeh
         """
         try:
+            # pylint: disable=C0415
             from eolearn.visualization import EOPatchVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed with an option [FULL] in order '
