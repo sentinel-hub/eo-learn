@@ -6,9 +6,8 @@ from copy import deepcopy
 import datetime as dt
 import numpy as np
 
-from sentinelhub import WebFeatureService, MimeType, DataSource, SentinelHubDownloadClient, parse_time_interval, \
-    DownloadRequest
-from sentinelhub.decoding import decode_tar
+from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, parse_time_interval, DownloadRequest,\
+     SHConfig
 import sentinelhub.sentinelhub_request as shr
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -44,7 +43,7 @@ class SentinelHubProcessingInput(EOTask):
     ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     '''
     def __init__(self, feature_name, size_x, size_y, bbox, time_range, data_source, maxcc=1.0, time_difference=-1,
-                 bands=None, cache_dir=None, max_threads=5):
+                 bands=None, data_folder=None, max_threads=5):
         """
         :param feature_name: Target feature into which to save the downloaded images.
         """
@@ -56,7 +55,7 @@ class SentinelHubProcessingInput(EOTask):
         self.data_source = data_source
         self.maxcc = maxcc
         self.time_difference = dt.timedelta(seconds=time_difference)
-        self.cache_dir = cache_dir
+        self.data_folder = data_folder
         self.bands = data_source.bands() if bands is None else bands
         self.max_threads = max_threads
 
@@ -118,18 +117,19 @@ class SentinelHubProcessingInput(EOTask):
             evalscript=self.generate_evalscript()
         )
 
-        url = 'https://services.sentinel-hub.com/api/v1/process'
+        url = SHConfig().get_sh_processing_api_url()
         headers = {"accept": "application/tar", 'content-type': 'application/json'}
         payloads = [self.request_from_date(request, date) for date in dates]
-        request_args = dict(url=url, headers=headers, save_response=False, request_type='POST')
-        request_list = [DownloadRequest(post_values=payload, **request_args) for payload in payloads]
+        args = dict(url=url, headers=headers, data_folder=self.data_folder, hash_save=True, request_type='POST',
+                    data_type=MimeType.TAR)
+        request_list = [DownloadRequest(post_values=payload, **args) for payload in payloads]
 
         LOGGER.debug('Starting %d processing requests.', len(request_list))
         client = SentinelHubDownloadClient()
         images = client.download_data(request_list)
         LOGGER.debug('Downloads complete')
 
-        images = (decode_tar(img) for img in images)
+        images = ((img['default.tif'], img['userdata.json']) for img in images)
         images = [(img.astype(np.float32), meta.get('norm_factor', 0) if meta else 0) for img, meta in images]
 
         eopatch = EOPatch() if eopatch is None else eopatch
