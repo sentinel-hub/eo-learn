@@ -302,6 +302,7 @@ class EOWorkflow:
         """ Helper method which provides EOWorkflowVisualization object
         """
         try:
+            # pylint: disable=C0415
             from eolearn.visualization import EOWorkflowVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use EOWorkflow '

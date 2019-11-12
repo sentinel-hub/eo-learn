@@ -378,7 +378,7 @@ class InterpolationTask(EOTask):
         elif self.resample_range and np.all([isinstance(date, str) for date in self.resample_range]):
             days = [dateutil.parser.parse(date) for date in self.resample_range]
         elif self.resample_range and np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
-            days = [date for date in self.resample_range]
+            days = list(self.resample_range)
         else:
             raise ValueError('Invalid format in {}, expected strings or datetimes'.format(self.resample_range))
 

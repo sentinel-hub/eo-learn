@@ -13,13 +13,13 @@ file in the root directory of this source tree.
 import logging
 import warnings
 
-import shapely.geometry
-import shapely.wkt
-import shapely.ops
-import rasterio.features
-import rasterio.transform
 import numpy as np
 import pandas as pd
+import rasterio.features
+import rasterio.transform
+import shapely.geometry
+import shapely.ops
+import shapely.wkt
 from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
@@ -103,6 +103,7 @@ class VectorToRaster(EOTask):
         """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
         """
         if VectorToRaster._is_geopandas_object(raster_feature):
+            # pylint: disable=W1114
             warnings.warn('In the new version of VectorToRaster task order of parameters changed. Parameter for '
                           'specifying vector data or feature has to be before parameter specifying new raster feature',
                           DeprecationWarning, stacklevel=3)
@@ -159,6 +160,10 @@ class VectorToRaster(EOTask):
         if self.buffer:
             vector_data.geometry = vector_data.geometry.buffer(self.buffer)
             vector_data = vector_data[~vector_data.is_empty]
+
+            # vector_data could be empty as a result of (negative) buffer
+            if vector_data.empty:
+                return None
 
         if not vector_data.geometry.is_valid.all():
             warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
