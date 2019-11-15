@@ -14,6 +14,7 @@ file in the root directory of this source tree.
 
 import os
 import datetime
+import logging
 import warnings
 from abc import abstractmethod
 
@@ -24,6 +25,8 @@ import numpy as np
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BaseLocalIo(EOTask):
@@ -161,7 +164,12 @@ class ExportToTiff(BaseLocalIo):
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
-        feature_type, feature_name = next(self.feature(eopatch))
+        try:
+            feature_type, feature_name = next(self.feature(eopatch))
+        except ValueError as e:
+            LOGGER.warning(e)
+            return eopatch
+
         array = eopatch[feature_type][feature_name]
 
         array_sub = self._get_bands_subset(array)
