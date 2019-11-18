@@ -166,8 +166,8 @@ class ExportToTiff(BaseLocalIo):
         """
         try:
             feature_type, feature_name = next(self.feature(eopatch))
-        except ValueError as e:
-            LOGGER.warning(e)
+        except ValueError as error:
+            LOGGER.warning(error)
             return eopatch
 
         array = eopatch[feature_type][feature_name]
