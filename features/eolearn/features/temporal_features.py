@@ -138,19 +138,14 @@ class AddMaxMinTemporalIndicesTask(EOTask):
         :param eopatch: Input eopatch
         :return: eopatch with added argmax/argmin features
         """
-        if self.mask_data:
-            valid_data_mask = eopatch.mask['VALID_DATA']
-        else:
-            valid_data_mask = eopatch.mask['IS_DATA']
+        valid_data_mask = eopatch.mask['VALID_DATA'] if self.mask_data else eopatch.mask['IS_DATA']
 
-        if self.data_index is None:
-            data = eopatch.data[self.data_feature]
-        else:
-            data = eopatch.data[self.data_feature][..., self.data_index]
+        data = eopatch.data[self.data_feature] if self.data_index is None \
+            else eopatch.data[self.data_feature][..., self.data_index][..., np.newaxis]
 
         madata = np.ma.array(data,
                              dtype=np.float32,
-                             mask=~valid_data_mask.astype(np.bool))
+                             mask=np.logical_or(~valid_data_mask.astype(np.bool), np.isnan(data)))
 
         argmax_data = np.ma.MaskedArray.argmax(madata, axis=0)
         argmin_data = np.ma.MaskedArray.argmin(madata, axis=0)
