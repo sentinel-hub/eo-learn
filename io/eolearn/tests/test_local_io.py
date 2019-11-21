@@ -159,7 +159,7 @@ class TestExportAndImportTiff(unittest.TestCase):
 
             export_task = ExportToTiff(feature, folder=tmp_dir_name)
             export_task.execute(self.eopatch, filename=tmp_file_name)
-            mocked_logger.assert_called_once()
+            assert mocked_logger.call_count == 1
             val_err_tup, _ = mocked_logger.call_args
             val_err, = val_err_tup
             assert str(val_err) == 'Feature feature-not-present of type FeatureType.MASK_TIMELESS ' \
