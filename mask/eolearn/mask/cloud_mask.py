@@ -226,14 +226,16 @@ class AddCloudMaskTask(EOTask):
                              CustomUrlParam.TRANSPARENT: False,
                              CustomUrlParam.EVALSCRIPT: self.model_evalscript}
 
-        request = {ServiceType.WMS: self._get_wms_request,
-                   ServiceType.WCS: self._get_wcs_request}[service_type](bbox,
-                                                                         meta_info['time_interval'],
-                                                                         self.cm_size_x,
-                                                                         self.cm_size_y,
-                                                                         meta_info['maxcc'],
-                                                                         meta_info['time_difference'],
-                                                                         custom_url_params)
+        build_request = {ServiceType.WMS: self._get_wms_request,
+                         ServiceType.WCS: self._get_wcs_request}[service_type]
+
+        request = build_request(bbox,
+                                meta_info['time_interval'],
+                                self.cm_size_x,
+                                self.cm_size_y,
+                                meta_info['maxcc'],
+                                meta_info['time_difference'],
+                                custom_url_params)
 
         request_dates = request.get_dates()
         download_frames = get_common_timestamps(request_dates, timestamps)
@@ -506,10 +508,11 @@ class AddMultiCloudMaskTask(EOTask):
         sigma = 1.0
         rescale = (1., 1.)
 
-        if service_type == ServiceType.WMS:
+        if service_type in [ServiceType.WMS, ServiceType.PROCESSING]:
             # With WMS we can only compute rescaling factors
             if self.processing_resolution is not None:
-                pres_x, pres_y = self.processing_resolution
+                pres_x, pres_y = [float(res.strip('m')) for res in self.processing_resolution]
+                # pres_x, pres_y = self.processing_resolution
                 rescale = (pres_y / height, pres_x / width)
 
         elif service_type == ServiceType.WCS:

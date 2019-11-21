@@ -2,6 +2,7 @@
 """
 
 import unittest
+import datetime as dt
 from sentinelhub import CRS, BBox, DataSource
 
 from eolearn.io import SentinelHubProcessingInput
@@ -17,12 +18,11 @@ from eolearn.core import FeatureType
 class TestProcessingIO(unittest.TestCase):
     """ Test cases for SentinelHubProcessingInput
     """
-    size_x = 100
-    size_y = 100
-    bbox = BBox(bbox=[268892, 4624365, 268892+size_x*10, 4624365+size_y*10], crs=CRS.UTM_33N)
+    size = (100, 100)
+    bbox = BBox(bbox=[268892, 4624365, 268892+size[0]*10, 4624365+size[1]*10], crs=CRS.UTM_33N)
     time_interval = ('2017-12-15', '2017-12-30')
     maxcc = 0.8
-    time_difference = 60
+    time_difference = dt.timedelta(minutes=60)
     max_threads = 3
 
     def test_S2L1C(self):
@@ -31,17 +31,14 @@ class TestProcessingIO(unittest.TestCase):
         task = SentinelHubProcessingInput(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             additional_data=[(FeatureType.MASK, 'dataMask')],
-            size_x=self.size_x,
-            size_y=self.size_y,
-            time_range=self.time_interval,
-            bbox=self.bbox,
+            size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L1C,
             max_threads=self.max_threads,
         )
 
-        eopatch = task.execute()
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         is_data = eopatch[(FeatureType.MASK, 'dataMask')]
 
@@ -54,17 +51,14 @@ class TestProcessingIO(unittest.TestCase):
         task = SentinelHubProcessingInput(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             bands=["B01", "B02", "B03"],
-            size_x=self.size_x,
-            size_y=self.size_y,
-            time_range=self.time_interval,
-            bbox=self.bbox,
+            size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L1C,
             max_threads=self.max_threads
         )
 
-        eopatch = task.execute()
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         self.assertTrue(bands.shape == (4, 100, 100, 3))
 
@@ -74,17 +68,14 @@ class TestProcessingIO(unittest.TestCase):
         task = SentinelHubProcessingInput(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             additional_data=[(FeatureType.MASK, 'dataMask')],
-            size_x=self.size_x,
-            size_y=self.size_y,
-            time_range=self.time_interval,
-            bbox=self.bbox,
+            size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L2A,
             max_threads=self.max_threads
         )
 
-        eopatch = task.execute()
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         is_data = eopatch[(FeatureType.MASK, 'dataMask')]
 
@@ -97,17 +88,14 @@ class TestProcessingIO(unittest.TestCase):
         task = SentinelHubProcessingInput(
             bands_feature=None,
             additional_data=[(FeatureType.DATA, 'SCL')],
-            size_x=self.size_x,
-            size_y=self.size_y,
-            time_range=self.time_interval,
-            bbox=self.bbox,
+            size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L2A,
             max_threads=self.max_threads
         )
 
-        eopatch = task.execute()
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         scl = eopatch[(FeatureType.DATA, 'SCL')]
 
         self.assertTrue(scl.shape == (4, 100, 100, 1))
