@@ -126,6 +126,8 @@ class SentinelHubProcessingInput(EOTask):
 
     @staticmethod
     def size_from_resolution(bbox, resolution):
+        ''' Calculate size_x and size_y based on provided bbox and resolution
+        '''
         bbox = list(bbox)
         size_x = int((bbox[2] - bbox[0]) / resolution)
         size_y = int((bbox[3] - bbox[1]) / resolution)
@@ -137,18 +139,13 @@ class SentinelHubProcessingInput(EOTask):
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         '''
-        dates = self.get_dates(bbox, time_interval)
-
-        responses = [
-            shr.response('default', 'image/tiff'),
-            shr.response('userdata', 'application/json')
-        ]
 
         if self.size is not None:
             size_x, size_y = self.size
         elif self.resolution is not None:
             size_x, size_y = self.size_from_resolution(bbox, self.resolution)
 
+        responses = [shr.response('default', 'image/tiff'), shr.response('userdata', 'application/json')]
         request = shr.body(
             request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
             request_data=[shr.data(data_type=self.data_source.api_identifier())],
@@ -156,17 +153,23 @@ class SentinelHubProcessingInput(EOTask):
             evalscript=self.generate_evalscript()
         )
 
-        url = SHConfig().get_sh_processing_api_url()
-        headers = {"accept": "application/tar", 'content-type': 'application/json'}
-        payloads = [self.request_from_date(request, date, self.maxcc) for date in dates]
-        args = dict(url=url, headers=headers, data_folder=self.cache_folder, hash_save=bool(self.cache_folder),
-                    request_type='POST', data_type=MimeType.TAR)
-        request_list = [DownloadRequest(post_values=payload, **args) for payload in payloads]
+        request_args = dict(
+            url=SHConfig().get_sh_processing_api_url(),
+            headers={"accept": "application/tar", 'content-type': 'application/json'},
+            data_folder=self.cache_folder,
+            hash_save=bool(self.cache_folder),
+            request_type='POST',
+            data_type=MimeType.TAR
+        )
 
-        LOGGER.debug('Downloading %d requests of type %s', len(request_list), str(self.data_source))
+        dates = self.get_dates(bbox, time_interval)
+        requests = (self.request_from_date(request, date, self.maxcc) for date in dates)
+        requests = [DownloadRequest(post_values=payload, **request_args) for payload in requests]
+
+        LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
         LOGGER.debug('Downloading bands: [%s]', ', '.join(self.all_bands))
         client = SentinelHubDownloadClient()
-        images = client.download(request_list)
+        images = client.download(requests)
         LOGGER.debug('Downloads complete')
 
         images = ((img['default.tif'], img['userdata.json']) for img in images)
