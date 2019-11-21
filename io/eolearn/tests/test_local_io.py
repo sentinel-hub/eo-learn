@@ -157,13 +157,17 @@ class TestExportAndImportTiff(unittest.TestCase):
             tmp_file_name = 'temp_file.tiff'
             feature = FeatureType.MASK_TIMELESS, 'feature-not-present'
 
-            export_task = ExportToTiff(feature, folder=tmp_dir_name)
+            export_task = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=False)
             export_task.execute(self.eopatch, filename=tmp_file_name)
             assert mocked_logger.call_count == 1
             val_err_tup, _ = mocked_logger.call_args
             val_err, = val_err_tup
             assert str(val_err) == 'Feature feature-not-present of type FeatureType.MASK_TIMELESS ' \
                                    'was not found in EOPatch'
+
+            with self.assertRaises(ValueError):
+                export_task_fail = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=True)
+                export_task_fail.execute(self.eopatch, filename=tmp_file_name)
 
 
 class TestImportTiff(unittest.TestCase):

@@ -87,7 +87,7 @@ class ExportToTiff(BaseLocalIo):
     where T and B are the time and band indices of the array,
     and M and N are the lengths of these indices, respectively
     """
-    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, **kwargs):
+    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, fail_on_missing=True, **kwargs):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
@@ -109,6 +109,7 @@ class ExportToTiff(BaseLocalIo):
 
         self.band_indices = band_indices
         self.date_indices = date_indices
+        self.fail_on_missing = fail_on_missing
 
     def _get_bands_subset(self, array):
         """ Reduce array by selecting a subset of bands
@@ -161,6 +162,9 @@ class ExportToTiff(BaseLocalIo):
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
         :type filename: str or None
+        :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
+        :type fail_on_missing: bool
+
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
@@ -168,6 +172,10 @@ class ExportToTiff(BaseLocalIo):
             feature_type, feature_name = next(self.feature(eopatch))
         except ValueError as error:
             LOGGER.warning(error)
+
+            if self.fail_on_missing:
+                raise ValueError(error)
+
             return eopatch
 
         array = eopatch[feature_type][feature_name]
