@@ -12,9 +12,9 @@ file in the root directory of this source tree.
 
 import os
 import unittest
+from unittest.mock import patch
 import logging
 import tempfile
-
 import numpy as np
 
 from sentinelhub import read_data
@@ -149,6 +149,21 @@ class TestExportAndImportTiff(unittest.TestCase):
                 task = ExportToTiff((FeatureType.DATA, 'data'), folder=tmp_dir_name,
                                     band_indices=bands, date_indices=times, image_dtype=data.dtype)
                 task.execute(self.eopatch, filename=tmp_file_name)
+
+    @patch('logging.Logger.warning')
+    def test_export2tiff_wrong_feature(self, mocked_logger):
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            feature = FeatureType.MASK_TIMELESS, 'feature-not-present'
+
+            export_task = ExportToTiff(feature, folder=tmp_dir_name)
+            export_task.execute(self.eopatch, filename=tmp_file_name)
+            assert mocked_logger.call_count == 1
+            val_err_tup, _ = mocked_logger.call_args
+            val_err, = val_err_tup
+            assert str(val_err) == 'Feature feature-not-present of type FeatureType.MASK_TIMELESS ' \
+                                   'was not found in EOPatch'
 
 
 class TestImportTiff(unittest.TestCase):
