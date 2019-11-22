@@ -62,7 +62,7 @@ class BaseLocalIo(EOTask):
         if create_dir:
             path_dir = os.path.dirname(path)
             if path_dir != '' and not os.path.exists(path_dir):
-                os.makedirs(path_dir)
+                os.makedirs(path_dir, exist_ok=True)
 
         return path
 
