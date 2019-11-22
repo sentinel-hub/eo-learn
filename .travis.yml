@@ -29,8 +29,8 @@ install:
 
 script:
 - sentinelhub.config --instance_id $INSTANCE_ID
-- sentinelhub.config --sh_client_secret $SH_CLIENT_ID
-- sentinelhub.config --sh_client_id $SH_CLIENT_SECRET
+- sentinelhub.config --sh_client_secret $SH_CLIENT_SECRET
+- sentinelhub.config --sh_client_id $SH_CLIENT_ID
 - if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
     pylint core/eolearn/core/*.py &&
     pylint coregistration/eolearn/coregistration/*.py &&
