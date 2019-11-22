@@ -502,20 +502,20 @@ class AddMultiCloudMaskTask(EOTask):
         # Figure out resampling size
         height, width = reference_shape
 
-        service_type = ServiceType(meta_info['service_type'])
+        service_type = meta_info['service_type']
 
         # Default sigma and rescale values
         sigma = 1.0
         rescale = (1., 1.)
 
-        if service_type in [ServiceType.WMS, ServiceType.PROCESSING]:
+        if service_type in ['wms', 'processing']:
             # With WMS we can only compute rescaling factors
             if self.processing_resolution is not None:
                 pres_x, pres_y = [float(res.strip('m')) for res in self.processing_resolution]
                 # pres_x, pres_y = self.processing_resolution
                 rescale = (pres_y / height, pres_x / width)
 
-        elif service_type == ServiceType.WCS:
+        elif service_type == 'wcs':
             hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), float(meta_info['size_y'].strip('m'))
 
             if self.processing_resolution is not None:
