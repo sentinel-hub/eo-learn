@@ -198,23 +198,23 @@ class ExportToTiff(BaseLocalIo):
                                dtype=image_dtype, nodata=self.no_data_value,
                                transform=dst_transform, crs=dst_crs) as dst:
                 output_array = array_sub.astype(image_dtype)
-                output_array = np.moveaxis(output_array, -1, 1).reshape(index, width, height)
+                output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
                 dst.write(output_array)
         else:
             src_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
             dst_crs = {'init': CRS.ogc_string(self.crs)}
             src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
-            dst_transform, width, height = rasterio.warp.calculate_default_transform(
+            dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
                 src_crs, dst_crs, width, height, *eopatch.bbox)
 
             # Write it out to a file
             with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
-                               width=width, height=height,
+                               width=dst_width, height=dst_height,
                                count=index,
                                dtype=image_dtype, nodata=self.no_data_value,
                                transform=dst_transform, crs=dst_crs) as dst:
                 output_array = array_sub.astype(image_dtype)
-                output_array = np.moveaxis(output_array, -1, 1).reshape(index, array_sub.shape[1], array_sub.shape[2])
+                output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
                 for i in range(1, index + 1):
                     rasterio.warp.reproject(
                         source=output_array[i-1, ...],
