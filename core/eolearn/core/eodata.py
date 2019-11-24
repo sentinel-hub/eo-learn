@@ -20,6 +20,7 @@ import warnings
 import copy
 import datetime
 import pickletools
+import boto3
 
 import attr
 import dateutil.parser
@@ -558,6 +559,24 @@ class EOPatch:
                 shutil.rmtree(tmp_path)
             raise ex
 
+    def save_aws(self, bucket_name, patch_location, file_format=FileFormat.NPY):
+        s3 = boto3.client('s3')
+        features = self.get_features()
+
+        for ftype in features:
+            fpaths = [x.get_file_path(patch_location) for x in self._get_save_file_list(
+                '', '', features=[ftype],
+                file_format=file_format,
+                compress_level=0
+            )]
+            if not ftype.is_meta():
+                for fname, fpath in zip(self[ftype].keys(), fpaths):
+                    fbinary = pickle.dumps(self[(ftype, fname)], protocol=pickle.HIGHEST_PROTOCOL)
+                    s3.put_object(Bucket=bucket_name, Key=fpath, Body=fbinary)
+            else:
+                fbinary = pickle.dumps(self[ftype], protocol=pickle.HIGHEST_PROTOCOL)
+                s3.put_object(Bucket=bucket_name, Key=fpaths[0], Body=fbinary)
+
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
         """ Creates a list of _FileSaver classes for each feature which will have to be saved
         """
@@ -688,6 +707,37 @@ class EOPatch:
                         content[feature_name] = loader.load()
 
         return EOPatch(**requested_content)
+
+    @staticmethod
+    def load_aws(bucket_name, patch_location):
+        s3 = boto3.client('s3')
+        if not patch_location.endswith('/'):
+            patch_location += '/'
+
+        request = s3.list_objects(Bucket=bucket_name, Prefix=patch_location)
+        fpaths = [x['Key'] for x in request['Contents']]
+
+        content = {}
+        for fpath in fpaths:
+            split = fpath[len(patch_location):].split('/')
+
+            if len(split) > 1:
+                ftype_str, fname = split
+                fname = fname.split('.')[0]
+                ftype = [x for x in FeatureType if x.value == ftype_str][0]
+                response = s3.get_object(Bucket=bucket_name, Key=fpath)
+                if ftype.value not in content:
+                    content[ftype.value] = {fname: pickle.loads(response['Body'].read())}
+                else:
+                    content[ftype.value][fname] = pickle.loads(response['Body'].read())
+
+            else:
+                ftype_str = split[0].split('.')[0]
+                ftype = [x for x in FeatureType if x.value == ftype_str][0]
+                response = s3.get_object(Bucket=bucket_name, Key=fpath)
+                content[ftype.value] = pickle.loads(response['Body'].read())
+
+        return EOPatch(**content)
 
     @staticmethod
     def _get_eopatch_content(path, mmap=False):
