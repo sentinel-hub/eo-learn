@@ -12,7 +12,6 @@ file in the root directory of this source tree.
 
 import os
 import logging
-import multiprocessing
 
 import joblib
 import numpy as np
@@ -21,31 +20,13 @@ from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
-from eolearn.core import EOTask, get_common_timestamps, FeatureType
+from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_multiprocessing_lock
 from .utilities import resize_images, map_over_axis
 
 
 INTERP_METHODS = ['nearest', 'linear']
 
 LOGGER = logging.getLogger(__name__)
-
-MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
-
-
-def execute_with_multiprocessing_lock(execution_function, *args, **kwargs):
-    """ A helper utility function that executes a given function with multiprocessing lock if the process is being
-    executed in a multi-processing mode
-
-    :param execution_function: A function
-    :param args: Function's positional arguments
-    :param kwargs: Function's keyword arguments
-    :return: Function's results
-    """
-    if multiprocessing.current_process().name == 'MainProcess':
-        return execution_function(*args, **kwargs)
-
-    with MULTIPROCESSING_LOCK:
-        return execution_function(*args, **kwargs)
 
 
 class AddCloudMaskTask(EOTask):

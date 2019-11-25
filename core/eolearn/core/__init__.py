@@ -8,7 +8,7 @@ from .constants import FeatureType, FeatureTypeSet, FileFormat, OverwritePermiss
 from .eodata import EOPatch
 from .eotask import EOTask, CompositeTask
 from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
-from .eoexecution import EOExecutor
+from .eoexecution import EOExecutor, execute_with_multiprocessing_lock
 
 from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFeature, RemoveFeature, RenameFeature,\
     DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
