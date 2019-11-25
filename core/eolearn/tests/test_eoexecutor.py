@@ -17,7 +17,7 @@ import concurrent.futures
 import multiprocessing
 import time
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_multiprocessing_lock
+from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -190,7 +190,7 @@ class TestExecuteWithMultiprocessingLock(unittest.TestCase):
             logger.addHandler(handler)
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=self.WORKERS) as pool:
-                pool.map(execute_with_multiprocessing_lock, [self.logging_function] * self.WORKERS)
+                pool.map(execute_with_mp_lock, [self.logging_function] * self.WORKERS)
 
             handler.close()
             logger.removeHandler(handler)

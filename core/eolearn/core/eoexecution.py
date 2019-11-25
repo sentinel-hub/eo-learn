@@ -265,7 +265,6 @@ class EOExecutor:
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         try:
-            # pylint: disable=C0415
             from eolearn.visualization import EOExecutorVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to create EOExecutor '
@@ -274,7 +273,7 @@ class EOExecutor:
         return EOExecutorVisualization(self).make_report()
 
 
-def execute_with_multiprocessing_lock(execution_function, *args, **kwargs):
+def execute_with_mp_lock(execution_function, *args, **kwargs):
     """ A helper utility function that executes a given function with multiprocessing lock if the process is being
     executed in a multi-processing mode
 

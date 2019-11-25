@@ -20,7 +20,7 @@ from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
-from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_multiprocessing_lock
+from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 from .utilities import resize_images, map_over_axis
 
 
@@ -274,7 +274,7 @@ class AddCloudMaskTask(EOTask):
             reference_shape = eopatch.data[reference_data_feature].shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
-        clf_probs_lr = execute_with_multiprocessing_lock(self.classifier.get_cloud_probability_maps, new_data)
+        clf_probs_lr = execute_with_mp_lock(self.classifier.get_cloud_probability_maps, new_data)
         clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
 
         # Add cloud mask as a feature to EOPatch
@@ -697,7 +697,7 @@ class AddMultiCloudMaskTask(EOTask):
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
             # Run mono classifier
-            mono_proba[nt_min*img_size:nt_max*img_size] = execute_with_multiprocessing_lock(
+            mono_proba[nt_min*img_size:nt_max*img_size] = execute_with_mp_lock(
                 self.mono_classifier.predict_proba, mono_features
             )[..., 1:]
 
@@ -735,7 +735,7 @@ class AddMultiCloudMaskTask(EOTask):
             multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
             # Run multi classifier
-            multi_proba[t_i*img_size:(t_i+1)*img_size] = execute_with_multiprocessing_lock(
+            multi_proba[t_i*img_size:(t_i+1)*img_size] = execute_with_mp_lock(
                 self.multi_classifier.predict_proba, multi_features
             )[..., 1:]
 
