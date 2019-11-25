@@ -336,6 +336,7 @@ class AddMultiCloudMaskTask(EOTask):
                                   dilation_size=8)
     ```
     """
+    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
 
     def __init__(self,
                  mono_classifier=None,
@@ -411,7 +412,6 @@ class AddMultiCloudMaskTask(EOTask):
                               this post-processing step. Default value: `1`.
         :type dilation_size: int or None
         """
-        self.models_folder = os.path.join(os.path.dirname(__file__), 'models')
         self._mono_classifier = mono_classifier
         self._multi_classifier = multi_classifier
 
@@ -463,7 +463,7 @@ class AddMultiCloudMaskTask(EOTask):
         """ An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required.
         """
         if self._mono_classifier is None:
-            self._mono_classifier = joblib.load(os.path.join(self.models_folder, MONO_CLASSIFIER_NAME))
+            self._mono_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MONO_CLASSIFIER_NAME))
 
         return self._mono_classifier
 
@@ -472,7 +472,7 @@ class AddMultiCloudMaskTask(EOTask):
         """ An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required.
         """
         if self._multi_classifier is None:
-            self._multi_classifier = joblib.load(os.path.join(self.models_folder, MULTI_CLASSIFIER_NAME))
+            self._multi_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MULTI_CLASSIFIER_NAME))
 
         return self._multi_classifier
 
