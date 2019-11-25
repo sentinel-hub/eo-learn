@@ -9,7 +9,7 @@ import numpy as np
 from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig
 import sentinelhub.sentinelhub_request as shr
 
-from eolearn.core import EOPatch, EOTask
+from eolearn.core import EOPatch, EOTask, FeatureParser
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class SentinelHubProcessingInput(EOTask):
         :param maxcc: Maximum cloud coverage.
         :type maxcc: float
         :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
-        :type time_difference: datetime.date
+        :type time_difference: datetime.timedelta
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param max_threads: Maximum threads to be used when downloading data.
@@ -53,7 +53,7 @@ class SentinelHubProcessingInput(EOTask):
         self.bands = bands or data_source.bands() if bands_feature else []
         self.additional_data = additional_data or []
 
-        self.all_bands = self.bands + [f_name for _, f_name in self.additional_data]
+        self.all_bands = self.bands + [f_name for _, f_name, _ in FeatureParser(self.additional_data, new_names=True)()]
 
     @staticmethod
     def request_from_date(request, date, maxcc, time_difference):
@@ -183,13 +183,13 @@ class SentinelHubProcessingInput(EOTask):
 
         shape = len(dates), size_y, size_x
 
-        # exctract additional_data from the received images each as a separate feature
-        for f_type, f_name in self.additional_data:
-            idx = self.all_bands.index(f_name)
+        # extract additional_data from the received images each as a separate feature
+        for f_type, f_name_src, f_name_dst in FeatureParser(self.additional_data, new_names=True)():
+            idx = self.all_bands.index(f_name_src)
             feature_arrays = [np.atleast_3d(img)[..., idx] for img, norm_factor in images]
-            eopatch[(f_type, f_name)] = np.asarray(feature_arrays).reshape(*shape, 1).astype(np.bool)
+            eopatch[(f_type, f_name_dst)] = np.asarray(feature_arrays).reshape(*shape, 1).astype(np.bool)
 
-        # exctract bands from the received and save them as self.bands_feature
+        # extract bands from the received and save them as self.bands_feature
         if self.bands:
             img_bands = len(self.bands)
             img_arrays = [img[..., slice(img_bands)].astype(np.float32) * norm_factor for img, norm_factor in images]
