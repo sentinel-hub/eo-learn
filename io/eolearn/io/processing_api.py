@@ -18,7 +18,7 @@ class SentinelHubProcessingInput(EOTask):
     ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     '''
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
-                 maxcc=1.0, time_difference=-1, cache_folder=None, max_threads=5):
+                 maxcc=1.0, time_difference=None, cache_folder=None, max_threads=5):
         """
         :param size_x: Number of pixels in x dimension.
         :type size_x: int
@@ -34,8 +34,8 @@ class SentinelHubProcessingInput(EOTask):
         :type additional_data: list[tuple(sentinelhub.FeatureType, str)]
         :param maxcc: Maximum cloud coverage.
         :type maxcc: float
-        :param time_difference: Minimum allowed time difference in minutes, used when filtering dates.
-        :type time_difference: int
+        :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+        :type time_difference: datetime.date
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param max_threads: Maximum threads to be used when downloading data.
@@ -45,7 +45,7 @@ class SentinelHubProcessingInput(EOTask):
         self.resolution = resolution
         self.data_source = data_source
         self.maxcc = maxcc
-        self.time_difference = time_difference
+        self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
         self.cache_folder = cache_folder
         self.max_threads = max_threads
 
@@ -56,13 +56,14 @@ class SentinelHubProcessingInput(EOTask):
         self.all_bands = self.bands + [f_name for _, f_name in self.additional_data]
 
     @staticmethod
-    def request_from_date(request, date, maxcc):
+    def request_from_date(request, date, maxcc, time_difference):
         ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
 
         :param request: Path to cache_folder. If set to None (default) requests will not be cached.
         :type request: str
         '''
-        date_from, date_to = date, date + dt.timedelta(seconds=1)
+
+        date_from, date_to = date - time_difference, date + time_difference
         time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
 
         request = deepcopy(request)
@@ -163,7 +164,7 @@ class SentinelHubProcessingInput(EOTask):
         )
 
         dates = self.get_dates(bbox, time_interval)
-        requests = (self.request_from_date(request, date, self.maxcc) for date in dates)
+        requests = (self.request_from_date(request, date, self.maxcc, self.time_difference) for date in dates)
         requests = [DownloadRequest(post_values=payload, **request_args) for payload in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
