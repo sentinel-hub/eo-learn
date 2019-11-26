@@ -567,22 +567,22 @@ class EOPatch:
         :param patch_location: Location of the EOPatch on the AWS S3 bucket
         :type patch_location: str
         """
-        s3client = boto3.client('s3')
-        features = self.get_features()
+        features = [feature for feature in self.get_features() if not feature.is_meta()]
+        features = [(ftype, fname) for ftype in features for fname in self[ftype].keys()]
+        paths = ['{}/{}/{}.npy'.format(patch_location, ftype, fname) for ftype, fname in features]
 
-        for ftype in features:
-            fpaths = [x.get_file_path(patch_location) for x in self._get_save_file_list(
-                '', '', features=[ftype],
-                file_format=FileFormat.NPY,
-                compress_level=0
-            )]
-            if not ftype.is_meta():
-                for fname, fpath in zip(self[ftype].keys(), fpaths):
-                    fbinary = pickle.dumps(self[(ftype, fname)], protocol=pickle.HIGHEST_PROTOCOL)
-                    s3client.put_object(Bucket=bucket_name, Key=fpath, Body=fbinary)
-            else:
-                fbinary = pickle.dumps(self[ftype], protocol=pickle.HIGHEST_PROTOCOL)
-                s3client.put_object(Bucket=bucket_name, Key=fpaths[0], Body=fbinary)
+        meta = [feature for feature in self.get_features() if feature.is_meta()]
+        meta = [(ftype, None) for ftype in features]
+        meta_paths = ['{}/{}.pkl'.format(patch_location, ftype) for ftype, _ in meta]
+
+        features += meta
+        paths += meta_paths
+
+        pickles = (pickle.dumps(self[feat], protocol=pickle.HIGHEST_PROTOCOL) for feat in features)
+
+        s3client = boto3.client('s3')
+        for pickled, fpath in zip(pickles, paths):
+            s3client.put_object(Bucket=bucket_name, Key=fpath, Body=pickled)
 
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
         """ Creates a list of _FileSaver classes for each feature which will have to be saved
