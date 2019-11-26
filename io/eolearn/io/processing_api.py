@@ -20,12 +20,8 @@ class SentinelHubProcessingInput(EOTask):
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=5):
         """
-        :param size_x: Number of pixels in x dimension.
-        :type size_x: int
-        :param size_y: Number of pixels in y dimension.
-        :type size_y: int
-        :param time_range: A range tuple of (date_from, date_to), defining a time range from which to acquire the data.
-        :type time_range: tuple(str, str)
+        :param size: Number of pixels in x and y dimension.
+        :type size_x: tuple(int, int)
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names.
@@ -129,16 +125,34 @@ class SentinelHubProcessingInput(EOTask):
     def size_from_resolution(bbox, resolution):
         ''' Calculate size_x and size_y based on provided bbox and resolution
         '''
+        if not bbox.crs.is_utm():
+            raise ValueError("Only UTM crs is supported.")
+
         bbox = list(bbox)
-        size_x = int((bbox[2] - bbox[0]) / resolution)
-        size_y = int((bbox[3] - bbox[1]) / resolution)
-        return size_x, size_y
+        size_x = (bbox[2] - bbox[0]) / resolution
+        size_y = (bbox[3] - bbox[1]) / resolution
+
+        if not (size_x.is_integer() and size_y.is_integer()):
+            raise ValueError("BBox width and height in CRS units are not multiples of resolution.")
+
+        return int(size_x), int(size_y)
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
         ''' Make a WFS request to get valid dates, download an image for each valid date and store it in an EOPatch
 
-        :param eopatch: input EOPatch
-        :type eopatch: EOPatch
+        :param eopatch:
+        :type eopatch: EOPatch or None
+        :param bbox: specifies the bounding box of the requested image. Coordinates must be in
+                     the specified coordinate reference system. Required.
+        :type bbox: BBox
+        :param time_interval: time or time range for which to return the results, in ISO8601 format
+                              (year-month-date, for example: ``2016-01-01``, or year-month-dateThours:minutes:seconds
+                              format, i.e. ``2016-01-01T16:31:21``). When a single time is specified the request will
+                              return data for that specific date, if it exists. If a time range is specified the result
+                              is a list of all scenes between the specified dates conforming to the cloud coverage
+                              criteria. Most recent acquisition being first in the list. For the latest acquisition use
+                              ``latest``. Examples: ``latest``, ``'2016-01-01'``, or ``('2016-01-01', ' 2016-01-31')``
+         :type time_interval: datetime.datetime, str, or tuple of datetime.datetime/str
         '''
 
         if self.size is not None:
@@ -198,6 +212,7 @@ class SentinelHubProcessingInput(EOTask):
         eopatch.meta_info['service_type'] = 'processing'
         eopatch.meta_info['size_x'] = size_x
         eopatch.meta_info['size_y'] = size_y
+        eopatch.meta_info['resolution'] = self.resolution
         eopatch.meta_info['maxcc'] = self.maxcc
         eopatch.meta_info['time_interval'] = time_interval
         eopatch.meta_info['time_difference'] = self.time_difference
