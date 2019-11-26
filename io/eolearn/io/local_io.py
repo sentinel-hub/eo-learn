@@ -164,7 +164,6 @@ class ExportToTiff(BaseLocalIo):
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
         :type filename: str or None
-        M
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
