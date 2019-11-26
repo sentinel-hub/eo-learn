@@ -126,6 +126,14 @@ class ExportToTiff(BaseLocalIo):
 
         raise ValueError('Invalid format in {}, expected tuple or list'.format(self.band_indices))
 
+    @staticmethod
+    def _get_image_shape(data_array):
+        """ A helper method that provides a shape of an image given a 4D array of data
+        """
+        time_dim, height, width, band_dim = data_array.shape
+
+        return height, width, time_dim * band_dim
+
     def _get_dates_subset(self, array, dates):
         """ Reduce array by selecting a subset of times
         """
@@ -177,9 +185,7 @@ class ExportToTiff(BaseLocalIo):
             # add height and width dimensions
             array_sub = np.expand_dims(np.expand_dims(array_sub, axis=1), axis=1)
 
-        time_dim, height, width, band_dim = array_sub.shape
-
-        index = time_dim * band_dim
+        height, width, channel_count = self._get_image_shape(array_sub)
 
         image_dtype = array_sub.dtype if self.image_dtype is None else self.image_dtype
         if image_dtype == np.int64:
@@ -187,35 +193,32 @@ class ExportToTiff(BaseLocalIo):
             warnings.warn('Data from feature {} cannot be exported to tiff with dtype numpy.int64. Will export as '
                           'numpy.int32 instead'.format((feature_type, feature_name)))
 
-        if not self.crs:
-            dst_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
-            dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
+        src_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
+        src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
-            # Write it out to a file
-            with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
-                               width=width, height=height,
-                               count=index,
-                               dtype=image_dtype, nodata=self.no_data_value,
-                               transform=dst_transform, crs=dst_crs) as dst:
-                output_array = array_sub.astype(image_dtype)
-                output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
-                dst.write(output_array)
-        else:
-            src_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
+        if self.crs:
             dst_crs = {'init': CRS.ogc_string(self.crs)}
-            src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
             dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
-                src_crs, dst_crs, width, height, *eopatch.bbox)
+                src_crs, dst_crs, width, height, *eopatch.bbox
+            )
+        else:
+            dst_crs = src_crs
+            dst_transform = src_transform
+            dst_width, dst_height = width, height
 
-            # Write it out to a file
-            with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
-                               width=dst_width, height=dst_height,
-                               count=index,
-                               dtype=image_dtype, nodata=self.no_data_value,
-                               transform=dst_transform, crs=dst_crs) as dst:
-                output_array = array_sub.astype(image_dtype)
-                output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
-                for i in range(1, index + 1):
+        with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
+                           width=dst_width, height=dst_height,
+                           count=channel_count,
+                           dtype=image_dtype, nodata=self.no_data_value,
+                           transform=dst_transform, crs=dst_crs) as dst:
+
+            output_array = array_sub.astype(image_dtype)
+            output_array = np.moveaxis(output_array, -1, 1).reshape(channel_count, height, width)
+
+            if dst_crs == src_crs:
+                dst.write(output_array)
+            else:
+                for i in range(1, channel_count + 1):
                     rasterio.warp.reproject(
                         source=output_array[i-1, ...],
                         destination=rasterio.band(dst, i),
