@@ -222,7 +222,7 @@ class TestExecuteWithMultiprocessingLock(unittest.TestCase):
 
             self.assertEqual(len(lines), 2 * self.WORKERS)
             self.assertEqual(len(set(lines[: self.WORKERS])), self.WORKERS, msg='All processes should start')
-            self.assertEqual(len(set(lines[self.WORKERS: ])), self.WORKERS, msg='All processes should finish')
+            self.assertEqual(len(set(lines[self.WORKERS:])), self.WORKERS, msg='All processes should finish')
 
 
 if __name__ == '__main__':
