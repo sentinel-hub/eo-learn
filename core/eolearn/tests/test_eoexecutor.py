@@ -13,8 +13,11 @@ import os
 import logging
 import tempfile
 import datetime
+import concurrent.futures
+import multiprocessing
+import time
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults
+from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -165,6 +168,61 @@ class TestEOExecutor(unittest.TestCase):
             EOExecutor(self.workflow, self.execution_args, execution_names={1, 2, 3, 4})
         with self.assertRaises(ValueError):
             EOExecutor(self.workflow, self.execution_args, execution_names=['a', 'b'])
+
+
+class TestExecuteWithMultiprocessingLock(unittest.TestCase):
+
+    WORKERS = 5
+
+    @staticmethod
+    def logging_function(_=None):
+        """ Logs start, sleeps for 0.5s, logs end
+        """
+        logging.info(multiprocessing.current_process().name)
+        time.sleep(0.5)
+        logging.info(multiprocessing.current_process().name)
+
+    def test_with_lock(self):
+        with tempfile.NamedTemporaryFile() as fp:
+            logger = logging.getLogger()
+            handler = logging.FileHandler(fp.name)
+            handler.setFormatter(logging.Formatter('%(message)s'))
+            logger.addHandler(handler)
+
+            with concurrent.futures.ProcessPoolExecutor(max_workers=self.WORKERS) as pool:
+                pool.map(execute_with_mp_lock, [self.logging_function] * self.WORKERS)
+
+            handler.close()
+            logger.removeHandler(handler)
+
+            with open(fp.name, 'r') as log_file:
+                lines = log_file.read().strip('\n ').split('\n')
+
+            self.assertEqual(len(lines), 2 * self.WORKERS)
+            for idx in range(self.WORKERS):
+                self.assertTrue(lines[2 * idx], lines[2 * idx + 1])
+            for idx in range(1, self.WORKERS):
+                self.assertNotEqual(lines[2 * idx - 1], lines[2 * idx])
+
+    def test_without_lock(self):
+        with tempfile.NamedTemporaryFile() as fp:
+            logger = logging.getLogger()
+            handler = logging.FileHandler(fp.name)
+            handler.setFormatter(logging.Formatter('%(message)s'))
+            logger.addHandler(handler)
+
+            with concurrent.futures.ProcessPoolExecutor(max_workers=self.WORKERS) as pool:
+                pool.map(self.logging_function, [None] * self.WORKERS)
+
+            handler.close()
+            logger.removeHandler(handler)
+
+            with open(fp.name, 'r') as log_file:
+                lines = log_file.read().strip('\n ').split('\n')
+
+            self.assertEqual(len(lines), 2 * self.WORKERS)
+            self.assertEqual(len(set(lines[: self.WORKERS])), self.WORKERS, msg='All processes should start')
+            self.assertEqual(len(set(lines[self.WORKERS:])), self.WORKERS, msg='All processes should finish')
 
 
 if __name__ == '__main__':

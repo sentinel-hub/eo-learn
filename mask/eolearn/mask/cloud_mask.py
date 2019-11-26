@@ -20,7 +20,7 @@ from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
-from eolearn.core import EOTask, get_common_timestamps, FeatureType
+from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 from .utilities import resize_images, map_over_axis
 
 
@@ -274,7 +274,7 @@ class AddCloudMaskTask(EOTask):
             reference_shape = eopatch.data[reference_data_feature].shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
-        clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
+        clf_probs_lr = execute_with_mp_lock(self.classifier.get_cloud_probability_maps, new_data)
         clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
 
         # Add cloud mask as a feature to EOPatch
@@ -336,6 +336,7 @@ class AddMultiCloudMaskTask(EOTask):
                                   dilation_size=8)
     ```
     """
+    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
 
     def __init__(self,
                  mono_classifier=None,
@@ -411,18 +412,8 @@ class AddMultiCloudMaskTask(EOTask):
                               this post-processing step. Default value: `1`.
         :type dilation_size: int or None
         """
-
-        # Load classifiers
-        classifier_dir = os.path.dirname(__file__)
-
-        if mono_classifier is None:
-            mono_classifier = joblib.load(os.path.join(classifier_dir, 'models', MONO_CLASSIFIER_NAME))
-
-        if multi_classifier is None:
-            multi_classifier = joblib.load(os.path.join(classifier_dir, 'models', MULTI_CLASSIFIER_NAME))
-
-        self.mono_classifier = mono_classifier
-        self.multi_classifier = multi_classifier
+        self._mono_classifier = mono_classifier
+        self._multi_classifier = multi_classifier
 
         # Set data info
         self.data_feature = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
@@ -466,6 +457,24 @@ class AddMultiCloudMaskTask(EOTask):
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
         else:
             self.dil_kernel = None
+
+    @property
+    def mono_classifier(self):
+        """ An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required.
+        """
+        if self._mono_classifier is None:
+            self._mono_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MONO_CLASSIFIER_NAME))
+
+        return self._mono_classifier
+
+    @property
+    def multi_classifier(self):
+        """ An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required.
+        """
+        if self._multi_classifier is None:
+            self._multi_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MULTI_CLASSIFIER_NAME))
+
+        return self._multi_classifier
 
     @staticmethod
     def _get_max(data):
@@ -688,7 +697,9 @@ class AddMultiCloudMaskTask(EOTask):
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
             # Run mono classifier
-            mono_proba[nt_min*img_size:nt_max*img_size] = self.mono_classifier.predict_proba(mono_features)[..., 1:]
+            mono_proba[nt_min*img_size:nt_max*img_size] = execute_with_mp_lock(
+                self.mono_classifier.predict_proba, mono_features
+            )[..., 1:]
 
         return mono_proba
 
@@ -724,7 +735,9 @@ class AddMultiCloudMaskTask(EOTask):
             multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
             # Run multi classifier
-            multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[..., 1:]
+            multi_proba[t_i*img_size:(t_i+1)*img_size] = execute_with_mp_lock(
+                self.multi_classifier.predict_proba, multi_features
+            )[..., 1:]
 
             prev_nt_min = nt_min
             prev_nt_max = nt_max
