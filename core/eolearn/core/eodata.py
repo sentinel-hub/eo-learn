@@ -569,20 +569,20 @@ class EOPatch:
         """
         features = [feature for feature in self.get_features() if not feature.is_meta()]
         features = [(ftype, fname) for ftype in features for fname in self[ftype].keys()]
-        paths = ['{}/{}/{}.npy'.format(patch_location, ftype, fname) for ftype, fname in features]
+        paths = ['{}/{}/{}.npy'.format(patch_location, ftype.value, fname) for ftype, fname in features]
 
         meta = [feature for feature in self.get_features() if feature.is_meta()]
-        meta = [(ftype, None) for ftype in features]
-        meta_paths = ['{}/{}.pkl'.format(patch_location, ftype) for ftype, _ in meta]
+        meta = [(ftype, None) for ftype in meta]
+        meta_paths = ['{}/{}.pkl'.format(patch_location, ftype.value) for ftype, _ in meta]
 
         features += meta
         paths += meta_paths
 
-        pickles = (pickle.dumps(self[feat], protocol=pickle.HIGHEST_PROTOCOL) for feat in features)
+        streams = (pickle.dumps(self[feat], protocol=pickle.HIGHEST_PROTOCOL) for feat in features)
 
         s3client = boto3.client('s3')
-        for pickled, fpath in zip(pickles, paths):
-            s3client.put_object(Bucket=bucket_name, Key=fpath, Body=pickled)
+        for stream, path in zip(streams, paths):
+            s3client.put_object(Bucket=bucket_name, Key=path, Body=stream)
 
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
         """ Creates a list of _FileSaver classes for each feature which will have to be saved
@@ -725,33 +725,20 @@ class EOPatch:
         :type patch_location: str
         """
         s3client = boto3.client('s3')
-        if not patch_location.endswith('/'):
-            patch_location += '/'
+        patch_location += '/' if not patch_location.endswith('/') else ''
+        list_request = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
 
-        request = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
-        fpaths = [x['Key'] for x in request['Contents']]
+        eopatch = EOPatch()
+        paths = [x['Key'] for x in list_request['Contents']]
+        features = [path[len(patch_location):path.rfind('.')].split('/') for path in paths]
+        features = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in features]
+        features = [(FeatureType(ftype), fname) for ftype, fname in features]
+        streams = (s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read() for path in paths)
 
-        content = {}
-        for fpath in fpaths:
-            split = fpath[len(patch_location):].split('/')
+        for stream, feature in zip(streams, features):
+            eopatch[feature] = pickle.loads(stream)
 
-            if len(split) > 1:
-                ftype_str, fname = split
-                fname = fname.split('.')[0]
-                ftype = [x for x in FeatureType if x.value == ftype_str][0]
-                response = s3client.get_object(Bucket=bucket_name, Key=fpath)
-                if ftype.value not in content:
-                    content[ftype.value] = {fname: pickle.loads(response['Body'].read())}
-                else:
-                    content[ftype.value][fname] = pickle.loads(response['Body'].read())
-
-            else:
-                ftype_str = split[0].split('.')[0]
-                ftype = [x for x in FeatureType if x.value == ftype_str][0]
-                response = s3client.get_object(Bucket=bucket_name, Key=fpath)
-                content[ftype.value] = pickle.loads(response['Body'].read())
-
-        return EOPatch(**content)
+        return eopatch
 
     @staticmethod
     def _get_eopatch_content(path, mmap=False):
