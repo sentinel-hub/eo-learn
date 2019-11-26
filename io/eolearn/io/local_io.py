@@ -5,7 +5,7 @@ Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
 Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
-Copyright (c) 2018-2019 William Ouellette
+Copyright (c) 2018-2019 William Ouellette (TomTom)
 Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
 
 This source code is licensed under the MIT license found in the LICENSE
@@ -84,7 +84,7 @@ class ExportToTiff(BaseLocalIo):
     where T and B are the time and band indices of the array,
     and M and N are the lengths of these indices, respectively
     """
-    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, **kwargs):
+    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, crs=None, **kwargs):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
@@ -97,6 +97,8 @@ class ExportToTiff(BaseLocalIo):
         :param date_indices: Dates to be added to tiff image. Dates are represented by their 0-based index as tuple
             in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
         :type date_indices: tuple or list or None
+        :param crs: CRS in which to reproject the feature before writing it to GeoTiff
+        :type crs: CRS or string of the form authority:id representing the CRS
         :param image_dtype: Type of data to be exported into tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of pixels of tiff image with no data in EOPatch
@@ -106,6 +108,7 @@ class ExportToTiff(BaseLocalIo):
 
         self.band_indices = band_indices
         self.date_indices = date_indices
+        self.crs = crs
 
     def _get_bands_subset(self, array):
         """ Reduce array by selecting a subset of bands
@@ -156,15 +159,13 @@ class ExportToTiff(BaseLocalIo):
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
-            of task initialization.
+        of task initialization.
         :type filename: str or None
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
         feature_type, feature_name = next(self.feature(eopatch))
-        array = eopatch[feature_type][feature_name]
-
-        array_sub = self._get_bands_subset(array)
+        array_sub = self._get_bands_subset(eopatch[feature_type][feature_name])
 
         if feature_type.is_time_dependent():
             array_sub = self._get_dates_subset(array_sub, eopatch.timestamp)
@@ -179,8 +180,6 @@ class ExportToTiff(BaseLocalIo):
         time_dim, height, width, band_dim = array_sub.shape
 
         index = time_dim * band_dim
-        dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
-        dst_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
 
         image_dtype = array_sub.dtype if self.image_dtype is None else self.image_dtype
         if image_dtype == np.int64:
@@ -188,15 +187,43 @@ class ExportToTiff(BaseLocalIo):
             warnings.warn('Data from feature {} cannot be exported to tiff with dtype numpy.int64. Will export as '
                           'numpy.int32 instead'.format((feature_type, feature_name)))
 
-        # Write it out to a file
-        with rasterio.open(self._get_file_path(filename, create_dir=True), 'w', driver='GTiff',
-                           width=width, height=height,
-                           count=index,
-                           dtype=image_dtype, nodata=self.no_data_value,
-                           transform=dst_transform, crs=dst_crs) as dst:
-            output_array = array_sub.astype(image_dtype)
-            output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
-            dst.write(output_array)
+        if not self.crs:
+            dst_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
+            dst_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
+
+            # Write it out to a file
+            with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
+                               width=width, height=height,
+                               count=index,
+                               dtype=image_dtype, nodata=self.no_data_value,
+                               transform=dst_transform, crs=dst_crs) as dst:
+                output_array = array_sub.astype(image_dtype)
+                output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
+                dst.write(output_array)
+        else:
+            src_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
+            dst_crs = {'init': CRS.ogc_string(self.crs)}
+            src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
+            dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
+                src_crs, dst_crs, width, height, *eopatch.bbox)
+
+            # Write it out to a file
+            with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
+                               width=dst_width, height=dst_height,
+                               count=index,
+                               dtype=image_dtype, nodata=self.no_data_value,
+                               transform=dst_transform, crs=dst_crs) as dst:
+                output_array = array_sub.astype(image_dtype)
+                output_array = np.moveaxis(output_array, -1, 1).reshape(index, height, width)
+                for i in range(1, index + 1):
+                    rasterio.warp.reproject(
+                        source=output_array[i-1, ...],
+                        destination=rasterio.band(dst, i),
+                        src_transform=src_transform,
+                        src_crs=src_crs,
+                        dst_transform=dst_transform,
+                        dst_crs=dst_crs,
+                        resampling=rasterio.warp.Resampling.nearest)
 
         return eopatch
 
