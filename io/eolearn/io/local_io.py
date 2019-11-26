@@ -100,6 +100,8 @@ class ExportToTiff(BaseLocalIo):
         :param date_indices: Dates to be added to tiff image. Dates are represented by their 0-based index as tuple
             in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
         :type date_indices: tuple or list or None
+        :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
+        :type fail_on_missing: bool
         :param image_dtype: Type of data to be exported into tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of pixels of tiff image with no data in EOPatch
@@ -162,9 +164,7 @@ class ExportToTiff(BaseLocalIo):
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
         :type filename: str or None
-        :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
-        :type fail_on_missing: bool
-
+        M
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
