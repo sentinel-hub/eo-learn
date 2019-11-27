@@ -240,7 +240,7 @@ class ExportToTiff(BaseLocalIo):
             dst_transform = src_transform
             dst_width, dst_height = width, height
 
-        with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
+        with rasterio.open(self._get_file_path(filename, create_dir=True), 'w', driver='GTiff',
                            width=dst_width, height=dst_height,
                            count=channel_count,
                            dtype=image_array.dtype, nodata=self.no_data_value,
