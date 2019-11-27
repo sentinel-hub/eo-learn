@@ -13,12 +13,27 @@ file in the root directory of this source tree.
 
 import logging
 from collections import OrderedDict
+from logging import Filter
 
 import numpy as np
 
 from .constants import FeatureType
 
 LOGGER = logging.getLogger(__name__)
+
+
+class LogFileFilter(Filter):
+    """ Filters log messages passed to log file
+    """
+
+    def __init__(self, thread_name, *args, **kwargs):
+        self.thread_name = thread_name
+        super().__init__(*args, **kwargs)
+
+    def filter(self, record):
+        """ Shows everything from the thread that it was initialized in.
+        """
+        return record.threadName == self.thread_name
 
 
 class FeatureParser:
