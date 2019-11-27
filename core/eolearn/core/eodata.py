@@ -570,7 +570,7 @@ class EOPatch:
         :type s3client: botocore.client.S3
         """
         features = [feature for feature in self.get_features() if not feature.is_meta()]
-        features = [(ftype, fname) for ftype in features for fname in self[ftype].keys()]
+        features = [(ftype, fname) for ftype in features for fname in self[ftype]]
         paths = ['{}/{}/{}.npy'.format(patch_location, ftype.value, fname) for ftype, fname in features]
 
         meta = [feature for feature in self.get_features() if feature.is_meta()]
