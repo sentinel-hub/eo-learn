@@ -559,13 +559,15 @@ class EOPatch:
                 shutil.rmtree(tmp_path)
             raise ex
 
-    def save_aws(self, bucket_name, patch_location):
+    def save_aws(self, bucket_name, patch_location, s3client=None):
         """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
 
         :param bucket_name: Name of the AWS S3 bucket
         :type bucket_name: str
         :param patch_location: Location of the EOPatch on the AWS S3 bucket
         :type patch_location: str
+        :param s3client: Override the automatic s3 client
+        :type s3client: botocore.client.S3
         """
         features = [feature for feature in self.get_features() if not feature.is_meta()]
         features = [(ftype, fname) for ftype in features for fname in self[ftype].keys()]
@@ -580,7 +582,7 @@ class EOPatch:
 
         streams = (pickle.dumps(self[feat], protocol=pickle.HIGHEST_PROTOCOL) for feat in features)
 
-        s3client = boto3.client('s3')
+        s3client = boto3.client('s3') if s3client is None else s3client
         for stream, path in zip(streams, paths):
             s3client.put_object(Bucket=bucket_name, Key=path, Body=stream)
 
@@ -716,15 +718,19 @@ class EOPatch:
         return EOPatch(**requested_content)
 
     @staticmethod
-    def load_aws(bucket_name, patch_location):
+    def load_aws(bucket_name, patch_location, s3client=None):
         """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
 
         :param bucket_name: Name of the AWS S3 bucket
         :type bucket_name: str
         :param patch_location: Location of the EOPatch on the AWS S3 bucket
         :type patch_location: str
+        :param s3client: Override the automatic s3 client
+        :type s3client: botocore.client.S3
         """
-        s3client = boto3.client('s3')
+
+        s3client = boto3.client('s3') if s3client is None else s3client
+
         patch_location += '/' if not patch_location.endswith('/') else ''
         list_request = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
 
