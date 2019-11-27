@@ -51,7 +51,7 @@ class TestEOPatchAWS(unittest.TestCase):
         response = s3client.list_objects(Bucket=self.MY_BUCKET, Prefix=self.MY_PREFIX)
         content = [x['Key'] for x in response['Contents']]
 
-        update_stats = True
+        update_stats = False
         if update_stats:
             pickle.dump(content, open(stats_filename, 'wb'))
 
