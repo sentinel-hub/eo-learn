@@ -9,7 +9,7 @@ import numpy as np
 from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig
 import sentinelhub.sentinelhub_request as shr
 
-from eolearn.core import EOPatch, EOTask, FeatureParser
+from eolearn.core import EOPatch, EOTask, FeatureParser, FeatureType
 
 LOGGER = logging.getLogger(__name__)
 
@@ -177,8 +177,14 @@ class SentinelHubProcessingInput(EOTask):
             data_type=MimeType.TAR
         )
 
-        dates = self.get_dates(bbox, time_interval)
-        requests = (self.request_from_date(request, date, self.maxcc, self.time_difference) for date in dates)
+        eopatch = EOPatch() if eopatch is None else eopatch
+
+        eopatch.timestamp = self.get_dates(bbox, time_interval)
+        eopatch.bbox = bbox
+
+        requests = (self.request_from_date(request, date, self.maxcc, self.time_difference)
+                    for date in eopatch.timestamp)
+
         requests = [DownloadRequest(post_values=payload, **request_args) for payload in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
@@ -190,31 +196,40 @@ class SentinelHubProcessingInput(EOTask):
         images = ((img['default.tif'], img['userdata.json']) for img in images)
         images = [(img, meta.get('norm_factor', 0) if meta else 0) for img, meta in images]
 
-        eopatch = EOPatch() if eopatch is None else eopatch
+        shape = len(eopatch.timestamp), size_y, size_x
 
-        eopatch.timestamp = dates
-        eopatch.bbox = bbox
-
-        shape = len(dates), size_y, size_x
-
-        # extract additional_data from the received images each as a separate feature
         for f_type, f_name_src, f_name_dst in FeatureParser(self.additional_data, new_names=True)():
-            idx = self.all_bands.index(f_name_src)
-            feature_arrays = [np.atleast_3d(img)[..., idx] for img, norm_factor in images]
-            eopatch[(f_type, f_name_dst)] = np.asarray(feature_arrays).reshape(*shape, 1).astype(np.bool)
+            eopatch[(f_type, f_name_dst)] = self._extract_additional_data(images, f_type, f_name_src, shape)
 
-        # extract bands from the received and save them as self.bands_feature
         if self.bands:
-            img_bands = len(self.bands)
-            img_arrays = [img[..., slice(img_bands)].astype(np.float32) * norm_factor for img, norm_factor in images]
-            eopatch[self.bands_feature] = np.round(np.asarray(img_arrays).reshape(*shape, img_bands), 4)
+            eopatch[self.bands_feature] = self._extract_bands(images, shape)
 
         eopatch.meta_info['service_type'] = 'processing'
         eopatch.meta_info['size_x'] = size_x
         eopatch.meta_info['size_y'] = size_y
-        eopatch.meta_info['resolution'] = self.resolution
         eopatch.meta_info['maxcc'] = self.maxcc
         eopatch.meta_info['time_interval'] = time_interval
         eopatch.meta_info['time_difference'] = self.time_difference
 
         return eopatch
+
+    def _extract_additional_data(self, images, f_type, f_name, shape):
+        """ extract additional_data from the received images each as a separate feature
+        """
+        type_dict = {
+            FeatureType.MASK: np.bool
+        }
+
+        dst_type = type_dict.get(f_type, np.uint16)
+
+        idx = self.all_bands.index(f_name)
+        feature_arrays = [np.atleast_3d(img)[..., idx] for img, norm_factor in images]
+
+        return np.asarray(feature_arrays, dtype=dst_type).reshape(*shape, 1)
+
+    def _extract_bands(self, images, shape):
+        """ extract bands from the received images and save them as self.bands_feature
+        """
+        img_bands = len(self.bands)
+        img_arrays = [img[..., slice(img_bands)].astype(np.float32) * norm_factor for img, norm_factor in images]
+        return np.round(np.asarray(img_arrays).reshape(*shape, img_bands), 4)
