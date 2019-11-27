@@ -117,6 +117,27 @@ class ExportToTiff(BaseLocalIo):
         self.crs = crs
         self.fail_on_missing = fail_on_missing
 
+    def _prepare_image_array(self, eopatch, feature):
+        """ Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
+        array has shape (channels, height, width) and is of correct dtype.
+        """
+        data_array = self._get_bands_subset(eopatch[feature])
+
+        feature_type = feature[0]
+        if feature_type.is_time_dependent():
+            data_array = self._get_dates_subset(data_array, eopatch.timestamp)
+        else:
+            # add temporal dimension
+            data_array = np.expand_dims(data_array, axis=0)
+
+        if not feature_type.is_spatial():
+            # add height and width dimensions
+            data_array = np.expand_dims(np.expand_dims(data_array, axis=1), axis=1)
+
+        data_array = self._set_export_dtype(data_array, feature)
+
+        return self._reshape_to_image_array(data_array)
+
     def _get_bands_subset(self, array):
         """ Reduce array by selecting a subset of bands
         """
@@ -132,14 +153,6 @@ class ExportToTiff(BaseLocalIo):
             return array[..., self.band_indices[0]: self.band_indices[1] + 1]
 
         raise ValueError('Invalid format in {}, expected tuple or list'.format(self.band_indices))
-
-    @staticmethod
-    def _get_image_shape(data_array):
-        """ A helper method that provides a shape of an image given a 4D array of data
-        """
-        time_dim, height, width, band_dim = data_array.shape
-
-        return height, width, time_dim * band_dim
 
     def _get_dates_subset(self, array, dates):
         """ Reduce array by selecting a subset of times
@@ -168,6 +181,28 @@ class ExportToTiff(BaseLocalIo):
 
         raise ValueError('Invalid format in {}, expected tuple or list'.format(self.date_indices))
 
+    def _set_export_dtype(self, data_array, feature):
+        """ To a given array it sets a dtype in which data will be exported
+        """
+        image_dtype = data_array.dtype if self.image_dtype is None else self.image_dtype
+
+        if image_dtype == np.int64:
+            image_dtype = np.int32
+            warnings.warn('Data from feature {} cannot be exported to tiff with dtype numpy.int64. Will export as '
+                          'numpy.int32 instead'.format(feature))
+
+        if image_dtype == data_array.dtype:
+            return data_array
+        return data_array.astype(image_dtype)
+
+    @staticmethod
+    def _reshape_to_image_array(data_array):
+        """ Reshapes an array in form of (times, height, width, bands) into array in form of (channels, height, width)
+        """
+        time_dim, height, width, band_dim = data_array.shape
+
+        return np.moveaxis(data_array, -1, 1).reshape(time_dim * band_dim, height, width)
+
     def execute(self, eopatch, *, filename=None):
         """ Execute method
 
@@ -180,34 +215,17 @@ class ExportToTiff(BaseLocalIo):
         :rtype: EOPatch
         """
         try:
-            feature_type, feature_name = next(self.feature(eopatch))
+            feature = next(self.feature(eopatch))
         except ValueError as error:
             LOGGER.warning(error)
 
             if self.fail_on_missing:
                 raise ValueError(error)
-
             return eopatch
 
-        array_sub = self._get_bands_subset(eopatch[feature_type][feature_name])
+        image_array = self._prepare_image_array(eopatch, feature)
 
-        if feature_type.is_time_dependent():
-            array_sub = self._get_dates_subset(array_sub, eopatch.timestamp)
-        else:
-            # add temporal dimension
-            array_sub = np.expand_dims(array_sub, axis=0)
-
-        if not feature_type.is_spatial():
-            # add height and width dimensions
-            array_sub = np.expand_dims(np.expand_dims(array_sub, axis=1), axis=1)
-
-        height, width, channel_count = self._get_image_shape(array_sub)
-
-        image_dtype = array_sub.dtype if self.image_dtype is None else self.image_dtype
-        if image_dtype == np.int64:
-            image_dtype = np.int32
-            warnings.warn('Data from feature {} cannot be exported to tiff with dtype numpy.int64. Will export as '
-                          'numpy.int32 instead'.format((feature_type, feature_name)))
+        channel_count, height, width = image_array.shape
 
         src_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
         src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
@@ -225,24 +243,22 @@ class ExportToTiff(BaseLocalIo):
         with rasterio.open(self._get_file_path(filename), 'w', driver='GTiff',
                            width=dst_width, height=dst_height,
                            count=channel_count,
-                           dtype=image_dtype, nodata=self.no_data_value,
+                           dtype=image_array.dtype, nodata=self.no_data_value,
                            transform=dst_transform, crs=dst_crs) as dst:
 
-            output_array = array_sub.astype(image_dtype)
-            output_array = np.moveaxis(output_array, -1, 1).reshape(channel_count, height, width)
-
             if dst_crs == src_crs:
-                dst.write(output_array)
+                dst.write(image_array)
             else:
-                for i in range(1, channel_count + 1):
+                for idx in range(channel_count):
                     rasterio.warp.reproject(
-                        source=output_array[i-1, ...],
-                        destination=rasterio.band(dst, i),
+                        source=image_array[idx, ...],
+                        destination=rasterio.band(dst, idx + 1),
                         src_transform=src_transform,
                         src_crs=src_crs,
                         dst_transform=dst_transform,
                         dst_crs=dst_crs,
-                        resampling=rasterio.warp.Resampling.nearest)
+                        resampling=rasterio.warp.Resampling.nearest
+                    )
 
         return eopatch
 
