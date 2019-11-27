@@ -338,7 +338,9 @@ class AddMultiCloudMaskTask(EOTask):
                                   dilation_size=8)
     ```
     """
-
+    # A temporary fix of too many arguments and class attributes
+    # pylint: disable=R0902
+    # pylint: disable=R0913
     def __init__(self,
                  data_resolution,
                  mono_classifier=None,
