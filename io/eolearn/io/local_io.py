@@ -14,6 +14,7 @@ file in the root directory of this source tree.
 
 import os
 import datetime
+import logging
 import warnings
 from abc import abstractmethod
 
@@ -24,6 +25,8 @@ import numpy as np
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
+
+LOGGER = logging.getLogger(__name__)
 
 
 class BaseLocalIo(EOTask):
@@ -84,7 +87,8 @@ class ExportToTiff(BaseLocalIo):
     where T and B are the time and band indices of the array,
     and M and N are the lengths of these indices, respectively
     """
-    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, crs=None, **kwargs):
+    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, crs=None, fail_on_missing=True,
+                 **kwargs):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
@@ -99,6 +103,8 @@ class ExportToTiff(BaseLocalIo):
         :type date_indices: tuple or list or None
         :param crs: CRS in which to reproject the feature before writing it to GeoTiff
         :type crs: CRS or string of the form authority:id representing the CRS
+        :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
+        :type fail_on_missing: bool
         :param image_dtype: Type of data to be exported into tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of pixels of tiff image with no data in EOPatch
@@ -109,6 +115,7 @@ class ExportToTiff(BaseLocalIo):
         self.band_indices = band_indices
         self.date_indices = date_indices
         self.crs = crs
+        self.fail_on_missing = fail_on_missing
 
     def _get_bands_subset(self, array):
         """ Reduce array by selecting a subset of bands
@@ -172,7 +179,16 @@ class ExportToTiff(BaseLocalIo):
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
-        feature_type, feature_name = next(self.feature(eopatch))
+        try:
+            feature_type, feature_name = next(self.feature(eopatch))
+        except ValueError as error:
+            LOGGER.warning(error)
+
+            if self.fail_on_missing:
+                raise ValueError(error)
+
+            return eopatch
+
         array_sub = self._get_bands_subset(eopatch[feature_type][feature_name])
 
         if feature_type.is_time_dependent():
