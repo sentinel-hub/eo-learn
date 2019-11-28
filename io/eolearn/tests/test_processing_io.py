@@ -18,7 +18,7 @@ from eolearn.core import FeatureType
 class TestProcessingIO(unittest.TestCase):
     """ Test cases for SentinelHubProcessingInput
     """
-    size = (100, 100)
+    size = (99, 101)
     bbox = BBox(bbox=[268892, 4624365, 268892+size[0]*10, 4624365+size[1]*10], crs=CRS.UTM_33N)
     time_interval = ('2017-12-15', '2017-12-30')
     maxcc = 0.8
@@ -42,8 +42,9 @@ class TestProcessingIO(unittest.TestCase):
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         is_data = eopatch[(FeatureType.MASK, 'dataMask')]
 
-        self.assertTrue(bands.shape == (4, 100, 100, 13))
-        self.assertTrue(is_data.shape == (4, 100, 100, 1))
+        width, height = self.size
+        self.assertTrue(bands.shape == (4, height, width, 13))
+        self.assertTrue(is_data.shape == (4, height, width, 1))
 
     def test_specific_bands(self):
         """ Download S2L1C bands and dataMask
@@ -60,7 +61,9 @@ class TestProcessingIO(unittest.TestCase):
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
-        self.assertTrue(bands.shape == (4, 100, 100, 3))
+
+        width, height = self.size
+        self.assertTrue(bands.shape == (4, height, width, 3))
 
     def test_S2L2A(self):
         """ Download just SCL, without other bands
@@ -79,8 +82,9 @@ class TestProcessingIO(unittest.TestCase):
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         is_data = eopatch[(FeatureType.MASK, 'dataMask')]
 
-        self.assertTrue(bands.shape == (4, 100, 100, 12))
-        self.assertTrue(is_data.shape == (4, 100, 100, 1))
+        width, height = self.size
+        self.assertTrue(bands.shape == (4, height, width, 12))
+        self.assertTrue(is_data.shape == (4, height, width, 1))
 
     def test_scl_only(self):
         """ Download just SCL, without any other bands
@@ -98,7 +102,8 @@ class TestProcessingIO(unittest.TestCase):
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         scl = eopatch[(FeatureType.DATA, 'SCL')]
 
-        self.assertTrue(scl.shape == (4, 100, 100, 1))
+        width, height = self.size
+        self.assertTrue(scl.shape == (4, height, width, 1))
 
 
 if __name__ == "__main__":

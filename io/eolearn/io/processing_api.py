@@ -1,12 +1,13 @@
-''' An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
-'''
+""" An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
+"""
 import json
 import logging
 from copy import deepcopy
 import datetime as dt
 import numpy as np
 
-from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig
+from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig,\
+    bbox_to_dimensions
 import sentinelhub.sentinelhub_request as shr
 
 from eolearn.core import EOPatch, EOTask, FeatureParser, FeatureType
@@ -18,10 +19,14 @@ class SentinelHubProcessingInput(EOTask):
     ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     '''
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
-                 maxcc=1.0, time_difference=None, cache_folder=None, max_threads=5):
+                 maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None):
         """
+        :param data_source: Source of requested satellite data.
+        :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
-        :type size_x: tuple(int, int)
+        :type size: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
+        :type resolution: tuple(int, int)
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names.
@@ -39,6 +44,7 @@ class SentinelHubProcessingInput(EOTask):
         """
         self.size = size
         self.resolution = resolution
+
         self.data_source = data_source
         self.maxcc = maxcc
         self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
@@ -53,11 +59,11 @@ class SentinelHubProcessingInput(EOTask):
 
     @staticmethod
     def request_from_date(request, date, maxcc, time_difference):
-        ''' Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
+        """ Make a deep copy of a request and sets it's (from, to) range according to the provided 'date' argument
 
         :param request: Path to cache_folder. If set to None (default) requests will not be cached.
         :type request: str
-        '''
+        """
 
         date_from, date_to = date - time_difference, date + time_difference
         time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
@@ -74,8 +80,8 @@ class SentinelHubProcessingInput(EOTask):
         return request
 
     def generate_evalscript(self):
-        ''' Generate the evalscript to be passed with the request, based on chosen bands
-        '''
+        """ Generate the evalscript to be passed with the request, based on chosen bands
+        """
         evalscript = """
             function setup() {{
                 return {{
@@ -106,8 +112,8 @@ class SentinelHubProcessingInput(EOTask):
         return evalscript.format(bands=json.dumps(self.all_bands), num_bands=len(self.all_bands), samples=samples)
 
     def get_dates(self, bbox, time_interval):
-        ''' Make a WebFeatureService request to get dates and clean them according to self.time_difference
-        '''
+        """ Make a WebFeatureService request to get dates and clean them according to self.time_difference
+        """
         wfs = WebFeatureService(
             bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc
         )
@@ -121,24 +127,8 @@ class SentinelHubProcessingInput(EOTask):
         dates = [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
         return dates
 
-    @staticmethod
-    def size_from_resolution(bbox, resolution):
-        ''' Calculate size_x and size_y based on provided bbox and resolution
-        '''
-        if not bbox.crs.is_utm():
-            raise ValueError("Only UTM crs is supported.")
-
-        bbox = list(bbox)
-        size_x = (bbox[2] - bbox[0]) / resolution
-        size_y = (bbox[3] - bbox[1]) / resolution
-
-        if not (size_x.is_integer() and size_y.is_integer()):
-            raise ValueError("BBox width and height in CRS units are not multiples of resolution.")
-
-        return int(size_x), int(size_y)
-
     def execute(self, eopatch=None, bbox=None, time_interval=None):
-        ''' Make a WFS request to get valid dates, download an image for each valid date and store it in an EOPatch
+        """ Make a WFS request to get valid dates, download an image for each valid date and store it in an EOPatch
 
         :param eopatch:
         :type eopatch: EOPatch or None
@@ -153,12 +143,12 @@ class SentinelHubProcessingInput(EOTask):
                               criteria. Most recent acquisition being first in the list. For the latest acquisition use
                               ``latest``. Examples: ``latest``, ``'2016-01-01'``, or ``('2016-01-01', ' 2016-01-31')``
          :type time_interval: datetime.datetime, str, or tuple of datetime.datetime/str
-        '''
+        """
 
         if self.size is not None:
             size_x, size_y = self.size
         elif self.resolution is not None:
-            size_x, size_y = self.size_from_resolution(bbox, self.resolution)
+            size_x, size_y = bbox_to_dimensions(bbox, self.resolution)
 
         responses = [shr.response('default', 'image/tiff'), shr.response('userdata', 'application/json')]
         request = shr.body(
@@ -190,7 +180,7 @@ class SentinelHubProcessingInput(EOTask):
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
         LOGGER.debug('Downloading bands: [%s]', ', '.join(self.all_bands))
         client = SentinelHubDownloadClient()
-        images = client.download(requests)
+        images = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug('Downloads complete')
 
         images = ((img['default.tif'], img['userdata.json']) for img in images)
