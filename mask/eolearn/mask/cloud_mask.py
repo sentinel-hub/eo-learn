@@ -18,7 +18,7 @@ import numpy as np
 import cv2
 from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
+from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType, bbox_to_resolution
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 from .utilities import resize_images, map_over_axis
@@ -226,14 +226,16 @@ class AddCloudMaskTask(EOTask):
                              CustomUrlParam.TRANSPARENT: False,
                              CustomUrlParam.EVALSCRIPT: self.model_evalscript}
 
-        request = {ServiceType.WMS: self._get_wms_request,
-                   ServiceType.WCS: self._get_wcs_request}[service_type](bbox,
-                                                                         meta_info['time_interval'],
-                                                                         self.cm_size_x,
-                                                                         self.cm_size_y,
-                                                                         meta_info['maxcc'],
-                                                                         meta_info['time_difference'],
-                                                                         custom_url_params)
+        build_request = {ServiceType.WMS: self._get_wms_request,
+                         ServiceType.WCS: self._get_wcs_request}[service_type]
+
+        request = build_request(bbox,
+                                meta_info['time_interval'],
+                                self.cm_size_x,
+                                self.cm_size_y,
+                                meta_info['maxcc'],
+                                meta_info['time_difference'],
+                                custom_url_params)
 
         request_dates = request.get_dates()
         download_frames = get_common_timestamps(request_dates, timestamps)
@@ -336,6 +338,11 @@ class AddMultiCloudMaskTask(EOTask):
                                   dilation_size=8)
     ```
     """
+
+    # A temporary fix of too many arguments and class attributes
+    # pylint: disable=R0902
+    # pylint: disable=R0913
+
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
 
     def __init__(self,
@@ -353,8 +360,7 @@ class AddMultiCloudMaskTask(EOTask):
                  multi_threshold=0.5,
                  average_over=1,
                  dilation_size=1):
-        """Constructor.
-
+        """
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
                                 Must work on the 10 selected reflectance bands as features
                                 (`B01`, `B02`, `B04`, `B05`, `B08`, `B8A`, `B09`, `B10`, `B11`, `B12`)
@@ -380,11 +386,11 @@ class AddMultiCloudMaskTask(EOTask):
         :param all_bands: Flag, which indicates whether images will consist of all 13 Sentinel-2 bands or only
                           the required 10. Default value:  `True`.
         :type all_bands: bool
-        :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks.
-                                      Resolution is given as a pair of x and y resolutions. If a single value is
-                                      given, it is used for both dimensions.
+        :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
+                                      expressed in meters. Resolution is given as a pair of x and y resolutions.
+                                      If a single value is given, it is used for both dimensions.
                                       Default is `None` (source resolution).
-        :type processing_resolution: (str, str) or (int, int) or str or int
+        :type processing_resolution: int or (int, int)
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
                                 considered in a single batch iteration (To keep memory usage at agreeable levels,
                                 the task operates on smaller batches of time frames). Default value:  `11`.
@@ -412,6 +418,9 @@ class AddMultiCloudMaskTask(EOTask):
                               this post-processing step. Default value: `1`.
         :type dilation_size: int or None
         """
+
+        self.proc_resolution = self._parse_resolution_arg(processing_resolution)
+
         self._mono_classifier = mono_classifier
         self._multi_classifier = multi_classifier
 
@@ -419,12 +428,6 @@ class AddMultiCloudMaskTask(EOTask):
         self.data_feature = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
         self.is_data_feature = self._parse_features(is_data_feature, default_feature_type=FeatureType.MASK)
         self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
-
-        # If single resolution given, use for both
-        if isinstance(processing_resolution, (str, int)):
-            self.processing_resolution = (processing_resolution, ) * 2
-        else:
-            self.processing_resolution = processing_resolution
 
         self.sigma = 1.
 
@@ -457,6 +460,21 @@ class AddMultiCloudMaskTask(EOTask):
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
         else:
             self.dil_kernel = None
+
+    @staticmethod
+    def _parse_resolution_arg(res):
+        """ Parses initialization resolution argument
+        """
+        if res is None:
+            return None
+
+        if isinstance(res, (int, float, str)):
+            res = res, res
+
+        if isinstance(res, tuple) and len(res) == 2:
+            return tuple(float(rs.strip('m')) if isinstance(rs, str) else rs for rs in res)
+
+        raise ValueError("Wrong resolution parameter passed as an argument.")
 
     @property
     def mono_classifier(self):
@@ -496,48 +514,25 @@ class AddMultiCloudMaskTask(EOTask):
         """Timewise std for masked arrays."""
         return np.ma.std(data, axis=0).data
 
-    def _parse_resolution_data(self, reference_shape, meta_info):
+    def _scale_factors(self, reference_shape, bbox):
         """ Compute the resampling factor for height and width of the input array
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
-        :type reference_shape: tuple of ints
-        :param meta_info: Meta-info dictionary of input eopatch. Defines OGC request and parameters used to create the
-                            eopatch
+        :type reference_shape: (int, int)
+        :param bbox: An EOPatch bounding box
+        :type bbox: sentinelhub.BBox
         :return: Rescale factor for rows and columns
         :rtype: tuple of floats
         """
-        # Figure out resampling size
-        height, width = reference_shape
+        res_x, res_y = bbox_to_resolution(bbox, width=reference_shape[1], height=reference_shape[0])
 
-        service_type = ServiceType(meta_info['service_type'])
-
-        # Default sigma and rescale values
-        sigma = 1.0
-        rescale = (1., 1.)
-
-        if service_type == ServiceType.WMS:
-            # With WMS we can only compute rescaling factors
-            if self.processing_resolution is not None:
-                pres_x, pres_y = self.processing_resolution
-                rescale = (pres_y / height, pres_x / width)
-
-        elif service_type == ServiceType.WCS:
-            hr_res_x, hr_res_y = float(meta_info['size_x'].strip('m')), float(meta_info['size_y'].strip('m'))
-
-            if self.processing_resolution is not None:
-                # If processing resolution is given use it to calculate rescale factors and sigma
-                pres_x, pres_y = [float(res.strip('m')) for res in self.processing_resolution]
-                pres = (pres_x + pres_y) / 2.0
-
-                rescale = (hr_res_y / pres_y, hr_res_x / pres_x)
-            else:
-                # If processing resolution is not given use the source resolution for sigma computation
-                pres = (hr_res_x + hr_res_y) / 2.
-
-            sigma = 100. / pres
-
+        if self.proc_resolution is None:
+            pres_x, pres_y = res_x, res_y
         else:
-            raise ValueError("Unknown service type %s." % service_type)
+            pres_x, pres_y = self.proc_resolution
+
+        rescale = res_y / pres_y, res_x / pres_x
+        sigma = 200 / (pres_x + pres_y)
 
         return rescale, sigma
 
@@ -842,7 +837,7 @@ class AddMultiCloudMaskTask(EOTask):
         is_data = eopatch[feature_type][feature_name].astype(bool)
 
         original_shape = bands.shape[1:-1]
-        scale_factors, self.sigma = self._parse_resolution_data(original_shape, eopatch.meta_info)
+        scale_factors, self.sigma = self._scale_factors(original_shape, eopatch.bbox)
 
         mono_proba_feature, mono_mask_feature = self.mono_features
         multi_proba_feature, multi_mask_feature = self.multi_features
