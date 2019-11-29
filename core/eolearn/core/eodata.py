@@ -581,13 +581,16 @@ class EOPatch:
         meta = list(set([(ftype, None) for ftype, _ in features if ftype.is_meta()]))
         meta_paths = ['{}/{}.pkl'.format(patch_location, ftype.value) for ftype, _ in meta]
 
-        features += meta
+        ftrs += meta
         paths += meta_paths
 
-        streams = (pickle.dumps(self[feat], protocol=pickle.HIGHEST_PROTOCOL) for feat in features)
-
         s3client = boto3.client('s3') if s3client is None else s3client
-        for stream, path in zip(streams, paths):
+        for (ftype, fname), path in zip(ftrs, paths):
+            data = self[(ftype, fname)]
+            if ftype is FeatureType.BBOX:
+                data = tuple(data) + (int(data.crs.value),)
+
+            stream = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
             s3client.put_object(Bucket=bucket_name, Key=path, Body=stream)
 
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
@@ -722,13 +725,15 @@ class EOPatch:
         return EOPatch(**requested_content)
 
     @staticmethod
-    def load_aws(bucket_name, patch_location, s3client=None):
+    def load_aws(bucket_name, patch_location, features=..., s3client=None):
         """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
 
         :param bucket_name: Name of the AWS S3 bucket
         :type bucket_name: str
         :param patch_location: Location of the EOPatch on the AWS S3 bucket
         :type patch_location: str
+        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :type features: object
         :param s3client: Override the automatic s3 client
         :type s3client: botocore.client.S3
         """
@@ -740,12 +745,19 @@ class EOPatch:
 
         eopatch = EOPatch()
         paths = [x['Key'] for x in list_request['Contents']]
-        features = [path[len(patch_location):path.rfind('.')].split('/') for path in paths]
-        features = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in features]
-        features = [(FeatureType(ftype), fname) for ftype, fname in features]
-        streams = (s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read() for path in paths)
+        ftrs = [path[len(patch_location):path.rfind('.')].split('/') for path in paths]
+        ftrs = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in ftrs]
+        ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
 
-        for stream, feature in zip(streams, features):
+        requested_features = [(ftype, fname) for ftype, fname in FeatureParser(features)]
+        load_content = []
+        for (ftype, fname), path in zip(ftrs, paths):
+            if ftype in [ftype for ftype, _ in requested_features]:
+                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
+                    load_content.append([(ftype, fname), path])
+
+        for feature, path in load_content:
+            stream = s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read()
             eopatch[feature] = pickle.loads(stream)
 
         return eopatch
