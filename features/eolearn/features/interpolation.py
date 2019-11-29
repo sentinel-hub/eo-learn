@@ -4,7 +4,7 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 Copyright (c) 2018-2019 Filip Koprivec (Jožef Stefan Institute)
 Copyright (c) 2018-2019 William Ouellette
 

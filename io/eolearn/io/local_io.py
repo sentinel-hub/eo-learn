@@ -4,7 +4,7 @@ Module containing tasks used for reading and writing to disk
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 Copyright (c) 2018-2019 William Ouellette (TomTom)
 Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
 
