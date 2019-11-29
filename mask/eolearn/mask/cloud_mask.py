@@ -423,9 +423,6 @@ class AddMultiCloudMaskTask(EOTask):
         :type dilation_size: int or None
         """
 
-        # Load classifiers
-        classifier_dir = os.path.dirname(__file__)
-
         self.proc_resolution = self._parse_resolution_arg(processing_resolution) if processing_resolution else None
         self.data_resolution = self._parse_resolution_arg(data_resolution)
 
