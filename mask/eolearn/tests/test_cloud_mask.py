@@ -129,10 +129,9 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
         cls.eop.rename_feature(FeatureType.DATA, 'BANDS-S2-L1C', 'ALL_DATA')
         resx = cls.eop.meta_info['size_x'].strip('m')
         resy = cls.eop.meta_info['size_y'].strip('m')
-        cls.data_resolution = int(resx), int(resy)
 
     def test_raises_errors(self):
-        add_tcm = AddMultiCloudMaskTask(data_feature='bands', data_resolution=self.data_resolution)
+        add_tcm = AddMultiCloudMaskTask(data_feature='bands')
 
         self.assertRaises(ValueError, add_tcm, self.eop)
 
@@ -147,7 +146,6 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
 
         # Classifier is run on same resolution as data array
         add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
-                                        data_resolution=self.data_resolution,
                                         mono_features=('CLP_S2C', None),
                                         mask_feature='CLM_INTERSSIM',
                                         average_over=16,
@@ -168,7 +166,6 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
 
         # Classifier is run on downscaled version of data array
         add_tcm = AddMultiCloudMaskTask(data_feature='ALL_DATA',
-                                        data_resolution=self.data_resolution,
                                         processing_resolution=120,
                                         mono_features=('CLP_S2C', None),
                                         mask_feature='CLM_INTERSSIM',
