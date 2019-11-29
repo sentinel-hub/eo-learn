@@ -15,8 +15,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SentinelHubInputTask(EOTask):
-    ''' A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
-    '''
+    """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
+    """
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None):
         """
