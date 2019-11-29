@@ -419,7 +419,7 @@ class AddMultiCloudMaskTask(EOTask):
         :type dilation_size: int or None
         """
 
-        self.proc_resolution = self._parse_resolution_arg(processing_resolution) if processing_resolution else None
+        self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
         self._mono_classifier = mono_classifier
         self._multi_classifier = multi_classifier
@@ -465,6 +465,9 @@ class AddMultiCloudMaskTask(EOTask):
     def _parse_resolution_arg(res):
         """ Parses initialization resolution argument
         """
+        if res is None:
+            return None
+
         if isinstance(res, (int, float, str)):
             res = res, res
 
