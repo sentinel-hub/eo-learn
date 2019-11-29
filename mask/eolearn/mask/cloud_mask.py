@@ -4,7 +4,7 @@ Module for cloud masking
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -20,7 +20,7 @@ from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType
 
-from eolearn.core import EOTask, get_common_timestamps, FeatureType
+from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 from .utilities import resize_images, map_over_axis
 
 
@@ -276,7 +276,7 @@ class AddCloudMaskTask(EOTask):
             reference_shape = eopatch.data[reference_data_feature].shape[:3]
             rescale = self._get_rescale_factors(reference_shape[1:3], eopatch.meta_info)
 
-        clf_probs_lr = self.classifier.get_cloud_probability_maps(new_data)
+        clf_probs_lr = execute_with_mp_lock(self.classifier.get_cloud_probability_maps, new_data)
         clf_mask_lr = self.classifier.get_mask_from_prob(clf_probs_lr)
 
         # Add cloud mask as a feature to EOPatch
@@ -338,9 +338,13 @@ class AddMultiCloudMaskTask(EOTask):
                                   dilation_size=8)
     ```
     """
+
     # A temporary fix of too many arguments and class attributes
     # pylint: disable=R0902
     # pylint: disable=R0913
+
+    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
+
     def __init__(self,
                  data_resolution,
                  mono_classifier=None,
@@ -425,14 +429,8 @@ class AddMultiCloudMaskTask(EOTask):
         self.proc_resolution = self._parse_resolution_arg(processing_resolution) if processing_resolution else None
         self.data_resolution = self._parse_resolution_arg(data_resolution)
 
-        if mono_classifier is None:
-            mono_classifier = joblib.load(os.path.join(classifier_dir, 'models', MONO_CLASSIFIER_NAME))
-
-        if multi_classifier is None:
-            multi_classifier = joblib.load(os.path.join(classifier_dir, 'models', MULTI_CLASSIFIER_NAME))
-
-        self.mono_classifier = mono_classifier
-        self.multi_classifier = multi_classifier
+        self._mono_classifier = mono_classifier
+        self._multi_classifier = multi_classifier
 
         # Set data info
         self.data_feature = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
@@ -471,7 +469,6 @@ class AddMultiCloudMaskTask(EOTask):
         else:
             self.dil_kernel = None
 
-
     @staticmethod
     def _parse_resolution_arg(res):
         if isinstance(res, int):
@@ -479,6 +476,24 @@ class AddMultiCloudMaskTask(EOTask):
         if isinstance(res, tuple) and len(res) == 2 and all(isinstance(rs, int) for rs in res):
             return res
         raise ValueError("Wrong resolution parameter passed as an argument.")
+
+    @property
+    def mono_classifier(self):
+        """ An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required.
+        """
+        if self._mono_classifier is None:
+            self._mono_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MONO_CLASSIFIER_NAME))
+
+        return self._mono_classifier
+
+    @property
+    def multi_classifier(self):
+        """ An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required.
+        """
+        if self._multi_classifier is None:
+            self._multi_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MULTI_CLASSIFIER_NAME))
+
+        return self._multi_classifier
 
     @staticmethod
     def _get_max(data):
@@ -675,7 +690,9 @@ class AddMultiCloudMaskTask(EOTask):
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
             # Run mono classifier
-            mono_proba[nt_min*img_size:nt_max*img_size] = self.mono_classifier.predict_proba(mono_features)[..., 1:]
+            mono_proba[nt_min*img_size:nt_max*img_size] = execute_with_mp_lock(
+                self.mono_classifier.predict_proba, mono_features
+            )[..., 1:]
 
         return mono_proba
 
@@ -711,7 +728,9 @@ class AddMultiCloudMaskTask(EOTask):
             multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
             # Run multi classifier
-            multi_proba[t_i*img_size:(t_i+1)*img_size] = self.multi_classifier.predict_proba(multi_features)[..., 1:]
+            multi_proba[t_i*img_size:(t_i+1)*img_size] = execute_with_mp_lock(
+                self.multi_classifier.predict_proba, multi_features
+            )[..., 1:]
 
             prev_nt_min = nt_min
             prev_nt_max = nt_max
