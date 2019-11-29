@@ -559,22 +559,26 @@ class EOPatch:
                 shutil.rmtree(tmp_path)
             raise ex
 
-    def save_aws(self, bucket_name, patch_location, s3client=None):
+    def save_aws(self, bucket_name, patch_location, features=..., s3client=None):
         """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
 
         :param bucket_name: Name of the AWS S3 bucket
         :type bucket_name: str
         :param patch_location: Location of the EOPatch on the AWS S3 bucket
         :type patch_location: str
+        :param features: A collection of features types specifying features of which type will be saved. By default
+        all features will be saved.
+        :type features: list(FeatureType) or list((FeatureType, str)) or ...
         :param s3client: Override the automatic s3 client
         :type s3client: botocore.client.S3
         """
-        features = [feature for feature in self.get_features() if not feature.is_meta()]
-        features = [(ftype, fname) for ftype in features for fname in self[ftype]]
-        paths = ['{}/{}/{}.npy'.format(patch_location, ftype.value, fname) for ftype, fname in features]
 
-        meta = [feature for feature in self.get_features() if feature.is_meta()]
-        meta = [(ftype, None) for ftype in meta]
+        features = [(ftype, fname) for ftype, fname in FeatureParser(features)(self)]
+
+        ftrs = [(ftype, fname) for ftype, fname in features if not ftype.is_meta()]
+        paths = ['{}/{}/{}.npy'.format(patch_location, ftype.value, fname) for ftype, fname in ftrs]
+
+        meta = list(set([(ftype, None) for ftype, _ in features if ftype.is_meta()]))
         meta_paths = ['{}/{}.pkl'.format(patch_location, ftype.value) for ftype, _ in meta]
 
         features += meta
