@@ -116,11 +116,17 @@ class TestExportAndImportTiff(unittest.TestCase):
 
                 with tempfile.TemporaryDirectory() as tmp_dir_name:
                     tmp_file_name = 'temp_file.tiff'
+                    tmp_file_name_reproject = 'temp_file_4326.tiff'
                     feature = test_case.feature_type, test_case.name
 
                     export_task = ExportToTiff(feature, folder=tmp_dir_name,
                                                band_indices=test_case.bands, date_indices=test_case.times)
                     export_task.execute(self.eopatch, filename=tmp_file_name)
+
+                    export_task = ExportToTiff(feature, folder=tmp_dir_name,
+                                               band_indices=test_case.bands, date_indices=test_case.times,
+                                               crs='EPSG:4326')
+                    export_task.execute(self.eopatch, filename=tmp_file_name_reproject)
 
                     import_task = ImportFromTiff(feature, folder=tmp_dir_name,
                                                  timestamp_size=test_case.get_expected_timestamp_size())
