@@ -21,6 +21,8 @@ import copy
 import datetime
 import pickletools
 import boto3
+import gzip
+from io import BytesIO
 
 import attr
 import dateutil.parser
@@ -559,7 +561,8 @@ class EOPatch:
                 shutil.rmtree(tmp_path)
             raise ex
 
-    def save_aws(self, bucket_name, patch_location, features=..., s3client=None):
+    def save_aws(self, bucket_name, patch_location, features=..., file_format=FileFormat.NPY, compress_level=0,
+                 s3client=None):
         """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
 
         :param bucket_name: Name of the AWS S3 bucket
@@ -569,29 +572,45 @@ class EOPatch:
         :param features: A collection of features types specifying features of which type will be saved. By default
         all features will be saved.
         :type features: list(FeatureType) or list((FeatureType, str)) or ...
-        :param s3client: Override the automatic s3 client
+        :param file_format: File format
+        :type file_format: FileFormat or str
+        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
+            to 9 (highest compression).
+        :type compress_level: int
         :type s3client: botocore.client.S3
         """
 
         features = [(ftype, fname) for ftype, fname in FeatureParser(features)(self)]
 
         ftrs = [(ftype, fname) for ftype, fname in features if not ftype.is_meta()]
-        paths = ['{}/{}/{}.npy'.format(patch_location, ftype.value, fname) for ftype, fname in ftrs]
+        meta = list(set([(ftype, ...) for ftype, _ in features if ftype.is_meta()]))
+        features = ftrs + meta
 
-        meta = list(set([(ftype, None) for ftype, _ in features if ftype.is_meta()]))
-        meta_paths = ['{}/{}.pkl'.format(patch_location, ftype.value) for ftype, _ in meta]
-
-        ftrs += meta
-        paths += meta_paths
+        file_saver_list = self._get_save_file_list('', '', features, file_format, compress_level)
+        paths = [saver.get_file_path(patch_location) for saver in file_saver_list]
 
         s3client = boto3.client('s3') if s3client is None else s3client
-        for (ftype, fname), path in zip(ftrs, paths):
-            data = self[(ftype, fname)]
+        for (ftype, fname), path in zip(features, paths):
+            data = self[(ftype, fname)] if fname is not Ellipsis else self[ftype]
             if ftype is FeatureType.BBOX:
                 data = tuple(data) + (int(data.crs.value),)
 
-            stream = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
-            s3client.put_object(Bucket=bucket_name, Key=path, Body=stream)
+            memfile = BytesIO()
+
+            if compress_level:
+                with gzip.GzipFile(fileobj=memfile, mode='w', compresslevel=compress_level) as bytes_fp:
+                    if ftype.is_meta():
+                        pickle.dump(data, bytes_fp)
+                    else:
+                        np.save(bytes_fp, data)
+            else:
+                if ftype.is_meta():
+                    pickle.dump(data, memfile)
+                else:
+                    np.save(memfile, data)
+
+            bytes_to_upload = memfile.getvalue()
+            s3client.put_object(Bucket=bucket_name, Key=path, Body=bytes_to_upload)
 
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
         """ Creates a list of _FileSaver classes for each feature which will have to be saved
@@ -741,11 +760,11 @@ class EOPatch:
         s3client = boto3.client('s3') if s3client is None else s3client
 
         patch_location += '/' if not patch_location.endswith('/') else ''
-        list_request = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
+        eopatch_objects = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
 
         eopatch = EOPatch()
-        paths = [x['Key'] for x in list_request['Contents']]
-        ftrs = [path[len(patch_location):path.rfind('.')].split('/') for path in paths]
+        paths = [x['Key'] for x in eopatch_objects['Contents']]
+        ftrs = [path[len(patch_location):path.find('.')].split('/') for path in paths]
         ftrs = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in ftrs]
         ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
 
@@ -757,9 +776,23 @@ class EOPatch:
                     load_content.append([(ftype, fname), path])
 
         for feature, path in load_content:
-            stream = s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read()
-            eopatch[feature] = pickle.loads(stream)
+            is_compressed = path.endswith('.gz')
+            is_pickle = '.pkl' in path
 
+            stream = s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read()
+            if is_compressed:
+                with gzip.open(BytesIO(stream), 'rb') as gzip_fp:
+                    if is_pickle:
+                        data = pickle.load(gzip_fp)
+                    else:
+                        data = np.load(gzip_fp)
+            else:
+                if is_pickle:
+                    data = pickle.load(BytesIO(stream))
+                else:
+                    data = np.load(BytesIO(stream))
+
+            eopatch[feature] = data
         return eopatch
 
     @staticmethod
