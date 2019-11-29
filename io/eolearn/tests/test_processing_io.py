@@ -1,11 +1,11 @@
-""" Testing SentinelHubProcessingInput
+""" Testing SentinelHubInputTask
 """
 
 import unittest
 import datetime as dt
 from sentinelhub import CRS, BBox, DataSource
 
-from eolearn.io import SentinelHubProcessingInput
+from eolearn.io import SentinelHubInputTask
 from eolearn.core import FeatureType
 
 # import sys
@@ -16,7 +16,7 @@ from eolearn.core import FeatureType
 # logging.getLogger("sentinelhub.sentinelhub_rate_limit").setLevel(logging.DEBUG)
 
 class TestProcessingIO(unittest.TestCase):
-    """ Test cases for SentinelHubProcessingInput
+    """ Test cases for SentinelHubInputTask
     """
     size = (99, 101)
     bbox = BBox(bbox=[268892, 4624365, 268892+size[0]*10, 4624365+size[1]*10], crs=CRS.UTM_33N)
@@ -28,7 +28,7 @@ class TestProcessingIO(unittest.TestCase):
     def test_S2L1C(self):
         """ Download S2L1C bands and dataMask
         """
-        task = SentinelHubProcessingInput(
+        task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             additional_data=[(FeatureType.MASK, 'dataMask')],
             size=self.size,
@@ -49,7 +49,7 @@ class TestProcessingIO(unittest.TestCase):
     def test_specific_bands(self):
         """ Download S2L1C bands and dataMask
         """
-        task = SentinelHubProcessingInput(
+        task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             bands=["B01", "B02", "B03"],
             size=self.size,
@@ -68,7 +68,7 @@ class TestProcessingIO(unittest.TestCase):
     def test_S2L2A(self):
         """ Download just SCL, without other bands
         """
-        task = SentinelHubProcessingInput(
+        task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             additional_data=[(FeatureType.MASK, 'dataMask')],
             size=self.size,
@@ -89,7 +89,7 @@ class TestProcessingIO(unittest.TestCase):
     def test_scl_only(self):
         """ Download just SCL, without any other bands
         """
-        task = SentinelHubProcessingInput(
+        task = SentinelHubInputTask(
             bands_feature=None,
             additional_data=[(FeatureType.DATA, 'SCL')],
             size=self.size,
