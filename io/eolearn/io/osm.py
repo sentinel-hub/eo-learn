@@ -2,12 +2,13 @@
 Module containing tasks used for reading vector data from OpenStreetMap
 """
 
-import overpass
 import geopandas
+import overpass
+
+from sentinelhub.constants import CRS
 from shapely.geometry import shape, box, mapping
 
 from eolearn.core import EOTask, FeatureType
-from sentinelhub.constants import CRS
 
 
 class OSMInput(EOTask):
