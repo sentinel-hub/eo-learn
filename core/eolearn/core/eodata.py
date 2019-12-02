@@ -582,9 +582,9 @@ class EOPatch:
 
         features = list(FeatureParser(features)(self))
 
-        ftrs = {(ftype, fname) for ftype, fname in features if not ftype.is_meta()}
-        meta = {(ftype, ...) for ftype, _ in features if ftype.is_meta()}
-        features = list(ftrs | meta)
+        ftrs = [(ftype, fname) for ftype, fname in features if not ftype.is_meta()]
+        meta = list(set((ftype, ...) for ftype, _ in features if ftype.is_meta()))
+        features = ftrs + meta
 
         file_saver_list = self._get_save_file_list('', '', features, file_format, compress_level)
         paths = [saver.get_file_path(patch_location) for saver in file_saver_list]

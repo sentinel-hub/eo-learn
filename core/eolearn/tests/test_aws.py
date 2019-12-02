@@ -30,8 +30,10 @@ class TestEOPatchAWS(unittest.TestCase):
     def create_and_fill_s3_bucket(self):
         s3client = boto3.client('s3', region_name='eu-central-1')
         s3resource = boto3.resource('s3', region_name='eu-central-1')
-        s3resource.create_bucket(Bucket=self.MY_BUCKET)
-        self.eop.save_aws(bucket_name=self.MY_BUCKET, patch_location=self.MY_PREFIX, s3client=s3client)
+        s3resource.create_bucket(Bucket=self.MY_BUCKET,
+                                 CreateBucketConfiguration={'LocationConstraint': 'eu-central-1'})
+        self.eop.save_aws(bucket_name=self.MY_BUCKET, patch_location=self.MY_PREFIX, s3client=s3client,
+                          compress_level=0)
         return s3client, s3resource
 
     def empty_and_delete_s3_bucket(self, s3resource):
