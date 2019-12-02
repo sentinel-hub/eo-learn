@@ -576,6 +576,7 @@ class EOPatch:
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
+        :param s3client: Override the automatic s3 client
         :type s3client: botocore.client.S3
         """
 
