@@ -20,9 +20,8 @@ import warnings
 import copy
 import datetime
 import pickletools
-import boto3
-import gzip
 from io import BytesIO
+import boto3
 
 import attr
 import dateutil.parser
@@ -580,11 +579,11 @@ class EOPatch:
         :type s3client: botocore.client.S3
         """
 
-        features = [(ftype, fname) for ftype, fname in FeatureParser(features)(self)]
+        features = list(FeatureParser(features)(self))
 
-        ftrs = [(ftype, fname) for ftype, fname in features if not ftype.is_meta()]
-        meta = list(set([(ftype, ...) for ftype, _ in features if ftype.is_meta()]))
-        features = ftrs + meta
+        ftrs = {(ftype, fname) for ftype, fname in features if not ftype.is_meta()}
+        meta = {(ftype, ...) for ftype, _ in features if ftype.is_meta()}
+        features = list(ftrs | meta)
 
         file_saver_list = self._get_save_file_list('', '', features, file_format, compress_level)
         paths = [saver.get_file_path(patch_location) for saver in file_saver_list]
@@ -595,19 +594,19 @@ class EOPatch:
             if ftype is FeatureType.BBOX:
                 data = tuple(data) + (int(data.crs.value),)
 
+            def _dump_data(file_handler, data_content, feature_type):
+                if feature_type.is_meta():
+                    pickle.dump(data_content, file_handler)
+                else:
+                    np.save(file_handler, data_content)
+
             memfile = BytesIO()
 
             if compress_level:
                 with gzip.GzipFile(fileobj=memfile, mode='w', compresslevel=compress_level) as bytes_fp:
-                    if ftype.is_meta():
-                        pickle.dump(data, bytes_fp)
-                    else:
-                        np.save(bytes_fp, data)
+                    _dump_data(bytes_fp, data, ftype)
             else:
-                if ftype.is_meta():
-                    pickle.dump(data, memfile)
-                else:
-                    np.save(memfile, data)
+                _dump_data(memfile, data, ftype)
 
             bytes_to_upload = memfile.getvalue()
             s3client.put_object(Bucket=bucket_name, Key=path, Body=bytes_to_upload)
@@ -768,12 +767,19 @@ class EOPatch:
         ftrs = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in ftrs]
         ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
 
-        requested_features = [(ftype, fname) for ftype, fname in FeatureParser(features)]
+        requested_features = list(FeatureParser(features))
         load_content = []
         for (ftype, fname), path in zip(ftrs, paths):
             if ftype in [ftype for ftype, _ in requested_features]:
                 if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
                     load_content.append([(ftype, fname), path])
+
+        def _load_data(file_handler, is_pickle):
+            if is_pickle:
+                data_content = pickle.load(file_handler)
+            else:
+                data_content = np.load(file_handler)
+            return data_content
 
         for feature, path in load_content:
             is_compressed = path.endswith('.gz')
@@ -782,15 +788,9 @@ class EOPatch:
             stream = s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read()
             if is_compressed:
                 with gzip.open(BytesIO(stream), 'rb') as gzip_fp:
-                    if is_pickle:
-                        data = pickle.load(gzip_fp)
-                    else:
-                        data = np.load(gzip_fp)
+                    data = _load_data(gzip_fp, is_pickle)
             else:
-                if is_pickle:
-                    data = pickle.load(BytesIO(stream))
-                else:
-                    data = np.load(BytesIO(stream))
+                data = _load_data(BytesIO(stream), is_pickle)
 
             eopatch[feature] = data
         return eopatch
