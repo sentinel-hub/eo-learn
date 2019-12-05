@@ -18,7 +18,8 @@ class SentinelHubInputTask(EOTask):
     """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
-                 maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None):
+                 maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
+                 bands_dtype=np.float32):
         """
         :param data_source: Source of requested satellite data.
         :type data_source: DataSource
@@ -49,6 +50,7 @@ class SentinelHubInputTask(EOTask):
         self.cache_folder = cache_folder
         self.max_threads = max_threads
         self.config = config or SHConfig()
+        self.bands_dtype = bands_dtype
 
         self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
 
@@ -125,7 +127,7 @@ class SentinelHubInputTask(EOTask):
             eopatch[(f_type, f_name_dst)] = self._extract_additional_data(images, f_type, f_name_src, shape)
 
         if self.bands:
-            eopatch[self.bands_feature] = self._extract_bands(images, shape)
+            self._extract_bands(eopatch, images, shape)
 
         eopatch.meta_info['service_type'] = 'processing'
         eopatch.meta_info['size_x'] = size_x
@@ -215,9 +217,16 @@ class SentinelHubInputTask(EOTask):
 
         return np.asarray(feature_arrays, dtype=dst_type).reshape(*shape, 1)
 
-    def _extract_bands(self, images, shape):
-        """ extract bands from the received images and save them as self.bands_feature
-        """
-        img_bands = len(self.bands)
-        img_arrays = [img[..., :img_bands].astype(np.float32) * norm_factor for img, norm_factor in images]
-        return np.round(np.asarray(img_arrays).reshape(*shape, img_bands), 4)
+    def _extract_bands(self, eopatch, images, shape):
+        num_bands = len(self.bands)
+
+        bands = [img[..., :num_bands].astype(self.bands_dtype) for img, _ in images]
+        norms = [norm_factor for _, norm_factor in images]
+
+        if self.bands_dtype == np.int16:
+            norms = np.asarray(norms).reshape(shape[0], 1).astype(np.float32)
+            eopatch[(FeatureType.SCALAR, 'NORM_FACTORS')] = norms
+        else:
+            bands = [np.round(band * norm, 4) for band, norm in zip(bands, norms)]
+
+        eopatch[self.bands_feature] = np.asarray(bands).reshape(*shape, num_bands)
