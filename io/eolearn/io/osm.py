@@ -27,7 +27,7 @@ class OSMInput(EOTask):
     :type overpass_opts: dict
     """
 
-    def __init__(self, feature_name, query, polygonize=True, overpass_opts=None):
+    def __init__(self, feature_name, query, polygonize=False, overpass_opts=None):
         self.feature_name = feature_name
         self.query = query
         self.polygonize = polygonize
