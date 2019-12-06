@@ -6,7 +6,7 @@ import geopandas
 import overpass
 
 from sentinelhub.constants import CRS
-from shapely.geometry import shape, box, mapping
+from shapely.geometry import shape, box, mapping, Polygon
 
 from eolearn.core import EOTask, FeatureType
 
@@ -60,7 +60,10 @@ class OSMInput(EOTask):
         for feat in response['features']:
             geom = shape(feat['geometry'])
             if self.polygonize:
-                geom = geom.convex_hull
+                # currently the API doesn't support relations so we use shapely to wrap geometries
+                # https://github.com/mvexel/overpass-api-python-wrapper/issues/106#issuecomment-421446118
+                # https://github.com/mvexel/overpass-api-python-wrapper/issues/48#issuecomment-418770376
+                geom = Polygon(geom)
             clipped_geom = geom.intersection(clip_shape)
             feat['geometry'] = mapping(clipped_geom)
 
