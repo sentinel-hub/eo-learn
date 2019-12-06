@@ -5,6 +5,14 @@ instance invokes the execute method. EO tasks are meant primarily to operate on 
 
 EO task classes are generally lightweight (i.e. not too complicated), short, and do one thing well. For example, an
 EO task might take as input an EOPatch containing cloud mask and return as a result the cloud coverage for that mask.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import sys
@@ -60,19 +68,21 @@ class EOTask(ABC):
         """
         self.private_task_config.start_time = datetime.datetime.now()
 
-        caught_exception = None
         try:
             return_value = self.execute(*eopatches, **kwargs)
+            self.private_task_config.end_time = datetime.datetime.now()
+            return return_value
         except BaseException as exception:
-            caught_exception = exception, sys.exc_info()[2]
+            traceback = sys.exc_info()[2]
 
-        if caught_exception is not None:  # Exception is not raised in except statement to prevent duplicated traceback
-            exception, traceback = caught_exception
-            raise type(exception)('During execution of task {}: {}'.format(self.__class__.__name__,
-                                                                           exception)).with_traceback(traceback)
+            # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
+            try:
+                errmsg = 'During execution of task {}: {}'.format(self.__class__.__name__, exception)
+                extended_exception = type(exception)(errmsg)
+            except TypeError:
+                extended_exception = exception
 
-        self.private_task_config.end_time = datetime.datetime.now()
-        return return_value
+            raise extended_exception.with_traceback(traceback)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):

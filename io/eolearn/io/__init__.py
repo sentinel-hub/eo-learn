@@ -8,5 +8,6 @@ from .sentinelhub_service import SentinelHubOGCInput, SentinelHubWMSInput, Senti
 from .geopedia import AddGeopediaFeature
 from .local_io import ExportToTiff, ImportFromTiff
 from .osm  import OSMInput
+from .processing_api import SentinelHubInputTask
 
-__version__ = '0.5.0'
+__version__ = '0.6.0'

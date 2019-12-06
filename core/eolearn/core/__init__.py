@@ -8,10 +8,13 @@ from .constants import FeatureType, FeatureTypeSet, FileFormat, OverwritePermiss
 from .eodata import EOPatch
 from .eotask import EOTask, CompositeTask
 from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
-from .eoexecution import EOExecutor
+from .eoexecution import EOExecutor, execute_with_mp_lock
 
-from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFeature, RemoveFeature, RenameFeature
+from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFeature, RemoveFeature, RenameFeature,\
+    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
+    ExtractBandsTask, CreateEOPatchTask
+
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
 
 
-__version__ = '0.5.2'
+__version__ = '0.6.0'

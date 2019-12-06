@@ -1,20 +1,28 @@
 """
 Transformations between vector and raster formats of data
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
 import warnings
 
-import shapely.geometry
-import shapely.wkt
-import rasterio.features
-import rasterio.transform
 import numpy as np
 import pandas as pd
+import rasterio.features
+import rasterio.transform
+import shapely.geometry
+import shapely.ops
+import shapely.wkt
 from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
-
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)
@@ -32,7 +40,7 @@ class VectorToRaster(EOTask):
     """
     def __init__(self, vector_input, raster_feature, *, values=None, values_column=None, raster_shape=None,
                  raster_resolution=None, raster_dtype=np.uint8, no_data_value=0, write_to_existing=False,
-                 **rasterio_params):
+                 overlap_value=None, buffer=0, **rasterio_params):
         """
         :param vector_input: Vector data to be used for rasterization. It can be given as a feature in `EOPatch` or
             as an independent geopandas `GeoDataFrame`.
@@ -61,7 +69,12 @@ class VectorToRaster(EOTask):
         :type no_data_value: int or float
         :param write_to_existing: If `True` it will write to existing raster array and overwrite parts of its values.
             If `False` it will create a new raster array and remove the old one. Default is `False`.
+        :param overlap_value: A value to override parts of raster where polygons of different classes overlap. If None,
+            rasterization overlays polygon as it is the default behavior of `rasterio.features.rasterize`.
+        :type overlap_value: raster's dtype
         :type write_to_existing: bool
+        :param buffer: Buffer value passed to vector_data.buffer() before rasterization. If 0, no buffering is done.
+        :type buffer: float
         :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently
             available parameters are `all_touched` and `merge_alg`
         """
@@ -82,12 +95,15 @@ class VectorToRaster(EOTask):
         self.no_data_value = no_data_value
         self.write_to_existing = write_to_existing
         self.rasterio_params = rasterio_params
+        self.overlap_value = overlap_value
+        self.buffer = buffer
 
     @staticmethod
     def _parse_main_params(vector_input, raster_feature):
         """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
         """
         if VectorToRaster._is_geopandas_object(raster_feature):
+            # pylint: disable=W1114
             warnings.warn('In the new version of VectorToRaster task order of parameters changed. Parameter for '
                           'specifying vector data or feature has to be before parameter specifying new raster feature',
                           DeprecationWarning, stacklevel=3)
@@ -117,10 +133,13 @@ class VectorToRaster(EOTask):
         feature_type, feature_name = next(self.vector_input(eopatch))
         return eopatch[feature_type][feature_name]
 
-    def _get_rasterization_shapes(self, eopatch):
+    def _get_rasterization_shapes(self, eopatch, group_classes=False):
         """ Returns a generator of pairs of geometrical shapes and values. In rasterization process each shape will be
         rasterized to it's corresponding value.
         If there are no such geometries it will return `None`
+        :param group_classes: If true, function returns a zip that iterates through cascaded unions of polygons of the
+        same class, otherwise zip iterates through all polygons regardless of their class.
+        :type group_classes: boolean
         """
         vector_data = self._get_vector_data(eopatch)
 
@@ -128,14 +147,23 @@ class VectorToRaster(EOTask):
             raise ValueError('Cannot recognize CRS of vector data')
         vector_data_crs = CRS(vector_data.crs['init'])
         if eopatch.bbox.crs is not vector_data_crs:
-            raise ValueError("Vector data and EOPatch should be in the same CRS, found '{}' and '{}'"
-                             "".format(eopatch.bbox.crs, vector_data_crs))
+            warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
+                          'each execution', RuntimeWarning)
+            vector_data = vector_data.to_crs(epsg=eopatch.bbox.crs.epsg)
 
         bbox_poly = eopatch.bbox.geometry
         vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
 
         if vector_data.empty:
             return None
+
+        if self.buffer:
+            vector_data.geometry = vector_data.geometry.buffer(self.buffer)
+            vector_data = vector_data[~vector_data.is_empty]
+
+            # vector_data could be empty as a result of (negative) buffer
+            if vector_data.empty:
+                return None
 
         if not vector_data.geometry.is_valid.all():
             warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
@@ -152,6 +180,12 @@ class VectorToRaster(EOTask):
         if self.values is not None:
             values = [self.values] if isinstance(self.values, (int, float)) else self.values
             vector_data = vector_data[vector_data[self.values_column].isin(values)]
+
+        if group_classes:
+            classes = np.unique(vector_data[self.values_column])
+            grouped = (vector_data.geometry[vector_data[self.values_column] == cl] for cl in classes)
+            grouped = (shapely.ops.cascaded_union(group) for group in grouped)
+            return zip(grouped, classes)
 
         return zip(vector_data.geometry, vector_data[self.values_column])
 
@@ -179,7 +213,7 @@ class VectorToRaster(EOTask):
         feature_type, feature_name = self.raster_feature
 
         if self.write_to_existing and feature_name in eopatch[feature_type]:
-            raster = eopatch[feature_type][feature_name].squeeze(axis=-1)
+            raster = eopatch[self.raster_feature].squeeze(axis=-1)
 
             if (height, width) != raster.shape[:2]:
                 warnings.warn('Writing to existing raster with spatial dimensions {}, but dimensions {} were expected'
@@ -188,6 +222,28 @@ class VectorToRaster(EOTask):
             return raster
 
         return np.ones((height, width), dtype=self.raster_dtype) * self.no_data_value
+
+    def rasterize_overlapped(self, shapes, out, **rasterize_args):
+        """ Rasterize overlapped classes.
+
+        :param shapes: Shapes to be rasterized.
+        :type shapes: an iterable of pairs (rasterio.polygon, int)
+        :param out: A numpy array to which to rasterize polygon classes.
+        :type out: numpy.ndarray
+        :param rasterize_args: Keyword arguments to be passed to `rasterio.features.rasterize`.
+        :type rasterize_args: dict
+        """
+        rasters = [rasterio.features.rasterize([shape], out=np.copy(out), **rasterize_args) for shape in shapes]
+
+        overlap_mask = np.zeros(out.shape, dtype=np.bool)
+        no_data = self.no_data_value
+
+        out[:] = rasters[0][:]
+        for raster in rasters[1:]:
+            overlap_mask[(out != no_data) & (raster != no_data) & (raster != out)] = True
+            out[raster != no_data] = raster[raster != no_data]
+
+        out[overlap_mask] = self.overlap_value
 
     def execute(self, eopatch):
         """ Execute method
@@ -200,20 +256,23 @@ class VectorToRaster(EOTask):
         if eopatch.bbox is None:
             raise ValueError('EOPatch has to have a bounding box')
 
-        rasterization_shapes = self._get_rasterization_shapes(eopatch)
+        height, width = self._get_raster_shape(eopatch)
+
+        group_classes = self.overlap_value is not None
+        rasterization_shapes = self._get_rasterization_shapes(eopatch, group_classes=group_classes)
+
         if not rasterization_shapes:
+            eopatch[self.raster_feature] = np.full((height, width, 1), self.no_data_value, dtype=self.raster_dtype)
             return eopatch
 
-        height, width = self._get_raster_shape(eopatch)
         affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
+        rasterize_args = dict(self.rasterio_params, transform=affine_transform, dtype=self.raster_dtype)
 
         raster = self._get_raster(eopatch, height, width)
+        rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
+        rasterize_func(rasterization_shapes, out=raster, **rasterize_args)
 
-        rasterio.features.rasterize(rasterization_shapes, out=raster, transform=affine_transform,
-                                    dtype=self.raster_dtype, **self.rasterio_params)
-
-        feature_type, feature_name = self.raster_feature
-        eopatch[feature_type][feature_name] = raster[..., np.newaxis]
+        eopatch[self.raster_feature] = raster[..., np.newaxis]
         return eopatch
 
 

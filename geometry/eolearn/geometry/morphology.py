@@ -1,15 +1,19 @@
 """
 Module containing tasks for morphological operations
-"""
 
-import logging
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
 
 import skimage.morphology
 import numpy as np
 
 from eolearn.core import EOTask
-
-LOGGER = logging.getLogger(__name__)
 
 
 class ErosionTask(EOTask):
@@ -27,33 +31,29 @@ class ErosionTask(EOTask):
     """
 
     def __init__(self, mask_feature, disk_radius=1, erode_labels=None, no_data_label=0):
-        self.mask_type, self.mask_name, self.new_mask_name = next(iter(self._parse_features(mask_feature,
-                                                                                            new_names=True)))
-        self.disk_radius = disk_radius
+        if not isinstance(disk_radius, int) or disk_radius is None or disk_radius < 1:
+            raise ValueError('Disk radius should be an integer larger than 0!')
+
+        self.mask_type, self.mask_name, self.new_mask_name = next(self._parse_features(mask_feature, new_names=True)())
+        self.disk = skimage.morphology.disk(disk_radius)
         self.erode_labels = erode_labels
         self.no_data_label = no_data_label
 
     def execute(self, eopatch):
+        feature_array = eopatch[(self.mask_type, self.mask_name)].squeeze().copy()
 
-        if self.disk_radius is None or self.disk_radius < 1 or not isinstance(self.disk_radius, int):
-            LOGGER.warning('Disk radius should be an integer larger than 0! Ignoring erosion task.')
-            return eopatch
+        all_labels = np.unique(feature_array)
+        erode_labels = self.erode_labels if self.erode_labels else all_labels
 
-        labels = eopatch[self.mask_type][self.mask_name].squeeze().copy()
+        erode_labels = set(erode_labels) - {self.no_data_label}
+        other_labels = set(all_labels) - set(erode_labels) - {self.no_data_label}
 
-        patch_labels = np.unique(labels)
-        erode_labels = patch_labels if self.erode_labels is None else self.erode_labels
+        eroded_masks = [skimage.morphology.binary_erosion(feature_array == label, self.disk) for label in erode_labels]
+        other_masks = [feature_array == label for label in other_labels]
 
-        mask_values = np.zeros(labels.shape, dtype=np.bool)
-        for label in patch_labels:
-            if label == self.no_data_label:
-                continue
+        merged_mask = np.logical_or.reduce(eroded_masks + other_masks, axis=0)
 
-            label_mask = (labels == label)
-            if label in erode_labels:
-                label_mask = skimage.morphology.binary_erosion(label_mask, skimage.morphology.disk(self.disk_radius))
-            mask_values |= label_mask
+        feature_array[~merged_mask] = self.no_data_label
+        eopatch[(self.mask_type, self.new_mask_name)] = np.expand_dims(feature_array, axis=-1)
 
-        labels[~mask_values] = self.no_data_label
-        eopatch[self.mask_type][self.new_mask_name] = np.expand_dims(labels, axis=-1)
         return eopatch

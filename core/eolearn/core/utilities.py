@@ -1,16 +1,39 @@
 """
 The utilities module is a collection of classes and functions used across the eolearn package, such as checking whether
 two objects are deeply equal, padding of an image, etc.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
 from collections import OrderedDict
+from logging import Filter
 
 import numpy as np
 
 from .constants import FeatureType
 
 LOGGER = logging.getLogger(__name__)
+
+
+class LogFileFilter(Filter):
+    """ Filters log messages passed to log file
+    """
+
+    def __init__(self, thread_name, *args, **kwargs):
+        self.thread_name = thread_name
+        super().__init__(*args, **kwargs)
+
+    def filter(self, record):
+        """ Shows everything from the thread that it was initialized in.
+        """
+        return record.threadName == self.thread_name
 
 
 class FeatureParser:
