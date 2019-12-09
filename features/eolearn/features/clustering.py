@@ -21,8 +21,8 @@ class ClusteringTask(EOTask):
                  linkage="single", remove_small=0, connectivity=None, mask_name=None):
         """ Class constructor
 
-        :param features: A collection of features used for clustering
-        :type features: dict(FeatureType: set(str))
+        :param features: A collection of features used for clustering. The features need to be of type DATA_TIMELESS
+        :type features: dict(FeatureType.DATA_TIMELESS: set(str))
         :param new_feature_name: Name of feature that is the result of clustering
         :type new_feature_name: str
         :param distance_threshold: The linkage distance threshold above which, clusters will not be merged. If non None,
@@ -73,7 +73,7 @@ class ClusteringTask(EOTask):
         :return: array of vectors constructed from the features listed
         """
 
-        feature = EOTask._parse_features(features)
+        feature = EOTask._parse_features(features, default_feature_type=FeatureType.DATA_TIMELESS)
         data = None
         for i in feature:
             if data is None:
