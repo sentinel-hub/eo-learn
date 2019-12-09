@@ -88,9 +88,9 @@ The following guidelines should be observed when creating a PR.
 git clone git@github.com:<username>/eo-learn.git
 ```
 
-* Make sure that you have python 3 installed, i.e. version 3.5 or higher. See https://www.python.org/downloads/ for general Python versions or https://www.anaconda.com/distribution/ for using Conda.
+* Make sure that you have python 3 installed, i.e. version 3.5 or higher. See [Python downloads][python] for general Python versions or [Anaconda distributions][conda] for using Conda.
 
-* Install **eo-learn** and all subpackages in (editable) development mode with `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required packages. For example by using Python Package Index (PyPI) and virtualenv:
+* All **eo-learn** packages can be installed at once using `python install_all.py -e`. To install each package separately, run `pip install -e <package_folder>`. We strongly recommend initializing a virtual environment before installing the required packages. For example by using Python Package Index (PyPI) and virtualenv:
 
 ```bash
 cd eo-learn
@@ -100,8 +100,7 @@ source .env/bin/activate
 
 # The following installs all eo-learn subpackages and development packages
 # using PyPI in the activated virtualenv environment.
-pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io \
--e ./mask -e ./ml_tools -e ./visualization -e .
+python install_all.py -e
 pip install -r requirements-dev.txt -r requirements-docs.txt
 ```
 
@@ -118,12 +117,11 @@ conda activate dev_eolearn
 
 # The following installs all eo-learn subpackages and development packages
 # using PyPI in the activated Conda environment.
-pip install -e ./core -e ./coregistration -e ./features -e ./geometry -e ./io \
- -e ./mask -e ./ml_tools -e ./visualization -e .
+python install_all.py -e
 pip install -r requirements-dev.txt -r requirements-docs.txt
 ```
 
-**Note:** to reduce later merge conflicts, always pull the latest version of the `develop` branch from the upstream eo-learn repository ([located here](https://github.com/sentinel-hub/eo-learn/tree/develop)) to your fork before starting the work on your PR.
+**Note:** to reduce later merge conflicts, always pull the latest version of the `develop` branch from the upstream eo-learn repository ([located here][dev-branch]) to your fork before starting the work on your PR.
 
 ### Contribute an `EOTask`
 
@@ -159,3 +157,6 @@ Looking forward to include your contributions into **eo-learn**.
 [pylint]: https://www.pylint.org/
 [existing-eo-tasks]: https://eo-learn.readthedocs.io/en/latest/eotasks.html
 [test-eo-patch]: https://github.com/sentinel-hub/eo-learn/tree/master/example_data/TestEOPatch
+[python]: https://www.python.org/downloads/
+[conda]: https://www.anaconda.com/distribution/
+[dev-branch]: https://github.com/sentinel-hub/eo-learn/tree/develop/
