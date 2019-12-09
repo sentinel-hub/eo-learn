@@ -27,13 +27,15 @@ class DoublyLogisticApproximationTask(EOTask):
     :type new_feature: str
     :param initial_parameters: Initial parameter guess
     :type initial_parameters: List of floats length 7 corresponding to each parameter
+    :param mask_feature: A feature used as a mask for valid regions. If left as None the whole patch is used
+    :type mask_feature: (FeatureType, str) or None
     """
 
-    def __init__(self, feature, new_feature='DOUBLY_LOGISTIC_PARAM', initial_parameters=None, mask_data=False):
+    def __init__(self, feature, new_feature='DOUBLY_LOGISTIC_PARAM', initial_parameters=None, mask_feature=None):
         self.feature = feature
         self.initial_parameters = initial_parameters
         self.new_feature = new_feature
-        self.mask_data = mask_data
+        self.mask_feature = mask_feature
 
     def _fit_optimize(self, x_axis, y_axis):
         """
@@ -64,8 +66,8 @@ class DoublyLogisticApproximationTask(EOTask):
 
         time, height, width = data.shape
 
-        if self.mask_data:
-            valid_data_mask = eopatch.mask['VALID_DATA']
+        if self.mask_feature:
+            valid_data_mask = eopatch[self.mask_feature[0]][self.mask_feature[1]]
         else:
             valid_data_mask = np.ones((time, height, width), dtype=bool)
 
