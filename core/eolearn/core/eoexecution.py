@@ -30,7 +30,10 @@ from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
 
-MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
+try:
+    MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
+except BaseException:
+    MULTIPROCESSING_LOCK = None
 
 
 class EOExecutor:
@@ -283,7 +286,7 @@ def execute_with_mp_lock(execution_function, *args, **kwargs):
     :param kwargs: Function's keyword arguments
     :return: Function's results
     """
-    if multiprocessing.current_process().name == 'MainProcess':
+    if multiprocessing.current_process().name == 'MainProcess' or MULTIPROCESSING_LOCK is None:
         return execution_function(*args, **kwargs)
 
     with MULTIPROCESSING_LOCK:
