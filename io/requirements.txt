@@ -1,2 +1,3 @@
 eo-learn-core
+overpass
 rasterio
