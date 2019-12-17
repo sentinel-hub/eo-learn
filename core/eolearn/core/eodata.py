@@ -22,6 +22,7 @@ import datetime
 import pickletools
 from io import BytesIO
 import boto3
+import fs
 
 import attr
 import dateutil.parser
@@ -798,6 +799,76 @@ class EOPatch:
                     data = _load_data(gzip_fp, is_pickle)
             else:
                 data = _load_data(BytesIO(stream), is_pickle)
+
+            eopatch[feature] = data
+        return eopatch
+
+    @staticmethod
+    def load_aws_new(filesystem, patch_location, features=...):
+        """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
+
+        :param bucket_name: Name of the AWS S3 bucket
+        :type bucket_name: str
+        :param patch_location: Location of the EOPatch on the AWS S3 bucket
+        :type patch_location: str
+        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :type features: object
+        :param s3client: Override the automatic s3 client
+        :type s3client: botocore.client.S3
+        """
+
+        eopatch_objects = filesystem.listdir(patch_location)
+
+
+        _paths = [fs.path.combine(patch_location, obj) for obj in eopatch_objects]
+
+        paths = []
+        for path in _paths:
+            # print(path, filesystem.isdir(path))
+            if '.' not in path: #filesystem.isdir(path):
+                for filename in filesystem.listdir(path):
+                    print(filename)
+                    paths.append(fs.path.combine(path, filename))
+            else:
+                paths.append(path)
+
+        eopatch = EOPatch()
+        print(paths)
+        # import ipdb; ipdb.set_trace()
+        ftrs = [path.rsplit('/', 2)[1:] for path in paths]
+        # ftrs = [path.split('/')[-1].split('.')[0] for path in paths]
+        ftrs = [(feature[0], feature[1].split('.')[0]) if len(feature) > 1 else (feature[0].split('.')[0], None) for feature in ftrs]
+        ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
+        print(ftrs)
+        requested_features = list(FeatureParser(features))
+        load_content = []
+        for (ftype, fname), path in zip(ftrs, paths):
+            if ftype in [ftype for ftype, _ in requested_features]:
+                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
+                    load_content.append([(ftype, fname), path])
+
+        def _load_data(file_handler, is_pickle):
+            if is_pickle:
+                data_content = pickle.load(file_handler)
+            else:
+                data_content = np.load(file_handler)
+            return data_content
+
+        for feature, path in load_content:
+            is_pickle = '.pkl' in path
+            is_compressed = path.endswith('.gz')
+            if not filesystem.exists(path):
+                filesystem.makedirs(path, recreate=True)
+            mem_file = BytesIO()
+            filesystem.download(path, mem_file)
+
+            mem_file.seek(0)
+
+            if is_compressed:
+                with gzip.open(mem_file, 'rb') as gzip_fp:
+                    data = _load_data(gzip_fp, is_pickle)
+            else:
+                data = _load_data(mem_file, is_pickle)
 
             eopatch[feature] = data
         return eopatch
