@@ -804,48 +804,37 @@ class EOPatch:
         return eopatch
 
     @staticmethod
+    def walk(filesystem, patch_location):
+        """ Recursively reads a patch_location and returns yelds tuples of (feature_type, feature_name, file_path)
+        """
+        for path in filesystem.listdir(patch_location):
+            if '.' not in path:
+                subdir = fs.path.combine(patch_location, path)
+                for file in filesystem.listdir(subdir):
+                    yield path, file.split('.')[0], fs.path.combine(subdir, file)
+            else:
+                yield path.split('.')[0], None, fs.path.combine(patch_location, path)
+
+    @staticmethod
+    def walk_filtered(filesystem, patch_location, features):
+        """ Based on EOPatch.walk generator, but applies feature filtering based on the `features` argument
+        """
+        itr = EOPatch.walk(filesystem, patch_location)
+        itr = ((FeatureType(ftype), fname, path) for ftype, fname, path in itr)
+
+        features = FeatureParser(features).feature_collection
+        for ftype, fname, path in itr:
+            if ftype not in features.keys():
+                continue
+
+            ftrs = features[ftype]
+            if ftrs == Ellipsis or fname in ftrs:
+                yield ftype, fname, path
+
+    @staticmethod
     def load_aws_new(filesystem, patch_location, features=...):
         """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
-
-        :param bucket_name: Name of the AWS S3 bucket
-        :type bucket_name: str
-        :param patch_location: Location of the EOPatch on the AWS S3 bucket
-        :type patch_location: str
-        :param features: A collection of features to be loaded. By default all features will be loaded.
-        :type features: object
-        :param s3client: Override the automatic s3 client
-        :type s3client: botocore.client.S3
         """
-
-        eopatch_objects = filesystem.listdir(patch_location)
-
-
-        _paths = [fs.path.combine(patch_location, obj) for obj in eopatch_objects]
-
-        paths = []
-        for path in _paths:
-            # print(path, filesystem.isdir(path))
-            if '.' not in path: #filesystem.isdir(path):
-                for filename in filesystem.listdir(path):
-                    print(filename)
-                    paths.append(fs.path.combine(path, filename))
-            else:
-                paths.append(path)
-
-        eopatch = EOPatch()
-        print(paths)
-        # import ipdb; ipdb.set_trace()
-        ftrs = [path.rsplit('/', 2)[1:] for path in paths]
-        # ftrs = [path.split('/')[-1].split('.')[0] for path in paths]
-        ftrs = [(feature[0], feature[1].split('.')[0]) if len(feature) > 1 else (feature[0].split('.')[0], None) for feature in ftrs]
-        ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
-        print(ftrs)
-        requested_features = list(FeatureParser(features))
-        load_content = []
-        for (ftype, fname), path in zip(ftrs, paths):
-            if ftype in [ftype for ftype, _ in requested_features]:
-                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
-                    load_content.append([(ftype, fname), path])
 
         def _load_data(file_handler, is_pickle):
             if is_pickle:
@@ -854,7 +843,8 @@ class EOPatch:
                 data_content = np.load(file_handler)
             return data_content
 
-        for feature, path in load_content:
+        eopatch = EOPatch()
+        for ftype, fname, path in EOPatch.walk_filtered(filesystem, patch_location, features):
             is_pickle = '.pkl' in path
             is_compressed = path.endswith('.gz')
             if not filesystem.exists(path):
@@ -870,7 +860,8 @@ class EOPatch:
             else:
                 data = _load_data(mem_file, is_pickle)
 
-            eopatch[feature] = data
+            eopatch[(ftype, fname)] = data
+
         return eopatch
 
     @staticmethod
