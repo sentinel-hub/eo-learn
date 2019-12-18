@@ -87,7 +87,7 @@ class EOPatch:
             self[key][feature_name] = value
             return
 
-        if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
+        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, _Loader)):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
 
@@ -122,7 +122,7 @@ class EOPatch:
         """
         value = super().__getattribute__(key)
 
-        if isinstance(value, _FileLoader) and load:
+        if isinstance(value, (_FileLoader, _Loader)) and load:
             value = value.load()
             setattr(self, key, value)
             value = getattr(self, key)
@@ -835,33 +835,14 @@ class EOPatch:
                 yield ftype, fname, path
 
     @staticmethod
-    def load_aws_new(filesystem, patch_location, features=...):
+    def load_aws_new(filesystem, patch_location, features=..., lazy_loading=False):
         """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
         """
-
-        def _decode(file, path):
-            if '.pkl' in path:
-                return pickle.load(file)
-
-            if '.npy' in path:
-                return np.load(file)
-
-            raise ValueError('Unsupported data type.')
-
         eopatch = EOPatch()
 
         for ftype, fname, path in EOPatch.walk_filtered(filesystem, patch_location, features):
-            mem_file = BytesIO()
-            filesystem.download(path, mem_file)
-            mem_file.seek(0)
-
-            if path.endswith('.gz'):
-                with gzip.open(mem_file, 'rb') as gzip_fp:
-                    data = _decode(gzip_fp, path)
-            else:
-                data = _decode(mem_file, path)
-
-            eopatch[(ftype, fname)] = data
+            loader = _Loader(filesystem, ftype, fname, path)
+            eopatch[(ftype, fname)] = loader if lazy_loading else loader.load()
 
         return eopatch
 
@@ -1036,7 +1017,7 @@ class _FeatureDict(dict):
         """Implements lazy loading."""
         value = super().__getitem__(feature_name)
 
-        if isinstance(value, _FileLoader) and load:
+        if isinstance(value, (_FileLoader, _Loader)) and load:
             value = value.load()
             self[feature_name] = value
 
@@ -1051,7 +1032,7 @@ class _FeatureDict(dict):
 
         :raises: ValueError
         """
-        if isinstance(value, _FileLoader):
+        if isinstance(value, (_FileLoader, _Loader)):
             return value
         if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
             return value
@@ -1097,6 +1078,38 @@ class _FeatureDict(dict):
                              'given'.format(self.feature_type, gpd.GeoDataFrame.__name__, type(value)))
 
         return value
+
+
+class _Loader:
+    def __init__(self, filesystem, ftype, fname, path):
+        self.filesystem = filesystem
+        self.ftype = ftype
+        self.fname = fname
+        self.path = path
+
+    def load(self):
+        file_handle = BytesIO()
+        self.filesystem.download(self.path, file_handle)
+        file_handle.seek(0)
+
+        if self.path.endswith('.gz'):
+            with gzip.open(file_handle, 'rb') as gzip_fp:
+                return self._decode(gzip_fp, self.path)
+
+        return self._decode(file_handle, self.path)
+
+    @staticmethod
+    def _decode(file, path):
+        if '.pkl' in path:
+            return pickle.load(file)
+
+        if '.npy' in path:
+            return np.load(file)
+
+        raise ValueError('Unsupported data type.')
+
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__, self.path)
 
 
 class _FileLoader:
