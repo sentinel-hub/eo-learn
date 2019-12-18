@@ -824,6 +824,9 @@ class EOPatch:
 
         features = FeatureParser(features).feature_collection
         for ftype, fname, path in itr:
+            if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMP, FeatureType.META_INFO]:
+                yield ftype, fname, path
+
             if ftype not in features.keys():
                 continue
 
@@ -836,29 +839,27 @@ class EOPatch:
         """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
         """
 
-        def _load_data(file_handler, is_pickle):
-            if is_pickle:
-                data_content = pickle.load(file_handler)
-            else:
-                data_content = np.load(file_handler)
-            return data_content
+        def _decode(file, path):
+            if '.pkl' in path:
+                return pickle.load(file)
+
+            if '.npy' in path:
+                return np.load(file)
+
+            raise ValueError('Unsupported data type.')
 
         eopatch = EOPatch()
+
         for ftype, fname, path in EOPatch.walk_filtered(filesystem, patch_location, features):
-            is_pickle = '.pkl' in path
-            is_compressed = path.endswith('.gz')
-            if not filesystem.exists(path):
-                filesystem.makedirs(path, recreate=True)
             mem_file = BytesIO()
             filesystem.download(path, mem_file)
-
             mem_file.seek(0)
 
-            if is_compressed:
+            if path.endswith('.gz'):
                 with gzip.open(mem_file, 'rb') as gzip_fp:
-                    data = _load_data(gzip_fp, is_pickle)
+                    data = _decode(gzip_fp, path)
             else:
-                data = _load_data(mem_file, is_pickle)
+                data = _decode(mem_file, path)
 
             eopatch[(ftype, fname)] = data
 
