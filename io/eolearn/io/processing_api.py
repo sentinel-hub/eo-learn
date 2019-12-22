@@ -6,7 +6,7 @@ import datetime as dt
 import numpy as np
 
 from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig,\
-    bbox_to_dimensions
+    bbox_to_dimensions, parse_time_interval
 import sentinelhub.sentinelhub_request as shr
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -19,7 +19,7 @@ class SentinelHubInputTask(EOTask):
     """
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
-                 bands_dtype=np.float32):
+                 bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent'):
         """
         :param data_source: Source of requested satellite data.
         :type data_source: DataSource
@@ -51,6 +51,12 @@ class SentinelHubInputTask(EOTask):
         self.max_threads = max_threads
         self.config = config or SHConfig()
         self.bands_dtype = bands_dtype
+        self.single_scene = single_scene
+
+        if mosaicking_order not in ["mostRecent", "leastRecent", "leastCC"]:
+            raise ValueError("{} is not a valid mosaickingOrder parameter")
+
+        self.mosaicking_order = mosaicking_order
 
         self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
 
@@ -98,9 +104,15 @@ class SentinelHubInputTask(EOTask):
         elif self.resolution is not None:
             size_x, size_y = bbox_to_dimensions(eopatch.bbox, self.resolution)
 
-        eopatch.timestamp = self.get_dates(eopatch.bbox, time_interval)
+        if self.single_scene:
+            time_interval = parse_time_interval(time_interval)
+            eopatch.timestamp = [time_interval[0]]
+            dates = [[dt.datetime.fromisoformat(date) for date in time_interval]]
+        else:
+            eopatch.timestamp = self.get_dates(eopatch.bbox, time_interval)
+            dates = ((date - self.time_difference, date + self.time_difference) for date in eopatch.timestamp)
 
-        payloads = (self._request_payload(date, eopatch.bbox, size_x, size_y) for date in eopatch.timestamp)
+        payloads = (self._request_payload(date1, date2, eopatch.bbox, size_x, size_y) for date1, date2 in dates)
 
         request_args = dict(
             url=self.config.get_sh_processing_api_url(),
@@ -138,16 +150,16 @@ class SentinelHubInputTask(EOTask):
 
         return eopatch
 
-    def _request_payload(self, date, bbox, size_x, size_y):
+    def _request_payload(self, date_from, date_to, bbox, size_x, size_y):
         """ Build the payload dictionary for the request
         """
-        date_from, date_to = date - self.time_difference, date + self.time_difference
         time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
 
         responses = [shr.response('default', MimeType.TIFF.get_string()), shr.response('userdata', 'application/json')]
 
         data = shr.data(time_from=time_from, time_to=time_to, data_type=self.data_source.api_identifier())
         data['dataFilter']['maxCloudCoverage'] = int(self.maxcc * 100)
+        data['dataFilter']['mosaickingOrder'] = self.mosaicking_order
 
         return shr.body(
             request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
