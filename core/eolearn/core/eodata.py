@@ -822,7 +822,7 @@ class EOPatch:
                 yield FeatureType(path.split('.')[0]), None, fs.path.combine(patch_location, path)
 
     @staticmethod
-    def walk_eopatch(eopatch, patch_location, features=..., compress_level=0):
+    def walk_eopatch(eopatch, patch_location, features=...):
         """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
         """
         for ftype, fname in FeatureParser(features)(eopatch):
@@ -848,7 +848,7 @@ class EOPatch:
         """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
         """
 
-        for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features, compress_level):
+        for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features):
             file_format = FileFormat.PICKLE if ftype.is_meta() else FileFormat.NPY
             patch_io = EOPatchIO(filesystem, path)
             patch_io.save(self[(ftype, fname)], file_format, compress_level)
@@ -1114,7 +1114,7 @@ class EOPatchIO:
                 self._write_to_file(data, file_handle, file_format)
                 return
 
-            with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level) as gzip_file_handle:
+            with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level, mode='wb') as gzip_file_handle:
                 self._write_to_file(data, gzip_file_handle, file_format)
 
     @staticmethod
