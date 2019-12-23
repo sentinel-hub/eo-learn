@@ -87,7 +87,7 @@ class EOPatch:
             self[key][feature_name] = value
             return
 
-        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, _Loader)):
+        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, EOPatchIO)):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
 
@@ -122,7 +122,7 @@ class EOPatch:
         """
         value = super().__getattribute__(key)
 
-        if isinstance(value, (_FileLoader, _Loader)) and load:
+        if isinstance(value, (_FileLoader, EOPatchIO)) and load:
             value = value.load()
             setattr(self, key, value)
             value = getattr(self, key)
@@ -804,10 +804,16 @@ class EOPatch:
         return eopatch
 
     @staticmethod
-    def walk(filesystem, patch_location):
+    def walk_filesystem(filesystem, patch_location, features=...):
         """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
         """
-        for path in filesystem.listdir(patch_location):
+        features = list(FeatureParser(features)())
+        ftrs = set(ftype.value for ftype, fname in features)
+
+        paths = filesystem.listdir(patch_location)
+        paths = [path for path in paths if path.split('.')[0] in ftrs]
+
+        for path in paths:
             if '.' not in path:
                 subdir = fs.path.combine(patch_location, path)
                 for file in filesystem.listdir(subdir):
@@ -816,20 +822,15 @@ class EOPatch:
                 yield FeatureType(path.split('.')[0]), None, fs.path.combine(patch_location, path)
 
     @staticmethod
-    def walk_filtered(filesystem, patch_location, features):
-        """ Based on EOPatch.walk generator, but applies feature filtering based on the `features` argument
+    def walk_eopatch(eopatch, patch_location, features=..., compress_level=0):
+        """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
         """
-        features = FeatureParser(features).feature_collection
-        for ftype, fname, path in EOPatch.walk(filesystem, patch_location):
+        for ftype, fname in FeatureParser(features)(eopatch):
+            name_basis = fs.path.combine(patch_location, ftype.value)
             if ftype.is_meta():
-                yield ftype, fname, path
-
-            if ftype not in features:
-                continue
-
-            ftrs = features[ftype]
-            if ftrs is Ellipsis or fname in ftrs:
-                yield ftype, fname, path
+                yield ftype, fname, name_basis
+            else:
+                yield ftype, fname, fs.path.combine(name_basis, fname)
 
     @staticmethod
     def load_aws_new(filesystem, patch_location, features=..., lazy_loading=False):
@@ -837,11 +838,20 @@ class EOPatch:
         """
         eopatch = EOPatch()
 
-        for ftype, fname, path in EOPatch.walk_filtered(filesystem, patch_location, features):
-            loader = _Loader(filesystem, ftype, fname, path)
-            eopatch[(ftype, fname)] = loader if lazy_loading else loader.load()
+        for ftype, fname, path in EOPatch.walk_filesystem(filesystem, patch_location, features):
+            patch_io = EOPatchIO(filesystem, path)
+            eopatch[(ftype, fname)] = patch_io if lazy_loading else patch_io.load()
 
         return eopatch
+
+    def save_aws_new(self, filesystem, patch_location, features=..., compress_level=0):
+        """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
+        """
+
+        for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features, compress_level):
+            file_format = FileFormat.PICKLE if ftype.is_meta() else FileFormat.NPY
+            patch_io = EOPatchIO(filesystem, path)
+            patch_io.save(self[(ftype, fname)], file_format, compress_level)
 
     @staticmethod
     def _get_eopatch_content(path, mmap=False):
@@ -1014,7 +1024,7 @@ class _FeatureDict(dict):
         """Implements lazy loading."""
         value = super().__getitem__(feature_name)
 
-        if isinstance(value, (_FileLoader, _Loader)) and load:
+        if isinstance(value, (_FileLoader, EOPatchIO)) and load:
             value = value.load()
             self[feature_name] = value
 
@@ -1029,7 +1039,7 @@ class _FeatureDict(dict):
 
         :raises: ValueError
         """
-        if isinstance(value, (_FileLoader, _Loader)):
+        if isinstance(value, (_FileLoader, EOPatchIO)):
             return value
         if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
             return value
@@ -1077,11 +1087,9 @@ class _FeatureDict(dict):
         return value
 
 
-class _Loader:
-    def __init__(self, filesystem, ftype, fname, path):
+class EOPatchIO:
+    def __init__(self, filesystem, path):
         self.filesystem = filesystem
-        self.ftype = ftype
-        self.fname = fname
         self.path = path
 
     def load(self):
@@ -1091,6 +1099,30 @@ class _Loader:
                     return self._decode(gzip_fp, self.path)
 
             return self._decode(file_handle, self.path)
+
+    def save(self, data, file_format, compress_level=0):
+        dirname = fs.path.dirname(self.path)
+
+        gz_extension = '.gz' if compress_level else ''
+        path = self.path + file_format.extension() + gz_extension
+
+        if not self.filesystem.exists(dirname):
+            self.filesystem.makedirs(dirname)
+
+        with self.filesystem.openbin(path, 'w') as file_handle:
+            if compress_level == 0:
+                self._write_to_file(data, file_handle, file_format)
+                return
+
+            with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level) as gzip_file_handle:
+                self._write_to_file(data, gzip_file_handle, file_format)
+
+    @staticmethod
+    def _write_to_file(data, file, file_format):
+        if file_format is FileFormat.NPY:
+            np.save(file, data)
+        elif file_format is FileFormat.PICKLE:
+            pickle.dump(data, file)
 
     @staticmethod
     def _decode(file, path):
