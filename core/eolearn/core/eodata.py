@@ -805,33 +805,30 @@ class EOPatch:
 
     @staticmethod
     def walk(filesystem, patch_location):
-        """ Recursively reads a patch_location and returns yelds tuples of (feature_type, feature_name, file_path)
+        """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
         """
         for path in filesystem.listdir(patch_location):
             if '.' not in path:
                 subdir = fs.path.combine(patch_location, path)
                 for file in filesystem.listdir(subdir):
-                    yield path, file.split('.')[0], fs.path.combine(subdir, file)
+                    yield FeatureType(path), file.split('.')[0], fs.path.combine(subdir, file)
             else:
-                yield path.split('.')[0], None, fs.path.combine(patch_location, path)
+                yield FeatureType(path.split('.')[0]), None, fs.path.combine(patch_location, path)
 
     @staticmethod
     def walk_filtered(filesystem, patch_location, features):
         """ Based on EOPatch.walk generator, but applies feature filtering based on the `features` argument
         """
-        itr = EOPatch.walk(filesystem, patch_location)
-        itr = ((FeatureType(ftype), fname, path) for ftype, fname, path in itr)
-
         features = FeatureParser(features).feature_collection
-        for ftype, fname, path in itr:
-            if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMP, FeatureType.META_INFO]:
+        for ftype, fname, path in EOPatch.walk(filesystem, patch_location):
+            if ftype.is_meta():
                 yield ftype, fname, path
 
-            if ftype not in features.keys():
+            if ftype not in features:
                 continue
 
             ftrs = features[ftype]
-            if ftrs == Ellipsis or fname in ftrs:
+            if ftrs is Ellipsis or fname in ftrs:
                 yield ftype, fname, path
 
     @staticmethod
@@ -1088,22 +1085,19 @@ class _Loader:
         self.path = path
 
     def load(self):
-        file_handle = BytesIO()
-        self.filesystem.download(self.path, file_handle)
-        file_handle.seek(0)
+        with self.filesystem.openbin(self.path, 'r') as file_handle:
+            if self.path.endswith('.gz'):
+                with gzip.open(file_handle, 'rb') as gzip_fp:
+                    return self._decode(gzip_fp, self.path)
 
-        if self.path.endswith('.gz'):
-            with gzip.open(file_handle, 'rb') as gzip_fp:
-                return self._decode(gzip_fp, self.path)
-
-        return self._decode(file_handle, self.path)
+            return self._decode(file_handle, self.path)
 
     @staticmethod
     def _decode(file, path):
-        if '.pkl' in path:
+        if FileFormat.PICKLE.extension() in path:
             return pickle.load(file)
 
-        if '.npy' in path:
+        if FileFormat.NPY.extension() in path:
             return np.load(file)
 
         raise ValueError('Unsupported data type.')
