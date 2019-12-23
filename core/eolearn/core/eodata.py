@@ -22,6 +22,7 @@ import datetime
 import pickletools
 from io import BytesIO
 import boto3
+import fs
 
 import attr
 import dateutil.parser
@@ -30,7 +31,7 @@ import geopandas as gpd
 
 import sentinelhub
 
-from .constants import FeatureType, FileFormat, OverwritePermission
+from .constants import FeatureType, FileFormat, OverwritePermission, FeatureTypeSet
 from .utilities import deep_eq, FeatureParser
 
 # pylint: disable=too-many-lines
@@ -86,7 +87,7 @@ class EOPatch:
             self[key][feature_name] = value
             return
 
-        if FeatureType.has_value(key) and not isinstance(value, _FileLoader):
+        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, _Loader)):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
 
@@ -121,7 +122,7 @@ class EOPatch:
         """
         value = super().__getattribute__(key)
 
-        if isinstance(value, _FileLoader) and load:
+        if isinstance(value, (_FileLoader, _Loader)) and load:
             value = value.load()
             setattr(self, key, value)
             value = getattr(self, key)
@@ -744,7 +745,7 @@ class EOPatch:
         return EOPatch(**requested_content)
 
     @staticmethod
-    def load_aws(bucket_name, patch_location, features=..., s3client=None):
+    def load_aws(bucket_name, patch_location, features=...):
         """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
 
         :param bucket_name: Name of the AWS S3 bucket
@@ -753,27 +754,16 @@ class EOPatch:
         :type patch_location: str
         :param features: A collection of features to be loaded. By default all features will be loaded.
         :type features: object
-        :param s3client: Override the automatic s3 client
-        :type s3client: botocore.client.S3
         """
 
-        s3client = boto3.client('s3') if s3client is None else s3client
-
-        patch_location += '/' if not patch_location.endswith('/') else ''
-        eopatch_objects = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
-
-        eopatch = EOPatch()
-        paths = [x['Key'] for x in eopatch_objects['Contents']]
-        ftrs = [path[len(patch_location):path.find('.')].split('/') for path in paths]
-        ftrs = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in ftrs]
-        ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
-
-        requested_features = list(FeatureParser(features))
-        load_content = []
-        for (ftype, fname), path in zip(ftrs, paths):
-            if ftype in [ftype for ftype, _ in requested_features]:
-                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
-                    load_content.append([(ftype, fname), path])
+        def _get_eop_features(_bucket, _patch_location):
+            _patch_location += '/' if not _patch_location.endswith('/') else ''
+            _paths = [o.key for o in _bucket.objects.filter(Prefix=_patch_location)]
+            _eopatch = EOPatch()
+            _features = [path[len(_patch_location):path.find('.')].split('/') for path in _paths]
+            _features = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in _features]
+            _features = [(FeatureType(ftype), fname) for ftype, fname in _features]
+            return _eopatch, _features, _paths
 
         def _load_data(file_handler, is_pickle):
             if is_pickle:
@@ -782,11 +772,28 @@ class EOPatch:
                 data_content = np.load(file_handler)
             return data_content
 
+        def _get_needed_features(feats):
+            _features = list(FeatureParser(feats))
+            _meta_features = [(f, ...) for f in FeatureTypeSet.META_TYPES]
+            return list(set(_features + _meta_features))
+
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(bucket_name)
+
+        eopatch, available_features, paths = _get_eop_features(bucket, patch_location)
+        requested_features = _get_needed_features(features)
+
+        load_content = []
+        for (ftype, fname), path in zip(available_features, paths):
+            if ftype in [ftype for ftype, _ in requested_features]:
+                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
+                    load_content.append([(ftype, fname), path])
+
         for feature, path in load_content:
             is_compressed = path.endswith('.gz')
             is_pickle = '.pkl' in path
 
-            stream = s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read()
+            stream = s3.Object(bucket_name, path).get()['Body'].read()
             if is_compressed:
                 with gzip.open(BytesIO(stream), 'rb') as gzip_fp:
                     data = _load_data(gzip_fp, is_pickle)
@@ -794,6 +801,46 @@ class EOPatch:
                 data = _load_data(BytesIO(stream), is_pickle)
 
             eopatch[feature] = data
+        return eopatch
+
+    @staticmethod
+    def walk(filesystem, patch_location):
+        """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
+        """
+        for path in filesystem.listdir(patch_location):
+            if '.' not in path:
+                subdir = fs.path.combine(patch_location, path)
+                for file in filesystem.listdir(subdir):
+                    yield FeatureType(path), file.split('.')[0], fs.path.combine(subdir, file)
+            else:
+                yield FeatureType(path.split('.')[0]), None, fs.path.combine(patch_location, path)
+
+    @staticmethod
+    def walk_filtered(filesystem, patch_location, features):
+        """ Based on EOPatch.walk generator, but applies feature filtering based on the `features` argument
+        """
+        features = FeatureParser(features).feature_collection
+        for ftype, fname, path in EOPatch.walk(filesystem, patch_location):
+            if ftype.is_meta():
+                yield ftype, fname, path
+
+            if ftype not in features:
+                continue
+
+            ftrs = features[ftype]
+            if ftrs is Ellipsis or fname in ftrs:
+                yield ftype, fname, path
+
+    @staticmethod
+    def load_aws_new(filesystem, patch_location, features=..., lazy_loading=False):
+        """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
+        """
+        eopatch = EOPatch()
+
+        for ftype, fname, path in EOPatch.walk_filtered(filesystem, patch_location, features):
+            loader = _Loader(filesystem, ftype, fname, path)
+            eopatch[(ftype, fname)] = loader if lazy_loading else loader.load()
+
         return eopatch
 
     @staticmethod
@@ -967,7 +1014,7 @@ class _FeatureDict(dict):
         """Implements lazy loading."""
         value = super().__getitem__(feature_name)
 
-        if isinstance(value, _FileLoader) and load:
+        if isinstance(value, (_FileLoader, _Loader)) and load:
             value = value.load()
             self[feature_name] = value
 
@@ -982,7 +1029,7 @@ class _FeatureDict(dict):
 
         :raises: ValueError
         """
-        if isinstance(value, _FileLoader):
+        if isinstance(value, (_FileLoader, _Loader)):
             return value
         if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
             return value
@@ -1028,6 +1075,35 @@ class _FeatureDict(dict):
                              'given'.format(self.feature_type, gpd.GeoDataFrame.__name__, type(value)))
 
         return value
+
+
+class _Loader:
+    def __init__(self, filesystem, ftype, fname, path):
+        self.filesystem = filesystem
+        self.ftype = ftype
+        self.fname = fname
+        self.path = path
+
+    def load(self):
+        with self.filesystem.openbin(self.path, 'r') as file_handle:
+            if self.path.endswith('.gz'):
+                with gzip.open(file_handle, 'rb') as gzip_fp:
+                    return self._decode(gzip_fp, self.path)
+
+            return self._decode(file_handle, self.path)
+
+    @staticmethod
+    def _decode(file, path):
+        if FileFormat.PICKLE.extension() in path:
+            return pickle.load(file)
+
+        if FileFormat.NPY.extension() in path:
+            return np.load(file)
+
+        raise ValueError('Unsupported data type.')
+
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__, self.path)
 
 
 class _FileLoader:
