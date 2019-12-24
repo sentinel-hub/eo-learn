@@ -846,6 +846,25 @@ class EOPatch:
 
         return eopatch
 
+    def check_feature(self, ftype, fname, _):
+        return ftype, fname if fname is ... else fname.lower()
+
+    def _check_add_only_permission(self, eopatch_features, filesystem_features):
+
+        filesystem_features = {self.check_feature(*feature) for feature in filesystem_features}
+        eopatch_features = {self.check_feature(*feature) for feature in eopatch_features}
+
+        intersection = filesystem_features.intersection(eopatch_features)
+        if intersection:
+            error_msg = "Cannot save features {} with overwrite_permission=OverwritePermission.ADD_ONLY "
+            raise ValueError(error_msg.format(intersection))
+
+    def _check_case_matching(self, eopatch_features, filesystem_features):
+        features = {self.check_feature(*feature) for feature in eopatch_features}
+
+        if len(features) != len(eopatch_features):
+            raise ValueError("Some features differ only in casing and cannot be saved in separate files.")
+
     def save_aws_new(self, filesystem, patch_location, features=..., overwrite_permission=OverwritePermission.ADD_ONLY,
                      compress_level=0):
         """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
@@ -859,19 +878,19 @@ class EOPatch:
         if not patch_exists:
             filesystem.makedir(patch_location)
 
+        eopatch_features = list(self.walk_eopatch(self, patch_location, features))
+
         if overwrite_permission is OverwritePermission.ADD_ONLY:
-            def check_feature(ftype, fname, _):
-                return ftype, fname if fname is ... else fname.lower()
+            fs_features = list(self.walk_filesystem(filesystem, patch_location, features))
+        else:
+            fs_features = []
 
-            fs_features = {check_feature(*feature) for feature in self.walk_filesystem(filesystem, patch_location, features)}
-            eop_features = {check_feature(*feature) for feature in self.walk_eopatch(self, patch_location, features)}
+        self._check_case_matching(eopatch_features, fs_features)
 
-            intersection = fs_features.intersection(eop_features)
-            if intersection:
-                error_msg = "Cannot save features {} with overwrite_permission=OverwritePermission.ADD_ONLY "
-                raise ValueError(error_msg.format(intersection))
+        if overwrite_permission is OverwritePermission.ADD_ONLY:
+            self._check_add_only_permission(eopatch_features, fs_features)
 
-        itr = [(ftype, fname, path) for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features)]
+        itr = [(ftype, fname, path) for ftype, fname, path in eopatch_features]
 
         ftypes = {(ftype, fs.path.dirname(path)) for ftype, _, path in itr if not ftype.is_meta()}
         for ftype, dirname in ftypes:
@@ -1033,6 +1052,7 @@ class _FeatureDict(dict):
     :param feature_type: Type of features
     :type feature_type: FeatureType
     """
+    FORBIDDEN_CHARS = {'.', '/', '\\', '|', ';', ':', '\n', '\t'}
     def __init__(self, feature_dict, feature_type):
         super().__init__()
 
@@ -1048,7 +1068,21 @@ class _FeatureDict(dict):
         transform value in correct form.
         """
         value = self._parse_feature_value(value)
+        self._check_feature_name(feature_name)
         super().__setitem__(feature_name, value)
+
+    def _check_feature_name(self, feature_name):
+        if not isinstance(feature_name, str):
+            error_msg = "Feature name must be a string but an object of type {} was given."
+            raise ValueError(error_msg.format(type(feature_name)))
+
+        for char in feature_name:
+            if char in self.FORBIDDEN_CHARS:
+                error_msg = "The name of feature ({}, {}) contains an illegal character '{}'."
+                raise ValueError(error_msg.format(self.feature_type, feature_name, char))
+
+        if feature_name == '':
+            raise ValueError("Feature name cannot be an empty string.")
 
     def __getitem__(self, feature_name, load=True):
         """Implements lazy loading."""
@@ -1135,7 +1169,7 @@ class _EOPatchIO:
         path = self.path + file_format.extension() + gz_extension
 
         if isinstance(self.filesystem, fs.osfs.OSFS):
-            with TempFS() as tempfs:
+            with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
                 self._save(tempfs, data, 'tmp_feature', file_format, compress_level)
                 fs.move.move_file(tempfs, 'tmp_feature', self.filesystem, path)
             return
