@@ -819,7 +819,7 @@ class EOPatch:
                 for file in filesystem.listdir(subdir):
                     yield FeatureType(path), file.split('.')[0], fs.path.combine(subdir, file)
             else:
-                yield FeatureType(path.split('.')[0]), None, fs.path.combine(patch_location, path)
+                yield FeatureType(path.split('.')[0]), ..., fs.path.combine(patch_location, path)
 
     @staticmethod
     def walk_eopatch(eopatch, patch_location, features=...):
@@ -844,9 +844,30 @@ class EOPatch:
 
         return eopatch
 
-    def save_aws_new(self, filesystem, patch_location, features=..., compress_level=0):
+    def save_aws_new(self, filesystem, patch_location, features=..., overwrite_permission=OverwritePermission.ADD_ONLY,
+                     compress_level=0):
         """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
         """
+        patch_exists = filesystem.exists(patch_location)
+
+        if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
+            filesystem.removetree(patch_location)
+            patch_exists = False
+
+        if not patch_exists:
+            filesystem.makedir(patch_location)
+
+        if overwrite_permission is OverwritePermission.ADD_ONLY:
+            def check_feature(ftype, fname, _):
+                return ftype, fname if fname is ... else fname.lower()
+
+            fs_features = {check_feature(*feature) for feature in self.walk_filesystem(filesystem, patch_location, features)}
+            eop_features = {check_feature(*feature) for feature in self.walk_eopatch(self, patch_location, features)}
+
+            intersection = fs_features.intersection(eop_features)
+            if intersection:
+                error_msg = "Cannot save features {} with overwrite_permission=OverwritePermission.ADD_ONLY "
+                raise ValueError(error_msg.format(intersection))
 
         for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features):
             file_format = FileFormat.PICKLE if ftype.is_meta() else FileFormat.NPY
