@@ -21,8 +21,10 @@ import copy
 import datetime
 import pickletools
 from io import BytesIO
+import tempfile
 import boto3
 import fs
+from fs.tempfs import TempFS
 
 import attr
 import dateutil.parser
@@ -83,11 +85,11 @@ class EOPatch:
 
         In case they are a dictionary they are cast to _FeatureDict class
         """
-        if feature_name is not None and FeatureType.has_value(key):
+        if feature_name not in (None, Ellipsis) and FeatureType.has_value(key):
             self[key][feature_name] = value
             return
 
-        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, EOPatchIO)):
+        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, _EOPatchIO)):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
 
@@ -122,12 +124,12 @@ class EOPatch:
         """
         value = super().__getattribute__(key)
 
-        if isinstance(value, (_FileLoader, EOPatchIO)) and load:
+        if isinstance(value, (_FileLoader, _EOPatchIO)) and load:
             value = value.load()
             setattr(self, key, value)
             value = getattr(self, key)
 
-        if feature_name is not None and isinstance(value, _FeatureDict):
+        if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
             return value[feature_name]
 
         return value
@@ -819,7 +821,7 @@ class EOPatch:
                 for file in filesystem.listdir(subdir):
                     yield FeatureType(path), file.split('.')[0], fs.path.combine(subdir, file)
             else:
-                yield FeatureType(path.split('.')[0]), ..., fs.path.combine(patch_location, path)
+                yield FeatureType(path.split('.')[0]), Ellipsis, fs.path.combine(patch_location, path)
 
     @staticmethod
     def walk_eopatch(eopatch, patch_location, features=...):
@@ -839,7 +841,7 @@ class EOPatch:
         eopatch = EOPatch()
 
         for ftype, fname, path in EOPatch.walk_filesystem(filesystem, patch_location, features):
-            patch_io = EOPatchIO(filesystem, path)
+            patch_io = _EOPatchIO(filesystem, path)
             eopatch[(ftype, fname)] = patch_io if lazy_loading else patch_io.load()
 
         return eopatch
@@ -869,9 +871,16 @@ class EOPatch:
                 error_msg = "Cannot save features {} with overwrite_permission=OverwritePermission.ADD_ONLY "
                 raise ValueError(error_msg.format(intersection))
 
-        for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features):
+        itr = [(ftype, fname, path) for ftype, fname, path in EOPatch.walk_eopatch(self, patch_location, features)]
+
+        ftypes = {(ftype, fs.path.dirname(path)) for ftype, _, path in itr if not ftype.is_meta()}
+        for ftype, dirname in ftypes:
+            if not filesystem.exists(dirname):
+                filesystem.makedirs(dirname)
+
+        for ftype, fname, path in itr:
             file_format = FileFormat.PICKLE if ftype.is_meta() else FileFormat.NPY
-            patch_io = EOPatchIO(filesystem, path)
+            patch_io = _EOPatchIO(filesystem, path)
             patch_io.save(self[(ftype, fname)], file_format, compress_level)
 
     @staticmethod
@@ -1045,7 +1054,7 @@ class _FeatureDict(dict):
         """Implements lazy loading."""
         value = super().__getitem__(feature_name)
 
-        if isinstance(value, (_FileLoader, EOPatchIO)) and load:
+        if isinstance(value, (_FileLoader, _EOPatchIO)) and load:
             value = value.load()
             self[feature_name] = value
 
@@ -1060,7 +1069,7 @@ class _FeatureDict(dict):
 
         :raises: ValueError
         """
-        if isinstance(value, (_FileLoader, EOPatchIO)):
+        if isinstance(value, (_FileLoader, _EOPatchIO)):
             return value
         if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
             return value
@@ -1108,7 +1117,7 @@ class _FeatureDict(dict):
         return value
 
 
-class EOPatchIO:
+class _EOPatchIO:
     def __init__(self, filesystem, path):
         self.filesystem = filesystem
         self.path = path
@@ -1122,15 +1131,19 @@ class EOPatchIO:
             return self._decode(file_handle, self.path)
 
     def save(self, data, file_format, compress_level=0):
-        dirname = fs.path.dirname(self.path)
-
         gz_extension = '.gz' if compress_level else ''
         path = self.path + file_format.extension() + gz_extension
 
-        if not self.filesystem.exists(dirname):
-            self.filesystem.makedirs(dirname)
+        if isinstance(self.filesystem, fs.osfs.OSFS):
+            with TempFS() as tempfs:
+                self._save(tempfs, data, 'tmp_feature', file_format, compress_level)
+                fs.move.move_file(tempfs, 'tmp_feature', self.filesystem, path)
+            return
 
-        with self.filesystem.openbin(path, 'w') as file_handle:
+        self._save(self.filesystem, data, path, file_format, compress_level)
+
+    def _save(self, filesystem, data, path, file_format, compress_level=0):
+        with filesystem.openbin(path, 'w') as file_handle:
             if compress_level == 0:
                 self._write_to_file(data, file_handle, file_format)
                 return
