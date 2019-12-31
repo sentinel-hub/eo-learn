@@ -406,10 +406,9 @@ class TestSavingLoading(unittest.TestCase):
 
     def test_invalid_characters(self):
         eopatch = EOPatch()
-        eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
 
-        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(ValueError):
-            eopatch.save(tmp_dir_name, file_format='npy')
+        with self.assertRaises(ValueError):
+            eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
 
     def test_overwrite_failure(self):
         # basic patch
