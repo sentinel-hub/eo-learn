@@ -1,5 +1,5 @@
 """
-A module implementing utilities for Input/Output
+A module implementing utilities for working with different filesystems
 
 Credits:
 Copyright (c) 2017-2020 Matej Aleksandrov, Matej Batič, Grega Milčinski, Matic Lubej, Devis Peresutti (Sinergise)
