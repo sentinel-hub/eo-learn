@@ -20,6 +20,8 @@ def get_filesystem(path, **kwargs):
     :param path: A filesystem path
     :type path: str
     :param kwargs: Any keyword arguments to be passed forward
+    :return: A filesystem object
+    :rtype: fs.FS
     """
     if path.startswith('s3://'):
         return load_s3_filesystem(path, *kwargs)
@@ -37,6 +39,8 @@ def load_s3_filesystem(path, strict=False, config=None):
     :param config: A configuration object with AWS credentials. By default is set to None and in this case the default
         configuration will be taken.
     :type config: SHConfig or None
+    :return: A S3 filesystem object
+    :rtype: fs_s3fs.S3FS
     """
     if not path.startswith('s3://'):
         raise ValueError("AWS path has to start with s3:// but found '{}'".format(path))
