@@ -57,6 +57,7 @@ class TestEOPatchIO(unittest.TestCase):
         eopatch.timestamp = [datetime.datetime(2017, 1, 1, 10, 4, 7),
                              datetime.datetime(2017, 1, 4, 10, 14, 5)]
         eopatch.meta_info['something'] = 'nothing'
+        eopatch.meta_info['something-else'] = 'nothing'
         eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
         eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3]])
         eopatch.vector['my-df'] = GeoDataFrame({

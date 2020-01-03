@@ -98,10 +98,10 @@ def walk_eopatch(eopatch, patch_location, features=...):
     returned_meta_features = set()
     for ftype, fname in FeatureParser(features)(eopatch):
         name_basis = fs.path.combine(patch_location, ftype.value)
-        if ftype.is_meta() and ftype not in returned_meta_features:
-            if eopatch[ftype]:
+        if ftype.is_meta():
+            if eopatch[ftype] and ftype not in returned_meta_features:
                 yield ftype, ..., name_basis
-            returned_meta_features.add(ftype)
+                returned_meta_features.add(ftype)
         else:
             yield ftype, fname, fs.path.combine(name_basis, fname)
 
