@@ -10,6 +10,7 @@ file in the root directory of this source tree.
 """
 import pickle
 import gzip
+import concurrent.futures
 
 import fs
 from fs.tempfs import TempFS
@@ -60,9 +61,15 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
     """ A utility function used by EOPatch.load method
     """
-    for ftype, fname, path in walk_filesystem(filesystem, patch_location, features):
-        patch_io = FeatureIO(filesystem, path)
-        eopatch[(ftype, fname)] = patch_io if lazy_loading else patch_io.load()
+    features = list(walk_filesystem(filesystem, patch_location, features))
+    loading_data = [FeatureIO(filesystem, path) for _, _, path in features]
+
+    if not lazy_loading:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            loading_data = executor.map(lambda loader: loader.load(), loading_data)
+
+    for (ftype, fname, _), value in zip(features, loading_data):
+        eopatch[(ftype, fname)] = value
 
     return eopatch
 
