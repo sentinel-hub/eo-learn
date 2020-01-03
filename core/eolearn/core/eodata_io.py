@@ -127,7 +127,7 @@ def _check_case_matching(eopatch_features, filesystem_features):
                           'that should be saved'.format((ftype, fname)))
 
 
-def _to_lowercase(ftype, fname, *args):
+def _to_lowercase(ftype, fname, *_):
     """ Tranforms a feature to it's lowercase representation
     """
     return ftype, fname if fname is ... else fname.lower()
