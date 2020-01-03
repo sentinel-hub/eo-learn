@@ -9,13 +9,16 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import os
 import copy
+import warnings
+
+import fs
 import numpy as np
 
 from .eodata import EOPatch
 from .eotask import EOTask
+
+warnings.simplefilter('default', DeprecationWarning)
 
 
 class CopyTask(EOTask):
@@ -42,8 +45,8 @@ class DeepCopyTask(CopyTask):
         return eopatch.__deepcopy__(features=self.features)
 
 
-class SaveToDisk(EOTask):
-    """Saves the given EOPatch to disk.
+class SaveTask(EOTask):
+    """ Saves the given EOPatch to a filesystem
     """
     def __init__(self, folder, *args, **kwargs):
         """
@@ -52,13 +55,14 @@ class SaveToDisk(EOTask):
         :param features: A collection of features types specifying features of which type will be saved. By default
             all features will be saved.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        :param file_format: File format
-        :type file_format: FileFormat or str
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path
+        :type filesystem: fs.FS or None
         """
         self.folder = folder
         self.args = args
@@ -74,12 +78,20 @@ class SaveToDisk(EOTask):
         :return: The same EOPatch
         :rtype: EOPatch
         """
-        eopatch.save(os.path.join(self.folder, eopatch_folder), *self.args, **self.kwargs)
+        eopatch.save(fs.path.combine(self.folder, eopatch_folder), *self.args, **self.kwargs)
         return eopatch
 
 
-class LoadFromDisk(EOTask):
-    """Loads the given EOPatch from disk.
+class SaveToDisk(SaveTask):
+    """ A deprecated version of SaveTask
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn('This task is deprecated, use SaveTask instead', DeprecationWarning)
+        super().__init__(*args, **kwargs)
+
+
+class LoadTask(EOTask):
+    """ Loads an EOPatch from a filesystem
     """
     def __init__(self, folder, *args, **kwargs):
         """
@@ -89,8 +101,9 @@ class LoadFromDisk(EOTask):
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
-        :param mmap: If `True`, then memory-map the file. Works only on uncompressed npy files
-        :type mmap: bool
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path
+        :type filesystem: fs.FS or None
         """
         self.folder = folder
         self.args = args
@@ -104,8 +117,15 @@ class LoadFromDisk(EOTask):
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
-        eopatch = EOPatch.load(os.path.join(self.folder, eopatch_folder), *self.args, **self.kwargs)
-        return eopatch
+        return EOPatch.load(fs.path.join(self.folder, eopatch_folder), *self.args, **self.kwargs)
+
+
+class LoadFromDisk(LoadTask):
+    """ A deprecated version of LoadTask
+    """
+    def __init__(self, *args, **kwargs):
+        warnings.warn('This task is deprecated, use LoadTask instead', DeprecationWarning)
+        super().__init__(*args, **kwargs)
 
 
 class AddFeature(EOTask):

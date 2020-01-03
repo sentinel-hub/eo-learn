@@ -12,6 +12,7 @@ import datetime
 import numpy as np
 import tempfile
 
+import fs
 from fs.errors import CreateFailed
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
@@ -20,7 +21,7 @@ from moto import mock_s3
 import boto3
 
 from sentinelhub import BBox, CRS
-from eolearn.core import EOPatch, FeatureType, OverwritePermission
+from eolearn.core import EOPatch, FeatureType, OverwritePermission, SaveTask, LoadTask
 
 logging.basicConfig(level=logging.INFO)
 
@@ -158,6 +159,24 @@ class TestEOPatchIO(unittest.TestCase):
                 with self.assertRaises(IOError):
                     eopatch.save('/', filesystem=temp_fs, features=[(FeatureType.DATA_TIMELESS, 'Mask')],
                                  overwrite_permission=0)
+
+    def test_save_and_load_tasks(self):
+        folder = 'foo-folder'
+        patch_folder = 'patch-folder'
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                temp_fs.makedir(folder)
+
+                save_task = SaveTask(folder, filesystem=temp_fs, compress_level=9)
+                load_task = LoadTask(folder, filesystem=temp_fs, lazy_loading=False)
+
+                saved_eop = save_task(self.eopatch, eopatch_folder=patch_folder)
+                bbox_path = fs.path.join(folder, patch_folder, 'bbox.pkl.gz')
+                self.assertTrue(temp_fs.exists(bbox_path))
+                self.assertEqual(saved_eop, self.eopatch)
+
+                eop = load_task(eopatch_folder=patch_folder)
+                self.assertEqual(eop, self.eopatch)
 
 
 if __name__ == '__main__':
