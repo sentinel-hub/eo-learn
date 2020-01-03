@@ -14,6 +14,7 @@ from .core_tasks import CopyTask, DeepCopyTask, SaveToDisk, LoadFromDisk, AddFea
     DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
     ExtractBandsTask, CreateEOPatchTask
 
+from .fs_utils import get_filesystem, load_s3_filesystem
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
 
 

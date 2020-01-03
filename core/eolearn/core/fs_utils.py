@@ -14,11 +14,13 @@ from fs_s3fs import S3FS
 from sentinelhub import SHConfig
 
 
-def get_filesystem(path, **kwargs):
+def get_filesystem(path, create=True, **kwargs):
     """ A utility function for initializing any type of filesystem object with PyFilesystem2 package
 
     :param path: A filesystem path
     :type path: str
+    :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
+    :type create: bool
     :param kwargs: Any keyword arguments to be passed forward
     :return: A filesystem object
     :rtype: fs.FS
@@ -26,7 +28,7 @@ def get_filesystem(path, **kwargs):
     if path.startswith('s3://'):
         return load_s3_filesystem(path, *kwargs)
 
-    return fs.open_fs(path, **kwargs)
+    return fs.open_fs(path, create=create, **kwargs)
 
 
 def load_s3_filesystem(path, strict=False, config=None):
