@@ -103,7 +103,7 @@ class EOPatch:
                         for timestamp in value]
 
         raise TypeError('Attribute {} requires value of type {} - '
-                        'failed to parse given value'.format(feature_type, feature_type.type()))
+                        'failed to parse given value {}'.format(feature_type, feature_type.type(), value))
 
     def __getattribute__(self, key, load=True, feature_name=None):
         """ Handles lazy loading and it can even provide a single feature from _FeatureDict
