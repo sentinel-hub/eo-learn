@@ -52,10 +52,13 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
         if not filesystem.exists(folder):
             filesystem.makedirs(folder)
 
-    for ftype, fname, path in eopatch_features:
-        file_format = FileFormat.NPY if ftype.is_raster() else FileFormat.PICKLE
-        patch_io = FeatureIO(filesystem, path)
-        patch_io.save(eopatch[(ftype, fname)], file_format, compress_level)
+    features_to_save = ((FeatureIO(filesystem, path),
+                         eopatch[(ftype, fname)],
+                         FileFormat.NPY if ftype.is_raster() else FileFormat.PICKLE,
+                         compress_level) for ftype, fname, path in eopatch_features)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(lambda params: params[0].save(*params[1:]), features_to_save)
 
 
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
