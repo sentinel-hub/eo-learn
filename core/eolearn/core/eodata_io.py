@@ -13,8 +13,8 @@ import gzip
 
 import fs
 from fs.tempfs import TempFS
-
 import numpy as np
+from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import FeatureParser
@@ -35,7 +35,8 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
 
-    if overwrite_permission is OverwritePermission.ADD_ONLY:
+    if overwrite_permission is OverwritePermission.ADD_ONLY or \
+            (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
         fs_features = list(walk_filesystem(filesystem, patch_location, features))
     else:
         fs_features = []
@@ -45,14 +46,12 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     if overwrite_permission is OverwritePermission.ADD_ONLY:
         _check_add_only_permission(eopatch_features, fs_features)
 
-    itr = [(ftype, fname, path) for ftype, fname, path in eopatch_features]
+    ftype_folder_map = {(ftype, fs.path.dirname(path)) for ftype, _, path in eopatch_features if not ftype.is_meta()}
+    for ftype, folder in ftype_folder_map:
+        if not filesystem.exists(folder):
+            filesystem.makedirs(folder)
 
-    ftypes = {(ftype, fs.path.dirname(path)) for ftype, _, path in itr if not ftype.is_meta()}
-    for ftype, dirname in ftypes:
-        if not filesystem.exists(dirname):
-            filesystem.makedirs(dirname)
-
-    for ftype, fname, path in itr:
+    for ftype, fname, path in eopatch_features:
         file_format = FileFormat.NPY if ftype.is_raster() else FileFormat.PICKLE
         patch_io = FeatureIO(filesystem, path)
         patch_io.save(eopatch[(ftype, fname)], file_format, compress_level)
@@ -101,9 +100,10 @@ def walk_eopatch(eopatch, patch_location, features=...):
 
 
 def _check_add_only_permission(eopatch_features, filesystem_features):
-
-    filesystem_features = {_check_feature(*feature) for feature in filesystem_features}
-    eopatch_features = {_check_feature(*feature) for feature in eopatch_features}
+    """ Checks that no existing feature will be overwritten
+    """
+    filesystem_features = {_to_lowercase(*feature) for feature in filesystem_features}
+    eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     intersection = filesystem_features.intersection(eopatch_features)
     if intersection:
@@ -112,13 +112,24 @@ def _check_add_only_permission(eopatch_features, filesystem_features):
 
 
 def _check_case_matching(eopatch_features, filesystem_features):
-    features = {_check_feature(*feature) for feature in eopatch_features}
+    """ Checks that no two features in memory or in filesystem differ only by feature name casing
+    """
+    lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
-    if len(features) != len(eopatch_features):
-        raise IOError("Some features differ only in casing and cannot be saved in separate files.")
+    if len(lowercase_features) != len(eopatch_features):
+        raise IOError('Some features differ only in casing and cannot be saved in separate files.')
+
+    original_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
+
+    for ftype, fname, _ in filesystem_features:
+        if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
+            raise IOError('There already exists a feature {} in filesystem that only differs in casing from the one '
+                          'that should be saved'.format((ftype, fname)))
 
 
-def _check_feature(ftype, fname, _):
+def _to_lowercase(ftype, fname, *args):
+    """ Tranforms a feature to it's lowercase representation
+    """
     return ftype, fname if fname is ... else fname.lower()
 
 

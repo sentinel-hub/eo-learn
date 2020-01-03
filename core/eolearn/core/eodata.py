@@ -502,8 +502,8 @@ class EOPatch:
             filesystem = get_filesystem(path)
             path = '/'
 
-        save_eopatch(self, filesystem, path, features=features, overwrite_permission=overwrite_permission,
-                     compress_level=compress_level)
+        save_eopatch(self, filesystem, path, features=features, compress_level=compress_level,
+                     overwrite_permission=OverwritePermission(overwrite_permission))
 
     @staticmethod
     def load(path, features=..., lazy_loading=False, filesystem=None):
