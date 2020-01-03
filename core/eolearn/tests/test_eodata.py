@@ -110,6 +110,12 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
         for entry in valid_entries:
             eop.timestamp = entry
 
+    def test_invalid_characters(self):
+        eopatch = EOPatch()
+
+        with self.assertRaises(ValueError):
+            eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+
 
 class TestEOPatch(unittest.TestCase):
 

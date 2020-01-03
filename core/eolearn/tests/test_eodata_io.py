@@ -12,18 +12,40 @@ import datetime
 import numpy as np
 import tempfile
 
-import fs
 from fs.errors import CreateFailed
 from fs.tempfs import TempFS
+from fs_s3fs import S3FS
 from geopandas import GeoDataFrame
+from moto import mock_s3
+import boto3
 
 from sentinelhub import BBox, CRS
 from eolearn.core import EOPatch, FeatureType, OverwritePermission
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
-class TestSavingLoading(unittest.TestCase):
+@mock_s3
+def _create_new_s3_fs():
+    """ Creates a new empty mocked s3 bucket. If one such bucket already exists it deletes it first.
+    """
+    bucket_name = 'mocked-test-bucket'
+    s3resource = boto3.resource('s3', region_name='eu-central-1')
+
+    bucket = s3resource.Bucket(bucket_name)
+
+    if bucket.creation_date:
+        for key in bucket.objects.all():
+            key.delete()
+        bucket.delete()
+
+    s3resource.create_bucket(Bucket=bucket_name,
+                             CreateBucketConfiguration={'LocationConstraint': 'eu-central-1'})
+
+    return S3FS(bucket_name=bucket_name)
+
+
+class TestEOPatchIO(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -43,65 +65,83 @@ class TestSavingLoading(unittest.TestCase):
 
         cls.eopatch = eopatch
 
+        cls.filesystem_loaders = [TempFS, _create_new_s3_fs]
+
     def test_saving_to_a_file(self):
         with tempfile.NamedTemporaryFile() as fp:
             with self.assertRaises(CreateFailed):
                 self.eopatch.save(fp.name)
 
+    @mock_s3
     def test_saving_in_empty_folder(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name)
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
 
-            self.eopatch.save(fs.path.combine(tmp_dir_name, 'new-subfolder'))
+                if isinstance(temp_fs, TempFS):
+                    self.eopatch.save(temp_fs.root_path)
+                else:
+                    self.eopatch.save('/', filesystem=temp_fs)
+                self.assertTrue(temp_fs.exists('/data_timeless/mask.npy'))
 
+                subfolder = 'new-subfolder'
+                self.eopatch.save('new-subfolder', filesystem=temp_fs)
+                self.assertTrue(temp_fs.exists('/{}/bbox.pkl'.format(subfolder)))
+
+    @mock_s3
     def test_saving_in_non_empty_folder(self):
-        with TempFS() as temp_fs:
-            empty_file = 'foo.txt'
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                empty_file = 'foo.txt'
 
-            with temp_fs.open(empty_file, 'w'):
-                pass
+                with temp_fs.open(empty_file, 'w'):
+                    pass
 
-            self.eopatch.save(temp_fs.root_path)
-            self.assertTrue(temp_fs.exists(empty_file))
+                self.eopatch.save('/', filesystem=temp_fs)
+                self.assertTrue(temp_fs.exists(empty_file))
 
-            self.eopatch.save('/', overwrite_permission=OverwritePermission.OVERWRITE_PATCH, filesystem=temp_fs)
-            self.assertFalse(temp_fs.exists(empty_file))
+                self.eopatch.save('/', overwrite_permission=OverwritePermission.OVERWRITE_PATCH, filesystem=temp_fs)
+                self.assertFalse(temp_fs.exists(empty_file))
 
+    @mock_s3
     def test_overwriting_non_empty_folder(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name)
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                self.eopatch.save('/', filesystem=temp_fs)
+                self.eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
+                self.eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
-            add_eopatch = EOPatch()
-            add_eopatch.data['some data'] = np.empty((2, 3, 3, 2))
-            add_eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.ADD_ONLY)
-            with self.assertRaises(ValueError):
-                add_eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.ADD_ONLY)
+                add_eopatch = EOPatch()
+                add_eopatch.data['some data'] = np.empty((2, 3, 3, 2))
+                add_eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
+                with self.assertRaises(ValueError):
+                    add_eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
 
-            new_eopatch = EOPatch.load(tmp_dir_name, lazy_loading=False)
-            self.assertEqual(new_eopatch, self.eopatch + add_eopatch)
+                new_eopatch = EOPatch.load('/', filesystem=temp_fs, lazy_loading=False)
+                self.assertEqual(new_eopatch, self.eopatch + add_eopatch)
 
+    @mock_s3
     def test_save_load(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name)
-            eopatch2 = EOPatch.load(tmp_dir_name)
-            self.assertEqual(self.eopatch, eopatch2)
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                self.eopatch.save('/', filesystem=temp_fs)
+                eopatch2 = EOPatch.load('/', filesystem=temp_fs)
+                self.assertEqual(self.eopatch, eopatch2)
 
-            eopatch2.save(tmp_dir_name, overwrite_permission=1)
-            eopatch2 = EOPatch.load(tmp_dir_name)
-            self.assertEqual(self.eopatch, eopatch2)
+                eopatch2.save('/', filesystem=temp_fs, overwrite_permission=1)
+                eopatch2 = EOPatch.load('/', filesystem=temp_fs)
+                self.assertEqual(self.eopatch, eopatch2)
 
-            eopatch2.save(tmp_dir_name, overwrite_permission=1)
-            eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=False)
-            self.assertEqual(self.eopatch, eopatch2)
+                eopatch2.save('/', filesystem=temp_fs, overwrite_permission=1)
+                eopatch2 = EOPatch.load('/', filesystem=temp_fs, lazy_loading=False)
+                self.assertEqual(self.eopatch, eopatch2)
 
-            features = {FeatureType.DATA_TIMELESS: {'mask'}, FeatureType.TIMESTAMP: ...}
-            eopatch2.save(tmp_dir_name, features=features,
-                          compress_level=3, overwrite_permission=1)
-            _ = EOPatch.load(tmp_dir_name, lazy_loading=True, features=features)
-            eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=True, )
-            self.assertEqual(self.eopatch, eopatch2)
+                features = {FeatureType.DATA_TIMELESS: {'mask'}, FeatureType.TIMESTAMP: ...}
+                eopatch2.save('/', filesystem=temp_fs, features=features,
+                              compress_level=3, overwrite_permission=1)
+                eopatch2 = EOPatch.load('/', filesystem=temp_fs, lazy_loading=True)
+                self.assertEqual(self.eopatch, eopatch2)
+                eopatch3 = EOPatch.load('/', filesystem=temp_fs, lazy_loading=True, features=features)
+                self.assertNotEqual(self.eopatch, eopatch3)
 
     def test_feature_names_case_sensitivity(self):
         eopatch = EOPatch()
@@ -112,50 +152,25 @@ class TestSavingLoading(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(IOError):
             eopatch.save(tmp_dir_name)
 
-    def test_invalid_characters(self):
-        eopatch = EOPatch()
-
-        with self.assertRaises(ValueError):
-            eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-
+    @mock_s3
     def test_overwrite_failure(self):
         eopatch = EOPatch()
         mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
         eopatch.data_timeless['mask'] = mask
 
-        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(IOError):
-            eopatch.save(tmp_dir_name)
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs, self.assertRaises(IOError):
 
-            # load original patch
-            eopatch_before = EOPatch.load(tmp_dir_name)
+                eopatch.save('/', filesystem=temp_fs)
 
-            # force exception during saving (case sensitivity), backup is reloaded
-            eopatch.data_timeless['Mask'] = mask
-            eopatch.save(tmp_dir_name, overwrite_permission=2)
-            eopatch_after = EOPatch.load(tmp_dir_name)
+                eopatch_before = EOPatch.load('/', filesystem=temp_fs)
 
-            # should be equal
-            self.assertEqual(eopatch_before, eopatch_after)
+                # force exception during saving (case sensitivity), backup is reloaded
+                eopatch.data_timeless['Mask'] = mask
+                eopatch.save('/', filesystem=temp_fs, overwrite_permission=2)
+                eopatch_after = EOPatch.load('/', filesystem=temp_fs)
 
-    def test_overwrite_success(self):
-        # basic patch
-        eopatch = EOPatch()
-        mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-        eopatch.data_timeless['mask1'] = mask
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            eopatch.save(tmp_dir_name)
-
-            # load original patch
-            eopatch_before = EOPatch.load(tmp_dir_name)
-
-            # update original patch
-            eopatch.data_timeless['mask2'] = mask
-            eopatch.save(tmp_dir_name, overwrite_permission=1)
-            eopatch_after = EOPatch.load(tmp_dir_name)
-
-            # should be different
-            self.assertNotEqual(eopatch_before, eopatch_after)
+                self.assertEqual(eopatch_before, eopatch_after)
 
 
 if __name__ == '__main__':
