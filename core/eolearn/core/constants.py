@@ -55,7 +55,7 @@ class FeatureType(Enum):
     @classmethod
     def has_value(cls, value):
         """True if value is in FeatureType values. False otherwise."""
-        return any(value == item.value for item in cls)
+        return value in cls._value2member_map_
 
     def is_spatial(self):
         """True if FeatureType has a spatial component. False otherwise."""
