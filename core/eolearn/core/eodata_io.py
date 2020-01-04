@@ -177,12 +177,11 @@ class FeatureIO:
         gz_extension = FileFormat.GZIP.extension() if compress_level else ''
         path = self.path + file_format.extension() + gz_extension
 
-        if isinstance(self.filesystem, fs.osfs.OSFS):
+        if isinstance(self.filesystem, (fs.osfs.OSFS, TempFS)):
             with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
                 self._save(tempfs, data, 'tmp_feature', file_format, compress_level)
                 fs.move.move_file(tempfs, 'tmp_feature', self.filesystem, path)
             return
-
         self._save(self.filesystem, data, path, file_format, compress_level)
 
     def _save(self, filesystem, data, path, file_format, compress_level=0):
