@@ -185,6 +185,12 @@ class TestEOPatchIO(unittest.TestCase):
             with fs_loader() as temp_fs, self.assertRaises(ValueError):
                 self.eopatch.save('/', filesystem=temp_fs, features=features)
 
+    def test_fail_loading_nonexistent_feature(self):
+        for features in [[(FeatureType.DATA, 'nonexistent')], [(FeatureType.META_INFO, 'nonexistent')]]:
+            for fs_loader in self.filesystem_loaders:
+                with fs_loader() as temp_fs, self.assertRaises(IOError):
+                    EOPatch.load('/', filesystem=temp_fs, features=features)
+
 
 if __name__ == '__main__':
     unittest.main()

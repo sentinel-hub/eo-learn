@@ -80,19 +80,62 @@ def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading
 def walk_filesystem(filesystem, patch_location, features=...):
     """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
     """
-    features = list(FeatureParser(features)())
-    ftype_set = set(ftype.value for ftype, _ in features)
+    existing_features = {ftype: {} for ftype in FeatureType}
+    for ftype, fname, path in walk_main_folder(filesystem, patch_location):
+        existing_features[ftype][fname] = path
 
-    paths = filesystem.listdir(patch_location)
-    paths = [path for path in paths if path.split('.')[0] in ftype_set]
+    returned_meta_features = set()
+    queried_features = set()
+    for ftype, fname in FeatureParser(features):
+        if fname is ... and not existing_features[ftype]:
+            continue
 
-    for path in paths:
-        if '.' not in path:
-            subdir = fs.path.combine(patch_location, path)
-            for file in filesystem.listdir(subdir):
-                yield FeatureType(path), file.split('.')[0], fs.path.combine(subdir, file)
+        if ftype.is_meta():
+            if ftype in returned_meta_features:
+                continue
+            fname = ...
+            returned_meta_features.add(ftype)
+
+        elif ftype not in queried_features and (fname is ... or fname not in existing_features[ftype]):
+            queried_features.add(ftype)
+            if ... not in existing_features[ftype]:
+                raise IOError('There is not {} in saved EOPatch'.format(ftype))
+
+            for feature_name, path in walk_feature_type_folder(filesystem, existing_features[ftype][...]):
+                existing_features[ftype][feature_name] = path
+
+        if fname not in existing_features[ftype]:
+            raise IOError('Feature {} does not exist in saved EOPatch'.format((ftype, fname)))
+
+        if fname is ... and not ftype.is_meta():
+            for feature_name, path in existing_features[ftype].items():
+                if feature_name is not ...:
+                    yield ftype, feature_name, path
         else:
-            yield FeatureType(path.split('.')[0]), Ellipsis, fs.path.combine(patch_location, path)
+            yield ftype, fname, existing_features[ftype][fname]
+
+
+def walk_main_folder(filesystem, folder_path):
+    """ Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem)
+    """
+    for path in filesystem.listdir(folder_path):
+        raw_path = path.split('.')[0].strip('/')
+
+        if '/' in raw_path:
+            ftype_str, fname = raw_path.split('/', 1)
+        else:
+            ftype_str, fname = raw_path, ...
+
+        if FeatureType.has_value(ftype_str):
+            yield FeatureType(ftype_str), fname, fs.path.combine(folder_path, path)
+
+
+def walk_feature_type_folder(filesystem, folder_path):
+    """ Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem)
+    """
+    for path in filesystem.listdir(folder_path):
+        if '/' not in path and '.' in path:
+            yield path.split('.')[0], fs.path.combine(folder_path, path)
 
 
 def walk_eopatch(eopatch, patch_location, features=...):
