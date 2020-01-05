@@ -35,7 +35,7 @@ def _create_new_s3_fs():
 
     bucket = s3resource.Bucket(bucket_name)
 
-    if bucket.creation_date:
+    if bucket.creation_date:  # If bucket already exists
         for key in bucket.objects.all():
             key.delete()
         bucket.delete()
