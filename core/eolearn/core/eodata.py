@@ -4,7 +4,7 @@ The eodata module provides core objects for handling remotely sensing multi-temp
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -20,6 +20,8 @@ import warnings
 import copy
 import datetime
 import pickletools
+from io import BytesIO
+import boto3
 
 import attr
 import dateutil.parser
@@ -558,6 +560,58 @@ class EOPatch:
                 shutil.rmtree(tmp_path)
             raise ex
 
+    def save_aws(self, bucket_name, patch_location, features=..., file_format=FileFormat.NPY, compress_level=0,
+                 s3client=None):
+        """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
+
+        :param bucket_name: Name of the AWS S3 bucket
+        :type bucket_name: str
+        :param patch_location: Location of the EOPatch on the AWS S3 bucket
+        :type patch_location: str
+        :param features: A collection of features types specifying features of which type will be saved. By default
+        all features will be saved.
+        :type features: list(FeatureType) or list((FeatureType, str)) or ...
+        :param file_format: File format
+        :type file_format: FileFormat or str
+        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
+            to 9 (highest compression).
+        :type compress_level: int
+        :param s3client: Override the automatic s3 client
+        :type s3client: botocore.client.S3
+        """
+
+        features = list(FeatureParser(features)(self))
+
+        ftrs = [(ftype, fname) for ftype, fname in features if not ftype.is_meta()]
+        meta = list(set((ftype, ...) for ftype, _ in features if ftype.is_meta()))
+        features = ftrs + meta
+
+        file_saver_list = self._get_save_file_list('', '', features, file_format, compress_level)
+        paths = [saver.get_file_path(patch_location) for saver in file_saver_list]
+
+        s3client = boto3.client('s3') if s3client is None else s3client
+        for (ftype, fname), path in zip(features, paths):
+            data = self[(ftype, fname)] if fname is not Ellipsis else self[ftype]
+            if ftype is FeatureType.BBOX:
+                data = tuple(data) + (int(data.crs.value),)
+
+            def _dump_data(file_handler, data_content, feature_type):
+                if feature_type.is_meta():
+                    pickle.dump(data_content, file_handler)
+                else:
+                    np.save(file_handler, data_content)
+
+            memfile = BytesIO()
+
+            if compress_level:
+                with gzip.GzipFile(fileobj=memfile, mode='w', compresslevel=compress_level) as bytes_fp:
+                    _dump_data(bytes_fp, data, ftype)
+            else:
+                _dump_data(memfile, data, ftype)
+
+            bytes_to_upload = memfile.getvalue()
+            s3client.put_object(Bucket=bucket_name, Key=path, Body=bytes_to_upload)
+
     def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
         """ Creates a list of _FileSaver classes for each feature which will have to be saved
         """
@@ -688,6 +742,59 @@ class EOPatch:
                         content[feature_name] = loader.load()
 
         return EOPatch(**requested_content)
+
+    @staticmethod
+    def load_aws(bucket_name, patch_location, features=..., s3client=None):
+        """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
+
+        :param bucket_name: Name of the AWS S3 bucket
+        :type bucket_name: str
+        :param patch_location: Location of the EOPatch on the AWS S3 bucket
+        :type patch_location: str
+        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :type features: object
+        :param s3client: Override the automatic s3 client
+        :type s3client: botocore.client.S3
+        """
+
+        s3client = boto3.client('s3') if s3client is None else s3client
+
+        patch_location += '/' if not patch_location.endswith('/') else ''
+        eopatch_objects = s3client.list_objects(Bucket=bucket_name, Prefix=patch_location)
+
+        eopatch = EOPatch()
+        paths = [x['Key'] for x in eopatch_objects['Contents']]
+        ftrs = [path[len(patch_location):path.find('.')].split('/') for path in paths]
+        ftrs = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in ftrs]
+        ftrs = [(FeatureType(ftype), fname) for ftype, fname in ftrs]
+
+        requested_features = list(FeatureParser(features))
+        load_content = []
+        for (ftype, fname), path in zip(ftrs, paths):
+            if ftype in [ftype for ftype, _ in requested_features]:
+                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
+                    load_content.append([(ftype, fname), path])
+
+        def _load_data(file_handler, is_pickle):
+            if is_pickle:
+                data_content = pickle.load(file_handler)
+            else:
+                data_content = np.load(file_handler)
+            return data_content
+
+        for feature, path in load_content:
+            is_compressed = path.endswith('.gz')
+            is_pickle = '.pkl' in path
+
+            stream = s3client.get_object(Bucket=bucket_name, Key=path)['Body'].read()
+            if is_compressed:
+                with gzip.open(BytesIO(stream), 'rb') as gzip_fp:
+                    data = _load_data(gzip_fp, is_pickle)
+            else:
+                data = _load_data(BytesIO(stream), is_pickle)
+
+            eopatch[feature] = data
+        return eopatch
 
     @staticmethod
     def _get_eopatch_content(path, mmap=False):

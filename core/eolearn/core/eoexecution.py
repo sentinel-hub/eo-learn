@@ -8,7 +8,7 @@ All this is implemented in EOExecutor class.
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -20,6 +20,7 @@ import threading
 import traceback
 import concurrent.futures
 import datetime as dt
+import multiprocessing
 
 from tqdm.auto import tqdm
 
@@ -28,6 +29,11 @@ from .eoworkflow import EOWorkflow
 from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
+
+try:
+    MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
+except BaseException:
+    MULTIPROCESSING_LOCK = None
 
 
 class EOExecutor:
@@ -262,10 +268,26 @@ class EOExecutor:
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         try:
-            # pylint: disable=C0415
+            # pylint: disable=import-outside-toplevel
             from eolearn.visualization import EOExecutorVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to create EOExecutor '
                                'reports')
 
         return EOExecutorVisualization(self).make_report()
+
+
+def execute_with_mp_lock(execution_function, *args, **kwargs):
+    """ A helper utility function that executes a given function with multiprocessing lock if the process is being
+    executed in a multi-processing mode
+
+    :param execution_function: A function
+    :param args: Function's positional arguments
+    :param kwargs: Function's keyword arguments
+    :return: Function's results
+    """
+    if multiprocessing.current_process().name == 'MainProcess' or MULTIPROCESSING_LOCK is None:
+        return execution_function(*args, **kwargs)
+
+    with MULTIPROCESSING_LOCK:
+        return execution_function(*args, **kwargs)

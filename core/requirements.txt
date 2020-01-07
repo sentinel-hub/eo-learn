@@ -4,3 +4,4 @@ numpy>=1.16
 geopandas
 sentinelhub==3.0.0b1
 tqdm>=4.27
+boto3
