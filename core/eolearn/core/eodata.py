@@ -1,5 +1,5 @@
 """
-The eodata module provides core objects for handling remotely sensing multi-temporal data (such as satellite imagery).
+The eodata module provides core objects for handling remote sensing multi-temporal data (such as satellite imagery).
 
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
@@ -9,39 +9,27 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import os
-import sys
 import logging
-import pickle
-import gzip
-import shutil
 import warnings
 import copy
 import datetime
-import pickletools
-from io import BytesIO
-import boto3
-import fs
 
 import attr
 import dateutil.parser
 import numpy as np
 import geopandas as gpd
 
-import sentinelhub
+from sentinelhub import BBox
 
-from .constants import FeatureType, FileFormat, OverwritePermission, FeatureTypeSet
+from .constants import FeatureType, OverwritePermission
+from .eodata_io import save_eopatch, load_eopatch, FeatureIO
+from .fs_utils import get_filesystem
 from .utilities import deep_eq, FeatureParser
 
-# pylint: disable=too-many-lines
+
 LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
-
-
-if sentinelhub.__version__ >= '2.5.0':
-    sys.modules['sentinelhub.common'] = sentinelhub.geometry
 
 
 @attr.s(repr=False, cmp=False, kw_only=True)
@@ -83,11 +71,11 @@ class EOPatch:
 
         In case they are a dictionary they are cast to _FeatureDict class
         """
-        if feature_name is not None and FeatureType.has_value(key):
+        if feature_name not in (None, Ellipsis) and FeatureType.has_value(key):
             self[key][feature_name] = value
             return
 
-        if FeatureType.has_value(key) and not isinstance(value, (_FileLoader, _Loader)):
+        if FeatureType.has_value(key) and not isinstance(value, FeatureIO):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
 
@@ -104,10 +92,10 @@ class EOPatch:
             return value if isinstance(value, _FeatureDict) else _FeatureDict(value, feature_type)
 
         if feature_type is FeatureType.BBOX:
-            if value is None or isinstance(value, sentinelhub.BBox):
+            if value is None or isinstance(value, BBox):
                 return value
             if isinstance(value, (tuple, list)) and len(value) == 5:
-                return sentinelhub.BBox(value[:4], crs=value[4])
+                return BBox(value[:4], crs=value[4])
 
         if feature_type is FeatureType.TIMESTAMP:
             if isinstance(value, (tuple, list)):
@@ -115,19 +103,19 @@ class EOPatch:
                         for timestamp in value]
 
         raise TypeError('Attribute {} requires value of type {} - '
-                        'failed to parse given value'.format(feature_type, feature_type.type()))
+                        'failed to parse given value {}'.format(feature_type, feature_type.type(), value))
 
     def __getattribute__(self, key, load=True, feature_name=None):
         """ Handles lazy loading and it can even provide a single feature from _FeatureDict
         """
         value = super().__getattribute__(key)
 
-        if isinstance(value, (_FileLoader, _Loader)) and load:
+        if isinstance(value, FeatureIO) and load:
             value = value.load()
             setattr(self, key, value)
             value = getattr(self, key)
 
-        if feature_name is not None and isinstance(value, _FeatureDict):
+        if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
             return value[feature_name]
 
         return value
@@ -492,412 +480,52 @@ class EOPatch:
             raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
         return np.concatenate((data1, data2), axis=0)
 
-    def save(self, path, features=..., file_format=FileFormat.NPY,
-             overwrite_permission=OverwritePermission.ADD_ONLY, compress_level=0):
-        """Saves EOPatch to disk.
+    def save(self, path, features=..., overwrite_permission=OverwritePermission.ADD_ONLY, compress_level=0,
+             filesystem=None):
+        """ Method to save an EOPatch from memory to a storage
 
-        :param path: Location on the disk
+        :param path: A location where to save EOPatch. It can be either a local path or a remote URL path.
         :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default
         all features will be saved.
         :type features: list(FeatureType) or list((FeatureType, str)) or ...
-        :param file_format: File format
-        :type file_format: FileFormat or str
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
+            parameter.
+        :type filesystem: fs.FS or None
         """
-        if os.path.isfile(path):
-            raise NotADirectoryError("A file exists at the given path, expected a directory")
+        if filesystem is None:
+            filesystem = get_filesystem(path)
+            path = '/'
 
-        file_format = FileFormat(file_format)
-        if file_format is FileFormat.GZIP:
-            raise ValueError('file_format cannot be {}, compression is specified with compression_level '
-                             'parameter'.format(FileFormat.GZIP))
-
-        overwrite_permission = OverwritePermission(overwrite_permission)
-
-        tmp_path = '{}_tmp_{}'.format(path, datetime.datetime.now().timestamp())
-        if os.path.exists(tmp_path):  # Basically impossible case
-            raise OSError('Path {} already exists, try again'.format(tmp_path))
-
-        save_file_list = self._get_save_file_list(path, tmp_path, features, file_format, compress_level)
-
-        self._check_forbidden_characters(save_file_list)
-
-        existing_content = self._get_eopatch_content(path) if \
-            os.path.exists(path) and overwrite_permission is not OverwritePermission.OVERWRITE_PATCH else {}
-
-        self._check_feature_case_matching(save_file_list, existing_content)
-
-        if overwrite_permission is OverwritePermission.ADD_ONLY and os.path.exists(path):
-            self._check_feature_uniqueness(save_file_list, existing_content)
-
-        try:
-            for file_saver in save_file_list:
-                file_saver.save(self)
-
-            if os.path.exists(path):
-                if overwrite_permission is OverwritePermission.OVERWRITE_PATCH:
-                    shutil.rmtree(path)
-                    os.renames(tmp_path, path)
-                else:
-                    for file_saver in save_file_list:
-                        existing_features = existing_content.get(file_saver.feature_type.value, {})
-                        if file_saver.feature_name is None and isinstance(existing_features, _FileLoader):
-                            os.remove(existing_features.get_file_path())
-                        elif isinstance(existing_features, dict) and file_saver.feature_name in existing_features:
-                            os.remove(existing_features[file_saver.feature_name].get_file_path())
-                        os.renames(file_saver.tmp_filename, file_saver.final_filename)
-                    if os.path.exists(tmp_path):
-                        shutil.rmtree(tmp_path)
-            else:
-                os.renames(tmp_path, path)
-
-        except BaseException as ex:
-            if os.path.exists(tmp_path):
-                shutil.rmtree(tmp_path)
-            raise ex
-
-    def save_aws(self, bucket_name, patch_location, features=..., file_format=FileFormat.NPY, compress_level=0,
-                 s3client=None):
-        """Saves EOPatch to the AWS S3 bucket. AWS credentials should be properly configured.
-
-        :param bucket_name: Name of the AWS S3 bucket
-        :type bucket_name: str
-        :param patch_location: Location of the EOPatch on the AWS S3 bucket
-        :type patch_location: str
-        :param features: A collection of features types specifying features of which type will be saved. By default
-        all features will be saved.
-        :type features: list(FeatureType) or list((FeatureType, str)) or ...
-        :param file_format: File format
-        :type file_format: FileFormat or str
-        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
-            to 9 (highest compression).
-        :type compress_level: int
-        :param s3client: Override the automatic s3 client
-        :type s3client: botocore.client.S3
-        """
-
-        features = list(FeatureParser(features)(self))
-
-        ftrs = [(ftype, fname) for ftype, fname in features if not ftype.is_meta()]
-        meta = list(set((ftype, ...) for ftype, _ in features if ftype.is_meta()))
-        features = ftrs + meta
-
-        file_saver_list = self._get_save_file_list('', '', features, file_format, compress_level)
-        paths = [saver.get_file_path(patch_location) for saver in file_saver_list]
-
-        s3client = boto3.client('s3') if s3client is None else s3client
-        for (ftype, fname), path in zip(features, paths):
-            data = self[(ftype, fname)] if fname is not Ellipsis else self[ftype]
-            if ftype is FeatureType.BBOX:
-                data = tuple(data) + (int(data.crs.value),)
-
-            def _dump_data(file_handler, data_content, feature_type):
-                if feature_type.is_meta():
-                    pickle.dump(data_content, file_handler)
-                else:
-                    np.save(file_handler, data_content)
-
-            memfile = BytesIO()
-
-            if compress_level:
-                with gzip.GzipFile(fileobj=memfile, mode='w', compresslevel=compress_level) as bytes_fp:
-                    _dump_data(bytes_fp, data, ftype)
-            else:
-                _dump_data(memfile, data, ftype)
-
-            bytes_to_upload = memfile.getvalue()
-            s3client.put_object(Bucket=bucket_name, Key=path, Body=bytes_to_upload)
-
-    def _get_save_file_list(self, path, tmp_path, features, file_format, compress_level):
-        """ Creates a list of _FileSaver classes for each feature which will have to be saved
-        """
-        save_file_list = []
-        saved_feature_types = set()
-        for feature_type, feature_name in FeatureParser(features)(self):
-            if not self[feature_type]:
-                continue
-            if not feature_type.is_meta() or feature_type not in saved_feature_types:
-                save_file_list.append(_FileSaver(path, tmp_path, feature_type,
-                                                 None if feature_type.is_meta() else feature_name,
-                                                 file_format if feature_type.contains_ndarrays() else FileFormat.PICKLE,
-                                                 compress_level))
-            saved_feature_types.add(feature_type)
-        return save_file_list
+        save_eopatch(self, filesystem, path, features=features, compress_level=compress_level,
+                     overwrite_permission=OverwritePermission(overwrite_permission))
 
     @staticmethod
-    def _check_forbidden_characters(save_file_list):
-        """ Checks if feature names have properties which might cause problems during saving or loading
+    def load(path, features=..., lazy_loading=False, filesystem=None):
+        """ Method to load an EOPatch from a storage into memory
 
-        :param save_file_list: List of features which will be saved
-        :type save_file_list: list(_FileSaver)
-        :raises: ValueError
-        """
-        for file_saver in save_file_list:
-            if file_saver.feature_name is None:
-                continue
-            for char in ['.', '/', '\\', '|', ';', ':', '\n', '\t']:
-                if char in file_saver.feature_name:
-                    raise ValueError("Cannot save feature ({}, {}) because feature name contains an illegal character "
-                                     "'{}'. Please change the feature name".format(file_saver.feature_type,
-                                                                                   file_saver.feature_name, char))
-            if file_saver.feature_name == '':
-                raise ValueError("Cannot save feature with empty string for a name. Please change the feature name")
-
-    @staticmethod
-    def _check_feature_case_matching(save_file_list, existing_content):
-        """ This is required for Windows OS where file names cannot differ only in case size
-
-        :raises: OSError
-        """
-        feature_collection = {feature_type: set() for feature_type in FeatureType}
-
-        for feature_type_str, content in existing_content.items():
-            feature_type = FeatureType(feature_type_str)
-            if isinstance(content, dict):
-                for feature_name in content:
-                    feature_collection[feature_type].add(feature_name)
-
-        for file_saver in save_file_list:
-            if file_saver.feature_name is not None:
-                feature_collection[file_saver.feature_type].add(file_saver.feature_name)
-
-        for features in feature_collection.values():
-            lowercase_features = {}
-            for feature_name in features:
-                lowercase_feature_name = feature_name.lower()
-
-                if lowercase_feature_name in lowercase_features:
-                    raise OSError("Features '{}' and '{}' differ only in casing and cannot be saved into separate "
-                                  "files".format(feature_name, lowercase_features[lowercase_feature_name]))
-
-                lowercase_features[lowercase_feature_name] = feature_name
-
-    @staticmethod
-    def _check_feature_uniqueness(save_file_list, existing_content):
-        """ Check if any feature already exists in saved EOPatch
-
-        :raises: ValueError
-        """
-        for file_saver in save_file_list:
-            if file_saver.feature_type.value not in existing_content:
-                continue
-            content = existing_content[file_saver.feature_type.value]
-
-            is_joined_feature = isinstance(content, _FileLoader)
-            if is_joined_feature or file_saver.feature_name in content:
-                existing_feature = (file_saver.feature_type, file_saver.feature_name) if not is_joined_feature \
-                    else file_saver.feature_type
-
-                file_path = content[file_saver.feature_name].get_file_path() if not is_joined_feature \
-                    else content.get_file_path()
-
-                alternative_permissions = OverwritePermission.OVERWRITE_FEATURES, OverwritePermission.OVERWRITE_PATCH
-                raise ValueError("{} already exists: {}\n"
-                                 "In order to overwrite it set 'overwrite_permission' parameter to one of the "
-                                 "options {}".format(existing_feature, file_path, alternative_permissions))
-
-    @staticmethod
-    def load(path, features=..., lazy_loading=False, mmap=False):
-        """Loads EOPatch from disk.
-
-        :param path: Location on the disk
+        :param path: A location from where to load EOPatch. It can be either a local path or a remote URL path.
         :type path: str
         :param features: A collection of features to be loaded. By default all features will be loaded.
         :type features: object
         :param lazy_loading: If `True` features will be lazy loaded.
         :type lazy_loading: bool
-        :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
-        :type mmap: bool
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
+            parameter.
+        :type filesystem: fs.FS or None
         :return: Loaded EOPatch
         :rtype: EOPatch
         """
-        if not os.path.exists(path):
-            raise ValueError('Specified path {} does not exist'.format(path))
+        if filesystem is None:
+            filesystem = get_filesystem(path)
+            path = '/'
 
-        entire_content = EOPatch._get_eopatch_content(path, mmap=mmap)
-        requested_content = {}
-        for feature_type, feature_name in FeatureParser(features):
-            feature_type_str = feature_type.value
-            if feature_type_str not in entire_content:
-                continue
-
-            content = entire_content[feature_type_str]
-            if isinstance(content, _FileLoader) or (isinstance(content, dict) and feature_name is ...):
-                requested_content[feature_type_str] = content
-            else:
-                if feature_type_str not in requested_content:
-                    requested_content[feature_type_str] = {}
-                requested_content[feature_type_str][feature_name] = content[feature_name]
-
-        if not lazy_loading:
-            for feature_type, content in requested_content.items():
-                if isinstance(content, _FileLoader):
-                    requested_content[feature_type] = content.load()
-                elif isinstance(content, dict):
-                    for feature_name, loader in content.items():
-                        content[feature_name] = loader.load()
-
-        return EOPatch(**requested_content)
-
-    @staticmethod
-    def load_aws(bucket_name, patch_location, features=...):
-        """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
-
-        :param bucket_name: Name of the AWS S3 bucket
-        :type bucket_name: str
-        :param patch_location: Location of the EOPatch on the AWS S3 bucket
-        :type patch_location: str
-        :param features: A collection of features to be loaded. By default all features will be loaded.
-        :type features: object
-        """
-
-        def _get_eop_features(_bucket, _patch_location):
-            _patch_location += '/' if not _patch_location.endswith('/') else ''
-            _paths = [o.key for o in _bucket.objects.filter(Prefix=_patch_location)]
-            _eopatch = EOPatch()
-            _features = [path[len(_patch_location):path.find('.')].split('/') for path in _paths]
-            _features = [(feature[0], feature[1]) if len(feature) > 1 else (feature[0], None) for feature in _features]
-            _features = [(FeatureType(ftype), fname) for ftype, fname in _features]
-            return _eopatch, _features, _paths
-
-        def _load_data(file_handler, is_pickle):
-            if is_pickle:
-                data_content = pickle.load(file_handler)
-            else:
-                data_content = np.load(file_handler)
-            return data_content
-
-        def _get_needed_features(feats):
-            _features = list(FeatureParser(feats))
-            _meta_features = [(f, ...) for f in FeatureTypeSet.META_TYPES]
-            return list(set(_features + _meta_features))
-
-        s3 = boto3.resource('s3')
-        bucket = s3.Bucket(bucket_name)
-
-        eopatch, available_features, paths = _get_eop_features(bucket, patch_location)
-        requested_features = _get_needed_features(features)
-
-        load_content = []
-        for (ftype, fname), path in zip(available_features, paths):
-            if ftype in [ftype for ftype, _ in requested_features]:
-                if (ftype, fname) in requested_features or (ftype, Ellipsis) in requested_features:
-                    load_content.append([(ftype, fname), path])
-
-        for feature, path in load_content:
-            is_compressed = path.endswith('.gz')
-            is_pickle = '.pkl' in path
-
-            stream = s3.Object(bucket_name, path).get()['Body'].read()
-            if is_compressed:
-                with gzip.open(BytesIO(stream), 'rb') as gzip_fp:
-                    data = _load_data(gzip_fp, is_pickle)
-            else:
-                data = _load_data(BytesIO(stream), is_pickle)
-
-            eopatch[feature] = data
-        return eopatch
-
-    @staticmethod
-    def walk(filesystem, patch_location):
-        """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
-        """
-        for path in filesystem.listdir(patch_location):
-            if '.' not in path:
-                subdir = fs.path.combine(patch_location, path)
-                for file in filesystem.listdir(subdir):
-                    yield FeatureType(path), file.split('.')[0], fs.path.combine(subdir, file)
-            else:
-                yield FeatureType(path.split('.')[0]), None, fs.path.combine(patch_location, path)
-
-    @staticmethod
-    def walk_filtered(filesystem, patch_location, features):
-        """ Based on EOPatch.walk generator, but applies feature filtering based on the `features` argument
-        """
-        features = FeatureParser(features).feature_collection
-        for ftype, fname, path in EOPatch.walk(filesystem, patch_location):
-            if ftype.is_meta():
-                yield ftype, fname, path
-
-            if ftype not in features:
-                continue
-
-            ftrs = features[ftype]
-            if ftrs is Ellipsis or fname in ftrs:
-                yield ftype, fname, path
-
-    @staticmethod
-    def load_aws_new(filesystem, patch_location, features=..., lazy_loading=False):
-        """Loads EOPatch from the AWS S3 bucket. AWS credentials should be properly configured.
-        """
-        eopatch = EOPatch()
-
-        for ftype, fname, path in EOPatch.walk_filtered(filesystem, patch_location, features):
-            loader = _Loader(filesystem, ftype, fname, path)
-            eopatch[(ftype, fname)] = loader if lazy_loading else loader.load()
-
-        return eopatch
-
-    @staticmethod
-    def _get_eopatch_content(path, mmap=False):
-        """ Checks the content of saved EOPatch and creates a dictionary with _FileLoader classes
-
-        :param path: Location on the disk
-        :type path: str
-        :param mmap: If True, then memory-map the file. Works only on uncompressed npy files
-        :type mmap: bool
-        :return: A dictionary describing content of existing EOPatch
-        """
-        eopatch_content = {}
-
-        for feature_type_name in os.listdir(path):
-            feature_type_path = os.path.join(path, feature_type_name)
-
-            if os.path.isdir(feature_type_path):
-                if not FeatureType.has_value(feature_type_name) or FeatureType(feature_type_name).is_meta():
-                    warnings.warn('Folder {} is not recognized in EOPatch folder structure, will be skipped'.format(
-                        feature_type_path))
-                    continue
-                if feature_type_name in eopatch_content:
-                    warnings.warn('There are multiple files containing data about {}'.format(FeatureType(
-                        feature_type_name)))
-                    if not isinstance(eopatch_content[feature_type_name], dict):
-                        eopatch_content[feature_type_name] = {}
-                else:
-                    eopatch_content[feature_type_name] = {}
-
-                for feature in os.listdir(feature_type_path):
-                    feature_path = os.path.join(feature_type_path, feature)
-                    if os.path.isdir(feature_path):
-                        warnings.warn(
-                            'Folder {} is not recognized in EOPatch folder structure, will be skipped'.format(
-                                feature_path))
-                        continue
-                    feature_name = FileFormat.split_by_extensions(feature)[0]
-                    if feature_name in eopatch_content[feature_type_name]:
-                        warnings.warn('There are multiple files containing data about ({}, {})'.format(
-                            FeatureType(feature_type_name), feature_name))
-                        continue
-
-                    eopatch_content[feature_type_name][feature_name] = \
-                        _FileLoader(path, os.path.join(feature_type_name, feature))
-            else:
-                feature_type_str = FileFormat.split_by_extensions(feature_type_name)[0]
-                if not FeatureType.has_value(feature_type_str):
-                    warnings.warn('File {} is not recognized in EOPatch folder structure, will be skipped'.format(
-                        feature_type_path))
-                elif feature_type_str in eopatch_content:
-                    warnings.warn('There are multiple files containing data about {}'.format(
-                        FeatureType(feature_type_str)))
-                elif os.path.getsize(feature_type_path):
-                    eopatch_content[feature_type_str] = _FileLoader(path, feature_type_name, mmap)
-
-        return eopatch_content
+        return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
 
     def time_series(self, ref_date=None, scale_time=1):
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
@@ -987,13 +615,16 @@ class _FeatureDict(dict):
 
     It checks that features have a correct and dimension. It also supports lazy loading by accepting a function as a
     feature value, which is then called when the feature is accessed.
-
-    :param feature_dict: A dictionary of feature names and values
-    :type feature_dict: dict(str: object)
-    :param feature_type: Type of features
-    :type feature_type: FeatureType
     """
+    FORBIDDEN_CHARS = {'.', '/', '\\', '|', ';', ':', '\n', '\t'}
+
     def __init__(self, feature_dict, feature_type):
+        """
+        :param feature_dict: A dictionary of feature names and values
+        :type feature_dict: dict(str: object)
+        :param feature_type: Type of features
+        :type feature_type: FeatureType
+        """
         super().__init__()
 
         self.feature_type = feature_type
@@ -1008,13 +639,27 @@ class _FeatureDict(dict):
         transform value in correct form.
         """
         value = self._parse_feature_value(value)
+        self._check_feature_name(feature_name)
         super().__setitem__(feature_name, value)
+
+    def _check_feature_name(self, feature_name):
+        if not isinstance(feature_name, str):
+            error_msg = "Feature name must be a string but an object of type {} was given."
+            raise ValueError(error_msg.format(type(feature_name)))
+
+        for char in feature_name:
+            if char in self.FORBIDDEN_CHARS:
+                error_msg = "The name of feature ({}, {}) contains an illegal character '{}'."
+                raise ValueError(error_msg.format(self.feature_type, feature_name, char))
+
+        if feature_name == '':
+            raise ValueError("Feature name cannot be an empty string.")
 
     def __getitem__(self, feature_name, load=True):
         """Implements lazy loading."""
         value = super().__getitem__(feature_name)
 
-        if isinstance(value, (_FileLoader, _Loader)) and load:
+        if isinstance(value, FeatureIO) and load:
             value = value.load()
             self[feature_name] = value
 
@@ -1029,7 +674,7 @@ class _FeatureDict(dict):
 
         :raises: ValueError
         """
-        if isinstance(value, (_FileLoader, _Loader)):
+        if isinstance(value, FeatureIO):
             return value
         if not hasattr(self, 'ndim'):  # Because of serialization/deserialization during multiprocessing
             return value
@@ -1075,203 +720,3 @@ class _FeatureDict(dict):
                              'given'.format(self.feature_type, gpd.GeoDataFrame.__name__, type(value)))
 
         return value
-
-
-class _Loader:
-    def __init__(self, filesystem, ftype, fname, path):
-        self.filesystem = filesystem
-        self.ftype = ftype
-        self.fname = fname
-        self.path = path
-
-    def load(self):
-        with self.filesystem.openbin(self.path, 'r') as file_handle:
-            if self.path.endswith('.gz'):
-                with gzip.open(file_handle, 'rb') as gzip_fp:
-                    return self._decode(gzip_fp, self.path)
-
-            return self._decode(file_handle, self.path)
-
-    @staticmethod
-    def _decode(file, path):
-        if FileFormat.PICKLE.extension() in path:
-            return pickle.load(file)
-
-        if FileFormat.NPY.extension() in path:
-            return np.load(file)
-
-        raise ValueError('Unsupported data type.')
-
-    def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, self.path)
-
-
-class _FileLoader:
-    """ Class taking care for loading objects from disk. Its purpose is to support lazy loading
-    """
-    def __init__(self, patch_path, filename, mmap=False):
-        """
-        :param patch_path: Location of EOPatch on disk
-        :type patch_path: str
-        :param filename: Location of file inside the EOPatch, extension should be included
-        :type filename: str
-        :param mmap: In case of npy files the tile can be loaded as memory map
-        :type mmap: bool
-        """
-        self.patch_path = patch_path
-        self.filename = filename
-        self.mmap = mmap
-
-    def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, self.get_file_path())
-
-    def set_new_patch_path(self, new_patch_path):
-        """ Sets new patch location on disk
-        """
-        self.patch_path = new_patch_path
-
-    def get_file_path(self):
-        """ Returns file path from where feature will be loaded
-        """
-        return os.path.join(self.patch_path, self.filename)
-
-    @staticmethod
-    def _correctly_load_bbox(bbox, path, is_zipped=False):
-        """ Helper method for loading old version of pickled BBox object
-
-        :param bbox: BBox object which was incorrectly loaded with pickle
-        :type bbox: sentinelhub.BBox
-        :param path: Path to file where BBox object is stored
-        :type path: str
-        :param is_zipped: `True` if file is zipped and `False` otherwise
-        :type is_zipped: bool
-        :return: Correctly loaded BBox object
-        :rtype: sentinelhub.BBox
-        """
-        warnings.warn("Bounding box of your EOPatch is saved in old format which in the future won't be supported "
-                      "anymore. Please save bounding box again, you can overwrite the existing one", DeprecationWarning,
-                      stacklevel=4)
-
-        with gzip.open(path) if is_zipped else open(path, 'rb') as pickle_file:
-            crs_cnt = -1
-            for _, arg, _ in pickletools.genops(pickle_file):
-                if arg == 'sentinelhub.constants CRS':
-                    crs_cnt = 2
-                if crs_cnt == 0:
-                    return sentinelhub.BBox(tuple(bbox), sentinelhub.CRS(arg))
-                crs_cnt -= 1
-
-        raise ValueError('Failed to correctly load BBox object, try downgrading sentinelhub package to <=2.4.7')
-
-    def load(self):
-        """ Method which loads data from the file
-        """
-        # pylint: disable=too-many-return-statements
-        if not os.path.isdir(self.patch_path):
-            raise OSError('EOPatch does not exist in path {} anymore'.format(self.patch_path))
-
-        path = self.get_file_path()
-        if not os.path.exists(path):
-            raise OSError('Feature in path {} does not exist anymore'.format(path))
-
-        file_formats = FileFormat.split_by_extensions(path)[1:]
-
-        if not file_formats or file_formats[-1] is FileFormat.PICKLE:
-            with open(path, "rb") as infile:
-                data = pickle.load(infile)
-
-                if isinstance(data, sentinelhub.BBox) and not hasattr(data, 'crs'):
-                    return self._correctly_load_bbox(data, path)
-                return data
-
-        if file_formats[-1] is FileFormat.NPY:
-            if self.mmap:
-                return np.load(path, mmap_mode='r')
-            return np.load(path)
-
-        if file_formats[-1] is FileFormat.GZIP:
-            if file_formats[-2] is FileFormat.NPY:
-                return np.load(gzip.open(path))
-
-            if len(file_formats) == 1 or file_formats[-2] is FileFormat.PICKLE:
-                data = pickle.load(gzip.open(path))
-
-                if isinstance(data, sentinelhub.BBox) and not hasattr(data, 'crs'):
-                    return self._correctly_load_bbox(data, path, is_zipped=True)
-                return data
-
-        raise ValueError('Could not load data from unsupported file format {}'.format(file_formats[-1]))
-
-
-class _FileSaver:
-    """ Class taking care for saving feature to disk
-    """
-    def __init__(self, path, tmp_path, feature_type, feature_name, file_format, compress_level):
-        self.feature_type = feature_type
-        self.feature_name = feature_name
-        self.file_format = file_format
-        self.compress_level = compress_level
-
-        self.final_filename = self.get_file_path(path)
-        self.tmp_filename = self.get_file_path(tmp_path)
-
-    def get_file_path(self, path):
-        """ Creates a filename with file path
-        """
-        feature_filename = self._get_filename_path(path)
-
-        feature_filename += self.file_format.extension()
-        if self.compress_level:
-            feature_filename += FileFormat.GZIP.extension()
-
-        return feature_filename
-
-    def _get_filename_path(self, path):
-        """ Helper function for creating filename without file extension
-        """
-        feature_filename = os.path.join(path, self.feature_type.value)
-
-        if self.feature_name is not None:
-            feature_filename = os.path.join(feature_filename, self.feature_name)
-
-        return feature_filename
-
-    def save(self, eopatch, use_tmp=True):
-        """ Method which does the saving
-
-        :param eopatch: EOPatch containing the data which will be saved
-        :type eopatch: EOPatch
-        :param use_tmp: If `True` data will be saved to temporary file, otherwise it will be saved to intended
-        (i.e. final) location
-        :type use_tmp: bool
-        """
-        filename = self.tmp_filename if use_tmp else self.final_filename
-
-        if self.feature_name is None:
-            data = eopatch[self.feature_type]
-            if self.feature_type.has_dict():
-                data = data.get_dict()
-
-            if self.feature_type is FeatureType.BBOX:
-                data = tuple(data) + (int(data.crs.value),)
-        else:
-            data = eopatch[self.feature_type][self.feature_name]
-
-        file_dir = os.path.dirname(filename)
-        os.makedirs(file_dir, exist_ok=True)
-
-        if self.compress_level:
-            file_handle = gzip.GzipFile(filename, 'w', self.compress_level)
-        else:
-            file_handle = open(filename, 'wb')
-
-        with file_handle as outfile:
-            LOGGER.debug("Saving (%s, %s) to %s", str(self.feature_type), str(self.feature_name), filename)
-
-            if self.file_format is FileFormat.NPY:
-                np.save(outfile, data)
-            elif self.file_format is FileFormat.PICKLE:
-                pickle.dump(data, outfile)
-            else:
-                ValueError('File {} was not saved because saving in file format {} is currently not '
-                           'supported'.format(filename, self.file_format))
