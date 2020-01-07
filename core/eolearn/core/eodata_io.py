@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 import pickle
 import gzip
 import concurrent.futures
+from collections import defaultdict
 
 import fs
 from fs.tempfs import TempFS
@@ -29,10 +30,11 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         filesystem.removetree(patch_location)
-        patch_exists = False
+        if patch_location != '/':
+            patch_exists = False
 
     if not patch_exists:
-        filesystem.makedir(patch_location, recreate=True)
+        filesystem.makedir(patch_location)
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
 
@@ -80,7 +82,7 @@ def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading
 def walk_filesystem(filesystem, patch_location, features=...):
     """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
     """
-    existing_features = {ftype: {} for ftype in FeatureType}
+    existing_features = defaultdict(dict)
     for ftype, fname, path in walk_main_folder(filesystem, patch_location):
         existing_features[ftype][fname] = path
 
