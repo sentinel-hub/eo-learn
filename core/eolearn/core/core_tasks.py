@@ -17,6 +17,7 @@ import numpy as np
 
 from .eodata import EOPatch
 from .eotask import EOTask
+from .fs_utils import get_filesystem
 
 warnings.simplefilter('default', DeprecationWarning)
 
@@ -48,10 +49,10 @@ class DeepCopyTask(CopyTask):
 class SaveTask(EOTask):
     """ Saves the given EOPatch to a filesystem
     """
-    def __init__(self, folder, *args, **kwargs):
+    def __init__(self, path, filesystem=None, **kwargs):
         """
-        :param folder: root directory where all EOPatches are saved
-        :type folder: str
+        :param path: root path where all EOPatches are saved
+        :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default
             all features will be saved.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
@@ -64,11 +65,15 @@ class SaveTask(EOTask):
             path
         :type filesystem: fs.FS or None
         """
-        self.folder = folder
-        self.args = args
+        self.path = path
+        self.filesystem = filesystem
         self.kwargs = kwargs
 
-    def execute(self, eopatch, *, eopatch_folder):
+        if self.filesystem is None:
+            self.filesystem = get_filesystem(path)
+            self.path = '/'
+
+    def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
@@ -78,22 +83,24 @@ class SaveTask(EOTask):
         :return: The same EOPatch
         :rtype: EOPatch
         """
-        eopatch.save(fs.path.combine(self.folder, eopatch_folder), *self.args, **self.kwargs)
+        path = fs.path.combine(self.path, eopatch_folder)
+
+        eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
 
 
 class SaveToDisk(SaveTask):
     """ A deprecated version of SaveTask
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, folder, *args, **kwargs):
         warnings.warn('This task is deprecated, use SaveTask instead', DeprecationWarning)
-        super().__init__(*args, **kwargs)
+        super().__init__(folder, *args, **kwargs)
 
 
 class LoadTask(EOTask):
     """ Loads an EOPatch from a filesystem
     """
-    def __init__(self, folder, *args, **kwargs):
+    def __init__(self, path, filesystem=None, **kwargs):
         """
         :param folder: root directory where all EOPatches are saved
         :type folder: str
@@ -105,11 +112,15 @@ class LoadTask(EOTask):
             path
         :type filesystem: fs.FS or None
         """
-        self.folder = folder
-        self.args = args
+        self.path = path
+        self.filesystem = filesystem
         self.kwargs = kwargs
 
-    def execute(self, *, eopatch_folder):
+        if self.filesystem is None:
+            self.filesystem = get_filesystem(path)
+            self.path = '/'
+
+    def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch_folder: name of EOPatch folder containing data
@@ -117,7 +128,9 @@ class LoadTask(EOTask):
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
-        return EOPatch.load(fs.path.join(self.folder, eopatch_folder), *self.args, **self.kwargs)
+        path = fs.path.combine(self.path, eopatch_folder)
+
+        return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
 
 
 class LoadFromDisk(LoadTask):
