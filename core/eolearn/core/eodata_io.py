@@ -124,7 +124,7 @@ def walk_main_folder(filesystem, folder_path):
         raw_path = path.split('.')[0].strip('/')
 
         if '/' in raw_path:
-            ftype_str, fname = raw_path.split('/', 1)
+            ftype_str, fname = fs.path.split(raw_path)
         else:
             ftype_str, fname = raw_path, ...
 
