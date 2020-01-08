@@ -57,7 +57,7 @@ script:
       pytest;
     fi
   fi
-- 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
+# - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
 
 after_success:
 - if [ $TRAVIS_PYTHON_VERSION == '3.6' ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then codecov; fi
