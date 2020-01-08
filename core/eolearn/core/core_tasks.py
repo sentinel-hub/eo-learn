@@ -62,16 +62,23 @@ class SaveTask(EOTask):
             to 9 (highest compression).
         :type compress_level: int
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path
-        :type filesystem: fs.FS or None
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         """
         self.path = path
-        self.filesystem = filesystem
+        self._filesystem = filesystem
         self.kwargs = kwargs
 
-        if self.filesystem is None:
-            self.filesystem = get_filesystem(path)
-            self.path = '/'
+        self.filesystem_path = '/' if self._filesystem is None else self.path
+
+    @property
+    def filesystem(self):
+        """ A filesystem property that is being lazy-loaded the first time it is needed
+        """
+        if self._filesystem is None:
+            self._filesystem = get_filesystem(self.path)
+
+        return self._filesystem
 
     def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
@@ -83,7 +90,7 @@ class SaveTask(EOTask):
         :return: The same EOPatch
         :rtype: EOPatch
         """
-        path = fs.path.combine(self.path, eopatch_folder)
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
 
         eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
@@ -109,16 +116,23 @@ class LoadTask(EOTask):
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path
-        :type filesystem: fs.FS or None
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         """
         self.path = path
-        self.filesystem = filesystem
+        self._filesystem = filesystem
         self.kwargs = kwargs
 
-        if self.filesystem is None:
-            self.filesystem = get_filesystem(path)
-            self.path = '/'
+        self.filesystem_path = '/' if self._filesystem is None else self.path
+
+    @property
+    def filesystem(self):
+        """ A filesystem property that is being lazy-loaded the first time it is needed
+        """
+        if self._filesystem is None:
+            self._filesystem = get_filesystem(self.path)
+
+        return self._filesystem
 
     def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
@@ -128,7 +142,7 @@ class LoadTask(EOTask):
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
-        path = fs.path.combine(self.path, eopatch_folder)
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
 
         return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
 
