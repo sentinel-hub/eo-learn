@@ -5,7 +5,7 @@ import unittest
 import datetime as dt
 from sentinelhub import CRS, BBox, DataSource
 
-from eolearn.io import SentinelHubInputTask
+from eolearn.io import SentinelHubInputTask, SentinelHubDEMInputTask
 from eolearn.core import FeatureType
 
 # import sys
@@ -104,6 +104,43 @@ class TestProcessingIO(unittest.TestCase):
 
         width, height = self.size
         self.assertTrue(scl.shape == (4, height, width, 1))
+
+    def test_single_scene(self):
+        """ Download S2L1C bands and dataMask
+        """
+        task = SentinelHubInputTask(
+            bands_feature=(FeatureType.DATA, 'BANDS'),
+            additional_data=[(FeatureType.MASK, 'dataMask')],
+            size=self.size,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            data_source=DataSource.SENTINEL2_L1C,
+            max_threads=self.max_threads,
+            single_scene=True,
+            mosaicking_order="leastCC"
+        )
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+        bands = eopatch[(FeatureType.DATA, 'BANDS')]
+        is_data = eopatch[(FeatureType.MASK, 'dataMask')]
+
+        width, height = self.size
+        self.assertTrue(bands.shape == (1, height, width, 13))
+        self.assertTrue(is_data.shape == (1, height, width, 1))
+
+    def test_dem(self):
+        task = SentinelHubDEMInputTask(
+            resolution=10,
+            dem_feature=(FeatureType.DATA_TIMELESS, 'DEM'),
+            max_threads=3
+        )
+
+        eopatch = task.execute(bbox=self.bbox)
+
+        dem = eopatch.data_timeless['DEM']
+
+        width, height = self.size
+        self.assertTrue(dem.shape == (height, width, 1))
 
 
 if __name__ == "__main__":
