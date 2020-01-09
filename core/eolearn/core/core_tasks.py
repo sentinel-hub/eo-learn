@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 """
 import copy
 import warnings
+from abc import abstractmethod
 
 import fs
 import numpy as np
@@ -46,7 +47,39 @@ class DeepCopyTask(CopyTask):
         return eopatch.__deepcopy__(features=self.features)
 
 
-class SaveTask(EOTask):
+class IOTask(EOTask):
+    """ An abstract Input/Output task that can handle a path and a filesystem object
+    """
+    def __init__(self, path, filesystem=None):
+        """
+        :param path: root path where all EOPatches are saved
+        :type path: str
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
+        """
+        self.path = path
+        self._filesystem = filesystem
+
+        self.filesystem_path = '/' if self._filesystem is None else self.path
+
+    @property
+    def filesystem(self):
+        """ A filesystem property that is being lazy-loaded the first time it is needed
+        """
+        if self._filesystem is None:
+            self._filesystem = get_filesystem(self.path)
+
+        return self._filesystem
+
+    @abstractmethod
+    def execute(self, *eopatches, **kwargs):
+        """ Implement execute function
+        """
+        raise NotImplementedError
+
+
+class SaveTask(IOTask):
     """ Saves the given EOPatch to a filesystem
     """
     def __init__(self, path, filesystem=None, **kwargs):
@@ -62,16 +95,11 @@ class SaveTask(EOTask):
             to 9 (highest compression).
         :type compress_level: int
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path
-        :type filesystem: fs.FS or None
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         """
-        self.path = path
-        self.filesystem = filesystem
         self.kwargs = kwargs
-
-        if self.filesystem is None:
-            self.filesystem = get_filesystem(path)
-            self.path = '/'
+        super().__init__(path, filesystem=filesystem)
 
     def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
@@ -83,7 +111,7 @@ class SaveTask(EOTask):
         :return: The same EOPatch
         :rtype: EOPatch
         """
-        path = fs.path.combine(self.path, eopatch_folder)
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
 
         eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
@@ -97,7 +125,7 @@ class SaveToDisk(SaveTask):
         super().__init__(folder, *args, **kwargs)
 
 
-class LoadTask(EOTask):
+class LoadTask(IOTask):
     """ Loads an EOPatch from a filesystem
     """
     def __init__(self, path, filesystem=None, **kwargs):
@@ -109,16 +137,11 @@ class LoadTask(EOTask):
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path
-        :type filesystem: fs.FS or None
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         """
-        self.path = path
-        self.filesystem = filesystem
         self.kwargs = kwargs
-
-        if self.filesystem is None:
-            self.filesystem = get_filesystem(path)
-            self.path = '/'
+        super().__init__(path, filesystem=filesystem)
 
     def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
@@ -128,7 +151,7 @@ class LoadTask(EOTask):
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
-        path = fs.path.combine(self.path, eopatch_folder)
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
 
         return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
 
