@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 """
 import copy
 import warnings
+from abc import abstractmethod
 
 import fs
 import numpy as np
@@ -46,7 +47,39 @@ class DeepCopyTask(CopyTask):
         return eopatch.__deepcopy__(features=self.features)
 
 
-class SaveTask(EOTask):
+class IOTask(EOTask):
+    """ An abstract Input/Output task that can handle a path and a filesystem object
+    """
+    def __init__(self, path, filesystem=None):
+        """
+        :param path: root path where all EOPatches are saved
+        :type path: str
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
+        """
+        self.path = path
+        self._filesystem = filesystem
+
+        self.filesystem_path = '/' if self._filesystem is None else self.path
+
+    @property
+    def filesystem(self):
+        """ A filesystem property that is being lazy-loaded the first time it is needed
+        """
+        if self._filesystem is None:
+            self._filesystem = get_filesystem(self.path)
+
+        return self._filesystem
+
+    @abstractmethod
+    def execute(self, *eopatches, **kwargs):
+        """ Implement execute function
+        """
+        raise NotImplementedError
+
+
+class SaveTask(IOTask):
     """ Saves the given EOPatch to a filesystem
     """
     def __init__(self, path, filesystem=None, **kwargs):
@@ -65,20 +98,8 @@ class SaveTask(EOTask):
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :type filesystem: fs.base.FS or None
         """
-        self.path = path
-        self._filesystem = filesystem
         self.kwargs = kwargs
-
-        self.filesystem_path = '/' if self._filesystem is None else self.path
-
-    @property
-    def filesystem(self):
-        """ A filesystem property that is being lazy-loaded the first time it is needed
-        """
-        if self._filesystem is None:
-            self._filesystem = get_filesystem(self.path)
-
-        return self._filesystem
+        super().__init__(path, filesystem=filesystem)
 
     def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
@@ -104,7 +125,7 @@ class SaveToDisk(SaveTask):
         super().__init__(folder, *args, **kwargs)
 
 
-class LoadTask(EOTask):
+class LoadTask(IOTask):
     """ Loads an EOPatch from a filesystem
     """
     def __init__(self, path, filesystem=None, **kwargs):
@@ -119,20 +140,8 @@ class LoadTask(EOTask):
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :type filesystem: fs.base.FS or None
         """
-        self.path = path
-        self._filesystem = filesystem
         self.kwargs = kwargs
-
-        self.filesystem_path = '/' if self._filesystem is None else self.path
-
-    @property
-    def filesystem(self):
-        """ A filesystem property that is being lazy-loaded the first time it is needed
-        """
-        if self._filesystem is None:
-            self._filesystem = get_filesystem(self.path)
-
-        return self._filesystem
+        super().__init__(path, filesystem=filesystem)
 
     def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
