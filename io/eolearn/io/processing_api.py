@@ -15,8 +15,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SentinelHubInputBase(EOTask):
-    ''' Base class for Processing API input tasks
-    '''
+    """ Base class for Processing API input tasks
+    """
     def __init__(self, data_source, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
         """
         :param data_source: Source of requested satellite data.
@@ -33,10 +33,12 @@ class SentinelHubInputBase(EOTask):
         :type max_threads: int
         """
 
+        if (size is None) == (resolution is None):
+            raise ValueError("Exactly one of the parameters 'size' and 'resolution' should be given.")
+
         self.size = size
         self.resolution = resolution
         self.config = config or SHConfig()
-        self.timestamp = None
         self.max_threads = max_threads
         self.data_source = data_source
 
@@ -67,6 +69,11 @@ class SentinelHubInputBase(EOTask):
 
         timestamp = self._get_timestamp(time_interval, bbox) if time_interval else None
 
+        if eopatch.timestamp:
+            self.check_timestamp_difference(timestamp, eopatch.timestamp)
+        elif timestamp:
+            eopatch.timestamp = timestamp
+
         payloads = self._build_payloads(bbox, size_x, size_y, timestamp)
         requests = [DownloadRequest(post_values=payload, **self.request_args) for payload in payloads]
 
@@ -87,6 +94,18 @@ class SentinelHubInputBase(EOTask):
         self._add_meta_info(eopatch)
 
         return eopatch
+
+    @staticmethod
+    def check_timestamp_difference(timestamp1, timestamp2):
+        """ Raises an error if the two timestamps are not the same
+        """
+        error_msg = "Trying to write data to an existing eopatch with a different timestamp."
+        if len(timestamp1) != len(timestamp2):
+            raise ValueError(error_msg)
+
+        for ts1, ts2 in zip(timestamp1, timestamp2):
+            if ts1 != ts2:
+                raise ValueError(error_msg)
 
     def _extract_data(self, eopatch, images, shape):
         """ Extract data from the received images and assign them to eopatch features
@@ -112,7 +131,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
-                 bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent'):
+                 bands_dtype=np.float32, single_scene=False, mosaicing_order='mostRecent'):
         """
         :param data_source: Source of requested satellite data.
         :type data_source: DataSource
@@ -141,11 +160,12 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param single_scene: If true, the service will compute a single image for the given time interval using
                              mosaicing.
         :type single_scene: bool
-        :param mosaicking_order: Mosaicing order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
-        :type mosaicking_order: str
+        :param mosaicing_order: Mosaicing order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
+        :type mosaicing_order: str
         """
         super().__init__(
-            data_source=data_source, size=size, resolution=resolution, cache_folder=cache_folder, config=config
+            data_source=data_source, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
+            max_threads=max_threads
         )
 
         self.data_source = data_source
@@ -155,11 +175,11 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.bands_dtype = bands_dtype
 
         mosaic_order_params = ["mostRecent", "leastRecent", "leastCC"]
-        if mosaicking_order not in mosaic_order_params:
-            msg = "{} is not a valid mosaickingOrder parameter, it should be one of: {}"
-            raise ValueError(msg.format(mosaicking_order, mosaic_order_params))
+        if mosaicing_order not in mosaic_order_params:
+            msg = "{} is not a valid mosaicingOrder parameter, it should be one of: {}"
+            raise ValueError(msg.format(mosaicing_order, mosaic_order_params))
 
-        self.mosaicking_order = mosaicking_order
+        self.mosaicing_order = mosaicing_order
 
         self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
 
@@ -299,35 +319,38 @@ class SentinelHubInputTask(SentinelHubInputBase):
         eopatch.meta_info['time_difference'] = self.time_difference
 
 
-class SentinelHubDEMInputTask(SentinelHubInputBase):
-    ''' A processing API input task that downloads the digital elevation model
-    '''
+class SentinelHubDemTask(SentinelHubInputBase):
+    """ A processing API input task that downloads the digital elevation model
+    """
     def __init__(self, dem_feature, size=None, resolution=None, cache_folder=None, config=None,
                  max_threads=None):
         """
+        :param dem_feature: Target feature into which to save the DEM array.
+        :type dem_feature: tuple(sentinelhub.FeatureType, str)
         :param size: Number of pixels in x and y dimension.
-        :type size_x: tuple(int, int)
-        :param bands_feature: Target feature into which to save the downloaded images.
-        :type bands_feature: tuple(sentinelhub.FeatureType, str)
-        :param bands: An array of band names.
-        :type bands: list[str]
-        :param additional_data: A list of additional data to be downloaded, such as SCL, SNW, dataMask, etc.
-        :type additional_data: list[tuple(sentinelhub.FeatureType, str)]
-        :param maxcc: Maximum cloud coverage.
-        :type maxcc: float
-        :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
-        :type time_difference: datetime.timedelta
+        :type size: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
+        :type resolution: tuple(int, int)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
+        :param config: An instance of SHConfig defining the service
+        :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
         """
 
         super().__init__(
-            data_source=DataSource.DEM, size=size, resolution=resolution, cache_folder=cache_folder, config=config
+            data_source=DataSource.DEM, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
+            max_threads=max_threads
         )
 
-        self.dem_feature = dem_feature
+        feature_parser = self._parse_features(
+            dem_feature,
+            default_feature_type=FeatureType.DATA_TIMELESS,
+            allowed_feature_types=[FeatureType.DATA_TIMELESS]
+        )
+
+        self.dem_feature = next(feature_parser())
 
     def _build_payloads(self, bbox, size_x, size_y, timestamp):
         """ Build payloads for the requests to the service

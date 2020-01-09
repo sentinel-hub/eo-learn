@@ -5,7 +5,7 @@ import unittest
 import datetime as dt
 from sentinelhub import CRS, BBox, DataSource
 
-from eolearn.io import SentinelHubInputTask, SentinelHubDEMInputTask
+from eolearn.io import SentinelHubInputTask, SentinelHubDemTask
 from eolearn.core import FeatureType
 
 # import sys
@@ -45,6 +45,7 @@ class TestProcessingIO(unittest.TestCase):
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 13))
         self.assertTrue(is_data.shape == (4, height, width, 1))
+        self.assertTrue(len(eopatch.timestamp) == 4)
 
     def test_specific_bands(self):
         """ Download S2L1C bands and dataMask
@@ -85,6 +86,7 @@ class TestProcessingIO(unittest.TestCase):
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 12))
         self.assertTrue(is_data.shape == (4, height, width, 1))
+        self.assertTrue(len(eopatch.timestamp) == 4)
 
     def test_scl_only(self):
         """ Download just SCL, without any other bands
@@ -129,7 +131,7 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(is_data.shape == (1, height, width, 1))
 
     def test_dem(self):
-        task = SentinelHubDEMInputTask(
+        task = SentinelHubDemTask(
             resolution=10,
             dem_feature=(FeatureType.DATA_TIMELESS, 'DEM'),
             max_threads=3
