@@ -159,9 +159,9 @@ class LoadTask(IOTask):
 class LoadFromDisk(LoadTask):
     """ A deprecated version of LoadTask
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, folder, *args, **kwargs):
         warnings.warn('This task is deprecated, use LoadTask instead', DeprecationWarning)
-        super().__init__(*args, **kwargs)
+        super().__init__(folder, *args, **kwargs)
 
 
 class AddFeature(EOTask):
