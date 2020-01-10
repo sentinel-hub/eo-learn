@@ -105,7 +105,7 @@ class TestExportAndImportTiff(unittest.TestCase):
             cls.TestCase('data_band_list_time_list', FeatureType.DATA, data_array,
                          bands=[2, 4, 1, 0], times=[1, 7, 0, 2, 3]),
             cls.TestCase('data_band_tuple_time_tuple', FeatureType.DATA, data_array, bands=(1, 4), times=(2, 8)),
-            cls.TestCase('', FeatureType.DATA, data_array),
+            cls.TestCase('data_normal', FeatureType.DATA, data_array),
         ]
 
     def test_export_import(self):
