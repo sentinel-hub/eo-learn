@@ -9,11 +9,12 @@ file in the root directory of this source tree.
 import unittest
 import logging
 import datetime
-import numpy as np
+import os
 import tempfile
 
+import numpy as np
 import fs
-from fs.errors import CreateFailed
+from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 from geopandas import GeoDataFrame
@@ -190,6 +191,35 @@ class TestEOPatchIO(unittest.TestCase):
             for fs_loader in self.filesystem_loaders:
                 with fs_loader() as temp_fs, self.assertRaises(IOError):
                     EOPatch.load('/', filesystem=temp_fs, features=features)
+
+    def test_nonexistent_location(self):
+        path = './folder/subfolder/new-eopatch/'
+        empty_eop = EOPatch()
+
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                with self.assertRaises(ResourceNotFound):
+                    EOPatch.load(path, filesystem=temp_fs)
+
+                empty_eop.save(path, filesystem=temp_fs)
+
+        with TempFS() as temp_fs:
+            full_path = os.path.join(temp_fs.root_path, path)
+            with self.assertRaises(CreateFailed):
+                EOPatch.load(full_path)
+
+            load_task = LoadTask(full_path)
+            with self.assertRaises(CreateFailed):
+                load_task.execute()
+
+            empty_eop.save(full_path)
+            self.assertTrue(os.path.exists(full_path))
+
+        with TempFS() as temp_fs:
+            full_path = os.path.join(temp_fs.root_path, path)
+            save_task = SaveTask(full_path)
+            save_task.execute(empty_eop)
+            self.assertTrue(os.path.exists(full_path))
 
 
 if __name__ == '__main__':

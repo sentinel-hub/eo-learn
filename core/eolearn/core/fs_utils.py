@@ -14,7 +14,7 @@ from fs_s3fs import S3FS
 from sentinelhub import SHConfig
 
 
-def get_filesystem(path, create=True, **kwargs):
+def get_filesystem(path, create=False, **kwargs):
     """ A utility function for initializing any type of filesystem object with PyFilesystem2 package
 
     :param path: A filesystem path

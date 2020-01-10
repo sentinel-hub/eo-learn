@@ -499,7 +499,7 @@ class EOPatch:
         :type filesystem: fs.FS or None
         """
         if filesystem is None:
-            filesystem = get_filesystem(path)
+            filesystem = get_filesystem(path, create=True)
             path = '/'
 
         save_eopatch(self, filesystem, path, features=features, compress_level=compress_level,
@@ -522,7 +522,7 @@ class EOPatch:
         :rtype: EOPatch
         """
         if filesystem is None:
-            filesystem = get_filesystem(path)
+            filesystem = get_filesystem(path, create=False)
             path = '/'
 
         return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
