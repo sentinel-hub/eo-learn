@@ -119,7 +119,7 @@ class TestProcessingIO(unittest.TestCase):
             data_source=DataSource.SENTINEL2_L1C,
             max_threads=self.max_threads,
             single_scene=True,
-            mosaicing_order="leastCC"
+            mosaicking_order="leastCC"
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)

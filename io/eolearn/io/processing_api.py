@@ -136,7 +136,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
-                 bands_dtype=np.float32, single_scene=False, mosaicing_order='mostRecent'):
+                 bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent'):
         """
         :param data_source: Source of requested satellite data.
         :type data_source: DataSource
@@ -163,10 +163,10 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param bands_dtype: dtype of the bands array
         :type bands_dtype: np.dtype
         :param single_scene: If true, the service will compute a single image for the given time interval using
-                             mosaicing.
+                             mosaicking.
         :type single_scene: bool
-        :param mosaicing_order: Mosaicing order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
-        :type mosaicing_order: str
+        :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
+        :type mosaicking_order: str
         """
         super().__init__(
             data_source=data_source, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
@@ -180,11 +180,11 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.bands_dtype = bands_dtype
 
         mosaic_order_params = ["mostRecent", "leastRecent", "leastCC"]
-        if mosaicing_order not in mosaic_order_params:
-            msg = "{} is not a valid mosaicingOrder parameter, it should be one of: {}"
-            raise ValueError(msg.format(mosaicing_order, mosaic_order_params))
+        if mosaicking_order not in mosaic_order_params:
+            msg = "{} is not a valid mosaickingOrder parameter, it should be one of: {}"
+            raise ValueError(msg.format(mosaicking_order, mosaic_order_params))
 
-        self.mosaicing_order = mosaicing_order
+        self.mosaicking_order = mosaicking_order
 
         self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
 
@@ -271,7 +271,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         data = shr.data(time_from=time_from, time_to=time_to, data_type=self.data_source.api_identifier())
         data['dataFilter']['maxCloudCoverage'] = int(self.maxcc * 100)
-        data['dataFilter']['mosaickingOrder'] = self.mosaicing_order
+        data['dataFilter']['mosaickingOrder'] = self.mosaicking_order
 
         return shr.body(
             request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
