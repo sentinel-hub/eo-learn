@@ -8,6 +8,7 @@ import numpy as np
 from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig,\
     bbox_to_dimensions, parse_time_interval, DataSource
 import sentinelhub.sentinelhub_request as shr
+from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 
@@ -255,7 +256,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         """ Build payloads for the requests to the service
         """
         if self.single_scene:
-            dates = [(dt.datetime.fromisoformat(time_interval[0]), dt.datetime.fromisoformat(time_interval[1]))]
+            dates = [(iso_to_datetime(time_interval[0]), iso_to_datetime(time_interval[1]))]
         else:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
