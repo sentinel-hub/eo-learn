@@ -50,16 +50,19 @@ class DeepCopyTask(CopyTask):
 class IOTask(EOTask):
     """ An abstract Input/Output task that can handle a path and a filesystem object
     """
-    def __init__(self, path, filesystem=None):
+    def __init__(self, path, filesystem=None, create=False):
         """
         :param path: root path where all EOPatches are saved
         :type path: str
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :type filesystem: fs.base.FS or None
+        :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
+        :type create: bool
         """
         self.path = path
         self._filesystem = filesystem
+        self._create = create
 
         self.filesystem_path = '/' if self._filesystem is None else self.path
 
@@ -68,7 +71,7 @@ class IOTask(EOTask):
         """ A filesystem property that is being lazy-loaded the first time it is needed
         """
         if self._filesystem is None:
-            self._filesystem = get_filesystem(self.path)
+            self._filesystem = get_filesystem(self.path, create=self._create)
 
         return self._filesystem
 
@@ -99,7 +102,7 @@ class SaveTask(IOTask):
         :type filesystem: fs.base.FS or None
         """
         self.kwargs = kwargs
-        super().__init__(path, filesystem=filesystem)
+        super().__init__(path, filesystem=filesystem, create=True)
 
     def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
@@ -141,7 +144,7 @@ class LoadTask(IOTask):
         :type filesystem: fs.base.FS or None
         """
         self.kwargs = kwargs
-        super().__init__(path, filesystem=filesystem)
+        super().__init__(path, filesystem=filesystem, create=False)
 
     def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
