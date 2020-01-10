@@ -60,7 +60,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
                          compress_level) for ftype, fname, path in eopatch_features)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Note: The following is intentionally wrapped in a list in order to get back potential exceptions
+        # The following is intentionally wrapped in a list in order to get back potential exceptions
         list(executor.map(lambda params: params[0].save(*params[1:]), features_to_save))
 
 
