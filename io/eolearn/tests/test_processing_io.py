@@ -119,7 +119,7 @@ class TestProcessingIO(unittest.TestCase):
             data_source=DataSource.SENTINEL2_L1C,
             max_threads=self.max_threads,
             single_scene=True,
-            mosaicking_order="leastCC"
+            mosaicing_order="leastCC"
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
@@ -129,6 +129,7 @@ class TestProcessingIO(unittest.TestCase):
         width, height = self.size
         self.assertTrue(bands.shape == (1, height, width, 13))
         self.assertTrue(is_data.shape == (1, height, width, 1))
+        self.assertTrue(len(eopatch.timestamp) == 1)
 
     def test_dem(self):
         task = SentinelHubDemTask(
@@ -143,6 +144,10 @@ class TestProcessingIO(unittest.TestCase):
 
         width, height = self.size
         self.assertTrue(dem.shape == (height, width, 1))
+
+    def test_dem_wrong_feature(self):
+        with self.assertRaises(ValueError, msg='Expected a ValueError when providing a wrong feature.'):
+            SentinelHubDemTask(resolution=10, dem_feature=(FeatureType.DATA, 'DEM'), max_threads=3)
 
 
 if __name__ == "__main__":

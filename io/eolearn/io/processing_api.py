@@ -67,14 +67,18 @@ class SentinelHubInputBase(EOTask):
         elif self.resolution is not None:
             size_x, size_y = bbox_to_dimensions(eopatch.bbox, self.resolution)
 
-        timestamp = self._get_timestamp(time_interval, bbox) if time_interval else None
+        if time_interval:
+            time_interval = parse_time_interval(time_interval)
+            timestamp = self._get_timestamp(time_interval, bbox)
+        else:
+            timestamp = None
 
         if eopatch.timestamp:
             self.check_timestamp_difference(timestamp, eopatch.timestamp)
         elif timestamp:
             eopatch.timestamp = timestamp
 
-        payloads = self._build_payloads(bbox, size_x, size_y, timestamp)
+        payloads = self._build_payloads(bbox, size_x, size_y, timestamp, time_interval)
         requests = [DownloadRequest(post_values=payload, **self.request_args) for payload in payloads]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
@@ -112,7 +116,7 @@ class SentinelHubInputBase(EOTask):
         """
         raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp):
+    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
         """ Build payloads for the requests to the service
         """
         raise NotImplementedError("The _build_payloads method should be implemented by the subclass.")
@@ -232,8 +236,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         """ Get the timestamp array needed as a parameter for downloading the images
         """
         if self.single_scene:
-            date_from, date_to = parse_time_interval(time_interval)
-            return [(dt.datetime.fromisoformat(date_from), dt.datetime.fromisoformat(date_to))]
+            return [time_interval[0]]
 
         wfs = WebFeatureService(
             bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc
@@ -248,11 +251,13 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp):
+    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
         """ Build payloads for the requests to the service
         """
-        dates = timestamp if self.single_scene else \
-            [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+        if self.single_scene:
+            dates = [(dt.datetime.fromisoformat(time_interval[0]), dt.datetime.fromisoformat(time_interval[1]))]
+        else:
+            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
         return [self._request_payload(date1, date2, bbox, size_x, size_y) for date1, date2 in dates]
 
@@ -265,6 +270,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         data = shr.data(time_from=time_from, time_to=time_to, data_type=self.data_source.api_identifier())
         data['dataFilter']['maxCloudCoverage'] = int(self.maxcc * 100)
+        data['dataFilter']['mosaickingOrder'] = self.mosaicing_order
 
         return shr.body(
             request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
@@ -352,7 +358,7 @@ class SentinelHubDemTask(SentinelHubInputBase):
 
         self.dem_feature = next(feature_parser())
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp):
+    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
         """ Build payloads for the requests to the service
         """
         evalscript = """
