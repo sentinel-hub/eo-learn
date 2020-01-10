@@ -9,4 +9,4 @@ from .geopedia import AddGeopediaFeature
 from .local_io import ExportToTiff, ImportFromTiff
 from .processing_api import SentinelHubInputTask, SentinelHubDemTask
 
-__version__ = '0.6.0'
+__version__ = '0.7.0'
