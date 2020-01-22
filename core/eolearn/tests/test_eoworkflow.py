@@ -108,15 +108,21 @@ class TestEOWorkflow(unittest.TestCase):
 
     def test_linear_workflow(self):
         in_task = InputTask()
+        in_task_name = 'My input task'
         inc_task = Inc()
         pow_task = Pow()
-        eow = LinearWorkflow((in_task, 'task name'), inc_task, inc_task, pow_task)
+        eow = LinearWorkflow((in_task, in_task_name), inc_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
             inc_task: {'d': 2},  # Note that this will assign value only to one instance of Inc task
             pow_task: {'n': 3}
         })
         self.assertEqual(res[pow_task], (2 + 2 + 1) ** 3)
+
+        task_map = eow.get_tasks()
+        self.assertTrue(in_task_name in task_map, "A task with name '{}' should be amongst tasks".format(in_task_name))
+        self.assertEqual(task_map[in_task_name], in_task,
+                         "A task with name '{}' should map into {}".format(in_task_name, in_task))
 
     def test_get_tasks(self):
         in_task = InputTask()
