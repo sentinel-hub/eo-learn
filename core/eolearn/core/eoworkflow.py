@@ -268,14 +268,25 @@ class EOWorkflow:
         """ Returns an ordered dictionary {task_name: task} of all tasks within this workflow
 
         :return: Ordered dictionary with key being task_name (str) and an instance of a corresponding task from this
-        workflow
+            workflow
         :rtype: OrderedDict
         """
-        tasks = collections.OrderedDict()
+        task_dict = collections.OrderedDict()
         for dep in self.ordered_dependencies:
-            tasks[dep.name] = dep.task
+            task_name = dep.name
 
-        return tasks
+            if task_name in task_dict:
+                new_task_name = task_name
+                count = 0
+                while new_task_name in task_dict:
+                    count += 1
+                    new_task_name = '{}({})'.format(task_name, count)
+
+                task_name = new_task_name
+
+            task_dict[task_name] = dep.task
+
+        return task_dict
 
     def get_dot(self):
         """ Generates the DOT description of the underlying computational graph
