@@ -171,12 +171,12 @@ class EOExecutor:
     def _try_remove_logging(cls, log_path, logger, handler, stats):
         if log_path:
             try:
-                logger.info(msg='Pipeline failed.' if cls.STATS_ERROR in stats else 'Pipeline finished.')
+                message = 'EOWorkflow execution {}'.format('failed' if cls.STATS_ERROR in stats else 'finished')
+                logger.debug(message)
                 handler.close()
                 logger.removeHandler(handler)
             except BaseException:
                 pass
-
 
     @classmethod
     def _execute_workflow(cls, process_args):
