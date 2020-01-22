@@ -19,4 +19,4 @@ from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
 from .doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
-__version__ = '0.6.0'
+__version__ = '0.7.0'

@@ -4,7 +4,7 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 Copyright (c) 2018-2019 Filip Koprivec (Jožef Stefan Institute)
 Copyright (c) 2018-2019 William Ouellette
 
@@ -252,7 +252,7 @@ class InterpolationTask(EOTask):
         if copy_features:
             existing_features = set(new_eopatch.get_feature_list())
 
-            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features:
+            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features(old_eopatch):
                 new_feature = copy_feature_type, copy_new_feature_name
 
                 if new_feature in existing_features:
@@ -378,7 +378,7 @@ class InterpolationTask(EOTask):
         elif self.resample_range and np.all([isinstance(date, str) for date in self.resample_range]):
             days = [dateutil.parser.parse(date) for date in self.resample_range]
         elif self.resample_range and np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
-            days = [date for date in self.resample_range]
+            days = list(self.resample_range)
         else:
             raise ValueError('Invalid format in {}, expected strings or datetimes'.format(self.resample_range))
 
