@@ -276,13 +276,11 @@ class EOWorkflow:
             task_name = dep.name
 
             if task_name in task_dict:
-                new_task_name = task_name
                 count = 0
-                while new_task_name in task_dict:
+                while dep.get_custom_name(count) in task_dict:
                     count += 1
-                    new_task_name = '{}({})'.format(task_name, count)
 
-                task_name = new_task_name
+                task_name = dep.get_custom_name(count)
 
             task_dict[task_name] = dep.task
 
@@ -406,6 +404,13 @@ class Dependency:
         """ Sets a new name
         """
         self.name = name
+
+    def get_custom_name(self, number=0):
+        """ Provides custom task name according to given number. E.g. FooTask -> FooTask
+        """
+        if number:
+            return '{}_{}'.format(self.name, number)
+        return self.name
 
 
 class WorkflowResults(collections.Mapping):

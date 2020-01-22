@@ -128,7 +128,7 @@ class TestEOWorkflow(unittest.TestCase):
         in_task = InputTask()
         inc_task = Inc()
 
-        task_names = ['InputTask', 'Inc', 'Inc(1)', 'Inc(2)']
+        task_names = ['InputTask', 'Inc', 'Inc_1', 'Inc_2']
         eow = LinearWorkflow(in_task, inc_task, inc_task, inc_task)
 
         returned_tasks = eow.get_tasks()
