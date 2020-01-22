@@ -268,7 +268,7 @@ class EOWorkflow:
         """ Returns an ordered dictionary {task_name: task} of all tasks within this workflow
 
         :return: Ordered dictionary with key being task_name (str) and an instance of a corresponding task from this
-            workflow
+            workflow. The order of tasks is the same as in which they will be executed.
         :rtype: OrderedDict
         """
         task_dict = collections.OrderedDict()
