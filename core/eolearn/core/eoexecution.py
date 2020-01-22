@@ -8,7 +8,7 @@ All this is implemented in EOExecutor class.
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -16,15 +16,24 @@ file in the root directory of this source tree.
 
 import os
 import logging
+import threading
 import traceback
 import concurrent.futures
 import datetime as dt
+import multiprocessing
 
 from tqdm.auto import tqdm
 
 from .eoworkflow import EOWorkflow
 
+from .utilities import LogFileFilter
+
 LOGGER = logging.getLogger(__name__)
+
+try:
+    MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
+except BaseException:
+    MULTIPROCESSING_LOCK = None
 
 
 class EOExecutor:
@@ -145,17 +154,36 @@ class EOExecutor:
         return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
 
     @classmethod
+    def _try_add_logging(cls, log_path):
+        if log_path:
+            try:
+                logger = logging.getLogger()
+                logger.setLevel(logging.DEBUG)
+                handler = cls._get_log_handler(log_path=log_path)
+                logger.addHandler(handler)
+                return logger, handler
+            except BaseException:
+                pass
+
+        return None, None
+
+    @classmethod
+    def _try_remove_logging(cls, log_path, logger, handler, stats):
+        if log_path:
+            try:
+                logger.info(msg='Pipeline failed.' if cls.STATS_ERROR in stats else 'Pipeline finished.')
+                handler.close()
+                logger.removeHandler(handler)
+            except BaseException:
+                pass
+
+
+    @classmethod
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, return_results = process_args
-
-        if log_path:
-            logger = logging.getLogger()
-            logger.setLevel(logging.DEBUG)
-            handler = cls._get_log_handler(log_path)
-            logger.addHandler(handler)
-
+        logger, handler = cls._try_add_logging(log_path)
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
             results = workflow.execute(input_args, monitor=True)
@@ -165,12 +193,9 @@ class EOExecutor:
 
         except BaseException:
             stats[cls.STATS_ERROR] = traceback.format_exc()
-
         stats[cls.STATS_END_TIME] = dt.datetime.now()
 
-        if log_path:
-            handler.close()
-            logger.removeHandler(handler)
+        cls._try_remove_logging(log_path, logger, handler, stats)
 
         return stats
 
@@ -181,6 +206,7 @@ class EOExecutor:
         handler = logging.FileHandler(log_path)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
+        handler.addFilter(LogFileFilter(thread_name=threading.currentThread().getName()))
 
         return handler
 
@@ -242,9 +268,26 @@ class EOExecutor:
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         try:
+            # pylint: disable=import-outside-toplevel
             from eolearn.visualization import EOExecutorVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to create EOExecutor '
                                'reports')
 
         return EOExecutorVisualization(self).make_report()
+
+
+def execute_with_mp_lock(execution_function, *args, **kwargs):
+    """ A helper utility function that executes a given function with multiprocessing lock if the process is being
+    executed in a multi-processing mode
+
+    :param execution_function: A function
+    :param args: Function's positional arguments
+    :param kwargs: Function's keyword arguments
+    :return: Function's results
+    """
+    if multiprocessing.current_process().name == 'MainProcess' or MULTIPROCESSING_LOCK is None:
+        return execution_function(*args, **kwargs)
+
+    with MULTIPROCESSING_LOCK:
+        return execution_function(*args, **kwargs)
