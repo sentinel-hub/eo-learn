@@ -108,9 +108,10 @@ class TestEOWorkflow(unittest.TestCase):
 
     def test_linear_workflow(self):
         in_task = InputTask()
+        in_task_name = 'My input task'
         inc_task = Inc()
         pow_task = Pow()
-        eow = LinearWorkflow((in_task, 'task name'), inc_task, inc_task, pow_task)
+        eow = LinearWorkflow((in_task, in_task_name), inc_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
             inc_task: {'d': 2},  # Note that this will assign value only to one instance of Inc task
@@ -118,38 +119,37 @@ class TestEOWorkflow(unittest.TestCase):
         })
         self.assertEqual(res[pow_task], (2 + 2 + 1) ** 3)
 
+        task_map = eow.get_tasks()
+        self.assertTrue(in_task_name in task_map, "A task with name '{}' should be amongst tasks".format(in_task_name))
+        self.assertEqual(task_map[in_task_name], in_task,
+                         "A task with name '{}' should map into {}".format(in_task_name, in_task))
+
     def test_get_tasks(self):
         in_task = InputTask()
         inc_task = Inc()
-        pow_task = Pow()
 
-        task_names = ['InputTask', 'Inc', 'Pow']
-        workflow_tasks = [in_task, inc_task, pow_task]
-        eow = LinearWorkflow(*workflow_tasks)
+        task_names = ['InputTask', 'Inc', 'Inc_1', 'Inc_2']
+        eow = LinearWorkflow(in_task, inc_task, inc_task, inc_task)
 
         returned_tasks = eow.get_tasks()
 
         # check if tasks are present
-        for task_name in task_names:
-            self.assertIn(task_name, returned_tasks.keys())
+        self.assertEqual(sorted(task_names), sorted(returned_tasks))
 
         # check if tasks still work
         arguments_dict = {
             in_task: {'val': 2},
-            inc_task: {'d': 2},
-            pow_task: {'n': 3}
+            inc_task: {'d': 2}
         }
 
         res_workflow = eow.execute(arguments_dict)
-        res_workflow_value = [res_workflow[key] for key in res_workflow.keys()][0]
+        res_workflow_value = list(res_workflow.values())
 
-        for idx, task in enumerate(workflow_tasks):
-            if idx == 0:
-                res_tasks_value = task.execute(**arguments_dict[task])
-            else:
-                res_tasks_value = task.execute(res_tasks_value, **arguments_dict[task])
+        res_tasks_values = []
+        for idx, task in enumerate(returned_tasks.values()):
+            res_tasks_values = [task.execute(*res_tasks_values, **arguments_dict.get(task, {}))]
 
-        self.assertEqual(res_workflow_value, res_tasks_value)
+        self.assertEqual(res_workflow_value, res_tasks_values)
 
     def test_trivial_workflow(self):
         task = DummyTask()
