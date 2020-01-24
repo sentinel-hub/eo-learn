@@ -394,4 +394,4 @@ class SentinelHubDemTask(SentinelHubInputBase):
         """
         tif = images[0]['default.tif']
 
-        eopatch[self.dem_feature] = tif[..., np.newaxis].astype(np.int16)
+        eopatch[self.dem_feature] = tif[..., np.newaxis].astype(np.float32)
