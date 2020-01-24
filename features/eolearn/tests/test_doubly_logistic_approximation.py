@@ -1,8 +1,8 @@
 import unittest
 
 import numpy as np
-from eolearn.core import EOPatch
-from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
+from eolearn.core import EOPatch, FeatureType
+from features.eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
 from datetime import datetime
 
 
@@ -42,7 +42,10 @@ class TestDoublyLogisticApproximation(unittest.TestCase):
         cls.eopatch.timestamp = list(dates)
         cls.eopatch.data["TEST"] = np.array(values).reshape(-1, 1, 1, 1)
         cls.eopatch.mask["VALID_DATA"] = ~np.isnan(cls.eopatch.data["TEST"])
-        cls.eopatch = DoublyLogisticApproximationTask('TEST', 'TEST_OUT', mask_data=True).execute(cls.eopatch)
+        cls.eopatch = DoublyLogisticApproximationTask('TEST',
+                                                      'TEST_OUT',
+                                                      mask_feature=(FeatureType.MASK, 'VALID_DATA')
+                                                      ).execute(cls.eopatch)
 
     def test_parameters(self):
         c1, c2, a1, a2, a3, a4, a5 = self.eopatch.data_timeless['TEST_OUT'].squeeze()
