@@ -369,7 +369,7 @@ class SentinelHubDemTask(SentinelHubInputBase):
                     output:{
                         id: "default",
                         bands: 1,
-                        sampleType: SampleType.UINT16
+                        sampleType: SampleType.FLOAT32
                     }
                 }
             }
