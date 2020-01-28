@@ -62,6 +62,8 @@ class SentinelHubInputBase(EOTask):
         if eopatch is None:
             eopatch = EOPatch()
             eopatch.bbox = bbox
+        else:
+            bbox = eopatch.bbox
 
         if self.size is not None:
             size_x, size_y = self.size
@@ -72,7 +74,7 @@ class SentinelHubInputBase(EOTask):
             time_interval = parse_time_interval(time_interval)
             timestamp = self._get_timestamp(time_interval, bbox)
         else:
-            timestamp = None
+            timestamp = eopatch.timestamp
 
         if eopatch.timestamp:
             self.check_timestamp_difference(timestamp, eopatch.timestamp)
