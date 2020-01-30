@@ -23,7 +23,7 @@ class DoublyLogisticApproximationTask(EOTask):
     feature with the function parameters for each pixel as vectors.
     :param feature: A feature on which the function will be approximated
     :type feature: str
-    :param new_feature: Name of the new feature where parameters of the function are saved
+    :param new_feature: Name of the new feature where parameters of the function are saved 
     :type new_feature: str
     :param initial_parameters: Initial parameter guess
     :type initial_parameters: List of floats length 7 corresponding to each parameter
