@@ -31,7 +31,7 @@ class ClusteringTask(EOTask):
         :param n_clusters: The number of clusters found by the algorithm. If distance_threshold=None, it will be equal
             to the given n_clusters
         :type n_clusters: int or None
-        :param affinity: Metric used to compute the linkage. Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”.
+        :param affinity: Metric used to compute the linkage. Can be “euclidean”, “l1”, “l2”, “manhattan”, “cosine”
         :type affinity: str
         :param linkage: Which linkage criterion to use. The linkage criterion determines which distance to use between
             sets of observation. The algorithm will merge the pairs of cluster that minimize this criterion.
