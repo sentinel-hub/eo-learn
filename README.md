@@ -46,6 +46,8 @@ At the moment there are the following subpackages:
 
 ## Installation
 
+### PyPi distribution
+
 The package requires Python version **>=3.5** . It can be installed with:
 
 ```bash
@@ -71,6 +73,7 @@ gdal
 rasterio
 shapely
 fiona
+cartopy (required by eo-learn-visualization[FULL])
 ```
 
 One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. On windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
@@ -79,6 +82,26 @@ A part of subpackage `eo-learn-visualization` requires additional dependencies w
 
 ```bash
 pip install eo-learn-visualization[FULL]
+```
+
+### Conda Forge distribution
+
+The package requires a Python environment **>=3.5**. 
+
+Thanks to the maintainers of the conda forge feedstock (@benhuff, @dcunn, @mwilson8, @oblute, @rluria14), `eo-learn` can 
+be installed using `conda-forge` as follows:
+
+```bash
+conda config --add channels conda-forge
+
+conda install eo-learn-core
+conda install eo-learn-coregistration
+conda install eo-learn-features
+conda install eo-learn-geometry
+conda install eo-learn-io
+conda install eo-learn-mask
+conda install eo-learn-ml-tools
+conda install eo-learn-visualization
 ```
 
 ## Documentation
@@ -101,7 +124,8 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966) (by Daniel Moraite)
  * [NoRSC19 Workshop on eo-learn](https://github.com/sentinel-hub/norsc19-eo-learn-workshop)
  * [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
-  * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
+ * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
+ * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
  
  
 
