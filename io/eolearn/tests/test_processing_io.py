@@ -131,6 +131,45 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(is_data.shape == (1, height, width, 1))
         self.assertTrue(len(eopatch.timestamp) == 1)
 
+    def test_additional_data(self):
+        """ Download S2L1C bands and dataMask
+        """
+        task = SentinelHubInputTask(
+            bands_feature=(FeatureType.DATA, 'BANDS'),
+            bands=['B01', 'B02', 'B05'],
+            additional_data=[
+                (FeatureType.MASK, 'dataMask'),
+                (FeatureType.MASK, 'SCL'),
+                (FeatureType.DATA, 'viewAzimuthMean'),
+                (FeatureType.DATA, 'sunAzimuthAngles'),
+                (FeatureType.DATA, 'sunZenithAngles')
+            ],
+            size=self.size,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            data_source=DataSource.SENTINEL2_L2A,
+            max_threads=self.max_threads,
+            cache_folder='testek'
+        )
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+
+        bands = eopatch[(FeatureType.DATA, 'BANDS')]
+        is_data = eopatch[(FeatureType.MASK, 'dataMask')]
+        scl = eopatch[(FeatureType.MASK, 'dataMask')]
+        view_azimuth_mean = eopatch[(FeatureType.DATA, 'viewAzimuthMean')]
+        sun_azimuth_angles = eopatch[(FeatureType.DATA, 'sunAzimuthAngles')]
+        sun_zenith_angles = eopatch[(FeatureType.DATA, 'sunZenithAngles')]
+
+        width, height = self.size
+        self.assertTrue(bands.shape == (4, height, width, 3))
+        self.assertTrue(is_data.shape == (4, height, width, 1))
+        self.assertTrue(scl.shape == (4, height, width, 1))
+        self.assertTrue(view_azimuth_mean.shape == (4, height, width, 1))
+        self.assertTrue(sun_azimuth_angles.shape == (4, height, width, 1))
+        self.assertTrue(sun_zenith_angles.shape == (4, height, width, 1))
+        self.assertTrue(len(eopatch.timestamp) == 4)
+
     def test_dem(self):
         task = SentinelHubDemTask(
             resolution=10,
