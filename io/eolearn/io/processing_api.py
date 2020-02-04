@@ -142,7 +142,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         ProcApiType("mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
             "dataMask"
         ],
-        ProcApiType("uint8_data", 'DN', 'UINT8', np.uint16, FeatureType.DATA): [
+        ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
             "SCL", "SNW", "CLD"
         ],
         ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
@@ -252,32 +252,27 @@ class SentinelHubInputTask(SentinelHubInputBase):
             }}
         """
 
-        output_template = "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}"
-
         outputs = [
-            output_template.format(
-                id='\"{}\"'.format(rt.id),
-                sample_type=rt.sample_type,
-                num_bands=len(bands))
+            "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
+                id='\"{}\"'.format(rt.id), num_bands=len(bands), sample_type=rt.sample_type
+            )
             for rt, bands in self.request_types.items()
         ]
 
         samples = [
             "{id}: [{bands}]".format(
-                id=rt.id,
-                bands=', '.join("sample.{}".format(band) for band in bands)
+                id=rt.id, bands=', '.join("sample.{}".format(band) for band in bands)
             )
             for rt, bands in self.request_types.items()
         ]
 
-        bands = [band for bands in self.request_types.values() for band in bands]
-        units = [unit.unit for rt, bands in self.request_types.items() for unit, band in zip(repeat(rt), bands)]
+        bands = ["\"{}\"".format(band) for bands in self.request_types.values() for band in bands]
+
+        units = (unit.unit for rt, bands in self.request_types.items() for unit, band in zip(repeat(rt), bands))
+        units = ["\"{}\"".format(unit) for unit in units]
 
         evalscript = evalscript.format(
-            bands=', '.join("\"{}\"".format(band) for band in bands),
-            units=', '.join("\"{}\"".format(unit) for unit in units),
-            outputs=',\n                        '.join(outputs),
-            samples=',\n                    '.join(samples)
+            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=', '.join(samples)
         )
 
         return evalscript
@@ -349,7 +344,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
     @staticmethod
     def _extract_array(tifs, idx, shape, dtype, norms=None):
-        """ extract additional_data from the received tifs each as a separate feature
+        """ Extract a numpy array from the received tifs and normalize it if normalization factors are provided
         """
         feature_arrays = [np.atleast_3d(img)[..., idx] for img in tifs]
 
@@ -359,6 +354,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
 
     def _extract_bands_feature(self, eopatch, images, shape):
+        """ Extract the bands feature arrays and concatenate them along the last axis
+        """
         rtypes = [rtype for rtype in self.request_types if rtype.id == 'bands']
 
         itr_tifs = ((rtype, [img[rtype.id + '.tif'] for img in images], self.request_types[rtype]) for rtype in rtypes)
@@ -374,6 +371,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         eopatch[self.bands_feature] = np.concatenate(bands, axis=-1)
 
     def _add_meta_info(self, eopatch):
+        """ Add any additional meta data to the eopatch
+        """
         eopatch.meta_info['maxcc'] = self.maxcc
         eopatch.meta_info['time_difference'] = self.time_difference
 

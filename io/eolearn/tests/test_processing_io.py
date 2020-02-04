@@ -132,7 +132,7 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(len(eopatch.timestamp) == 1)
 
     def test_additional_data(self):
-        """ Download S2L1C bands and dataMask
+        """ Download additional data, such as viewAzimuthMean, sunAzimuthAngles...
         """
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
@@ -148,8 +148,7 @@ class TestProcessingIO(unittest.TestCase):
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L2A,
-            max_threads=self.max_threads,
-            cache_folder='testek'
+            max_threads=self.max_threads
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
