@@ -210,11 +210,15 @@ class SentinelHubInputTask(SentinelHubInputBase):
             self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
             bands = bands or data_source.bands()
             requested_bands.extend(bands)
+        else:
+            self.bands_feature = None
 
         if additional_data is not None:
             additional_features = list(self._parse_features(additional_data, new_names=True)())
             requested_bands.extend(band for ftype, band, new_name in additional_features)
             self.write_features = {band: (ftype, new_name) for ftype, band, new_name in additional_features}
+        else:
+            self.write_features = None
 
         itr = ((atype, [band for band in requested_bands if band in self.API_BANDS[atype]]) for atype in self.API_BANDS)
         self.request_types = {api_type: bands for api_type, bands in itr if bands}
@@ -223,6 +227,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         """ Generate the evalscript to be passed with the request, based on chosen bands
         """
         evalscript = """
+            //VERSION=3
+
             function setup() {{
                 return {{
                     input: [{{
@@ -409,6 +415,8 @@ class SentinelHubDemTask(SentinelHubInputBase):
         """ Build payloads for the requests to the service
         """
         evalscript = """
+            //VERSION=3
+
             function setup() {
                 return {
                     input: ["DEM"],
