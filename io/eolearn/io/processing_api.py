@@ -139,10 +139,10 @@ class SentinelHubInputTask(SentinelHubInputBase):
     ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
     API_BANDS = {
-        ProcApiType("mask", 'REFLECTANCE', 'UINT8', np.bool, FeatureType.MASK): [
+        ProcApiType("mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
             "dataMask"
         ],
-        ProcApiType("uint8_data", 'REFLECTANCE', 'UINT8', np.bool, FeatureType.DATA): [
+        ProcApiType("uint8_data", 'DN', 'UINT8', np.uint16, FeatureType.DATA): [
             "SCL", "SNW", "CLD"
         ],
         ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
@@ -205,28 +205,19 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         self.mosaicking_order = mosaicking_order
 
-        self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
+        requested_bands = []
+        if bands_feature:
+            self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
+            bands = bands or data_source.bands()
+            requested_bands.extend(bands)
 
-        if bands is not None:
-            self.bands = bands
-        elif bands_feature is not None:
-            self.bands = data_source.bands()
-        else:
-            self.bands = []
+        if additional_data is not None:
+            additional_features = list(self._parse_features(additional_data, new_names=True)())
+            requested_bands.extend(band for ftype, band, new_name in additional_features)
+            self.write_features = {band: (ftype, new_name) for ftype, band, new_name in additional_features}
 
-        if additional_data is None:
-            self.additional_data = []
-        else:
-            self.additional_data = list(self._parse_features(additional_data, new_names=True)())
-
-        self.all_bands = self.bands + [f_name for _, f_name, _ in self.additional_data]
-
-        self.request_types = {
-            api_type: [band for band in self.all_bands if band in self.API_BANDS[api_type]]
-            for api_type in self.API_BANDS
-        }
-
-        self.request_types = {api_type: bands for api_type, bands in self.request_types.items() if bands}
+        itr = ((atype, [band for band in requested_bands if band in self.API_BANDS[atype]]) for atype in self.API_BANDS)
+        self.request_types = {api_type: bands for api_type, bands in itr if bands}
 
     def generate_evalscript(self):
         """ Generate the evalscript to be passed with the request, based on chosen bands
@@ -342,7 +333,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         for rtype, tifs, bands in itr_tifs:
             for band in bands:
-                feature = rtype.feature_type, band
+                feature = self.write_features[band]
                 eopatch[feature] = self._extract_array(tifs, bands.index(band), shape, rtype.np_dtype)
 
         if self.bands_feature:

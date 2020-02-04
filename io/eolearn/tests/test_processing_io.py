@@ -138,9 +138,9 @@ class TestProcessingIO(unittest.TestCase):
             bands_feature=(FeatureType.DATA, 'BANDS'),
             bands=['B01', 'B02', 'B05'],
             additional_data=[
-                (FeatureType.MASK, 'dataMask'),
+                (FeatureType.MASK, 'dataMask', 'IS_DATA'),
                 (FeatureType.MASK, 'SCL'),
-                (FeatureType.DATA, 'viewAzimuthMean'),
+                (FeatureType.DATA, 'viewAzimuthMean', 'view_azimuth_mean'),
                 (FeatureType.DATA, 'sunAzimuthAngles'),
                 (FeatureType.DATA, 'sunZenithAngles')
             ],
@@ -155,9 +155,9 @@ class TestProcessingIO(unittest.TestCase):
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
 
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
-        is_data = eopatch[(FeatureType.MASK, 'dataMask')]
-        scl = eopatch[(FeatureType.MASK, 'dataMask')]
-        view_azimuth_mean = eopatch[(FeatureType.DATA, 'viewAzimuthMean')]
+        is_data = eopatch[(FeatureType.MASK, 'SCL')]
+        scl = eopatch[(FeatureType.MASK, 'IS_DATA')]
+        view_azimuth_mean = eopatch[(FeatureType.DATA, 'view_azimuth_mean')]
         sun_azimuth_angles = eopatch[(FeatureType.DATA, 'sunAzimuthAngles')]
         sun_zenith_angles = eopatch[(FeatureType.DATA, 'sunZenithAngles')]
 
