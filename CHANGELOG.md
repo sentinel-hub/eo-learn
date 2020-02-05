@@ -6,3 +6,4 @@
 - `eolearn.core.EOWorkflow`: fixed generating task dependencies.
 ### Added
 - Processing API docs generation.
+- Introduced CHANGELOG.md.
