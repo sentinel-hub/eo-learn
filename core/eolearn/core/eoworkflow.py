@@ -268,14 +268,23 @@ class EOWorkflow:
         """ Returns an ordered dictionary {task_name: task} of all tasks within this workflow
 
         :return: Ordered dictionary with key being task_name (str) and an instance of a corresponding task from this
-        workflow
+            workflow. The order of tasks is the same as in which they will be executed.
         :rtype: OrderedDict
         """
-        tasks = collections.OrderedDict()
+        task_dict = collections.OrderedDict()
         for dep in self.ordered_dependencies:
-            tasks[dep.name] = dep.task
+            task_name = dep.name
 
-        return tasks
+            if task_name in task_dict:
+                count = 0
+                while dep.get_custom_name(count) in task_dict:
+                    count += 1
+
+                task_name = dep.get_custom_name(count)
+
+            task_dict[task_name] = dep.task
+
+        return task_dict
 
     def get_dot(self):
         """ Generates the DOT description of the underlying computational graph
@@ -327,7 +336,7 @@ class LinearWorkflow(EOWorkflow):
         tasks = [self._parse_task(task) for task in tasks]
         tasks = self._make_tasks_unique(tasks)
 
-        dependencies = [(task, [tasks[idx - 1][0]] if idx > 0 else []) for idx, (task, name) in enumerate(tasks)]
+        dependencies = [(task, [tasks[idx - 1][0]] if idx > 0 else [], name) for idx, (task, name) in enumerate(tasks)]
         super().__init__(dependencies, **kwargs)
 
     @staticmethod
@@ -395,6 +404,13 @@ class Dependency:
         """ Sets a new name
         """
         self.name = name
+
+    def get_custom_name(self, number=0):
+        """ Provides custom task name according to given number. E.g. FooTask -> FooTask
+        """
+        if number:
+            return '{}_{}'.format(self.name, number)
+        return self.name
 
 
 class WorkflowResults(collections.Mapping):

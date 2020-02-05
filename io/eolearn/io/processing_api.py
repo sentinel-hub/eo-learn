@@ -206,6 +206,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         """ Generate the evalscript to be passed with the request, based on chosen bands
         """
         evalscript = """
+            //VERSION=3
+
             function setup() {{
                 return {{
                     input: [{{
@@ -363,6 +365,8 @@ class SentinelHubDemTask(SentinelHubInputBase):
         """ Build payloads for the requests to the service
         """
         evalscript = """
+            //VERSION=3
+
             function setup() {
                 return {
                     input: ["DEM"],
