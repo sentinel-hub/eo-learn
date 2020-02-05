@@ -13,3 +13,4 @@ Submodules:
    eolearn.io.geopedia
    eolearn.io.local_io
    eolearn.io.sentinelhub_service
+   eolearn.io.processing_api
