@@ -411,7 +411,7 @@ class MapFeatureTask(EOTask):
                                      np.max,                    # a function to apply to each feature
                                      axis=0)                    # function's kwargs
 
-            result = multiply(patch)
+            result = maximum(patch)
     """
     def __init__(self, input_features, output_features, map_function=None, **kwargs):
         """
@@ -476,7 +476,7 @@ class ZipFeatureTask(EOTask):
                                   (FeatureType.MASK, 'm1'),                # output feature
                                   lambda f0, f1, f2: f0 / (f1 + f2))       # a function to apply to each feature
 
-            result = multiply(patch)
+            result = calc(patch)
 
         Example using a np.maximum and it's kwargs passed as arguments to the ZipFeatureTask:
 
@@ -487,7 +487,7 @@ class ZipFeatureTask(EOTask):
                                      np.maximum,                        # a function to apply to each feature
                                      dtype=np.float64)                  # function's kwargs
 
-            result = multiply(patch)
+            result = maximum(patch)
     """
     def __init__(self, input_features, output_feature, zip_function=None, **kwargs):
         """
