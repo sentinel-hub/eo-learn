@@ -361,7 +361,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
     def _extract_additional_features(self, eopatch, images, shape):
         feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
-        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data']):
+        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data', 'other']):
             for band in bands:
                 eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
 
