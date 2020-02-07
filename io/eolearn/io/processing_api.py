@@ -263,9 +263,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
             }}
 
             function evaluatePixel(sample) {{
-                return {{
-                    {samples}
-                }}
+                return {samples}
             }}
         """
 
@@ -276,12 +274,34 @@ class SentinelHubInputTask(SentinelHubInputBase):
             for btype, bands in self.requested_bands.items()
         ]
 
-        samples = [
-            "{id}: [{bands}]".format(
-                id=btype.id, bands=', '.join("sample.{}".format(band) for band in bands)
+        sample_bands = [
+            '[{bands}]'.format(bands=', '.join("sample.{}".format(band) for band in bands))
+            for bands in self.requested_bands.values()
+        ]
+
+        if len(self.requested_bands) == 1:
+            samples = sample_bands[0]
+        else:
+            samples = '{{ {} }}'.format(
+                ', '.join(
+                    "{id}: {bands}".format( id=btype.id, bands=bands)
+                    for btype, bands in zip(self.requested_bands, sample_bands)
+                )
             )
+
+        samples = [
+            (btype.id, '[{samples}]'.format(samples=', '.join("sample.{}".format(band) for band in bands)))
             for btype, bands in self.requested_bands.items()
         ]
+
+        # return value of the evaluatePixel has to be a list if we're returning just one output, and a dict otherwise
+        # an issue has been reported to the service team and this might get fixed
+        if len(samples) == 1:
+            _, sample_bands = samples[0]
+            samples = sample_bands
+        else:
+            samples = ', '.join('{band_id}: {bands}'.format(band_id=band_id, bands=bands) for band_id, bands in samples)
+            samples = '{{{samples}}};'.format(samples=samples)
 
         bands = ["\"{}\"".format(band) for bands in self.requested_bands.values() for band in bands]
 
@@ -289,7 +309,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         units = ["\"{}\"".format(unit) for unit in units]
 
         evalscript = evalscript.format(
-            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=', '.join(samples)
+            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=samples
         )
 
         return evalscript
@@ -372,9 +392,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         norms = [img['userdata.json'].get('norm_factor', 0) for img in images]
 
         itr = [(btype, images, bands, bands.index(band)) for btype, images, bands in tifs for band in bands]
-        bands = [self._extract_array(images, idx, shape, btype.np_dtype, norms) for btype, images, band, idx in itr]
+        bands = [self._extract_array(images, idx, shape, self.bands_dtype, norms) for btype, images, band, idx in itr]
 
-        if self.bands_dtype == np.int16:
+        if self.bands_dtype == np.uint16:
             norms = np.asarray(norms).reshape(shape[0], 1).astype(np.float32)
             eopatch[(FeatureType.SCALAR, 'NORM_FACTORS')] = norms
 
@@ -388,9 +408,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
     def _extract_array(tifs, idx, shape, dtype, norms=None):
         """ Extract a numpy array from the received tifs and normalize it if normalization factors are provided
         """
-        feature_arrays = [np.atleast_3d(img)[..., idx] for img in tifs]
 
-        if norms:
+        feature_arrays = (np.atleast_3d(img)[..., idx] for img in tifs)
+        if norms and dtype == np.float32:
             feature_arrays = (np.round(array * norm, 4) for array, norm in zip(feature_arrays, norms))
 
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)

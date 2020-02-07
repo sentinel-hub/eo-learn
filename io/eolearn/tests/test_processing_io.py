@@ -1,8 +1,11 @@
 """ Testing SentinelHubInputTask
 """
 
+import os
+import shutil
 import unittest
 import datetime as dt
+import numpy as np
 from sentinelhub import CRS, BBox, DataSource
 
 from eolearn.io import SentinelHubInputTask, SentinelHubDemTask
@@ -15,6 +18,16 @@ from eolearn.core import FeatureType
 # logging.getLogger("sentinelhub.sentinelhub_client").setLevel(logging.DEBUG)
 # logging.getLogger("sentinelhub.sentinelhub_rate_limit").setLevel(logging.DEBUG)
 
+def array_stats(array):
+    time, height, width, _ = array.shape
+    edge1 = np.mean(array[int(time/2):, 0, 0, :])
+    edge2 = np.mean(array[:int(time/2), -1, -1, :])
+    edge3 = np.mean(array[:, int(height/2), int(width/2), :])
+
+    stats = np.round(np.array([edge1, edge2, edge3]), 4)
+
+    return stats
+
 class TestProcessingIO(unittest.TestCase):
     """ Test cases for SentinelHubInputTask
     """
@@ -25,9 +38,15 @@ class TestProcessingIO(unittest.TestCase):
     time_difference = dt.timedelta(minutes=60)
     max_threads = 3
 
-    def test_S2L1C(self):
+    def test_S2L1C_float32_uint16(self):
         """ Download S2L1C bands and dataMask
         """
+        test_dir = os.path.dirname(os.path.realpath(__file__))
+        cache_folder = os.path.join(test_dir, 'cache_test')
+
+        if os.path.exists(cache_folder):
+            shutil.rmtree(cache_folder)
+
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             additional_data=[(FeatureType.MASK, 'dataMask')],
@@ -36,16 +55,34 @@ class TestProcessingIO(unittest.TestCase):
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L1C,
             max_threads=self.max_threads,
+            cache_folder=cache_folder
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         is_data = eopatch[(FeatureType.MASK, 'dataMask')]
 
+        self.assertTrue(np.allclose(array_stats(bands), [0.0233, 0.0468, 0.0252]))
+
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 13))
         self.assertTrue(is_data.shape == (4, height, width, 1))
         self.assertTrue(len(eopatch.timestamp) == 4)
+        self.assertTrue(bands.dtype == np.float32)
+
+        self.assertTrue(os.path.exists(cache_folder))
+
+        # change task's bans_dtype and run it again
+        task.bands_dtype = np.uint16
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+        bands = eopatch[(FeatureType.DATA, 'BANDS')]
+
+        self.assertTrue(np.allclose(array_stats(bands), [232.5769, 467.5385, 251.8654]))
+
+        self.assertTrue(bands.dtype == np.uint16)
+
+        shutil.rmtree(cache_folder)
 
     def test_specific_bands(self):
         """ Download S2L1C bands and dataMask
@@ -53,15 +90,19 @@ class TestProcessingIO(unittest.TestCase):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             bands=["B01", "B02", "B03"],
+            additional_data=[(FeatureType.MASK, 'dataMask')],
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L1C,
-            max_threads=self.max_threads
+            max_threads=self.max_threads,
+            cache_folder='testek'
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
+
+        # self.assertTrue(np.allclose(array_stats(bands), [0.0233, 0.0468, 0.0252]))
 
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 3))
@@ -76,7 +117,8 @@ class TestProcessingIO(unittest.TestCase):
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L2A,
-            max_threads=self.max_threads
+            max_threads=self.max_threads,
+            cache_folder='testek'
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
@@ -187,6 +229,22 @@ class TestProcessingIO(unittest.TestCase):
         with self.assertRaises(ValueError, msg='Expected a ValueError when providing a wrong feature.'):
             SentinelHubDemTask(resolution=10, dem_feature=(FeatureType.DATA, 'DEM'), max_threads=3)
 
+    # def test_byoc(self):
+    #     """ Download additional data, such as viewAzimuthMean, sunAzimuthAngles...
+    #     """
+    #     task = SentinelHubInputTask(
+    #         bands_feature=(FeatureType.DATA, 'BANDS'),
+    #         bands=['B', 'G', 'R', 'IR'],
+    #         size=self.size,
+    #         maxcc=self.maxcc,
+    #         time_difference=self.time_difference,
+    #         data_source=DataSource('70874d64-7ef0-4ec4-a302-b1f00649c78d'),
+    #         max_threads=self.max_threads
+    #     )
+    #     aze_crs = CRS(32639)
+    #     bbox = BBox(((410496.0, 4471104.0), (410688.0, 4471296.0)), aze_crs)
+    #     eopatch = task.execute(bbox=bbox, time_interval=('2016-01-01', '2020-02-01'))
+    #     # print(eopatch)
 
 if __name__ == "__main__":
     unittest.main()
