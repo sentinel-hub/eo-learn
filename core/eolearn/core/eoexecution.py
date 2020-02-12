@@ -125,7 +125,8 @@ class EOExecutor:
         execution_num = len(self.execution_args)
         log_paths = self._get_log_paths()
 
-        processing_args = [(self.workflow, init_args, log_path, return_results)
+        filter_logs_by_thread = not multiprocess and workers > 1
+        processing_args = [(self.workflow, init_args, log_path, return_results, filter_logs_by_thread)
                            for init_args, log_path in zip(self.execution_args, log_paths)]
 
         if workers == 1:
@@ -154,12 +155,12 @@ class EOExecutor:
         return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
 
     @classmethod
-    def _try_add_logging(cls, log_path):
+    def _try_add_logging(cls, log_path, filter_logs_by_thread):
         if log_path:
             try:
                 logger = logging.getLogger()
                 logger.setLevel(logging.DEBUG)
-                handler = cls._get_log_handler(log_path=log_path)
+                handler = cls._get_log_handler(log_path, filter_logs_by_thread)
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException:
@@ -182,8 +183,8 @@ class EOExecutor:
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
-        workflow, input_args, log_path, return_results = process_args
-        logger, handler = cls._try_add_logging(log_path)
+        workflow, input_args, log_path, return_results, filter_logs_by_thread = process_args
+        logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread)
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
             results = workflow.execute(input_args, monitor=True)
@@ -200,13 +201,15 @@ class EOExecutor:
         return stats
 
     @staticmethod
-    def _get_log_handler(log_path):
+    def _get_log_handler(log_path, filter_logs_by_thread):
         """ Provides object which handles logs
         """
         handler = logging.FileHandler(log_path)
         formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
         handler.setFormatter(formatter)
-        handler.addFilter(LogFileFilter(thread_name=threading.currentThread().getName()))
+
+        if filter_logs_by_thread:
+            handler.addFilter(LogFileFilter(threading.currentThread().getName()))
 
         return handler
 
