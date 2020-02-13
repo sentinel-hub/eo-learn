@@ -274,21 +274,6 @@ class SentinelHubInputTask(SentinelHubInputBase):
             for btype, bands in self.requested_bands.items()
         ]
 
-        sample_bands = [
-            '[{bands}]'.format(bands=', '.join("sample.{}".format(band) for band in bands))
-            for bands in self.requested_bands.values()
-        ]
-
-        if len(self.requested_bands) == 1:
-            samples = sample_bands[0]
-        else:
-            samples = '{{ {} }}'.format(
-                ', '.join(
-                    "{id}: {bands}".format( id=btype.id, bands=bands)
-                    for btype, bands in zip(self.requested_bands, sample_bands)
-                )
-            )
-
         samples = [
             (btype.id, '[{samples}]'.format(samples=', '.join("sample.{}".format(band) for band in bands)))
             for btype, bands in self.requested_bands.items()
