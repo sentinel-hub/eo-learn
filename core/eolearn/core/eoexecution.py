@@ -21,6 +21,7 @@ import traceback
 import concurrent.futures
 import datetime as dt
 import multiprocessing
+import warnings
 
 from tqdm.auto import tqdm
 
@@ -163,8 +164,9 @@ class EOExecutor:
                 handler = cls._get_log_handler(log_path, filter_logs_by_thread)
                 logger.addHandler(handler)
                 return logger, handler
-            except BaseException:
-                pass
+            except BaseException as exception:
+                warnings.warn('Failed to create logs with exception: {}'.format(repr(exception)),
+                              category=RuntimeWarning)
 
         return None, None
 
