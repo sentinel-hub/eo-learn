@@ -27,8 +27,11 @@ LOGGER = logging.getLogger(__name__)
 class LogFileFilter(Filter):
     """ Filters log messages passed to log file
     """
-
     def __init__(self, thread_name, *args, **kwargs):
+        """
+        :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
+        :type thread_name: str or None
+        """
         self.thread_name = thread_name
         super().__init__(*args, **kwargs)
 
