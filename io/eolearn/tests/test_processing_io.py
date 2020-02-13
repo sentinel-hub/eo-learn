@@ -28,6 +28,7 @@ def array_stats(array):
 
     return stats
 
+
 class TestProcessingIO(unittest.TestCase):
     """ Test cases for SentinelHubInputTask
     """
@@ -95,14 +96,13 @@ class TestProcessingIO(unittest.TestCase):
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L1C,
-            max_threads=self.max_threads,
-            cache_folder='testek'
+            max_threads=self.max_threads
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
 
-        # self.assertTrue(np.allclose(array_stats(bands), [0.0233, 0.0468, 0.0252]))
+        self.assertTrue(np.allclose(array_stats(bands), [0.0648, 0.1193, 0.063]))
 
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 3))
@@ -117,13 +117,14 @@ class TestProcessingIO(unittest.TestCase):
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             data_source=DataSource.SENTINEL2_L2A,
-            max_threads=self.max_threads,
-            cache_folder='testek'
+            max_threads=self.max_threads
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, 'BANDS')]
         is_data = eopatch[(FeatureType.MASK, 'dataMask')]
+
+        self.assertTrue(np.allclose(array_stats(bands), [0.0107, 0.0123, 0.0087]))
 
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 12))
@@ -202,6 +203,8 @@ class TestProcessingIO(unittest.TestCase):
         sun_azimuth_angles = eopatch[(FeatureType.DATA, 'sunAzimuthAngles')]
         sun_zenith_angles = eopatch[(FeatureType.DATA, 'sunZenithAngles')]
 
+        self.assertTrue(np.allclose(array_stats(bands), [0.027,  0.0243, 0.0162]))
+
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 3))
         self.assertTrue(is_data.shape == (4, height, width, 1))
@@ -229,22 +232,6 @@ class TestProcessingIO(unittest.TestCase):
         with self.assertRaises(ValueError, msg='Expected a ValueError when providing a wrong feature.'):
             SentinelHubDemTask(resolution=10, dem_feature=(FeatureType.DATA, 'DEM'), max_threads=3)
 
-    # def test_byoc(self):
-    #     """ Download additional data, such as viewAzimuthMean, sunAzimuthAngles...
-    #     """
-    #     task = SentinelHubInputTask(
-    #         bands_feature=(FeatureType.DATA, 'BANDS'),
-    #         bands=['B', 'G', 'R', 'IR'],
-    #         size=self.size,
-    #         maxcc=self.maxcc,
-    #         time_difference=self.time_difference,
-    #         data_source=DataSource('70874d64-7ef0-4ec4-a302-b1f00649c78d'),
-    #         max_threads=self.max_threads
-    #     )
-    #     aze_crs = CRS(32639)
-    #     bbox = BBox(((410496.0, 4471104.0), (410688.0, 4471296.0)), aze_crs)
-    #     eopatch = task.execute(bbox=bbox, time_interval=('2016-01-01', '2020-02-01'))
-    #     # print(eopatch)
 
 if __name__ == "__main__":
     unittest.main()
