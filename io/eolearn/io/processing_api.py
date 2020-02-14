@@ -1,6 +1,7 @@
 """ An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
 """
-import json
+import collections
+from itertools import repeat
 import logging
 import datetime as dt
 import numpy as np
@@ -134,6 +135,26 @@ class SentinelHubInputBase(EOTask):
 class SentinelHubInputTask(SentinelHubInputBase):
     """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
+
+    ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
+
+    PREDEFINED_BAND_TYPES = {
+        ProcApiType("mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
+            "dataMask"
+        ],
+        ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
+            "SCL", "SNW", "CLD"
+        ],
+        ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
+            "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "B13"
+        ],
+        ProcApiType("other", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA): [
+            "sunAzimuthAngles", "sunZenithAngles", "viewAzimuthMean", "viewZenithMean"
+        ]
+    }
+
+    CUSTOM_BAND_TYPE = ProcApiType("custom", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
+
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
                  bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent'):
@@ -186,21 +207,38 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         self.mosaicking_order = mosaicking_order
 
-        self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
+        self.requested_bands = dict()
 
-        if bands is not None:
-            self.bands = bands
-        elif bands_feature is not None:
-            self.bands = data_source.bands()
-        else:
-            self.bands = []
+        if bands_feature:
+            bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
 
-        if additional_data is None:
-            self.additional_data = []
-        else:
-            self.additional_data = list(self._parse_features(additional_data, new_names=True)())
+            if not bands and data_source in [DataSource.SENTINEL2_L1C, DataSource.SENTINEL2_L2A]:
+                bands = data_source.bands()
+            elif data_source.is_custom() and not bands:
+                raise ValueError("For custom data sources 'bands' must be provided as an argument.")
 
-        self.all_bands = self.bands + [f_name for _, f_name, _ in self.additional_data]
+            self._add_request_bands(self.requested_bands, bands)
+
+        self.bands_feature = bands_feature
+
+        if additional_data is not None:
+            additional_data = list(self._parse_features(additional_data, new_names=True)())
+            self._add_request_bands(self.requested_bands, (band for ftype, band, new_name in additional_data))
+
+        self.additional_data = additional_data
+
+    @staticmethod
+    def _add_request_bands(request_dict, added_bands):
+        predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
+
+        for band in added_bands:
+            found = next(((btype, band) for btype, bands in predefined_types if band in bands), None)
+            api_type, band = found or (SentinelHubInputTask.CUSTOM_BAND_TYPE, band)
+
+            if api_type not in request_dict:
+                request_dict[api_type] = []
+
+            request_dict[api_type].append(band)
 
     def generate_evalscript(self):
         """ Generate the evalscript to be passed with the request, based on chosen bands
@@ -211,14 +249,12 @@ class SentinelHubInputTask(SentinelHubInputBase):
             function setup() {{
                 return {{
                     input: [{{
-                        bands: {bands},
-                        units: "DN"
+                        bands: [{bands}],
+                        units: [{units}]
                     }}],
-                    output: {{
-                        id:"default",
-                        bands: {num_bands},
-                        sampleType: SampleType.UINT16
-                    }}
+                    output: [
+                        {outputs}
+                    ]
                 }}
             }}
 
@@ -227,13 +263,41 @@ class SentinelHubInputTask(SentinelHubInputBase):
             }}
 
             function evaluatePixel(sample) {{
-                return [{samples}]
+                return {samples}
             }}
         """
 
-        samples = ', '.join(['sample.{}'.format(band) for band in self.all_bands])
+        outputs = [
+            "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
+                id='\"{}\"'.format(btype.id), num_bands=len(bands), sample_type=btype.sample_type
+            )
+            for btype, bands in self.requested_bands.items()
+        ]
 
-        return evalscript.format(bands=json.dumps(self.all_bands), num_bands=len(self.all_bands), samples=samples)
+        samples = [
+            (btype.id, '[{samples}]'.format(samples=', '.join("sample.{}".format(band) for band in bands)))
+            for btype, bands in self.requested_bands.items()
+        ]
+
+        # return value of the evaluatePixel has to be a list if we're returning just one output, and a dict otherwise
+        # an issue has been reported to the service team and this might get fixed
+        if len(samples) == 1:
+            _, sample_bands = samples[0]
+            samples = sample_bands
+        else:
+            samples = ', '.join('{band_id}: {bands}'.format(band_id=band_id, bands=bands) for band_id, bands in samples)
+            samples = '{{{samples}}};'.format(samples=samples)
+
+        bands = ["\"{}\"".format(band) for bands in self.requested_bands.values() for band in bands]
+
+        units = (unit.unit for btype, bands in self.requested_bands.items() for unit, band in zip(repeat(btype), bands))
+        units = ["\"{}\"".format(unit) for unit in units]
+
+        evalscript = evalscript.format(
+            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=samples
+        )
+
+        return evalscript
 
     def _get_timestamp(self, time_interval, bbox):
         """ Get the timestamp array needed as a parameter for downloading the images
@@ -269,11 +333,18 @@ class SentinelHubInputTask(SentinelHubInputBase):
         """
         time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
 
-        responses = [shr.response('default', MimeType.TIFF.get_string()), shr.response('userdata', 'application/json')]
+        responses = [shr.response(btype.id, 'image/tiff') for btype in self.requested_bands]
 
-        data = shr.data(time_from=time_from, time_to=time_to, data_type=self.data_source.api_identifier())
+        responses.append(shr.response('userdata', 'application/json'))
+
+        data_type = 'CUSTOM' if self.data_source.is_custom() else self.data_source.api_identifier()
+
+        data = shr.data(time_from=time_from, time_to=time_to, data_type=data_type)
         data['dataFilter']['maxCloudCoverage'] = int(self.maxcc * 100)
         data['dataFilter']['mosaickingOrder'] = self.mosaicking_order
+
+        if data_type == 'CUSTOM':
+            data['dataFilter']['collectionId'] = self.data_source.value
 
         return shr.body(
             request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
@@ -285,45 +356,53 @@ class SentinelHubInputTask(SentinelHubInputBase):
     def _extract_data(self, eopatch, images, shape):
         """ Extract data from the received images and assign them to eopatch features
         """
+        if self.additional_data:
+            self._extract_additional_features(eopatch, images, shape)
 
-        images = ((img['default.tif'], img['userdata.json']) for img in images)
-        images = [(img, meta.get('norm_factor', 0)) for img, meta in images]
+        if self.bands_feature:
+            self._extract_bands_feature(eopatch, images, shape)
 
-        for f_type, f_name_src, f_name_dst in self.additional_data:
-            eopatch[(f_type, f_name_dst)] = self._extract_additional_data(images, f_type, f_name_src, shape)
+        return eopatch
 
-        if self.bands:
-            self._extract_bands(eopatch, images, shape)
+    def _extract_additional_features(self, eopatch, images, shape):
+        feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
+        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data', 'other']):
+            for band in bands:
+                eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
 
-    def _extract_additional_data(self, images, f_type, f_name, shape):
-        """ extract additional_data from the received images each as a separate feature
+    def _extract_bands_feature(self, eopatch, images, shape):
+        """ Extract the bands feature arrays and concatenate them along the last axis
         """
-        type_dict = {
-            FeatureType.MASK: np.bool
-        }
+        tifs = self._iter_tifs(images, ['bands', 'custom'])
+        norms = [img['userdata.json'].get('norm_factor', 0) for img in images]
 
-        dst_type = type_dict.get(f_type, np.uint16)
+        itr = [(btype, images, bands, bands.index(band)) for btype, images, bands in tifs for band in bands]
+        bands = [self._extract_array(images, idx, shape, self.bands_dtype, norms) for btype, images, band, idx in itr]
 
-        idx = self.all_bands.index(f_name)
-        feature_arrays = [np.atleast_3d(img)[..., idx] for img, norm_factor in images]
-
-        return np.asarray(feature_arrays, dtype=dst_type).reshape(*shape, 1)
-
-    def _extract_bands(self, eopatch, images, shape):
-        num_bands = len(self.bands)
-
-        bands = [img[..., :num_bands].astype(self.bands_dtype) for img, _ in images]
-        norms = [norm_factor for _, norm_factor in images]
-
-        if self.bands_dtype == np.int16:
+        if self.bands_dtype == np.uint16:
             norms = np.asarray(norms).reshape(shape[0], 1).astype(np.float32)
             eopatch[(FeatureType.SCALAR, 'NORM_FACTORS')] = norms
-        else:
-            bands = [np.round(band * norm, 4) for band, norm in zip(bands, norms)]
 
-        eopatch[self.bands_feature] = np.asarray(bands).reshape(*shape, num_bands)
+        eopatch[self.bands_feature] = np.concatenate(bands, axis=-1)
+
+    def _iter_tifs(self, tars, band_types):
+        rtypes = (btype for btype in self.requested_bands if btype.id in band_types)
+        return ((btype, [tar[btype.id + '.tif'] for tar in tars], self.requested_bands[btype]) for btype in rtypes)
+
+    @staticmethod
+    def _extract_array(tifs, idx, shape, dtype, norms=None):
+        """ Extract a numpy array from the received tifs and normalize it if normalization factors are provided
+        """
+
+        feature_arrays = (np.atleast_3d(img)[..., idx] for img in tifs)
+        if norms and dtype == np.float32:
+            feature_arrays = (np.round(array * norm, 4) for array, norm in zip(feature_arrays, norms))
+
+        return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
 
     def _add_meta_info(self, eopatch):
+        """ Add any additional meta data to the eopatch
+        """
         eopatch.meta_info['maxcc'] = self.maxcc
         eopatch.meta_info['time_difference'] = self.time_difference
 
