@@ -6,9 +6,8 @@ import logging
 import datetime as dt
 import numpy as np
 
-from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig,\
+from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataSource
-import sentinelhub.sentinelhub_request as shr
 from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -43,15 +42,7 @@ class SentinelHubInputBase(EOTask):
         self.config = config or SHConfig()
         self.max_threads = max_threads
         self.data_source = data_source
-
-        self.request_args = dict(
-            url=self.config.get_sh_processing_api_url(),
-            headers={"accept": "application/tar", 'content-type': 'application/json'},
-            data_folder=cache_folder,
-            hash_save=bool(cache_folder),
-            request_type='POST',
-            data_type=MimeType.TAR
-        )
+        self.cache_folder = cache_folder
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
         """ Main execute method for the Processing API tasks
@@ -80,8 +71,8 @@ class SentinelHubInputBase(EOTask):
         elif timestamp:
             eopatch.timestamp = timestamp
 
-        payloads = self._build_payloads(bbox, size_x, size_y, timestamp, time_interval)
-        requests = [DownloadRequest(post_values=payload, **self.request_args) for payload in payloads]
+        requests = self._build_requests(bbox, size_x, size_y, timestamp, time_interval)
+        requests = [request._download_request for request in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
         client = SentinelHubDownloadClient(config=self.config)
@@ -118,10 +109,10 @@ class SentinelHubInputBase(EOTask):
         """
         raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build payloads for the requests to the service
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
         """
-        raise NotImplementedError("The _build_payloads method should be implemented by the subclass.")
+        raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
     def _get_timestamp(self, time_interval, bbox):
         """ Get the timestamp array needed as a parameter for downloading the images
@@ -318,39 +309,37 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build payloads for the requests to the service
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
         """
         if self.single_scene:
             dates = [(iso_to_datetime(time_interval[0]), iso_to_datetime(time_interval[1]))]
         else:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
-        return [self._request_payload(date1, date2, bbox, size_x, size_y) for date1, date2 in dates]
+        return [self._create_sh_request(date1, date2, bbox, size_x, size_y) for date1, date2 in dates]
 
-    def _request_payload(self, date_from, date_to, bbox, size_x, size_y):
-        """ Build the payload dictionary for the request
+    def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y):
+        """ Create an instance of SentinelHubRequest
         """
-        time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
+        responses = [SentinelHubRequest.output_response(btype.id, 'image/tiff') for btype in self.requested_bands]
+        responses.append(SentinelHubRequest.output_response('userdata', 'application/json'))
 
-        responses = [shr.response(btype.id, 'image/tiff') for btype in self.requested_bands]
-
-        responses.append(shr.response('userdata', 'application/json'))
-
-        data_type = 'CUSTOM' if self.data_source.is_custom() else self.data_source.api_identifier()
-
-        data = shr.data(time_from=time_from, time_to=time_to, data_type=data_type)
-        data['dataFilter']['maxCloudCoverage'] = int(self.maxcc * 100)
-        data['dataFilter']['mosaickingOrder'] = self.mosaicking_order
-
-        if data_type == 'CUSTOM':
-            data['dataFilter']['collectionId'] = self.data_source.value
-
-        return shr.body(
-            request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
-            request_data=[data],
-            request_output=shr.output(size_x=size_x, size_y=size_y, responses=responses),
-            evalscript=self.generate_evalscript()
+        return SentinelHubRequest(
+            evalscript=self.generate_evalscript(),
+            input_data=[
+                SentinelHubRequest.input_data(
+                    data_source=self.data_source,
+                    time_interval=(date_from, date_to),
+                    mosaicking_order=self.mosaicking_order,
+                    maxcc=self.maxcc
+                )
+            ],
+            responses=responses,
+            bounds=bbox,
+            size=(size_x, size_y),
+            mime_type=MimeType.TAR,
+            data_folder=self.cache_folder
         )
 
     def _extract_data(self, eopatch, images, shape):
@@ -440,8 +429,8 @@ class SentinelHubDemTask(SentinelHubInputBase):
 
         self.dem_feature = next(feature_parser())
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build payloads for the requests to the service
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
         """
         evalscript = """
             //VERSION=3
@@ -462,19 +451,20 @@ class SentinelHubDemTask(SentinelHubInputBase):
             }
         """
 
-        responses = [shr.response('default', 'image/tiff'), shr.response('userdata', 'application/json')]
-        request_body = shr.body(
-            request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
-            request_data=[{"type": "DEM"}],
-            request_output=shr.output(size_x=size_x, size_y=size_y, responses=responses),
-            evalscript=evalscript
+        request = SentinelHubRequest(
+            evalscript=evalscript,
+            input_data=[SentinelHubRequest.input_data(data_source=self.data_source)],
+            responses=[SentinelHubRequest.output_response('default', 'image/tiff')],
+            bounds=bbox,
+            size=(size_x, size_y),
+            mime_type=MimeType.TIFF,
+            data_folder=self.cache_folder
         )
 
-        return [request_body]
+        return [request]
 
     def _extract_data(self, eopatch, images, shape):
         """ Extract data from the received images and assign them to eopatch features
         """
-        tif = images[0]['default.tif']
-
+        tif = images[0]
         eopatch[self.dem_feature] = tif[..., np.newaxis].astype(np.int16)
