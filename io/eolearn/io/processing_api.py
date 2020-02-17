@@ -338,7 +338,6 @@ class SentinelHubInputTask(SentinelHubInputBase):
             responses=responses,
             bbox=bbox,
             size=(size_x, size_y),
-            mime_type=MimeType.TAR,
             data_folder=self.cache_folder
         )
 
@@ -457,7 +456,6 @@ class SentinelHubDemTask(SentinelHubInputBase):
             responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
             bbox=bbox,
             size=(size_x, size_y),
-            mime_type=MimeType.TIFF,
             data_folder=self.cache_folder
         )
 
