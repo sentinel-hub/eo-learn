@@ -16,7 +16,7 @@ import numpy as np
 import rasterio.transform
 import rasterio.warp
 
-from sentinelhub import MimeType, CustomUrlParam, CRS, GeopediaWmsRequest, transform_bbox
+from sentinelhub import MimeType, CustomUrlParam, CRS, GeopediaWmsRequest
 
 from eolearn.core import EOTask, FeatureType
 
@@ -55,7 +55,7 @@ class AddGeopediaFeature(EOTask):
         """
         Returns WMS request.
         """
-        bbox_3857 = transform_bbox(bbox, CRS.POP_WEB)
+        bbox_3857 = bbox.transform(CRS.POP_WEB)
 
         return GeopediaWmsRequest(layer=self.layer,
                                   theme=self.theme,
@@ -79,7 +79,7 @@ class AddGeopediaFeature(EOTask):
 
         dst_raster = np.ones((height, width), dtype=self.raster_dtype)
 
-        src_bbox = transform_bbox(eopatch.bbox, CRS.POP_WEB)
+        src_bbox = eopatch.bbox.transform(CRS.POP_WEB)
         src_transform = rasterio.transform.from_bounds(*src_bbox, width=width, height=height)
 
         dst_bbox = eopatch.bbox

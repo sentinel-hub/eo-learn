@@ -1,4 +1,8 @@
-## [Unreleased]
+## [Version 0.7.2] - 2019-02-17
+- Support additional data in the Processing API input task (such as sunAzimuthAngles, sunZenithAngles, viewAzimuthMean, viewZenithMean)
+- Compatibility with the `sentinelhub-py` 3.0
+- Removed support for python 3.5
+- Multiprocessing Log filtering
 
 ## [Version 0.7.1] - 2019-02-05
 ### Fixed
