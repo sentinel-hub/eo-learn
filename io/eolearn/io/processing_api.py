@@ -72,7 +72,7 @@ class SentinelHubInputBase(EOTask):
             eopatch.timestamp = timestamp
 
         requests = self._build_requests(bbox, size_x, size_y, timestamp, time_interval)
-        requests = [request._download_request for request in requests]
+        requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
         client = SentinelHubDownloadClient(config=self.config)
@@ -336,7 +336,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
                 )
             ],
             responses=responses,
-            bounds=bbox,
+            bbox=bbox,
             size=(size_x, size_y),
             mime_type=MimeType.TAR,
             data_folder=self.cache_folder
@@ -455,7 +455,7 @@ class SentinelHubDemTask(SentinelHubInputBase):
             evalscript=evalscript,
             input_data=[SentinelHubRequest.input_data(data_source=self.data_source)],
             responses=[SentinelHubRequest.output_response('default', 'image/tiff')],
-            bounds=bbox,
+            bbox=bbox,
             size=(size_x, size_y),
             mime_type=MimeType.TIFF,
             data_folder=self.cache_folder
