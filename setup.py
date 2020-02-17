@@ -36,7 +36,7 @@ setup(
         'eo-learn-core>=0.7.2',
         'eo-learn-coregistration>=0.7.0',
         'eo-learn-features>=0.7.0',
-        'eo-learn-geometry>=0.7.0',
+        'eo-learn-geometry>=0.7.2',
         'eo-learn-io>=0.7.2',
         'eo-learn-mask>=0.7.0',
         'eo-learn-ml-tools>=0.7.0',

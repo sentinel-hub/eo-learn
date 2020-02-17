@@ -384,7 +384,7 @@ class RasterToVector(EOTask):
 
             affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
-            crs = eopatch.bbox.get_crs()
+            crs = eopatch.bbox.crs
 
             if raster_ft.is_timeless():
                 eopatch[vector_ft][vector_fn] = self._vectorize_single_raster(raster, affine_transform, crs)
