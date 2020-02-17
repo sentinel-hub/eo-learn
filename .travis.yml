@@ -5,14 +5,11 @@ notifications:
   email: false
 
 python:
-- "3.5"
 - "3.6"
 - "3.7"
 - "3.8"
 
 before_install:
-- sudo add-apt-repository -y ppa:jonathonf/backports
-- sudo apt-get -qq update
 - sudo apt-get install -y libgdal-dev
 - sudo apt-get install graphviz
 - sudo apt-get install proj-bin
@@ -26,6 +23,7 @@ install:
   else
     python install_all.py;
   fi
+- pip install geopandas==0.6.3  # This is temporal fix
 
 script:
 - sentinelhub.config --instance_id $INSTANCE_ID
