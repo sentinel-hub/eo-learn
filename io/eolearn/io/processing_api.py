@@ -322,8 +322,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
     def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y):
         """ Create an instance of SentinelHubRequest
         """
-        responses = [SentinelHubRequest.output_response(btype.id, 'image/tiff') for btype in self.requested_bands]
-        responses.append(SentinelHubRequest.output_response('userdata', 'application/json'))
+        responses = [SentinelHubRequest.output_response(btype.id, MimeType.TIFF) for btype in self.requested_bands]
+        responses.append(SentinelHubRequest.output_response('userdata', MimeType.JSON))
 
         return SentinelHubRequest(
             evalscript=self.generate_evalscript(),
@@ -454,7 +454,7 @@ class SentinelHubDemTask(SentinelHubInputBase):
         request = SentinelHubRequest(
             evalscript=evalscript,
             input_data=[SentinelHubRequest.input_data(data_source=self.data_source)],
-            responses=[SentinelHubRequest.output_response('default', 'image/tiff')],
+            responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
             bbox=bbox,
             size=(size_x, size_y),
             mime_type=MimeType.TIFF,
