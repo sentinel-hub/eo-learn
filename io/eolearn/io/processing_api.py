@@ -122,13 +122,13 @@ class SentinelHubInputBase(EOTask):
         """ Add any additional meta data to the eopatch
         """
 
+
 ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
+
 
 class SentinelHubInputTask(SentinelHubInputBase):
     """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
-
-    ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
     PREDEFINED_BAND_TYPES = {
         ProcApiType("mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
