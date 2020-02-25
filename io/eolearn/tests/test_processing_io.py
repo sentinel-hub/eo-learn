@@ -4,6 +4,7 @@
 import os
 import shutil
 import unittest
+from concurrent import futures
 import datetime as dt
 import numpy as np
 from sentinelhub import CRS, BBox, DataSource
@@ -231,6 +232,36 @@ class TestProcessingIO(unittest.TestCase):
     def test_dem_wrong_feature(self):
         with self.assertRaises(ValueError, msg='Expected a ValueError when providing a wrong feature.'):
             SentinelHubDemTask(resolution=10, dem_feature=(FeatureType.DATA, 'DEM'), max_threads=3)
+
+    def test_multi_processing(self):
+        task = SentinelHubInputTask(
+            bands_feature=(FeatureType.DATA, 'BANDS'),
+            bands=["B01", "B02", "B03"],
+            additional_data=[(FeatureType.MASK, 'dataMask')],
+            size=self.size,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            data_source=DataSource.SENTINEL2_L1C,
+            max_threads=self.max_threads
+        )
+
+        time_intervals = [
+            ('2017-01-01', '2017-01-30'),
+            ('2017-02-01', '2017-02-28'),
+            ('2017-03-01', '2017-03-30'),
+            ('2017-04-01', '2017-04-30'),
+            ('2017-05-01', '2017-05-30'),
+            ('2017-06-01', '2017-06-30')
+        ]
+
+        with futures.ProcessPoolExecutor(max_workers=3) as executor:
+            tasks = [executor.submit(task.execute, None, self.bbox, interval) for interval in time_intervals]
+            eopatches = [task.result() for task in futures.as_completed(tasks)]
+
+        array = np.concatenate([eop.data['BANDS'] for eop in eopatches], axis=0)
+
+        width, height = self.size
+        self.assertTrue(array.shape == (20, height, width, 3))
 
 
 if __name__ == "__main__":
