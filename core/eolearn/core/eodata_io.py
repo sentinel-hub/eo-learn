@@ -40,7 +40,11 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     if overwrite_permission is OverwritePermission.ADD_ONLY or \
             (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
-        fs_features = list(walk_filesystem(filesystem, patch_location, features))
+        existing_features = list(walk_main_folder(filesystem, patch_location))
+        if not existing_features:
+            fs_features = []
+        else:
+            fs_features = list(walk_filesystem(filesystem, patch_location, features))
     else:
         fs_features = []
 
