@@ -94,6 +94,12 @@ be installed using `conda-forge` as follows:
 ```bash
 conda config --add channels conda-forge
 
+conda install eo-learn
+```
+
+In order to avoid heavy package dependencies it is possible to install each subpackage separately:
+
+```bash
 conda install eo-learn-core
 conda install eo-learn-coregistration
 conda install eo-learn-features
