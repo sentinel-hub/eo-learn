@@ -102,7 +102,7 @@ def walk_filesystem(filesystem, patch_location, features=...):
         elif ftype not in queried_features and (fname is ... or fname not in existing_features[ftype]):
             queried_features.add(ftype)
             if ... not in existing_features[ftype]:
-                raise IOError('There is no features of type {} in saved EOPatch'.format(ftype))
+                raise IOError('There are no features of type {} in saved EOPatch'.format(ftype))
 
             for feature_name, path in walk_feature_type_folder(filesystem, existing_features[ftype][...]):
                 existing_features[ftype][feature_name] = path
