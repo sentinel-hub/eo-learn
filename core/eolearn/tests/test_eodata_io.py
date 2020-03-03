@@ -143,6 +143,20 @@ class TestEOPatchIO(unittest.TestCase):
                 eopatch3 = EOPatch.load('/', filesystem=temp_fs, lazy_loading=True, features=features)
                 self.assertNotEqual(self.eopatch, eopatch3)
 
+    def test_save_add_only_features(self):
+        features = [
+            (FeatureType.DATA_TIMELESS, 'mask'),
+            FeatureType.MASK,
+            FeatureType.VECTOR,
+            (FeatureType.SCALAR, ...),
+            (FeatureType.META_INFO, 'something'),
+            FeatureType.BBOX
+        ]
+
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                self.eopatch.save('/', filesystem=temp_fs, features=features, overwrite_permission=0)
+
     def test_overwrite_failure(self):
         eopatch = EOPatch()
         mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
