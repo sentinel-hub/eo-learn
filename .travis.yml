@@ -49,14 +49,17 @@ script:
 - radon cc mask/eolearn/mask/*.py -a -nb
 - radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
 - radon cc visualization/eolearn/visualization/*.py -a -nb
-- if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+- >
+  if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
     if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
       pytest -c=.coveragerc;
     else
       pytest;
     fi;
   else
-    pytest --ignore io/eolearn/tests/test_io.py --ignore io/eolearn/tests/test_processing_io.py ;
+    pytest \
+      --ignore io/eolearn/tests/test_io.py \
+      --ignore io/eolearn/tests/test_processing_io.py ;
   fi
 # - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
 
