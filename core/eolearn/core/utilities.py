@@ -16,8 +16,10 @@ from collections import OrderedDict
 from logging import Filter
 
 import numpy as np
-from geopandas import GeoDataFrame
+import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
+
+from sentinelhub import CRS
 
 from .constants import FeatureType
 
@@ -392,7 +394,7 @@ def deep_eq(fst_obj, snd_obj):
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
 
-    if isinstance(fst_obj, GeoDataFrame):
+    if isinstance(fst_obj, gpd.GeoDataFrame):
         try:
             assert_geodataframe_equal(fst_obj, snd_obj)
             return True
@@ -497,3 +499,27 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
 def bgr_to_rgb(bgr):
     """Converts Blue, Green, Red to Red, Green, Blue."""
     return bgr[..., [2, 1, 0]]
+
+
+def to_sh_crs(gpd_crs):
+    """
+    """
+    if _is_new_gpd_version():
+        raise
+
+    return CRS(gpd_crs['init'])
+
+
+def to_gpd_crs(sh_crs):
+    """
+    """
+    if _is_new_gpd_version():
+        raise
+
+    return {'init': sh_crs.ogc_string()}
+
+
+def _is_new_gpd_version():
+    """ Checks if gpd version is one of the newer versions, which implement different handling of CRS
+    """
+    return gpd.__version__ >= '0.7.0'

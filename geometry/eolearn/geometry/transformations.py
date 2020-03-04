@@ -23,7 +23,7 @@ import shapely.wkt
 from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
-from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOTask, FeatureType, FeatureTypeSet, to_gpd_crs, to_sh_crs
 
 LOGGER = logging.getLogger(__name__)
 
@@ -142,10 +142,8 @@ class VectorToRaster(EOTask):
         :type group_classes: boolean
         """
         vector_data = self._get_vector_data(eopatch)
+        vector_data_crs = to_sh_crs(vector_data.crs)
 
-        if 'init' not in vector_data.crs:
-            raise ValueError('Cannot recognize CRS of vector data')
-        vector_data_crs = CRS(vector_data.crs['init'])
         if eopatch.bbox.crs is not vector_data_crs:
             warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
                           'each execution', RuntimeWarning)
@@ -358,7 +356,7 @@ class RasterToVector(EOTask):
         if timestamp is not None:
             series_dict['TIMESTAMP'] = GeoSeries([timestamp] * len(geo_list))
 
-        vector_data = GeoDataFrame(series_dict, crs={'init': 'epsg:{}'.format(crs.value)})
+        vector_data = GeoDataFrame(series_dict, crs=to_gpd_crs(crs))
 
         if not vector_data.geometry.is_valid.all():
             vector_data.geometry = vector_data.geometry.buffer(0)

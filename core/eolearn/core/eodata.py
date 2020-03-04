@@ -24,7 +24,7 @@ from sentinelhub import BBox
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
 from .fs_utils import get_filesystem
-from .utilities import deep_eq, FeatureParser
+from .utilities import deep_eq, FeatureParser, to_sh_crs
 
 
 LOGGER = logging.getLogger(__name__)
@@ -197,9 +197,13 @@ class EOPatch:
         """
         if isinstance(value, np.ndarray):
             return '{}(shape={}, dtype={})'.format(EOPatch._repr_value_class(value), value.shape, value.dtype)
+
         if isinstance(value, gpd.GeoDataFrame):
-            return '{}(columns={}, length={}, crs={})'.format(EOPatch._repr_value_class(value), list(value),
-                                                              len(value), value.crs['init'])
+            return f'{EOPatch._repr_value_class(value)}(' \
+                   f'columns={list(value)}, ' \
+                   f'length={len(value)}, ' \
+                   f'crs={to_sh_crs(value.crs).ogc_string()})'
+
         if isinstance(value, (list, tuple, dict)) and value:
             repr_str = str(value)
             if len(repr_str) <= MAX_DATA_REPR_LEN:
