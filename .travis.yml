@@ -56,7 +56,7 @@ script:
       pytest;
     fi
   else
-    pytest \
+    pytest --cov \
       --ignore io/eolearn/tests/test_io.py \
       --ignore io/eolearn/tests/test_processing_io.py ;
   fi
