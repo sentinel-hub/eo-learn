@@ -88,8 +88,15 @@ class MaskFeature(EOTask):
         if not isinstance(self.mask_values, list):
             raise ValueError('Incorrect format or values of argument `mask_values`')
 
-        for value in self.mask_values:
-            data[mask.squeeze() == value] = self.no_data_value
+        if mask_feature_type == FeatureType.MASK_TIMELESS:
+            for value in self.mask_values:
+                data[:, mask.squeeze() == value, :] = self.no_data_value
+        elif mask_feature_type == FeatureType.MASK:
+            for value in self.mask_values:
+                #data[mask.squeeze() == value] = self.no_data_value
+                data[mask == value] = self.no_data_value
+        else:
+            raise NotImplementedError
 
         eopatch.add_feature(feature_type, new_feature_name, data)
 
