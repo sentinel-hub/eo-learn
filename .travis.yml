@@ -54,7 +54,7 @@ script:
       pytest -c=.coveragerc;
     else
       pytest;
-    fi
+    fi;
   else
     pytest --cov \
       --ignore io/eolearn/tests/test_io.py \
