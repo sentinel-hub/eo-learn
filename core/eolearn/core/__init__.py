@@ -16,7 +16,7 @@ from .core_tasks import CopyTask, DeepCopyTask, SaveTask, LoadTask, AddFeature, 
 
 from .fs_utils import get_filesystem, load_s3_filesystem
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser,\
-    to_sh_crs, to_gpd_crs
+    to_gpd_crs
 
 
 __version__ = '0.7.2'

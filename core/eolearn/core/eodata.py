@@ -19,12 +19,12 @@ import dateutil.parser
 import numpy as np
 import geopandas as gpd
 
-from sentinelhub import BBox
+from sentinelhub import BBox, CRS
 
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
 from .fs_utils import get_filesystem
-from .utilities import deep_eq, FeatureParser, to_sh_crs
+from .utilities import deep_eq, FeatureParser
 
 
 LOGGER = logging.getLogger(__name__)
@@ -202,7 +202,7 @@ class EOPatch:
             return f'{EOPatch._repr_value_class(value)}(' \
                    f'columns={list(value)}, ' \
                    f'length={len(value)}, ' \
-                   f'crs={to_sh_crs(value.crs).ogc_string()})'
+                   f'crs={CRS(value.crs).ogc_string()})'
 
         if isinstance(value, (list, tuple, dict)) and value:
             repr_str = str(value)

@@ -501,25 +501,9 @@ def bgr_to_rgb(bgr):
     return bgr[..., [2, 1, 0]]
 
 
-def to_sh_crs(gpd_crs):
-    """
-    """
-    if _is_new_gpd_version():
-        raise
-
-    return CRS(gpd_crs['init'])
-
-
 def to_gpd_crs(sh_crs):
     """
     """
-    if _is_new_gpd_version():
-        raise
-
+    if gpd.__version__ >= '0.7.0':
+        return sh_crs.pyproj_crs()
     return {'init': sh_crs.ogc_string()}
-
-
-def _is_new_gpd_version():
-    """ Checks if gpd version is one of the newer versions, which implement different handling of CRS
-    """
-    return gpd.__version__ >= '0.7.0'
