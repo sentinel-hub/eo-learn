@@ -350,11 +350,11 @@ class RasterToVector(EOTask):
                 value_list.append(value)
 
         series_dict = {
-            self.values_column: GeoSeries(value_list),
+            self.values_column: pd.Series(value_list),
             'geometry': GeoSeries(geo_list)
         }
         if timestamp is not None:
-            series_dict['TIMESTAMP'] = GeoSeries([timestamp] * len(geo_list))
+            series_dict['TIMESTAMP'] = pd.Series([timestamp] * len(geo_list))
 
         vector_data = GeoDataFrame(series_dict, crs=to_gpd_crs(crs))
 
