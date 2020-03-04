@@ -22,7 +22,7 @@ from moto import mock_s3
 import boto3
 
 from sentinelhub import BBox, CRS
-from eolearn.core import EOPatch, FeatureType, OverwritePermission, SaveTask, LoadTask
+from eolearn.core import EOPatch, FeatureType, OverwritePermission, SaveTask, LoadTask, to_gpd_crs
 
 logging.basicConfig(level=logging.INFO)
 
@@ -65,7 +65,7 @@ class TestEOPatchIO(unittest.TestCase):
             'values': [1],
             'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7)],
             'geometry': [eopatch.bbox.geometry]
-        }, crs={'init': eopatch.bbox.crs.epsg})
+        }, crs=to_gpd_crs(eopatch.bbox.crs))
 
         cls.eopatch = eopatch
 
