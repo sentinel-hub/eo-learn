@@ -19,8 +19,6 @@ import numpy as np
 import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
 
-from sentinelhub import CRS
-
 from .constants import FeatureType
 
 LOGGER = logging.getLogger(__name__)
@@ -502,7 +500,12 @@ def bgr_to_rgb(bgr):
 
 
 def to_gpd_crs(sh_crs):
-    """
+    """ Transforms sentinelhub CRS object into geopandas CRS comprehension, which is differs between geopandas versions
+
+    :param sh_crs: A sentinelhub CRS definition
+    :type sh_crs: sentinelhub.CRS
+    :return: A geopandas CRS object
+    :rtype: pyproj.CRS or dict
     """
     if gpd.__version__ >= '0.7.0':
         return sh_crs.pyproj_crs()
