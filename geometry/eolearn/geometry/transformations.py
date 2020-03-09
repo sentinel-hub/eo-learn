@@ -15,6 +15,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import pyproj
 import rasterio.features
 import rasterio.transform
 import shapely.geometry
@@ -142,7 +143,12 @@ class VectorToRaster(EOTask):
         :type group_classes: boolean
         """
         vector_data = self._get_vector_data(eopatch)
-        vector_data_crs = CRS(vector_data.crs)
+
+        gpd_crs = vector_data.crs
+        # This special case has to be handled because of WGS84 and lat-lon order:
+        if isinstance(gpd_crs, pyproj.CRS):
+            gpd_crs = gpd_crs.to_epsg()
+        vector_data_crs = CRS(gpd_crs)
 
         if eopatch.bbox.crs is not vector_data_crs:
             warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
