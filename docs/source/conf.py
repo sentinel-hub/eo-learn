@@ -15,6 +15,9 @@
 import os
 import shutil
 
+import sphinx.ext.autodoc
+
+
 # -- Project information -----------------------------------------------------
 
 # General information about the project.
@@ -181,6 +184,10 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+# -- Options for Credits ----------------------------------------------
+
+def setup(app):
+    app.connect('autodoc-process-docstring', sphinx.ext.autodoc.between('Credits:', what=['module'], exclude=True))
 
 # -- Options for Epub output ----------------------------------------------
 
@@ -274,6 +281,7 @@ def get_eotasks():
     import eolearn.io
     import eolearn.mask
     import eolearn.ml_tools
+    import eolearn.visualization
 
     return get_subclasses(eolearn.core.EOTask)
 

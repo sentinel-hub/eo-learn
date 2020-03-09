@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/pypi/l/eo-learn.svg)](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE)
 [![Overall downloads](http://pepy.tech/badge/eo-learn)](https://pepy.tech/project/eo-learn)
 [![Last month downloads](https://pepy.tech/badge/eo-learn/month)](https://pepy.tech/project/eo-learn)
+[![codecov](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
 <img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
 
@@ -41,8 +42,11 @@ At the moment there are the following subpackages:
 - **`eo-learn-io`** - Input/output subpackage that deals with obtaining data from Sentinel Hub services or saving and loading data locally.
 - **`eo-learn-mask`** - The subpackage used for masking of data and calculation of cloud masks.
 - **`eo-learn-ml-tools`** - Various tools that can be used before or after the machine learning process.
+- **`eo-learn-visualization`** - Visualization tools for core elements of eo-learn.
 
 ## Installation
+
+### PyPi distribution
 
 The package requires Python version **>=3.5** . It can be installed with:
 
@@ -59,6 +63,7 @@ pip install eo-learn-geometry
 pip install eo-learn-io
 pip install eo-learn-mask
 pip install eo-learn-ml-tools
+pip install eo-learn-visualization
 ```
 
 Before installing `eo-learn` on **Windows** it is recommended to install the following packages from [Unofficial Windows wheels repository](https://www.lfd.uci.edu/~gohlke/pythonlibs/):
@@ -68,9 +73,42 @@ gdal
 rasterio
 shapely
 fiona
+cartopy (required by eo-learn-visualization[FULL])
 ```
 
-One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. On windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+
+A part of subpackage `eo-learn-visualization` requires additional dependencies which don't get installed by default. Those can be installed with
+
+```bash
+pip install eo-learn-visualization[FULL]
+```
+
+### Conda Forge distribution
+
+The package requires a Python environment **>=3.5**. 
+
+Thanks to the maintainers of the conda forge feedstock (@benhuff, @dcunn, @mwilson8, @oblute, @rluria14), `eo-learn` can 
+be installed using `conda-forge` as follows:
+
+```bash
+conda config --add channels conda-forge
+
+conda install eo-learn
+```
+
+In order to avoid heavy package dependencies it is possible to install each subpackage separately:
+
+```bash
+conda install eo-learn-core
+conda install eo-learn-coregistration
+conda install eo-learn-features
+conda install eo-learn-geometry
+conda install eo-learn-io
+conda install eo-learn-mask
+conda install eo-learn-ml-tools
+conda install eo-learn-visualization
+```
 
 ## Documentation
 
@@ -80,7 +118,7 @@ For more information on the package content, visit [readthedocs](https://eo-lear
 
 If you would like to contribute to `eo-learn`, check out our [contribution guidelines](./CONTRIBUTING.md).
 
-## Blog posts
+## Blog posts and papers
 
  * [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c) (by Devis Peressutti)
  * [Land Cover Classification with eo-learn: Part 1 - Mastering Satellite Image Data in an Open-Source Python Environment](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-1-2471e8098195) (by Matic Lubej)
@@ -88,6 +126,14 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Land Cover Classification with eo-learn: Part 3 - Pushing Beyond the Point of “Good Enough”](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-3-c62ed9ecd405) (by Matic Lubej)
  * [Innovations in satellite measurements for development](https://blogs.worldbank.org/opendata/innovations-satellite-measurements-development)
  * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
+ * [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification) (by Anze Zupanc)
+ * [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966) (by Daniel Moraite)
+ * [NoRSC19 Workshop on eo-learn](https://github.com/sentinel-hub/norsc19-eo-learn-workshop)
+ * [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
+ * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
+ * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
+ 
+ 
 
 ## Questions and Issues
 
@@ -99,3 +145,7 @@ You are welcome to send your feedback to the package authors, EO Research team, 
 ## License
 
 See [LICENSE](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE).
+
+## Acknowledgements
+
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No. 776115.

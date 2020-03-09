@@ -1,8 +1,20 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2018-2019 William Ouellette
+Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import os
 import unittest
+from unittest.mock import patch
 import logging
 import tempfile
-
 import numpy as np
 
 from sentinelhub import read_data
@@ -93,7 +105,7 @@ class TestExportAndImportTiff(unittest.TestCase):
             cls.TestCase('data_band_list_time_list', FeatureType.DATA, data_array,
                          bands=[2, 4, 1, 0], times=[1, 7, 0, 2, 3]),
             cls.TestCase('data_band_tuple_time_tuple', FeatureType.DATA, data_array, bands=(1, 4), times=(2, 8)),
-            cls.TestCase('', FeatureType.DATA, data_array),
+            cls.TestCase('data_normal', FeatureType.DATA, data_array),
         ]
 
     def test_export_import(self):
@@ -104,11 +116,17 @@ class TestExportAndImportTiff(unittest.TestCase):
 
                 with tempfile.TemporaryDirectory() as tmp_dir_name:
                     tmp_file_name = 'temp_file.tiff'
+                    tmp_file_name_reproject = 'temp_file_4326.tiff'
                     feature = test_case.feature_type, test_case.name
 
                     export_task = ExportToTiff(feature, folder=tmp_dir_name,
                                                band_indices=test_case.bands, date_indices=test_case.times)
                     export_task.execute(self.eopatch, filename=tmp_file_name)
+
+                    export_task = ExportToTiff(feature, folder=tmp_dir_name,
+                                               band_indices=test_case.bands, date_indices=test_case.times,
+                                               crs='EPSG:4326')
+                    export_task.execute(self.eopatch, filename=tmp_file_name_reproject)
 
                     import_task = ImportFromTiff(feature, folder=tmp_dir_name,
                                                  timestamp_size=test_case.get_expected_timestamp_size())
@@ -137,6 +155,25 @@ class TestExportAndImportTiff(unittest.TestCase):
                 task = ExportToTiff((FeatureType.DATA, 'data'), folder=tmp_dir_name,
                                     band_indices=bands, date_indices=times, image_dtype=data.dtype)
                 task.execute(self.eopatch, filename=tmp_file_name)
+
+    @patch('logging.Logger.warning')
+    def test_export2tiff_wrong_feature(self, mocked_logger):
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            feature = FeatureType.MASK_TIMELESS, 'feature-not-present'
+
+            export_task = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=False)
+            export_task.execute(self.eopatch, filename=tmp_file_name)
+            assert mocked_logger.call_count == 1
+            val_err_tup, _ = mocked_logger.call_args
+            val_err, = val_err_tup
+            assert str(val_err) == 'Feature feature-not-present of type FeatureType.MASK_TIMELESS ' \
+                                   'was not found in EOPatch'
+
+            with self.assertRaises(ValueError):
+                export_task_fail = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=True)
+                export_task_fail.execute(self.eopatch, filename=tmp_file_name)
 
 
 class TestImportTiff(unittest.TestCase):

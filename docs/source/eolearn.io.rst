@@ -10,6 +10,7 @@ Submodules:
 
 .. toctree::
 
+   eolearn.io.geopedia
    eolearn.io.local_io
    eolearn.io.sentinelhub_service
-   eolearn.io.geopedia
+   eolearn.io.processing_api

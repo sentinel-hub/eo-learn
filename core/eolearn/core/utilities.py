@@ -1,16 +1,44 @@
 """
 The utilities module is a collection of classes and functions used across the eolearn package, such as checking whether
 two objects are deeply equal, padding of an image, etc.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
 from collections import OrderedDict
+from logging import Filter
 
 import numpy as np
+from geopandas import GeoDataFrame
+from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
 
 LOGGER = logging.getLogger(__name__)
+
+
+class LogFileFilter(Filter):
+    """ Filters log messages passed to log file
+    """
+    def __init__(self, thread_name, *args, **kwargs):
+        """
+        :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
+        :type thread_name: str or None
+        """
+        self.thread_name = thread_name
+        super().__init__(*args, **kwargs)
+
+    def filter(self, record):
+        """ Shows everything from the thread that it was initialized in.
+        """
+        return record.threadName == self.thread_name
 
 
 class FeatureParser:
@@ -353,19 +381,6 @@ def deep_eq(fst_obj, snd_obj):
     :return: `True` if objects are deeply equal, `False` otherwise
     """
     # pylint: disable=too-many-return-statements
-    if isinstance(fst_obj, (np.ndarray, np.memmap)):
-        if not isinstance(snd_obj, (np.ndarray, np.memmap)):
-            return False
-
-        if fst_obj.dtype != snd_obj.dtype:
-            return False
-
-        fst_nan_mask = np.isnan(fst_obj)
-        snd_nan_mask = np.isnan(snd_obj)
-
-        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
-            np.array_equal(fst_nan_mask, snd_nan_mask)
-
     if not isinstance(fst_obj, type(snd_obj)):
         return False
 
@@ -376,6 +391,13 @@ def deep_eq(fst_obj, snd_obj):
         snd_nan_mask = np.isnan(snd_obj)
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
+
+    if isinstance(fst_obj, GeoDataFrame):
+        try:
+            assert_geodataframe_equal(fst_obj, snd_obj)
+            return True
+        except AssertionError:
+            return False
 
     if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):
@@ -470,3 +492,8 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
 
     return np.lib.pad(X, ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
                       'constant', constant_values=((pad_value, pad_value), (pad_value, pad_value)))
+
+
+def bgr_to_rgb(bgr):
+    """Converts Blue, Green, Red to Red, Green, Blue."""
+    return bgr[..., [2, 1, 0]]

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+
+    <style>
+        {{ code_css }}
+
+        h1 {
+            text-align: center;
+        }
+
+        h2, h3, h4 {
+            margin-block-end: 0px;
+        }
+
+        p {
+            overflow: auto;
+        }
+
+        .indent {
+            margin-left: 20px;
+            overflow: auto;
+        }
+
+        .margined-div {
+            margin-block-start: 1em
+        }
+
+        .exec-status {
+            color: black;
+            padding: 10px 10px;
+            margin: 1px;
+            border-radius: 4px;
+            float: left;
+        }
+
+        .exec-finished {
+            background-color: green;
+        }
+
+        .exec-failed {
+            background-color: red;
+        }
+
+        .collapsible-content {
+          padding: 0 18px;
+          display: none;
+          overflow: hidden;
+        }
+
+    </style>
+</head>
+
+<body>
+    <h1> EOExecution Report </h1>
+
+    <h2> EOWorkflow dependency graph </h2>
+
+    <div class="indent">
+        <img src="data:image/png;base64,{{ dependency_graph | safe }}" />
+    </div>
+
+    <h2> Execution status </h2>
+
+    <div class="indent">
+
+        <ul>
+            <li>
+                Start time: {{ general_stats['start_time'] | datetime }}
+            </li>
+            <li>
+                End time: {{ general_stats['end_time'] | datetime }}
+            </li>
+            <li>
+                Duration: {{ timedelta(general_stats['start_time'], general_stats['end_time']) }}
+            </li>
+            <li>
+                Number of finished executions: {{ general_stats['finished'] }}
+            </li>
+            <li>
+                Number of failed executions: {{ general_stats['failed'] }}
+            </li>
+            <li>
+                Processing type: {{ general_stats['processing_type'] }}
+            </li>
+            <li>
+                Number of workers: {{ general_stats['workers'] }}
+            </li>
+        </ul>
+
+        <p>
+            {% for execution in execution_stats %}
+                <a class="exec-status {{ 'exec-failed' if 'error' in execution else 'exec-finished' }}"
+                   title="Execution {{ execution_names[loop.index - 1] }}"
+                   href="#execution{{ loop.index }}"
+                ></a>
+            {% endfor %}
+        </p>
+
+        <div class="indent">
+            <a class="exec-status exec-finished"></a> &nbsp;... Execution successfully finished
+        </div>
+        <div class="indent">
+            <a class="exec-status exec-failed"></a> &nbsp;... Execution failed because of an error
+        </div>
+
+    </div>
+
+    <h2> EOTasks </h2>
+
+    <div class="indent">
+
+        <h3> Initialization parameters </h3>
+
+        <div class="indent">
+        {% for task in task_descriptions %}
+            <h4> {{ task['name'] }} </h4>
+
+            {% if  task['args'] %}
+                <ul>
+                    {% for key, value in task['args'].items() %}
+                        <li> <pre> {{ key }} = {{ value }} </pre> </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p></p>
+            {% endif %}
+
+        {% endfor %}
+        </div>
+
+        <h3> Source code of custom tasks </h3>
+
+        <div class="indent">
+            {% for task_title, task_source in task_sources.items() %}
+                <h4> {{ task_title }} </h4>
+
+                <div class="indent">
+                    {% if task_source is none %}
+                        <p>
+                            Cannot collect source code of a task which is not defined in a .py file
+                        </p>
+                    {% else %}
+                        {{ task_source }}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <h2> Execution details </h2>
+
+    <div class="indent">
+        {% for execution in execution_stats %}
+            <h3 id="execution{{ loop.index }}"> Execution {{ execution_names[loop.index - 1] }} </h3>
+
+            <div class="indent">
+                Statistics<br/>
+                <ul>
+                    <li>Start time: {{ execution['start_time'] | datetime }}</li>
+                    <li>End time: {{ execution['end_time'] | datetime }}</li>
+                    <li>Duration: {{ timedelta(execution['start_time'], execution['end_time']) }}</li>
+                </ul>
+                {% if 'error' in execution %}
+                    Error<br/>
+                    {{ execution['error'] }}
+                {% endif %}
+
+                <button class="collapsible">Logs</button>
+                <div class="collapsible-content">
+                  <pre>{{ execution_logs[loop.index - 1] }}</pre>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+    var coll = document.getElementsByClassName("collapsible");
+    var i;
+
+    for (i = 0; i < coll.length; i++) {
+      coll[i].addEventListener("click", function() {
+        this.classList.toggle("active");
+        var content = this.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+      });
+    }
+    </script>
+
+</body>
+</html>
