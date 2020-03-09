@@ -24,7 +24,7 @@ import numpy as np
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import EOTask, EOPatch, to_gpd_crs
+from eolearn.core import EOTask, EOPatch
 
 LOGGER = logging.getLogger(__name__)
 
@@ -227,11 +227,11 @@ class ExportToTiff(BaseLocalIo):
 
         channel_count, height, width = image_array.shape
 
-        src_crs = to_gpd_crs(eopatch.bbox.crs, force_dict=True)
+        src_crs = {'init': eopatch.bbox.crs.ogc_string()}
         src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
         if self.crs:
-            dst_crs = to_gpd_crs(self.crs, force_dict=True)
+            dst_crs = {'init': self.crs.ogc_string()}
             dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
                 src_crs, dst_crs, width, height, *eopatch.bbox
             )

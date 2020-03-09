@@ -497,18 +497,3 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
 def bgr_to_rgb(bgr):
     """Converts Blue, Green, Red to Red, Green, Blue."""
     return bgr[..., [2, 1, 0]]
-
-
-def to_gpd_crs(sh_crs, force_dict=False):
-    """ Transforms sentinelhub CRS object into geopandas CRS comprehension, which is differs between geopandas versions
-
-    :param sh_crs: A sentinelhub CRS definition
-    :type sh_crs: sentinelhub.CRS
-    :param force_dict: A flag which forces to return the dictionary representation of CRS
-    :type force_dict: bool
-    :return: A geopandas CRS object
-    :rtype: pyproj.CRS or dict
-    """
-    if not force_dict and gpd.__version__ >= '0.7.0':
-        return sh_crs.pyproj_crs()
-    return {'init': sh_crs.ogc_string()}

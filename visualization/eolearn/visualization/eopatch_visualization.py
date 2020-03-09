@@ -26,7 +26,7 @@ from shapely.geometry import Polygon
 
 from sentinelhub import CRS
 
-from eolearn.core import FeatureType, FeatureTypeSet, FeatureParser, to_gpd_crs
+from eolearn.core import FeatureType, FeatureTypeSet, FeatureParser
 
 from .xarray_utils import array_to_dataframe, new_coordinates, string_to_variable
 
@@ -166,7 +166,7 @@ class EOPatchVisualization:
         data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
-            data_gpd = data_gpd.to_crs(to_gpd_crs(crs))
+            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
         shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
                        for timestamp_ in timestamps}
         return hv.HoloMap(shapes_dict, kdims=['time'])
@@ -288,7 +288,7 @@ class EOPatchVisualization:
         data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
-            data_gpd = data_gpd.to_crs(to_gpd_crs(crs))
+            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
 
         return gv.Polygons(data_gpd, crs=ccrs.epsg(crs.epsg), vdims=self.vdims)
 
