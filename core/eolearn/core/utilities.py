@@ -16,7 +16,7 @@ from collections import OrderedDict
 from logging import Filter
 
 import numpy as np
-from geopandas import GeoDataFrame
+import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
@@ -392,7 +392,7 @@ def deep_eq(fst_obj, snd_obj):
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
 
-    if isinstance(fst_obj, GeoDataFrame):
+    if isinstance(fst_obj, gpd.GeoDataFrame):
         try:
             assert_geodataframe_equal(fst_obj, snd_obj)
             return True

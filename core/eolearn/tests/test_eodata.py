@@ -66,7 +66,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
                                        msg='Invalid entry {} for {} should raise an error'.format(entry, feature_type)):
                     eop[feature_type]['TEST'] = entry
 
-        crs_test = {'init': 'epsg:4326'}
+        crs_test = CRS.WGS84.pyproj_crs()
         geo_test = GeoSeries([BBox((1, 2, 3, 4), crs=CRS.WGS84).geometry], crs=crs_test)
 
         eop.vector_timeless['TEST'] = geo_test

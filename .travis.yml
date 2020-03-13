@@ -23,7 +23,6 @@ install:
   else
     python install_all.py;
   fi
-- pip install geopandas==0.6.3  # This is temporal fix
 
 script:
 - if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then

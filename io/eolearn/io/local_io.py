@@ -102,7 +102,7 @@ class ExportToTiff(BaseLocalIo):
             in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
         :type date_indices: tuple or list or None
         :param crs: CRS in which to reproject the feature before writing it to GeoTiff
-        :type crs: CRS or string of the form authority:id representing the CRS
+        :type crs: CRS or str or None
         :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
         :type fail_on_missing: bool
         :param image_dtype: Type of data to be exported into tiff image
@@ -114,7 +114,7 @@ class ExportToTiff(BaseLocalIo):
 
         self.band_indices = band_indices
         self.date_indices = date_indices
-        self.crs = crs
+        self.crs = None if crs is None else CRS(crs)
         self.fail_on_missing = fail_on_missing
 
     def _prepare_image_array(self, eopatch, feature):
@@ -227,11 +227,11 @@ class ExportToTiff(BaseLocalIo):
 
         channel_count, height, width = image_array.shape
 
-        src_crs = {'init': CRS.ogc_string(eopatch.bbox.crs)}
+        src_crs = {'init': eopatch.bbox.crs.ogc_string()}
         src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
         if self.crs:
-            dst_crs = {'init': CRS.ogc_string(self.crs)}
+            dst_crs = {'init': self.crs.ogc_string()}
             dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
                 src_crs, dst_crs, width, height, *eopatch.bbox
             )
