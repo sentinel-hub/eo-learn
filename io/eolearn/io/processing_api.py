@@ -462,9 +462,6 @@ class SentinelHubDemTask(SentinelHubInputBase):
             data_folder=self.cache_folder
         )
 
-        # The following is temporal fix, which will soon be resolved on the service:
-        del request.download_list[0].post_values['input']['data'][0]['dataFilter']
-
         return [request]
 
     def _extract_data(self, eopatch, images, shape):
