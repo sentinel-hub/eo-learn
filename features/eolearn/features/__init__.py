@@ -18,4 +18,4 @@ from .local_binary_pattern import LocalBinaryPatternTask
 from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
 
 
-__version__ = '0.7.0'
+__version__ = '0.7.3'
