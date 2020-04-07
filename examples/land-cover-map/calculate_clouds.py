@@ -274,4 +274,4 @@ for idx, bbox in enumerate(bbox_list[patchIDs]):
     })
 
 executor = EOExecutor(workflow, execution_args, save_logs=False)
-executor.run(workers=7, multiprocess=False)
+executor.run(workers=12, multiprocess=False)

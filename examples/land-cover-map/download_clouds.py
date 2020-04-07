@@ -117,7 +117,7 @@ class CountValid(EOTask):
 # Here we also do a simple filter of cloudy scenes. A detailed cloud cover
 # detection is performed in the next step
 
-band_names = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B10', 'B11', 'B12']
+band_names = ['B02', 'B03', 'B04', 'B08', 'B11', 'B12']
 add_data = SentinelHubInputTask(
     bands_feature=(FeatureType.DATA, 'BANDS'),
     bands = band_names,
@@ -141,15 +141,6 @@ ndwi = NormalizedDifferenceIndexTask((FeatureType.DATA, 'BANDS'), (FeatureType.D
 ndbi = NormalizedDifferenceIndexTask((FeatureType.DATA, 'BANDS'), (FeatureType.DATA, 'NDBI'),
                                      [band_names.index('B11'), band_names.index('B08')])
 
-
-# TASK FOR REMOVING UNNEEDED BANDS
-# cloud detection uses 10 bands,
-# but we dont need all of them, so
-# we filter them out
-sel_band_names = ['B02', 'B03', 'B04', 'B08', 'B11', 'B12']
-select_bands_task = ExtractBandsTask((FeatureType.DATA, 'BANDS'),
-                                     (FeatureType.DATA, 'BANDS'),
-                                     [band_names.index(x) for x in sel_band_names])
 
 
 # TASK FOR VALID MASK
@@ -240,7 +231,6 @@ workflow = LinearWorkflow(
     ndvi,
     ndwi,
     ndbi,
-    select_bands_task,
     add_sh_valmask,
     count_val_sh,
     rasterization_task,
@@ -260,4 +250,4 @@ for idx, bbox in enumerate(bbox_list[patchIDs]):
     })
 
 executor = EOExecutor(workflow, execution_args, save_logs=False)
-executor.run(workers=5, multiprocess=False)
+executor.run(workers=1, multiprocess=False)
