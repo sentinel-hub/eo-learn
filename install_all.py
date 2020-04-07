@@ -14,7 +14,7 @@ SUBPACKAGE_LIST = [
     'io',
     'mask',
     'ml_tools',
-    'visualization[FULL]'
+    'visualization'
 ]
 
 
