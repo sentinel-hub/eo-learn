@@ -225,7 +225,7 @@ class TestEOPatch(unittest.TestCase):
                 name='S2 L2A WMS',
                 layer='BANDS-S2-L2A',
                 data_size=12,
-                timestamp_length=2,
+                timestamp_length=3,
                 request=S2L2AWMSInput(
                     layer='BANDS-S2-L2A',
                     height=img_height,
@@ -240,7 +240,7 @@ class TestEOPatch(unittest.TestCase):
                 name='S2 L2A WCS',
                 layer='BANDS-S2-L2A',
                 data_size=12,
-                timestamp_length=2,
+                timestamp_length=3,
                 request=S2L2AWCSInput(
                     layer='BANDS-S2-L2A',
                     resx=resx,
