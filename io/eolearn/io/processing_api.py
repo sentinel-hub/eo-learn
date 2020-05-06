@@ -300,7 +300,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
             return [time_interval[0]]
 
         wfs = WebFeatureService(
-            bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc
+            bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc, config=self.config
         )
 
         dates = wfs.get_dates()
