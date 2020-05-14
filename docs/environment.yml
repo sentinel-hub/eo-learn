@@ -8,7 +8,7 @@ dependencies:
   - sphinx-rtd-theme
   - nbsphinx
   - ipython
-  - git+https://github.com/CrossNox/m2r@dev
+  - git+https://github.com/AleksMat/m2r@dev
 
   - ./../core
   - ./../coregistration
