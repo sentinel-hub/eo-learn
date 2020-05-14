@@ -101,7 +101,7 @@ class EOWorkflow:
             if task.private_task_config.uuid in uuid_dict:
                 raise ValueError('EOWorkflow cannot execute the same instance of EOTask multiple times')
 
-            task.private_task_config.uuid = self.id_gen.next()
+            task.private_task_config.uuid = self.id_gen.get_next()
             uuid_dict[task.private_task_config.uuid] = dep
 
         return uuid_dict
@@ -501,7 +501,7 @@ class _UniqueIdGenerator:
                 self.uuids.add(uid)
                 return uid
 
-    def next(self):
+    def get_next(self):
         """ Generates an ID
         """
         return self._next().hex
