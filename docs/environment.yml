@@ -2,7 +2,6 @@ name: eo-learn-docs
 channels:
   - conda-forge
 dependencies:
-  - pip
   - cartopy=0.17.0
 - pip:
   - Sphinx==2.4.4
