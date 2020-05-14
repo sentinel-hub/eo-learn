@@ -1,4 +1,4 @@
-Sphinx
+Sphinx==2.4.4
 sphinx-rtd-theme
 nbsphinx
 ipython
