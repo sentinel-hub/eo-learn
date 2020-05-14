@@ -18,4 +18,4 @@ from .fs_utils import get_filesystem, load_s3_filesystem
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
 
 
-__version__ = '0.7.3'
+__version__ = '0.7.4'
