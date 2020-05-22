@@ -4,18 +4,23 @@ A collection of most basic EOTasks
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import os
 import copy
+import warnings
+from abc import abstractmethod
+
+import fs
 import numpy as np
 
 from .eodata import EOPatch
 from .eotask import EOTask
+from .fs_utils import get_filesystem
+
+warnings.simplefilter('default', DeprecationWarning)
 
 
 class CopyTask(EOTask):
@@ -42,29 +47,64 @@ class DeepCopyTask(CopyTask):
         return eopatch.__deepcopy__(features=self.features)
 
 
-class SaveToDisk(EOTask):
-    """Saves the given EOPatch to disk.
+class IOTask(EOTask):
+    """ An abstract Input/Output task that can handle a path and a filesystem object
     """
-    def __init__(self, folder, *args, **kwargs):
+    def __init__(self, path, filesystem=None, create=False):
         """
-        :param folder: root directory where all EOPatches are saved
-        :type folder: str
+        :param path: root path where all EOPatches are saved
+        :type path: str
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
+        :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
+        :type create: bool
+        """
+        self.path = path
+        self._filesystem = filesystem
+        self._create = create
+
+        self.filesystem_path = '/' if self._filesystem is None else self.path
+
+    @property
+    def filesystem(self):
+        """ A filesystem property that is being lazy-loaded the first time it is needed
+        """
+        if self._filesystem is None:
+            self._filesystem = get_filesystem(self.path, create=self._create)
+
+        return self._filesystem
+
+    @abstractmethod
+    def execute(self, *eopatches, **kwargs):
+        """ Implement execute function
+        """
+        raise NotImplementedError
+
+
+class SaveTask(IOTask):
+    """ Saves the given EOPatch to a filesystem
+    """
+    def __init__(self, path, filesystem=None, **kwargs):
+        """
+        :param path: root path where all EOPatches are saved
+        :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default
             all features will be saved.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        :param file_format: File format
-        :type file_format: FileFormat or str
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         """
-        self.folder = folder
-        self.args = args
         self.kwargs = kwargs
+        super().__init__(path, filesystem=filesystem, create=True)
 
-    def execute(self, eopatch, *, eopatch_folder):
+    def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
@@ -74,14 +114,24 @@ class SaveToDisk(EOTask):
         :return: The same EOPatch
         :rtype: EOPatch
         """
-        eopatch.save(os.path.join(self.folder, eopatch_folder), *self.args, **self.kwargs)
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
+
+        eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
 
 
-class LoadFromDisk(EOTask):
-    """Loads the given EOPatch from disk.
+class SaveToDisk(SaveTask):
+    """ A deprecated version of SaveTask
     """
     def __init__(self, folder, *args, **kwargs):
+        warnings.warn('This task is deprecated, use SaveTask instead', DeprecationWarning)
+        super().__init__(folder, *args, **kwargs)
+
+
+class LoadTask(IOTask):
+    """ Loads an EOPatch from a filesystem
+    """
+    def __init__(self, path, filesystem=None, **kwargs):
         """
         :param folder: root directory where all EOPatches are saved
         :type folder: str
@@ -89,14 +139,14 @@ class LoadFromDisk(EOTask):
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
-        :param mmap: If `True`, then memory-map the file. Works only on uncompressed npy files
-        :type mmap: bool
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         """
-        self.folder = folder
-        self.args = args
         self.kwargs = kwargs
+        super().__init__(path, filesystem=filesystem, create=False)
 
-    def execute(self, *, eopatch_folder):
+    def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch_folder: name of EOPatch folder containing data
@@ -104,8 +154,17 @@ class LoadFromDisk(EOTask):
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
-        eopatch = EOPatch.load(os.path.join(self.folder, eopatch_folder), *self.args, **self.kwargs)
-        return eopatch
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
+
+        return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
+
+
+class LoadFromDisk(LoadTask):
+    """ A deprecated version of LoadTask
+    """
+    def __init__(self, folder, *args, **kwargs):
+        warnings.warn('This task is deprecated, use LoadTask instead', DeprecationWarning)
+        super().__init__(folder, *args, **kwargs)
 
 
 class AddFeature(EOTask):
@@ -352,7 +411,7 @@ class MapFeatureTask(EOTask):
                                      np.max,                    # a function to apply to each feature
                                      axis=0)                    # function's kwargs
 
-            result = multiply(patch)
+            result = maximum(patch)
     """
     def __init__(self, input_features, output_features, map_function=None, **kwargs):
         """
@@ -417,7 +476,7 @@ class ZipFeatureTask(EOTask):
                                   (FeatureType.MASK, 'm1'),                # output feature
                                   lambda f0, f1, f2: f0 / (f1 + f2))       # a function to apply to each feature
 
-            result = multiply(patch)
+            result = calc(patch)
 
         Example using a np.maximum and it's kwargs passed as arguments to the ZipFeatureTask:
 
@@ -428,7 +487,7 @@ class ZipFeatureTask(EOTask):
                                      np.maximum,                        # a function to apply to each feature
                                      dtype=np.float64)                  # function's kwargs
 
-            result = multiply(patch)
+            result = maximum(patch)
     """
     def __init__(self, input_features, output_feature, zip_function=None, **kwargs):
         """

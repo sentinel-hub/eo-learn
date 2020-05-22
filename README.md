@@ -46,7 +46,9 @@ At the moment there are the following subpackages:
 
 ## Installation
 
-The package requires Python version **>=3.5** . It can be installed with:
+### PyPi distribution
+
+The package requires Python version **>=3.6** . It can be installed with:
 
 ```bash
 pip install eo-learn
@@ -71,6 +73,7 @@ gdal
 rasterio
 shapely
 fiona
+cartopy (required by eo-learn-visualization[FULL])
 ```
 
 One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. On windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
@@ -79,6 +82,32 @@ A part of subpackage `eo-learn-visualization` requires additional dependencies w
 
 ```bash
 pip install eo-learn-visualization[FULL]
+```
+
+### Conda Forge distribution
+
+The package requires a Python environment **>=3.6**. 
+
+Thanks to the maintainers of the conda forge feedstock (@benhuff, @dcunn, @mwilson8, @oblute, @rluria14), `eo-learn` can 
+be installed using `conda-forge` as follows:
+
+```bash
+conda config --add channels conda-forge
+
+conda install eo-learn
+```
+
+In order to avoid heavy package dependencies it is possible to install each subpackage separately:
+
+```bash
+conda install eo-learn-core
+conda install eo-learn-coregistration
+conda install eo-learn-features
+conda install eo-learn-geometry
+conda install eo-learn-io
+conda install eo-learn-mask
+conda install eo-learn-ml-tools
+conda install eo-learn-visualization
 ```
 
 ## Documentation
@@ -99,6 +128,13 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
  * [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification) (by Anze Zupanc)
  * [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966) (by Daniel Moraite)
+ * [NoRSC19 Workshop on eo-learn](https://github.com/sentinel-hub/norsc19-eo-learn-workshop)
+ * [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
+ * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
+ * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
+ * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a) 
+ 
+ 
 
 ## Questions and Issues
 

@@ -4,7 +4,7 @@ This module implements feature types used in EOPatch objects
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -55,7 +55,7 @@ class FeatureType(Enum):
     @classmethod
     def has_value(cls, value):
         """True if value is in FeatureType values. False otherwise."""
-        return any(value == item.value for item in cls)
+        return value in cls._value2member_map_
 
     def is_spatial(self):
         """True if FeatureType has a spatial component. False otherwise."""

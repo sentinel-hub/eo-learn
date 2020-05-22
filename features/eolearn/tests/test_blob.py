@@ -70,7 +70,7 @@ class TestBlob(unittest.TestCase):
 
     def test_log_feature(self):
         blob = self.patch.data['blob_log']
-        delta = 1e-4
+        delta = 5e-4
 
         test_min = np.min(blob)
         exp_min = 0.0
