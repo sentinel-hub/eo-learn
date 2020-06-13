@@ -245,6 +245,8 @@ class TestEOPatchIO(unittest.TestCase):
 
                 eopatch2 = self.eopatch.__copy__()
 
+                eopatch2.data['data'] = np.ones((2, 3, 3, 2), dtype=np.int16)
+
                 eopatch2.timestamp = [datetime.datetime(2016, 12, 20, 10, 4, 7),
                                       datetime.datetime(2017, 1, 10, 10, 14, 5)]
 

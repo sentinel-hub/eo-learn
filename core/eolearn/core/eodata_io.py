@@ -170,11 +170,8 @@ def merge_eopatch(eopatch_features, filesystem_features, eopatch, fs_eopatch):
         time_periods = [(fs_eopatch.timestamp[0].strftime("%Y-%m-%d"), fs_eopatch.timestamp[-1].strftime("%Y-%m-%d")),
                         (eopatch.timestamp[0].strftime("%Y-%m-%d"), eopatch.timestamp[-1].strftime("%Y-%m-%d"))]
 
-        # this mask finds dates in the next time period that are the same as the previous time period. The first
-        # loop iterationloop will return (2019_q1_datetimes, 2019_q2_datetimes) and find the dates in 2019_q2 that match
-        # the dates in 2019_q1. These will be ignored when concatenating 2019_q2
         mask = np.isin(fs_eopatch.timestamp, list(set(fs_eopatch.timestamp).difference(set(eopatch.timestamp))))
-        # create concatenated timestamp by removing duplicated dates in trailing time periods
+
         timestamp = eopatch.timestamp + [tstamp for tstamp, to_keep in zip(fs_eopatch.timestamp, mask) if to_keep]
         sorted_indices = sorted(range(len(timestamp)), key=lambda k: timestamp[k])
 
