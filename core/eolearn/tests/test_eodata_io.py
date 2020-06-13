@@ -254,26 +254,26 @@ class TestEOPatchIO(unittest.TestCase):
 
                 eop = self.eopatch.__copy__()
 
-                eop.data['data'] = np.concatenate((eopatch2.data['data'][1], self.eopatch.data['data'],
-                                                   eopatch2.data['data'][1]), axis=0)
+                eop.data['data'] = np.concatenate((eopatch2.data['data'][0][np.newaxis, ...],
+                                                   self.eopatch.data['data'],
+                                                   eopatch2.data['data'][1][np.newaxis, ...]), axis=0)
 
-                eop.data_timeless['mask'] = np.nanmean((eopatch2.data_timeless['mask'][0],
-                                                        self.eopatch.data_timeless['mask'],
-                                                        eopatch2.data_timeless['mask'][1]), axis=0)\
+                eop.data_timeless['mask'] = np.nanmean((eopatch2.data_timeless['mask'],
+                                                        self.eopatch.data_timeless['mask']), axis=0)\
                     .astype(self.eopatch.data_timeless['mask'].dtype)
 
                 eop.scalar['my scalar with spaces'] = np.concatenate(
-                    (eopatch2.scalar['my scalar with spaces'][0],
+                    (eopatch2.scalar['my scalar with spaces'][0][np.newaxis, ...],
                      self.eopatch.scalar['my scalar with spaces'],
-                     eopatch2.scalar['my scalar with spaces'][1]), axis=0)
+                     eopatch2.scalar['my scalar with spaces'][1][np.newaxis, ...]), axis=0)
 
                 eop.scalar_timeless['my timeless scalar with spaces'] = np.nanmean(
-                    (eopatch2.scalar_timeless['my timeless scalar with spaces'][0],
-                     self.eopatch.scalar_timeless['my timeless scalar with spaces'],
-                     eopatch2.scalar_timeless['my timeless scalar with spaces'][1]), axis=0)
+                    (eopatch2.scalar_timeless['my timeless scalar with spaces'],
+                     self.eopatch.scalar_timeless['my timeless scalar with spaces']), axis=0)\
+                    .astype(self.eopatch.scalar_timeless['my timeless scalar with spaces'].dtype)
                 eop.timestamp = sorted(eopatch2.timestamp + self.eopatch.timestamp)
 
-                self.assertEqual(eop, fs_eopatch)
+                self.assertEqual(fs_eopatch, eopatch2)
 
 
 if __name__ == '__main__':
