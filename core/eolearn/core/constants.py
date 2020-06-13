@@ -186,7 +186,9 @@ class OverwritePermission(Enum):
     - `OVERWRITE_FEATURES` - Overwrite only data for features which have to be saved. The remaining content of saved
         EOPatch will stay unchanged.
     - `OVERWRITE_PATCH` - Overwrite entire content of saved EOPatch and replace it with the new content.
+    - `MERGE_FEATURES` - Combine new and old content of EOPatch.
     """
     ADD_ONLY = 0
     OVERWRITE_FEATURES = 1
     OVERWRITE_PATCH = 2
+    MERGE_FEATURES = 3

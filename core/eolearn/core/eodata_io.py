@@ -38,7 +38,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
 
-    if overwrite_permission is OverwritePermission.ADD_ONLY or \
+    if overwrite_permission in (OverwritePermission.ADD_ONLY, OverwritePermission.MERGE_FEATURES) or \
             (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
         fs_features = list(walk_filesystem(filesystem, patch_location))
     else:
@@ -48,6 +48,10 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     if overwrite_permission is OverwritePermission.ADD_ONLY:
         _check_add_only_permission(eopatch_features, fs_features)
+
+    if overwrite_permission is OverwritePermission.MERGE_FEATURES and len(fs_features) > 0:
+        fs_eopatch = load_eopatch(eopatch.__copy__(), filesystem, patch_location, features, lazy_loading=True)
+        eopatch = merge_eopatch(eopatch_features, fs_features, eopatch, fs_eopatch)
 
     ftype_folder_map = {(ftype, fs.path.dirname(path)) for ftype, _, path in eopatch_features if not ftype.is_meta()}
     for ftype, folder in ftype_folder_map:
@@ -153,6 +157,48 @@ def walk_eopatch(eopatch, patch_location, features=...):
                 returned_meta_features.add(ftype)
         else:
             yield ftype, fname, fs.path.combine(name_basis, fname)
+
+def merge_eopatch(eopatch_features, filesystem_features, eopatch, fs_eopatch):
+    """ Concatenate an existing eopatch in the filesystem and a new eopatch chronologically
+    """
+
+    filesystem_features = {_to_lowercase(*feature) for feature in filesystem_features}
+    eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
+
+    intersection = filesystem_features.intersection(eopatch_features)
+    if intersection:
+        time_periods = [(fs_eopatch.timestamp[0].strftime("%Y-%m-%d"), fs_eopatch.timestamp[-1].strftime("%Y-%m-%d")),
+                        (eopatch.timestamp[0].strftime("%Y-%m-%d"), eopatch.timestamp[-1].strftime("%Y-%m-%d"))]
+
+        # this mask finds dates in the next time period that are the same as the previous time period. The first
+        # loop iterationloop will return (2019_q1_datetimes, 2019_q2_datetimes) and find the dates in 2019_q2 that match
+        # the dates in 2019_q1. These will be ignored when concatenating 2019_q2
+        mask = np.isin(fs_eopatch.timestamp, list(set(fs_eopatch.timestamp).difference(set(eopatch.timestamp))))
+        # create concatenated timestamp by removing duplicated dates in trailing time periods
+        timestamp = eopatch.timestamp + [tstamp for tstamp, to_keep in zip(fs_eopatch.timestamp, mask) if to_keep]
+        sorted_indices = sorted(range(len(timestamp)), key=lambda k: timestamp[k])
+
+        eopatch.timestamp = sorted(timestamp)
+
+        for ftype, fname in intersection:
+            if ftype in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR]:
+                for fname in eopatch[ftype]:
+                    feat = (ftype, fname)
+                    array = np.concatenate((eopatch[feat], fs_eopatch[feat][mask]), axis=0)
+                    eopatch[feat] = array[sorted_indices]
+            elif ftype in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS]:
+                for fname in eopatch[ftype]:
+                    feat = (ftype, fname)
+                    eopatch[feat] = np.nanmean((eopatch[feat], fs_eopatch[feat]), axis=0).astype(eopatch[feat].dtype)
+
+        eopatch.meta_info['time_interval'] = (eopatch.timestamp[0].date().isoformat(),
+                                          eopatch.timestamp[-1].date().isoformat())
+        eopatch.timestamp = sorted(timestamp)
+
+        eopatch.meta_info['info'] = 'Temporally concatenated from {} and {}'\
+            .format(*[' '.join(time_period) for time_period in time_periods])
+
+    return eopatch
 
 
 def _check_add_only_permission(eopatch_features, filesystem_features):

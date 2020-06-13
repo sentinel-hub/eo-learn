@@ -54,13 +54,16 @@ class TestEOPatchIO(unittest.TestCase):
     def setUpClass(cls):
         eopatch = EOPatch()
         mask = np.zeros((3, 3, 2), dtype=np.int16)
+        data = np.zeros((2, 3, 3, 2), dtype=np.int16)
         eopatch.data_timeless['mask'] = mask
+        eopatch.data['data'] = data
         eopatch.timestamp = [datetime.datetime(2017, 1, 1, 10, 4, 7),
                              datetime.datetime(2017, 1, 4, 10, 14, 5)]
         eopatch.meta_info['something'] = 'nothing'
         eopatch.meta_info['something-else'] = 'nothing'
         eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
-        eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3]])
+        eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3], [1, 2, 3]])
+        eopatch.scalar_timeless['my timeless scalar with spaces'] = np.array([1, 2, 3])
         eopatch.vector['my-df'] = GeoDataFrame({
             'values': [1],
             'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7)],
@@ -234,6 +237,43 @@ class TestEOPatchIO(unittest.TestCase):
             save_task = SaveTask(full_path)
             save_task.execute(empty_eop)
             self.assertTrue(os.path.exists(full_path))
+
+    def test_save_merge(self):
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                self.eopatch.save('/', filesystem=temp_fs)
+
+                eopatch2 = self.eopatch.__copy__()
+
+                eopatch2.timestamp = [datetime.datetime(2016, 12, 20, 10, 4, 7),
+                                      datetime.datetime(2017, 1, 10, 10, 14, 5)]
+
+                eopatch2.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.MERGE_FEATURES)
+
+                fs_eopatch = EOPatch.load('/', filesystem=temp_fs)
+
+                eop = self.eopatch.__copy__()
+
+                eop.data['data'] = np.concatenate((eopatch2.data['data'][1], self.eopatch.data['data'],
+                                                   eopatch2.data['data'][1]), axis=0)
+
+                eop.data_timeless['mask'] = np.nanmean((eopatch2.data_timeless['mask'][0],
+                                                        self.eopatch.data_timeless['mask'],
+                                                        eopatch2.data_timeless['mask'][1]), axis=0)\
+                    .astype(self.eopatch.data_timeless['mask'].dtype)
+
+                eop.scalar['my scalar with spaces'] = np.concatenate(
+                    (eopatch2.scalar['my scalar with spaces'][0],
+                     self.eopatch.scalar['my scalar with spaces'],
+                     eopatch2.scalar['my scalar with spaces'][1]), axis=0)
+
+                eop.scalar_timeless['my timeless scalar with spaces'] = np.nanmean(
+                    (eopatch2.scalar_timeless['my timeless scalar with spaces'][0],
+                     self.eopatch.scalar_timeless['my timeless scalar with spaces'],
+                     eopatch2.scalar_timeless['my timeless scalar with spaces'][1]), axis=0)
+                eop.timestamp = sorted(eopatch2.timestamp + self.eopatch.timestamp)
+
+                self.assertEqual(eop, fs_eopatch)
 
 
 if __name__ == '__main__':
