@@ -177,23 +177,23 @@ def merge_eopatch(eopatch_features, filesystem_features, eopatch, fs_eopatch):
 
         eopatch.timestamp = sorted(timestamp)
 
-        for ftype, fname in intersection:
+        for ftype, _ in intersection:
             if ftype in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR]:
                 for fname in eopatch[ftype]:
                     feat = (ftype, fname)
-                    array = np.concatenate((eopatch[feat], fs_eopatch[feat][mask]), axis=0)
-                    eopatch[feat] = array[sorted_indices]
+                    if eopatch[feat].shape[1:] == fs_eopatch[feat].shape[1:]:
+                        array = np.concatenate((eopatch[feat], fs_eopatch[feat][mask]), axis=0)
+                        eopatch[feat] = array[sorted_indices]
             elif ftype in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS]:
                 for fname in eopatch[ftype]:
                     feat = (ftype, fname)
-                    eopatch[feat] = np.nanmean((eopatch[feat], fs_eopatch[feat]), axis=0).astype(eopatch[feat].dtype)
+                    if eopatch[feat].shape == fs_eopatch[feat].shape:
+                        eopatch[feat] = np.nanmean((eopatch[feat], fs_eopatch[feat]), axis=0)\
+                            .astype(eopatch[feat].dtype)
 
-        eopatch.meta_info['time_interval'] = (eopatch.timestamp[0].date().isoformat(),
-                                          eopatch.timestamp[-1].date().isoformat())
         eopatch.timestamp = sorted(timestamp)
-
-        eopatch.meta_info['info'] = 'Temporally concatenated from {} and {}'\
-            .format(*[' '.join(time_period) for time_period in time_periods])
+        eopatch.meta_info['info'] = 'Temporally merged from {} and {}'\
+            .format(*[', '.join(time_period) for time_period in time_periods])
 
     return eopatch
 
