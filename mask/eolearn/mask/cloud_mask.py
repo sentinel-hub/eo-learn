@@ -12,6 +12,7 @@ file in the root directory of this source tree.
 
 import os
 import logging
+import warnings
 
 import joblib
 import numpy as np
@@ -21,6 +22,8 @@ from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType, bbox_to_resolution
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
+
+from sentinelhub.exceptions import SHDeprecationWarning
 from .utilities import resize_images, map_over_axis
 
 
@@ -75,6 +78,10 @@ class AddCloudMaskTask(EOTask):
                             `S2PixelCloudDetector` classifier, `MODEL_EVALSCRIPT` is used as it requests the required 10
                             bands. Default is `MODEL_EVALSCRIPT`
         """
+        warnings.warn("AddCloudMaskTask is being deprecated. Please use AddMultiCloudMaskTask instead. "
+                      "See showcase at examples/mask/CloudMaskTask.ipynb",
+                      SHDeprecationWarning)
+
         self.classifier = classifier
         self.data_feature = data_feature
         self.cm_feature = cmask_feature
@@ -132,7 +139,7 @@ class AddCloudMaskTask(EOTask):
 
         service_type = ServiceType(meta_info['service_type'])
         rescale = None
-        if service_type == ServiceType.WMS:
+        if service_type == ServiceType.WMS or service_type == ServiceType.PROCESSING_API:
 
             if (self.cm_size_x is None) and (self.cm_size_y is not None):
                 rescale = (self.cm_size_y / height, self.cm_size_y / height)
