@@ -139,7 +139,7 @@ class AddCloudMaskTask(EOTask):
 
         service_type = ServiceType(meta_info['service_type'])
         rescale = None
-        if service_type == ServiceType.WMS or service_type == ServiceType.PROCESSING_API:
+        if service_type in [ServiceType.WMS, ServiceType.PROCESSING_API]:
 
             if (self.cm_size_x is None) and (self.cm_size_y is not None):
                 rescale = (self.cm_size_y / height, self.cm_size_y / height)
