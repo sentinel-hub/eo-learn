@@ -20,10 +20,10 @@ import cv2
 from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType, bbox_to_resolution
+from sentinelhub.exceptions import SHDeprecationWarning
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 
-from sentinelhub.exceptions import SHDeprecationWarning
 from .utilities import resize_images, map_over_axis
 
 
