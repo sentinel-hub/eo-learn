@@ -4,11 +4,11 @@ channels:
 dependencies:
 - cartopy=0.17.0
 - pip:
-  - Sphinx==2.4.4
+  - Sphinx
   - sphinx-rtd-theme
   - nbsphinx
   - ipython
-  - m2r>=0.2.0
+  - git+https://github.com/AleksMat/m2r@dev
 
   - ./../core
   - ./../coregistration
