@@ -1,11 +1,11 @@
 """ An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
 """
 import collections
-from itertools import repeat
 import logging
 import datetime as dt
-import numpy as np
+from itertools import repeat
 
+import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataSource
 from sentinelhub.time_utils import iso_to_datetime
@@ -15,9 +15,37 @@ from eolearn.core import EOPatch, EOTask, FeatureType
 LOGGER = logging.getLogger(__name__)
 
 
+def get_available_timestamps(bbox, config, data_source, maxcc, time_difference, time_interval):
+    """Helper function to search for all available timestamps, based on query parameters
+
+    :param bbox: Bounding box
+    :type bbox: BBox
+    :param time_interval: Time interval to query available satellite data from
+    type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
+    :param data_source: Source of requested satellite data.
+    :type data_source: DataSource
+    :param maxcc: Maximum cloud coverage.
+    :type maxcc: float
+    :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+    :type time_difference: datetime.timedelta
+    :param config: Sentinel Hub Config
+    :type config: SHConfig
+    :return: list of datetimes with available observations
+    """
+    wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_source=data_source, maxcc=maxcc, config=config)
+    dates = wfs.get_dates()
+
+    if len(dates) == 0:
+        raise ValueError("No available images for requested time range: {}".format(time_interval))
+
+    dates = sorted(dates)
+    return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > time_difference]
+
+
 class SentinelHubInputBase(EOTask):
     """ Base class for Processing API input tasks
     """
+
     def __init__(self, data_source, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
         """
         :param data_source: Source of requested satellite data.
@@ -48,14 +76,9 @@ class SentinelHubInputBase(EOTask):
         """ Main execute method for the Processing API tasks
         """
 
-        if eopatch is not None and (bbox or time_interval):
-            raise ValueError('Either an eopatch must be provided or bbox and time interval, not both.')
+        eopatch = eopatch or EOPatch()
 
-        if eopatch is None:
-            eopatch = EOPatch()
-            eopatch.bbox = bbox
-        else:
-            bbox = eopatch.bbox
+        self._check_and_set_eopatch_bbox(bbox, eopatch)
 
         if self.size is not None:
             size_x, size_y = self.size
@@ -64,7 +87,7 @@ class SentinelHubInputBase(EOTask):
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamp = self._get_timestamp(time_interval, bbox)
+            timestamp = self._get_timestamp(time_interval, eopatch.bbox)
         else:
             timestamp = eopatch.timestamp
 
@@ -73,7 +96,7 @@ class SentinelHubInputBase(EOTask):
         elif timestamp:
             eopatch.timestamp = timestamp
 
-        requests = self._build_requests(bbox, size_x, size_y, timestamp, time_interval)
+        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
         requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
@@ -93,6 +116,18 @@ class SentinelHubInputBase(EOTask):
         self._add_meta_info(eopatch)
 
         return eopatch
+
+    @staticmethod
+    def _check_and_set_eopatch_bbox(bbox, eopatch):
+        if eopatch.bbox is None:
+            if bbox is None:
+                raise ValueError('Either the eopatch or the task must provide valid bbox.')
+            eopatch.bbox = bbox
+            return
+
+        if bbox is None or eopatch.bbox == bbox:
+            return
+        raise ValueError('Either the eopatch or the task must provide bbox, or they must be the same.')
 
     @staticmethod
     def check_timestamp_difference(timestamp1, timestamp2):
@@ -299,18 +334,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         if self.single_scene:
             return [time_interval[0]]
 
-        wfs = WebFeatureService(
-            bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc, config=self.config
-        )
-
-        dates = wfs.get_dates()
-
-        if len(dates) == 0:
-            raise ValueError("No available images for requested time range: {}".format(time_interval))
-
-        dates = sorted(dates)
-
-        return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
+        return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_source=self.data_source,
+                                        maxcc=self.maxcc, time_difference=self.time_difference, config=self.config)
 
     def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
         """ Build requests
@@ -402,6 +427,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 class SentinelHubDemTask(SentinelHubInputBase):
     """ A processing API input task that downloads the digital elevation model
     """
+
     def __init__(self, dem_feature, size=None, resolution=None, cache_folder=None, config=None,
                  max_threads=None):
         """
