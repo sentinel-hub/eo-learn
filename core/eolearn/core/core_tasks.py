@@ -123,9 +123,9 @@ class SaveTask(IOTask):
 class SaveToDisk(SaveTask):
     """ A deprecated version of SaveTask
     """
-    def __init__(self, path, *args, **kwargs):
+    def __init__(self, folder, *args, **kwargs):
         warnings.warn('This task is deprecated, use SaveTask instead', DeprecationWarning)
-        super().__init__(path, *args, **kwargs)
+        super().__init__(folder, *args, **kwargs)
 
 
 class LoadTask(IOTask):
@@ -162,9 +162,9 @@ class LoadTask(IOTask):
 class LoadFromDisk(LoadTask):
     """ A deprecated version of LoadTask
     """
-    def __init__(self, path, *args, **kwargs):
+    def __init__(self, folder, *args, **kwargs):
         warnings.warn('This task is deprecated, use LoadTask instead', DeprecationWarning)
-        super().__init__(path, *args, **kwargs)
+        super().__init__(folder, *args, **kwargs)
 
 
 class AddFeature(EOTask):
