@@ -350,7 +350,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
             responses=responses,
             bbox=bbox,
             size=(size_x, size_y),
-            data_folder=self.cache_folder
+            data_folder=self.cache_folder,
+            config=self.config
         )
 
     def _extract_data(self, eopatch, images, shape):
@@ -469,7 +470,8 @@ class SentinelHubDemTask(SentinelHubInputBase):
             responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
             bbox=bbox,
             size=(size_x, size_y),
-            data_folder=self.cache_folder
+            data_folder=self.cache_folder,
+            config=self.config
         )
 
         return [request]
