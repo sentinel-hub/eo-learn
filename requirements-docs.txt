@@ -1,7 +1,7 @@
 Sphinx
 sphinx-rtd-theme
 nbsphinx
-ipython
+jupyter
 git+https://github.com/AleksMat/m2r@dev
 
 -e ./core
