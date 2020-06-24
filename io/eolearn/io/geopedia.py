@@ -15,9 +15,9 @@ import logging
 import numpy as np
 import rasterio.transform
 import rasterio.warp
+from sentinelhub import MimeType, CustomUrlParam, CRS, GeopediaWmsRequest
 
 from eolearn.core import EOTask, FeatureType
-from sentinelhub import MimeType, CustomUrlParam, CRS, GeopediaWmsRequest
 
 LOGGER = logging.getLogger(__name__)
 

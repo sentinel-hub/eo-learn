@@ -21,9 +21,9 @@ from abc import abstractmethod
 import dateutil
 import rasterio
 import numpy as np
+from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
-from sentinelhub import CRS, BBox
 
 LOGGER = logging.getLogger(__name__)
 

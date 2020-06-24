@@ -1,15 +1,16 @@
 """ An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
 """
 import collections
-from itertools import repeat
 import logging
 import datetime as dt
-import numpy as np
+from itertools import repeat
 
-from eolearn.core import EOPatch, EOTask, FeatureType
+import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataSource
 from sentinelhub.time_utils import iso_to_datetime
+
+from eolearn.core import EOPatch, EOTask, FeatureType
 
 LOGGER = logging.getLogger(__name__)
 

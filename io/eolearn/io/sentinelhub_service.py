@@ -16,10 +16,10 @@ import logging
 import warnings
 
 import numpy as np
-from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
-
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
 from sentinelhub.exceptions import SHDeprecationWarning
+
+from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 
 LOGGER = logging.getLogger(__name__)
 
