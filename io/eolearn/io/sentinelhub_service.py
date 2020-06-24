@@ -128,19 +128,18 @@ class SentinelHubOGCInput(EOTask):
             size_x_name, size_y_name = 'width', 'height'
         else:
             size_x_name, size_y_name = 'resx', 'resy'
-        return {
-                   'layer': self.layer,
-                   'bbox': bbox if bbox is not None else self._get_parameter('bbox', eopatch),
-                   'time': time_interval,
-                   'time_difference': self._get_parameter('time_difference', eopatch),
-                   'maxcc': self._get_parameter('maxcc', eopatch),
-                   'image_format': self.image_format,
-                   'custom_url_params': self.custom_url_params,
-                   'data_source': self.data_source,
-                   'instance_id': self.instance_id,
-                   size_x_name: self._get_parameter('size_x', eopatch),
-                   size_y_name: self._get_parameter('size_y', eopatch)
-               }, service_type
+        return {'layer': self.layer,
+                'bbox': bbox if bbox is not None else self._get_parameter('bbox', eopatch),
+                'time': time_interval,
+                'time_difference': self._get_parameter('time_difference', eopatch),
+                'maxcc': self._get_parameter('maxcc', eopatch),
+                'image_format': self.image_format,
+                'custom_url_params': self.custom_url_params,
+                'data_source': self.data_source,
+                'instance_id': self.instance_id,
+                size_x_name: self._get_parameter('size_x', eopatch),
+                size_y_name: self._get_parameter('size_y', eopatch)
+                }, service_type
 
     def _add_data(self, eopatch, data):
         """ Adds downloaded data to EOPatch """

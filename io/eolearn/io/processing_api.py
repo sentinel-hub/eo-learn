@@ -16,6 +16,22 @@ LOGGER = logging.getLogger(__name__)
 
 
 def get_available_timestamps(bbox, config, data_source, maxcc, time_difference, time_interval):
+    """Helper function to search for all available timestamps, based on query parameters
+
+    :param bbox: Bounding box
+    :type bbox: BBox
+    :param time_interval: Time interval to query available satellite data from
+    type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
+    :param data_source: Source of requested satellite data.
+    :type data_source: DataSource
+    :param maxcc: Maximum cloud coverage.
+    :type maxcc: float
+    :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+    :type time_difference: datetime.timedelta
+    :param config: Sentinel Hub Config
+    :type config: SHConfig
+    :return: list of datetimes with available observations
+    """
     wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_source=data_source, maxcc=maxcc, config=config)
     dates = wfs.get_dates()
 
