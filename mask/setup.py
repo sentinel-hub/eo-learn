@@ -28,7 +28,7 @@ def get_version():
 
 setup(
     name='eo-learn-mask',
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     version=get_version(),
     description='A collection of masking utilities and EOTasks',
     long_description=get_long_description(),

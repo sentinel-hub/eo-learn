@@ -89,6 +89,9 @@ class SaveTask(IOTask):
         """
         :param path: root path where all EOPatches are saved
         :type path: str
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         :param features: A collection of features types specifying features of which type will be saved. By default
             all features will be saved.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
@@ -97,9 +100,6 @@ class SaveTask(IOTask):
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
-        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
-        :type filesystem: fs.base.FS or None
         """
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=True)
@@ -133,15 +133,15 @@ class LoadTask(IOTask):
     """
     def __init__(self, path, filesystem=None, **kwargs):
         """
-        :param folder: root directory where all EOPatches are saved
-        :type folder: str
+        :param path: root directory where all EOPatches are saved
+        :type path: str
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
+            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+        :type filesystem: fs.base.FS or None
         :param features: A collection of features to be loaded. By default all features will be loaded.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
-        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
-        :type filesystem: fs.base.FS or None
         """
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False)
@@ -411,7 +411,7 @@ class MapFeatureTask(EOTask):
                                      np.max,                    # a function to apply to each feature
                                      axis=0)                    # function's kwargs
 
-            result = multiply(patch)
+            result = maximum(patch)
     """
     def __init__(self, input_features, output_features, map_function=None, **kwargs):
         """
@@ -476,7 +476,7 @@ class ZipFeatureTask(EOTask):
                                   (FeatureType.MASK, 'm1'),                # output feature
                                   lambda f0, f1, f2: f0 / (f1 + f2))       # a function to apply to each feature
 
-            result = multiply(patch)
+            result = calc(patch)
 
         Example using a np.maximum and it's kwargs passed as arguments to the ZipFeatureTask:
 
@@ -487,7 +487,7 @@ class ZipFeatureTask(EOTask):
                                      np.maximum,                        # a function to apply to each feature
                                      dtype=np.float64)                  # function's kwargs
 
-            result = multiply(patch)
+            result = maximum(patch)
     """
     def __init__(self, input_features, output_feature, zip_function=None, **kwargs):
         """

@@ -16,7 +16,7 @@ from collections import OrderedDict
 from logging import Filter
 
 import numpy as np
-from geopandas import GeoDataFrame
+import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
@@ -27,8 +27,11 @@ LOGGER = logging.getLogger(__name__)
 class LogFileFilter(Filter):
     """ Filters log messages passed to log file
     """
-
     def __init__(self, thread_name, *args, **kwargs):
+        """
+        :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
+        :type thread_name: str or None
+        """
         self.thread_name = thread_name
         super().__init__(*args, **kwargs)
 
@@ -389,7 +392,7 @@ def deep_eq(fst_obj, snd_obj):
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
 
-    if isinstance(fst_obj, GeoDataFrame):
+    if isinstance(fst_obj, gpd.GeoDataFrame):
         try:
             assert_geodataframe_equal(fst_obj, snd_obj)
             return True

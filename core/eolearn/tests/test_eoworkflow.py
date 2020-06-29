@@ -212,10 +212,10 @@ class TestUniqueIdGenerator(unittest.TestCase):
 
         id_gen = _UniqueIdGenerator()
         for _ in range(_UniqueIdGenerator.MAX_UUIDS):
-            id_gen.next()
+            id_gen.get_next()
 
         with self.assertRaises(MemoryError):
-            id_gen.next()
+            id_gen.get_next()
 
 
 if __name__ == '__main__':

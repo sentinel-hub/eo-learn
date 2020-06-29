@@ -65,7 +65,7 @@ class TestEOPatchIO(unittest.TestCase):
             'values': [1],
             'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7)],
             'geometry': [eopatch.bbox.geometry]
-        }, crs={'init': eopatch.bbox.crs.epsg})
+        }, crs=eopatch.bbox.crs.pyproj_crs())
 
         cls.eopatch = eopatch
 
@@ -142,6 +142,20 @@ class TestEOPatchIO(unittest.TestCase):
                 self.assertEqual(self.eopatch, eopatch2)
                 eopatch3 = EOPatch.load('/', filesystem=temp_fs, lazy_loading=True, features=features)
                 self.assertNotEqual(self.eopatch, eopatch3)
+
+    def test_save_add_only_features(self):
+        features = [
+            (FeatureType.DATA_TIMELESS, 'mask'),
+            FeatureType.MASK,
+            FeatureType.VECTOR,
+            (FeatureType.SCALAR, ...),
+            (FeatureType.META_INFO, 'something'),
+            FeatureType.BBOX
+        ]
+
+        for fs_loader in self.filesystem_loaders:
+            with fs_loader() as temp_fs:
+                self.eopatch.save('/', filesystem=temp_fs, features=features, overwrite_permission=0)
 
     def test_overwrite_failure(self):
         eopatch = EOPatch()
