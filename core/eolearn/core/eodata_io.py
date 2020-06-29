@@ -40,7 +40,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     if overwrite_permission is OverwritePermission.ADD_ONLY or \
             (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
-        fs_features = list(walk_filesystem(filesystem, patch_location, features))
+        fs_features = list(walk_filesystem(filesystem, patch_location))
     else:
         fs_features = []
 
@@ -102,7 +102,7 @@ def walk_filesystem(filesystem, patch_location, features=...):
         elif ftype not in queried_features and (fname is ... or fname not in existing_features[ftype]):
             queried_features.add(ftype)
             if ... not in existing_features[ftype]:
-                raise IOError('There is not {} in saved EOPatch'.format(ftype))
+                raise IOError('There are no features of type {} in saved EOPatch'.format(ftype))
 
             for feature_name, path in walk_feature_type_folder(filesystem, existing_features[ftype][...]):
                 existing_features[ftype][feature_name] = path

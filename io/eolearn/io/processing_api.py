@@ -1,13 +1,13 @@
 """ An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
 """
-import json
+import collections
 import logging
 import datetime as dt
-import numpy as np
+from itertools import repeat
 
-from sentinelhub import WebFeatureService, MimeType, SentinelHubDownloadClient, DownloadRequest, SHConfig,\
+import numpy as np
+from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataSource
-import sentinelhub.sentinelhub_request as shr
 from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -15,9 +15,37 @@ from eolearn.core import EOPatch, EOTask, FeatureType
 LOGGER = logging.getLogger(__name__)
 
 
+def get_available_timestamps(bbox, config, data_source, maxcc, time_difference, time_interval):
+    """Helper function to search for all available timestamps, based on query parameters
+
+    :param bbox: Bounding box
+    :type bbox: BBox
+    :param time_interval: Time interval to query available satellite data from
+    type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
+    :param data_source: Source of requested satellite data.
+    :type data_source: DataSource
+    :param maxcc: Maximum cloud coverage.
+    :type maxcc: float
+    :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+    :type time_difference: datetime.timedelta
+    :param config: Sentinel Hub Config
+    :type config: SHConfig
+    :return: list of datetimes with available observations
+    """
+    wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_source=data_source, maxcc=maxcc, config=config)
+    dates = wfs.get_dates()
+
+    if len(dates) == 0:
+        raise ValueError("No available images for requested time range: {}".format(time_interval))
+
+    dates = sorted(dates)
+    return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > time_difference]
+
+
 class SentinelHubInputBase(EOTask):
     """ Base class for Processing API input tasks
     """
+
     def __init__(self, data_source, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
         """
         :param data_source: Source of requested satellite data.
@@ -42,26 +70,15 @@ class SentinelHubInputBase(EOTask):
         self.config = config or SHConfig()
         self.max_threads = max_threads
         self.data_source = data_source
-
-        self.request_args = dict(
-            url=self.config.get_sh_processing_api_url(),
-            headers={"accept": "application/tar", 'content-type': 'application/json'},
-            data_folder=cache_folder,
-            hash_save=bool(cache_folder),
-            request_type='POST',
-            data_type=MimeType.TAR
-        )
+        self.cache_folder = cache_folder
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
         """ Main execute method for the Processing API tasks
         """
 
-        if eopatch is not None and (bbox or time_interval):
-            raise ValueError('Either an eopatch must be provided or bbox and time interval, not both.')
+        eopatch = eopatch or EOPatch()
 
-        if eopatch is None:
-            eopatch = EOPatch()
-            eopatch.bbox = bbox
+        self._check_and_set_eopatch_bbox(bbox, eopatch)
 
         if self.size is not None:
             size_x, size_y = self.size
@@ -70,17 +87,17 @@ class SentinelHubInputBase(EOTask):
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamp = self._get_timestamp(time_interval, bbox)
+            timestamp = self._get_timestamp(time_interval, eopatch.bbox)
         else:
-            timestamp = None
+            timestamp = eopatch.timestamp
 
         if eopatch.timestamp:
             self.check_timestamp_difference(timestamp, eopatch.timestamp)
         elif timestamp:
             eopatch.timestamp = timestamp
 
-        payloads = self._build_payloads(bbox, size_x, size_y, timestamp, time_interval)
-        requests = [DownloadRequest(post_values=payload, **self.request_args) for payload in payloads]
+        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
+        requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
         client = SentinelHubDownloadClient(config=self.config)
@@ -101,6 +118,18 @@ class SentinelHubInputBase(EOTask):
         return eopatch
 
     @staticmethod
+    def _check_and_set_eopatch_bbox(bbox, eopatch):
+        if eopatch.bbox is None:
+            if bbox is None:
+                raise ValueError('Either the eopatch or the task must provide valid bbox.')
+            eopatch.bbox = bbox
+            return
+
+        if bbox is None or eopatch.bbox == bbox:
+            return
+        raise ValueError('Either the eopatch or the task must provide bbox, or they must be the same.')
+
+    @staticmethod
     def check_timestamp_difference(timestamp1, timestamp2):
         """ Raises an error if the two timestamps are not the same
         """
@@ -117,10 +146,10 @@ class SentinelHubInputBase(EOTask):
         """
         raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build payloads for the requests to the service
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
         """
-        raise NotImplementedError("The _build_payloads method should be implemented by the subclass.")
+        raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
     def _get_timestamp(self, time_interval, bbox):
         """ Get the timestamp array needed as a parameter for downloading the images
@@ -131,9 +160,30 @@ class SentinelHubInputBase(EOTask):
         """
 
 
+ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
+
+
 class SentinelHubInputTask(SentinelHubInputBase):
     """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
+
+    PREDEFINED_BAND_TYPES = {
+        ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [
+            "dataMask", "CLM"
+        ],
+        ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
+            "SCL", "SNW", "CLD", "CLP"
+        ],
+        ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
+            "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "B13"
+        ],
+        ProcApiType("other", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA): [
+            "sunAzimuthAngles", "sunZenithAngles", "viewAzimuthMean", "viewZenithMean"
+        ]
+    }
+
+    CUSTOM_BAND_TYPE = ProcApiType("custom", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
+
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
                  bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent'):
@@ -186,37 +236,54 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         self.mosaicking_order = mosaicking_order
 
-        self.bands_feature = next(self._parse_features(bands_feature)()) if bands_feature else None
+        self.requested_bands = dict()
 
-        if bands is not None:
-            self.bands = bands
-        elif bands_feature is not None:
-            self.bands = data_source.bands()
-        else:
-            self.bands = []
+        if bands_feature:
+            bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
 
-        if additional_data is None:
-            self.additional_data = []
-        else:
-            self.additional_data = list(self._parse_features(additional_data, new_names=True)())
+            if not bands and data_source in [DataSource.SENTINEL2_L1C, DataSource.SENTINEL2_L2A]:
+                bands = data_source.bands()
+            elif data_source.is_custom() and not bands:
+                raise ValueError("For custom data sources 'bands' must be provided as an argument.")
 
-        self.all_bands = self.bands + [f_name for _, f_name, _ in self.additional_data]
+            self._add_request_bands(self.requested_bands, bands)
+
+        self.bands_feature = bands_feature
+
+        if additional_data is not None:
+            additional_data = list(self._parse_features(additional_data, new_names=True)())
+            self._add_request_bands(self.requested_bands, (band for ftype, band, new_name in additional_data))
+
+        self.additional_data = additional_data
+
+    @staticmethod
+    def _add_request_bands(request_dict, added_bands):
+        predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
+
+        for band in added_bands:
+            found = next(((btype, band) for btype, bands in predefined_types if band in bands), None)
+            api_type, band = found or (SentinelHubInputTask.CUSTOM_BAND_TYPE, band)
+
+            if api_type not in request_dict:
+                request_dict[api_type] = []
+
+            request_dict[api_type].append(band)
 
     def generate_evalscript(self):
         """ Generate the evalscript to be passed with the request, based on chosen bands
         """
         evalscript = """
+            //VERSION=3
+
             function setup() {{
                 return {{
                     input: [{{
-                        bands: {bands},
-                        units: "DN"
+                        bands: [{bands}],
+                        units: [{units}]
                     }}],
-                    output: {{
-                        id:"default",
-                        bands: {num_bands},
-                        sampleType: SampleType.UINT16
-                    }}
+                    output: [
+                        {outputs}
+                    ]
                 }}
             }}
 
@@ -225,13 +292,41 @@ class SentinelHubInputTask(SentinelHubInputBase):
             }}
 
             function evaluatePixel(sample) {{
-                return [{samples}]
+                return {samples}
             }}
         """
 
-        samples = ', '.join(['sample.{}'.format(band) for band in self.all_bands])
+        outputs = [
+            "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
+                id='\"{}\"'.format(btype.id), num_bands=len(bands), sample_type=btype.sample_type
+            )
+            for btype, bands in self.requested_bands.items()
+        ]
 
-        return evalscript.format(bands=json.dumps(self.all_bands), num_bands=len(self.all_bands), samples=samples)
+        samples = [
+            (btype.id, '[{samples}]'.format(samples=', '.join("sample.{}".format(band) for band in bands)))
+            for btype, bands in self.requested_bands.items()
+        ]
+
+        # return value of the evaluatePixel has to be a list if we're returning just one output, and a dict otherwise
+        # an issue has been reported to the service team and this might get fixed
+        if len(samples) == 1:
+            _, sample_bands = samples[0]
+            samples = sample_bands
+        else:
+            samples = ', '.join('{band_id}: {bands}'.format(band_id=band_id, bands=bands) for band_id, bands in samples)
+            samples = '{{{samples}}};'.format(samples=samples)
+
+        bands = ["\"{}\"".format(band) for bands in self.requested_bands.values() for band in bands]
+
+        units = (unit.unit for btype, bands in self.requested_bands.items() for unit, band in zip(repeat(btype), bands))
+        units = ["\"{}\"".format(unit) for unit in units]
+
+        evalscript = evalscript.format(
+            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=samples
+        )
+
+        return evalscript
 
     def _get_timestamp(self, time_interval, bbox):
         """ Get the timestamp array needed as a parameter for downloading the images
@@ -239,89 +334,92 @@ class SentinelHubInputTask(SentinelHubInputBase):
         if self.single_scene:
             return [time_interval[0]]
 
-        wfs = WebFeatureService(
-            bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc
-        )
+        return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_source=self.data_source,
+                                        maxcc=self.maxcc, time_difference=self.time_difference, config=self.config)
 
-        dates = wfs.get_dates()
-
-        if len(dates) == 0:
-            raise ValueError("No available images for requested time range: {}".format(time_interval))
-
-        dates = sorted(dates)
-
-        return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
-
-    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build payloads for the requests to the service
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
         """
         if self.single_scene:
             dates = [(iso_to_datetime(time_interval[0]), iso_to_datetime(time_interval[1]))]
         else:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
-        return [self._request_payload(date1, date2, bbox, size_x, size_y) for date1, date2 in dates]
+        return [self._create_sh_request(date1, date2, bbox, size_x, size_y) for date1, date2 in dates]
 
-    def _request_payload(self, date_from, date_to, bbox, size_x, size_y):
-        """ Build the payload dictionary for the request
+    def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y):
+        """ Create an instance of SentinelHubRequest
         """
-        time_from, time_to = date_from.isoformat() + 'Z', date_to.isoformat() + 'Z'
+        responses = [SentinelHubRequest.output_response(btype.id, MimeType.TIFF) for btype in self.requested_bands]
+        responses.append(SentinelHubRequest.output_response('userdata', MimeType.JSON))
 
-        responses = [shr.response('default', MimeType.TIFF.get_string()), shr.response('userdata', 'application/json')]
-
-        data = shr.data(time_from=time_from, time_to=time_to, data_type=self.data_source.api_identifier())
-        data['dataFilter']['maxCloudCoverage'] = int(self.maxcc * 100)
-        data['dataFilter']['mosaickingOrder'] = self.mosaicking_order
-
-        return shr.body(
-            request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
-            request_data=[data],
-            request_output=shr.output(size_x=size_x, size_y=size_y, responses=responses),
-            evalscript=self.generate_evalscript()
+        return SentinelHubRequest(
+            evalscript=self.generate_evalscript(),
+            input_data=[
+                SentinelHubRequest.input_data(
+                    data_source=self.data_source,
+                    time_interval=(date_from, date_to),
+                    mosaicking_order=self.mosaicking_order,
+                    maxcc=self.maxcc
+                )
+            ],
+            responses=responses,
+            bbox=bbox,
+            size=(size_x, size_y),
+            data_folder=self.cache_folder,
+            config=self.config
         )
 
     def _extract_data(self, eopatch, images, shape):
         """ Extract data from the received images and assign them to eopatch features
         """
+        if self.additional_data:
+            self._extract_additional_features(eopatch, images, shape)
 
-        images = ((img['default.tif'], img['userdata.json']) for img in images)
-        images = [(img, meta.get('norm_factor', 0)) for img, meta in images]
+        if self.bands_feature:
+            self._extract_bands_feature(eopatch, images, shape)
 
-        for f_type, f_name_src, f_name_dst in self.additional_data:
-            eopatch[(f_type, f_name_dst)] = self._extract_additional_data(images, f_type, f_name_src, shape)
+        return eopatch
 
-        if self.bands:
-            self._extract_bands(eopatch, images, shape)
+    def _extract_additional_features(self, eopatch, images, shape):
+        feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
+        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data', 'other']):
+            for band in bands:
+                eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
 
-    def _extract_additional_data(self, images, f_type, f_name, shape):
-        """ extract additional_data from the received images each as a separate feature
+    def _extract_bands_feature(self, eopatch, images, shape):
+        """ Extract the bands feature arrays and concatenate them along the last axis
         """
-        type_dict = {
-            FeatureType.MASK: np.bool
-        }
+        tifs = self._iter_tifs(images, ['bands', 'custom'])
+        norms = [img['userdata.json'].get('norm_factor', 0) for img in images]
 
-        dst_type = type_dict.get(f_type, np.uint16)
+        itr = [(btype, images, bands, bands.index(band)) for btype, images, bands in tifs for band in bands]
+        bands = [self._extract_array(images, idx, shape, self.bands_dtype, norms) for btype, images, band, idx in itr]
 
-        idx = self.all_bands.index(f_name)
-        feature_arrays = [np.atleast_3d(img)[..., idx] for img, norm_factor in images]
-
-        return np.asarray(feature_arrays, dtype=dst_type).reshape(*shape, 1)
-
-    def _extract_bands(self, eopatch, images, shape):
-        num_bands = len(self.bands)
-
-        bands = [img[..., :num_bands].astype(self.bands_dtype) for img, _ in images]
-        norms = [norm_factor for _, norm_factor in images]
-
-        if self.bands_dtype == np.int16:
+        if self.bands_dtype == np.uint16:
             norms = np.asarray(norms).reshape(shape[0], 1).astype(np.float32)
             eopatch[(FeatureType.SCALAR, 'NORM_FACTORS')] = norms
-        else:
-            bands = [np.round(band * norm, 4) for band, norm in zip(bands, norms)]
 
-        eopatch[self.bands_feature] = np.asarray(bands).reshape(*shape, num_bands)
+        eopatch[self.bands_feature] = np.concatenate(bands, axis=-1)
+
+    def _iter_tifs(self, tars, band_types):
+        rtypes = (btype for btype in self.requested_bands if btype.id in band_types)
+        return ((btype, [tar[btype.id + '.tif'] for tar in tars], self.requested_bands[btype]) for btype in rtypes)
+
+    @staticmethod
+    def _extract_array(tifs, idx, shape, dtype, norms=None):
+        """ Extract a numpy array from the received tifs and normalize it if normalization factors are provided
+        """
+
+        feature_arrays = (np.atleast_3d(img)[..., idx] for img in tifs)
+        if norms and dtype == np.float32:
+            feature_arrays = (np.round(array * norm, 4) for array, norm in zip(feature_arrays, norms))
+
+        return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
 
     def _add_meta_info(self, eopatch):
+        """ Add any additional meta data to the eopatch
+        """
         eopatch.meta_info['maxcc'] = self.maxcc
         eopatch.meta_info['time_difference'] = self.time_difference
 
@@ -329,6 +427,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 class SentinelHubDemTask(SentinelHubInputBase):
     """ A processing API input task that downloads the digital elevation model
     """
+
     def __init__(self, dem_feature, size=None, resolution=None, cache_folder=None, config=None,
                  max_threads=None):
         """
@@ -359,10 +458,12 @@ class SentinelHubDemTask(SentinelHubInputBase):
 
         self.dem_feature = next(feature_parser())
 
-    def _build_payloads(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build payloads for the requests to the service
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
         """
         evalscript = """
+            //VERSION=3
+
             function setup() {
                 return {
                     input: ["DEM"],
@@ -379,19 +480,20 @@ class SentinelHubDemTask(SentinelHubInputBase):
             }
         """
 
-        responses = [shr.response('default', 'image/tiff'), shr.response('userdata', 'application/json')]
-        request_body = shr.body(
-            request_bounds=shr.bounds(crs=bbox.crs.opengis_string, bbox=list(bbox)),
-            request_data=[{"type": "DEM"}],
-            request_output=shr.output(size_x=size_x, size_y=size_y, responses=responses),
-            evalscript=evalscript
+        request = SentinelHubRequest(
+            evalscript=evalscript,
+            input_data=[SentinelHubRequest.input_data(data_source=self.data_source)],
+            responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
+            bbox=bbox,
+            size=(size_x, size_y),
+            data_folder=self.cache_folder,
+            config=self.config
         )
 
-        return [request_body]
+        return [request]
 
     def _extract_data(self, eopatch, images, shape):
         """ Extract data from the received images and assign them to eopatch features
         """
-        tif = images[0]['default.tif']
-
+        tif = images[0]
         eopatch[self.dem_feature] = tif[..., np.newaxis].astype(np.int16)

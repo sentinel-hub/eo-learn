@@ -73,11 +73,7 @@ class EOWorkflowVisualization:
 
         dep_to_dot_name = {}
         for dot_name, deps in dot_name_to_deps.items():
-            if len(deps) == 1:
-                dep_to_dot_name[deps[0]] = dot_name
-                continue
-
             for idx, dep in enumerate(deps):
-                dep_to_dot_name[dep] = dot_name + str(idx)
+                dep_to_dot_name[dep] = dep.get_custom_name(idx)
 
         return dep_to_dot_name
