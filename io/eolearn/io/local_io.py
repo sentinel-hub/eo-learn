@@ -87,8 +87,7 @@ class ExportToTiff(BaseLocalIo):
     and M and N are the lengths of these indices, respectively
     """
     def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, crs=None, fail_on_missing=True,
-                 compress=None,
-                 **kwargs):
+                 compress=None, **kwargs):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
