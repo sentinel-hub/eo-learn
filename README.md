@@ -120,7 +120,7 @@ docker pull sentinelhub/eolearn:latest
 docker run -p 8888:8888 sentinelhub/eolearn:latest
 ```
 
-There is also an extended version of the image which also contains all example notebooks and data to get you started with `eo-learn`. Run it with: 
+An extended version of the `latest` image additionally contains all example notebooks and data to get you started with `eo-learn`. Run it with: 
 
 ```bash
 docker pull sentinelhub/eolearn:latest-examples
