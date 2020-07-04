@@ -229,8 +229,8 @@ def new_coordinates(data, crs, new_crs):
     y_values = data.coords['y'].values
     bbox = BBox((x_values[0], y_values[0], x_values[-1], y_values[-1]), crs=crs)
     bbox = bbox.transform(new_crs)
-    xmin, ymin = bbox.get_lower_left()
-    xmax, ymax = bbox.get_upper_right()
+    xmin, ymin = bbox.lower_left
+    xmax, ymax = bbox.upper_right
     new_xs = np.linspace(xmin, xmax, len(x_values))
     new_ys = np.linspace(ymin, ymax, len(y_values))
 
