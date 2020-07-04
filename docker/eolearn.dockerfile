@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
+RUN pip3 install --no-cache-dir shapely --no-binary :all:
 RUN pip3 install --no-cache-dir eo-learn
 RUN pip3 install --no-cache-dir \
     eo-learn-visualization[FULL] \
