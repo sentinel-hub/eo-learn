@@ -191,4 +191,3 @@ class OverwritePermission(Enum):
     ADD_ONLY = 0
     OVERWRITE_FEATURES = 1
     OVERWRITE_PATCH = 2
-    MERGE_FEATURES = 3

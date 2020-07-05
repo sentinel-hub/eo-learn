@@ -16,10 +16,11 @@ from collections import defaultdict
 import fs
 from fs.tempfs import TempFS
 import numpy as np
+import pandas as pd
 from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FileFormat, OverwritePermission
-from .utilities import FeatureParser
+from .utilities import FeatureParser, deep_eq
 
 
 def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_permission=OverwritePermission.ADD_ONLY,
@@ -38,7 +39,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
 
-    if overwrite_permission in (OverwritePermission.ADD_ONLY, OverwritePermission.MERGE_FEATURES) or \
+    if overwrite_permission is OverwritePermission.ADD_ONLY or \
             (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
         fs_features = list(walk_filesystem(filesystem, patch_location))
     else:
@@ -48,10 +49,6 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     if overwrite_permission is OverwritePermission.ADD_ONLY:
         _check_add_only_permission(eopatch_features, fs_features)
-
-    if overwrite_permission is OverwritePermission.MERGE_FEATURES and len(fs_features) > 0:
-        fs_eopatch = load_eopatch(eopatch.__copy__(), filesystem, patch_location, features, lazy_loading=True)
-        eopatch = merge_eopatch(eopatch_features, fs_features, eopatch, fs_eopatch)
 
     ftype_folder_map = {(ftype, fs.path.dirname(path)) for ftype, _, path in eopatch_features if not ftype.is_meta()}
     for ftype, folder in ftype_folder_map:
@@ -158,44 +155,135 @@ def walk_eopatch(eopatch, patch_location, features=...):
         else:
             yield ftype, fname, fs.path.combine(name_basis, fname)
 
-def merge_eopatch(eopatch_features, filesystem_features, eopatch, fs_eopatch):
+
+def merge_eopatch(eopatches=..., features=..., time_dependent_op='concatenate', timeless_op=None):
     """ Concatenate an existing eopatch in the filesystem and a new eopatch chronologically
     """
 
-    filesystem_features = {_to_lowercase(*feature) for feature in filesystem_features}
-    eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
+    _check_allowed_operations(time_dependent_op, timeless_op)
 
-    intersection = filesystem_features.intersection(eopatch_features)
-    if intersection:
-        time_periods = [(fs_eopatch.timestamp[0].strftime("%Y-%m-%d"), fs_eopatch.timestamp[-1].strftime("%Y-%m-%d")),
-                        (eopatch.timestamp[0].strftime("%Y-%m-%d"), eopatch.timestamp[-1].strftime("%Y-%m-%d"))]
+    timestamp_list = [eop.timestamp for eop in eopatches]
+    masks = [np.isin(time_post, list(set(time_post).difference(set(time_pre))))
+             for time_pre, time_post in zip(timestamp_list[:-1], timestamp_list[1:])]
 
-        mask = np.isin(fs_eopatch.timestamp, list(set(fs_eopatch.timestamp).difference(set(eopatch.timestamp))))
+    timestamp = eopatches[0].timestamp + [tstamp for eop, mask in zip(eopatches[1:], masks)
+                                          for tstamp, to_keep in zip(eop.timestamp, mask) if to_keep]
 
-        timestamp = eopatch.timestamp + [tstamp for tstamp, to_keep in zip(fs_eopatch.timestamp, mask) if to_keep]
-        sorted_indices = sorted(range(len(timestamp)), key=lambda k: timestamp[k])
+    eopatch_content = {(ftype, fname): [eopatches[0][(ftype, fname)]]
+                       for ftype, fname in FeatureParser(features)(eopatches[0])
+                       if ftype not in [FeatureType.BBOX, FeatureType.META_INFO]}
+    eopatch_content_concat = {(ftype, fname): [eopatches[0][(ftype, fname)]]
+                              for ftype, fname in FeatureParser(features)(eopatches[0])
+                              if ftype.is_time_dependent() and ftype != FeatureType.TIMESTAMP}
 
-        eopatch.timestamp = sorted(timestamp)
+    for eopatch, mask in zip(eopatches[1:], masks):
+        masked_time = [time for time, to_keep in zip(eopatch.timestamp, mask) if to_keep]
+        for ftype, fname in FeatureParser(features)(eopatch):
+            feat = (ftype, fname)
+            if ftype.is_time_dependent() and ftype not in [FeatureType.TIMESTAMP, FeatureType.VECTOR]:
+                if feat not in eopatch_content.keys():
+                    eopatch_content_concat[feat] = [eopatch[feat][mask]]
+                    eopatch_content[feat] = [eopatch[feat][~mask]]
+                else:
+                    if eopatch[feat].shape[1:] == eopatch_content[feat][-1].shape[1:]:
+                        eopatch_content_concat[feat].append(eopatch[feat][mask])
+                        eopatch_content[feat].append(eopatch[feat][~mask])
+                    else:
+                        raise ValueError(f'The arrays have mismatching n x m x b shapes for {feat}.')
+            elif ftype == FeatureType.VECTOR:
+                if feat not in eopatch_content.keys():
+                    eopatch_content_concat[feat] = [eopatch[feat][eopatch[feat]["TIMESTAMP"].isin(masked_time)]]
+                else:
+                    eopatch_content_concat[feat].append(eopatch[feat][eopatch[feat]["TIMESTAMP"].isin(masked_time)])
+            elif ftype.is_timeless() and ftype != FeatureType.VECTOR_TIMELESS:
+                if feat not in eopatch_content.keys():
+                    eopatch_content[feat] = [eopatch[feat]]
+                else:
+                    if eopatch[feat].shape == eopatch_content[feat][-1].shape:
+                        if deep_eq(eopatch[feat], eopatch_content[feat][-1]) and timeless_op:
+                            raise ValueError(f'Two identical timeless arrays were found for {feat}.')
+                        eopatch_content[feat].append(eopatch[feat])
+                    else:
+                        raise ValueError(f'The arrays have mismatching n x m x b shapes for {feat}.')
 
-        for ftype, _ in intersection:
-            if ftype in [FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR]:
-                for fname in eopatch[ftype]:
-                    feat = (ftype, fname)
-                    if eopatch[feat].shape[1:] == fs_eopatch[feat].shape[1:]:
-                        array = np.concatenate((eopatch[feat], fs_eopatch[feat][mask]), axis=0)
-                        eopatch[feat] = array[sorted_indices]
-            elif ftype in [FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS]:
-                for fname in eopatch[ftype]:
-                    feat = (ftype, fname)
-                    if eopatch[feat].shape == fs_eopatch[feat].shape:
-                        eopatch[feat] = np.nanmean((eopatch[feat], fs_eopatch[feat]), axis=0)\
-                            .astype(eopatch[feat].dtype)
+    duplicate_timestamp = eopatches[0].timestamp + [tstamp for eop, mask in zip(eopatches[1:], masks)
+                                                    for tstamp, to_keep in zip(eop.timestamp, mask) if not to_keep]
+    _check_duplicate_timestamps(eopatch_content, duplicate_timestamp)
 
-        eopatch.timestamp = sorted(timestamp)
-        eopatch.meta_info['info'] = 'Temporally merged from {} and {}'\
-            .format(*[', '.join(time_period) for time_period in time_periods])
+    sorted_indices = sorted(range(len(timestamp)), key=lambda k: timestamp[k])
+
+    eopatch = _perform_concat_operation(eopatches[0].__copy__(), eopatch_content_concat, sorted_indices)
+    eopatch = _perform_merge_operation(eopatch, eopatch_content, sorted_indices, time_dependent_op, timeless_op)
+
+    eopatch.timestamp = sorted(timestamp)
 
     return eopatch
+
+
+def _check_allowed_operations(time_dependent_op, timeless_op):
+    """ Checks that no the passed operations for time-dependent and timeless feature merging are allowed.
+    """
+    allowed_timeless_op = [None, "mean", "max", "min", "median"]
+    allowed_time_dependent_op = ["concatenate", "mean", "max", "min", "median"]
+    if timeless_op not in allowed_timeless_op:
+        raise ValueError('timeless_op "%s" is invalid, must be one of %s' % (timeless_op, allowed_timeless_op))
+    if time_dependent_op not in allowed_time_dependent_op:
+        raise ValueError('time_dependent_op "%s" is invalid, must be one of %s'
+                         % (time_dependent_op, allowed_time_dependent_op))
+
+
+def _perform_concat_operation(eopatch, eopatch_content_concat, sorted_indices):
+    """ Performs the temporal concatenation of non-duplicate timestamps of time-dependent features.
+    """
+    for feat, arrays in eopatch_content_concat.items():
+        ftype, _ = feat
+        if ftype != FeatureType.VECTOR and sorted_indices:
+            eopatch[feat] = np.concatenate(arrays, axis=0)[sorted_indices]
+        else:
+            eopatch[feat] = pd.concat([array for array in arrays if not array.empty]).sort_values('TIMESTAMP')
+
+    return eopatch
+
+
+def _perform_merge_operation(eopatch, eopatch_content, sorted_indices, time_dependent_op, timeless_op):
+    """ Performs the merging of duplicate timestamps of time-dependent features and of timeless features.
+    """
+    for feat, arrays in eopatch_content.items():
+        ftype, _ = feat
+        if ftype.is_time_dependent() and ftype != FeatureType.VECTOR and sorted_indices:
+            if time_dependent_op == 'mean':
+                eopatch[feat] = np.nanmean(arrays, axis=0)[sorted_indices]
+            elif time_dependent_op == 'median':
+                eopatch[feat] = np.nanmedian(arrays, axis=0)[sorted_indices]
+            elif time_dependent_op == 'min':
+                eopatch[feat] = np.nanmin(arrays, axis=0)[sorted_indices]
+            elif time_dependent_op == 'max':
+                eopatch[feat] = np.nanmax(arrays, axis=0)[sorted_indices]
+        if ftype.is_timeless():
+            if timeless_op == 'mean':
+                eopatch[feat] = np.nanmean(arrays, axis=0)
+            if timeless_op == 'median':
+                eopatch[feat] = np.nanmedian(arrays, axis=0)
+            if timeless_op == 'min':
+                eopatch[feat] = np.nanmin(arrays, axis=0)
+            if timeless_op == 'max':
+                eopatch[feat] = np.nanmax(arrays, axis=0)
+            else:
+                eopatch[feat] = arrays[0]
+
+    return eopatch
+
+
+def _check_duplicate_timestamps(eopatch_content, duplicate_timestamp):
+    """ Checks that no duplicate timestamps with different values exist
+    """
+    for dup_time in duplicate_timestamp:
+        for dup_feat in eopatch_content.keys():
+            arrays = [eopatch_content[feat][eopatch_content[(FeatureType.TIMESTAMP, ...)].index(dup_time)]
+                      for eop_idx, (feat, _) in enumerate(eopatch_content.items())
+                      if dup_time in eopatch_content[(FeatureType.TIMESTAMP, ...)] and dup_feat == feat]
+            if any(not deep_eq(x, y) for i, x in enumerate(arrays) for j, y in enumerate(arrays) if i != j):
+                raise ValueError(f'Two identical timestamps with different values were found for {dup_feat}.')
 
 
 def _check_add_only_permission(eopatch_features, filesystem_features):
