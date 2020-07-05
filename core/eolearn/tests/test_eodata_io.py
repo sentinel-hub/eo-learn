@@ -13,6 +13,7 @@ import os
 import tempfile
 
 import numpy as np
+import pandas as pd
 import fs
 from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
@@ -65,9 +66,9 @@ class TestEOPatchIO(unittest.TestCase):
         eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3], [1, 2, 3]])
         eopatch.scalar_timeless['my timeless scalar with spaces'] = np.array([1, 2, 3])
         eopatch.vector['my-df'] = GeoDataFrame({
-            'values': [1],
-            'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7)],
-            'geometry': [eopatch.bbox.geometry]
+            'values': [1, 2],
+            'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+            'geometry': [eopatch.bbox.geometry, eopatch.bbox.geometry]
         }, crs=eopatch.bbox.crs.pyproj_crs())
 
         cls.eopatch = eopatch
@@ -238,7 +239,7 @@ class TestEOPatchIO(unittest.TestCase):
             save_task.execute(empty_eop)
             self.assertTrue(os.path.exists(full_path))
 
-    def test_save_merge(self):
+    def test_merge(self):
         for fs_loader in self.filesystem_loaders:
             with fs_loader() as temp_fs:
                 self.eopatch.save('/', filesystem=temp_fs)
@@ -250,9 +251,12 @@ class TestEOPatchIO(unittest.TestCase):
                 eopatch2.timestamp = [datetime.datetime(2016, 12, 20, 10, 4, 7),
                                       datetime.datetime(2017, 1, 10, 10, 14, 5)]
 
-                eopatch2.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.MERGE_FEATURES)
+                eopatch2.vector['my-df'] = GeoDataFrame({'values': [3, 4],
+                                                         'TIMESTAMP': eopatch2.timestamp,
+                                                         'geometry': [eopatch2.bbox.geometry, eopatch2.bbox.geometry]},
+                                                        crs=eopatch2.bbox.crs.pyproj_crs())
 
-                fs_eopatch = EOPatch.load('/', filesystem=temp_fs)
+                merged_eopatch = self.eopatch.merge([eopatch2])
 
                 eop = self.eopatch.__copy__()
 
@@ -275,7 +279,10 @@ class TestEOPatchIO(unittest.TestCase):
                     .astype(self.eopatch.scalar_timeless['my timeless scalar with spaces'].dtype)
                 eop.timestamp = sorted(eopatch2.timestamp + self.eopatch.timestamp)
 
-                self.assertEqual(fs_eopatch, eopatch2)
+                eop.vector['my-df'] = pd.concat([self.eopatch.vector['my-df'], eopatch2.vector['my-df']])\
+                    .sort_values('TIMESTAMP')
+
+                self.assertEqual(merged_eopatch, eop)
 
 
 if __name__ == '__main__':
