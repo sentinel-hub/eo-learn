@@ -15,11 +15,36 @@ ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
 RUN pip3 install --no-cache-dir shapely --no-binary :all:
-RUN pip3 install --no-cache-dir eo-learn
+
+WORKDIR /tmp
+
+COPY core core
+COPY coregistration coregistration
+COPY features features
+COPY geometry geometry
+COPY io io
+COPY mask mask
+COPY ml_tools ml_tools
+COPY visualization visualization
+COPY setup.py README.md requirements-dev.txt ./
+
 RUN pip3 install --no-cache-dir \
-    eo-learn-visualization[FULL] \
+    ./core \
+    ./coregistration \
+    ./features \
+    ./geometry \
+    ./io \
+    ./mask \
+    ./ml_tools \
+    ./visualization \
+    .
+
+RUN pip3 install --no-cache-dir \
+    ./visualization[FULL] \
     rtree \
     jupyter
+
+RUN rm -r ./*
 
 ENV TINI_VERSION=v0.19.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
