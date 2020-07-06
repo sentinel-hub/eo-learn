@@ -1,3 +1,8 @@
+## [Version 0.7.6] - 2020-07-06
+- Added eo-learn dockerfiles and deployed official eo-learn docker images to [Docker Hub](https://hub.docker.com/r/sentinelhub/eolearn)
+- Added `compress` parameter to `ExportToTiff`, contributed by @atedstone
+- Minor fixes
+
 ## [Version 0.7.5] - 2020-06-24
 - Updated example notebooks - replaced OGC service tasks with Processing API service tasks
 - Deprecated tasks that download data from Sentinel Hub OGC service
