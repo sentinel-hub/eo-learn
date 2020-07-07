@@ -168,8 +168,11 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
 
     PREDEFINED_BAND_TYPES = {
+        ProcApiType("bool_mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
+            "dataMask"
+        ],
         ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [
-            "dataMask", "CLM"
+            "CLM"
         ],
         ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
             "SCL", "SNW", "CLD", "CLP"
@@ -236,7 +239,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         self.mosaicking_order = mosaicking_order
 
-        self.requested_bands = dict()
+        self.requested_bands = {}
 
         if bands_feature:
             bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
@@ -382,8 +385,10 @@ class SentinelHubInputTask(SentinelHubInputBase):
         return eopatch
 
     def _extract_additional_features(self, eopatch, images, shape):
+        """ Extracts additional features from response into an EOPatch
+        """
         feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
-        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data', 'other']):
+        for btype, tifs, bands in self._iter_tifs(images, ['bool_mask', 'mask', 'uint8_data', 'other']):
             for band in bands:
                 eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
 
