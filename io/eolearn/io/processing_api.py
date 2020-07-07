@@ -231,12 +231,6 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
-
-        mosaic_order_params = ["mostRecent", "leastRecent", "leastCC"]
-        if mosaicking_order not in mosaic_order_params:
-            msg = "{} is not a valid mosaickingOrder parameter, it should be one of: {}"
-            raise ValueError(msg.format(mosaicking_order, mosaic_order_params))
-
         self.mosaicking_order = mosaicking_order
 
         self.requested_bands = {}
