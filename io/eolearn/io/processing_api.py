@@ -172,10 +172,10 @@ class SentinelHubInputTask(SentinelHubInputBase):
             "dataMask"
         ],
         ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [
-            "CLM"
+            "CLM", "SCL"
         ],
         ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
-            "SCL", "SNW", "CLD", "CLP"
+            "SNW", "CLD", "CLP"
         ],
         ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
             "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "B13"

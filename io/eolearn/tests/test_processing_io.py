@@ -185,6 +185,9 @@ class TestProcessingIO(unittest.TestCase):
                 (FeatureType.MASK, 'dataMask', 'IS_DATA'),
                 (FeatureType.MASK, 'CLM'),
                 (FeatureType.MASK, 'SCL'),
+                (FeatureType.MASK, 'SNW'),
+                (FeatureType.MASK, 'CLD'),
+                (FeatureType.DATA, 'CLP'),
                 (FeatureType.DATA, 'viewAzimuthMean', 'view_azimuth_mean'),
                 (FeatureType.DATA, 'sunAzimuthAngles'),
                 (FeatureType.DATA, 'sunZenithAngles')
@@ -202,6 +205,9 @@ class TestProcessingIO(unittest.TestCase):
         is_data = eopatch[(FeatureType.MASK, 'IS_DATA')]
         clm = eopatch[(FeatureType.MASK, 'CLM')]
         scl = eopatch[(FeatureType.MASK, 'SCL')]
+        snw = eopatch[(FeatureType.MASK, 'SNW')]
+        cld = eopatch[(FeatureType.MASK, 'CLD')]
+        clp = eopatch[(FeatureType.DATA, 'CLP')]
         view_azimuth_mean = eopatch[(FeatureType.DATA, 'view_azimuth_mean')]
         sun_azimuth_angles = eopatch[(FeatureType.DATA, 'sunAzimuthAngles')]
         sun_zenith_angles = eopatch[(FeatureType.DATA, 'sunZenithAngles')]
@@ -215,6 +221,9 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(clm.shape == (4, height, width, 1))
         self.assertTrue(clm.dtype == np.uint8)
         self.assertTrue(scl.shape == (4, height, width, 1))
+        self.assertTrue(snw.shape == (4, height, width, 1))
+        self.assertTrue(cld.shape == (4, height, width, 1))
+        self.assertTrue(clp.shape == (4, height, width, 1))
         self.assertTrue(view_azimuth_mean.shape == (4, height, width, 1))
         self.assertTrue(sun_azimuth_angles.shape == (4, height, width, 1))
         self.assertTrue(sun_zenith_angles.shape == (4, height, width, 1))
