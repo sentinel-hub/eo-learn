@@ -52,8 +52,9 @@ class SentinelHubInputBase(EOTask):
         :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param config: An instance of SHConfig defining the service
@@ -195,8 +196,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names.
@@ -214,7 +216,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
         :param bands_dtype: dtype of the bands array
-        :type bands_dtype: np.dtype
+        :type bands_dtype: type
         :param single_scene: If true, the service will compute a single image for the given time interval using
                              mosaicking.
         :type single_scene: bool
@@ -434,8 +436,9 @@ class SentinelHubDemTask(SentinelHubInputBase):
         :type dem_feature: tuple(sentinelhub.FeatureType, str)
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param config: An instance of SHConfig defining the service
