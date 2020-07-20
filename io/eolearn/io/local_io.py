@@ -87,7 +87,7 @@ class ExportToTiff(BaseLocalIo):
     and M and N are the lengths of these indices, respectively
     """
     def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, crs=None, fail_on_missing=True,
-                 **kwargs):
+                 compress=None, **kwargs):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
@@ -104,6 +104,8 @@ class ExportToTiff(BaseLocalIo):
         :type crs: CRS or str or None
         :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
         :type fail_on_missing: bool
+        :param compress: the type of compression that rasterio should apply to exported image.
+        :type compress: str or None
         :param image_dtype: Type of data to be exported into tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of pixels of tiff image with no data in EOPatch
@@ -115,6 +117,7 @@ class ExportToTiff(BaseLocalIo):
         self.date_indices = date_indices
         self.crs = None if crs is None else CRS(crs)
         self.fail_on_missing = fail_on_missing
+        self.compress = compress
 
     def _prepare_image_array(self, eopatch, feature):
         """ Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
@@ -243,7 +246,8 @@ class ExportToTiff(BaseLocalIo):
                            width=dst_width, height=dst_height,
                            count=channel_count,
                            dtype=image_array.dtype, nodata=self.no_data_value,
-                           transform=dst_transform, crs=dst_crs) as dst:
+                           transform=dst_transform, crs=dst_crs,
+                           compress=self.compress) as dst:
 
             if dst_crs == src_crs:
                 dst.write(image_array)

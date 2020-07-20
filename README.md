@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/pypi/l/eo-learn.svg)](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE)
 [![Overall downloads](http://pepy.tech/badge/eo-learn)](https://pepy.tech/project/eo-learn)
 [![Last month downloads](https://pepy.tech/badge/eo-learn/month)](https://pepy.tech/project/eo-learn)
+[![Docker pulls](https://img.shields.io/docker/pulls/sentinelhub/eolearn.svg)](https://hub.docker.com/r/sentinelhub/eolearn)
 [![codecov](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
 <img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
@@ -25,7 +26,7 @@ to use any of the available tasks and is encouraged to improve the, develop new 
 
 **`eo-learn`** makes extraction of valuable information from satellite imagery as easy as defining a sequence of operations to be performed on satellite imagery. Image below illustrates a processing chain that maps water in satellite imagery by thresholding the Normalised Difference Water Index in user specified region of interest.
 
-![eo-learn-workflow0illustration](docs/source/figures/eo-learn-illustration.png)
+![](docs/source/figures/eo-learn-illustration.png)
 
 **`eo-learn`** _library acts as a bridge between Earth observation/Remote sensing field and Python ecosystem for data science and machine learning._ The library is written in Python and uses NumPy arrays to store and handle remote sensing data. Its aim is to make entry easier for non-experts to the field of remote sensing on one hand and bring the state-of-the-art tools for computer vision, machine learning, and deep learning existing in Python ecosystem to remote sensing experts.
 
@@ -109,6 +110,30 @@ conda install eo-learn-mask
 conda install eo-learn-ml-tools
 conda install eo-learn-visualization
 ```
+
+### Run with Docker
+
+A docker image with the latest released version of `eo-learn` is available at [Docker Hub](https://hub.docker.com/r/sentinelhub/eolearn). It provides a full installation of `eo-learn` together with a Jupyter notebook environment. You can pull and run it with:
+
+```bash
+docker pull sentinelhub/eolearn:latest
+docker run -p 8888:8888 sentinelhub/eolearn:latest
+```
+
+An extended version of the `latest` image additionally contains all example notebooks and data to get you started with `eo-learn`. Run it with: 
+
+```bash
+docker pull sentinelhub/eolearn:latest-examples
+docker run -p 8888:8888 sentinelhub/eolearn:latest-examples
+```
+
+Both docker images can also be built manually from GitHub repository:
+
+```bash
+docker build -f docker/eolearn.dockerfile . --tag=sentinelhub/eolearn:latest
+docker build -f docker/eolearn-examples.dockerfile . --tag=sentinelhub/eolearn:latest-examples
+```
+
 
 ## Documentation
 
