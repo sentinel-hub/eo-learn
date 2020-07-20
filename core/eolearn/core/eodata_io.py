@@ -16,6 +16,7 @@ from collections import defaultdict
 import fs
 from fs.tempfs import TempFS
 import numpy as np
+from geopandas import GeoDataFrame, GeoSeries
 from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FileFormat, OverwritePermission
@@ -255,7 +256,15 @@ class FeatureIO:
         """ Loads from a file and decodes content
         """
         if FileFormat.PICKLE.extension() in path:
-            return pickle.load(file)
+            data = pickle.load(file)
+
+            # There seems to be an issue in geopandas==0.8.1 where unpickling GeoDataFrames, which were saved with an
+            # old geopandas version, loads geometry column into a pandas.Series instead geopandas.GeoSeries. Because
+            # of that it is missing a crs attribute which is only attached to the entire GeoDataFrame
+            if isinstance(data, GeoDataFrame) and not isinstance(data.geometry, GeoSeries):
+                data = data.set_geometry('geometry')
+
+            return data
 
         if FileFormat.NPY.extension() in path:
             return np.load(file)

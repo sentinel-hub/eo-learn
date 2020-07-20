@@ -1,7 +1,7 @@
 attrs>=18.2.0
 python-dateutil
 numpy>=1.16
-geopandas>=0.5.0,<=0.7.0
+geopandas>=0.5.0,!=0.8.0
 sentinelhub>=3.0.2
 tqdm>=4.27
 boto3
