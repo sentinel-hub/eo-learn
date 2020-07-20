@@ -2,7 +2,7 @@ import unittest
 import os.path
 import numpy as np
 from eolearn.core import EOPatch, FeatureType
-from features.eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
+from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
 class TestDoublyLogisticApproximation(unittest.TestCase):
