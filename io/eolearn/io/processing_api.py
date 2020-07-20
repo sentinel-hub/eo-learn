@@ -164,6 +164,7 @@ class SentinelHubInputBase(EOTask):
 ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
 
+# pylint: disable=R0913
 class SentinelHubInputTask(SentinelHubInputBase):
     """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
@@ -190,7 +191,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
     def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
                  maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
-                 bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent'):
+                 bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent', aux_input_args=None):
         """
         :param data_source: Source of requested satellite data.
         :type data_source: DataSource
@@ -222,6 +223,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type single_scene: bool
         :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
         :type mosaicking_order: str
+        :param aux_input_args: a dictionary with auxiliary information for the input_data part of the SH request
+        :type aux_input_args: dict
         """
         super().__init__(
             data_source=data_source, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
@@ -234,6 +237,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
         self.mosaicking_order = mosaicking_order
+        self.aux_input_args = aux_input_args
 
         self.requested_bands = {}
 
@@ -359,7 +363,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
                     data_source=self.data_source,
                     time_interval=(date_from, date_to),
                     mosaicking_order=self.mosaicking_order,
-                    maxcc=self.maxcc
+                    maxcc=self.maxcc,
+                    other_args=self.aux_input_args
                 )
             ],
             responses=responses,
