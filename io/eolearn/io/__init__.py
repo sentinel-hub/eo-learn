@@ -9,4 +9,4 @@ from .geopedia import AddGeopediaFeature
 from .local_io import ExportToTiff, ImportFromTiff
 from .processing_api import SentinelHubInputTask, SentinelHubDemTask, SentinelHubInputBase, get_available_timestamps
 
-__version__ = '0.7.5'
+__version__ = '0.7.6'
