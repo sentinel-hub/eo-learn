@@ -78,6 +78,12 @@ class TestInterpolation(unittest.TestCase):
                                       result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
                                       img_median=0.59765935),
 
+            cls.InterpolationTestCase('linear-p', LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
+                                                                      mask_feature=(FeatureType.MASK, 'IS_VALID'),
+                                                                      unknown_value=10, interpolate_pixel_wise=True),
+                                      result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405,
+                                      img_median=0.59765935),
+
             cls.InterpolationTestCase('linear_change_timescale',
                                       LinearInterpolation('NDVI', result_interval=(0.0, 1.0),
                                                           mask_feature=(FeatureType.MASK, 'IS_VALID'),
@@ -104,6 +110,13 @@ class TestInterpolation(unittest.TestCase):
                                                                       mask_feature=(FeatureType.MASK, 'IS_VALID'),
                                                                       resample_range=('2017-01-01', '2017-02-01', 50),
                                                                       spline_degree=5),
+                                      result_len=1, img_min=-0.032482587, img_max=0.701796, img_mean=0.42080238,
+                                      img_median=0.42889267),
+
+            cls.InterpolationTestCase('bspline-p', BSplineInterpolation('NDVI', unknown_value=-3,
+                                                                        mask_feature=(FeatureType.MASK, 'IS_VALID'),
+                                                                        resample_range=('2017-01-01', '2017-02-01', 50),
+                                                                        spline_degree=5, interpolate_pixel_wise=True),
                                       result_len=1, img_min=-0.032482587, img_max=0.701796, img_mean=0.42080238,
                                       img_median=0.42889267),
 
