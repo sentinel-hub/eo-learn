@@ -164,11 +164,10 @@ class SentinelHubInputBase(EOTask):
 ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
 
-# pylint: disable=R0913
 class SentinelHubInputTask(SentinelHubInputBase):
     """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
-
+    # pylint: disable=too-many-arguments
     PREDEFINED_BAND_TYPES = {
         ProcApiType("bool_mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
             "dataMask"
