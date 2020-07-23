@@ -2,50 +2,50 @@ import unittest
 import os.path
 import numpy as np
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
+from features.eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
 class TestDoublyLogisticApproximation(unittest.TestCase):
-    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'TestInputs', 'TestPatch')
+    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
+                                       'TestEOPatch')
 
     @classmethod
     def setUpClass(cls):
         cls.patch = EOPatch.load(cls.TEST_PATCH_FILENAME)
-        cls._prepare_patch(cls.patch)
-        cls.patch = DoublyLogisticApproximationTask('ndvi',
-                                                    'TEST_OUT',
-                                                    mask_feature=(FeatureType.MASK, 'IS_VALID')
-                                                    ).execute(cls.patch)
-
-    @staticmethod
-    def _prepare_patch(patch):
-        patch.add_feature(FeatureType.DATA, 'ndvi', patch.data['ndvi'][:, 0, 0, 0].reshape(-1, 1, 1, 1))
-        patch.add_feature(FeatureType.MASK, 'IS_VALID',
-                          np.invert(patch.mask['IS_VALID'][:, 0, 0, 0].reshape(-1, 1, 1, 1)))
+        data = cls.patch.data['NDVI']
+        timestamps = cls.patch.timestamp
+        mask = cls.patch.mask['IS_VALID']
+        indices = list(np.nonzero([t.year == 2016 for t in timestamps])[0])
+        cls.patch = EOPatch()
+        cls.patch.timestamp = timestamps[indices[0]:(indices[-1] + 2)]
+        cls.patch.data['TEST'] = np.reshape(data[indices[0]:(indices[-1] + 2), 0, 0, 0], (-1, 1, 1, 1))
+        cls.patch.mask['IS_VALID'] = np.reshape(mask[indices[0]:(indices[-1] + 2), 0, 0, 0], (-1, 1, 1, 1))
+        cls.patch = DoublyLogisticApproximationTask(feature='TEST', valid_mask=(FeatureType.MASK, 'IS_VALID'),
+                                                    new_feature=f'TEST_OUT').execute(cls.patch)
 
     def test_parameters(self):
         c1, c2, a1, a2, a3, a4, a5 = self.patch.data_timeless['TEST_OUT'].squeeze()
         delta = 0.1
 
-        exp_c1 = -0.21
+        exp_c1 = 0.207
         self.assertAlmostEqual(c1, exp_c1, delta=delta)
 
-        exp_c2 = 0.09
+        exp_c2 = 0.464
         self.assertAlmostEqual(c2, exp_c2, delta=delta)
 
-        exp_a1 = 0.45
+        exp_a1 = 0.686
         self.assertAlmostEqual(a1, exp_a1, delta=delta)
 
-        exp_a2 = 0.15
+        exp_a2 = 0.222
         self.assertAlmostEqual(a2, exp_a2, delta=delta)
 
-        exp_a3 = 4.77
+        exp_a3 = 1.204
         self.assertAlmostEqual(a3, exp_a3, delta=delta)
 
-        exp_a4 = 0.15
+        exp_a4 = 0.406
         self.assertAlmostEqual(a4, exp_a4, delta=delta)
 
-        exp_a5 = 26.17
+        exp_a5 = 15.701
         self.assertAlmostEqual(a5, exp_a5, delta=delta)
 
 
