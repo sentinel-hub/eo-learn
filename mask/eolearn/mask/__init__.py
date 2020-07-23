@@ -7,5 +7,6 @@ from .masking import AddValidDataMaskTask, MaskFeature
 from .snow_mask import SnowMask, TheiaSnowMask
 from .utilities import resize_images
 from .mask_counting import ClassFrequencyTask
+from .edge_extraction import EdgeExtractionTask
 
 __version__ = '0.7.0'
