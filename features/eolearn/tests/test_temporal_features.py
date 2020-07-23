@@ -14,8 +14,9 @@ import numpy as np
 from datetime import date, timedelta
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask,\
-    AddSpatioTemporalFeaturesTask
+from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask, \
+    AddSpatioTemporalFeaturesTask, TemporalRollingWindowTask, \
+    SurfaceExtractionTask, MaxMeanLenTask
 
 
 def perdelta(start, end, delta):
@@ -163,6 +164,176 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         self.assertTrue(np.array_equal(new_eopatch.data_timeless['STF'][:, :, 3*c:4*c], 8*np.ones((h, w, c))))
         self.assertTrue(np.array_equal(new_eopatch.data_timeless['STF'][:, :, 4*c:5*c], 9*np.ones((h, w, c))))
 
+    def test_surface_extraction_task(self):
+        """Test case for computation of surface extraction task
+
+        Fictional ndvi is so that corner cases are considered. Both positive and negative derivative cases are tested.
+        """
+        eopatch = EOPatch(timestamp=list(perdelta(date(2020, 3, 1), date(2020, 3, 23), timedelta(days=6))))
+        # Fill EOPatch
+        ndvi = np.array([
+            [
+                [[1], [4], [5], [4]],
+                [[2], [3], [16], [11]],
+            ],
+            [
+                [[200], [3], [22], [5]],
+                [[6], [19], [8], [9]],
+            ],
+            [
+                [[-1], [4], [17], [4]],
+                [[20], [-3], [6], [11]],
+            ],
+            [
+                [[1], [4], [5], [4]],
+                [[2], [3], [16], [12]],
+            ],
+        ])
+        eopatch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
+
+        mask_feature = (FeatureType.MASK, 'derivative_mask')
+        in_feature = (FeatureType.DATA, 'NDVI')
+
+        task = SurfaceExtractionTask(in_feature, 'derivative', in_feature, mask_feature)
+        grad = np.gradient(eopatch[in_feature], np.asarray([x.toordinal() for x in eopatch.timestamp]), axis=0)
+        eopatch[mask_feature] = grad >= 0
+
+        pos_transition = [
+            [[1, 0], [1, 0], [0, 1], [0, 1]],
+            [[0, 1], [1, 0], [1, 0], [1, 0]]
+        ]
+        pos_der = [
+            [[-1, 0, 0], [57, 12, 0.08333333], [87, 6, 2.8333333], [33, 6, 0.16666666]],
+            [[30, 6, 0.6666666], [-1, 0, 0], [72, 6, 1.666666], [141, 12, 0.25]]
+        ]
+
+        out_patch = task(eopatch)
+        self.assertTrue(np.array_equal(out_patch.mask_timeless['derivative_transition'], np.array(pos_transition)))
+        self.assertTrue(np.allclose(out_patch.data_timeless['derivative'], np.array(pos_der)))
+
+        # Negative
+        eopatch[mask_feature] = grad <= 0
+        out_patch = task(eopatch)
+
+        neg_transition = [
+            [[1, 1], [0, 1], [1, 0], [1, 0]],
+            [[1, 0], [1, 1], [0, 1], [0, 1]]
+        ]
+        neg_der = [
+            [[603, 6, -33.5], [27, 6, -0.1666666], [72, 6, -2], [63, 12, -0.08333333]],
+            [[72, 6, -3], [54, 6, -3.6666666], [78, 6, -1.3333333], [66, 6, -0.333333]],
+        ]
+
+        self.assertTrue(np.array_equal(out_patch.mask_timeless['derivative_transition'], np.array(neg_transition)))
+        self.assertTrue(np.allclose(out_patch.data_timeless['derivative'], np.array(neg_der)))
+
+    def test_max_mean_len_task(self):
+        """Test case for computation of max mean len task
+
+        Fictional ndvi is so that corner cases are considered.
+        """
+        eopatch = EOPatch(timestamp=list(perdelta(date(2020, 3, 1), date(2020, 3, 23), timedelta(days=6))))
+        # Fill EOPatch
+        ndvi = np.array([
+            [
+                [[0], [4], [5], [4]],
+                [[2], [3], [16], [11]],
+            ],
+            [
+                [[0], [3], [22], [5]],
+                [[6], [19], [8], [9]],
+            ],
+            [
+                [[0], [4], [17], [4]],
+                [[20], [-3], [6], [11]],
+            ],
+            [
+                [[0], [4], [5], [4]],
+                [[2], [3], [16], [12]],
+            ],
+        ])
+        eopatch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
+        eopatch.add_feature(FeatureType.DATA_TIMELESS, 'NDVI_limit', np.mean(ndvi, 0))
+        in_feature = (FeatureType.DATA, 'NDVI')
+
+        task = MaxMeanLenTask(in_feature, (FeatureType.DATA_TIMELESS, 'NDVI_limit'), 'ndvi',
+                              0.9, -1)
+
+        eopatch = task(eopatch)
+
+        mean_len = [
+            [[18], [18], [18], [18], ],
+            [[18], [6], [18], [18], ],
+        ]
+        mean_surf = [
+            [[18], [84], [282], [96], ],
+            [[186], [72], [198], [207], ],
+        ]
+        self.assertTrue(np.array_equal(mean_len, eopatch.data_timeless['ndvi_max_mean_len']))
+        self.assertTrue(np.array_equal(mean_surf, eopatch.data_timeless['ndvi_max_mean_surf']))
+
+    def test_temporal_sliding_window_task(self):
+        """Test case for computation of temporal sliding window
+
+        Fictional ndvi is so that corner cases are considered.
+        """
+        # EOPatch
+        eopatch = EOPatch()
+        # Fill EOPatch
+        ndvi = np.array([
+            [
+                [[1], [4], [5], [4]],
+                [[2], [3], [16], [11]],
+            ],
+            [
+                [[200], [3], [22], [5]],
+                [[6], [19], [8], [9]],
+            ],
+            [
+                [[-1], [4], [17], [4]],
+                [[20], [-3], [6], [11]],
+            ],
+            [
+                [[1], [4], [5], [4]],
+                [[2], [3], [16], [12]],
+            ],
+        ])
+        eopatch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
+
+        max_task = TemporalRollingWindowTask((FeatureType.DATA, 'NDVI'),
+                                             (FeatureType.DATA_TIMELESS, 'NDVI_rolling_max'), np.max, 2)
+        min_task = TemporalRollingWindowTask((FeatureType.DATA, 'NDVI'),
+                                             (FeatureType.DATA_TIMELESS, 'NDVI_rolling_min'), np.min, 2)
+        mean_task = TemporalRollingWindowTask((FeatureType.DATA, 'NDVI'),
+                                              (FeatureType.DATA_TIMELESS, 'NDVI_rolling_mean'), np.min, 2)
+        eopatch = (max_task * min_task * mean_task)(eopatch)
+
+        correct_max = np.array([
+            [[200, 200, 1], [4, 4, 4], [22, 22, 17], [5, 5, 4]],
+            [[6, 20, 20], [19, 19, 3], [16, 8, 16], [11, 11, 12]],
+        ])
+        correct_min = np.array([
+            [[1, -1, -1], [3, 3, 4], [5, 17, 5], [4, 4, 4]],
+            [[2, 6, 2], [3, -3, -3], [8, 6, 6], [9, 9, 11]],
+        ])
+        correct_mean = [
+            [[1, -1, -1], [3, 3, 4], [5, 17, 5], [4, 4, 4], ],
+            [[2, 6, 2], [3, - 3, - 3], [8, 6, 6], [9, 9, 11], ]
+        ]
+
+        self.assertTrue(np.array_equal(eopatch.data_timeless["NDVI_rolling_max"], correct_max))
+        self.assertTrue(np.array_equal(eopatch.data_timeless["NDVI_rolling_min"], correct_min))
+        self.assertTrue(np.array_equal(eopatch.data_timeless["NDVI_rolling_mean"], correct_mean))
+
+        task = TemporalRollingWindowTask((FeatureType.DATA, 'NDVI'), (FeatureType.DATA_TIMELESS, 'temporal_max'),
+                                         np.max, 1)
+        eopatch = task(eopatch)
+        self.assertTrue(np.array_equal(eopatch.data_timeless['temporal_max'], np.moveaxis(ndvi, 0, 2).squeeze(-1)))
+
+        task = TemporalRollingWindowTask((FeatureType.DATA, 'NDVI'), (FeatureType.DATA_TIMELESS, 'temporal_max'),
+                                         np.max, 4)
+        eopatch = task(eopatch)
+        self.assertTrue(np.array_equal(eopatch.data_timeless['temporal_max'], np.max(ndvi, axis=0)))
 
 if __name__ == '__main__':
     unittest.main()
