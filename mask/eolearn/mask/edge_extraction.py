@@ -138,7 +138,7 @@ class EdgeExtractionTask(EOTask):
                 all_edges += feature_edge * adjust_weights
             else:
                 all_edges += feature_edge
-                
+
         all_edges = np.sum(all_edges, 0)
         all_edges = all_edges / (timestamps * no_feat)
         all_edges = all_edges > self.weight_threshold
