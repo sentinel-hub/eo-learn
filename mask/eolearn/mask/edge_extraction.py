@@ -1,12 +1,17 @@
 """
 Module for extraction of edge mask in EOPatch
 """
+import cv2
 import numpy as np
 from eolearn.core import EOTask, FeatureType
-import cv2
 
 
 def normalization(feature):
+    """
+    Function that normalizes the input to interval [0..1]. It also returns the input as numpy float 32 bit array.
+    :param feature: Array to normalize
+    :return: Array with same shape, but normalized
+    """
     f_min = np.nanmin(feature)
     f_max = np.nanmax(feature)
     return np.asarray((feature - f_min) / (f_max - f_min), np.float32)
@@ -100,7 +105,10 @@ class EdgeExtractionTask(EOTask):
         self.valid_mask = next(self._parse_features(valid_mask, default_feature_type=FeatureType.MASK)())
 
     def execute(self, eopatch):
-
+        """
+        :param eopatch: Source EOPatch with all necessary features
+        :return: EOPatch with added mask of edges
+        """
         timestamps, width, height, _ = eopatch[self.valid_mask].shape
         no_feat = None
         all_edges = np.zeros((timestamps, width, height))
@@ -130,6 +138,7 @@ class EdgeExtractionTask(EOTask):
                 all_edges += feature_edge * adjust_weights
             else:
                 all_edges += feature_edge
+                
         all_edges = np.sum(all_edges, 0)
         all_edges = all_edges / (timestamps * no_feat)
         all_edges = all_edges > self.weight_threshold
