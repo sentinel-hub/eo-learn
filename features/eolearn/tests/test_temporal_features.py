@@ -168,6 +168,7 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         """Test case for computation of surface extraction task
 
         Fictional ndvi is so that corner cases are considered. Both positive and negative derivative cases are tested.
+        The case with and without valid pixel mask is tested.
         """
         eopatch = EOPatch(timestamp=list(perdelta(date(2020, 3, 1), date(2020, 3, 23), timedelta(days=6))))
         # Fill EOPatch
@@ -227,6 +228,34 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         self.assertTrue(np.array_equal(out_patch.mask_timeless['derivative_transition'], np.array(neg_transition)))
         self.assertTrue(np.allclose(out_patch.data_timeless['derivative'], np.array(neg_der)))
 
+        fill_value = -2
+        # Valid mask feature
+        valid_mask = np.array([
+            [[1], [0], [0], [1]],
+            [[1], [0], [1], [1]],
+        ])
+        # Set the full mask to 0 on pixel
+        eopatch[mask_feature][:, -1, -1] = 0
+        eopatch.add_feature(FeatureType.MASK_TIMELESS, 'valid_pixels', valid_mask)
+        task = SurfaceExtractionTask(in_feature, 'derivative', in_feature, mask_feature,
+                                     valid_mask_feature=(FeatureType.MASK_TIMELESS, 'valid_pixels'),
+                                     fill_value=fill_value)
+        task.execute(eopatch)
+        neg_transition_mask = [
+            [[1, 1], [fill_value, fill_value], [fill_value, fill_value], [1, 0]],
+            [[1, 0], [fill_value, fill_value], [0, 1], [fill_value, fill_value]]
+        ]
+        neg_der_mask = [
+            [[603, 6, -33.5], [fill_value, fill_value, fill_value], [fill_value, fill_value, fill_value],
+             [63, 12, -0.08333333]],
+            [[72, 6, -3], [fill_value, fill_value, fill_value], [78, 6, -1.3333333],
+             [fill_value, fill_value, fill_value]],
+        ]
+
+        self.assertTrue(np.array_equal(out_patch.mask_timeless['derivative_transition'],
+                                       np.array(neg_transition_mask, dtype=bool)))
+        self.assertTrue(np.allclose(out_patch.data_timeless['derivative'], np.array(neg_der_mask)))
+
     def test_max_mean_len_task(self):
         """Test case for computation of max mean len task
 
@@ -268,6 +297,27 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         mean_surf = [
             [[18], [84], [282], [96], ],
             [[186], [72], [198], [207], ],
+        ]
+        self.assertTrue(np.array_equal(mean_len, eopatch.data_timeless['ndvi_max_mean_len']))
+        self.assertTrue(np.array_equal(mean_surf, eopatch.data_timeless['ndvi_max_mean_surf']))
+
+        fill_value = -3
+        valid_mask = np.array([
+            [[0], [1], [0], [1]],
+            [[1], [0], [1], [1]],
+        ])
+        eopatch.add_feature(FeatureType.MASK_TIMELESS, 'valid_pixels', valid_mask)
+        task = MaxMeanLenTask(in_feature, (FeatureType.DATA_TIMELESS, 'NDVI_limit'), 'ndvi', 0.9, -1,
+                              valid_mask_feature=(FeatureType.MASK_TIMELESS, 'valid_pixels'), fill_value=fill_value)
+
+        task.execute(eopatch)
+        mean_len = [
+            [[fill_value], [18], [fill_value], [18], ],
+            [[18], [fill_value], [18], [18], ],
+        ]
+        mean_surf = [
+            [[fill_value], [84], [fill_value], [96], ],
+            [[186], [fill_value], [198], [207], ],
         ]
         self.assertTrue(np.array_equal(mean_len, eopatch.data_timeless['ndvi_max_mean_len']))
         self.assertTrue(np.array_equal(mean_surf, eopatch.data_timeless['ndvi_max_mean_surf']))

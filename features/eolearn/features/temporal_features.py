@@ -257,51 +257,67 @@ class SurfaceExtractionTask(EOTask):
     [1] Valero et. al. "Production of dynamic cropland mask by processing remote sensing
     image series at high temporal and spatial resolutions" Remote Sensing, 2016.
     """
-    def __init__(self, input_feature, output_feature_name, ndvi_feature, mask_feature, base_surface=-1,
-                 ndvi_barren_soil_cutoff=0.1):
+
+    def __init__(self, input_feature, output_feature_name, ndvi_feature, selected_data_points_feature,
+                 base_surface=-1, ndvi_barren_soil_cutoff=0.1, valid_mask_feature=None, fill_value=-1):
         """
 
         :param input_feature: Input feature
         :param output_feature_name: Output feature name prefix
         :param ndvi_feature: NDVI feature for barren soil detection
-        :param mask_feature: Mask indicating desired data points
+        :param selected_data_points_feature: Mask feature indicating which data points both through time and
+        location to consider for calculation
         :param base_surface: Minimal base value for data, used to more accurately calculate surface under curve.
         :param ndvi_barren_soil_cutoff: Cutoff for barren soil detection
+        :param valid_mask_feature: Timeless mask feature indicating for which pixels to run feature extraction
+        :param fill_value: Fill value for pixels set as not valid with valid_mask
         """
         self.input_feature = next(iter(self._parse_features(input_feature)))
         self.output_feature_name = output_feature_name
         self.ndvi_feature = next(iter(self._parse_features(ndvi_feature)))
-        self.mask_feature = next(iter(self._parse_features(mask_feature)))
+        self.selected_data_points_feature = next(iter(
+            self._parse_features(selected_data_points_feature, allowed_feature_types=[FeatureType.MASK, ])))
+        self.valid_mask_feature = None if valid_mask_feature is None else \
+            next(iter(self._parse_features(valid_mask_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS, ])))
 
         self.base_surface = base_surface
         self.ndvi_barren_soil_cutoff = ndvi_barren_soil_cutoff
 
+        self.fill_value = fill_value
+
     def execute(self, eopatch, **kwargs):
-        # pylint: disable=invalid-name
+        # pylint: disable=invalid-name, too-many-locals
         data = eopatch[self.input_feature].squeeze(-1)
         t, h, w = data.shape
 
         all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
 
-        data_surf = np.empty((h, w, 1))
-        data_len = np.empty((h, w, 1))
-        data_rate = np.empty((h, w, 1))
-        data_transition_before = np.empty((h, w, 1), dtype=bool)
-        data_transition_after = np.empty((h, w, 1), dtype=bool)
+        data_surf = np.full((h, w, 1), self.fill_value, dtype=float)
+        data_len = np.full((h, w, 1), self.fill_value, dtype=float)
+        data_rate = np.full((h, w, 1), self.fill_value, dtype=float)
+        data_transition_before = np.full((h, w, 1), self.fill_value, dtype=bool)
+        data_transition_after = np.full((h, w, 1), self.fill_value, dtype=bool)
 
-        mask = eopatch[self.mask_feature].squeeze(-1)
+        mask = eopatch[self.selected_data_points_feature].squeeze(-1)
         ndvi = eopatch[self.ndvi_feature].squeeze(-1)
 
-        padded_mask = np.zeros(t+2, dtype=bool)
+        if self.valid_mask_feature:
+            pixel_mask = eopatch[self.valid_mask_feature].squeeze()
+        else:
+            pixel_mask = np.ones((h, w))
 
-        for ih, iw in it.product(range(h), range(w)):
+        padded_mask = np.zeros(t + 2, dtype=bool)
+
+        for ih, iw in np.asarray(np.where(pixel_mask)).T:
+            if not np.any(mask[:, ih, iw]):  # If no pixels are selected, take the fill value
+                continue
             padded_mask[1:-1] = mask[:, ih, iw]
 
             data_surf[ih, iw], data_len[ih, iw], data_rate[ih, iw], (start, end) = \
                 self.derivative_features(padded_mask, all_dates, data[:, ih, iw], self.base_surface)
 
             data_transition_before[ih, iw] = np.any(ndvi[:start, ih, iw] >= self.ndvi_barren_soil_cutoff)
-            data_transition_after[ih, iw] = np.any(ndvi[end+1:, ih, iw] >= self.ndvi_barren_soil_cutoff)
+            data_transition_after[ih, iw] = np.any(ndvi[end + 1:, ih, iw] >= self.ndvi_barren_soil_cutoff)
 
         eopatch[FeatureType.DATA_TIMELESS][self.output_feature_name] = \
             np.concatenate([data_surf, data_len, data_rate], -1)
@@ -367,13 +383,16 @@ class MaxMeanLenTask(EOTask):
     [1] Valero et. al. "Production of adynamic cropland mask by processing remote sensing
     image series at high temporal and spatial resolutions" Remote Sensing, 2016.
     """
-    def __init__(self, input_feature, max_mean_feature, output_feature_name, interval_tolerance, base_surface_min):
+    def __init__(self, input_feature, max_mean_feature, output_feature_name, interval_tolerance, base_surface_min=-1,
+                 valid_mask_feature=None, fill_value=-1):
         """
         :param input_feature: Input feature
         :param max_mean_feature: Feature considered as maximal mean for interval calculation
         :param output_feature_name: Output feature name prefix
         :param interval_tolerance: Tolerance for interval data height calculation
         :param base_surface_min: Minimal base value for data, used to more accurately calculate surface under curve.
+        :param valid_mask_feature: Timeless mask feature indicating for which pixels to run feature extraction
+        :param fill_value: Fill value for pixels set as not valid with valid_mask
         """
         self.input_feature = next(iter(self._parse_features(input_feature)))
         self.max_mean_feature = next(iter(self._parse_features(max_mean_feature)))
@@ -382,6 +401,11 @@ class MaxMeanLenTask(EOTask):
 
         self.interval_tolerance = interval_tolerance
         self.base_surface_min = base_surface_min
+
+        self.valid_mask_feature = None if valid_mask_feature is None else \
+            next(iter(self._parse_features(valid_mask_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS, ])))
+
+        self.fill_value = fill_value
 
     def execute(self, eopatch, **kwargs):
         # pylint: disable=invalid-name, too-many-locals
@@ -398,10 +422,15 @@ class MaxMeanLenTask(EOTask):
         increasing_mask = ((padded_higher[1:] == 1) & (padded_higher[:-1] == 0)).squeeze(-1)
         decreasing_mask = ((padded_higher[:-1] == 1) & (padded_higher[1:] == 0)).squeeze(-1)
 
-        data_max_mean_len = np.empty((h, w, 1), dtype=float)
-        data_max_mean_surf = np.empty((h, w, 1), dtype=float)
+        data_max_mean_len = np.full((h, w, 1), self.fill_value, dtype=float)
+        data_max_mean_surf = np.full((h, w, 1), self.fill_value, dtype=float)
 
-        for ih, iw in it.product(range(h), range(w)):
+        if self.valid_mask_feature:
+            pixel_mask = eopatch[self.valid_mask_feature].squeeze()
+        else:
+            pixel_mask = np.ones((h, w))
+
+        for ih, iw in np.asarray(np.where(pixel_mask)).T:
             times_up = all_dates[increasing_mask[:-1, ih, iw]]
             times_down = all_dates[decreasing_mask[1:, ih, iw]]
 
