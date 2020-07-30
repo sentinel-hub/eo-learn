@@ -111,7 +111,7 @@ class InterpolationTask(EOTask):
         returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
     :type scale_time: int
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
-    interpolation object for the whole image
+        interpolation object for the whole image
     :type interpolate_pixel_wise : bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
@@ -477,7 +477,7 @@ class LinearInterpolation(InterpolationTask):
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+            array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray
@@ -574,7 +574,7 @@ class ResamplingTask(InterpolationTask):
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+            array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray

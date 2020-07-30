@@ -110,7 +110,7 @@ class EOPatchVisualization:
         timestamps = self.eopatch.timestamp
         crs = self.eopatch.bbox.crs
         if not self.rgb:
-            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(int(crs.value)))
+            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(crs.epsg))
         data_rgb = self.eopatch_da_to_rgb(data_da, feature_name, crs)
         rgb_dict = {timestamp_: self.plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
@@ -147,9 +147,9 @@ class EOPatchVisualization:
         data_levels = 11 if data_levels > 11 else data_levels
         data_da = data_da.where(data_da > 0).fillna(-1)
         vis = data_da.hvplot(x='x', y='y',
-                             crs=ccrs.epsg(int(crs.value))).opts(clim=(data_min, data_max),
-                                                                 clipping_colors={'min': 'transparent'},
-                                                                 color_levels=data_levels)
+                             crs=ccrs.epsg(crs.epsg)).opts(clim=(data_min, data_max),
+                                                           clipping_colors={'min': 'transparent'},
+                                                           color_levels=data_levels)
         return vis
 
     def plot_vector(self, feature_name):
@@ -166,7 +166,7 @@ class EOPatchVisualization:
         data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
-            data_gpd = data_gpd.to_crs({'init': 'epsg:{}'.format(crs.value)})
+            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
         shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
                        for timestamp_ in timestamps}
         return hv.HoloMap(shapes_dict, kdims=['time'])
@@ -285,13 +285,12 @@ class EOPatchVisualization:
         :rtype: geoviews
         """
         crs = self.eopatch.bbox.crs
+        data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
-            data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs(
-                {'init': 'epsg:{}'.format(crs.value)})
-        else:
-            data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-        return gv.Polygons(data_gpd, crs=ccrs.epsg(int(crs.value)), vdims=self.vdims)
+            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
+
+        return gv.Polygons(data_gpd, crs=ccrs.epsg(crs.epsg), vdims=self.vdims)
 
     def eopatch_da_to_rgb(self, eopatch_da, feature_name, crs):
         """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap

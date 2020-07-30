@@ -15,6 +15,7 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import pyproj
 import rasterio.features
 import rasterio.transform
 import shapely.geometry
@@ -143,13 +144,16 @@ class VectorToRaster(EOTask):
         """
         vector_data = self._get_vector_data(eopatch)
 
-        if 'init' not in vector_data.crs:
-            raise ValueError('Cannot recognize CRS of vector data')
-        vector_data_crs = CRS(vector_data.crs['init'])
+        gpd_crs = vector_data.crs
+        # This special case has to be handled because of WGS84 and lat-lon order:
+        if isinstance(gpd_crs, pyproj.CRS):
+            gpd_crs = gpd_crs.to_epsg()
+        vector_data_crs = CRS(gpd_crs)
+
         if eopatch.bbox.crs is not vector_data_crs:
             warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
                           'each execution', RuntimeWarning)
-            vector_data = vector_data.to_crs(epsg=eopatch.bbox.crs.epsg)
+            vector_data = vector_data.to_crs(eopatch.bbox.crs.pyproj_crs())
 
         bbox_poly = eopatch.bbox.geometry
         vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
@@ -352,13 +356,13 @@ class RasterToVector(EOTask):
                 value_list.append(value)
 
         series_dict = {
-            self.values_column: GeoSeries(value_list),
+            self.values_column: pd.Series(value_list),
             'geometry': GeoSeries(geo_list)
         }
         if timestamp is not None:
-            series_dict['TIMESTAMP'] = GeoSeries([timestamp] * len(geo_list))
+            series_dict['TIMESTAMP'] = pd.Series([timestamp] * len(geo_list))
 
-        vector_data = GeoDataFrame(series_dict, crs={'init': 'epsg:{}'.format(crs.value)})
+        vector_data = GeoDataFrame(series_dict, crs=crs.pyproj_crs())
 
         if not vector_data.geometry.is_valid.all():
             vector_data.geometry = vector_data.geometry.buffer(0)

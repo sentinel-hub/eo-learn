@@ -125,7 +125,7 @@ class TestExportAndImportTiff(unittest.TestCase):
 
                     export_task = ExportToTiff(feature, folder=tmp_dir_name,
                                                band_indices=test_case.bands, date_indices=test_case.times,
-                                               crs='EPSG:4326')
+                                               crs='EPSG:4326', compress='lzw')
                     export_task.execute(self.eopatch, filename=tmp_file_name_reproject)
 
                     import_task = ImportFromTiff(feature, folder=tmp_dir_name,

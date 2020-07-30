@@ -28,7 +28,7 @@ def get_version():
 
 setup(
     name='eo-learn-coregistration',
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     version=get_version(),
     description='A collection of image co-registration utilities and EOTasks',
     long_description=get_long_description(),

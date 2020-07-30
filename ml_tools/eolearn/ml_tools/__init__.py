@@ -10,4 +10,4 @@ from .postprocessing import MorphologicalOperations, MorphologicalStructFactory,
     MorphologicalFilterTask
 from .train_test_split import TrainTestSplitTask
 
-__version__ = '0.7.0'
+__version__ = '0.7.3'

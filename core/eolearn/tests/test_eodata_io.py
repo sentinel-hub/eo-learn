@@ -65,7 +65,7 @@ class TestEOPatchIO(unittest.TestCase):
             'values': [1],
             'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7)],
             'geometry': [eopatch.bbox.geometry]
-        }, crs={'init': eopatch.bbox.crs.epsg})
+        }, crs=eopatch.bbox.crs.pyproj_crs())
 
         cls.eopatch = eopatch
 

@@ -1,11 +1,11 @@
 """ An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
 """
 import collections
-from itertools import repeat
 import logging
 import datetime as dt
-import numpy as np
+from itertools import repeat
 
+import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataSource
 from sentinelhub.time_utils import iso_to_datetime
@@ -15,17 +15,46 @@ from eolearn.core import EOPatch, EOTask, FeatureType
 LOGGER = logging.getLogger(__name__)
 
 
+def get_available_timestamps(bbox, config, data_source, maxcc, time_difference, time_interval):
+    """Helper function to search for all available timestamps, based on query parameters
+
+    :param bbox: Bounding box
+    :type bbox: BBox
+    :param time_interval: Time interval to query available satellite data from
+    type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
+    :param data_source: Source of requested satellite data.
+    :type data_source: DataSource
+    :param maxcc: Maximum cloud coverage.
+    :type maxcc: float
+    :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+    :type time_difference: datetime.timedelta
+    :param config: Sentinel Hub Config
+    :type config: SHConfig
+    :return: list of datetimes with available observations
+    """
+    wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_source=data_source, maxcc=maxcc, config=config)
+    dates = wfs.get_dates()
+
+    if len(dates) == 0:
+        raise ValueError("No available images for requested time range: {}".format(time_interval))
+
+    dates = sorted(dates)
+    return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > time_difference]
+
+
 class SentinelHubInputBase(EOTask):
     """ Base class for Processing API input tasks
     """
+
     def __init__(self, data_source, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
         """
         :param data_source: Source of requested satellite data.
         :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param config: An instance of SHConfig defining the service
@@ -48,14 +77,9 @@ class SentinelHubInputBase(EOTask):
         """ Main execute method for the Processing API tasks
         """
 
-        if eopatch is not None and (bbox or time_interval):
-            raise ValueError('Either an eopatch must be provided or bbox and time interval, not both.')
+        eopatch = eopatch or EOPatch()
 
-        if eopatch is None:
-            eopatch = EOPatch()
-            eopatch.bbox = bbox
-        else:
-            bbox = eopatch.bbox
+        self._check_and_set_eopatch_bbox(bbox, eopatch)
 
         if self.size is not None:
             size_x, size_y = self.size
@@ -64,7 +88,7 @@ class SentinelHubInputBase(EOTask):
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamp = self._get_timestamp(time_interval, bbox)
+            timestamp = self._get_timestamp(time_interval, eopatch.bbox)
         else:
             timestamp = eopatch.timestamp
 
@@ -73,7 +97,7 @@ class SentinelHubInputBase(EOTask):
         elif timestamp:
             eopatch.timestamp = timestamp
 
-        requests = self._build_requests(bbox, size_x, size_y, timestamp, time_interval)
+        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
         requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
@@ -93,6 +117,18 @@ class SentinelHubInputBase(EOTask):
         self._add_meta_info(eopatch)
 
         return eopatch
+
+    @staticmethod
+    def _check_and_set_eopatch_bbox(bbox, eopatch):
+        if eopatch.bbox is None:
+            if bbox is None:
+                raise ValueError('Either the eopatch or the task must provide valid bbox.')
+            eopatch.bbox = bbox
+            return
+
+        if bbox is None or eopatch.bbox == bbox:
+            return
+        raise ValueError('Either the eopatch or the task must provide bbox, or they must be the same.')
 
     @staticmethod
     def check_timestamp_difference(timestamp1, timestamp2):
@@ -133,11 +169,14 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
 
     PREDEFINED_BAND_TYPES = {
-        ProcApiType("mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
+        ProcApiType("bool_mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
             "dataMask"
         ],
+        ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [
+            "CLM", "SCL"
+        ],
         ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
-            "SCL", "SNW", "CLD"
+            "SNW", "CLD", "CLP"
         ],
         ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
             "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "B13"
@@ -157,8 +196,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names.
@@ -176,7 +216,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
         :param bands_dtype: dtype of the bands array
-        :type bands_dtype: np.dtype
+        :type bands_dtype: type
         :param single_scene: If true, the service will compute a single image for the given time interval using
                              mosaicking.
         :type single_scene: bool
@@ -193,15 +233,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
-
-        mosaic_order_params = ["mostRecent", "leastRecent", "leastCC"]
-        if mosaicking_order not in mosaic_order_params:
-            msg = "{} is not a valid mosaickingOrder parameter, it should be one of: {}"
-            raise ValueError(msg.format(mosaicking_order, mosaic_order_params))
-
         self.mosaicking_order = mosaicking_order
 
-        self.requested_bands = dict()
+        self.requested_bands = {}
 
         if bands_feature:
             bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
@@ -299,18 +333,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         if self.single_scene:
             return [time_interval[0]]
 
-        wfs = WebFeatureService(
-            bbox=bbox, time_interval=time_interval, data_source=self.data_source, maxcc=self.maxcc
-        )
-
-        dates = wfs.get_dates()
-
-        if len(dates) == 0:
-            raise ValueError("No available images for requested time range: {}".format(time_interval))
-
-        dates = sorted(dates)
-
-        return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > self.time_difference]
+        return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_source=self.data_source,
+                                        maxcc=self.maxcc, time_difference=self.time_difference, config=self.config)
 
     def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
         """ Build requests
@@ -341,7 +365,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
             responses=responses,
             bbox=bbox,
             size=(size_x, size_y),
-            data_folder=self.cache_folder
+            data_folder=self.cache_folder,
+            config=self.config
         )
 
     def _extract_data(self, eopatch, images, shape):
@@ -356,8 +381,10 @@ class SentinelHubInputTask(SentinelHubInputBase):
         return eopatch
 
     def _extract_additional_features(self, eopatch, images, shape):
+        """ Extracts additional features from response into an EOPatch
+        """
         feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
-        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data', 'other']):
+        for btype, tifs, bands in self._iter_tifs(images, ['bool_mask', 'mask', 'uint8_data', 'other']):
             for band in bands:
                 eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
 
@@ -401,6 +428,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 class SentinelHubDemTask(SentinelHubInputBase):
     """ A processing API input task that downloads the digital elevation model
     """
+
     def __init__(self, dem_feature, size=None, resolution=None, cache_folder=None, config=None,
                  max_threads=None):
         """
@@ -408,8 +436,9 @@ class SentinelHubDemTask(SentinelHubInputBase):
         :type dem_feature: tuple(sentinelhub.FeatureType, str)
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param config: An instance of SHConfig defining the service
@@ -459,7 +488,8 @@ class SentinelHubDemTask(SentinelHubInputBase):
             responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
             bbox=bbox,
             size=(size_x, size_y),
-            data_folder=self.cache_folder
+            data_folder=self.cache_folder,
+            config=self.config
         )
 
         return [request]

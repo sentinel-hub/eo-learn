@@ -31,11 +31,10 @@ doc_title = 'eo-learn Documentation'
 # built documents.
 #
 # The release is read from __init__ file and version is shortened release string.
-for line in open(os.path.join(os.path.dirname(__file__), '../../core/eolearn/core/__init__.py')):
-    if line.find("__version__") >= 0:
-        release = line.split("=")[1].strip()
-        release = release.strip('"').strip("'")
-version = release.rsplit('.', 1)[0]
+for line in open(os.path.join(os.path.dirname(__file__), '../../setup.py')):
+    if 'version=' in line:
+        release = line.split("=")[1].strip('", \n').strip("'")
+        version = release.rsplit('.', 1)[0]
 
 # -- General configuration ---------------------------------------------------
 
