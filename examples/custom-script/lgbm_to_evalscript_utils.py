@@ -1,13 +1,11 @@
 import lightgbm
 
+
 PRECISION_SCORES = 4
 PRECISION_THRESHOLD = None
 MAX_DN = 10000
 EVALSCRIPT_VERSION = 3
-DIGITAL_NUMBER = True
-
-BANDS = ['B01', 'B02', 'B04', 'B05', 'B08', 'B8A', 'B09', 'B10', 'B11', 'B12']
-BANDS_STR = ','.join(BANDS)
+DIGITAL_NUMBER = False
 
 
 def parse_subtree(node, brackets=True):
