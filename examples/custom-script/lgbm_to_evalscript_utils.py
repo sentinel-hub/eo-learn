@@ -1,12 +1,10 @@
-import lightgbm
-
-
 PRECISION_SCORES = 4
 PRECISION_THRESHOLD = None
-MAX_DN = 10000
-EVALSCRIPT_VERSION = 3
-DIGITAL_NUMBER = False
 
+BANDS = ['B02', 'B03', 'B04', 'B08', 'B11']
+BANDS_STR = ','.join(BANDS)
+MODEL_INPUTS = ['B02', 'B03', 'B04', 'NDWI', 'NDMI']
+MODEL_INPUTS_STR = ', '.join(MODEL_INPUTS)
 
 def parse_subtree(node, brackets=True):
     if 'leaf_index' in node:
@@ -15,15 +13,13 @@ def parse_subtree(node, brackets=True):
             score = round(score, PRECISION_SCORES)
         return f'{score}'
     
-    band = BANDS[int(node["split_feature"])]
+    feature = MODEL_INPUTS[int(node["split_feature"])]
     
     threshold = float(node["threshold"])
     if PRECISION_THRESHOLD is not None:
         threshold = round(threshold, PRECISION_THRESHOLD)
-    if DIGITAL_NUMBER:
-        threshold = int(MAX_DN * threshold)
-
-    condition = f'{band}{node["decision_type"]}{threshold}'
+    
+    condition = f'{feature}{node["decision_type"]}{threshold}'
     
     left = parse_subtree(node['left_child'])
     right = parse_subtree(node['right_child'])
@@ -35,39 +31,26 @@ def parse_subtree(node, brackets=True):
 
 def parse_one_tree(root, index):
     return \
-f"""function pt{index}({BANDS_STR}) {{ 
-return {parse_subtree(root, brackets=False)};
+f"""
+function pt{index}({MODEL_INPUTS_STR}) {{ 
+   return {parse_subtree(root, brackets=False)};
 }}
 """
 
 def parse_trees(trees):
     
-    sample_str = ','.join(f'sample.{band}' for band in BANDS)
-    
     tree_functions = '\n'.join([parse_one_tree(tree['tree_structure'], idx)
                                   for idx, tree in enumerate(trees)])
-    function_sum = '+'.join([f'pt{i}({BANDS_STR})' for i in range(len(trees))])
+    function_sum = '+'.join([f'pt{i}({MODEL_INPUTS_STR})' for i in range(len(trees))])
     
-    bands_array = ','.join(f'"{band}"' for band in BANDS)
-    
-    input_units = 'DN' if DIGITAL_NUMBER else 'reflectance'
-    
-    if EVALSCRIPT_VERSION < 3:
-        return \
-f"""
-{tree_functions}
-function predict({BANDS_STR}) {{ 
-    return [{function_sum}];
-}}
-return [predict({BANDS_STR})];
-"""
     return f"""
-//VERSION={EVALSCRIPT_VERSION}
+//VERSION=3
+
 function setup() {{
     return {{
         input: [{{
-            bands: [{bands_array}],
-            units: "{input_units}"
+            bands: [{','.join(f'"{band}"' for band in BANDS)}],
+            units: "reflectance"
         }}],
         output: {{
             id:"default",
@@ -76,23 +59,30 @@ function setup() {{
         }}
     }}
 }}
+
 function evaluatePixel(sample) {{
-    return [predict({sample_str})]
+    let NDWI = index(sample.B03, sample.B08);
+    let NDMI = index(sample.B08, sample.B11);
+    
+    return [predict(sample.B02, sample.B03, sample.B04, NDWI, NDMI)]
 }}
+
 {tree_functions}
-function predict({BANDS_STR}) {{ 
+
+function predict({MODEL_INPUTS_STR}) {{ 
     return [1/(1+Math.exp(-1*({function_sum})))];
 }}
 """
 
-def parse_model(model_filename, output_filename):
-    model = lightgbm.Booster(model_file=model_filename)
-    
-    model_json = model.dump_model()
+def parse_model(model, js_output_filename=None):
+    model_json = model.booster_.dump_model()
     
     model_javascript = parse_trees(model_json['tree_info'])
     
-    with open(output_filename, 'w') as f:
-        f.write(model_javascript)
+    if js_output_filename:
+        with open(js_output_filename, 'w') as f:
+            f.write(model_javascript)
         
     return model_javascript
+
+
