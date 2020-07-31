@@ -397,55 +397,61 @@ class PointSamplingTask(EOTask):
 
 class BalancedClassSampler:
     """
-    A class that samples points from multiple patches and return a balanced set depending on the class label.
-    This is done by sampling on each patch the desired amount and then balancing the data based on the smallest class
+    A class that samples points from multiple patches and returns a balanced set depending on the class label.
+    This is done by sampling the desired amount on each patch and then balancing the data based on the smallest class
     or amount. If the amount is provided and there are classes with less than that number of points, random
     point are duplicated to reach the necessary size.
     """
 
-    def __init__(self, class_feature, load_path, patches=None, samples_amount=0.1, valid_mask=None,
+    def __init__(self, class_feature, folder=None, patches=None, samples_amount=0.1, valid_mask=None,
                  ignore_labels=None, features=None, weak_classes=None, search_radius=3,
                  samples_per_class=None, seed=None):
         """
         :param class_feature: Feature that contains class labels
         :type class_feature: (FeatureType, string) or string
-        :param load_path: Path to folder containing all patches
-        :type load_path: string
-        :param patches: List of patch names or None for all patches in the directory
-        :type patches: list[str]
-        :param samples_amount: Number of samples taken per patch. If the number is on the interval [0...1] then that
-        percentage of all points is taken. If the value is 1 all eligible points are taken.
+        :param folder: Path to folder containing all patches or None if individual patches paths are provided
+        :type folder: string or None
+        :param patches: List of patch names and locations or None if a path to folder containing all the patches is
+            provided. One of parameters folder or patches mush be None
+        :type patches: list of strings or string
+        :param samples_amount: Number of samples taken per patch. If the number is on the interval of [0...1] then that
+            percentage of all points is taken. If the value is 1 all eligible points are taken.
         :type samples_amount: float
         :param valid_mask: Feature that defines the area from where samples are
             taken, if None the whole image is used
         :type valid_mask: (FeatureType, string), string or None
-        :param ignore_labels: A list of label values that should not be sampled.
-        :type ignore_labels: list of integers
-        :param features: temporal Features to include in dataset for each pixel sampled
-        :type features: array of type [(FeatureType, string), ...]
+        :param ignore_labels: A single item or a list of values that should not be sampled.
+        :type ignore_labels: list of integers or int
+        :param features: Temporal features to include in dataset for each pixel sampled
+        :type features: Input that the FeatureParser class can parse
         :param samples_per_class: Number of samples per class returned after
-            balancing. If the number is higher than minimal number of samples for
-            the smallest class then those numbers are upsampled by repetition.
-            If the argument is None then number is set to the size of the number of
-            samples of the smallest class
+            balancing. If the number is higher than total amount of some classes, then those classes have their
+            points duplicated to reach the desired amount. If the argument is None then limit is set to the size of
+            the number of samples of the smallest class
         :type samples_per_class: int or None
         :param seed: Seed for random generator
-        :param weak_classes: Classes that when found also the neighbouring regions
-            will be checked and added if they contain one of the weak classes.
-            Used to enrich the samples
+        :type seed: int
+        :param weak_classes: Classes that upon finding, also the neighbouring regions
+            will be checked and added if they contain one of the weak classes. Used to enrich the samples
+        :type weak_classes: list of integers or int
         :param search_radius: How many points in each direction to check for additional weak classes
         :type search_radius: int
-        :type weak_classes: int list
-        :return: pandas DataFrame with columns
-            [class feature, features, patch_id, x coord, y coord].
+        :return: Tuple of pandas DataFrame with samples and a dictionary of each class label amounts before balancing
+            columns: [class feature, patch name, x coord, y coord, features], { class: amount before balancing, ... }
         """
         self.class_feature = next(FeatureParser(class_feature, default_feature_type=FeatureType.MASK_TIMELESS)())
-        self.load_path = load_path
-        self.patches = patches if patches else [name for name, _ in os.walk(load_path)]
+        if folder and patches:
+            raise ValueError('Either a folder or a list of patches is provided, not both.')
+        if not folder and not patches:
+            raise ValueError('Either a folder or a list of patches must be provided')
+        self.patches = patches if patches else [f'{folder}/{name}' for name in next(os.walk(folder))[1]]
+        if not isinstance(self.patches, list):
+            self.patches = [self.patches]
+
         self.samples_amount = samples_amount
         self.valid_mask = next(
             FeatureParser(valid_mask, default_feature_type=FeatureType.MASK_TIMELESS)()) if valid_mask else None
-        self.ignore_labels = ignore_labels
+        self.ignore_labels = ignore_labels if isinstance(ignore_labels, list) else [ignore_labels]
         self.features = FeatureParser(features, default_feature_type=FeatureType.DATA_TIMELESS) if features else None
         self.columns = [self.class_feature[1]] + ['patch_name', 'x', 'y']
         if features:
@@ -455,15 +461,16 @@ class BalancedClassSampler:
         self.seed = seed
         if seed is not None:
             random.seed(self.seed)
-        self.weak_classes = weak_classes
+        self.weak_classes = weak_classes if isinstance(weak_classes, list) else [weak_classes]
         self.search_radius = search_radius
 
     def __call__(self):
 
         sample_dict = []
 
-        for patch_name in self.patches:
-            eopatch = EOPatch.load(f'{self.load_path}/{patch_name}', lazy_loading=True)
+        for patch_location in self.patches:
+            patch_name = os.path.basename(patch_location)
+            eopatch = EOPatch.load(patch_location, lazy_loading=True)
 
             height, width, _ = eopatch[self.class_feature].shape
             mask = eopatch[self.valid_mask].squeeze() if self.valid_mask else None
