@@ -52,8 +52,9 @@ class SentinelHubInputBase(EOTask):
         :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param config: An instance of SHConfig defining the service
@@ -168,11 +169,14 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
 
     PREDEFINED_BAND_TYPES = {
+        ProcApiType("bool_mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
+            "dataMask"
+        ],
         ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [
-            "dataMask", "CLM"
+            "CLM", "SCL"
         ],
         ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
-            "SCL", "SNW", "CLD", "CLP"
+            "SNW", "CLD", "CLP"
         ],
         ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
             "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "B13"
@@ -192,8 +196,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type data_source: DataSource
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names.
@@ -211,7 +216,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
         :param bands_dtype: dtype of the bands array
-        :type bands_dtype: np.dtype
+        :type bands_dtype: type
         :param single_scene: If true, the service will compute a single image for the given time interval using
                              mosaicking.
         :type single_scene: bool
@@ -228,15 +233,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
-
-        mosaic_order_params = ["mostRecent", "leastRecent", "leastCC"]
-        if mosaicking_order not in mosaic_order_params:
-            msg = "{} is not a valid mosaickingOrder parameter, it should be one of: {}"
-            raise ValueError(msg.format(mosaicking_order, mosaic_order_params))
-
         self.mosaicking_order = mosaicking_order
 
-        self.requested_bands = dict()
+        self.requested_bands = {}
 
         if bands_feature:
             bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
@@ -382,8 +381,10 @@ class SentinelHubInputTask(SentinelHubInputBase):
         return eopatch
 
     def _extract_additional_features(self, eopatch, images, shape):
+        """ Extracts additional features from response into an EOPatch
+        """
         feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
-        for btype, tifs, bands in self._iter_tifs(images, ['mask', 'uint8_data', 'other']):
+        for btype, tifs, bands in self._iter_tifs(images, ['bool_mask', 'mask', 'uint8_data', 'other']):
             for band in bands:
                 eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
 
@@ -435,8 +436,9 @@ class SentinelHubDemTask(SentinelHubInputBase):
         :type dem_feature: tuple(sentinelhub.FeatureType, str)
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a tuple for X and Y axis.
-        :type resolution: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :type cache_folder: str
         :param config: An instance of SHConfig defining the service

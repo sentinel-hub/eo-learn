@@ -16,6 +16,7 @@ from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
 from .hog import HOGTask
 from .local_binary_pattern import LocalBinaryPatternTask
 from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
+from .clustering import ClusteringTask
 
 
 __version__ = '0.7.3'

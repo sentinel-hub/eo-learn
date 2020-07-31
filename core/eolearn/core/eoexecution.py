@@ -48,7 +48,8 @@ class EOExecutor:
     STATS_ERROR = 'error'
     RESULTS = 'results'
 
-    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', execution_names=None):
+    def __init__(self, workflow, execution_args, *, save_logs=False, logs_folder='.', logs_filter=None,
+                 execution_names=None):
         """
         :param workflow: A prepared instance of EOWorkflow class
         :type workflow: EOWorkflow
@@ -61,6 +62,9 @@ class EOExecutor:
         :type save_logs: bool
         :param logs_folder: A folder where logs and execution report should be saved
         :type logs_folder: str
+        :param logs_filter: An instance of a custom filter object that will filter certain logs from being written into
+            logs. It works only if save_logs parameter is set to True.
+        :type logs_filter: logging.Filter or None
         :param execution_names: A list of execution names, which will be shown in execution report
         :type execution_names: list(str) or None
         """
@@ -68,6 +72,7 @@ class EOExecutor:
         self.execution_args = self._parse_execution_args(execution_args)
         self.save_logs = save_logs
         self.logs_folder = logs_folder
+        self.logs_filter = logs_filter
         self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
 
         self.start_time = None
@@ -155,13 +160,14 @@ class EOExecutor:
 
         return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
 
-    @classmethod
-    def _try_add_logging(cls, log_path, filter_logs_by_thread):
+    def _try_add_logging(self, log_path, filter_logs_by_thread):
+        """ Adds a handler to a logger and returns them both. In case this fails it shows a warning.
+        """
         if log_path:
             try:
                 logger = logging.getLogger()
                 logger.setLevel(logging.DEBUG)
-                handler = cls._get_log_handler(log_path, filter_logs_by_thread)
+                handler = self._get_log_handler(log_path, filter_logs_by_thread)
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException as exception:
@@ -172,6 +178,8 @@ class EOExecutor:
 
     @classmethod
     def _try_remove_logging(cls, log_path, logger, handler, stats):
+        """ Removes a handler from a logger in case that handler exists.
+        """
         if log_path:
             try:
                 message = 'EOWorkflow execution {}'.format('failed' if cls.STATS_ERROR in stats else 'finished')
@@ -181,29 +189,27 @@ class EOExecutor:
             except BaseException:
                 pass
 
-    @classmethod
-    def _execute_workflow(cls, process_args):
+    def _execute_workflow(self, process_args):
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, return_results, filter_logs_by_thread = process_args
-        logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread)
-        stats = {cls.STATS_START_TIME: dt.datetime.now()}
+        logger, handler = self._try_add_logging(log_path, filter_logs_by_thread)
+        stats = {self.STATS_START_TIME: dt.datetime.now()}
         try:
             results = workflow.execute(input_args, monitor=True)
 
             if return_results:
-                stats[cls.RESULTS] = results
+                stats[self.RESULTS] = results
 
         except BaseException:
-            stats[cls.STATS_ERROR] = traceback.format_exc()
-        stats[cls.STATS_END_TIME] = dt.datetime.now()
+            stats[self.STATS_ERROR] = traceback.format_exc()
+        stats[self.STATS_END_TIME] = dt.datetime.now()
 
-        cls._try_remove_logging(log_path, logger, handler, stats)
+        self._try_remove_logging(log_path, logger, handler, stats)
 
         return stats
 
-    @staticmethod
-    def _get_log_handler(log_path, filter_logs_by_thread):
+    def _get_log_handler(self, log_path, filter_logs_by_thread):
         """ Provides object which handles logs
         """
         handler = logging.FileHandler(log_path)
@@ -212,6 +218,9 @@ class EOExecutor:
 
         if filter_logs_by_thread:
             handler.addFilter(LogFileFilter(threading.currentThread().getName()))
+
+        if self.logs_filter:
+            handler.addFilter(self.logs_filter)
 
         return handler
 
