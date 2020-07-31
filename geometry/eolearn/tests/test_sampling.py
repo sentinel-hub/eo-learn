@@ -11,7 +11,8 @@ file in the root directory of this source tree.
 import unittest
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.geometry import PointSampler, PointRasterSampler, PointSamplingTask, BalancedClassSampler
+from geometry.eolearn.geometry import PointSampler, PointRasterSampler, PointSamplingTask, BalancedClassSampler, \
+    BalancedClassSamplerTask
 
 import numpy as np
 
@@ -20,6 +21,7 @@ class TestSampling(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.test_patch_location = '../../../example_data/TestEOPatch'
         cls.raster_size = (100, 100)
         cls.n_samples = 100
         cls.raster = np.zeros(cls.raster_size, dtype=np.uint8)
@@ -90,9 +92,8 @@ class TestSampling(unittest.TestCase):
         self.assertTupleEqual(eop.mask_timeless['SAMPLED_LABELS'].shape, (self.n_samples, 1, 1),
                               msg="incorrect number of samples")
 
-    def test_balanced_class_sampler_full(self):
+    def test_balanced_class_sampler(self):
         sampling = BalancedClassSampler(class_feature='LULC',
-                                        patches='../../../example_data/TestEOPatch',
                                         samples_amount=0.1,
                                         valid_mask='EDGES_INV',
                                         ignore_labels=8,
@@ -102,24 +103,29 @@ class TestSampling(unittest.TestCase):
                                         samples_per_class=5,
                                         seed=123)
 
-        samples, frequency = sampling()
-        compare_frequency = {4: 38, 2: 799, 3: 145, 0: 12, 1: 2}
+        sampling.sample_patch(self.test_patch_location)
+        samples = sampling.get_balanced_data()
+        frequency = sampling.get_prior_class_distribution()
+
+        compare_frequency = {0: 20, 2: 822, 3: 138, 4: 29, 1: 2}
         for key in compare_frequency:
             self.assertEqual(frequency[key], compare_frequency[key])
 
         self.assertEqual(len(samples.index), 25)
 
-        self.assertEqual(samples.iloc[1, 2], 0)
+        self.assertEqual(samples.iloc[1, 2], 5)
         self.assertEqual(samples.iloc[5, 0], 3)
-        self.assertAlmostEqual(samples.iloc[10, 4], 682.0, delta=0.01)
-        self.assertAlmostEqual(samples.iloc[18, 5], 0.760, delta=0.01)
+        self.assertAlmostEqual(samples.iloc[10, 4], 664.0, delta=0.01)
+        self.assertAlmostEqual(samples.iloc[18, 5], 0.763, delta=0.01)
 
-    def test_balanced_class_sampler_basic(self):
-        sampling = BalancedClassSampler(class_feature='LULC',
-                                        patches='../../../example_data/TestEOPatch',
-                                        seed=321)
+    def test_balanced_class_sampler_task(self):
+        sampling = BalancedClassSamplerTask(class_feature='LULC', seed=321)
 
-        samples, frequency = sampling()
+        eopatch = EOPatch.load(self.test_patch_location)
+        sampling.execute(eopatch)
+        
+        samples = sampling.get_balanced_data()
+        frequency = sampling.get_prior_class_distribution()
         compare_frequency = {2: 779, 3: 163, 8: 12, 0: 10, 4: 44, 1: 2}
         for key in compare_frequency:
             self.assertEqual(frequency[key], compare_frequency[key])
