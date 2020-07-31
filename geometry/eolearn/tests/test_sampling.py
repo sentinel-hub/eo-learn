@@ -11,7 +11,7 @@ file in the root directory of this source tree.
 import unittest
 
 from eolearn.core import EOPatch, FeatureType
-from geometry.eolearn.geometry import PointSampler, PointRasterSampler, PointSamplingTask, BalancedClassSampler
+from eolearn.geometry import PointSampler, PointRasterSampler, PointSamplingTask, BalancedClassSampler
 
 import numpy as np
 
