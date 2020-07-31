@@ -7,7 +7,7 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
+import os
 import unittest
 
 from eolearn.core import EOPatch, FeatureType
@@ -18,10 +18,11 @@ import numpy as np
 
 
 class TestSampling(unittest.TestCase):
+    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
+                                       'TestEOPatch')
 
     @classmethod
     def setUpClass(cls):
-        cls.test_patch_location = '../../../example_data/TestEOPatch'
         cls.raster_size = (100, 100)
         cls.n_samples = 100
         cls.raster = np.zeros(cls.raster_size, dtype=np.uint8)
@@ -103,7 +104,7 @@ class TestSampling(unittest.TestCase):
                                         samples_per_class=5,
                                         seed=123)
 
-        sampling.sample_patch(self.test_patch_location)
+        sampling.sample_patch(self.TEST_PATCH_FILENAME)
         samples = sampling.get_balanced_data()
         frequency = sampling.get_prior_class_distribution()
 
@@ -121,9 +122,9 @@ class TestSampling(unittest.TestCase):
     def test_balanced_class_sampler_task(self):
         sampling = BalancedClassSamplerTask(class_feature='LULC', seed=321)
 
-        eopatch = EOPatch.load(self.test_patch_location)
+        eopatch = EOPatch.load(self.TEST_PATCH_FILENAME)
         sampling.execute(eopatch)
-        
+
         samples = sampling.get_balanced_data()
         frequency = sampling.get_prior_class_distribution()
         compare_frequency = {2: 779, 3: 163, 8: 12, 0: 10, 4: 44, 1: 2}

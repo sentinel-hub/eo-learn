@@ -10,13 +10,13 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+import os
 import collections
 import functools
 import logging
 from math import sqrt
 import random
 import pandas as pd
-import os
 from sklearn.utils import resample
 import numpy as np
 import rasterio.features
