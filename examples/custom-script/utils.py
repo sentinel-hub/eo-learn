@@ -1,4 +1,3 @@
-import lightgbm
 import matplotlib.pyplot as plt
 import datetime as dt
 import numpy as np
@@ -13,6 +12,7 @@ BANDS = ['B02', 'B03', 'B04', 'B08', 'B11']
 BANDS_STR = ','.join(BANDS)
 MODEL_INPUTS = ['B02', 'B03', 'B04', 'NDWI', 'NDMI']
 MODEL_INPUTS_STR = ', '.join(MODEL_INPUTS)
+
 
 def parse_subtree(node, brackets=True):
     if 'leaf_index' in node:
@@ -37,6 +37,7 @@ def parse_subtree(node, brackets=True):
         return f'({result})'
     return result
 
+
 def parse_one_tree(root, index):
     return \
 f"""
@@ -44,6 +45,7 @@ function pt{index}({MODEL_INPUTS_STR}) {{
    return {parse_subtree(root, brackets=False)};
 }}
 """
+
 
 def parse_trees(trees):
     
@@ -82,6 +84,7 @@ function predict({MODEL_INPUTS_STR}) {{
 }}
 """
 
+
 def parse_model(model, js_output_filename=None):
     model_json = model.booster_.dump_model()
     
@@ -105,7 +108,6 @@ def visualize(patch, factor=3.5):
     ax[2].imshow(patch.mask_timeless['water_label'].squeeze(), vmin=0, vmax=1)
     ax[2].set_title('water mask')
     
-
 
 def predict_on_sh(model_script, bbox, size, timestamp, config):
     request = SentinelHubRequest(
@@ -133,34 +135,40 @@ def get_predictions(patch, model, config):
     f_s = features.shape
     model_prediction = model.predict_proba(features.reshape(f_s[0]*f_s[1],f_s[2]))[...,-1].reshape(f_s[0],f_s[1])
 
-    return sh_prediction, model_prediction
+    return features[..., [2, 1, 000]], sh_prediction, model_prediction
 
 
-def plot_comparison(sh_prediction, model_prediction, threshold=0.5):
-    fig, ax = plt.subplots(nrows=2, ncols = 3, figsize=(18, 12), sharex=True, sharey=True)
+def plot_comparison(rgb_array, sh_prediction, model_prediction, threshold=0.5):
+    fig, ax = plt.subplots(nrows=2, ncols=4, figsize=(24, 12), sharex=True, sharey=True)
     
     for axx in ax.flatten():
         axx.set_xticks([])
         axx.set_yticks([])
-        
-    ax[0][0].imshow(sh_prediction, vmin=0, vmax=1)
-    ax[0][0].set_title('[a] water prediction probabilities with evalscript on SH', fontsize=14)
+
+    ax[0][0].imshow(3.5*rgb_array)
+    ax[0][0].set_title('RGB image')
+
+    ax[0][1].imshow(sh_prediction, vmin=0, vmax=1)
+    ax[0][1].set_title('[a] water prediction probabilities with evalscript on SH', fontsize=14)
     
-    ax[0][1].imshow(model_prediction, vmin=0, vmax=1)
-    ax[0][1].set_title('[b] water prediction probabilities with model, locally', fontsize=14)
+    ax[0][2].imshow(model_prediction, vmin=0, vmax=1)
+    ax[0][2].set_title('[b] water prediction probabilities with model, locally', fontsize=14)
     
-    ax[0][2].imshow(sh_prediction - model_prediction, vmin=-0.2, vmax=0.2, cmap="RdBu")
-    ax[0][2].set_title('differences between [a] and [b]', fontsize=14)
+    ax[0][3].imshow(sh_prediction - model_prediction, vmin=-0.2, vmax=0.2, cmap="RdBu")
+    ax[0][3].set_title('differences between [a] and [b]', fontsize=14)
     
     sh_thr = np.where(sh_prediction>threshold, 1, 0)
-    ax[1][0].imshow(sh_thr, vmin=0, vmax=1)
-    ax[1][0].set_title('[c] water prediction with evalscript on SH', fontsize=14)
+    ax[1][0].imshow(3.5*rgb_array)
+    ax[1][0].set_title('RGB image')
+
+    ax[1][1].imshow(sh_thr, vmin=0, vmax=1)
+    ax[1][1].set_title('[c] water prediction with evalscript on SH', fontsize=14)
     
     model_thr = np.where(model_prediction>threshold, 1, 0)
-    ax[1][1].imshow(model_thr, vmin=0, vmax=1)
-    ax[1][1].set_title('[d] water prediction with model, locally', fontsize=14)
+    ax[1][2].imshow(model_thr, vmin=0, vmax=1)
+    ax[1][2].set_title('[d] water prediction with model, locally', fontsize=14)
     
-    ax[1][2].imshow(sh_thr - model_thr, vmin=-1, vmax=1, cmap="RdBu")
-    ax[1][2].set_title('differences between [d] and [d]', fontsize=14)
+    ax[1][3].imshow(sh_thr - model_thr, vmin=-1, vmax=1, cmap="RdBu")
+    ax[1][3].set_title('differences between [d] and [d]', fontsize=14)
     
     plt.tight_layout(pad=0.05)
