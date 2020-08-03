@@ -229,6 +229,25 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(sun_zenith_angles.shape == (4, height, width, 1))
         self.assertTrue(len(eopatch.timestamp) == 4)
 
+    def test_aux_request_args(self):
+        """ Download low resolution data with `PREVIEW` mode
+        """
+        task = SentinelHubInputTask(
+            bands_feature=(FeatureType.DATA, 'BANDS'),
+            resolution=260,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            data_source=DataSource.SENTINEL2_L1C,
+            max_threads=self.max_threads,
+            aux_request_args={'dataFilter': {'previewMode': 'PREVIEW'}}
+        )
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+        bands = eopatch[(FeatureType.DATA, 'BANDS')]
+
+        self.assertTrue(bands.shape == (4, 4, 4, 13))
+        self.assertTrue(np.allclose(array_stats(bands), [0.0, 0.0493, 0.0277]))
+
     def test_dem(self):
         task = SentinelHubDemTask(
             resolution=10,
