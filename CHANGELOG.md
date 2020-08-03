@@ -1,3 +1,12 @@
+## [Version 0.7.7] - 2020-08-03
+- Support for `geopandas` version `0.8.0`
+- Added a [notebook](https://github.com/sentinel-hub/eo-learn/blob/develop/examples/custom-script/machine-learning-evalscript.ipynb) with an end-to-end example on how to transform a ML-model into an evalscript and run it with Sentinel Hub service
+- Added `eolearn.features.ClusteringTask`, contributed by @bsircelj
+- An option to define a custom log filter for `EOExecutor`
+- Data mask obtained by `SentinelHubInputTask` has now boolean type instead of uint8
+- Updates of some example notebooks
+- A few minor fixes
+
 ## [Version 0.7.6] - 2020-07-06
 - Added eo-learn dockerfiles and deployed official eo-learn docker images to [Docker Hub](https://hub.docker.com/r/sentinelhub/eolearn)
 - Added `compress` parameter to `ExportToTiff`, contributed by @atedstone
