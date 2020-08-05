@@ -17,6 +17,7 @@ from .hog import HOGTask
 from .local_binary_pattern import LocalBinaryPatternTask
 from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
 from .clustering import ClusteringTask
+from .doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
 __version__ = '0.7.7'
