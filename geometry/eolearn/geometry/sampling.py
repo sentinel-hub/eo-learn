@@ -486,8 +486,8 @@ class BalancedClassSampler:
             class_value = eopatch[self.class_feature][loc_h][loc_w][0]
 
             point_data = [(self.class_feature[1], class_value)] + [('patch_identifier', patch_identifier),
-                                                                   ('x', loc_w),
-                                                                   ('y', loc_h)]
+                                                                   ('x', loc_h),
+                                                                   ('y', loc_w)]
             if self.features:
                 point_data += [(f[1], float(eopatch[f][loc_h][loc_w])) for f in self.features]
 
@@ -559,7 +559,7 @@ class BalancedClassSampler:
                     point_feature = eopatch[self.class_feature][search_h][search_w][0]
                     if point_feature in self.weak_classes:
                         point_data = [(self.class_feature[1], point_feature)] \
-                                     + [('patch_identifier', patch_identifier), ('x', search_w), ('y', search_h)]
+                                     + [('patch_identifier', patch_identifier), ('x', search_h), ('y', search_w)]
                         if self.features:
                             point_data += [(f[1], float(eopatch[f][search_h][search_w])) for f in self.features]
                         point_data = dict(point_data)
@@ -614,12 +614,11 @@ class BalancedClassSampler:
 
     def get_prior_class_distribution(self):
         """
-        Returns the distribution of samples before balancing. Also balances the classes if they are not already.
         :return: Distribution of samples before balancing
         """
-        if not self.class_distribution:
-            self.balance_data()
-        return dict(self.class_distribution)
+        all_sampled_data = pd.DataFrame(self.sampled_data, columns=self.columns)
+        all_sampled_data.dropna(axis=0, inplace=True)
+        return dict(collections.Counter(collections.Counter(all_sampled_data[self.class_feature[1]])))
 
 
 class BalancedClassSamplerTask(EOTask):
