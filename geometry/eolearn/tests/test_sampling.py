@@ -114,7 +114,7 @@ class TestSampling(unittest.TestCase):
 
         self.assertEqual(len(samples.index), 25)
 
-        self.assertEqual(samples.iloc[1, 2], 5)
+        self.assertEqual(samples.iloc[1, 2], 79)
         self.assertEqual(samples.iloc[5, 0], 3)
         self.assertAlmostEqual(samples.iloc[10, 4], 664.0, delta=0.01)
         self.assertAlmostEqual(samples.iloc[18, 5], 0.763, delta=0.01)
@@ -133,7 +133,7 @@ class TestSampling(unittest.TestCase):
 
         self.assertEqual(len(samples.index), 12)
 
-        self.assertEqual(samples.iloc[1, 2], 16)
+        self.assertEqual(samples.iloc[1, 2], 56)
         self.assertEqual(samples.iloc[5, 0], 4)
 
 

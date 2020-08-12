@@ -621,32 +621,18 @@ class BalancedClassSampler:
         return dict(collections.Counter(collections.Counter(all_sampled_data[self.class_feature[1]])))
 
 
-class BalancedClassSamplerTask(EOTask):
+class BalancedClassSamplerTask(EOTask, BalancedClassSampler):
     """
     Task that collects and balances samples from multiple patches
     """
 
     def __init__(self, *args, **kwargs):
         """
-        Initializes the BalancedClassSampler class.
-        :param args: arguments passed to BalancedClassSampler
-        :param kwargs: key word arguments passed to BalancedClassSampler
+        Initializes the BalancedClassSampler class
+        :param args: arguments passed to the parent class
+        :param kwargs: key word arguments passed to the parent class
         """
-        self.balanced_sampler = BalancedClassSampler(*args, **kwargs)
-
-    def get_balanced_data(self):
-        """
-        Balances and returns the dataset that was sampled previously
-        :return: Balanced dataset with new index
-        """
-        return self.balanced_sampler.get_balanced_data()
-
-    def get_prior_class_distribution(self):
-        """
-        Returns the distribution of samples before balancing. Also balances the classes if they are not already.
-        :return: Distribution of samples before balancing
-        """
-        return self.balanced_sampler.get_prior_class_distribution()
+        BalancedClassSampler.__init__(self, *args, **kwargs)
 
     def execute(self, eopatch, patch_identifier='N/A'):
         """
@@ -656,5 +642,5 @@ class BalancedClassSamplerTask(EOTask):
         :param patch_identifier: Name of patch to be stored along the samples
         :return: Unmodified input eopatch
         """
-        self.balanced_sampler.sample(eopatch, patch_identifier)
+        super().sample(eopatch, patch_identifier)
         return eopatch
