@@ -169,20 +169,21 @@ class ValueFilloutTask(EOTask):
         if operation not in ['f', 'b']:
             raise ValueError("'operation' parameter should either be 'f' (forward) or 'b' (backward)!")
 
-        value_match_mask = np.isnan(data) if np.isnan(value) else (data == value)
-        value_match_true = 0 if operation == 'f' else (value_match_mask.shape[0] + 1)
-        accumulate_function = np.maximum.accumulate if operation == 'f' else np.minimum.accumulate
+        n_rows, n_frames = data.shape
 
-        idx = np.where(value_match_mask, value_match_true, np.arange(value_match_mask.shape[1]))
+        value_mask = np.isnan(data) if np.isnan(value) else (data == value)
+        init_index = 0 if operation == 'f' else (n_frames - 1)
 
-        idx = idx if operation == 'f' else idx[:, ::-1]
-        idx = accumulate_function(idx, axis=1)
-        idx = idx if operation == 'f' else idx[:, ::-1]
+        idx = np.where(value_mask, init_index, np.arange(n_frames))
 
-        cannot_fill = np.all(idx == value_match_true, axis=1)
-        idx[cannot_fill] = 0
+        if operation == 'f':
+            idx = np.maximum.accumulate(idx, axis=1)
+        else:
+            idx = idx[:, ::-1]
+            idx = np.minimum.accumulate(idx, axis=1)
+            idx = idx[:, ::-1]
 
-        return data[np.arange(idx.shape[0])[:, np.newaxis], idx]
+        return data[np.arange(n_rows)[:, np.newaxis], idx]
 
     def execute(self, eopatch):
         """

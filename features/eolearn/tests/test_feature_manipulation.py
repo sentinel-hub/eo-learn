@@ -53,6 +53,29 @@ class TestFeatureManipulation(unittest.TestCase):
         self.assertEqual(new_interval, updated_interval)
         self.assertEqual(new_timestamps, updated_timestamps)
 
+    def test_fill(self):
+        array = np.array([[np.NaN]*4 + [1., 2., 3., 4.] + [np.NaN]*3,
+                          [1., np.NaN, np.NaN, 2., 3., np.NaN, np.NaN, np.NaN, 4., np.NaN, 5.]])
+
+        array_ffill = ValueFilloutTask.fill(array, operation='f')
+        array_bfill = ValueFilloutTask.fill(array, operation='b')
+        array_fbfill = ValueFilloutTask.fill(array_ffill, operation='b')
+
+        self.assertTrue(np.array_equal(array_ffill,
+                                       np.array([[np.NaN]*4 + [1., 2., 3., 4., 4., 4., 4.],
+                                                 [1., 1., 1., 2., 3., 3., 3., 3., 4., 4., 5.]]),
+                                       equal_nan=True))
+
+        self.assertTrue(np.array_equal(array_bfill,
+                                       np.array([[1., 1., 1., 1., 1., 2., 3., 4.] + [np.NaN]*3,
+                                                 [1., 2., 2., 2., 3., 4., 4., 4., 4., 5., 5.]]),
+                                       equal_nan=True))
+
+        self.assertTrue(np.array_equal(array_fbfill,
+                                       np.array([[1., 1., 1., 1., 1., 2., 3., 4., 4., 4., 4.],
+                                                 [1., 1., 1., 2., 3., 3., 3., 3., 4., 4., 5.]]),
+                                       equal_nan=True))
+
     def test_value_fillout(self):
         feature = (FeatureType.DATA, 'TEST')
         shape = (8, 10, 10, 5)
