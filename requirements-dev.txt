@@ -9,3 +9,4 @@ scikit-image>=0.14.1
 nbval
 attrs>=19.2.0
 moto
+numpy>=1.19.0
