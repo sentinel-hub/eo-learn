@@ -222,7 +222,7 @@ class ExportToTiff(BaseLocalIo):
             LOGGER.warning(error)
 
             if self.fail_on_missing:
-                raise ValueError(error)
+                raise ValueError(error) from error
             return eopatch
 
         image_array = self._prepare_image_array(eopatch, feature)

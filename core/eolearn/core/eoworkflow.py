@@ -310,8 +310,8 @@ class EOWorkflow:
     def _get_visualization(self):
         """ Helper method which provides EOWorkflowVisualization object
         """
+        # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
-            # pylint: disable=C0415
             from eolearn.visualization import EOWorkflowVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use EOWorkflow '
