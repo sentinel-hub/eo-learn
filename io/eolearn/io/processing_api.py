@@ -201,7 +201,8 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type resolution: float or (float, float)
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
-        :param bands: An array of band names.
+        :param bands: An array of band names. If not specified it will download all bands specified for a given data
+            source.
         :type bands: list[str]
         :param additional_data: A list of additional data to be downloaded, such as SCL, SNW, dataMask, etc.
         :type additional_data: list[tuple(sentinelhub.FeatureType, str)]
@@ -218,7 +219,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param bands_dtype: dtype of the bands array
         :type bands_dtype: type
         :param single_scene: If true, the service will compute a single image for the given time interval using
-                             mosaicking.
+            mosaicking.
         :type single_scene: bool
         :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
         :type mosaicking_order: str
@@ -238,19 +239,14 @@ class SentinelHubInputTask(SentinelHubInputBase):
         self.mosaicking_order = mosaicking_order
         self.aux_request_args = aux_request_args
 
+        self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])()) \
+            if bands_feature else None
         self.requested_bands = {}
 
         if bands_feature:
-            bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
-
-            if not bands and data_source in [DataSource.SENTINEL2_L1C, DataSource.SENTINEL2_L2A]:
-                bands = data_source.bands()
-            elif data_source.is_custom() and not bands:
-                raise ValueError("For custom data sources 'bands' must be provided as an argument.")
-
+            if not bands:
+                bands = data_source.bands
             self._add_request_bands(self.requested_bands, bands)
-
-        self.bands_feature = bands_feature
 
         if additional_data is not None:
             additional_data = list(self._parse_features(additional_data, new_names=True)())
