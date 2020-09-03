@@ -22,29 +22,31 @@ from eolearn.core import EOPatch, FeatureType
 logging.basicConfig(level=logging.INFO)
 
 
-class TestEOPatch(unittest.TestCase):
+class IoTestCase:
+    """
+    Container for each task case of eolearn-io functionalities
+    """
 
-    class TaskTestCase:
-        """
-        Container for each task case of eolearn-io functionalities
-        """
+    def __init__(self, name, request, bbox, time_interval, eop=None, layer=None, data_size=None,
+                 timestamp_length=None, feature_type=FeatureType.DATA, stats=None):
+        self.name = name
+        self.request = request
+        self.layer = layer
+        self.data_size = data_size
+        self.timestamp_length = timestamp_length
+        self.feature_type = feature_type
+        self.stats = stats
 
-        def __init__(self, name, request, bbox, time_interval,
-                     eop=None, layer=None, data_size=None, timestamp_length=None, feature_type=FeatureType.DATA):
-            self.name = name
-            self.request = request
-            self.layer = layer
-            self.data_size = data_size
-            self.timestamp_length = timestamp_length
-            self.feature_type = feature_type
+        if eop is None:
+            self.eop = request.execute(bbox=bbox, time_interval=time_interval)
+        elif isinstance(eop, EOPatch):
+            self.eop = request.execute(eop, bbox=bbox, time_interval=time_interval)
+        else:
+            raise TypeError('Task {}: Argument \'eop\' should be an EOPatch, not {}'.format(
+                name, eop.__class__.__name__))
 
-            if eop is None:
-                self.eop = request.execute(bbox=bbox, time_interval=time_interval)
-            elif isinstance(eop, EOPatch):
-                self.eop = request.execute(eop, bbox=bbox, time_interval=time_interval)
-            else:
-                raise TypeError('Task {}: Argument \'eop\' should be an EOPatch, not {}'.format(
-                    name, eop.__class__.__name__))
+
+class TestOgcInputTasks(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -67,7 +69,7 @@ class TestEOPatch(unittest.TestCase):
 
         cls.create_patches = [
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='generalWmsTask',
                 layer='BANDS-S2-L1C',
                 data_size=13,
@@ -83,7 +85,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=None
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='generalWcsTask',
                 layer='BANDS-S2-L1C',
                 data_size=13,
@@ -99,7 +101,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S2 L1C WMS',
                 layer='BANDS-S2-L1C',
                 data_size=13,
@@ -114,7 +116,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S2 L1C WCS',
                 layer='BANDS-S2-L1C',
                 data_size=13,
@@ -129,7 +131,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='L8 L1C WMS',
                 layer='TRUE-COLOR-L8',
                 data_size=3,
@@ -144,7 +146,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='L8 L1C WCS',
                 layer='TRUE-COLOR-L8',
                 data_size=3,
@@ -159,7 +161,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S1 IW WMS',
                 layer='TRUE-COLOR-S1-IW',
                 data_size=3,
@@ -174,7 +176,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S1 IW WCS',
                 layer='TRUE-COLOR-S1-IW',
                 data_size=3,
@@ -189,7 +191,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S1 IW WCS ascending orbit',
                 layer='TRUE-COLOR-S1-IW',
                 data_size=3,
@@ -205,7 +207,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S1 IW WCS descending orbit',
                 layer='TRUE-COLOR-S1-IW',
                 data_size=3,
@@ -221,7 +223,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S2 L2A WMS',
                 layer='BANDS-S2-L2A',
                 data_size=12,
@@ -236,7 +238,7 @@ class TestEOPatch(unittest.TestCase):
                 eop=EOPatch()
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='S2 L2A WCS',
                 layer='BANDS-S2-L2A',
                 data_size=12,
@@ -254,7 +256,7 @@ class TestEOPatch(unittest.TestCase):
 
         cls.create_patches_datetime = [
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='generalWmsTask',
                 layer='BANDS-S2-L1C',
                 data_size=13,
@@ -272,7 +274,7 @@ class TestEOPatch(unittest.TestCase):
         ]
 
         cls.update_patches = [
-            cls.TaskTestCase(
+            IoTestCase(
                 name='generalWmsTask_to_empty',
                 layer='BANDS-S2-L1C',
                 data_size=13,
@@ -288,7 +290,7 @@ class TestEOPatch(unittest.TestCase):
                 time_interval=cls.time_interval,
             ),
 
-            cls.TaskTestCase(
+            IoTestCase(
                 name='DEM_to_existing_patch',
                 layer='DEM',
                 data_size=1,
@@ -303,7 +305,7 @@ class TestEOPatch(unittest.TestCase):
                 time_interval=cls.time_interval,
                 feature_type=FeatureType.DATA_TIMELESS
             ),
-            cls.TaskTestCase(
+            IoTestCase(
                 name='Sen2Cor_to_existing_patch',
                 layer='SCL',
                 data_size=1,
