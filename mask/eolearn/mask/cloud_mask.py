@@ -19,7 +19,7 @@ import numpy as np
 import cv2
 from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
-from sentinelhub import WmsRequest, WcsRequest, DataSource, CustomUrlParam, MimeType, ServiceType, bbox_to_resolution
+from sentinelhub import WmsRequest, WcsRequest, DataCollection, CustomUrlParam, MimeType, ServiceType, bbox_to_resolution
 from sentinelhub.exceptions import SHDeprecationWarning
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
@@ -46,41 +46,49 @@ class AddCloudMaskTask(EOTask):
     the `data_feature` and cloud probability map, while `nearest` interpolation is used to upsample the binary cloud
     mask.
 
-    This implementation should allow usage with any cloud detector implemented for different data sources (S2, L8, ..).
+    This implementation should allow usage with any cloud detector implemented for different data collections
+    (S2, L8, ..).
     """
     def __init__(self, classifier, data_feature, cm_size_x=None, cm_size_y=None, cmask_feature='CLM',
-                 cprobs_feature=None, instance_id=None, data_source=DataSource.SENTINEL2_L1C,
-                 image_format=MimeType.TIFF_d32f, model_evalscript=MODEL_EVALSCRIPT):
+                 cprobs_feature=None, instance_id=None, data_collection=DataCollection.SENTINEL2_L1C,
+                 image_format=MimeType.TIFF_d32f, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
         """ Constructor
 
         If both `cm_size_x` and `cm_size_y` are `None` and `data_feature` exists, cloud detection is computed at same
         resolution of `data_feature`.
 
         :param classifier: Cloud detector classifier. This object implements a `get_cloud_probability_map` and
-                            `get_cloud_masks` functions to generate probability maps and binary masks
+            `get_cloud_masks` functions to generate probability maps and binary masks
         :param data_feature: Name of key in eopatch.data dictionary to be used as input to the classifier. If the
-                           `data_feature` does not exist, a new OGC request at the given cloud mask resolution is made
-                           with layer name set to `data_feature` parameter.
+            `data_feature` does not exist, a new OGC request at the given cloud mask resolution is made
+            with layer name set to `data_feature` parameter.
         :param cm_size_x: Resolution to be used for computation of cloud mask. Allowed values are number of column
-                            pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
+            pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
         :param cm_size_y: Resolution to be used for computation of cloud mask. Allowed values are number of row
-                            pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
+            pixels (WMS-request) or spatial resolution (WCS-request, e.g. '10m'). Default is `None`
         :param cmask_feature: Name of key to be used for the cloud mask to add. The cloud binary mask is added to the
-                            `eopatch.mask` attribute dictionary. Default is `'clm'`.
+            `eopatch.mask` attribute dictionary. Default is `'clm'`.
         :param cprobs_feature: Name of key to be used for the cloud probability map to add. The cloud probability map is
-                            added to the `eopatch.data` attribute dictionary. Default is `None`, so no cloud
-                            probability map will be computed.
+            added to the `eopatch.data` attribute dictionary. Default is `None`, so no cloud probability map will
+            be computed.
         :param instance_id: Instance ID to be used for OGC request. Default is `None`
-        :param data_source: Data source to be requested by OGC service request. Default is `DataSource.SENTINEL2_L1C`
+        :param data_collection: Data collection to be requested by OGC service request. Default is
+            `DataCollection.SENTINEL2_L1C`
         :param image_format: Image format to be requested by OGC service request. Default is `MimeType.TIFF_d32f`
         :param model_evalscript: CustomUrlParam defining the EVALSCRIPT to be used by OGC request. Should reflect the
-                            request necessary for the correct functioning of the classifier. For instance, for the
-                            `S2PixelCloudDetector` classifier, `MODEL_EVALSCRIPT` is used as it requests the required 10
-                            bands. Default is `MODEL_EVALSCRIPT`
+            request necessary for the correct functioning of the classifier. For instance, for the
+            `S2PixelCloudDetector` classifier, `MODEL_EVALSCRIPT` is used as it requests the required 10
+            bands. Default is `MODEL_EVALSCRIPT`
+        :param data_source: A deprecated alternative to data_collection
+        :type data_source: DataCollection
         """
         warnings.warn("AddCloudMaskTask is being deprecated. Please use AddMultiCloudMaskTask instead. "
                       "See showcase at examples/mask/CloudMaskTask.ipynb",
                       SHDeprecationWarning)
+        if data_source is not None:
+            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
+                          category=SHDeprecationWarning)
+        data_collection = data_source or data_collection
 
         self.classifier = classifier
         self.data_feature = data_feature
@@ -89,7 +97,7 @@ class AddCloudMaskTask(EOTask):
         self.cm_size_y = cm_size_y
         self.cprobs_feature = cprobs_feature
         self.instance_id = instance_id
-        self.data_source = data_source
+        self.data_collection = data_collection
         self.image_format = image_format
         self.model_evalscript = model_evalscript
 
@@ -106,7 +114,7 @@ class AddCloudMaskTask(EOTask):
                           custom_url_params=custom_url_params,
                           time_difference=time_difference,
                           image_format=self.image_format,
-                          data_source=self.data_source,
+                          data_collection=self.data_collection,
                           instance_id=self.instance_id)
 
     def _get_wcs_request(self, bbox, time_interval, size_x, size_y, maxcc, time_difference, custom_url_params):
@@ -121,7 +129,7 @@ class AddCloudMaskTask(EOTask):
                           custom_url_params=custom_url_params,
                           time_difference=time_difference,
                           image_format=self.image_format,
-                          data_source=self.data_source,
+                          data_collection=self.data_collection,
                           instance_id=self.instance_id)
 
     def _get_rescale_factors(self, reference_shape, meta_info):

@@ -3,11 +3,13 @@
 import collections
 import logging
 import datetime as dt
+import warnings
 from itertools import repeat
 
 import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
-    bbox_to_dimensions, parse_time_interval, DataSource
+    bbox_to_dimensions, parse_time_interval, DataCollection
+from sentinelhub.exceptions import SHDeprecationWarning
 from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -15,15 +17,15 @@ from eolearn.core import EOPatch, EOTask, FeatureType
 LOGGER = logging.getLogger(__name__)
 
 
-def get_available_timestamps(bbox, config, data_source, maxcc, time_difference, time_interval):
+def get_available_timestamps(bbox, config, data_collection, maxcc, time_difference, time_interval):
     """Helper function to search for all available timestamps, based on query parameters
 
     :param bbox: Bounding box
     :type bbox: BBox
     :param time_interval: Time interval to query available satellite data from
     type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
-    :param data_source: Source of requested satellite data.
-    :type data_source: DataSource
+    :param data_collection: Source of requested satellite data.
+    :type data_collection: DataCollection
     :param maxcc: Maximum cloud coverage.
     :type maxcc: float
     :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
@@ -32,7 +34,8 @@ def get_available_timestamps(bbox, config, data_source, maxcc, time_difference, 
     :type config: SHConfig
     :return: list of datetimes with available observations
     """
-    wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_source=data_source, maxcc=maxcc, config=config)
+    wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_collection=data_collection, maxcc=maxcc,
+                            config=config)
     dates = wfs.get_dates()
 
     if len(dates) == 0:
@@ -46,10 +49,11 @@ class SentinelHubInputBase(EOTask):
     """ Base class for Processing API input tasks
     """
 
-    def __init__(self, data_source, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
+    def __init__(self, data_collection, size=None, resolution=None, cache_folder=None, config=None, max_threads=None,
+                 data_source=None):
         """
-        :param data_source: Source of requested satellite data.
-        :type data_source: DataSource
+        :param data_collection: A collection of requested satellite data.
+        :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
         :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
@@ -61,8 +65,13 @@ class SentinelHubInputBase(EOTask):
         :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
+        :param data_source: A deprecated alternative to data_collection
+        :type data_source: DataCollection
         """
-
+        data_collection = data_source or data_collection
+        if data_source is not None:
+            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
+                          category=SHDeprecationWarning)
         if (size is None) == (resolution is None):
             raise ValueError("Exactly one of the parameters 'size' and 'resolution' should be given.")
 
@@ -70,7 +79,7 @@ class SentinelHubInputBase(EOTask):
         self.resolution = resolution
         self.config = config or SHConfig()
         self.max_threads = max_threads
-        self.data_source = data_source
+        self.data_collection = data_collection
         self.cache_folder = cache_folder
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
@@ -100,7 +109,7 @@ class SentinelHubInputBase(EOTask):
         requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
         requests = [request.download_list[0] for request in requests]
 
-        LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_source))
+        LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_collection))
         client = SentinelHubDownloadClient(config=self.config)
         images = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug('Downloads complete')
@@ -188,12 +197,13 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
     CUSTOM_BAND_TYPE = ProcApiType("custom", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
 
-    def __init__(self, data_source, size=None, resolution=None, bands_feature=None, bands=None, additional_data=None,
-                 evalscript=None, maxcc=1.0, time_difference=None, cache_folder=None, max_threads=None, config=None,
-                 bands_dtype=np.float32, single_scene=False, mosaicking_order='mostRecent', aux_request_args=None):
+    def __init__(self, data_collection=None, size=None, resolution=None, bands_feature=None, bands=None,
+                 additional_data=None, evalscript=None, maxcc=1.0, time_difference=None, cache_folder=None,
+                 max_threads=None, config=None, bands_dtype=np.float32, single_scene=False,
+                 mosaicking_order='mostRecent', aux_request_args=None, data_source=None):
         """
-        :param data_source: Source of requested satellite data.
-        :type data_source: DataSource
+        :param data_collection: Source of requested satellite data.
+        :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
         :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
@@ -202,7 +212,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param bands_feature: Target feature into which to save the downloaded images.
         :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names. If not specified it will download all bands specified for a given data
-            source.
+            collection.
         :type bands: list[str]
         :param additional_data: A list of additional data to be downloaded, such as SCL, SNW, dataMask, etc.
         :type additional_data: list[tuple(sentinelhub.FeatureType, str)]
@@ -227,13 +237,18 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type mosaicking_order: str
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :type aux_request_args: dict
+        :param data_source: A deprecated alternative to data_collection
+        :type data_source: DataCollection
         """
+        data_collection = data_source or data_collection
+        if data_source is not None:
+            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
+                          category=SHDeprecationWarning)
+
         super().__init__(
-            data_source=data_source, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
+            data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
             max_threads=max_threads
         )
-
-        self.data_source = data_source
         self.evalscript = evalscript
         self.maxcc = maxcc
         self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
@@ -248,7 +263,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         if bands_feature:
             if not bands:
-                bands = data_source.bands
+                bands = data_collection.bands
             self._add_request_bands(self.requested_bands, bands)
 
         if additional_data is not None:
@@ -335,7 +350,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         if self.single_scene:
             return [time_interval[0]]
 
-        return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_source=self.data_source,
+        return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_collection=self.data_collection,
                                         maxcc=self.maxcc, time_difference=self.time_difference, config=self.config)
 
     def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
@@ -358,7 +373,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
             evalscript=self.evalscript or self.generate_evalscript(),
             input_data=[
                 SentinelHubRequest.input_data(
-                    data_source=self.data_source,
+                    data_collection=self.data_collection,
                     time_interval=(date_from, date_to),
                     mosaicking_order=self.mosaicking_order,
                     maxcc=self.maxcc,
@@ -368,7 +383,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
             responses=responses,
             bbox=bbox,
             size=(size_x, size_y),
-            base_url=self.data_source.service_url,
+            base_url=self.data_collection.service_url,
             data_folder=self.cache_folder,
             config=self.config
         )
@@ -452,8 +467,8 @@ class SentinelHubDemTask(SentinelHubInputBase):
         """
 
         super().__init__(
-            data_source=DataSource.DEM, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
-            max_threads=max_threads
+            data_collection=DataCollection.DEM, size=size, resolution=resolution, cache_folder=cache_folder,
+            config=config, max_threads=max_threads
         )
 
         feature_parser = self._parse_features(
@@ -488,11 +503,11 @@ class SentinelHubDemTask(SentinelHubInputBase):
 
         request = SentinelHubRequest(
             evalscript=evalscript,
-            input_data=[SentinelHubRequest.input_data(data_source=self.data_source)],
+            input_data=[SentinelHubRequest.input_data(data_collection=self.data_collection)],
             responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
             bbox=bbox,
             size=(size_x, size_y),
-            base_url=self.data_source.service_url,
+            base_url=self.data_collection.service_url,
             data_folder=self.cache_folder,
             config=self.config
         )

@@ -1,6 +1,6 @@
 # Poverty Detection from Sentinel-2 and VIIRS
 
-This example shows how three data sources -- Sentinel-2A, VIIRS night lights, and the USAID Demographic and Health Survey -- can be used to predict neighborhood poverty levels in Rwanda.
+This example shows how three data collections -- Sentinel-2A, VIIRS night lights, and the USAID Demographic and Health Survey -- can be used to predict neighborhood poverty levels in Rwanda.
 
 ## Additional information
 

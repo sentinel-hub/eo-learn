@@ -14,7 +14,7 @@ import logging
 import datetime
 import numpy as np
 
-from sentinelhub import BBox, CRS, DataSource, ServiceType
+from sentinelhub import BBox, CRS, DataCollection, ServiceType
 
 from eolearn.io import *
 from eolearn.core import EOPatch, FeatureType
@@ -64,7 +64,7 @@ class TestOgcInputTasks(unittest.TestCase):
             layer='BANDS-S2-L1C',
             height=img_height,
             width=img_width,
-            data_source=DataSource.SENTINEL2_L1C
+            data_collection=DataCollection.SENTINEL2_L1C
         ).execute(bbox=bbox, time_interval=cls.time_interval)
 
         cls.create_patches = [
@@ -78,7 +78,7 @@ class TestOgcInputTasks(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     height=img_height,
                     width=img_width,
-                    data_source=DataSource.SENTINEL2_L1C
+                    data_collection=DataCollection.SENTINEL2_L1C
                 ),
                 bbox=bbox,
                 time_interval=cls.time_interval,
@@ -94,7 +94,7 @@ class TestOgcInputTasks(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     resx=resx,
                     resy=resy,
-                    data_source=DataSource.SENTINEL2_L1C
+                    data_collection=DataCollection.SENTINEL2_L1C
                 ),
                 bbox=bbox,
                 time_interval=cls.time_interval,
@@ -265,7 +265,7 @@ class TestOgcInputTasks(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     height=img_height,
                     width=img_width,
-                    data_source=DataSource.SENTINEL2_L1C
+                    data_collection=DataCollection.SENTINEL2_L1C
                 ),
                 bbox=bbox,
                 time_interval=cls.time_interval_datetime,
@@ -284,7 +284,7 @@ class TestOgcInputTasks(unittest.TestCase):
                     layer='BANDS-S2-L1C',
                     height=img_height,
                     width=img_width,
-                    data_source=DataSource.SENTINEL2_L1C
+                    data_collection=DataCollection.SENTINEL2_L1C
                 ),
                 bbox=bbox,
                 time_interval=cls.time_interval,

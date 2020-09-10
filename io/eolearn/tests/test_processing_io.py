@@ -7,7 +7,7 @@ from concurrent import futures
 import datetime as dt
 
 import numpy as np
-from sentinelhub import CRS, BBox, DataSource
+from sentinelhub import CRS, BBox, DataCollection
 from eolearn.io import SentinelHubInputTask, SentinelHubDemTask
 from eolearn.core import FeatureType, EOPatch
 
@@ -50,7 +50,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads,
             cache_folder=cache_folder
         )
@@ -91,7 +91,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads
         )
 
@@ -112,7 +112,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L2A,
+            data_collection=DataCollection.SENTINEL2_L2A,
             max_threads=self.max_threads
         )
 
@@ -131,7 +131,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads,
             single_scene=True,
             mosaicking_order="leastCC"
@@ -166,7 +166,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L2A,
+            data_collection=DataCollection.SENTINEL2_L2A,
             max_threads=self.max_threads
         )
 
@@ -208,7 +208,7 @@ class TestProcessingIO(unittest.TestCase):
             resolution=260,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads,
             aux_request_args={'dataFilter': {'previewMode': 'PREVIEW'}}
         )
@@ -245,7 +245,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads
         )
 
@@ -268,8 +268,8 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(array.shape == (20, height, width, 3))
 
 
-class TestSentinelHubInputTaskDataSources(unittest.TestCase):
-    """ Integration tests for all supported data sources
+class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
+    """ Integration tests for all supported data collections
     """
     @classmethod
     def setUpClass(cls):
@@ -282,11 +282,11 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
         cls.data_feature = FeatureType.DATA, 'BANDS'
         cls.mask_feature = FeatureType.MASK, 'dataMask'
 
-        s3slstr_500m = DataSource.SENTINEL3_SLSTR.define_from(
+        s3slstr_500m = DataCollection.SENTINEL3_SLSTR.define_from(
             'SENTINEL3_SLSTR_500m',
             bands=('S2', 'S3', 'S6')
         )
-        s5p_co = DataSource.SENTINEL5P.define_from(
+        s5p_co = DataCollection.SENTINEL5P.define_from(
             'SENTINEL5P_CO',
             bands=('CO',)
         )
@@ -317,7 +317,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.SENTINEL2_L2A
+                    data_collection=DataCollection.SENTINEL2_L2A
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -332,7 +332,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.SENTINEL2_L2A,
+                    data_collection=DataCollection.SENTINEL2_L2A,
                     evalscript=ndvi_evalscript,
                     bands=['NDVI']
                 ),
@@ -349,7 +349,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.LANDSAT8
+                    data_collection=DataCollection.LANDSAT8
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -364,7 +364,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.MODIS
+                    data_collection=DataCollection.MODIS
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -379,7 +379,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.SENTINEL1_IW
+                    data_collection=DataCollection.SENTINEL1_IW
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -394,7 +394,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.SENTINEL1_IW_ASC
+                    data_collection=DataCollection.SENTINEL1_IW_ASC
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -409,7 +409,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.SENTINEL1_EW_DES
+                    data_collection=DataCollection.SENTINEL1_EW_DES
                 ),
                 bbox=bbox2,
                 time_interval=time_interval,
@@ -424,7 +424,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=DataSource.SENTINEL3_OLCI
+                    data_collection=DataCollection.SENTINEL3_OLCI
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -439,7 +439,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=s3slstr_500m
+                    data_collection=s3slstr_500m
                 ),
                 bbox=bbox,
                 time_interval=time_interval,
@@ -454,7 +454,7 @@ class TestSentinelHubInputTaskDataSources(unittest.TestCase):
                     additional_data=[cls.mask_feature],
                     size=cls.size,
                     time_difference=time_difference,
-                    data_source=s5p_co
+                    data_collection=s5p_co
                 ),
                 bbox=bbox,
                 time_interval=('2020-06-1', '2020-06-1'),
