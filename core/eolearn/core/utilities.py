@@ -5,7 +5,7 @@ two objects are deeply equal, padding of an image, etc.
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -16,6 +16,8 @@ from collections import OrderedDict
 from logging import Filter
 
 import numpy as np
+import geopandas as gpd
+from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
 
@@ -25,8 +27,11 @@ LOGGER = logging.getLogger(__name__)
 class LogFileFilter(Filter):
     """ Filters log messages passed to log file
     """
-
     def __init__(self, thread_name, *args, **kwargs):
+        """
+        :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
+        :type thread_name: str or None
+        """
         self.thread_name = thread_name
         super().__init__(*args, **kwargs)
 
@@ -376,19 +381,6 @@ def deep_eq(fst_obj, snd_obj):
     :return: `True` if objects are deeply equal, `False` otherwise
     """
     # pylint: disable=too-many-return-statements
-    if isinstance(fst_obj, (np.ndarray, np.memmap)):
-        if not isinstance(snd_obj, (np.ndarray, np.memmap)):
-            return False
-
-        if fst_obj.dtype != snd_obj.dtype:
-            return False
-
-        fst_nan_mask = np.isnan(fst_obj)
-        snd_nan_mask = np.isnan(snd_obj)
-
-        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
-            np.array_equal(fst_nan_mask, snd_nan_mask)
-
     if not isinstance(fst_obj, type(snd_obj)):
         return False
 
@@ -399,6 +391,13 @@ def deep_eq(fst_obj, snd_obj):
         snd_nan_mask = np.isnan(snd_obj)
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
+
+    if isinstance(fst_obj, gpd.GeoDataFrame):
+        try:
+            assert_geodataframe_equal(fst_obj, snd_obj)
+            return True
+        except AssertionError:
+            return False
 
     if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):

@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/pypi/l/eo-learn.svg)](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE)
 [![Overall downloads](http://pepy.tech/badge/eo-learn)](https://pepy.tech/project/eo-learn)
 [![Last month downloads](https://pepy.tech/badge/eo-learn/month)](https://pepy.tech/project/eo-learn)
+[![Docker pulls](https://img.shields.io/docker/pulls/sentinelhub/eolearn.svg)](https://hub.docker.com/r/sentinelhub/eolearn)
 [![codecov](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
 <img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
@@ -25,7 +26,7 @@ to use any of the available tasks and is encouraged to improve the, develop new 
 
 **`eo-learn`** makes extraction of valuable information from satellite imagery as easy as defining a sequence of operations to be performed on satellite imagery. Image below illustrates a processing chain that maps water in satellite imagery by thresholding the Normalised Difference Water Index in user specified region of interest.
 
-![eo-learn-workflow0illustration](docs/source/figures/eo-learn-illustration.png)
+![](docs/source/figures/eo-learn-illustration.png)
 
 **`eo-learn`** _library acts as a bridge between Earth observation/Remote sensing field and Python ecosystem for data science and machine learning._ The library is written in Python and uses NumPy arrays to store and handle remote sensing data. Its aim is to make entry easier for non-experts to the field of remote sensing on one hand and bring the state-of-the-art tools for computer vision, machine learning, and deep learning existing in Python ecosystem to remote sensing experts.
 
@@ -46,7 +47,9 @@ At the moment there are the following subpackages:
 
 ## Installation
 
-The package requires Python version **>=3.5** . It can be installed with:
+### PyPi distribution
+
+The package requires Python version **>=3.6** . It can be installed with:
 
 ```bash
 pip install eo-learn
@@ -71,6 +74,7 @@ gdal
 rasterio
 shapely
 fiona
+cartopy (required by eo-learn-visualization[FULL])
 ```
 
 One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. On windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
@@ -80,6 +84,56 @@ A part of subpackage `eo-learn-visualization` requires additional dependencies w
 ```bash
 pip install eo-learn-visualization[FULL]
 ```
+
+### Conda Forge distribution
+
+The package requires a Python environment **>=3.6**. 
+
+Thanks to the maintainers of the conda forge feedstock (@benhuff, @dcunn, @mwilson8, @oblute, @rluria14), `eo-learn` can 
+be installed using `conda-forge` as follows:
+
+```bash
+conda config --add channels conda-forge
+
+conda install eo-learn
+```
+
+In order to avoid heavy package dependencies it is possible to install each subpackage separately:
+
+```bash
+conda install eo-learn-core
+conda install eo-learn-coregistration
+conda install eo-learn-features
+conda install eo-learn-geometry
+conda install eo-learn-io
+conda install eo-learn-mask
+conda install eo-learn-ml-tools
+conda install eo-learn-visualization
+```
+
+### Run with Docker
+
+A docker image with the latest released version of `eo-learn` is available at [Docker Hub](https://hub.docker.com/r/sentinelhub/eolearn). It provides a full installation of `eo-learn` together with a Jupyter notebook environment. You can pull and run it with:
+
+```bash
+docker pull sentinelhub/eolearn:latest
+docker run -p 8888:8888 sentinelhub/eolearn:latest
+```
+
+An extended version of the `latest` image additionally contains all example notebooks and data to get you started with `eo-learn`. Run it with: 
+
+```bash
+docker pull sentinelhub/eolearn:latest-examples
+docker run -p 8888:8888 sentinelhub/eolearn:latest-examples
+```
+
+Both docker images can also be built manually from GitHub repository:
+
+```bash
+docker build -f docker/eolearn.dockerfile . --tag=sentinelhub/eolearn:latest
+docker build -f docker/eolearn-examples.dockerfile . --tag=sentinelhub/eolearn:latest-examples
+```
+
 
 ## Documentation
 
@@ -99,6 +153,14 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
  * [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification) (by Anze Zupanc)
  * [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966) (by Daniel Moraite)
+ * [NoRSC19 Workshop on eo-learn](https://github.com/sentinel-hub/norsc19-eo-learn-workshop)
+ * [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
+ * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
+ * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
+ * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a) 
+ * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583) 
+ 
+ 
 
 ## Questions and Issues
 

@@ -4,7 +4,7 @@ This module implements conversion from/to xarray DataArray/Dataset
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -229,8 +229,8 @@ def new_coordinates(data, crs, new_crs):
     y_values = data.coords['y'].values
     bbox = BBox((x_values[0], y_values[0], x_values[-1], y_values[-1]), crs=crs)
     bbox = bbox.transform(new_crs)
-    xmin, ymin = bbox.get_lower_left()
-    xmax, ymax = bbox.get_upper_right()
+    xmin, ymin = bbox.lower_left
+    xmax, ymax = bbox.upper_right
     new_xs = np.linspace(xmin, xmax, len(x_values))
     new_ys = np.linspace(ymin, ymax, len(y_values))
 

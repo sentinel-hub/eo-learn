@@ -12,11 +12,10 @@ import numpy as np
 
 class SentinelHubValidData:
     """
-    Combine Sen2Cor's classification map with `IS_DATA` to define a `VALID_DATA_SH` mask
     The SentinelHub's cloud mask is asumed to be found in eopatch.mask['CLM']
     """
     def __call__(self, eopatch):
-        return np.logical_and(eopatch.mask['IS_DATA'].astype(np.bool),
+        return np.logical_and(eopatch.mask['dataMask'].astype(np.bool),
                               np.logical_not(eopatch.mask['CLM'].astype(np.bool)))
 
 class CountValid(EOTask):

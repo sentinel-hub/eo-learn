@@ -7,6 +7,6 @@ from .sentinelhub_service import SentinelHubOGCInput, SentinelHubWMSInput, Senti
     DEMWMSInput, DEMWCSInput, AddSen2CorClassificationFeature
 from .geopedia import AddGeopediaFeature
 from .local_io import ExportToTiff, ImportFromTiff
-from .processing_api import SentinelHubProcessingInput
+from .processing_api import SentinelHubInputTask, SentinelHubDemTask, SentinelHubInputBase, get_available_timestamps
 
-__version__ = '0.6.0'
+__version__ = '0.7.7'

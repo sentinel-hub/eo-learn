@@ -1,14 +1,14 @@
 Sphinx
 sphinx-rtd-theme
 nbsphinx
-ipython
-m2r>=0.2.0
+jupyter
+git+https://github.com/AleksMat/m2r@dev
 
-./core
-./coregistration
-./features
-./geometry
-./io
-./mask
-./ml_tools
-./visualization
+-e ./core
+-e ./coregistration
+-e ./features
+-e ./geometry
+-e ./io
+-e ./mask
+-e ./ml_tools
+-e ./visualization

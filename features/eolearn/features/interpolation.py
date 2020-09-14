@@ -4,7 +4,7 @@ Module for interpolating, smoothing and re-sampling features in EOPatch
 Credits:
 Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
 Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 Copyright (c) 2018-2019 Filip Koprivec (Jožef Stefan Institute)
 Copyright (c) 2018-2019 William Ouellette
 
@@ -111,7 +111,7 @@ class InterpolationTask(EOTask):
         returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
     :type scale_time: int
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
-    interpolation object for the whole image
+        interpolation object for the whole image
     :type interpolate_pixel_wise : bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
@@ -477,7 +477,7 @@ class LinearInterpolation(InterpolationTask):
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+            array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray
@@ -574,7 +574,7 @@ class ResamplingTask(InterpolationTask):
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+            array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray
