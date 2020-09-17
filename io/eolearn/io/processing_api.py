@@ -3,13 +3,12 @@
 import collections
 import logging
 import datetime as dt
-import warnings
 from itertools import repeat
 
 import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataCollection
-from sentinelhub.exceptions import SHDeprecationWarning
+from sentinelhub.exceptions import handle_deprecated_data_source
 from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -68,10 +67,6 @@ class SentinelHubInputBase(EOTask):
         :param data_source: A deprecated alternative to data_collection
         :type data_source: DataCollection
         """
-        data_collection = data_source or data_collection
-        if data_source is not None:
-            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
-                          category=SHDeprecationWarning)
         if (size is None) == (resolution is None):
             raise ValueError("Exactly one of the parameters 'size' and 'resolution' should be given.")
 
@@ -79,7 +74,7 @@ class SentinelHubInputBase(EOTask):
         self.resolution = resolution
         self.config = config or SHConfig()
         self.max_threads = max_threads
-        self.data_collection = data_collection
+        self.data_collection = DataCollection(handle_deprecated_data_source(data_collection, data_source))
         self.cache_folder = cache_folder
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
@@ -240,14 +235,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param data_source: A deprecated alternative to data_collection
         :type data_source: DataCollection
         """
-        data_collection = data_source or data_collection
-        if data_source is not None:
-            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
-                          category=SHDeprecationWarning)
-
         super().__init__(
             data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
-            max_threads=max_threads
+            max_threads=max_threads, data_source=data_source
         )
         self.evalscript = evalscript
         self.maxcc = maxcc

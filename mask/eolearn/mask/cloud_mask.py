@@ -21,7 +21,7 @@ from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataCollection, CustomUrlParam, MimeType, ServiceType, \
     bbox_to_resolution
-from sentinelhub.exceptions import SHDeprecationWarning
+from sentinelhub.exceptions import SHDeprecationWarning, handle_deprecated_data_source
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 
@@ -51,7 +51,7 @@ class AddCloudMaskTask(EOTask):
     (S2, L8, ..).
     """
     def __init__(self, classifier, data_feature, cm_size_x=None, cm_size_y=None, cmask_feature='CLM',
-                 cprobs_feature=None, instance_id=None, data_collection=DataCollection.SENTINEL2_L1C,
+                 cprobs_feature=None, instance_id=None, data_collection=None,
                  image_format=MimeType.TIFF_d32f, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
         """ Constructor
 
@@ -73,8 +73,7 @@ class AddCloudMaskTask(EOTask):
             added to the `eopatch.data` attribute dictionary. Default is `None`, so no cloud probability map will
             be computed.
         :param instance_id: Instance ID to be used for OGC request. Default is `None`
-        :param data_collection: Data collection to be requested by OGC service request. Default is
-            `DataCollection.SENTINEL2_L1C`
+        :param data_collection: Data collection to be requested by OGC service request.
         :param image_format: Image format to be requested by OGC service request. Default is `MimeType.TIFF_d32f`
         :param model_evalscript: CustomUrlParam defining the EVALSCRIPT to be used by OGC request. Should reflect the
             request necessary for the correct functioning of the classifier. For instance, for the
@@ -86,10 +85,8 @@ class AddCloudMaskTask(EOTask):
         warnings.warn("AddCloudMaskTask is being deprecated. Please use AddMultiCloudMaskTask instead. "
                       "See showcase at examples/mask/CloudMaskTask.ipynb",
                       SHDeprecationWarning)
-        if data_source is not None:
-            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
-                          category=SHDeprecationWarning)
-        data_collection = data_source or data_collection
+
+        data_collection = handle_deprecated_data_source(data_collection, data_source) or DataCollection.SENTINEL2_L1C
 
         self.classifier = classifier
         self.data_feature = data_feature

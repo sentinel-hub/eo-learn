@@ -17,7 +17,7 @@ import warnings
 
 import numpy as np
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataCollection, CustomUrlParam, ServiceType
-from sentinelhub.exceptions import SHDeprecationWarning
+from sentinelhub.exceptions import SHDeprecationWarning, handle_deprecated_data_source
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 
@@ -78,10 +78,7 @@ class SentinelHubOGCInput(EOTask):
                       "Please use SentinelHubInputTask instead. See examples/io/ProcessingIO.ipynb for examples.",
                       SHDeprecationWarning)
 
-        data_collection = data_source or data_collection
-        if data_source is not None:
-            warnings.warn('Parameter data_source is deprecated, use data_collection instead',
-                          category=SHDeprecationWarning)
+        data_collection = DataCollection(handle_deprecated_data_source(data_collection, data_source))
 
         self.layer = layer
         self.feature_type, self.feature_name = next(self._parse_features(layer if feature is None else feature,
