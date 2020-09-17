@@ -17,7 +17,8 @@ import warnings
 
 import numpy as np
 from sentinelhub import WmsRequest, WcsRequest, MimeType, DataCollection, CustomUrlParam, ServiceType
-from sentinelhub.exceptions import SHDeprecationWarning, handle_deprecated_data_source
+from sentinelhub.data_collections import handle_deprecated_data_source
+from sentinelhub.exceptions import SHDeprecationWarning
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
 

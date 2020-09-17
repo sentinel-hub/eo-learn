@@ -8,7 +8,7 @@ from itertools import repeat
 import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataCollection
-from sentinelhub.exceptions import handle_deprecated_data_source
+from sentinelhub.data_collections import handle_deprecated_data_source
 from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType

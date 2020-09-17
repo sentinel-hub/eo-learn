@@ -21,7 +21,8 @@ from skimage.morphology import disk
 from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
 from sentinelhub import WmsRequest, WcsRequest, DataCollection, CustomUrlParam, MimeType, ServiceType, \
     bbox_to_resolution
-from sentinelhub.exceptions import SHDeprecationWarning, handle_deprecated_data_source
+from sentinelhub.data_collections import handle_deprecated_data_source
+from sentinelhub.exceptions import SHDeprecationWarning
 
 from eolearn.core import EOTask, get_common_timestamps, FeatureType, execute_with_mp_lock
 
