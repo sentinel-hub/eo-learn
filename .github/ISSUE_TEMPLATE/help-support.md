@@ -1,5 +1,5 @@
 ---
-name: 'Help/Support \U0001F3F3️'
+name: 'Help/Support'
 about: 'Need help?'
 title: '[HELP]'
 labels: help wanted, question

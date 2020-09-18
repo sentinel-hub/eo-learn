@@ -1,5 +1,5 @@
 ---
-name: 'Feature request \U0001F30D'
+name: 'Feature request'
 about: What feature is missing?
 title: '[FEAT]'
 labels: enhancement
