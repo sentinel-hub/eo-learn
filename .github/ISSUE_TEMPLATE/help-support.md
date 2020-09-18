@@ -1,7 +1,7 @@
 ---
-name: "Help/Support \U0001F3F3️"
-about: 'Need help? '
-title: "[HELP]"
+name: 'Help/Support \U0001F3F3️'
+about: 'Need help?'
+title: '[HELP]'
 labels: help wanted, question
 assignees: ''
 

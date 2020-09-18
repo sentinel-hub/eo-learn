@@ -1,7 +1,7 @@
 ---
-name: "Feature request \U0001F30D"
-about: Contribute to eo-learn
-title: "[FEAT]"
+name: 'Feature request \U0001F30D'
+about: What feature is missing?
+title: '[FEAT]'
 labels: enhancement
 assignees: ''
 

@@ -1,7 +1,7 @@
 ---
-name: "Bug report \U0001F41E"
+name: 'Bug report \U0001F41E'
 about: Help us improve
-title: "[BUG]"
+title: '[BUG]'
 labels: bug
 assignees: ''
 
@@ -18,7 +18,7 @@ NOTE: Remove any confidential information, such as Sentinel Hub credentials!
 Steps to reproduce the behavior:
 
 1.
-2. 
+2.
 3.
 
 **Expected behavior**
