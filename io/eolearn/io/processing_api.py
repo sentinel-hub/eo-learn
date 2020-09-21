@@ -373,7 +373,6 @@ class SentinelHubInputTask(SentinelHubInputBase):
             responses=responses,
             bbox=bbox,
             size=(size_x, size_y),
-            base_url=self.data_collection.service_url,
             data_folder=self.cache_folder,
             config=self.config
         )
@@ -497,7 +496,6 @@ class SentinelHubDemTask(SentinelHubInputBase):
             responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
             bbox=bbox,
             size=(size_x, size_y),
-            base_url=self.data_collection.service_url,
             data_folder=self.cache_folder,
             config=self.config
         )
