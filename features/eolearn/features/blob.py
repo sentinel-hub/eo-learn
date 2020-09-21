@@ -28,7 +28,7 @@ class BlobTask(EOTask):
     determinant of the Hessian (DoH).
 
     The output is a FeatureType.DATA where the radius of each blob is stored in his center.
-    ie : If blob[date, i, j, 0] = 5 then a blob of radius 5 is present at he coordinate (i, j)
+    ie : If blob[date, i, j, 0] = 5 then a blob of radius 5 is present at the coordinate (i, j)
 
     The task uses skimage.feature.blob_log or skimage.feature.blob_dog or skimage.feature.blob_doh to extract the blobs.
 
@@ -41,13 +41,13 @@ class BlobTask(EOTask):
 
     :type feature: (FeatureType, str) or (FeatureType, str, str)
     :param blob_object: Name of the blob method to use
-    :type blob_object: skimage.features.blob_*
+    :type blob_object: skimage.feature.blob_*
     :param blob_parameters: List of parameters to be passed to the blob function. Below a list of such parameters.
     :type blob_paramters: dict
     :param min_sigma: The minimum standard deviation for Gaussian Kernel. Keep this low to detect smaller blobs
     :type min_sigma: float
     :param max_sigma: The maximum standard deviation for Gaussian Kernel. Keep this high to detect larger blobs
-    :type float
+    :type max_sigma: float
     :param threshold: The absolute lower bound for scale space maxima. Local maxima smaller than thresh are ignored.
                         Reduce this to detect blobs with less intensity
     :type threshold: float
@@ -108,7 +108,7 @@ class DoGBlobTask(BlobTask):
 
 
 class DoHBlobTask(BlobTask):
-    """ Task to compute blobs with Laplacian of Gaussian (LoG) method
+    """ Task to compute blobs with Determinant of the Hessian (DoH) method
     """
     def __init__(self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5,
                  **kwargs):
