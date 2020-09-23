@@ -205,6 +205,31 @@ class ExportToTiff(BaseLocalIo):
 
         return np.moveaxis(data_array, -1, 1).reshape(time_dim * band_dim, height, width)
 
+    def _export_tiff(self, dst_crs, dst_height, dst_transform, dst_width, channel_count, image_array, path, src_crs,
+                     src_transform):
+        """ Export the eopatch to tiff based on input channel range.
+        """
+        with rasterio.open(path, 'w', driver='GTiff',
+                           width=dst_width, height=dst_height,
+                           count=channel_count,
+                           dtype=image_array.dtype, nodata=self.no_data_value,
+                           transform=dst_transform, crs=dst_crs,
+                           compress=self.compress) as dst:
+
+            if dst_crs == src_crs:
+                dst.write(image_array)
+            else:
+                for idx in range(channel_count):
+                    rasterio.warp.reproject(
+                        source=image_array[idx, ...],
+                        destination=rasterio.band(dst, idx + 1),
+                        src_transform=src_transform,
+                        src_crs=src_crs,
+                        dst_transform=dst_transform,
+                        dst_crs=dst_crs,
+                        resampling=rasterio.warp.Resampling.nearest
+                    )
+
     def execute(self, eopatch, *, filename=None):
         """ Execute method
 
@@ -242,26 +267,18 @@ class ExportToTiff(BaseLocalIo):
             dst_transform = src_transform
             dst_width, dst_height = width, height
 
-        with rasterio.open(self._get_file_path(filename, create_dir=True), 'w', driver='GTiff',
-                           width=dst_width, height=dst_height,
-                           count=channel_count,
-                           dtype=image_array.dtype, nodata=self.no_data_value,
-                           transform=dst_transform, crs=dst_crs,
-                           compress=self.compress) as dst:
+        path = self._get_file_path(filename, create_dir=True)
 
-            if dst_crs == src_crs:
-                dst.write(image_array)
-            else:
-                for idx in range(channel_count):
-                    rasterio.warp.reproject(
-                        source=image_array[idx, ...],
-                        destination=rasterio.band(dst, idx + 1),
-                        src_transform=src_transform,
-                        src_crs=src_crs,
-                        dst_transform=dst_transform,
-                        dst_crs=dst_crs,
-                        resampling=rasterio.warp.Resampling.nearest
-                    )
+        if "*" in path:
+            for ts_idx, ts in enumerate(eopatch.timestamp, start=1):
+                path = path.replace("*", f'{ts.strftime("%d%b%YT%H%M%S)")}')
+                image_array = image_array[(ts_idx - 1) * channel_count:ts_idx * channel_count, ...]
+                channel_count = eopatch.shape[-1]
+                self._export_tiff(image_array, path if os.path.splitext(path)[-1] else path+'.tif', channel_count,
+                                  dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
+        else:
+            self._export_tiff(image_array, path, channel_count,
+                              dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
 
         return eopatch
 
