@@ -256,7 +256,7 @@ class TestEOPatchIO(unittest.TestCase):
                                                          'geometry': [eopatch2.bbox.geometry, eopatch2.bbox.geometry]},
                                                         crs=eopatch2.bbox.crs.pyproj_crs())
 
-                merged_eopatch = self.eopatch.merge([eopatch2])
+                merged_eopatch = self.eopatch.merge(eopatch2)
 
                 eop = self.eopatch.__copy__()
 
@@ -282,6 +282,8 @@ class TestEOPatchIO(unittest.TestCase):
                 eop.vector['my-df'] = pd.concat([self.eopatch.vector['my-df'], eopatch2.vector['my-df']])\
                     .sort_values('TIMESTAMP')
 
+                # print(eopatch2.timestamp)
+                #print(merged_eopatch.data['data'])
                 self.assertEqual(merged_eopatch, eop)
 
 

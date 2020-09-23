@@ -282,9 +282,8 @@ class TestEOPatch(unittest.TestCase):
         eop2.data_timeless['mask2'] = mask2
         eop2.data_timeless['mask'] = 5 * mask1  # add mask1 to eop2
 
-        eop = eop1.merge([eop2])
+        eop = eop1.merge(eop2)
 
-        print(eop.data_timeless.keys())
         for name in ['mask', 'mask1', 'mask2']:
             self.assertTrue(name in eop.data_timeless)
         self.assertTrue(np.array_equal(eop.data_timeless['mask'], 5 * mask1), "Data with same values should stay "
