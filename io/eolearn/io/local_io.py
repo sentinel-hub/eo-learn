@@ -205,8 +205,8 @@ class ExportToTiff(BaseLocalIo):
 
         return np.moveaxis(data_array, -1, 1).reshape(time_dim * band_dim, height, width)
 
-    def _export_tiff(self, dst_crs, dst_height, dst_transform, dst_width, channel_count, image_array, path, src_crs,
-                     src_transform):
+    def _export_tiff(self, image_array, path, channel_count,
+                     dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform):
         """ Export the eopatch to tiff based on input channel range.
         """
         with rasterio.open(path, 'w', driver='GTiff',
@@ -270,11 +270,11 @@ class ExportToTiff(BaseLocalIo):
         path = self._get_file_path(filename, create_dir=True)
 
         if "*" in path:
+            channel_count = channel_count // len(eopatch.timestamp)
             for ts_idx, ts in enumerate(eopatch.timestamp, start=1):
-                path = path.replace("*", f'{ts.strftime("%d%b%YT%H%M%S)")}')
-                image_array = image_array[(ts_idx - 1) * channel_count:ts_idx * channel_count, ...]
-                channel_count = eopatch.shape[-1]
-                self._export_tiff(image_array, path if os.path.splitext(path)[-1] else path+'.tif', channel_count,
+                ts_path = path.replace("*", f'{ts.strftime("%Y%m%dT%H%M%S")}')
+                ts_array = image_array[(ts_idx - 1) * channel_count:ts_idx * channel_count, ...]
+                self._export_tiff(ts_array, ts_path if os.path.splitext(path)[-1] else ts_path+'.tif', channel_count,
                                   dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
         else:
             self._export_tiff(image_array, path, channel_count,
