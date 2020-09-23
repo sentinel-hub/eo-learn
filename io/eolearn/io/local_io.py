@@ -91,7 +91,10 @@ class ExportToTiff(BaseLocalIo):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
-        :param folder: A directory containing image files or a path of an image file
+        :param folder: A directory containing image files or a path of an image file.
+            If the file extension of the image file is not provided, it will default to ".tif".
+            If a "*" wildcard is provided in the image file, the eopatch will be stripped into multiple geotiffs
+            each corresponding to a timestamp, and the stringified datetime will be appended to the image file name.
         :type folder: str
         :param band_indices: Bands to be added to tiff image. Bands are represented by their 0-based index as tuple
             in the inclusive interval form `(start_band, end_band)` or as list in the form
@@ -236,7 +239,10 @@ class ExportToTiff(BaseLocalIo):
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
-        of task initialization.
+            of task initialization.
+            If the file extension of the image file is not provided, it will default to ".tif".
+            If a "*" wildcard is provided in the image file, the eopatch will be stripped into multiple geotiffs
+            each corresponding to a timestamp, and the stringified datetime will be appended to the image file name.
         :type filename: str or None
         :return: Unchanged input EOPatch
         :rtype: EOPatch
@@ -247,7 +253,7 @@ class ExportToTiff(BaseLocalIo):
             LOGGER.warning(error)
 
             if self.fail_on_missing:
-                raise ValueError(error)
+                raise ValueError from error
             return eopatch
 
         image_array = self._prepare_image_array(eopatch, feature)
@@ -271,13 +277,13 @@ class ExportToTiff(BaseLocalIo):
 
         if "*" in path:
             channel_count = channel_count // len(eopatch.timestamp)
-            for ts_idx, ts in enumerate(eopatch.timestamp, start=1):
-                ts_path = path.replace("*", f'{ts.strftime("%Y%m%dT%H%M%S")}')
+            for ts_idx, timestamp in enumerate(eopatch.timestamp, start=1):
+                ts_path = path.replace("*", f'{timestamp.strftime("%Y%m%dT%H%M%S")}')
                 ts_array = image_array[(ts_idx - 1) * channel_count:ts_idx * channel_count, ...]
                 self._export_tiff(ts_array, ts_path if os.path.splitext(path)[-1] else ts_path+'.tif', channel_count,
                                   dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
         else:
-            self._export_tiff(image_array, path, channel_count,
+            self._export_tiff(image_array, path if os.path.splitext(path)[-1] else path+'.tif', channel_count,
                               dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
 
         return eopatch
