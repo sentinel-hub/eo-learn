@@ -531,7 +531,7 @@ class EOPatch:
 
         return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
 
-    def merge(self, eopatches=..., features=..., time_dependent_op="concatenate", timeless_op=None):
+    def merge(self, *eopatches, features=..., time_dependent_op="concatenate", timeless_op=None):
         """ Method to merge an EOPatch with other EOPatches
 
         :param eopatches: A list of EOPatches to merge with the main EOPatch.
@@ -542,9 +542,7 @@ class EOPatch:
         :rtype: EOPatch
         """
 
-        eopatches = [self, *eopatches]
-
-        return merge_eopatch(features=features, eopatches=eopatches,
+        return merge_eopatch(self, *eopatches, features=features,
                              time_dependent_op=time_dependent_op, timeless_op=timeless_op)
 
     def time_series(self, ref_date=None, scale_time=1):
