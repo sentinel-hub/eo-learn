@@ -183,7 +183,7 @@ class TestExportAndImportTiff(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir_name:
             tmp_file_name = 'temp_file_*'
-            tmp_file_name_reproject = 'temp_file_4326_*.tif'
+            tmp_file_name_reproject = 'temp_file_4326_%Y%m%d.tif'
             feature = test_case.feature_type, test_case.name
 
             export_task = ExportToTiff(feature, folder=tmp_dir_name,
