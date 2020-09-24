@@ -175,6 +175,26 @@ class TestExportAndImportTiff(unittest.TestCase):
                 export_task_fail = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=True)
                 export_task_fail.execute(self.eopatch, filename=tmp_file_name)
 
+    def test_export2tiff_separate_timestamps(self):
+
+        test_case = self.test_cases[-1]
+        self.eopatch[test_case.feature_type][test_case.name] = test_case.data
+        self.eopatch.timestamp = self.eopatch.timestamp[:test_case.data.shape[0]]
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file_*'
+            tmp_file_name_reproject = 'temp_file_4326_%Y%m%d.tif'
+            feature = test_case.feature_type, test_case.name
+
+            export_task = ExportToTiff(feature, folder=tmp_dir_name,
+                                       band_indices=test_case.bands, date_indices=test_case.times)
+            export_task.execute(self.eopatch, filename=tmp_file_name)
+
+            export_task = ExportToTiff(feature, folder=tmp_dir_name,
+                                       band_indices=test_case.bands, date_indices=test_case.times,
+                                       crs='EPSG:4326', compress='lzw')
+            export_task.execute(self.eopatch, filename=tmp_file_name_reproject)
+
 
 class TestImportTiff(unittest.TestCase):
 
