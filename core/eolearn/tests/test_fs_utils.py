@@ -8,7 +8,9 @@ file in the root directory of this source tree.
 """
 import unittest
 import logging
+import os
 import tempfile
+from pathlib import Path
 
 import fs
 from fs.osfs import OSFS
@@ -29,12 +31,18 @@ class TestFilesystemUtils(unittest.TestCase):
             filesystem = get_filesystem(tmp_dir_name)
             self.assertTrue(isinstance(filesystem, OSFS))
 
-            subfolder_path = fs.path.combine(tmp_dir_name, 'subfolder')
+            subfolder_path = os.path.join(tmp_dir_name, 'subfolder')
 
             with self.assertRaises(CreateFailed):
                 get_filesystem(subfolder_path, create=False)
 
             filesystem = get_filesystem(subfolder_path, create=True)
+            self.assertTrue(isinstance(filesystem, OSFS))
+
+    def test_pathlib_support(self):
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            path = Path(tmp_dir_name)
+            filesystem = get_filesystem(path)
             self.assertTrue(isinstance(filesystem, OSFS))
 
     @mock_s3

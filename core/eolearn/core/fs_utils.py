@@ -8,6 +8,8 @@ Copyright (c) 2017-2020 Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from pathlib import Path
+
 import fs
 from fs_s3fs import S3FS
 
@@ -25,6 +27,9 @@ def get_filesystem(path, create=False, **kwargs):
     :return: A filesystem object
     :rtype: fs.FS
     """
+    if isinstance(path, Path):
+        path = str(path)
+
     if path.startswith('s3://'):
         return load_s3_filesystem(path, **kwargs)
 
