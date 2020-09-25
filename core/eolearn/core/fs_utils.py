@@ -26,7 +26,7 @@ def get_filesystem(path, create=False, **kwargs):
     :rtype: fs.FS
     """
     if path.startswith('s3://'):
-        return load_s3_filesystem(path, *kwargs)
+        return load_s3_filesystem(path, **kwargs)
 
     return fs.open_fs(path, create=create, **kwargs)
 

@@ -35,7 +35,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
             patch_exists = False
 
     if not patch_exists:
-        filesystem.makedirs(patch_location)
+        filesystem.makedirs(patch_location, recreate=True)
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
 
@@ -53,7 +53,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     ftype_folder_map = {(ftype, fs.path.dirname(path)) for ftype, _, path in eopatch_features if not ftype.is_meta()}
     for ftype, folder in ftype_folder_map:
         if not filesystem.exists(folder):
-            filesystem.makedirs(folder)
+            filesystem.makedirs(folder, recreate=True)
 
     features_to_save = ((FeatureIO(filesystem, path),
                          eopatch[(ftype, fname)],
