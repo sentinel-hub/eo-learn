@@ -159,7 +159,7 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
  * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a) 
  * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583) 
- 
+ * [Scale-up your eo-learn workflow using Batch Processing API](https://medium.com/sentinel-hub/scale-up-your-eo-learn-workflow-using-batch-processing-api-d183b70ea237) (by Maxim Lamare) 
  
 
 ## Questions and Issues
