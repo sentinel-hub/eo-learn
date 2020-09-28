@@ -57,10 +57,13 @@ class TestFilesystemUtils(unittest.TestCase):
         custom_config = SHConfig()
         custom_config.aws_access_key_id = 'fake-key'
         custom_config.aws_secret_access_key = 'fake-secret'
-        filesystem = load_s3_filesystem(s3_url, strict=False, config=custom_config)
-        self.assertTrue(isinstance(filesystem, S3FS))
-        self.assertEqual(filesystem.aws_access_key_id, custom_config.aws_access_key_id)
-        self.assertEqual(filesystem.aws_secret_access_key, custom_config.aws_secret_access_key)
+        filesystem1 = load_s3_filesystem(s3_url, strict=False, config=custom_config)
+        filesystem2 = get_filesystem(s3_url, config=custom_config)
+
+        for filesystem in [filesystem1, filesystem2]:
+            self.assertTrue(isinstance(filesystem, S3FS))
+            self.assertEqual(filesystem.aws_access_key_id, custom_config.aws_access_key_id)
+            self.assertEqual(filesystem.aws_secret_access_key, custom_config.aws_secret_access_key)
 
 
 if __name__ == '__main__':
