@@ -505,11 +505,11 @@ class FixLPIS(EOTask):
         self._set_mapping()
 
     def _set_mapping(self):
-        if self.country is 'Slovenia':
+        if self.country == 'Slovenia':
             self.mapping = get_slovenia_crop_geopedia_idx_to_crop_id_mapping()
-        elif self.country is 'Austria':
+        elif self.country == 'Austria':
             self.mapping = get_austria_crop_geopedia_idx_to_crop_id_mapping()
-        elif self.country is 'Denmark':
+        elif self.country == 'Denmark':
             self.mapping = get_danish_crop_geopedia_idx_to_crop_id_mapping()
 
     def _fix_slovenian_lpis(self, eopatch):
@@ -550,11 +550,11 @@ class FixLPIS(EOTask):
         eopatch.vector_timeless[self.feature].drop(['crop_geopedia_idx', 'PreCropName'], axis=1, inplace=True)
 
     def execute(self, eopatch):
-        if self.country is 'Slovenia':
+        if self.country == 'Slovenia':
             self._fix_slovenian_lpis(eopatch)
-        elif self.country is 'Austria':
+        elif self.country == 'Austria':
             self._fix_austrian_lpis(eopatch)
-        elif self.country is 'Denmark':
+        elif self.country == 'Denmark':
             self._fix_danish_lpis(eopatch)
 
         return eopatch
