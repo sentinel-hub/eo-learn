@@ -159,7 +159,21 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
  * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a) 
  * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583) 
- 
+   * [High-Level Concept](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
+   * [Data Handling](https://medium.com/sentinel-hub/area-monitoring-data-handling-c255b215364f)
+   * [Outlier detection](https://medium.com/sentinel-hub/area-monitoring-observation-outlier-detection-34f86b7cc63)
+   * [Similarity Score](https://medium.com/sentinel-hub/area-monitoring-similarity-score-72e5cbfb33b6)
+   * [Bare Soil Marker](https://medium.com/sentinel-hub/area-monitoring-bare-soil-marker-608bc95712ae)
+   * [Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-mowing-marker-e99cff0c2d08)
+   * [Crop Type Marker](https://medium.com/sentinel-hub/area-monitoring-crop-type-marker-1e70f672bf44)
+   * Homogeneity Marker (still to come)
+   * Parcel Boundary Detection (still to come)
+   * Land Cover Classification (still to come)
+   * Minimum Agriculture Activity (still to come)
+   * [Combining the Markers into Decisions](https://medium.com/sentinel-hub/area-monitoring-combining-markers-into-decisions-d74f70fe7721)
+   * Traffic Light System (still to come)
+   * Expert Judgement Application (still to come)
+ * [Scale-up your eo-learn workflow using Batch Processing API](https://medium.com/sentinel-hub/scale-up-your-eo-learn-workflow-using-batch-processing-api-d183b70ea237) (by Maxim Lamare) 
  
 
 ## Questions and Issues
