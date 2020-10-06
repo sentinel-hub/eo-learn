@@ -91,7 +91,11 @@ class ExportToTiff(BaseLocalIo):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
-        :param folder: A directory containing image files or a path of an image file
+        :param folder: A directory containing image files or a path of an image file.
+            If the file extension of the image file is not provided, it will default to ".tif".
+            If a "*" wildcard or a datetime.strftime substring (e.g. "%Y%m%dT%H%M%S")  is provided in the image file,
+            the eopatch will be stripped into multiple geotiffs each corresponding to a timestamp,
+            and the stringified datetime will be appended to the image file name.
         :type folder: str
         :param band_indices: Bands to be added to tiff image. Bands are represented by their 0-based index as tuple
             in the inclusive interval form `(start_band, end_band)` or as list in the form
@@ -205,13 +209,42 @@ class ExportToTiff(BaseLocalIo):
 
         return np.moveaxis(data_array, -1, 1).reshape(time_dim * band_dim, height, width)
 
+    def _export_tiff(self, image_array, path, channel_count,
+                     dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform):
+        """ Export the eopatch to tiff based on input channel range.
+        """
+        with rasterio.open(path, 'w', driver='GTiff',
+                           width=dst_width, height=dst_height,
+                           count=channel_count,
+                           dtype=image_array.dtype, nodata=self.no_data_value,
+                           transform=dst_transform, crs=dst_crs,
+                           compress=self.compress) as dst:
+
+            if dst_crs == src_crs:
+                dst.write(image_array)
+            else:
+                for idx in range(channel_count):
+                    rasterio.warp.reproject(
+                        source=image_array[idx, ...],
+                        destination=rasterio.band(dst, idx + 1),
+                        src_transform=src_transform,
+                        src_crs=src_crs,
+                        dst_transform=dst_transform,
+                        dst_crs=dst_crs,
+                        resampling=rasterio.warp.Resampling.nearest
+                    )
+
     def execute(self, eopatch, *, filename=None):
         """ Execute method
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
-        of task initialization.
+            of task initialization.
+            If the file extension of the image file is not provided, it will default to ".tif".
+            If a "*" wildcard or a datetime.strftime substring (e.g. "%Y%m%dT%H%M%S")  is provided in the image file,
+            the eopatch will be stripped into multiple geotiffs each corresponding to a timestamp,
+            and the stringified datetime will be appended to the image file name.
         :type filename: str or None
         :return: Unchanged input EOPatch
         :rtype: EOPatch
@@ -242,26 +275,19 @@ class ExportToTiff(BaseLocalIo):
             dst_transform = src_transform
             dst_width, dst_height = width, height
 
-        with rasterio.open(self._get_file_path(filename, create_dir=True), 'w', driver='GTiff',
-                           width=dst_width, height=dst_height,
-                           count=channel_count,
-                           dtype=image_array.dtype, nodata=self.no_data_value,
-                           transform=dst_transform, crs=dst_crs,
-                           compress=self.compress) as dst:
+        path = self._get_file_path(filename, create_dir=True)
 
-            if dst_crs == src_crs:
-                dst.write(image_array)
-            else:
-                for idx in range(channel_count):
-                    rasterio.warp.reproject(
-                        source=image_array[idx, ...],
-                        destination=rasterio.band(dst, idx + 1),
-                        src_transform=src_transform,
-                        src_crs=src_crs,
-                        dst_transform=dst_transform,
-                        dst_crs=dst_crs,
-                        resampling=rasterio.warp.Resampling.nearest
-                    )
+        if any([substring in path for substring in ['*', '%Y', '%m', '%d', '%H', '%M', '%S']]):
+            channel_count = channel_count // len(eopatch.timestamp)
+            for ts_idx, timestamp in enumerate(eopatch.timestamp, start=1):
+                ts_path = path.replace("*", f'{timestamp.strftime("%Y%m%dT%H%M%S")}') if "*" in path \
+                    else timestamp.strftime(path)
+                ts_array = image_array[(ts_idx - 1) * channel_count:ts_idx * channel_count, ...]
+                self._export_tiff(ts_array, ts_path if os.path.splitext(path)[-1] else ts_path+'.tif', channel_count,
+                                  dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
+        else:
+            self._export_tiff(image_array, path if os.path.splitext(path)[-1] else path+'.tif', channel_count,
+                              dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
 
         return eopatch
 
