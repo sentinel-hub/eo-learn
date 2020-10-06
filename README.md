@@ -161,7 +161,7 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583) 
    * [High-Level Concept](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
    * [Data Handling](https://medium.com/sentinel-hub/area-monitoring-data-handling-c255b215364f)
-   * Outlier detection (still to come)
+   * [Outlier detection](https://medium.com/sentinel-hub/area-monitoring-observation-outlier-detection-34f86b7cc63)
    * [Similarity Score](https://medium.com/sentinel-hub/area-monitoring-similarity-score-72e5cbfb33b6)
    * [Bare Soil Marker](https://medium.com/sentinel-hub/area-monitoring-bare-soil-marker-608bc95712ae)
    * [Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-mowing-marker-e99cff0c2d08)
