@@ -87,7 +87,8 @@ class AddCloudMaskTask(EOTask):
                       "See showcase at examples/mask/CloudMaskTask.ipynb",
                       SHDeprecationWarning)
 
-        data_collection = handle_deprecated_data_source(data_collection, data_source) or DataCollection.SENTINEL2_L1C
+        data_collection = DataCollection(handle_deprecated_data_source(data_collection, data_source) or
+                                         DataCollection.SENTINEL2_L1C)
 
         self.classifier = classifier
         self.data_feature = data_feature
