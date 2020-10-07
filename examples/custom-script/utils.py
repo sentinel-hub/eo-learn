@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import datetime as dt
 import numpy as np
 
-from sentinelhub import (SHConfig, CRS, BBox, DataSource, SentinelHubRequest,
+from sentinelhub import (SHConfig, CRS, BBox, DataCollection, SentinelHubRequest,
                          MimeType, bbox_to_dimensions)
 
 PRECISION_SCORES = 4
@@ -114,7 +114,7 @@ def predict_on_sh(model_script, bbox, size, timestamp, config):
         evalscript=model_script,
         input_data=[
             SentinelHubRequest.input_data(
-                data_source=DataSource.SENTINEL2_L1C,
+                data_collection=DataCollection.SENTINEL2_L1C,
                 time_interval=(timestamp-dt.timedelta(minutes=5),timestamp+dt.timedelta(minutes=5)),
                 maxcc=1,
             )

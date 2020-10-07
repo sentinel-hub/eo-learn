@@ -40,14 +40,6 @@ script:
     pylint ml_tools/eolearn/ml_tools/*.py &&
     pylint visualization/eolearn/visualization/*.py;
   fi
-- radon cc core/eolearn/core/*.py -a -nb
-- radon cc coregistration/eolearn/coregistration/*.py -a -nb
-- radon cc features/eolearn/features/*.py -a -nb
-- radon cc geometry/eolearn/geometry/*.py -a -nb
-- radon cc io/eolearn/io/*.py -a -nb
-- radon cc mask/eolearn/mask/*.py -a -nb
-- radon cc ml_tools/eolearn/ml_tools/*.py -a -nb
-- radon cc visualization/eolearn/visualization/*.py -a -nb
 - >
   if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
     if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
