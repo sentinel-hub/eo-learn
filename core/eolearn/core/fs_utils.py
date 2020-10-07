@@ -8,27 +8,52 @@ Copyright (c) 2017-2020 Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import os
+from pathlib import Path, PurePosixPath
+
 import fs
 from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
 
 
-def get_filesystem(path, create=False, **kwargs):
+def get_filesystem(path, create=False, config=None, **kwargs):
     """ A utility function for initializing any type of filesystem object with PyFilesystem2 package
 
     :param path: A filesystem path
     :type path: str
     :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
     :type create: bool
+    :param config: A configuration object with AWS credentials
+    :type config: SHConfig
     :param kwargs: Any keyword arguments to be passed forward
     :return: A filesystem object
     :rtype: fs.FS
     """
+    if isinstance(path, Path):
+        path = str(path)
+
     if path.startswith('s3://'):
-        return load_s3_filesystem(path, *kwargs)
+        return load_s3_filesystem(path, config=config, **kwargs)
 
     return fs.open_fs(path, create=create, **kwargs)
+
+
+def get_base_filesystem_and_path(*path_parts, **kwargs):
+    path_parts = [str(part) for part in path_parts if part is not None]
+    base_path = path_parts[0]
+
+    if '://' in base_path:
+        base_path_parts = base_path.split('/', 3)
+        filesystem_path = '/'.join(base_path_parts[:-1])
+        relative_path = '/'.join([base_path_parts[-1], *path_parts[1:]])
+
+        return get_filesystem(filesystem_path, **kwargs), relative_path
+
+    entire_path = os.path.abspath(os.path.join(*path_parts))
+    posix_path = str(PurePosixPath(entire_path))
+
+    return get_filesystem('/', **kwargs), posix_path
 
 
 def load_s3_filesystem(path, strict=False, config=None):
