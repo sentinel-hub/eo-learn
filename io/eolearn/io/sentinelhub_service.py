@@ -16,7 +16,8 @@ import logging
 import warnings
 
 import numpy as np
-from sentinelhub import WmsRequest, WcsRequest, MimeType, DataSource, CustomUrlParam, ServiceType
+from sentinelhub import WmsRequest, WcsRequest, MimeType, DataCollection, CustomUrlParam, ServiceType
+from sentinelhub.data_collections import handle_deprecated_data_source
 from sentinelhub.exceptions import SHDeprecationWarning
 
 from eolearn.core import EOPatch, EOTask, FeatureType, get_common_timestamps
@@ -37,8 +38,8 @@ class SentinelHubOGCInput(EOTask):
     :type valid_data_mask_feature: str or (FeatureType, str)
     :param service_type: type of OGC service (WMS or WCS)
     :type service_type: ServiceType
-    :param data_source: Source of requested satellite data.
-    :type data_source: DataSource
+    :param data_collection: A collection of requested satellite data.
+    :type data_collection: DataCollection
     :param size_x: number of pixels in x or resolution in x (i.e. ``512`` or ``10m``)
     :type size_x: int or str, depends on the service_type
     :param size_y: number of pixels in x or resolution in y (i.e. ``512`` or ``10m``)
@@ -65,23 +66,28 @@ class SentinelHubOGCInput(EOTask):
     :param raise_download_errors: `True` if any errors during download should stop the task and `False` if the task
         should continue and remove timestamps with frames that failed to download.
     :type raise_download_errors: bool
+    :param data_source: A deprecated alternative to data_collection
+    :type data_source: DataCollection
     """
 
-    def __init__(self, layer, feature=None, valid_data_mask_feature='IS_DATA', service_type=None, data_source=None,
+    def __init__(self, layer, feature=None, valid_data_mask_feature='IS_DATA', service_type=None, data_collection=None,
                  size_x=None, size_y=None, maxcc=None, image_format=MimeType.TIFF_d32f, instance_id=None,
-                 custom_url_params=None, time_difference=None, raise_download_errors=True):
+                 custom_url_params=None, time_difference=None, raise_download_errors=True, data_source=None):
+        # pylint: disable=too-many-arguments
+
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples/io/ProcessingIO.ipynb for examples.",
                       SHDeprecationWarning)
 
-        # pylint: disable=too-many-arguments
+        data_collection = DataCollection(handle_deprecated_data_source(data_collection, data_source))
+
         self.layer = layer
         self.feature_type, self.feature_name = next(self._parse_features(layer if feature is None else feature,
                                                                          default_feature_type=FeatureType.DATA)())
         self.valid_data_mask_feature = self._parse_features(valid_data_mask_feature,
                                                             default_feature_type=FeatureType.MASK)
         self.service_type = service_type
-        self.data_source = data_source
+        self.data_collection = data_collection
         self.size_x = size_x
         self.size_y = size_y
         self.maxcc = maxcc
@@ -135,7 +141,7 @@ class SentinelHubOGCInput(EOTask):
                 'maxcc': self._get_parameter('maxcc', eopatch),
                 'image_format': self.image_format,
                 'custom_url_params': self.custom_url_params,
-                'data_source': self.data_source,
+                'data_collection': self.data_collection,
                 'instance_id': self.instance_id,
                 size_x_name: self._get_parameter('size_x', eopatch),
                 size_y_name: self._get_parameter('size_y', eopatch)
@@ -240,11 +246,11 @@ class SentinelHubWMSInput(SentinelHubOGCInput):
     Task for creating EOPatches and filling them with data using Sentinel Hub's WMS request.
     """
 
-    def __init__(self, layer, data_source=None, width=None, height=None, **kwargs):
+    def __init__(self, layer, data_collection=None, width=None, height=None, **kwargs):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=data_source, service_type=ServiceType.WMS,
+        super().__init__(layer=layer, data_collection=data_collection, service_type=ServiceType.WMS,
                          size_x=width, size_y=height, **kwargs)
 
 
@@ -253,11 +259,11 @@ class SentinelHubWCSInput(SentinelHubOGCInput):
     Task for creating EOPatches and filling them with data using Sentinel Hub's WCS request.
     """
 
-    def __init__(self, layer, data_source=None, resx=None, resy=None, **kwargs):
+    def __init__(self, layer, data_collection=None, resx=None, resy=None, **kwargs):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=data_source, service_type=ServiceType.WCS,
+        super().__init__(layer=layer, data_collection=data_collection, service_type=ServiceType.WCS,
                          size_x=resx, size_y=resy, **kwargs)
 
 
@@ -270,7 +276,7 @@ class S2L1CWMSInput(SentinelHubWMSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L1C, **kwargs)
+        super().__init__(layer=layer, data_collection=DataCollection.SENTINEL2_L1C, **kwargs)
 
 
 class S2L1CWCSInput(SentinelHubWCSInput):
@@ -282,7 +288,7 @@ class S2L1CWCSInput(SentinelHubWCSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L1C, **kwargs)
+        super().__init__(layer=layer, data_collection=DataCollection.SENTINEL2_L1C, **kwargs)
 
 
 class L8L1CWMSInput(SentinelHubWMSInput):
@@ -294,7 +300,7 @@ class L8L1CWMSInput(SentinelHubWMSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=DataSource.LANDSAT8, **kwargs)
+        super().__init__(layer=layer, data_collection=DataCollection.LANDSAT8, **kwargs)
 
 
 class L8L1CWCSInput(SentinelHubWCSInput):
@@ -306,7 +312,7 @@ class L8L1CWCSInput(SentinelHubWCSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=DataSource.LANDSAT8, **kwargs)
+        super().__init__(layer=layer, data_collection=DataCollection.LANDSAT8, **kwargs)
 
 
 class S2L2AWMSInput(SentinelHubWMSInput):
@@ -318,7 +324,7 @@ class S2L2AWMSInput(SentinelHubWMSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
+        super().__init__(layer=layer, data_collection=DataCollection.SENTINEL2_L2A, **kwargs)
 
 
 class S2L2AWCSInput(SentinelHubWCSInput):
@@ -330,7 +336,7 @@ class S2L2AWCSInput(SentinelHubWCSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        super().__init__(layer=layer, data_source=DataSource.SENTINEL2_L2A, **kwargs)
+        super().__init__(layer=layer, data_collection=DataCollection.SENTINEL2_L2A, **kwargs)
 
 
 class S1IWWMSInput(SentinelHubWMSInput):
@@ -346,10 +352,12 @@ class S1IWWMSInput(SentinelHubWMSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        data_source = {'both': DataSource.SENTINEL1_IW,
-                       'ascending': DataSource.SENTINEL1_IW_ASC,
-                       'descending': DataSource.SENTINEL1_IW_DES}[orbit]
-        super().__init__(layer=layer, data_source=data_source, **kwargs)
+        data_collection = {
+            'both': DataCollection.SENTINEL1_IW,
+            'ascending': DataCollection.SENTINEL1_IW_ASC,
+            'descending': DataCollection.SENTINEL1_IW_DES
+        }[orbit]
+        super().__init__(layer=layer, data_collection=data_collection, **kwargs)
 
 
 class S1IWWCSInput(SentinelHubWCSInput):
@@ -365,10 +373,12 @@ class S1IWWCSInput(SentinelHubWCSInput):
         warnings.warn("eo-learn is deprecating OGC services for the Processing API. "
                       "Please use SentinelHubInputTask instead. See examples in `examples/io/`.",
                       SHDeprecationWarning)
-        data_source = {'both': DataSource.SENTINEL1_IW,
-                       'ascending': DataSource.SENTINEL1_IW_ASC,
-                       'descending': DataSource.SENTINEL1_IW_DES}[orbit]
-        super().__init__(layer=layer, data_source=data_source, **kwargs)
+        data_collection = {
+            'both': DataCollection.SENTINEL1_IW,
+            'ascending': DataCollection.SENTINEL1_IW_ASC,
+            'descending': DataCollection.SENTINEL1_IW_DES
+        }[orbit]
+        super().__init__(layer=layer, data_collection=data_collection, **kwargs)
 
 
 class DEMWMSInput(SentinelHubWMSInput):
@@ -384,7 +394,7 @@ class DEMWMSInput(SentinelHubWMSInput):
             feature = (FeatureType.DATA_TIMELESS, layer)
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
-        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, **kwargs)
+        super().__init__(layer=layer, feature=feature, data_collection=DataCollection.DEM, **kwargs)
 
 
 class DEMWCSInput(SentinelHubWCSInput):
@@ -400,7 +410,7 @@ class DEMWCSInput(SentinelHubWCSInput):
             feature = (FeatureType.DATA_TIMELESS, layer)
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
-        super().__init__(layer=layer, feature=feature, data_source=DataSource.DEM, **kwargs)
+        super().__init__(layer=layer, feature=feature, data_collection=DataCollection.DEM, **kwargs)
 
 
 class AddSen2CorClassificationFeature(SentinelHubOGCInput):
@@ -441,5 +451,5 @@ class AddSen2CorClassificationFeature(SentinelHubOGCInput):
         evalscript = 'return [{}];'.format(sen2cor_classification)
 
         super().__init__(feature=(classification_types[sen2cor_classification], sen2cor_classification),
-                         layer=layer, data_source=DataSource.SENTINEL2_L2A,
+                         layer=layer, data_collection=DataCollection.SENTINEL2_L2A,
                          custom_url_params={CustomUrlParam.EVALSCRIPT: evalscript}, **kwargs)

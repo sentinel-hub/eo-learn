@@ -110,7 +110,7 @@ B. Number of valid observations per EOPatch and entire AOI
 
 **Notebook: 2_eopatch-L2A.ipynb**
 
-This notebook does almost the same thing as the notebook `2_eopatch-L1C.ipynb`. The main difference that here the input source is Sentinel-2 L2A (bottom of atmosphere or atmosphericaly corrected refelectances) produced with Sen2Cor. The cloud and cloud shadow masking is based on Sen2Cor's scene classification. 
+This notebook does almost the same thing as the notebook `2_eopatch-L1C.ipynb`. The main difference that here the input collection is Sentinel-2 L2A (bottom of atmosphere or atmosphericaly corrected refelectances) produced with Sen2Cor. The cloud and cloud shadow masking is based on Sen2Cor's scene classification. 
 
 ![slovenia-valid-s2c](./readme_figs/number_of_valid_observations_slovenia_s2c.png)
 

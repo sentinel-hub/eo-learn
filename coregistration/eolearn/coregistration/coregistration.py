@@ -119,8 +119,8 @@ class RegistrationTask(EOTask, ABC):
                 InterpolationType.NEAREST: cv2.INTER_NEAREST,
                 InterpolationType.LINEAR: cv2.INTER_LINEAR
             }[interpolation_type]
-        except KeyError:
-            raise ValueError("Unsupported interpolation method specified")
+        except KeyError as exception:
+            raise ValueError('Unsupported interpolation method specified') from exception
 
     def execute(self, eopatch):
         """ Method that estimates registrations and warps EOPatch objects

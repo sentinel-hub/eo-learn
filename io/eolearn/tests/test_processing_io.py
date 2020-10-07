@@ -1,28 +1,23 @@
 """ Testing SentinelHubInputTask
 """
-
 import os
 import shutil
 import unittest
 from concurrent import futures
 import datetime as dt
+
 import numpy as np
-from sentinelhub import CRS, BBox, DataSource
-
+from sentinelhub import CRS, BBox, DataCollection
 from eolearn.io import SentinelHubInputTask, SentinelHubDemTask
-from eolearn.core import FeatureType
+from eolearn.core import FeatureType, EOPatch
 
-# import sys
-# import logging
-# logging.basicConfig(stream=sys.stdout)
-# logging.getLogger("eolearn.io.processing_api").setLevel(logging.DEBUG)
-# logging.getLogger("sentinelhub.sentinelhub_client").setLevel(logging.DEBUG)
-# logging.getLogger("sentinelhub.sentinelhub_rate_limit").setLevel(logging.DEBUG)
+from test_io import IoTestCase
+
 
 def array_stats(array):
     time, height, width, _ = array.shape
     edge1 = np.mean(array[int(time/2):, 0, 0, :])
-    edge2 = np.mean(array[:int(time/2), -1, -1, :])
+    edge2 = np.mean(array[:max(int(time/2), 1), -1, -1, :])
     edge3 = np.mean(array[:, int(height/2), int(width/2), :])
 
     stats = np.round(np.array([edge1, edge2, edge3]), 4)
@@ -55,7 +50,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads,
             cache_folder=cache_folder
         )
@@ -96,7 +91,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads
         )
 
@@ -108,30 +103,6 @@ class TestProcessingIO(unittest.TestCase):
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 3))
 
-    def test_S2L2A(self):
-        """ Download just SCL, without other bands
-        """
-        task = SentinelHubInputTask(
-            bands_feature=(FeatureType.DATA, 'BANDS'),
-            additional_data=[(FeatureType.MASK, 'dataMask')],
-            size=self.size,
-            maxcc=self.maxcc,
-            time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L2A,
-            max_threads=self.max_threads
-        )
-
-        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
-        bands = eopatch[(FeatureType.DATA, 'BANDS')]
-        is_data = eopatch[(FeatureType.MASK, 'dataMask')]
-
-        self.assertTrue(np.allclose(array_stats(bands), [0.0107, 0.0123, 0.0087]))
-
-        width, height = self.size
-        self.assertTrue(bands.shape == (4, height, width, 12))
-        self.assertTrue(is_data.shape == (4, height, width, 1))
-        self.assertTrue(len(eopatch.timestamp) == 4)
-
     def test_scl_only(self):
         """ Download just SCL, without any other bands
         """
@@ -141,7 +112,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L2A,
+            data_collection=DataCollection.SENTINEL2_L2A,
             max_threads=self.max_threads
         )
 
@@ -160,7 +131,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads,
             single_scene=True,
             mosaicking_order="leastCC"
@@ -195,7 +166,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L2A,
+            data_collection=DataCollection.SENTINEL2_L2A,
             max_threads=self.max_threads
         )
 
@@ -237,7 +208,7 @@ class TestProcessingIO(unittest.TestCase):
             resolution=260,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads,
             aux_request_args={'dataFilter': {'previewMode': 'PREVIEW'}}
         )
@@ -274,7 +245,7 @@ class TestProcessingIO(unittest.TestCase):
             size=self.size,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
-            data_source=DataSource.SENTINEL2_L1C,
+            data_collection=DataCollection.SENTINEL2_L1C,
             max_threads=self.max_threads
         )
 
@@ -297,5 +268,225 @@ class TestProcessingIO(unittest.TestCase):
         self.assertTrue(array.shape == (20, height, width, 3))
 
 
-if __name__ == "__main__":
+class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
+    """ Integration tests for all supported data collections
+    """
+    @classmethod
+    def setUpClass(cls):
+        bbox = BBox(bbox=(-5.05, 48.0, -5.00, 48.05), crs=CRS.WGS84)
+        bbox2 = BBox(bbox=(-72.2, -70.4, -71.6, -70.2), crs=CRS.WGS84)
+        slo_bbox = BBox([14.5, 45.9, 14.7, 46.1], crs=CRS.WGS84)
+        cls.size = (50, 40)
+        time_interval = ('2020-06-1', '2020-06-10')
+        time_difference = dt.timedelta(minutes=60)
+        cls.data_feature = FeatureType.DATA, 'BANDS'
+        cls.mask_feature = FeatureType.MASK, 'dataMask'
+
+        s3slstr_500m = DataCollection.SENTINEL3_SLSTR.define_from(
+            'SENTINEL3_SLSTR_500m',
+            bands=('S2', 'S3', 'S6')
+        )
+        s5p_co = DataCollection.SENTINEL5P.define_from(
+            'SENTINEL5P_CO',
+            bands=('CO',)
+        )
+
+        ndvi_evalscript = """
+            //VERSION=3
+            function setup() {
+              return {
+                input: [{
+                 bands: ["B04", "B08", "dataMask"]
+                }],
+                output: [
+                  { id:"custom", bands:2, sampleType: SampleType.FLOAT32 },
+                  { id:"bool_mask", bands:1, sampleType: SampleType.UINT8 }
+                ]
+              }
+            }
+            function evaluatePixel(sample) {
+            return {custom: [index(sample.B08, sample.B04)], bool_mask: [sample.dataMask]};
+            }
+        """
+
+        cls.test_cases = [
+            IoTestCase(
+                name='Sentinel-2 L2A',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.SENTINEL2_L2A
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=12,
+                timestamp_length=2,
+                stats=[0.4681, 0.6334, 0.7608]
+            ),
+            IoTestCase(
+                name='Sentinel-2 L2A - NDVI evalscript',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.SENTINEL2_L2A,
+                    evalscript=ndvi_evalscript,
+                    bands=['NDVI']
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=1,
+                timestamp_length=2,
+                stats=[0.0036, 0.0158, 0.0088]
+            ),
+            IoTestCase(
+                name='Landsat8',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.LANDSAT8
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=11,
+                timestamp_length=1,
+                stats=[0.2206, 0.2684, 0.198]
+            ),
+            IoTestCase(
+                name='MODIS',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.MODIS
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=7,
+                timestamp_length=10,
+                stats=[0.0073, 0.0101, 0.1448]
+            ),
+            IoTestCase(
+                name='Sentinel-1 IW',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.SENTINEL1_IW
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=2,
+                timestamp_length=5,
+                stats=[0.0168, 0.0032, 0.0094]
+            ),
+            IoTestCase(
+                name='Sentinel-1 IW ASCENDING',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.SENTINEL1_IW_ASC
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=2,
+                timestamp_length=1,
+                stats=[0.0428, 0.0199, 0.0235]
+            ),
+            IoTestCase(
+                name='Sentinel-1 EW DESCENDING',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.SENTINEL1_EW_DES
+                ),
+                bbox=bbox2,
+                time_interval=time_interval,
+                data_size=2,
+                timestamp_length=1,
+                stats=[np.nan, 0.2195, 0.4114]
+            ),
+            IoTestCase(
+                name='Sentinel-3 OLCI',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=DataCollection.SENTINEL3_OLCI
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=21,
+                timestamp_length=11,
+                stats=[0.2064, 0.1354, 0.1905]
+            ),
+            IoTestCase(
+                name='Sentinel-3 SLSTR 500m resolution',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=s3slstr_500m
+                ),
+                bbox=bbox,
+                time_interval=time_interval,
+                data_size=3,
+                timestamp_length=23,
+                stats=[np.nan, 0.1049, np.nan]
+            ),
+            IoTestCase(
+                name='Sentinel-5P',
+                request=SentinelHubInputTask(
+                    bands_feature=cls.data_feature,
+                    additional_data=[cls.mask_feature],
+                    size=cls.size,
+                    time_difference=time_difference,
+                    data_collection=s5p_co
+                ),
+                bbox=bbox,
+                time_interval=('2020-06-1', '2020-06-1'),
+                data_size=1,
+                timestamp_length=1,
+                stats=[0.0351, 0.034,  0.0351]
+            )
+        ]
+
+    def test_return_type(self):
+        for test in self.test_cases:
+            with self.subTest(msg='Test case {}'.format(test.name)):
+                self.assertTrue(isinstance(test.eop, EOPatch), 'Expected return type is EOPatch')
+
+    def test_dimensions(self):
+        width, height = self.size
+        for test in self.test_cases:
+            with self.subTest(msg='Test case {}'.format(test.name)):
+                data = test.eop[self.data_feature]
+                self.assertEqual(data.shape, (test.timestamp_length, height, width, test.data_size))
+
+                timestamps = test.eop.timestamp
+                self.assertEqual(len(timestamps), test.timestamp_length)
+
+    def test_stats(self):
+        for test in self.test_cases:
+            with self.subTest(msg='Test case {}'.format(test.name)):
+                data = test.eop[self.data_feature]
+                stats = array_stats(data)
+                self.assertTrue(np.allclose(stats, test.stats, equal_nan=True),
+                                f'Expected stats: {test.stats}, got {stats}')
+
+
+if __name__ == '__main__':
     unittest.main()

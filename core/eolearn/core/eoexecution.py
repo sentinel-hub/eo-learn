@@ -281,8 +281,8 @@ class EOExecutor:
     def make_report(self):
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
+        # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
-            # pylint: disable=import-outside-toplevel
             from eolearn.visualization import EOExecutorVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to create EOExecutor '
