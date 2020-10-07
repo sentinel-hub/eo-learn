@@ -245,6 +245,64 @@ class TestEOPatch(unittest.TestCase):
         with self.assertRaises(ValueError):
             _ = eop1 + eop2
 
+    def test_merge_concatenate(self):
+        eop1 = EOPatch()
+        bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
+        eop1.data['bands'] = bands1
+
+        eop2 = EOPatch()
+        bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
+        eop2.data['bands'] = bands2
+
+        eop = eop1 + eop2
+        self.assertTrue(np.array_equal(eop.data['bands'], np.concatenate((bands1, bands2), axis=0)),
+                        msg="Array mismatch")
+
+    def test_merge_different_key(self):
+        eop1 = EOPatch()
+        bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
+        eop1.data['bands'] = bands1
+
+        eop2 = EOPatch()
+        bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
+        eop2.data['measurements'] = bands2
+
+        eop = eop1 + eop2
+        self.assertTrue('bands' in eop.data and 'measurements' in eop.data,
+                        'Failed to concatenate different features')
+
+    def test_merge_timeless(self):
+        eop1 = EOPatch()
+        mask1 = np.arange(3*3*2).reshape(3, 3, 2)
+        eop1.data_timeless['mask1'] = mask1
+        eop1.data_timeless['mask'] = 5 * mask1
+
+        eop2 = EOPatch()
+        mask2 = np.arange(3*3*2).reshape(3, 3, 2)
+        eop2.data_timeless['mask2'] = mask2
+        eop2.data_timeless['mask'] = 5 * mask1  # add mask1 to eop2
+
+        eop = eop1.merge(eop2)
+
+        for name in ['mask', 'mask1', 'mask2']:
+            self.assertTrue(name in eop.data_timeless)
+        self.assertTrue(np.array_equal(eop.data_timeless['mask'], 5 * mask1), "Data with same values should stay "
+                                                                              "the same")
+
+    def test_merge_missmatched_timeless(self):
+        mask = np.arange(3*3*2).reshape(3, 3, 2)
+
+        eop1 = EOPatch()
+        eop1.data_timeless['mask'] = mask
+        eop1.data_timeless['nask'] = 3 * mask
+
+        eop2 = EOPatch()
+        eop2.data_timeless['mask'] = mask
+        eop2.data_timeless['nask'] = 5 * mask
+
+        with self.assertRaises(ValueError):
+            _ = eop1 + eop2
+
     def test_equals(self):
         eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
         eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})

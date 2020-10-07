@@ -22,7 +22,7 @@ import geopandas as gpd
 from sentinelhub import BBox, CRS
 
 from .constants import FeatureType, OverwritePermission
-from .eodata_io import save_eopatch, load_eopatch, FeatureIO
+from .eodata_io import save_eopatch, load_eopatch, FeatureIO, merge_eopatch
 from .fs_utils import get_filesystem
 from .utilities import deep_eq, FeatureParser
 
@@ -530,6 +530,20 @@ class EOPatch:
             path = '/'
 
         return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
+
+    def merge(self, *eopatches, features=..., time_dependent_op="concatenate", timeless_op=None):
+        """ Method to merge an EOPatch with other EOPatches
+
+        :param eopatches: A list of EOPatches to merge with the main EOPatch.
+        :type features: object
+        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :type features: object
+        :return: Merged EOPatch
+        :rtype: EOPatch
+        """
+
+        return merge_eopatch(self, *eopatches, features=features,
+                             time_dependent_op=time_dependent_op, timeless_op=timeless_op)
 
     def time_series(self, ref_date=None, scale_time=1):
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
