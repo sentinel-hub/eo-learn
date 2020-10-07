@@ -22,7 +22,8 @@ import geopandas as gpd
 from sentinelhub import BBox, CRS
 
 from .constants import FeatureType, OverwritePermission
-from .eodata_io import save_eopatch, load_eopatch, FeatureIO, merge_eopatch
+from .eodata_io import save_eopatch, load_eopatch, FeatureIO
+from .eodata_merge import merge_eopatch
 from .fs_utils import get_filesystem
 from .utilities import deep_eq, FeatureParser
 
@@ -538,10 +539,13 @@ class EOPatch:
         :type features: object
         :param features: A collection of features to be loaded. By default all features will be loaded.
         :type features: object
+        :param time_dependent_op: An operation that merges time-dependent features
+        :type time_dependent_op: str
+        :param timeless_op: An operation that merges timeless features
+        :type timeless_op: str
         :return: Merged EOPatch
         :rtype: EOPatch
         """
-
         return merge_eopatch(self, *eopatches, features=features,
                              time_dependent_op=time_dependent_op, timeless_op=timeless_op)
 
