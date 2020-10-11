@@ -292,6 +292,33 @@ class TestS3ExportAndImport(unittest.TestCase):
 
         self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
 
+    def test_time_dependent_feature(self):
+        feature = FeatureType.DATA, 'NDVI'
+        filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
+                           for timestamp in self.eopatch.timestamp]
+        filename_export = 'relative-path/*.tiff'
+
+        export_task = ExportToTiff(feature, folder=self.path)
+        import_task = ImportFromTiff(feature, folder=self.path, timestamp_size=68)
+
+        export_task.execute(self.eopatch, filename=filename_export)
+        new_eopatch = import_task.execute(filename=filename_import)
+
+        self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
+
+    def test_time_dependent_feature_with_timestamps(self):
+        feature = FeatureType.DATA, 'NDVI'
+        filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
+                           for timestamp in self.eopatch.timestamp]
+        filename_export = 'relative-path/*.tiff'
+
+        export_task = ExportToTiff(feature, folder=self.path)
+        import_task = ImportFromTiff(feature, folder=self.path)
+
+        export_task.execute(self.eopatch, filename=filename_export)
+        new_eopatch = import_task.execute(self.eopatch, filename=filename_import)
+
+        self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
 
 if __name__ == '__main__':
     unittest.main()
