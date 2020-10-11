@@ -18,6 +18,7 @@ from abc import abstractmethod
 
 import dateutil
 import fs
+import fs.errors
 import rasterio
 import numpy as np
 from sentinelhub import CRS, BBox
@@ -403,30 +404,24 @@ class ImportFromTiff(BaseLocalIo):
         filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=False)
 
         with filesystem:
-            with filesystem.openbin(filename_paths[0], 'r') as file_handle:
-                with rasterio.open(file_handle) as src:
+            for path in filename_paths:
+                if not filesystem.exists(path):
+                    raise FileNotFoundError(f'The file "{path}" to import from tiff does not exist.')
 
-                    data_bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
-                    if eopatch.bbox is None:
-                        eopatch.bbox = data_bbox
+            data = []
+            for path in filename_paths:
+                with filesystem.openbin(path, 'r') as file_handle:
+                    with rasterio.open(file_handle) as src:
 
-                    reading_window = self._get_reading_window(src.width, src.height, data_bbox, eopatch.bbox)
+                        data_bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
+                        if eopatch.bbox is None:
+                            eopatch.bbox = data_bbox
 
-                    data = src.read(window=reading_window, boundless=True, fill_value=self.no_data_value)
+                        read_window = self._get_reading_window(src.width, src.height, data_bbox, eopatch.bbox)
 
-            if len(filename_paths) > 1:
-                for path in filename_paths[1:]:
-                    with filesystem.openbin(path, 'r') as file_handle:
-                        with rasterio.open(file_handle) as src:
+                        data.append(src.read(window=read_window, boundless=True, fill_value=self.no_data_value))
 
-                            data_bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
-                            if eopatch.bbox is None:
-                                eopatch.bbox = data_bbox
-
-                            reading_window = self._get_reading_window(src.width, src.height, data_bbox, eopatch.bbox)
-
-                            data = np.concatenate([data, src.read(window=reading_window, boundless=True,
-                                                                  fill_value=self.no_data_value)], axis=0)
+        data = np.concatenate(data, axis=0)
 
         if self.image_dtype is not None:
             data = data.astype(self.image_dtype)

@@ -15,6 +15,7 @@ import unittest
 from unittest.mock import patch
 import logging
 import tempfile
+import datetime
 
 import numpy as np
 import boto3
@@ -294,9 +295,9 @@ class TestS3ExportAndImport(unittest.TestCase):
 
     def test_time_dependent_feature(self):
         feature = FeatureType.DATA, 'NDVI'
+        filename_export = 'relative-path/*.tiff'
         filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
                            for timestamp in self.eopatch.timestamp]
-        filename_export = 'relative-path/*.tiff'
 
         export_task = ExportToTiff(feature, folder=self.path)
         import_task = ImportFromTiff(feature, folder=self.path, timestamp_size=68)
@@ -306,17 +307,22 @@ class TestS3ExportAndImport(unittest.TestCase):
 
         self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
 
+        self.eopatch.timestamp[2] = datetime.datetime(2020, 10, 10)
+        filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
+                       for timestamp in self.eopatch.timestamp]
+
+        with self.assertRaises(FileNotFoundError):
+            import_task.execute(filename=filename_import)
+
     def test_time_dependent_feature_with_timestamps(self):
         feature = FeatureType.DATA, 'NDVI'
-        filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
-                           for timestamp in self.eopatch.timestamp]
-        filename_export = 'relative-path/*.tiff'
+        filename = f'relative-path/%Y%m%dT%H%M%S.tiff'
 
         export_task = ExportToTiff(feature, folder=self.path)
         import_task = ImportFromTiff(feature, folder=self.path)
 
-        export_task.execute(self.eopatch, filename=filename_export)
-        new_eopatch = import_task.execute(self.eopatch, filename=filename_import)
+        export_task.execute(self.eopatch, filename=filename)
+        new_eopatch = import_task.execute(self.eopatch, filename=filename)
 
         self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
 
