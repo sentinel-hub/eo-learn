@@ -21,8 +21,34 @@ from .constants import FeatureType
 from .utilities import FeatureParser
 
 
-def merge_eopatches(*eopatches, features=..., time_dependent_op='concatenate', timeless_op=None):
-    """ Merge features of given EOPatches into a target EOPatch
+def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_op=None):
+    """ Merge features of given EOPatches into a new EOPatch
+
+    :param eopatches: Any number of EOPatches to be merged together
+    :type eopatches: EOPatch
+    :param features: A collection of features to be merged together. By default all features will be merged.
+    :type features: object
+    :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
+        joining time slices of all arrays will be sorted. Supported options are:
+        - None (default): If time slices with matching timestamps have the same values, take one. Raise an error
+          otherwise.
+        - 'concatenate': Keep all time slices, even the ones with matching timestamps
+        - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
+        - 'min': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
+        - 'min': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
+        - 'min': Join time slices with matching timestamps by taking median values. Ignore NaN values.
+    :type time_dependent_op: str or Callable or None
+    :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
+        are:
+        - None (default): If arrays are the same, take one. Raise an error otherwise.
+        - 'concatenate': Join arrays over the last (i.e. bands) dimension
+        - 'min': Join arrays by taking minimum values. Ignore NaN values.
+        - 'min': Join arrays by taking maximum values. Ignore NaN values.
+        - 'min': Join arrays by taking mean values. Ignore NaN values.
+        - 'min': Join arrays by taking median values. Ignore NaN values.
+    :type timeless_op: str or Callable or None
+    :return: A dictionary with EOPatch features and values
+    :rtype: Dict[(FeatureType, str), object]
     """
     reduce_timestamps = time_dependent_op != 'concatenate'
     time_dependent_op = _parse_operation(time_dependent_op, is_timeless=False)
@@ -59,7 +85,8 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op='concatenate', t
 
 
 def _parse_operation(operation_input, is_timeless):
-    """ Checks that no the passed operations for time-dependent and timeless feature merging are allowed.
+    """ Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
+    arrays. If the input already is a function it returns it.
     """
     if isinstance(operation_input, Callable):
         return operation_input
@@ -78,7 +105,7 @@ def _parse_operation(operation_input, is_timeless):
 
 
 def _return_if_equal_operation(arrays):
-    """
+    """ Checks if arrays are all equal and returns first one of them. If they are not equal it raises an error.
     """
     if _all_equal(arrays):
         return arrays[0]
@@ -87,6 +114,9 @@ def _return_if_equal_operation(arrays):
 
 
 def _merge_timestamps(eopatches, reduce_timestamps):
+    """ Merges together timestamps from EOPatches. It also prepares masks on how to sort and join data in any
+    time-dependent raster feature.
+    """
     all_timestamps = [timestamp for eopatch in eopatches for timestamp in eopatch.timestamp
                       if eopatch.timestamp is not None]
 
@@ -110,6 +140,9 @@ def _merge_timestamps(eopatches, reduce_timestamps):
 
 
 def _merge_time_dependent_raster_feature(eopatches, feature, operation, sort_mask, split_mask):
+    """ Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to sort and join
+    time raster's time slices.
+    """
     arrays = _extract_feature_values(eopatches, feature)
 
     merged_array = np.concatenate(arrays, axis=0)
@@ -130,7 +163,7 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, sort_mas
 
 
 def _merge_timeless_raster_feature(eopatches, feature, operation):
-    """ Merges numpy arrays of a timeless raster feature with a given operation
+    """ Merges numpy arrays of a timeless raster feature with a given operation.
     """
     arrays = _extract_feature_values(eopatches, feature)
 
@@ -140,7 +173,7 @@ def _merge_timeless_raster_feature(eopatches, feature, operation):
 
 
 def _merge_vector_feature(eopatches, feature):
-    """ Merges GeoDataFrames of a vector feature
+    """ Merges GeoDataFrames of a vector feature.
     """
     dataframes = _extract_feature_values(eopatches, feature)
 
@@ -175,7 +208,7 @@ def _select_meta_info_feature(eopatches, feature_name):
 
 
 def _get_common_bbox(eopatches):
-    """ Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones
+    """ Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones.
     """
     bboxes = [eopatch.bbox for eopatch in eopatches if eopatch.bbox is not None]
 
@@ -188,14 +221,14 @@ def _get_common_bbox(eopatches):
 
 
 def _extract_feature_values(eopatches, feature):
-    """ A helper function that extracts a feature values from those EOPatches where a feature exists
+    """ A helper function that extracts a feature values from those EOPatches where a feature exists.
     """
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
 
 
 def _all_equal(values):
-    """ A helper function that checks if all values in a given list are equal to each other
+    """ A helper function that checks if all values in a given list are equal to each other.
     """
     first_value = values[0]
 
