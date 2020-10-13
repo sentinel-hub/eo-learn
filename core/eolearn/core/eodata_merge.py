@@ -2,113 +2,204 @@
 A module implementing EOPatch merging utility
 
 Credits:
+Copyright (c) 2018-2020 William Ouellette
 Copyright (c) 2017-2020 Matej Aleksandrov, Matej Batič, Grega Milčinski, Matic Lubej, Devis Peresutti (Sinergise)
 Copyright (c) 2017-2020 Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2018-2020 William Ouellette
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import functools
+import warnings
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
+from geopandas import GeoDataFrame
 
 from .constants import FeatureType
-from .utilities import FeatureParser, deep_eq
+from .utilities import FeatureParser
 
 
-def merge_eopatch(*eopatches, features=..., time_dependent_op='concatenate', timeless_op=None):
-    """ Concatenate an existing eopatch in the filesystem and a new eopatch chronologically
+def merge_eopatches(*eopatches, features=..., time_dependent_op='concatenate', timeless_op=None):
+    """ Merge features of given EOPatches into a target EOPatch
     """
-    _check_allowed_operations(time_dependent_op, timeless_op)
+    reduce_timestamps = time_dependent_op != 'concatenate'
+    time_dependent_op = _parse_operation(time_dependent_op, is_timeless=False)
+    timeless_op = _parse_operation(timeless_op, is_timeless=True)
 
+    all_features = {feature for eopatch in eopatches for feature in FeatureParser(features)(eopatch)}
     eopatch_content = {}
-    for eopatch in eopatches:
-        for ftype, fname in FeatureParser(features)(eopatch):
-            feat = (ftype, fname)
-            if ftype.is_time_dependent() and ftype not in [FeatureType.TIMESTAMP, FeatureType.VECTOR]:
-                if feat not in eopatch_content:
-                    eopatch_content[feat] = [eopatch[feat]]
-                else:
-                    if eopatch[feat].shape[1:] == eopatch_content[feat][-1].shape[1:]:
-                        eopatch_content[feat].append(eopatch[feat])
-                    else:
-                        raise ValueError(f'The arrays have mismatching n x m x b shapes for {feat}.')
-            elif ftype is FeatureType.VECTOR:
-                if feat not in eopatch_content:
-                    eopatch_content[feat] = [eopatch[feat]]
-                else:
-                    eopatch_content[feat].append(eopatch[feat])
-            elif ftype.is_timeless() and ftype != FeatureType.VECTOR_TIMELESS:
-                if feat not in eopatch_content.keys():
-                    eopatch_content[feat] = [eopatch[feat]]
-                else:
-                    if eopatch[feat].shape == eopatch_content[feat][-1].shape:
-                        if deep_eq(eopatch[feat], eopatch_content[feat][-1]) and timeless_op:
-                            raise ValueError(f'Two identical timeless arrays were found for {feat}.')
-                        eopatch_content[feat].append(eopatch[feat])
-                    else:
-                        raise ValueError(f'The arrays have mismatching n x m x b shapes for {feat}.')
 
-    return _perform_merge_operation(eopatches, eopatch_content, time_dependent_op, timeless_op)
+    timestamps, sort_mask, split_mask = _merge_timestamps(eopatches, reduce_timestamps)
+    eopatch_content[FeatureType.TIMESTAMP] = timestamps
+
+    for feature in all_features:
+        feature_type, feature_name = feature
+
+        if feature_type.is_raster():
+            if feature_type.is_time_dependent():
+                eopatch_content[feature] = _merge_time_dependent_raster_feature(
+                    eopatches, feature, time_dependent_op, sort_mask, split_mask
+                )
+            else:
+                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature,
+                                                                          timeless_op)
+
+        if feature_type.is_vector():
+            eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
+
+        if feature_type is FeatureType.META_INFO:
+            eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
+
+        if feature_type is FeatureType.BBOX:
+            eopatch_content[feature] = _get_common_bbox(eopatches)
+
+    return eopatch_content
 
 
-def _check_allowed_operations(time_dependent_op, timeless_op):
+def _parse_operation(operation_input, is_timeless):
     """ Checks that no the passed operations for time-dependent and timeless feature merging are allowed.
     """
-    allowed_timeless_op = [None, 'mean', 'max', 'min', 'median']
-    allowed_time_dependent_op = ['concatenate', 'mean', 'max', 'min', 'median']
+    if isinstance(operation_input, Callable):
+        return operation_input
 
-    if timeless_op not in allowed_timeless_op:
-        raise ValueError(f'timeless_op "{timeless_op}" is invalid, must be one of {allowed_timeless_op}')
+    try:
+        return {
+            None: _return_if_equal_operation,
+            'concatenate': functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
+            'mean': functools.partial(np.nanmean, axis=0),
+            'median': functools.partial(np.nanmedian, axis=0),
+            'min': functools.partial(np.nanmin, axis=0),
+            'max': functools.partial(np.nanmax, axis=0)
+        }[operation_input]
+    except KeyError as exception:
+        raise ValueError(f'Merge operation {operation_input} is not supported') from exception
 
-    if time_dependent_op not in allowed_time_dependent_op:
-        raise ValueError(f'time_dependent_op "{time_dependent_op}" is invalid, must be one of '
-                         f'{allowed_time_dependent_op}')
 
-
-def _perform_merge_operation(eopatches, eopatch_content, time_dependent_op, timeless_op):
-    """Performs the merging of duplicate timestamps of time-dependent features and of timeless features.
+def _return_if_equal_operation(arrays):
     """
-    ops = {'mean': np.nanmean,
-           'median': np.nanmedian,
-           'min': np.nanmin,
-           'max': np.nanmax
-           }
-
-    all_timestamps = [tstamp for eop in eopatches for tstamp in eop.timestamp]
-
-    timestamp_list = [eop.timestamp for eop in eopatches]
-    masks = [np.isin(time_post, list(set(time_post).difference(set(time_pre))))
-             for time_pre, time_post in zip(timestamp_list[:-1], timestamp_list[1:])]
-    unique_timestamps = eopatches[0].timestamp + [tstamp for eop, mask in zip(eopatches[1:], masks)
-                                                  for tstamp, to_keep in zip(eop.timestamp, mask) if to_keep]
-
-    unique_indices = sorted(range(len(unique_timestamps)), key=lambda k: unique_timestamps[k])
-
-    eopatch = eopatches[0].__copy__()
-    eopatch.timestamp = sorted(unique_timestamps)
-
-    for feat, arrays in eopatch_content.items():
-        ftype, _ = feat
-        if ftype.is_time_dependent() and ftype != FeatureType.VECTOR and unique_indices:
-            eopatch[feat] = np.concatenate(arrays, axis=0)
-            for idx, timestamp in zip(unique_indices, eopatch.timestamp):
-                array = eopatch[feat][[i for i, t in enumerate(all_timestamps) if t == timestamp]]
-                _check_duplicate_timestamp(array, feat)
-                eopatch[feat][idx] = ops[time_dependent_op](array, axis=0) if time_dependent_op in ops else array[0]
-            eopatch[feat] = eopatch[feat][unique_indices]
-        elif ftype.is_timeless():
-            eopatch[feat] = ops[timeless_op](arrays, axis=0) if timeless_op in ops else arrays[0]
-        elif ftype == FeatureType.VECTOR:
-            eopatch[feat] = pd.concat([array for array in arrays if not array.empty]).sort_values('TIMESTAMP')\
-                .drop_duplicates("TIMESTAMP")
-
-    return eopatch
-
-
-def _check_duplicate_timestamp(array, feature):
-    """ Checks that no duplicate timestamps with different values exist
     """
-    if any(not deep_eq(array[x], array[y]) for i, x in enumerate(range(array.shape[0]))
-           for j, y in enumerate(range(array.shape[0])) if i != j):
-        raise ValueError(f'Two identical timestamps with different values were found for {feature}.')
+    if _all_equal(arrays):
+        return arrays[0]
+    raise ValueError('Cannot merge given arrays because their values are not the same, please define a different '
+                     'merge operation')
+
+
+def _merge_timestamps(eopatches, reduce_timestamps):
+    all_timestamps = [timestamp for eopatch in eopatches for timestamp in eopatch.timestamp
+                      if eopatch.timestamp is not None]
+
+    if not all_timestamps:
+        return [], None, None
+
+    sort_mask = np.argsort(all_timestamps)
+    all_timestamps = sorted(all_timestamps)
+
+    if not reduce_timestamps:
+        return all_timestamps, sort_mask, None
+
+    split_mask = [
+        index + 1 for index, (timestamp, next_timestamp) in enumerate(zip(all_timestamps[:-1], all_timestamps[1:]))
+        if timestamp != next_timestamp
+    ]
+    reduced_timestamps = [timestamp for index, timestamp in enumerate(all_timestamps)
+                          if index == 0 or timestamp != all_timestamps[index - 1]]
+
+    return reduced_timestamps, sort_mask, split_mask
+
+
+def _merge_time_dependent_raster_feature(eopatches, feature, operation, sort_mask, split_mask):
+    arrays = _extract_feature_values(eopatches, feature)
+
+    merged_array = np.concatenate(arrays, axis=0)
+    del arrays
+
+    if sort_mask is None:
+        return merged_array
+    merged_array = merged_array[sort_mask]
+
+    if split_mask is None or len(split_mask) == merged_array.shape[0] - 1:
+        return merged_array
+
+    split_arrays = np.split(merged_array, split_mask)
+    del merged_array
+
+    split_arrays = [operation(array_chunk) for array_chunk in split_arrays]
+    return np.array(split_arrays)
+
+
+def _merge_timeless_raster_feature(eopatches, feature, operation):
+    """ Merges numpy arrays of a timeless raster feature with a given operation
+    """
+    arrays = _extract_feature_values(eopatches, feature)
+
+    if len(arrays) == 1:
+        return arrays[0]
+    return operation(arrays)
+
+
+def _merge_vector_feature(eopatches, feature):
+    """ Merges GeoDataFrames of a vector feature
+    """
+    dataframes = _extract_feature_values(eopatches, feature)
+
+    if len(dataframes) == 1:
+        return dataframes[0]
+
+    crs_list = [dataframe.crs for dataframe in dataframes if dataframe.crs is not None]
+    if not crs_list:
+        crs_list = [None]
+    if not _all_equal(crs_list):
+        raise ValueError(f'Cannot merge feature {feature} because dataframes are defined for '
+                         f'different CRS')
+
+    merged_dataframe = GeoDataFrame(pd.concat(dataframes, ignore_index=True), crs=crs_list[0])
+    merged_dataframe = merged_dataframe.drop_duplicates(ignore_index=True)
+    # In future a support for vector operations could be added here
+
+    return merged_dataframe
+
+
+def _select_meta_info_feature(eopatches, feature_name):
+    """ Selects a value for a meta info feature of a merged EOPatch. By default the value is the first one.
+    """
+    values = _extract_feature_values(eopatches, (FeatureType.META_INFO, feature_name))
+
+    if not _all_equal(values):
+        message = f'EOPatches have different values of meta info feature {feature_name}. The first value will be ' \
+                  f'used in a merged EOPatch'
+        warnings.warn(message, category=UserWarning)
+
+    return values[0]
+
+
+def _get_common_bbox(eopatches):
+    """ Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones
+    """
+    bboxes = [eopatch.bbox for eopatch in eopatches if eopatch.bbox is not None]
+
+    if not bboxes:
+        return None
+
+    if _all_equal(bboxes):
+        return bboxes[0]
+    raise ValueError('Cannot merge EOPatches because they are defined for different bounding boxes')
+
+
+def _extract_feature_values(eopatches, feature):
+    """ A helper function that extracts a feature values from those EOPatches where a feature exists
+    """
+    feature_type, feature_name = feature
+    return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
+
+
+def _all_equal(values):
+    """ A helper function that checks if all values in a given list are equal to each other
+    """
+    first_value = values[0]
+
+    if isinstance(first_value, np.ndarray):
+        return all(np.array_equal(first_value, array, equal_nan=True) for array in values[1:])
+
+    return all(first_value == value for value in values[1:])

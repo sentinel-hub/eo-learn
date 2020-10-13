@@ -23,12 +23,13 @@ from sentinelhub import BBox, CRS
 
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
-from .eodata_merge import merge_eopatch
+from .eodata_merge import merge_eopatches
 from .fs_utils import get_filesystem
 from .utilities import deep_eq, FeatureParser
 
 
 LOGGER = logging.getLogger(__name__)
+warnings.simplefilter('default', DeprecationWarning)
 
 MAX_DATA_REPR_LEN = 100
 
@@ -171,8 +172,9 @@ class EOPatch:
         return True
 
     def __add__(self, other):
-        """Concatenates two EOPatches into a new EOPatch."""
-        return EOPatch.concatenate(self, other)
+        """ Merges two EOPatches into a new EOPatch
+        """
+        return self.merge(other)
 
     def __repr__(self):
         feature_repr_list = ['{}('.format(self.__class__.__name__)]
@@ -435,6 +437,9 @@ class EOPatch:
         :return: Joined EOPatch
         :rtype: EOPatch
         """
+        warnings.warn('EOPatch.concatenate is deprecated, use a more general EOPatch.merge method instead',
+                      DeprecationWarning)
+
         eopatch_content = {}
 
         timestamps_exist = eopatch1.timestamp and eopatch2.timestamp
@@ -532,7 +537,7 @@ class EOPatch:
 
         return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
 
-    def merge(self, *eopatches, features=..., time_dependent_op="concatenate", timeless_op=None):
+    def merge(self, *eopatches, features=..., time_dependent_op=None, timeless_op=None):
         """ Method to merge an EOPatch with other EOPatches
 
         :param eopatches: A list of EOPatches to merge with the main EOPatch.
@@ -546,8 +551,14 @@ class EOPatch:
         :return: Merged EOPatch
         :rtype: EOPatch
         """
-        return merge_eopatch(self, *eopatches, features=features,
-                             time_dependent_op=time_dependent_op, timeless_op=timeless_op)
+        eopatch_content = merge_eopatches(self, *eopatches, features=features,
+                                          time_dependent_op=time_dependent_op, timeless_op=timeless_op)
+
+        merged_eopatch = EOPatch()
+        for feature, value in eopatch_content.items():
+            merged_eopatch[feature] = value
+
+        return merged_eopatch
 
     def time_series(self, ref_date=None, scale_time=1):
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
@@ -711,7 +722,7 @@ class _FeatureDict(dict):
             if self.feature_type.is_discrete():
                 if not issubclass(value.dtype.type, (np.integer, np.bool, np.bool_, np.bool8)):
                     msg = '{} is a discrete feature type therefore dtype of data should be a subtype of ' \
-                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because' \
+                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because ' \
                           'of this'.format(self.feature_type, value.dtype.type)
                     warnings.warn(msg, DeprecationWarning, stacklevel=3)
 
