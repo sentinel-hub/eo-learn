@@ -50,7 +50,7 @@ class DeepCopyTask(CopyTask):
 class IOTask(EOTask):
     """ An abstract Input/Output task that can handle a path and a filesystem object
     """
-    def __init__(self, path, filesystem=None, create=False):
+    def __init__(self, path, filesystem=None, create=False, config=None):
         """
         :param path: root path where all EOPatches are saved
         :type path: str
@@ -59,10 +59,14 @@ class IOTask(EOTask):
         :type filesystem: fs.base.FS or None
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
         :type create: bool
+        :param config: A configuration object with AWS credentials. By default is set to None and in this case the
+            default configuration will be taken.
+        :type config: SHConfig or None
         """
         self.path = path
         self._filesystem = filesystem
         self._create = create
+        self.config = config
 
         self.filesystem_path = '/' if self._filesystem is None else self.path
 
@@ -71,7 +75,7 @@ class IOTask(EOTask):
         """ A filesystem property that is being lazy-loaded the first time it is needed
         """
         if self._filesystem is None:
-            self._filesystem = get_filesystem(self.path, create=self._create)
+            self._filesystem = get_filesystem(self.path, create=self._create, config=self.config)
 
         return self._filesystem
 
@@ -85,7 +89,7 @@ class IOTask(EOTask):
 class SaveTask(IOTask):
     """ Saves the given EOPatch to a filesystem
     """
-    def __init__(self, path, filesystem=None, **kwargs):
+    def __init__(self, path, filesystem=None, config=None, **kwargs):
         """
         :param path: root path where all EOPatches are saved
         :type path: str
@@ -100,9 +104,12 @@ class SaveTask(IOTask):
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
+        :param config: A configuration object with AWS credentials. By default is set to None and in this case the
+            default configuration will be taken.
+        :type config: SHConfig or None
         """
         self.kwargs = kwargs
-        super().__init__(path, filesystem=filesystem, create=True)
+        super().__init__(path, filesystem=filesystem, create=True, config=config)
 
     def execute(self, eopatch, *, eopatch_folder=''):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
@@ -131,7 +138,7 @@ class SaveToDisk(SaveTask):
 class LoadTask(IOTask):
     """ Loads an EOPatch from a filesystem
     """
-    def __init__(self, path, filesystem=None, **kwargs):
+    def __init__(self, path, filesystem=None, config=None, **kwargs):
         """
         :param path: root directory where all EOPatches are saved
         :type path: str
@@ -142,9 +149,12 @@ class LoadTask(IOTask):
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
+        :param config: A configuration object with AWS credentials. By default is set to None and in this case the
+            default configuration will be taken.
+        :type config: SHConfig or None
         """
         self.kwargs = kwargs
-        super().__init__(path, filesystem=filesystem, create=False)
+        super().__init__(path, filesystem=filesystem, create=False, config=config)
 
     def execute(self, *, eopatch_folder=''):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.

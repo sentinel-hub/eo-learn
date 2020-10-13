@@ -11,19 +11,19 @@ Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import os
 import datetime
 import logging
 import warnings
 from abc import abstractmethod
 
 import dateutil
+import fs
 import rasterio
 import numpy as np
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
+from eolearn.core.fs_utils import get_base_filesystem_and_path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,42 +31,57 @@ LOGGER = logging.getLogger(__name__)
 class BaseLocalIo(EOTask):
     """ Base abstract class for local IO tasks
     """
-    def __init__(self, feature, folder=None, *, image_dtype=None, no_data_value=0):
+    def __init__(self, feature, folder=None, *, image_dtype=None, no_data_value=0, config=None):
         """
         :param feature: Feature which will be exported or imported
         :type feature: (FeatureType, str)
-        :param folder: A directory containing image files or a path of an image file
+        :param folder: A directory containing image files or a folder of an image file
         :type folder: str
         :param image_dtype: Type of data to be exported into tiff image or imported from tiff image
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of undefined pixels
         :type no_data_value: int or float
+        :param config: A configuration object containing AWS credentials
+        :type config: SHConfig
         """
         self.feature = self._parse_features(feature)
         self.folder = folder
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
+        self.config = config
 
-    def _get_file_path(self, filename, create_dir=False):
-        """ Builds a file path from values obtained at class initialization and in execute method.
-        If create_dir is set to True, non existing directories are automatically created.
+    def _get_filesystem_and_paths(self, filename, timestamps, create_paths=False):
+        """ It takes location parameters from init and execute methods, joins them together, and creates a filesystem
+        object and file paths relative to the filesystem object.
         """
-        if self.folder is None:
-            if filename is None:
-                raise ValueError("At least one of parameters 'folder' and 'filename' has to be specified")
-            path = filename
-        elif filename is None:
-            path = self.folder
-        else:
-            path = os.path.join(self.folder, filename)
+        filesystem, relative_path = get_base_filesystem_and_path(self.folder, filename, config=self.config)
 
-        # Create directory of path if it doesn't exist
-        if create_dir:
-            path_dir = os.path.dirname(path)
-            if path_dir != '' and not os.path.exists(path_dir):
-                os.makedirs(path_dir, exist_ok=True)
+        filename_paths = self._generate_paths(relative_path, timestamps)
 
-        return path
+        if create_paths:
+            paths_to_create = {fs.path.dirname(filename_path) for filename_path in filename_paths}
+            for filename_path in paths_to_create:
+                filesystem.makedirs(filename_path, recreate=True)
+
+        return filesystem, filename_paths
+
+    @staticmethod
+    def _generate_paths(path_template, timestamps):
+        """ Uses a filename path template to create a list of actual filename paths
+        """
+        if not (path_template.endswith('.tif') or path_template.endswith('.tiff')):
+            path_template = f'{path_template}.tif'
+
+        if not timestamps:
+            return [path_template]
+
+        if '*' in path_template:
+            path_template = path_template.replace('*', '%Y%m%dT%H%M%S')
+
+        if timestamps[0].strftime(path_template) == path_template:
+            return [path_template]
+
+        return [timestamp.strftime(path_template) for timestamp in timestamps]
 
     @abstractmethod
     def execute(self, eopatch, **kwargs):
@@ -94,7 +109,7 @@ class ExportToTiff(BaseLocalIo):
         :param folder: A directory containing image files or a path of an image file.
             If the file extension of the image file is not provided, it will default to ".tif".
             If a "*" wildcard or a datetime.strftime substring (e.g. "%Y%m%dT%H%M%S")  is provided in the image file,
-            the eopatch will be stripped into multiple geotiffs each corresponding to a timestamp,
+            an EOPatch feature will be split over multiple GeoTiffs each corresponding to a timestamp,
             and the stringified datetime will be appended to the image file name.
         :type folder: str
         :param band_indices: Bands to be added to tiff image. Bands are represented by their 0-based index as tuple
@@ -114,6 +129,8 @@ class ExportToTiff(BaseLocalIo):
         :type image_dtype: numpy.dtype
         :param no_data_value: Value of pixels of tiff image with no data in EOPatch
         :type no_data_value: int or float
+        :param config: A configuration object containing AWS credentials
+        :type config: SHConfig
         """
         super().__init__(feature, folder=folder, **kwargs)
 
@@ -209,41 +226,42 @@ class ExportToTiff(BaseLocalIo):
 
         return np.moveaxis(data_array, -1, 1).reshape(time_dim * band_dim, height, width)
 
-    def _export_tiff(self, image_array, path, channel_count,
+    def _export_tiff(self, image_array, filesystem, path, channel_count,
                      dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform):
-        """ Export the eopatch to tiff based on input channel range.
+        """ Export an EOPatch feature to tiff based on input channel range.
         """
-        with rasterio.open(path, 'w', driver='GTiff',
-                           width=dst_width, height=dst_height,
-                           count=channel_count,
-                           dtype=image_array.dtype, nodata=self.no_data_value,
-                           transform=dst_transform, crs=dst_crs,
-                           compress=self.compress) as dst:
+        with filesystem.openbin(path, 'w') as file_handle:
+            with rasterio.open(file_handle, 'w', driver='GTiff',
+                               width=dst_width, height=dst_height,
+                               count=channel_count,
+                               dtype=image_array.dtype, nodata=self.no_data_value,
+                               transform=dst_transform, crs=dst_crs,
+                               compress=self.compress) as dst:
 
-            if dst_crs == src_crs:
-                dst.write(image_array)
-            else:
-                for idx in range(channel_count):
-                    rasterio.warp.reproject(
-                        source=image_array[idx, ...],
-                        destination=rasterio.band(dst, idx + 1),
-                        src_transform=src_transform,
-                        src_crs=src_crs,
-                        dst_transform=dst_transform,
-                        dst_crs=dst_crs,
-                        resampling=rasterio.warp.Resampling.nearest
-                    )
+                if dst_crs == src_crs:
+                    dst.write(image_array)
+                else:
+                    for idx in range(channel_count):
+                        rasterio.warp.reproject(
+                            source=image_array[idx, ...],
+                            destination=rasterio.band(dst, idx + 1),
+                            src_transform=src_transform,
+                            src_crs=src_crs,
+                            dst_transform=dst_transform,
+                            dst_crs=dst_crs,
+                            resampling=rasterio.warp.Resampling.nearest
+                        )
 
     def execute(self, eopatch, *, filename=None):
         """ Execute method
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
-        :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
-            of task initialization.
+        :param filename: A filename of tiff file or None if entire path has already been specified in `folder`
+            parameter of task initialization.
             If the file extension of the image file is not provided, it will default to ".tif".
             If a "*" wildcard or a datetime.strftime substring (e.g. "%Y%m%dT%H%M%S")  is provided in the image file,
-            the eopatch will be stripped into multiple geotiffs each corresponding to a timestamp,
+            an EOPatch feature will be split over multiple GeoTiffs each corresponding to a timestamp,
             and the stringified datetime will be appended to the image file name.
         :type filename: str or None
         :return: Unchanged input EOPatch
@@ -275,19 +293,20 @@ class ExportToTiff(BaseLocalIo):
             dst_transform = src_transform
             dst_width, dst_height = width, height
 
-        path = self._get_file_path(filename, create_dir=True)
+        filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=True)
 
-        if any([substring in path for substring in ['*', '%Y', '%m', '%d', '%H', '%M', '%S']]):
-            channel_count = channel_count // len(eopatch.timestamp)
-            for ts_idx, timestamp in enumerate(eopatch.timestamp, start=1):
-                ts_path = path.replace("*", f'{timestamp.strftime("%Y%m%dT%H%M%S")}') if "*" in path \
-                    else timestamp.strftime(path)
-                ts_array = image_array[(ts_idx - 1) * channel_count:ts_idx * channel_count, ...]
-                self._export_tiff(ts_array, ts_path if os.path.splitext(path)[-1] else ts_path+'.tif', channel_count,
+        with filesystem:
+            if len(filename_paths) > 1:
+                channel_count = channel_count // len(eopatch.timestamp)
+                for timestamp_index, path in enumerate(filename_paths):
+                    time_slice_array = image_array[timestamp_index * channel_count:
+                                                   (timestamp_index + 1) * channel_count, ...]
+
+                    self._export_tiff(time_slice_array, filesystem, path, channel_count,
+                                      dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
+            else:
+                self._export_tiff(image_array, filesystem, filename_paths[0], channel_count,
                                   dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
-        else:
-            self._export_tiff(image_array, path if os.path.splitext(path)[-1] else path+'.tif', channel_count,
-                              dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
 
         return eopatch
 
@@ -319,6 +338,8 @@ class ImportFromTiff(BaseLocalIo):
         :type image_dtype: numpy.dtype
         :param no_data_value: Values where given Geo-Tiff image does not cover EOPatch
         :type no_data_value: int or float
+        :param config: A configuration object containing AWS credentials
+        :type config: SHConfig
         """
         super().__init__(feature, folder=folder, **kwargs)
 
@@ -365,15 +386,19 @@ class ImportFromTiff(BaseLocalIo):
         if eopatch is None:
             eopatch = EOPatch()
 
-        with rasterio.open(self._get_file_path(filename)) as source:
+        filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=False)
 
-            data_bbox = BBox(source.bounds, CRS(source.crs.to_epsg()))
-            if eopatch.bbox is None:
-                eopatch.bbox = data_bbox
+        with filesystem:
+            with filesystem.openbin(filename_paths[0], 'r') as file_handle:
+                with rasterio.open(file_handle) as source:
 
-            reading_window = self._get_reading_window(source.width, source.height, data_bbox, eopatch.bbox)
+                    data_bbox = BBox(source.bounds, CRS(source.crs.to_epsg()))
+                    if eopatch.bbox is None:
+                        eopatch.bbox = data_bbox
 
-            data = source.read(window=reading_window, boundless=True, fill_value=self.no_data_value)
+                    reading_window = self._get_reading_window(source.width, source.height, data_bbox, eopatch.bbox)
+
+                    data = source.read(window=reading_window, boundless=True, fill_value=self.no_data_value)
 
         if self.image_dtype is not None:
             data = data.astype(self.image_dtype)
