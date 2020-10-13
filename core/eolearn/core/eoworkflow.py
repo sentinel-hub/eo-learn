@@ -20,7 +20,6 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import collections
 import logging
 import warnings
@@ -367,7 +366,7 @@ class LinearWorkflow(EOWorkflow):
         return unique_tasks
 
 
-@attr.s(cmp=False)  # cmp=False preserves the original hash
+@attr.s(eq=False)  # eq=False preserves the original hash
 class Dependency:
     """ Class representing a node in EOWorkflow graph
 
@@ -413,7 +412,7 @@ class Dependency:
         return self.name
 
 
-class WorkflowResults(collections.Mapping):
+class WorkflowResults(collections.abc.Mapping):
     """ The result of a workflow is an (immutable) dictionary mapping [1] from EOTasks to results of the workflow.
 
     When an EOTask is passed as an index, its UUID, assigned during workflow execution, is used as the key (as opposed

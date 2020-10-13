@@ -34,7 +34,7 @@ warnings.simplefilter('default', DeprecationWarning)
 MAX_DATA_REPR_LEN = 100
 
 
-@attr.s(repr=False, cmp=False, kw_only=True)
+@attr.s(repr=False, eq=False, kw_only=True)
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
 
