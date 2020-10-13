@@ -353,7 +353,10 @@ class TestCoreTasks(unittest.TestCase):
     def test_merge_eopatches(self):
         task = MergeEOPatchesTask(time_dependent_op='mean', timeless_op='concatenate')
 
-        task.execute(self.patch, self.patch, self.patch)
+        patch = EOPatch.load(self.data_path)
+        del patch.data['REFERENCE_SCENES']  # wrong time dimension
+
+        task.execute(patch, patch, patch)
 
 
 if __name__ == '__main__':
