@@ -18,7 +18,6 @@ from abc import abstractmethod
 
 import dateutil
 import fs
-import fs.errors
 import rasterio
 import numpy as np
 from sentinelhub import CRS, BBox

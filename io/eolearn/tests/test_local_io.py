@@ -307,16 +307,16 @@ class TestS3ExportAndImport(unittest.TestCase):
 
         self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
 
-        self.eopatch.timestamp[2] = datetime.datetime(2020, 10, 10)
+        self.eopatch.timestamp[-1] = datetime.datetime(2020, 10, 10)
         filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
-                       for timestamp in self.eopatch.timestamp]
+                           for timestamp in self.eopatch.timestamp]
 
         with self.assertRaises(FileNotFoundError):
             import_task.execute(filename=filename_import)
 
     def test_time_dependent_feature_with_timestamps(self):
         feature = FeatureType.DATA, 'NDVI'
-        filename = f'relative-path/%Y%m%dT%H%M%S.tiff'
+        filename = 'relative-path/%Y%m%dT%H%M%S.tiff'
 
         export_task = ExportToTiff(feature, folder=self.path)
         import_task = ImportFromTiff(feature, folder=self.path)
@@ -325,6 +325,7 @@ class TestS3ExportAndImport(unittest.TestCase):
         new_eopatch = import_task.execute(self.eopatch, filename=filename)
 
         self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
+
 
 if __name__ == '__main__':
     unittest.main()
