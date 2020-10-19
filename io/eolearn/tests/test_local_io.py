@@ -20,6 +20,7 @@ import datetime
 import numpy as np
 import boto3
 from moto import mock_s3
+from fs.errors import ResourceNotFound
 
 from sentinelhub import read_data
 from sentinelhub.time_utils import datetime_to_iso
@@ -311,7 +312,7 @@ class TestS3ExportAndImport(unittest.TestCase):
         filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
                            for timestamp in self.eopatch.timestamp]
 
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaises(ResourceNotFound):
             import_task.execute(filename=filename_import)
 
     def test_time_dependent_feature_with_timestamps(self):

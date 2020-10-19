@@ -55,7 +55,7 @@ class BaseLocalIo(EOTask):
         object and file paths relative to the filesystem object.
         """
 
-        if isinstance(filename, str):
+        if isinstance(filename, str) or filename is None:
             filesystem, relative_path = get_base_filesystem_and_path(self.folder, filename, config=self.config)
             filename_paths = self._generate_paths(relative_path, timestamps)
         elif isinstance(filename, list):
@@ -70,7 +70,7 @@ class BaseLocalIo(EOTask):
                     raise ValueError('The number of provided timestamps does not match '
                                      'the number of provided filenames.')
         else:
-            raise TypeError('The data type for filename must either be "list" or "str".')
+            raise TypeError(f"The 'filename' parameter must either be a list or a string, but {filename} found")
 
         if create_paths:
             paths_to_create = {fs.path.dirname(filename_path) for filename_path in filename_paths}
@@ -403,10 +403,6 @@ class ImportFromTiff(BaseLocalIo):
         filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=False)
 
         with filesystem:
-            for path in filename_paths:
-                if not filesystem.exists(path):
-                    raise FileNotFoundError(f'The file "{path}" to import from tiff does not exist.')
-
             data = []
             for path in filename_paths:
                 with filesystem.openbin(path, 'r') as file_handle:
