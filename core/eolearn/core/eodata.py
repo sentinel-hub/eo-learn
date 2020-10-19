@@ -550,18 +550,18 @@ class EOPatch:
               otherwise.
             - 'concatenate': Keep all time slices, even the ones with matching timestamps
             - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
-            - 'min': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
-            - 'min': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
-            - 'min': Join time slices with matching timestamps by taking median values. Ignore NaN values.
+            - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
+            - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
+            - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
         :type time_dependent_op: str or Callable or None
         :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
             are:
             - None (default): If arrays are the same, take one. Raise an error otherwise.
             - 'concatenate': Join arrays over the last (i.e. bands) dimension
             - 'min': Join arrays by taking minimum values. Ignore NaN values.
-            - 'min': Join arrays by taking maximum values. Ignore NaN values.
-            - 'min': Join arrays by taking mean values. Ignore NaN values.
-            - 'min': Join arrays by taking median values. Ignore NaN values.
+            - 'max': Join arrays by taking maximum values. Ignore NaN values.
+            - 'mean': Join arrays by taking mean values. Ignore NaN values.
+            - 'median': Join arrays by taking median values. Ignore NaN values.
         :type timeless_op: str or Callable or None
         :return: A dictionary with EOPatch features and values
         :rtype: Dict[(FeatureType, str), object]
