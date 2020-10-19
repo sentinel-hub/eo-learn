@@ -1,3 +1,15 @@
+## [Version 0.8.0] - 2020-10-19
+- Switched from "data source" to "data collection" terminology according to changes in `sentinelhub-py` and Sentinel Hub services.
+- Improvements in `SentinelHubInputTask` to better support any type of data collection. Using new `DataCollection` class from `sentinelhub-py`.
+- Extended `ExportToTiff` and `ImportFromTiff` tasks to support writing and reading from AWS S3 buckets. Implemented in cooperation with @wouellette.
+- Implemented `EOPatch.merge` method and `MergeEOPatchesTask` task for merging the content of any number of EOPatches. Implemented in cooperation with @wouellette.
+- Deprecated `EOPatch.concatenate` in favour of `EOPatch.merge`.
+- Added `eolearn.features.DoublyLogisticApproximationTask`, contributed by @bsircelj.
+- Optional parameter `config` for `SaveTask` and `LoadTask` to enable defining custom AWS credentials.
+- Fixed a bug in `eolearn.features.ValueFilloutTask`.
+- Started releasing `eo-learn` (sub)packages also as wheels. 
+- Minor improvements and fixes.
+
 ## [Version 0.7.7] - 2020-08-03
 - Support for `geopandas` version `0.8.0`
 - Added a [notebook](https://github.com/sentinel-hub/eo-learn/blob/develop/examples/custom-script/machine-learning-evalscript.ipynb) with an end-to-end example on how to transform a ML-model into an evalscript and run it with Sentinel Hub service
