@@ -99,7 +99,7 @@ class EOTask(ABC):
                              default_feature_type=default_feature_type, allowed_feature_types=allowed_feature_types)
 
 
-@attr.s(cmp=False)
+@attr.s(eq=False)
 class _PrivateTaskConfig:
     """ A container for general EOTask parameters required during EOWorkflow and EOExecution
 

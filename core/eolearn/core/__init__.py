@@ -12,7 +12,7 @@ from .eoexecution import EOExecutor, execute_with_mp_lock
 
 from .core_tasks import CopyTask, DeepCopyTask, SaveTask, LoadTask, AddFeature, RemoveFeature, RenameFeature,\
     DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
-    ExtractBandsTask, CreateEOPatchTask, SaveToDisk, LoadFromDisk
+    ExtractBandsTask, CreateEOPatchTask, SaveToDisk, LoadFromDisk, MergeEOPatchesTask
 
 from .fs_utils import get_filesystem, load_s3_filesystem
 from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser

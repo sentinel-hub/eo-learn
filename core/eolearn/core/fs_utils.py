@@ -40,6 +40,15 @@ def get_filesystem(path, create=False, config=None, **kwargs):
 
 
 def get_base_filesystem_and_path(*path_parts, **kwargs):
+    """ Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
+    on the filesystem
+
+    :param path_parts: One or more strings defining a filesystem path
+    :type path_parts: str
+    :param kwargs: Parameters passed to get_filesystem function
+    :return: A filesystem object and a relative path
+    :rtype: (fs.FS, str)
+    """
     path_parts = [str(part) for part in path_parts if part is not None]
     base_path = path_parts[0]
 

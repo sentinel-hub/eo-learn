@@ -23,16 +23,18 @@ from sentinelhub import BBox, CRS
 
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
+from .eodata_merge import merge_eopatches
 from .fs_utils import get_filesystem
 from .utilities import deep_eq, FeatureParser
 
 
 LOGGER = logging.getLogger(__name__)
+warnings.simplefilter('default', DeprecationWarning)
 
 MAX_DATA_REPR_LEN = 100
 
 
-@attr.s(repr=False, cmp=False, kw_only=True)
+@attr.s(repr=False, eq=False, kw_only=True)
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
 
@@ -170,8 +172,9 @@ class EOPatch:
         return True
 
     def __add__(self, other):
-        """Concatenates two EOPatches into a new EOPatch."""
-        return EOPatch.concatenate(self, other)
+        """ Merges two EOPatches into a new EOPatch
+        """
+        return self.merge(other)
 
     def __repr__(self):
         feature_repr_list = ['{}('.format(self.__class__.__name__)]
@@ -434,6 +437,9 @@ class EOPatch:
         :return: Joined EOPatch
         :rtype: EOPatch
         """
+        warnings.warn('EOPatch.concatenate is deprecated, use a more general EOPatch.merge method instead',
+                      DeprecationWarning)
+
         eopatch_content = {}
 
         timestamps_exist = eopatch1.timestamp and eopatch2.timestamp
@@ -530,6 +536,44 @@ class EOPatch:
             path = '/'
 
         return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
+
+    def merge(self, *eopatches, features=..., time_dependent_op=None, timeless_op=None):
+        """ Merge features of given EOPatches into a new EOPatch
+
+        :param eopatches: Any number of EOPatches to be merged together with the current EOPatch
+        :type eopatches: EOPatch
+        :param features: A collection of features to be merged together. By default all features will be merged.
+        :type features: object
+        :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
+            joining time slices of all arrays will be sorted. Supported options are:
+            - None (default): If time slices with matching timestamps have the same values, take one. Raise an error
+              otherwise.
+            - 'concatenate': Keep all time slices, even the ones with matching timestamps
+            - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
+            - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
+            - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
+            - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
+        :type time_dependent_op: str or Callable or None
+        :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
+            are:
+            - None (default): If arrays are the same, take one. Raise an error otherwise.
+            - 'concatenate': Join arrays over the last (i.e. bands) dimension
+            - 'min': Join arrays by taking minimum values. Ignore NaN values.
+            - 'max': Join arrays by taking maximum values. Ignore NaN values.
+            - 'mean': Join arrays by taking mean values. Ignore NaN values.
+            - 'median': Join arrays by taking median values. Ignore NaN values.
+        :type timeless_op: str or Callable or None
+        :return: A dictionary with EOPatch features and values
+        :rtype: Dict[(FeatureType, str), object]
+        """
+        eopatch_content = merge_eopatches(self, *eopatches, features=features,
+                                          time_dependent_op=time_dependent_op, timeless_op=timeless_op)
+
+        merged_eopatch = EOPatch()
+        for feature, value in eopatch_content.items():
+            merged_eopatch[feature] = value
+
+        return merged_eopatch
 
     def time_series(self, ref_date=None, scale_time=1):
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
@@ -693,7 +737,7 @@ class _FeatureDict(dict):
             if self.feature_type.is_discrete():
                 if not issubclass(value.dtype.type, (np.integer, np.bool, np.bool_, np.bool8)):
                     msg = '{} is a discrete feature type therefore dtype of data should be a subtype of ' \
-                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because' \
+                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because ' \
                           'of this'.format(self.feature_type, value.dtype.type)
                     warnings.warn(msg, DeprecationWarning, stacklevel=3)
 

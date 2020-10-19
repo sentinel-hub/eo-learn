@@ -54,17 +54,20 @@ class TestEOPatchIO(unittest.TestCase):
     def setUpClass(cls):
         eopatch = EOPatch()
         mask = np.zeros((3, 3, 2), dtype=np.int16)
+        data = np.zeros((2, 3, 3, 2), dtype=np.int16)
         eopatch.data_timeless['mask'] = mask
+        eopatch.data['data'] = data
         eopatch.timestamp = [datetime.datetime(2017, 1, 1, 10, 4, 7),
                              datetime.datetime(2017, 1, 4, 10, 14, 5)]
         eopatch.meta_info['something'] = 'nothing'
         eopatch.meta_info['something-else'] = 'nothing'
         eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
-        eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3]])
+        eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3], [1, 2, 3]])
+        eopatch.scalar_timeless['my timeless scalar with spaces'] = np.array([1, 2, 3])
         eopatch.vector['my-df'] = GeoDataFrame({
-            'values': [1],
-            'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7)],
-            'geometry': [eopatch.bbox.geometry]
+            'values': [1, 2],
+            'TIMESTAMP': [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+            'geometry': [eopatch.bbox.geometry, eopatch.bbox.geometry]
         }, crs=eopatch.bbox.crs.pyproj_crs())
 
         cls.eopatch = eopatch
