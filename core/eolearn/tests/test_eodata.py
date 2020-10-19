@@ -195,8 +195,7 @@ class TestEOPatch(unittest.TestCase):
         bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
         eop2.data['bands'] = bands2
 
-        eop = eop1 + eop2
-
+        eop = EOPatch.concatenate(eop1, eop2)
         self.assertTrue(np.array_equal(eop.data['bands'], np.concatenate((bands1, bands2), axis=0)),
                         msg="Array mismatch")
 
@@ -209,7 +208,7 @@ class TestEOPatch(unittest.TestCase):
         bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
         eop2.data['measurements'] = bands2
 
-        eop = eop1 + eop2
+        eop = EOPatch.concatenate(eop1, eop2)
         self.assertTrue('bands' in eop.data and 'measurements' in eop.data,
                         'Failed to concatenate different features')
 
@@ -243,7 +242,7 @@ class TestEOPatch(unittest.TestCase):
         eop2.data_timeless['nask'] = 5 * mask
 
         with self.assertRaises(ValueError):
-            _ = eop1 + eop2
+            _ = EOPatch.concatenate(eop1, eop2)
 
     def test_equals(self):
         eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})

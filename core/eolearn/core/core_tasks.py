@@ -577,3 +577,25 @@ class CreateEOPatchTask(EOTask):
         :rtype: EOPatch
         """
         return EOPatch(**kwargs)
+
+
+class MergeEOPatchesTask(EOTask):
+    """ Merge content from multiple EOPatches into a single EOPatch
+    """
+    def __init__(self, **merge_kwargs):
+        """
+        :param merge_kwargs: A keyword arguments defined for EOPatch.merge method
+        """
+        self.merge_kwargs = merge_kwargs
+
+    def execute(self, *eopatches):
+        """
+        :param eopatches: EOPatches to be merged
+        :type eopatches: EOPatch
+        :return: A new EOPatch with merged content
+        :rtype: EOPatch
+        """
+        if not eopatches:
+            raise ValueError('At least one EOPatch should be given')
+
+        return eopatches[0].merge(*eopatches[1:], **self.merge_kwargs)

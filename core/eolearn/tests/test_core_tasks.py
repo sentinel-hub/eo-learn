@@ -17,7 +17,7 @@ import numpy as np
 
 from eolearn.core import EOPatch, FeatureType, CRS, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
     DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
-    ExtractBandsTask, CreateEOPatchTask
+    ExtractBandsTask, CreateEOPatchTask, MergeEOPatchesTask
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -234,7 +234,6 @@ class TestCoreTasks(unittest.TestCase):
         self.assertTrue('MTless1' in patch_dst.get_feature(FeatureType.MASK_TIMELESS))
         self.assertTrue('MTless2' in patch_dst.get_feature(FeatureType.MASK_TIMELESS))
 
-
     def test_merge_features(self):
         patch = EOPatch()
 
@@ -350,6 +349,14 @@ class TestCoreTasks(unittest.TestCase):
         self.assertTrue(np.array_equal(patch[(FeatureType.DATA_TIMELESS, 'NON_ZERO')], np.count_nonzero(data1, axis=0)))
         self.assertTrue(np.array_equal(patch[(FeatureType.DATA_TIMELESS, 'MAX1')], np.max(data1, axis=0)))
         self.assertTrue(np.array_equal(patch[(FeatureType.DATA, 'MAX2')], np.maximum(data1, data2)))
+
+    def test_merge_eopatches(self):
+        task = MergeEOPatchesTask(time_dependent_op='mean', timeless_op='concatenate')
+
+        patch = EOPatch.load(self.data_path)
+        del patch.data['REFERENCE_SCENES']  # wrong time dimension
+
+        task.execute(patch, patch, patch)
 
 
 if __name__ == '__main__':
