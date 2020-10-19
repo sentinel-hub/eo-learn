@@ -54,9 +54,23 @@ class BaseLocalIo(EOTask):
         """ It takes location parameters from init and execute methods, joins them together, and creates a filesystem
         object and file paths relative to the filesystem object.
         """
-        filesystem, relative_path = get_base_filesystem_and_path(self.folder, filename, config=self.config)
 
-        filename_paths = self._generate_paths(relative_path, timestamps)
+        if isinstance(filename, str):
+            filesystem, relative_path = get_base_filesystem_and_path(self.folder, filename, config=self.config)
+            filename_paths = self._generate_paths(relative_path, timestamps)
+        elif isinstance(filename, list):
+            filename_paths = []
+            for timestamp_index, path in enumerate(filename):
+                filesystem, relative_path = get_base_filesystem_and_path(self.folder, path, config=self.config)
+                if len(filename) == len(timestamps):
+                    filename_paths.append(*self._generate_paths(relative_path, [timestamps[timestamp_index]]))
+                elif not timestamps:
+                    filename_paths.append(*self._generate_paths(relative_path, timestamps))
+                else:
+                    raise ValueError('The number of provided timestamps does not match '
+                                     'the number of provided filenames.')
+        else:
+            raise TypeError('The data type for filename must either be "list" or "str".')
 
         if create_paths:
             paths_to_create = {fs.path.dirname(filename_path) for filename_path in filename_paths}
@@ -378,7 +392,7 @@ class ImportFromTiff(BaseLocalIo):
         :type eopatch: EOPatch or None
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
-        :type filename: str or None
+        :type filename: str, list of str or None
         :return: New EOPatch with added raster layer
         :rtype: EOPatch
         """
@@ -389,16 +403,24 @@ class ImportFromTiff(BaseLocalIo):
         filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=False)
 
         with filesystem:
-            with filesystem.openbin(filename_paths[0], 'r') as file_handle:
-                with rasterio.open(file_handle) as source:
+            for path in filename_paths:
+                if not filesystem.exists(path):
+                    raise FileNotFoundError(f'The file "{path}" to import from tiff does not exist.')
 
-                    data_bbox = BBox(source.bounds, CRS(source.crs.to_epsg()))
-                    if eopatch.bbox is None:
-                        eopatch.bbox = data_bbox
+            data = []
+            for path in filename_paths:
+                with filesystem.openbin(path, 'r') as file_handle:
+                    with rasterio.open(file_handle) as src:
 
-                    reading_window = self._get_reading_window(source.width, source.height, data_bbox, eopatch.bbox)
+                        data_bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
+                        if eopatch.bbox is None:
+                            eopatch.bbox = data_bbox
 
-                    data = source.read(window=reading_window, boundless=True, fill_value=self.no_data_value)
+                        read_window = self._get_reading_window(src.width, src.height, data_bbox, eopatch.bbox)
+
+                        data.append(src.read(window=read_window, boundless=True, fill_value=self.no_data_value))
+
+        data = np.concatenate(data, axis=0)
 
         if self.image_dtype is not None:
             data = data.astype(self.image_dtype)
