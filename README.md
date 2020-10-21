@@ -167,7 +167,7 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
    * [Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-mowing-marker-e99cff0c2d08)
    * [Crop Type Marker](https://medium.com/sentinel-hub/area-monitoring-crop-type-marker-1e70f672bf44)
    * [Homogeneity Marker](https://medium.com/sentinel-hub/area-monitoring-homogeneity-marker-742047b834dc)
-   * Parcel Boundary Detection (still to come)
+   * [Parcel Boundary Detection](https://medium.com/sentinel-hub/parcel-boundary-detection-for-cap-2a316a77d2f6)
    * Land Cover Classification (still to come)
    * Minimum Agriculture Activity (still to come)
    * [Combining the Markers into Decisions](https://medium.com/sentinel-hub/area-monitoring-combining-markers-into-decisions-d74f70fe7721)
