@@ -16,6 +16,7 @@ from shapely.geometry import Polygon
 import pandas as pd
 import geopandas as gpd
 
+import os
 import enum
 import numpy as np
 import matplotlib.pyplot as plt
@@ -189,7 +190,13 @@ class SamplingTaskTask(EOTask):
 
         return eopatch
 
-
+# Utility function for creating a list of all eopatches found in an Output folder
+def get_patch_list(folder):
+    """
+    Returns a list with EOPatch names found in the provided folder. 
+    """
+    return os.listdir(folder)
+    
 # Function to split dataset into training and test data for multiple EOPatches
 def train_test_split_eopatches(patch_array, test_ratio, features_dict, labels_dict):
     """
