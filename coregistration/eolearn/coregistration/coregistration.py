@@ -10,18 +10,17 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import logging
 import copy
-
+import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-import registration
+
 import cv2
 import numpy as np
-
+import registration
 from eolearn.core import EOTask, FeatureType
 
-from .coregistration_utilities import ransac, EstimateEulerTransformModel
+from .coregistration_utilities import EstimateEulerTransformModel, ransac
 
 LOGGER = logging.getLogger(__name__)
 
