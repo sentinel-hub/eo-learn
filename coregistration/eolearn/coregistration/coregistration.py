@@ -181,6 +181,8 @@ class RegistrationTask(EOTask, ABC):
         height, width = img.shape[:2]
         warped_img = np.zeros_like(img, dtype=img.dtype)
 
+        iflag += cv2.WARP_INVERSE_MAP
+
         # Check if image to warp is 2D or 3D. If 3D need to loop over channels
         if (self.interpolation_type == InterpolationType.LINEAR) or img.ndim == 2:
             warped_img = cv2.warpAffine(img.astype(np.float32), warp_matrix, (width, height),
