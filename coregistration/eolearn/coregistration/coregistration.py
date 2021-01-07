@@ -130,39 +130,40 @@ class RegistrationTask(EOTask, ABC):
 
         new_eopatch = copy.deepcopy(eopatch)
 
+        # get data used for registration
         f_type, f_name = next(self.registration_feature(eopatch))
         sliced_data = copy.deepcopy(eopatch[f_type][f_name][..., self.channel])
         time_frames = sliced_data.shape[0]
 
+        # extract and normalize gradients
+        gradients = [get_gradient(d) for d in sliced_data]
+        gradients = [np.clip(g, np.percentile(g, 5), np.percentile(g, 95)) for g in gradients]
+
         iflag = self._get_interpolation_flag(self.interpolation_type)
 
-        for idx in range(time_frames - 1, 0, -1):  # Pair-wise registration starting from the most recent frame
-
+        for idx in range(time_frames - 1):  # Pair-wise registration w.r.t. the last frame
             src_mask, trg_mask = None, None
             if self.valid_mask_feature is not None:
                 f_type, f_name = next(self.valid_mask_feature(eopatch))
-                src_mask = new_eopatch[f_type][f_name][idx - 1]
+                src_mask = new_eopatch[f_type][f_name][-1]
                 trg_mask = new_eopatch[f_type][f_name][idx]
 
             # Estimate transformation
-            warp_matrix = self.register(sliced_data[idx - 1], sliced_data[idx], src_mask=src_mask, trg_mask=trg_mask)
+            warp_matrix = self.register(gradients[-1], gradients[idx], src_mask=src_mask, trg_mask=trg_mask)
 
             # Check amount of deformation
             rflag = self.is_registration_suspicious(warp_matrix)
 
             # Flag suspicious registrations and set them to the identity
             if rflag:
-                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__, idx - 1,
+                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__, -1,
                                                                                    idx))
                 warp_matrix = np.eye(2, 3)
 
-            # Transform and update sliced_data
-            sliced_data[idx - 1] = self.warp(warp_matrix, sliced_data[idx - 1], iflag)
-
             # Apply tranformation to every given feature
             for feature_type, feature_name in self.apply_to_features(eopatch):
-                new_eopatch[feature_type][feature_name][idx - 1] = \
-                    self.warp(warp_matrix, new_eopatch[feature_type][feature_name][idx - 1], iflag)
+                new_eopatch[feature_type][feature_name][idx] = \
+                    self.warp(warp_matrix, new_eopatch[feature_type][feature_name][idx], iflag)
 
         return new_eopatch
 
