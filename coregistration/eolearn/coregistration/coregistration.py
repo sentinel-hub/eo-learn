@@ -71,6 +71,7 @@ class RegistrationTask(EOTask, ABC):
         :param params: Any other registration setting which will be passed to registration method
         :type params: object
     """
+
     def __init__(self, registration_feature, channel=0, valid_mask_feature=None, apply_to_features=...,
                  interpolation_type=InterpolationType.CUBIC, **params):
         self.registration_feature = self._parse_features(registration_feature, default_feature_type=FeatureType.DATA)
@@ -309,6 +310,7 @@ class ECCRegistration(RegistrationTask):
 class PointBasedRegistration(RegistrationTask):
     """ Registration class implementing a point-based registration from OpenCV contrib package
     """
+
     def get_params(self):
         LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
         LOGGER.info("\t\t\t\tModel: {:s}".format(self.params['Model']))
@@ -387,3 +389,20 @@ class PointBasedRegistration(RegistrationTask):
         # Rescale to uint8 range
         out_image = out_max_value + (image-s2_min_value)*(out_max_value-out_min_value)/(s2_max_value-s2_min_value)
         return out_image.astype(np.uint8)
+
+
+def get_gradient(src):
+    """ Method which calculates and returns the gradients for the input image, which are
+        better suited for co-registration
+
+        :param src: input image
+        :type src: ndarray
+        :return: ndarray
+    """
+    # Calculate the x and y gradients using Sobel operator
+    grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
+
+    # Combine the two gradients
+    grad = cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)
+    return grad
