@@ -8,14 +8,12 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import unittest
 import logging
-
-from eolearn.core import EOPatch, FeatureType
-
-from eolearn.coregistration import InterpolationType, ECCRegistration
+import unittest
 
 import numpy as np
+from eolearn.core import EOPatch, FeatureType
+from eolearn.coregistration import ECCRegistration, InterpolationType
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -44,7 +42,7 @@ class TestEOPatch(unittest.TestCase):
                               apply_to_features={
                                   FeatureType.DATA: {'bands', 'ndvi'},
                                   FeatureType.MASK: {'cm'}
-                              })
+        })
         reop = reg.execute(eop)
 
         self.assertEqual(eop.data['bands'].shape, reop.data['bands'].shape,

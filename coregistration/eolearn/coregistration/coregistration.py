@@ -10,18 +10,17 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import logging
 import copy
-
+import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-import registration
+
 import cv2
 import numpy as np
-
+import registration
 from eolearn.core import EOTask, FeatureType
 
-from .coregistration_utilities import ransac, EstimateEulerTransformModel
+from .coregistration_utilities import EstimateEulerTransformModel, ransac
 
 LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +71,7 @@ class RegistrationTask(EOTask, ABC):
         :param params: Any other registration setting which will be passed to registration method
         :type params: object
     """
+
     def __init__(self, registration_feature, channel=0, valid_mask_feature=None, apply_to_features=...,
                  interpolation_type=InterpolationType.CUBIC, **params):
         self.registration_feature = self._parse_features(registration_feature, default_feature_type=FeatureType.DATA)
@@ -130,39 +130,49 @@ class RegistrationTask(EOTask, ABC):
 
         new_eopatch = copy.deepcopy(eopatch)
 
+        # get data used for registration
         f_type, f_name = next(self.registration_feature(eopatch))
         sliced_data = copy.deepcopy(eopatch[f_type][f_name][..., self.channel])
         time_frames = sliced_data.shape[0]
 
+        # extract and normalize gradients
+        try:
+            sliced_data = [get_gradient(d) for d in sliced_data]
+            sliced_data = [np.clip(d, np.percentile(d, 5), np.percentile(d, 95)) for d in sliced_data]
+        except BaseException:
+            LOGGER.warning("Could not calculate gradients, using original data")
+            sliced_data = [d for d in sliced_data]
+
         iflag = self._get_interpolation_flag(self.interpolation_type)
 
-        for idx in range(time_frames - 1, 0, -1):  # Pair-wise registration starting from the most recent frame
+        # Pair-wise registration starting from the most recent frame
+        for idx in range(time_frames-1, 0, -1):
 
             src_mask, trg_mask = None, None
             if self.valid_mask_feature is not None:
                 f_type, f_name = next(self.valid_mask_feature(eopatch))
-                src_mask = new_eopatch[f_type][f_name][idx - 1]
-                trg_mask = new_eopatch[f_type][f_name][idx]
+                src_mask = new_eopatch[f_type][f_name][idx]
+                trg_mask = new_eopatch[f_type][f_name][idx-1]
 
             # Estimate transformation
-            warp_matrix = self.register(sliced_data[idx - 1], sliced_data[idx], src_mask=src_mask, trg_mask=trg_mask)
+            warp_matrix = self.register(sliced_data[idx], sliced_data[idx-1], src_mask=src_mask, trg_mask=trg_mask)
 
             # Check amount of deformation
             rflag = self.is_registration_suspicious(warp_matrix)
 
             # Flag suspicious registrations and set them to the identity
             if rflag:
-                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__, idx - 1,
-                                                                                   idx))
+                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__, idx,
+                                                                                   idx-1))
                 warp_matrix = np.eye(2, 3)
-
-            # Transform and update sliced_data
-            sliced_data[idx - 1] = self.warp(warp_matrix, sliced_data[idx - 1], iflag)
 
             # Apply tranformation to every given feature
             for feature_type, feature_name in self.apply_to_features(eopatch):
-                new_eopatch[feature_type][feature_name][idx - 1] = \
-                    self.warp(warp_matrix, new_eopatch[feature_type][feature_name][idx - 1], iflag)
+                new_eopatch[feature_type][feature_name][idx-1] = \
+                    self.warp(warp_matrix, new_eopatch[feature_type][feature_name][idx-1], iflag)
+
+            # warp data for next round
+            sliced_data[idx-1] = self.warp(warp_matrix, sliced_data[idx-1], iflag)
 
         return new_eopatch
 
@@ -180,6 +190,8 @@ class RegistrationTask(EOTask, ABC):
 
         height, width = img.shape[:2]
         warped_img = np.zeros_like(img, dtype=img.dtype)
+
+        iflag += cv2.WARP_INVERSE_MAP
 
         # Check if image to warp is 2D or 3D. If 3D need to loop over channels
         if (self.interpolation_type == InterpolationType.LINEAR) or img.ndim == 2:
@@ -310,6 +322,7 @@ class ECCRegistration(RegistrationTask):
 class PointBasedRegistration(RegistrationTask):
     """ Registration class implementing a point-based registration from OpenCV contrib package
     """
+
     def get_params(self):
         LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
         LOGGER.info("\t\t\t\tModel: {:s}".format(self.params['Model']))
@@ -388,3 +401,20 @@ class PointBasedRegistration(RegistrationTask):
         # Rescale to uint8 range
         out_image = out_max_value + (image-s2_min_value)*(out_max_value-out_min_value)/(s2_max_value-s2_min_value)
         return out_image.astype(np.uint8)
+
+
+def get_gradient(src):
+    """ Method which calculates and returns the gradients for the input image, which are
+        better suited for co-registration
+
+        :param src: input image
+        :type src: ndarray
+        :return: ndarray
+    """
+    # Calculate the x and y gradients using Sobel operator
+    grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
+
+    # Combine the two gradients
+    grad = cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)
+    return grad
