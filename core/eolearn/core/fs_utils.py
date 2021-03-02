@@ -9,7 +9,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePath
 
 import fs
 from fs_s3fs import S3FS
@@ -60,7 +60,8 @@ def get_base_filesystem_and_path(*path_parts, **kwargs):
         return get_filesystem(filesystem_path, **kwargs), relative_path
 
     entire_path = os.path.abspath(os.path.join(*path_parts))
-    posix_path = str(PurePosixPath(entire_path))
+    pure_path = PurePath(entire_path)
+    posix_path = pure_path.relative_to(pure_path.anchor).as_posix()
 
     return get_filesystem('/', **kwargs), posix_path
 
