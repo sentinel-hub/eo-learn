@@ -61,7 +61,7 @@ def get_base_filesystem_and_path(*path_parts, **kwargs):
 
     entire_path = os.path.abspath(os.path.join(*path_parts))
     pure_path = PurePath(entire_path)
-    posix_path = str(pure_path.relative_to(pure_path.anchor).as_posix())
+    posix_path = pure_path.relative_to(pure_path.anchor).as_posix()
 
     return get_filesystem('/', **kwargs), posix_path
 
