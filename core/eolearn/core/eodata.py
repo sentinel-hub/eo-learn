@@ -202,10 +202,11 @@ class EOPatch:
             return '{}(shape={}, dtype={})'.format(EOPatch._repr_value_class(value), value.shape, value.dtype)
 
         if isinstance(value, gpd.GeoDataFrame):
+            crs = CRS(value.crs).ogc_string() if value.crs else value.crs
             return f'{EOPatch._repr_value_class(value)}(' \
                    f'columns={list(value)}, ' \
                    f'length={len(value)}, ' \
-                   f'crs={CRS(value.crs).ogc_string()})'
+                   f'crs={crs})'
 
         if isinstance(value, (list, tuple, dict)) and value:
             repr_str = str(value)
