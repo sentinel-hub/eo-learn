@@ -200,6 +200,7 @@ class EOExecutor:
 
             if return_results:
                 stats[self.RESULTS] = results
+
         except KeyboardInterrupt:
             raise KeyboardInterrupt()
         except BaseException:
