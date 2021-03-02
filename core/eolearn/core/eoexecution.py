@@ -200,7 +200,8 @@ class EOExecutor:
 
             if return_results:
                 stats[self.RESULTS] = results
-
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt()
         except BaseException:
             stats[self.STATS_ERROR] = traceback.format_exc()
         stats[self.STATS_END_TIME] = dt.datetime.now()
