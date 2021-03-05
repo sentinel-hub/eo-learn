@@ -736,7 +736,7 @@ class _FeatureDict(dict):
                                  'dimension{}'.format(self.feature_type, self.ndim, 's' if self.ndim > 1 else ''))
 
             if self.feature_type.is_discrete():
-                if not issubclass(value.dtype.type, (np.integer, np.bool, np.bool_, np.bool8)):
+                if not issubclass(value.dtype.type, (np.integer, bool, np.bool_, np.bool8)):
                     msg = '{} is a discrete feature type therefore dtype of data should be a subtype of ' \
                           'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because ' \
                           'of this'.format(self.feature_type, value.dtype.type)

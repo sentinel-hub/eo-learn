@@ -9,7 +9,6 @@ import numpy as np
 from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
     bbox_to_dimensions, parse_time_interval, DataCollection
 from sentinelhub.data_collections import handle_deprecated_data_source
-from sentinelhub.time_utils import iso_to_datetime
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 
@@ -173,7 +172,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
     # pylint: disable=too-many-arguments
     PREDEFINED_BAND_TYPES = {
-        ProcApiType("bool_mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
+        ProcApiType("bool_mask", 'DN', 'UINT8', bool, FeatureType.MASK): [
             "dataMask"
         ],
         ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [

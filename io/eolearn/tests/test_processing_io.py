@@ -188,7 +188,7 @@ class TestProcessingIO(unittest.TestCase):
         width, height = self.size
         self.assertTrue(bands.shape == (4, height, width, 3))
         self.assertTrue(is_data.shape == (4, height, width, 1))
-        self.assertTrue(is_data.dtype == np.bool)
+        self.assertTrue(is_data.dtype == bool)
         self.assertTrue(clm.shape == (4, height, width, 1))
         self.assertTrue(clm.dtype == np.uint8)
         self.assertTrue(scl.shape == (4, height, width, 1))

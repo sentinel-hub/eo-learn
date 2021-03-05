@@ -73,7 +73,7 @@ class TestSnowMaskingTasks(unittest.TestCase):
 
             # Check shape and type
             self._check_shape(eop.mask[task.mask_feature[1]], self.eop.data['BANDS-S2-L1C'])
-            self.assertTrue(eop.mask[task.mask_feature[1]].dtype == np.bool)
+            self.assertTrue(eop.mask[task.mask_feature[1]].dtype == bool)
 
             snow_pixels = np.sum(eop.mask[task.mask_feature[1]], axis=(1, 2, 3))
             self.assertEqual(np.sum(snow_pixels), results[0],

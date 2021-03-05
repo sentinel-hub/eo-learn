@@ -122,7 +122,7 @@ class BaseCompositing(EOTask):
         k_arr = (valid_obs - 1) * (percentile / 100.0)
         k_arr = np.where(k_arr < 0, 0, k_arr)
         f_arr = np.floor(k_arr + 0.5)
-        f_arr = f_arr.astype(np.int)
+        f_arr = f_arr.astype(int)
         # get floor value of reference band and index band
         ind = f_arr.astype("int16")
         y_val, x_val = ind_tmp.shape[1], ind_tmp.shape[2]

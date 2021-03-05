@@ -30,7 +30,7 @@ class TestTrainSet(unittest.TestCase):
         self.assertRaises(ValueError, TrainTestSplitTask, input_mask_feature, [0.5, 0.3, 0.7], split_type='nonsense')
 
         shape = (1000, 1000, 3)
-        data = np.random.randint(10, size=shape, dtype=np.int)
+        data = np.random.randint(10, size=shape, dtype=int)
 
         indices = [(0, 2, 0, 2), (0, 2, 2, 4), (2, 4, 0, 2), (2, 4, 2, 4), (0, 4, 4, 8), (4, 8, 0, 4), (4, 8, 4, 8)]
         for index, (i_1, i_2, j_1, j_2) in enumerate(indices, 1):
@@ -88,7 +88,7 @@ class TestTrainSet(unittest.TestCase):
 
         shape = (1000, 1000, 3)
 
-        input_data = np.random.randint(10, size=shape, dtype=np.int)
+        input_data = np.random.randint(10, size=shape, dtype=int)
         patch = EOPatch()
         patch[input_mask_feature] = input_data
 
@@ -111,8 +111,8 @@ class TestTrainSet(unittest.TestCase):
 
         shape = (1000, 1000, 3)
 
-        input1 = np.random.randint(10, size=shape, dtype=np.int)
-        input2 = np.random.randint(10, size=shape, dtype=np.int)
+        input1 = np.random.randint(10, size=shape, dtype=int)
+        input2 = np.random.randint(10, size=shape, dtype=int)
 
         patch1 = EOPatch()
         patch1[input_mask_feature] = input1

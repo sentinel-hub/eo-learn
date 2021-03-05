@@ -57,7 +57,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_TEST'], eop_clm.data['ALL_DATA'])
         self._check_shape(eop_clm.data['CLP_TEST'], eop_clm.data['ALL_DATA'])
-        self.assertTrue(eop_clm.mask['CLM_TEST'].dtype == np.bool)
+        self.assertTrue(eop_clm.mask['CLM_TEST'].dtype == bool)
         self.assertTrue(eop_clm.data['CLP_TEST'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference
@@ -74,7 +74,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_TEST'], eop_clm.data['ALL_DATA'])
         self._check_shape(eop_clm.data['CLP_TEST'], eop_clm.data['ALL_DATA'])
-        self.assertTrue(eop_clm.mask['CLM_TEST'].dtype == np.bool)
+        self.assertTrue(eop_clm.mask['CLM_TEST'].dtype == bool)
         self.assertTrue(eop_clm.data['CLP_TEST'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference
@@ -99,7 +99,7 @@ class TestAddSentinelHubCloudMaskTask(unittest.TestCase):
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_TEST'], eop_clm.data['ALL_DATA'])
         self._check_shape(eop_clm.data['CLP_TEST'], eop_clm.data['ALL_DATA'])
-        self.assertTrue(eop_clm.mask['CLM_TEST'].dtype == np.bool)
+        self.assertTrue(eop_clm.mask['CLM_TEST'].dtype == bool)
         self.assertTrue(eop_clm.data['CLP_TEST'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference
@@ -155,7 +155,7 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_INTERSSIM'], eop_clm.data['ALL_DATA'])
         self._check_shape(eop_clm.data['CLP_S2C'], eop_clm.data['ALL_DATA'])
-        self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == np.bool)
+        self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == bool)
         self.assertTrue(eop_clm.data['CLP_S2C'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference
@@ -176,7 +176,7 @@ class TestAddMultiCloudMaskTask(unittest.TestCase):
         # Check shape and type
         self._check_shape(eop_clm.mask['CLM_INTERSSIM'], eop_clm.data['ALL_DATA'])
         self._check_shape(eop_clm.data['CLP_S2C'], eop_clm.data['ALL_DATA'])
-        self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == np.bool)
+        self.assertTrue(eop_clm.mask['CLM_INTERSSIM'].dtype == bool)
         self.assertTrue(eop_clm.data['CLP_S2C'].dtype == np.float32)
 
         # Compare mean cloud coverage with provided reference

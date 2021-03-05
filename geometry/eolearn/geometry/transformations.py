@@ -239,7 +239,7 @@ class VectorToRaster(EOTask):
         """
         rasters = [rasterio.features.rasterize([shape], out=np.copy(out), **rasterize_args) for shape in shapes]
 
-        overlap_mask = np.zeros(out.shape, dtype=np.bool)
+        overlap_mask = np.zeros(out.shape, dtype=bool)
         no_data = self.no_data_value
 
         out[:] = rasters[0][:]
@@ -342,7 +342,7 @@ class RasterToVector(EOTask):
         """
         mask = None
         if self.values:
-            mask = np.zeros(raster.shape, dtype=np.bool)
+            mask = np.zeros(raster.shape, dtype=bool)
             for value in self.values:
                 mask[raster == value] = True
 

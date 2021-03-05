@@ -152,7 +152,7 @@ class HaralickTask(EOTask):
         return res
 
     def _calculate_haralick(self, data):
-        result = np.empty(data.shape, dtype=np.float)
+        result = np.empty(data.shape, dtype=float)
         # For each date and each band
         for time in range(data.shape[0]):
             for band in range(data.shape[3]):

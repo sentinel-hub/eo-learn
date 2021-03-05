@@ -410,7 +410,7 @@ class ImagePixel2PatchClassifier(ImageBaseClassifier):
 
         elif self.mode == 'mean_prob':
             probabilities = self.image_predict_proba(X)
-            predictions = (probabilities[..., self.target] > self.target_threshold).astype(np.int)
+            predictions = (probabilities[..., self.target] > self.target_threshold).astype(int)
 
         patches, _ = self._to_patches(predictions)
 

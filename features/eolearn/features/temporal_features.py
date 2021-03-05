@@ -145,7 +145,7 @@ class AddMaxMinTemporalIndicesTask(EOTask):
 
         madata = np.ma.array(data,
                              dtype=np.float32,
-                             mask=np.logical_or(~valid_data_mask.astype(np.bool), np.isnan(data)))
+                             mask=np.logical_or(~valid_data_mask.astype(bool), np.isnan(data)))
 
         argmax_data = np.ma.MaskedArray.argmax(madata, axis=0)
         argmin_data = np.ma.MaskedArray.argmin(madata, axis=0)
@@ -206,7 +206,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
         ndvi = np.ma.array(eopatch.data[self.data_feature],
                            dtype=np.float32,
-                           mask=~valid_data_mask.astype(np.bool))
+                           mask=~valid_data_mask.astype(bool))
 
         all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
 

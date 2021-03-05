@@ -100,7 +100,7 @@ class SnowMask(BaseSnowMask):
 
         snow_mask[np.logical_or(ndsi_invalid, ndvi_invalid)] = self.undefined_value
 
-        eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(np.bool)
+        eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(bool)
         return eopatch
 
 
@@ -266,6 +266,6 @@ class TheiaSnowMask(BaseSnowMask):
 
         snow_mask = self._apply_dilation(np.logical_or(snow_mask_pass1, snow_mask_pass2))
 
-        eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(np.bool)
+        eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(bool)
 
         return eopatch
