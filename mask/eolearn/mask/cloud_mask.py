@@ -18,7 +18,7 @@ import joblib
 import numpy as np
 import cv2
 from skimage.morphology import disk
-from s2cloudless import S2PixelCloudDetector, MODEL_EVALSCRIPT
+from s2cloudless import S2PixelCloudDetector, get_s2_evalscript
 from sentinelhub import WmsRequest, WcsRequest, DataCollection, CustomUrlParam, MimeType, ServiceType, \
     bbox_to_resolution
 from sentinelhub.data_collections import handle_deprecated_data_source
@@ -53,7 +53,7 @@ class AddCloudMaskTask(EOTask):
     """
     def __init__(self, classifier, data_feature, cm_size_x=None, cm_size_y=None, cmask_feature='CLM',
                  cprobs_feature=None, instance_id=None, data_collection=None,
-                 image_format=MimeType.TIFF, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
+                 image_format=MimeType.TIFF, model_evalscript=None, data_source=None):
         """ Constructor
 
         If both `cm_size_x` and `cm_size_y` are `None` and `data_feature` exists, cloud detection is computed at same
@@ -77,9 +77,8 @@ class AddCloudMaskTask(EOTask):
         :param data_collection: Data collection to be requested by OGC service request.
         :param image_format: Image format to be requested by OGC service request. Default is `MimeType.TIFF`
         :param model_evalscript: CustomUrlParam defining the EVALSCRIPT to be used by OGC request. Should reflect the
-            request necessary for the correct functioning of the classifier. For instance, for the
-            `S2PixelCloudDetector` classifier, `MODEL_EVALSCRIPT` is used as it requests the required 10
-            bands. Default is `MODEL_EVALSCRIPT`
+            request necessary for the correct functioning of the classifier. By default an evalscript from s2cloudless
+            will be generated
         :param data_source: A deprecated alternative to data_collection
         :type data_source: DataCollection
         """
@@ -99,7 +98,7 @@ class AddCloudMaskTask(EOTask):
         self.instance_id = instance_id
         self.data_collection = data_collection
         self.image_format = image_format
-        self.model_evalscript = model_evalscript
+        self.model_evalscript = model_evalscript or get_s2_evalscript(all_bands=False, reflectance=True)
 
     def _get_wms_request(self, bbox, time_interval, size_x, size_y, maxcc, time_difference, custom_url_params):
         """
@@ -261,7 +260,7 @@ class AddCloudMaskTask(EOTask):
             del request_return[idx]
             del request_dates[idx]
 
-        return np.asarray(request_return), request_dates
+        return np.asarray(request_return)[..., :-1], request_dates
 
     def execute(self, eopatch):
         """ Add cloud binary mask and (optionally) cloud probability map to input eopatch
