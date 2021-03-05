@@ -252,8 +252,8 @@ class TestEOPatch(unittest.TestCase):
             _ = EOPatch.concatenate(eop1, eop2)
 
     def test_equals(self):
-        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
-        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
+        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
+        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
         self.assertEqual(eop1, eop2)
 
         eop1.data['bands'][1, ...] = np.nan
