@@ -238,7 +238,6 @@ class AddCloudMaskTask(EOTask):
                 self.cm_size_x = self.cm_size_y
 
         custom_url_params = {CustomUrlParam.SHOWLOGO: False,
-                             CustomUrlParam.TRANSPARENT: False,
                              CustomUrlParam.EVALSCRIPT: self.model_evalscript}
 
         build_request = {ServiceType.WMS: self._get_wms_request,

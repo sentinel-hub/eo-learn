@@ -356,11 +356,11 @@ class RasterToVector(EOTask):
                 value_list.append(value)
 
         series_dict = {
-            self.values_column: pd.Series(value_list),
+            self.values_column: pd.Series(value_list, dtype=self.raster_dtype),
             'geometry': GeoSeries(geo_list)
         }
         if timestamp is not None:
-            series_dict['TIMESTAMP'] = pd.Series([timestamp] * len(geo_list))
+            series_dict['TIMESTAMP'] = pd.to_datetime([timestamp] * len(geo_list))
 
         vector_data = GeoDataFrame(series_dict, crs=crs.pyproj_crs())
 

@@ -347,7 +347,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         """ Build requests
         """
         if self.single_scene:
-            dates = [(iso_to_datetime(time_interval[0]), iso_to_datetime(time_interval[1]))]
+            dates = [parse_time_interval(time_interval)]
         else:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
