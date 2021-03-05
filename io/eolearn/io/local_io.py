@@ -294,11 +294,11 @@ class ExportToTiff(BaseLocalIo):
 
         channel_count, height, width = image_array.shape
 
-        src_crs = {'init': eopatch.bbox.crs.ogc_string()}
+        src_crs = eopatch.bbox.crs.epsg
         src_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
 
         if self.crs:
-            dst_crs = {'init': self.crs.ogc_string()}
+            dst_crs = self.crs.epsg
             dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
                 src_crs, dst_crs, width, height, *eopatch.bbox
             )

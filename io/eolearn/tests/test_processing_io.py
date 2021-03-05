@@ -16,9 +16,9 @@ from test_io import IoTestCase
 
 def array_stats(array):
     time, height, width, _ = array.shape
-    edge1 = np.mean(array[int(time/2):, 0, 0, :])
-    edge2 = np.mean(array[:max(int(time/2), 1), -1, -1, :])
-    edge3 = np.mean(array[:, int(height/2), int(width/2), :])
+    edge1 = np.nanmean(array[int(time/2):, 0, 0, :])
+    edge2 = np.nanmean(array[:max(int(time/2), 1), -1, -1, :])
+    edge3 = np.nanmean(array[:, int(height/2), int(width/2), :])
 
     stats = np.round(np.array([edge1, edge2, edge3]), 4)
 
@@ -355,7 +355,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=11,
                 timestamp_length=1,
-                stats=[0.2206, 0.2684, 0.198]
+                stats=[0.2206, 0.2654, 0.198]
             ),
             IoTestCase(
                 name='MODIS',
@@ -385,7 +385,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=2,
                 timestamp_length=5,
-                stats=[0.0168, 0.0032, 0.0094]
+                stats=[0.0165, 0.0024, 0.0087]
             ),
             IoTestCase(
                 name='Sentinel-1 IW ASCENDING',
@@ -400,7 +400,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=2,
                 timestamp_length=1,
-                stats=[0.0428, 0.0199, 0.0235]
+                stats=[0.0428, 0.0199, 0.022]
             ),
             IoTestCase(
                 name='Sentinel-1 EW DESCENDING',
@@ -415,7 +415,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=2,
                 timestamp_length=1,
-                stats=[np.nan, 0.2195, 0.4114]
+                stats=[np.nan, 0.1919, 0.4114]
             ),
             IoTestCase(
                 name='Sentinel-3 OLCI',
@@ -442,10 +442,10 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                     data_collection=s3slstr_500m
                 ),
                 bbox=bbox,
-                time_interval=time_interval,
+                time_interval=('2021-02-10', '2021-02-15'),
                 data_size=3,
-                timestamp_length=23,
-                stats=[np.nan, 0.1049, np.nan]
+                timestamp_length=14,
+                stats=[0.4236, 0.6353, 0.5117]
             ),
             IoTestCase(
                 name='Sentinel-5P',

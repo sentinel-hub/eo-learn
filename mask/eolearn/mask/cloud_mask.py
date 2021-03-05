@@ -53,7 +53,7 @@ class AddCloudMaskTask(EOTask):
     """
     def __init__(self, classifier, data_feature, cm_size_x=None, cm_size_y=None, cmask_feature='CLM',
                  cprobs_feature=None, instance_id=None, data_collection=None,
-                 image_format=MimeType.TIFF_d32f, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
+                 image_format=MimeType.TIFF, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
         """ Constructor
 
         If both `cm_size_x` and `cm_size_y` are `None` and `data_feature` exists, cloud detection is computed at same
@@ -238,7 +238,6 @@ class AddCloudMaskTask(EOTask):
                 self.cm_size_x = self.cm_size_y
 
         custom_url_params = {CustomUrlParam.SHOWLOGO: False,
-                             CustomUrlParam.TRANSPARENT: False,
                              CustomUrlParam.EVALSCRIPT: self.model_evalscript}
 
         build_request = {ServiceType.WMS: self._get_wms_request,
