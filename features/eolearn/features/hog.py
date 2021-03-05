@@ -62,7 +62,7 @@ class HOGTask(EOTask):
                                (int(data.shape[1] // self.pixels_per_cell[0]) - self.cells_per_block[0] + 1) *
                                self.cells_per_block[0],
                                (int(data.shape[2] // self.pixels_per_cell[1]) - self.cells_per_block[1] + 1) *
-                               self.cells_per_block[1], self.n_orientations), dtype=np.float)
+                               self.cells_per_block[1], self.n_orientations), dtype=float)
         if self.visualize:
             im_visu = np.empty(data.shape[0:3] + (1,))
         for time in range(data.shape[0]):

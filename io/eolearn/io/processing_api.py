@@ -173,7 +173,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
     """
     # pylint: disable=too-many-arguments
     PREDEFINED_BAND_TYPES = {
-        ProcApiType("bool_mask", 'DN', 'UINT8', np.bool, FeatureType.MASK): [
+        ProcApiType("bool_mask", 'DN', 'UINT8', bool, FeatureType.MASK): [
             "dataMask"
         ],
         ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [

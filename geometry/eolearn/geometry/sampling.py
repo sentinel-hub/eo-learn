@@ -262,7 +262,7 @@ class PointRasterSampler:
             raise ValueError('Class operates on 2D or 3D single-channel raster images')
 
         # Calculate mask of all pixels which can be sampled
-        mask = np.zeros(raster.shape, dtype=np.bool)
+        mask = np.zeros(raster.shape, dtype=bool)
         for label in self.labels:
             label_mask = (raster == label)
             mask |= label_mask

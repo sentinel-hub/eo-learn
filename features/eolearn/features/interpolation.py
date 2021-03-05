@@ -317,8 +317,8 @@ class InterpolationTask(EOTask):
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
         nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
-        nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]],
-                                       dtype=np.bool)
+        nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]], dtype=bool)
+
         if nan_row_res_indices.size:
             # mask out from output values the starting/ending NaNs
             res_temp_values[nan_row_res_indices, col_nans[nan_col_res_indices]] = np.nan
@@ -400,7 +400,7 @@ class InterpolationTask(EOTask):
         # Apply a mask on data
         if self.mask_feature is not None:
             for mask_type, mask_name in self.mask_feature(eopatch):
-                negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
+                negated_mask = ~eopatch[mask_type][mask_name].astype(bool)
                 feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
 
         # Flatten array

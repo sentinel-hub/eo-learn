@@ -83,7 +83,7 @@ class TestExportAndImportTiff(unittest.TestCase):
                                                 '../../../example_data/TestEOPatch'))
 
         dates = cls.eopatch.timestamp
-        scalar_array = np.arange(10 * 6, dtype=np.float).reshape(10, 6)
+        scalar_array = np.arange(10 * 6, dtype=np.float32).reshape(10, 6)
         mask_array = np.arange(5*3*2*1, dtype=np.uint16).reshape(5, 3, 2, 1)
         data_timeless_array = np.arange(3*2*5, dtype=np.float64).reshape(3, 2, 5)
         data_array = np.arange(10 * 3 * 2 * 6, dtype=np.float32).reshape(10, 3, 2, 6)

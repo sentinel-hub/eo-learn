@@ -37,7 +37,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         data_examples = []
         for size in range(6):
-            for dtype in [np.float32, np.float64, np.float, np.uint8, np.int64, np.bool]:
+            for dtype in [np.float32, np.float64, float, np.uint8, np.int64, bool]:
                 data_examples.append(np.zeros((2, ) * size, dtype=dtype))
 
         for feature_type in FeatureTypeSet.RASTER_TYPES:

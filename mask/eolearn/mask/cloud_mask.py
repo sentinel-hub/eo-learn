@@ -53,7 +53,7 @@ class AddCloudMaskTask(EOTask):
     """
     def __init__(self, classifier, data_feature, cm_size_x=None, cm_size_y=None, cmask_feature='CLM',
                  cprobs_feature=None, instance_id=None, data_collection=None,
-                 image_format=MimeType.TIFF_d32f, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
+                 image_format=MimeType.TIFF, model_evalscript=MODEL_EVALSCRIPT, data_source=None):
         """ Constructor
 
         If both `cm_size_x` and `cm_size_y` are `None` and `data_feature` exists, cloud detection is computed at same
@@ -75,7 +75,7 @@ class AddCloudMaskTask(EOTask):
             be computed.
         :param instance_id: Instance ID to be used for OGC request. Default is `None`
         :param data_collection: Data collection to be requested by OGC service request.
-        :param image_format: Image format to be requested by OGC service request. Default is `MimeType.TIFF_d32f`
+        :param image_format: Image format to be requested by OGC service request. Default is `MimeType.TIFF`
         :param model_evalscript: CustomUrlParam defining the EVALSCRIPT to be used by OGC request. Should reflect the
             request necessary for the correct functioning of the classifier. For instance, for the
             `S2PixelCloudDetector` classifier, `MODEL_EVALSCRIPT` is used as it requests the required 10
@@ -296,7 +296,7 @@ class AddCloudMaskTask(EOTask):
 
         # Add cloud mask as a feature to EOPatch
         clf_mask_hr = self._upsampling(clf_mask_lr, rescale, reference_shape, interp='nearest')
-        eopatch.mask[self.cm_feature] = clf_mask_hr.astype(np.bool)
+        eopatch.mask[self.cm_feature] = clf_mask_hr.astype(bool)
 
         # If the feature name for cloud probability maps is specified, add as feature
         if self.cprobs_feature is not None:
@@ -861,7 +861,7 @@ class AddMultiCloudMaskTask(EOTask):
         # Downscale if specified
         if scale_factors is not None:
             bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
-            is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(np.bool)
+            is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
 
         mono_proba = None

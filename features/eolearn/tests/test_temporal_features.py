@@ -38,7 +38,7 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         # NDVI
         ndvi_shape = (t, h, w, 1)
         # VAlid data mask
-        valid_data = np.ones(ndvi_shape, np.bool)
+        valid_data = np.ones(ndvi_shape, bool)
         valid_data[0] = 0
         valid_data[-1] = 0
         # Fill in eopatch
@@ -96,7 +96,7 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         valid_data[4] = 0
         # Fill EOPatch
         eopatch.add_feature(FeatureType.DATA, 'NDVI', np.sin(xx))
-        eopatch.add_feature(FeatureType.MASK, 'IS_DATA', np.ones(ndvi_shape, np.bool))
+        eopatch.add_feature(FeatureType.MASK, 'IS_DATA', np.ones(ndvi_shape, bool))
         eopatch.add_feature(FeatureType.MASK, 'VALID_DATA', valid_data)
         # Tasks
         add_ndvi = AddMaxMinTemporalIndicesTask(mask_data=False)
@@ -143,7 +143,7 @@ class TestTemporalFeaturesTasks(unittest.TestCase):
         # Add features to eopatch
         eopatch.add_feature(FeatureType.DATA, 'NDVI', np.sin(xx))
         eopatch.add_feature(FeatureType.DATA, 'BANDS', bands)
-        eopatch.add_feature(FeatureType.MASK, 'IS_DATA', np.ones(ndvi_shape, np.bool))
+        eopatch.add_feature(FeatureType.MASK, 'IS_DATA', np.ones(ndvi_shape, bool))
         # Tasks
         add_ndvi = AddMaxMinTemporalIndicesTask(mask_data=False)
         add_bands = AddMaxMinTemporalIndicesTask(data_feature='BANDS',

@@ -28,7 +28,7 @@ class BadClassifier:
         return np.max(data), np.min(data)
 
     def predict_proba(self, data):
-        return np.asarray([self._predict_proba(example) for example in data], dtype=np.float)
+        return np.asarray([self._predict_proba(example) for example in data], dtype=float)
 
 
 class DummyPixelClassifier:
@@ -41,10 +41,10 @@ class DummyPixelClassifier:
         return np.max(data), np.min(data)
 
     def predict(self, data):
-        return np.asarray([self._predict(example) for example in data], dtype=np.int)
+        return np.asarray([self._predict(example) for example in data], dtype=int)
 
     def predict_proba(self, data):
-        return np.asarray([self._predict_proba(example) for example in data], dtype=np.float)
+        return np.asarray([self._predict_proba(example) for example in data], dtype=float)
 
 
 class DummyPatchClassifier:
@@ -61,13 +61,13 @@ class DummyPatchClassifier:
 
     def predict(self, data):
         if data.shape[1:3] == self.receptive_field:
-            return np.asarray([self._predict(example) for example in data], dtype=np.int)
+            return np.asarray([self._predict(example) for example in data], dtype=int)
         else:
             raise ValueError('Dummy Classifier: input of incorrect shape')
 
     def predict_proba(self, data):
         if data.shape[1:3] == self.receptive_field:
-            return np.asarray([self._predict_proba(example) for example in data], dtype=np.float)
+            return np.asarray([self._predict_proba(example) for example in data], dtype=float)
         else:
             raise ValueError('Dummy Classifier: input of incorrect shape')
 
