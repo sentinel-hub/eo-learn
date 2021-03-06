@@ -388,7 +388,7 @@ class PredictPatch(EOTask):
         except:  # TempCNN model prediction
             ftrs_tcnn = np.reshape(scaled_ftrs,
                                    (-1, eopatch.data['FEATURES'].shape[0], eopatch.data['FEATURES'].shape[3]))
-            plabels = self.model.predict_classes(ftrs_tcnn)
+            plabels = np.argmax(self.model.predict(ftrs_tcnn), axis=-1)
             plabels = plabels.reshape(w, h)
             plabels = plabels[..., np.newaxis]
             eopatch.add_feature(FeatureType.MASK_TIMELESS, self.predicted_labels_name, plabels)
@@ -425,6 +425,24 @@ class AddAreaRatio(EOTask):
 
         return eopatch
 
+    
+def get_crop_features(table_id):
+    """
+    Returns DataFrame of crops for table_id from Geopedia
+
+    :return: pandas DataFrame 
+    :rtype: pandas.DataFrame
+    """
+    gpd_session = GeopediaSession()
+    crop_iterator = GeopediaFeatureIterator(layer=table_id, gpd_session=gpd_session)
+    to_crop_id = [{'crop_geopedia_idx': code['id'], **code['properties']} for code in crop_iterator]
+
+    df = pd.DataFrame(to_crop_id)
+    df['crop_geopedia_idx'] = pd.to_numeric(df.crop_geopedia_idx)
+    
+    return df
+    
+    
 # FixLPIS utilties
 def get_slovenia_crop_geopedia_idx_to_crop_id_mapping():
     """
@@ -433,13 +451,7 @@ def get_slovenia_crop_geopedia_idx_to_crop_id_mapping():
     :return: pandas DataFrame with 'crop_geopedia_idx' and corresponding crop id
     :rtype: pandas.DataFrame
     """
-    gpd_session = GeopediaSession()
-    to_crop_id = list(GeopediaFeatureIterator(layer='2036', gpd_session=gpd_session))
-    to_crop_id = [{'crop_geopedia_idx': code['id'], **code['properties']} for code in to_crop_id]
-    to_crop_id = pd.DataFrame(to_crop_id)
-    to_crop_id['crop_geopedia_idx'] = pd.to_numeric(to_crop_id.crop_geopedia_idx)
-
-    return to_crop_id
+    return get_crop_features(2036)
 
 
 def get_austria_crop_geopedia_idx_to_crop_id_mapping():
@@ -449,11 +461,7 @@ def get_austria_crop_geopedia_idx_to_crop_id_mapping():
     :return: pandas DataFrame with 'crop_geopedia_idx' and corresponding crop id
     :rtype: pandas.DataFrame
     """
-    gpd_session = GeopediaSession()
-    to_crop_id = list(GeopediaFeatureIterator(layer='2032', gpd_session=gpd_session))
-    to_crop_id = [{'crop_geopedia_idx': code['id'], **code['properties']} for code in to_crop_id]
-    to_crop_id = pd.DataFrame(to_crop_id)
-    to_crop_id['crop_geopedia_idx'] = pd.to_numeric(to_crop_id.crop_geopedia_idx)
+    to_crop_id = get_crop_features(2032)
     to_crop_id.rename(index=str, columns={"SNAR_BEZEI": "SNAR_BEZEI_NAME"}, inplace=True)
     to_crop_id.rename(index=str, columns={"crop_geopedia_idx": "SNAR_BEZEI"}, inplace=True)
 
@@ -467,13 +475,7 @@ def get_danish_crop_geopedia_idx_to_crop_id_mapping():
     :return: pandas DataFrame with 'crop_geopedia_idx' and corresponding crop id
     :rtype: pandas.DataFrame
     """
-    gpd_session = GeopediaSession()
-    to_crop_id = list(GeopediaFeatureIterator(layer='2050', gpd_session=gpd_session))
-    to_crop_id = [{'crop_geopedia_idx': code['id'], **code['properties']} for code in to_crop_id]
-    to_crop_id = pd.DataFrame(to_crop_id)
-    to_crop_id['crop_geopedia_idx'] = pd.to_numeric(to_crop_id.crop_geopedia_idx)
-
-    return to_crop_id
+    return get_crop_features(2050)
 
 
 class FixLPIS(EOTask):
@@ -635,9 +637,9 @@ class AddGeopediaVectorFeature(EOTask):
         features = list(gpd_iter)
         if len(features):
             gdf = gpd.GeoDataFrame.from_features(features)
-            gdf.crs = {'init': 'epsg:4326'}
+            gdf.crs = CRS.WGS84.pyproj_crs()
             # convert back to EOPatch CRS
-            gdf = gdf.to_crs({'init': f'epsg:{eopatch.bbox.crs.value}'})
+            gdf = gdf.to_crs(eopatch.bbox.crs.pyproj_crs())
 
             if self.year:
                 # Filter by years

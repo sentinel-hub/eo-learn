@@ -23,7 +23,7 @@ from moto import mock_s3
 from fs.errors import ResourceNotFound
 
 from sentinelhub import read_data
-from sentinelhub.time_utils import datetime_to_iso
+from sentinelhub.time_utils import serialize_time
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.io import ExportToTiff, ImportFromTiff
@@ -103,7 +103,7 @@ class TestExportAndImportTiff(unittest.TestCase):
             cls.TestCase('mask_tuple_datetime', FeatureType.MASK, mask_array, times=(dates[2], dates[4]),
                          expected_times=(2, 4)),
             cls.TestCase('mask_tuple_string', FeatureType.MASK, mask_array,
-                         times=(datetime_to_iso(dates[2], only_date=False), datetime_to_iso(dates[4], only_date=False)),
+                         times=(serialize_time(dates[2]), serialize_time(dates[4])),
                          expected_times=(2, 4)),
             cls.TestCase('data_timeless_band_list', FeatureType.DATA_TIMELESS, data_timeless_array, bands=[2, 4, 1, 0]),
             cls.TestCase('data_timeless_band_tuple', FeatureType.DATA_TIMELESS, data_timeless_array, bands=(1, 4)),
