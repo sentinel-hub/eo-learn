@@ -14,7 +14,6 @@ file in the root directory of this source tree.
 import logging
 
 import numpy as np
-import scipy
 
 LOGGER = logging.getLogger(__name__)
 
@@ -130,7 +129,7 @@ class EstimateEulerTransformModel:
         :return: Square root of Target Registration Error
         """
         # Transform source points with estimated transformation
-        trg_fit = scipy.dot(warp_matrix, np.concatenate((self.src_pts[idx, :], np.ones((len(idx), 1))), axis=1).T).T
+        trg_fit = np.dot(warp_matrix, np.concatenate((self.src_pts[idx, :], np.ones((len(idx), 1))), axis=1).T).T
         # Compute error in transformation
         err_per_point = np.sqrt(np.sum((self.trg_pts[idx, :] - trg_fit[:, :2])**2, axis=1))  # sum squared error per row
         return err_per_point
