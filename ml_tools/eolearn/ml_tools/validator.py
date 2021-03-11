@@ -210,7 +210,7 @@ class SGMLBaseValidator(ABC):
         """
         Returns the normalised confusion matrix
         """
-        confusion_matrix = self.pixel_classification_sum.astype(np.float)
+        confusion_matrix = self.pixel_classification_sum.astype(float)
         confusion_matrix = np.divide(confusion_matrix.T, self.pixel_truth_sum.T).T
 
         return confusion_matrix * 100.0

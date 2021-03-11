@@ -15,7 +15,7 @@ import logging
 import numpy as np
 import rasterio.transform
 import rasterio.warp
-from sentinelhub import MimeType, CustomUrlParam, CRS, GeopediaWmsRequest
+from sentinelhub import MimeType, CRS, GeopediaWmsRequest
 
 from eolearn.core import EOTask, FeatureType
 
@@ -61,8 +61,7 @@ class AddGeopediaFeature(EOTask):
                                   bbox=bbox_3857,
                                   width=size_x,
                                   height=size_y,
-                                  image_format=self.image_format,
-                                  custom_url_params={CustomUrlParam.TRANSPARENT: True})
+                                  image_format=self.image_format)
 
     def _get_wcs_request(self, bbox, size_x, size_y):
         """

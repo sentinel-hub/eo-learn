@@ -44,7 +44,7 @@ class LocalBinaryPatternTask(EOTask):
             raise ValueError('Local binary pattern task parameters must be positives')
 
     def _compute_lbp(self, data):
-        result = np.empty(data.shape, dtype=np.float)
+        result = np.empty(data.shape, dtype=float)
         for time in range(data.shape[0]):
             for band in range(data.shape[-1]):
                 image = data[time, :, :, band]

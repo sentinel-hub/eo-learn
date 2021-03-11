@@ -239,7 +239,7 @@ class VectorToRaster(EOTask):
         """
         rasters = [rasterio.features.rasterize([shape], out=np.copy(out), **rasterize_args) for shape in shapes]
 
-        overlap_mask = np.zeros(out.shape, dtype=np.bool)
+        overlap_mask = np.zeros(out.shape, dtype=bool)
         no_data = self.no_data_value
 
         out[:] = rasters[0][:]
@@ -342,7 +342,7 @@ class RasterToVector(EOTask):
         """
         mask = None
         if self.values:
-            mask = np.zeros(raster.shape, dtype=np.bool)
+            mask = np.zeros(raster.shape, dtype=bool)
             for value in self.values:
                 mask[raster == value] = True
 
@@ -356,11 +356,11 @@ class RasterToVector(EOTask):
                 value_list.append(value)
 
         series_dict = {
-            self.values_column: pd.Series(value_list),
+            self.values_column: pd.Series(value_list, dtype=self.raster_dtype),
             'geometry': GeoSeries(geo_list)
         }
         if timestamp is not None:
-            series_dict['TIMESTAMP'] = pd.Series([timestamp] * len(geo_list))
+            series_dict['TIMESTAMP'] = pd.to_datetime([timestamp] * len(geo_list))
 
         vector_data = GeoDataFrame(series_dict, crs=crs.pyproj_crs())
 

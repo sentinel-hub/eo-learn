@@ -372,7 +372,7 @@ class TestOgcInputTasks(unittest.TestCase):
                         self.assertTrue(isinstance(task.eop.mask[mask], np.ndarray))
                         self.assertEqual(task.eop.mask[mask].shape[-1], 1)
                         mask_dtype = task.eop.mask[mask].dtype
-                        self.assertEqual(mask_dtype, np.dtype(np.bool),
+                        self.assertEqual(mask_dtype, np.dtype(bool),
                                          msg='Valid data mask should be boolean type, found {}'.format(mask_dtype))
 
     def test_time_interval_datetime(self):

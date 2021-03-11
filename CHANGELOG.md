@@ -1,3 +1,11 @@
+## [Version 0.8.1] - 2021-03-05
+- Added [example use-case about creating a timelapse with batch processing](https://github.com/sentinel-hub/eo-learn/tree/master/examples/batch-processing/how_to_timelapse).
+- Added [example use-case about crop type classification](https://github.com/sentinel-hub/eo-learn/tree/master/examples/crop-type-classification). Contributed by @Gnilliw
+- Updated code to be compatible with the latest releases `sentinelhub-py` `3.2.0` and `s2cloudless` `1.5.0`.
+- Fixed an issue in `eolearn.coregistration.RegistrationTask`.
+- Fixed an issue in `eolearn.io.ExportToTiff` with paths on Windows.
+- Various minor improvements.
+
 ## [Version 0.8.0] - 2020-10-19
 - Switched from "data source" to "data collection" terminology according to changes in `sentinelhub-py` and Sentinel Hub services.
 - Improvements in `SentinelHubInputTask` to better support any type of data collection. Using new `DataCollection` class from `sentinelhub-py`.

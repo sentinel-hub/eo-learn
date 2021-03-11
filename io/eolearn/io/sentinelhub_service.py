@@ -71,7 +71,7 @@ class SentinelHubOGCInput(EOTask):
     """
 
     def __init__(self, layer, feature=None, valid_data_mask_feature='IS_DATA', service_type=None, data_collection=None,
-                 size_x=None, size_y=None, maxcc=None, image_format=MimeType.TIFF_d32f, instance_id=None,
+                 size_x=None, size_y=None, maxcc=None, image_format=MimeType.TIFF, instance_id=None,
                  custom_url_params=None, time_difference=None, raise_download_errors=True, data_source=None):
         # pylint: disable=too-many-arguments
 
@@ -96,8 +96,7 @@ class SentinelHubOGCInput(EOTask):
 
         if custom_url_params is None:
             custom_url_params = {}
-        self.custom_url_params = {**{CustomUrlParam.SHOWLOGO: False,
-                                     CustomUrlParam.TRANSPARENT: True},
+        self.custom_url_params = {CustomUrlParam.SHOWLOGO: False,
                                   **custom_url_params}
 
         self.time_difference = time_difference
@@ -166,7 +165,7 @@ class SentinelHubOGCInput(EOTask):
         mask_feature_type, mask_feature_name = next(self.valid_data_mask_feature())
 
         max_value = self.image_format.get_expected_max_value()
-        valid_data = (valid_mask == max_value).astype(np.bool).reshape(valid_mask.shape + (1,))
+        valid_data = (valid_mask == max_value).astype(bool).reshape(valid_mask.shape + (1,))
 
         if mask_feature_name not in eopatch[mask_feature_type]:
             eopatch[mask_feature_type][mask_feature_name] = valid_data

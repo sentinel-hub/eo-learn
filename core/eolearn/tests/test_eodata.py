@@ -37,7 +37,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         data_examples = []
         for size in range(6):
-            for dtype in [np.float32, np.float64, np.float, np.uint8, np.int64, np.bool]:
+            for dtype in [np.float32, np.float64, float, np.uint8, np.int64, bool]:
                 data_examples.append(np.zeros((2, ) * size, dtype=dtype))
 
         for feature_type in FeatureTypeSet.RASTER_TYPES:
@@ -115,6 +115,13 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+
+    def test_repr_no_crs(self):
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.vector_timeless["LULC"].crs = None
+        repr_str = eop.__repr__()
+        self.assertTrue(isinstance(repr_str, str) and len(repr_str) > 0,
+                        msg='EOPatch __repr__ must return non-empty string even in case of missing crs')
 
 
 class TestEOPatch(unittest.TestCase):
@@ -245,8 +252,8 @@ class TestEOPatch(unittest.TestCase):
             _ = EOPatch.concatenate(eop1, eop2)
 
     def test_equals(self):
-        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
-        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
+        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
+        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
         self.assertEqual(eop1, eop2)
 
         eop1.data['bands'][1, ...] = np.nan

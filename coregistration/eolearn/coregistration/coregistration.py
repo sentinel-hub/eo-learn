@@ -141,7 +141,7 @@ class RegistrationTask(EOTask, ABC):
             sliced_data = [np.clip(d, np.percentile(d, 5), np.percentile(d, 95)) for d in sliced_data]
         except BaseException:
             LOGGER.warning("Could not calculate gradients, using original data")
-            sliced_data = [d for d in sliced_data]
+            sliced_data = list(sliced_data)
 
         iflag = self._get_interpolation_flag(self.interpolation_type)
 

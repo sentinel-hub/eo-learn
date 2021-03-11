@@ -79,7 +79,7 @@ class TestFeatureManipulation(unittest.TestCase):
     def test_value_fillout(self):
         feature = (FeatureType.DATA, 'TEST')
         shape = (8, 10, 10, 5)
-        data = np.random.randint(0, 100, size=shape).astype(np.float)
+        data = np.random.randint(0, 100, size=shape).astype(float)
         eopatch = EOPatch(data={'TEST': data})
 
         self.assertRaises(ValueError, ValueFilloutTask, feature, operations='x')
