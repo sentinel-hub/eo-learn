@@ -149,6 +149,7 @@ class EOExecutor:
             with pool_executor_class(max_workers=workers) as executor:
                 self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
                                                  total=len(processing_args)))
+
         self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         self.execution_logs = [None] * execution_num
