@@ -137,7 +137,6 @@ class EOExecutor:
 
         if workers == 1:
             processing_type = 'single process'
-            print(processing_type)
             self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
         else:
             if multiprocess:
@@ -148,10 +147,8 @@ class EOExecutor:
                 processing_type = 'multithreading'
 
             with pool_executor_class(max_workers=workers) as executor:
-                print(processing_type)
                 self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
                                                  total=len(processing_args)))
-        print(processing_type)
         self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         self.execution_logs = [None] * execution_num
