@@ -137,6 +137,7 @@ class EOExecutor:
 
         if workers == 1:
             processing_type = 'single process'
+            print(processing_type)
             self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
         else:
             if multiprocess:
@@ -147,9 +148,10 @@ class EOExecutor:
                 processing_type = 'multithreading'
 
             with pool_executor_class(max_workers=workers) as executor:
+                print(processing_type)
                 self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
                                                  total=len(processing_args)))
-
+        print(processing_type)
         self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         self.execution_logs = [None] * execution_num
@@ -201,8 +203,8 @@ class EOExecutor:
             if return_results:
                 stats[self.RESULTS] = results
 
-        except KeyboardInterrupt:
-            raise KeyboardInterrupt()
+        except KeyboardInterrupt as exception:
+            raise KeyboardInterrupt from exception
         except BaseException:
             stats[self.STATS_ERROR] = traceback.format_exc()
         stats[self.STATS_END_TIME] = dt.datetime.now()
