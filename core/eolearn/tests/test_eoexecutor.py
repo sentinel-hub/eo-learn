@@ -17,7 +17,7 @@ import concurrent.futures
 import multiprocessing
 import time
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock
+from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -41,6 +41,13 @@ class FooTask(EOTask):
     @staticmethod
     def execute(*_, **__):
         return 42
+
+
+class KeyboardExceptionTask(EOTask):
+
+    @staticmethod
+    def execute(*_, **__):
+        raise KeyboardInterrupt
 
 
 class CustomLogFilter(logging.Filter):
@@ -159,6 +166,19 @@ class TestEOExecutor(unittest.TestCase):
         with self.assertRaises(ValueError):
             EOExecutor(self.workflow, self.execution_args, execution_names=['a', 'b'])
 
+    def test_keyboardInterrupt(self):
+        exeption_task = KeyboardExceptionTask()
+        workflow = LinearWorkflow(exeption_task)
+        execution_args = []
+        for _ in range(10):
+            execution_args.append({exeption_task: {'arg1': 1}})
+
+        run_args = [{'workers':1},
+                    {'workers':3, 'multiprocess':True},
+                    {'workers':3, 'multiprocess':False}]
+        for arg in run_args:
+            self.assertRaises(KeyboardInterrupt, EOExecutor(workflow, execution_args).run, **arg)
+        
 
 class TestExecuteWithMultiprocessingLock(unittest.TestCase):
 
