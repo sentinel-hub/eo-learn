@@ -84,9 +84,9 @@ class AddGeopediaFeature(EOTask):
         dst_transform = rasterio.transform.from_bounds(*dst_bbox, width=width, height=height)
 
         rasterio.warp.reproject(src_raster, dst_raster,
-                                src_transform=src_transform, src_crs={'init': CRS.ogc_string(CRS.POP_WEB)},
+                                src_transform=src_transform, src_crs=CRS.POP_WEB.ogc_string(),
                                 src_nodata=0,
-                                dst_transform=dst_transform, dst_crs={'init': CRS.ogc_string(eopatch.bbox.crs)},
+                                dst_transform=dst_transform, dst_crs=eopatch.bbox.crs.ogc_string(),
                                 dst_nodata=self.no_data_val)
 
         return dst_raster

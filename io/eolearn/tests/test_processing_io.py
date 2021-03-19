@@ -385,7 +385,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=2,
                 timestamp_length=5,
-                stats=[0.0165, 0.0024, 0.0087]
+                stats=[0.016, 0.0022, 0.0087]
             ),
             IoTestCase(
                 name='Sentinel-1 IW ASCENDING',
@@ -400,7 +400,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=2,
                 timestamp_length=1,
-                stats=[0.0428, 0.0199, 0.022]
+                stats=[0.0406, 0.0206, 0.0216]
             ),
             IoTestCase(
                 name='Sentinel-1 EW DESCENDING',
@@ -415,7 +415,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=2,
                 timestamp_length=1,
-                stats=[np.nan, 0.1919, 0.4114]
+                stats=[np.nan, 0.1944, 0.3799]
             ),
             IoTestCase(
                 name='Sentinel-3 OLCI',
