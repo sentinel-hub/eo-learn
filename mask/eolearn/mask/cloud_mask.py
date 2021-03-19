@@ -627,6 +627,7 @@ class CloudMaskTask(EOTask):
 
 
 class AddMultiCloudMaskTask(CloudMaskTask):
+    """Temporary class for backward compatibility. Will raise a warning when used. """
     def __init__(self, *args, **kwargs):
         warnings.warn("AddMultiCloudMaskTask has been renamed to CloudMaskTask.", DeprecationWarning)
         super().__init__(*args, **kwargs)
