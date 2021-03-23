@@ -109,8 +109,7 @@ def _return_if_equal_operation(arrays):
     """
     if _all_equal(arrays):
         return arrays[0]
-    raise ValueError('Cannot merge given arrays because their values are not the same, please define a different '
-                     'merge operation')
+    raise ValueError('Cannot merge given arrays because their values are not the same')
 
 
 def _merge_timestamps(eopatches, reduce_timestamps):
@@ -158,7 +157,12 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, sort_mas
     split_arrays = np.split(merged_array, split_mask)
     del merged_array
 
-    split_arrays = [operation(array_chunk) for array_chunk in split_arrays]
+    try:
+        split_arrays = [operation(array_chunk) for array_chunk in split_arrays]
+    except ValueError as exception:
+        raise ValueError(f'Failed to merge {feature} with {operation}, try setting a different value for merging '
+                         f'parameter time_dependent_op') from exception
+
     return np.array(split_arrays)
 
 
@@ -169,7 +173,12 @@ def _merge_timeless_raster_feature(eopatches, feature, operation):
 
     if len(arrays) == 1:
         return arrays[0]
-    return operation(arrays)
+
+    try:
+        return operation(arrays)
+    except ValueError as exception:
+        raise ValueError(f'Failed to merge {feature} with {operation}, try setting a different value for merging '
+                         f'parameter timeless_op') from exception
 
 
 def _merge_vector_feature(eopatches, feature):
@@ -233,6 +242,7 @@ def _all_equal(values):
     first_value = values[0]
 
     if isinstance(first_value, np.ndarray):
-        return all(np.array_equal(first_value, array, equal_nan=True) for array in values[1:])
+        is_numeric_dtype = np.issubdtype(first_value.dtype, np.number)
+        return all(np.array_equal(first_value, array, equal_nan=is_numeric_dtype) for array in values[1:])
 
     return all(first_value == value for value in values[1:])

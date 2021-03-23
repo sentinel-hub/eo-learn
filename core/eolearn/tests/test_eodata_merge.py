@@ -125,6 +125,11 @@ class TestEOPatchMerge(unittest.TestCase):
         for eop in [eop1.merge(eop1), eop1 + eop1]:
             self.assertEqual(eop, eop1)
 
+        eop2 = eop1.__deepcopy__()
+        eop2.vector_timeless['vectors'].crs = CRS.POP_WEB.pyproj_crs()
+        with self.assertRaises(ValueError):
+            eop1.merge(eop2)
+
     def test_meta_info_merge(self):
         eop1 = EOPatch(
             meta_info={
