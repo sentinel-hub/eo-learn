@@ -1,21 +1,29 @@
-""" An input task for the `sentinelhub processing api <https://docs.sentinel-hub.com/api/latest/reference/>`
+""" Input tasks that collect data from `Sentinel-Hub Process API
+<https://docs.sentinel-hub.com/api/latest/api/process/>`__
+
+Credits:
+Copyright (c) 2019-2021 Matej Aleksandrov, Matej Batič, Matic Lubej, Jovan Višnjić (Sinergise)
+Copyright (c) 2019-2021 Beno Šircelj
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 import collections
-import logging
 import datetime as dt
+import logging
 from itertools import repeat
 
 import numpy as np
-from sentinelhub import SentinelHubRequest, WebFeatureService, MimeType, SentinelHubDownloadClient, SHConfig, \
-    bbox_to_dimensions, parse_time_interval, DataCollection
-from sentinelhub.data_collections import handle_deprecated_data_source
+from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
-from eolearn.core import EOPatch, EOTask, FeatureType
+from sentinelhub import DataCollection, MimeType, SHConfig, SentinelHubCatalog, SentinelHubDownloadClient, \
+    SentinelHubRequest, bbox_to_dimensions, filter_times, parse_time_interval
+from sentinelhub.data_collections import handle_deprecated_data_source
 
 LOGGER = logging.getLogger(__name__)
 
 
-def get_available_timestamps(bbox, config, data_collection, maxcc, time_difference, time_interval):
+def get_available_timestamps(bbox, config, data_collection, time_difference, time_interval=None, maxcc=None):
     """Helper function to search for all available timestamps, based on query parameters
 
     :param bbox: Bounding box
@@ -24,7 +32,7 @@ def get_available_timestamps(bbox, config, data_collection, maxcc, time_differen
     type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
     :param data_collection: Source of requested satellite data.
     :type data_collection: DataCollection
-    :param maxcc: Maximum cloud coverage.
+    :param maxcc: Maximum cloud coverage, in ratio [0, 1], default is None
     :type maxcc: float
     :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
     :type time_difference: datetime.timedelta
@@ -32,15 +40,26 @@ def get_available_timestamps(bbox, config, data_collection, maxcc, time_differen
     :type config: SHConfig
     :return: list of datetimes with available observations
     """
-    wfs = WebFeatureService(bbox=bbox, time_interval=time_interval, data_collection=data_collection, maxcc=maxcc,
-                            config=config)
-    dates = wfs.get_dates()
 
-    if len(dates) == 0:
+    query = None
+    if maxcc and data_collection.has_cloud_coverage:
+        if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
+            raise ValueError('Maximum cloud coverage "maxcc" parameter should be a float on an interval [0, 1]')
+        query = {'eo:cloud_cover': {'lte': int(maxcc * 100)}}
+
+    fields = {'include': ['properties.datetime'], 'exclude': []}
+
+    catalog = SentinelHubCatalog(base_url=data_collection.service_url, config=config)
+    search_iterator = catalog.search(collection=data_collection, bbox=bbox, time=time_interval,
+                                     query=query, fields=fields)
+
+    all_timestamps = search_iterator.get_timestamps()
+    filtered_timestamps = filter_times(all_timestamps, time_difference)
+
+    if len(filtered_timestamps) == 0:
         raise ValueError("No available images for requested time range: {}".format(time_interval))
 
-    dates = sorted(dates)
-    return [dates[0]] + [d2 for d1, d2 in zip(dates[:-1], dates[1:]) if d2 - d1 > time_difference]
+    return filtered_timestamps
 
 
 class SentinelHubInputBase(EOTask):
@@ -77,17 +96,13 @@ class SentinelHubInputBase(EOTask):
         self.cache_folder = cache_folder
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
-        """ Main execute method for the Processing API tasks
+        """ Main execute method for the Process API tasks
         """
 
         eopatch = eopatch or EOPatch()
 
         self._check_and_set_eopatch_bbox(bbox, eopatch)
-
-        if self.size is not None:
-            size_x, size_y = self.size
-        elif self.resolution is not None:
-            size_x, size_y = bbox_to_dimensions(eopatch.bbox, self.resolution)
+        size_x, size_y = self._get_size(eopatch)
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
@@ -95,7 +110,7 @@ class SentinelHubInputBase(EOTask):
         else:
             timestamp = eopatch.timestamp
 
-        if eopatch.timestamp:
+        if eopatch.timestamp and timestamp:
             self.check_timestamp_difference(timestamp, eopatch.timestamp)
         elif timestamp:
             eopatch.timestamp = timestamp
@@ -105,21 +120,41 @@ class SentinelHubInputBase(EOTask):
 
         LOGGER.debug('Downloading %d requests of type %s', len(requests), str(self.data_collection))
         client = SentinelHubDownloadClient(config=self.config)
-        images = client.download(requests, max_threads=self.max_threads)
+        responses = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug('Downloads complete')
 
         temporal_dim = len(timestamp) if timestamp else 1
         shape = temporal_dim, size_y, size_x
-        self._extract_data(eopatch, images, shape)
+        self._extract_data(eopatch, responses, shape)
 
         eopatch.meta_info['size_x'] = size_x
         eopatch.meta_info['size_y'] = size_y
-        eopatch.meta_info['time_interval'] = time_interval
-        eopatch.meta_info['service_type'] = 'processing'
+        if timestamp:  # do not overwrite time interval in case of timeless features
+            eopatch.meta_info['time_interval'] = time_interval
 
         self._add_meta_info(eopatch)
 
         return eopatch
+
+    def _get_size(self, eopatch):
+        """Get the size (width, height) for the request either from inputs, or from the (existing) eopatch"""
+        if self.size is not None:
+            return self.size
+
+        if self.resolution is not None:
+            return bbox_to_dimensions(eopatch.bbox, self.resolution)
+
+        if eopatch.meta_info and eopatch.meta_info.get('size_x') and eopatch.meta_info.get('size_y'):
+            return eopatch.meta_info.get('size_x'), eopatch.meta_info.get('size_y')
+
+        raise ValueError('Size or resolution for the requests should be provided!')
+
+    def _add_meta_info(self, eopatch):
+        """Add information to eopatch metadata"""
+        if self.maxcc:
+            eopatch.meta_info['maxcc'] = self.maxcc
+        if self.time_difference:
+            eopatch.meta_info['time_difference'] = self.time_difference
 
     @staticmethod
     def _check_and_set_eopatch_bbox(bbox, eopatch):
@@ -159,16 +194,154 @@ class SentinelHubInputBase(EOTask):
         """ Get the timestamp array needed as a parameter for downloading the images
         """
 
-    def _add_meta_info(self, eopatch):
-        """ Add any additional meta data to the eopatch
-        """
-
 
 ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
 
+class SentinelHubEvalscriptTask(SentinelHubInputBase):
+    """ Process API task to download data using evalscript
+    """
+
+    def __init__(self, features=None, evalscript=None, data_collection=None, size=None, resolution=None,
+                 maxcc=None, time_difference=None, cache_folder=None,
+                 max_threads=None, config=None, mosaicking_order=None, aux_request_args=None):
+        """
+        :param features: Features to construct from the evalscript.
+        :param evalscript: Evascript for the request. Beware that all outputs from SentinelHub services should be named
+            and should have the same name as corresponding feature
+        :type evalscript: str
+        :param data_collection: Source of requested satellite data.
+        :type data_collection: DataCollection
+        :param size: Number of pixels in x and y dimension.
+        :type size: tuple(int, int)
+        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+            resolution in horizontal and resolution in vertical direction.
+        :type resolution: float or (float, float)
+        :param maxcc: Maximum cloud coverage, a float in interval [0, 1]
+        :type maxcc: float
+        :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+        :type time_difference: datetime.timedelta
+        :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
+        :type cache_folder: str
+        :param config: An instance of SHConfig defining the service
+        :type config: SHConfig or None
+        :param max_threads: Maximum threads to be used when downloading data.
+        :type max_threads: int
+        :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
+        :type mosaicking_order: str
+        :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
+        :type aux_request_args: dict
+        """
+        super().__init__(data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder,
+                         config=config, max_threads=max_threads)
+
+        self.features = self._parse_and_validate_features(features)
+        self.responses = self._create_response_objects()
+
+        if not evalscript:
+            raise ValueError('evalscript parameter must not be missing/empty')
+        self.evalscript = evalscript
+
+        if maxcc and isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
+            raise ValueError('maxcc should be a float on an interval [0, 1]')
+
+        self.maxcc = maxcc
+        self.time_difference = time_difference or dt.timedelta(seconds=1)
+        self.mosaicking_order = mosaicking_order
+        self.aux_request_args = aux_request_args
+
+    def _parse_and_validate_features(self, features):
+        if not features:
+            raise ValueError('features must be defined')
+
+        allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
+        _features = list(self._parse_features(features, allowed_feature_types=allowed_features, new_names=True)())
+
+        ftr_data_types = set(ft for ft, _, _ in _features if not ft.is_meta())
+        if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_time_dependent() for ft in ftr_data_types):
+            return _features
+
+        raise ValueError('Cannot mix time dependent and timeless requests!')
+
+    def _create_response_objects(self):
+        """ Construct SentinelHubRequest output_responses from features
+        """
+        responses = []
+        for feat_type, feat_name, _ in self.features:
+            if feat_type.is_raster():
+                responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
+            elif feat_type.is_meta():
+                responses.append(SentinelHubRequest.output_response('userdata', MimeType.JSON))
+            else:
+                # should not happen as features have already been validated
+                raise ValueError(f'{feat_type} not supported!')
+
+        return responses
+
+    def _get_timestamp(self, time_interval, bbox):
+        """ Get the timestamp array needed as a parameter for downloading the images
+        """
+        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
+            return None
+
+        return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_collection=self.data_collection,
+                                        maxcc=self.maxcc, time_difference=self.time_difference, config=self.config)
+
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+        """ Build requests
+        """
+        if timestamp:
+            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+        else:
+            dates = [parse_time_interval(time_interval, allow_undefined=True)] if time_interval else [None]
+
+        return [self._create_sh_request(date, bbox, size_x, size_y) for date in dates]
+
+    def _create_sh_request(self, time_interval, bbox, size_x, size_y):
+        """ Create an instance of SentinelHubRequest
+        """
+        return SentinelHubRequest(
+            evalscript=self.evalscript,
+            input_data=[SentinelHubRequest.input_data(
+                data_collection=self.data_collection,
+                mosaicking_order=self.mosaicking_order,
+                time_interval=time_interval,
+                maxcc=self.maxcc,
+                other_args=self.aux_request_args
+            )],
+            responses=self.responses,
+            bbox=bbox,
+            size=(size_x, size_y),
+            data_folder=self.cache_folder,
+            config=self.config
+        )
+
+    def _extract_data(self, eopatch, data_responses, shape):
+        """ Extract data from the received images and assign them to eopatch features
+        """
+        if len(self.features) == 1:
+            ftype, fname, _ = self.features[0]
+            extension = 'json' if ftype.is_meta() else 'tif'
+            data_responses = [{f'{fname}.{extension}': data} for data in data_responses]
+
+        for ftype, fname, new_fname in self.features:
+            if ftype.is_meta():
+                data = [data['userdata.json'] for data in data_responses]
+
+            elif ftype.is_time_dependent():
+                data = np.asarray([data[f"{fname}.tif"] for data in data_responses])
+                data = data[..., np.newaxis] if data.ndim == 3 else data
+
+            else:
+                data = np.asarray(data_responses[0][f"{fname}.tif"])[..., np.newaxis]
+
+            eopatch[ftype][new_fname] = data
+
+        return eopatch
+
+
 class SentinelHubInputTask(SentinelHubInputBase):
-    """ A processing API input task that loads 16bit integer data and converts it to a 32bit float feature.
+    """ Process API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
     # pylint: disable=too-many-arguments
     PREDEFINED_BAND_TYPES = {
@@ -192,9 +365,9 @@ class SentinelHubInputTask(SentinelHubInputBase):
     CUSTOM_BAND_TYPE = ProcApiType("custom", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
 
     def __init__(self, data_collection=None, size=None, resolution=None, bands_feature=None, bands=None,
-                 additional_data=None, evalscript=None, maxcc=1.0, time_difference=None, cache_folder=None,
+                 additional_data=None, evalscript=None, maxcc=None, time_difference=None, cache_folder=None,
                  max_threads=None, config=None, bands_dtype=np.float32, single_scene=False,
-                 mosaicking_order='mostRecent', aux_request_args=None, data_source=None):
+                 mosaicking_order=None, aux_request_args=None, data_source=None):
         """
         :param data_collection: Source of requested satellite data.
         :type data_collection: DataCollection
@@ -234,13 +407,12 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :param data_source: A deprecated alternative to data_collection
         :type data_source: DataCollection
         """
-        super().__init__(
-            data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder, config=config,
-            max_threads=max_threads, data_source=data_source
+        super().__init__(data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder,
+                         config=config, max_threads=max_threads, data_source=data_source
         )
         self.evalscript = evalscript
         self.maxcc = maxcc
-        self.time_difference = dt.timedelta(seconds=1) if time_difference is None else time_difference
+        self.time_difference = time_difference or dt.timedelta(seconds=1)
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
         self.mosaicking_order = mosaicking_order
@@ -425,84 +597,89 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
 
-    def _add_meta_info(self, eopatch):
-        """ Add any additional meta data to the eopatch
-        """
-        eopatch.meta_info['maxcc'] = self.maxcc
-        eopatch.meta_info['time_difference'] = self.time_difference
 
-
-class SentinelHubDemTask(SentinelHubInputBase):
-    """ A processing API input task that downloads the digital elevation model
+class SentinelHubDemTask(SentinelHubEvalscriptTask):
+    """
+    Adds DEM data (one of the `collections <https://docs.sentinel-hub.com/api/latest/data/dem/#deminstance>`__) to
+        DATA_TIMELESS EOPatch feature.
     """
 
-    def __init__(self, dem_feature, size=None, resolution=None, cache_folder=None, config=None,
-                 max_threads=None):
-        """
-        :param dem_feature: Target feature into which to save the DEM array.
-        :type dem_feature: tuple(sentinelhub.FeatureType, str)
-        :param size: Number of pixels in x and y dimension.
-        :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
-            resolution in horizontal and resolution in vertical direction.
-        :type resolution: float or (float, float)
-        :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
-        :type cache_folder: str
-        :param config: An instance of SHConfig defining the service
-        :type config: SHConfig or None
-        :param max_threads: Maximum threads to be used when downloading data.
-        :type max_threads: int
-        """
+    def __init__(self, feature=None, data_collection=DataCollection.DEM, **kwargs):
+        if feature is None:
+            feature = (FeatureType.DATA_TIMELESS, 'dem')
+        elif isinstance(feature, str):
+            feature = (FeatureType.DATA_TIMELESS, feature)
 
-        super().__init__(
-            data_collection=DataCollection.DEM, size=size, resolution=resolution, cache_folder=cache_folder,
-            config=config, max_threads=max_threads
-        )
+        if feature[0].is_time_dependent():
+            raise ValueError("DEM feature should be timeless!")
 
-        feature_parser = self._parse_features(
-            dem_feature,
-            default_feature_type=FeatureType.DATA_TIMELESS,
-            allowed_feature_types=[FeatureType.DATA_TIMELESS]
-        )
-
-        self.dem_feature = next(feature_parser())
-
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
-        """ Build requests
-        """
-        evalscript = """
+        ft_name = feature[1]
+        evalscript = f"""
             //VERSION=3
 
-            function setup() {
-                return {
+            function setup() {{
+                return {{
                     input: ["DEM"],
-                    output:{
-                        id: "default",
+                    output: {{
+                        id: "{ft_name}",
                         bands: 1,
                         sampleType: SampleType.UINT16
-                    }
-                }
-            }
+                    }}
+                }}
+            }}
 
-            function evaluatePixel(sample) {
-                return [sample.DEM]
-            }
+            function evaluatePixel(sample) {{
+                return {{ {ft_name}: [sample.DEM] }}
+            }}
         """
 
-        request = SentinelHubRequest(
-            evalscript=evalscript,
-            input_data=[SentinelHubRequest.input_data(data_collection=self.data_collection)],
-            responses=[SentinelHubRequest.output_response('default', MimeType.TIFF)],
-            bbox=bbox,
-            size=(size_x, size_y),
-            data_folder=self.cache_folder,
-            config=self.config
-        )
+        super().__init__(evalscript=evalscript, features=[feature], data_collection=data_collection, **kwargs)
 
-        return [request]
 
-    def _extract_data(self, eopatch, images, shape):
-        """ Extract data from the received images and assign them to eopatch features
+class SentinelHubSen2corTask(SentinelHubInputTask):
+    """
+    Adds SCL (scene classification), CLD (cloud probability) or SNW (snow probability) (or any their combination)
+    Sen2Cor classification results to EOPatch's MASK or DATA feature. The feature is added to MASK (SCL) or
+    DATA (CLD, SNW) feature types of EOPatch. The feature names are set to be SCL, CLD or SNW.
+
+    Sen2Cor's scene classification (SCL) contains 11 classes with the following values and meanings:
+       * 1 - SC_SATURATED_DEFECTIVE
+       * 2 - SC_DARK_FEATURE_SHADOW
+       * 3 - SC_CLOUD_SHADOW
+       * 4 - VEGETATION
+       * 5 - NOT-VEGETATED
+       * 6 - WATER
+       * 7 - SC_CLOUD_LOW_PROBA / UNCLASSIFIED
+       * 8 - SC_CLOUD_MEDIUM_PROBA
+       * 9 - CLOUD_HIGH_PROBABILITY
+       * 10 - THIN_CIRRUS
+       * 11 - SNOW
+    """
+
+    def __init__(self, sen2cor_classification, data_collection=DataCollection.SENTINEL2_L2A, **kwargs):
         """
-        tif = images[0]
-        eopatch[self.dem_feature] = tif[..., np.newaxis].astype(np.int16)
+        :param sen2cor_classification: "SCL" (scene classification), "CLD" (cloud probability) or "SNW"
+            (snow probability) masks to be retrieved. Also a list of their combination (e.g. ["SCL","CLD"])
+        :param sen2cor_classification: str or [str]
+        :param kwargs: Additional arguments that will be passed to the `SentinelHubInputTask`
+        """
+        # definition of possible types and target features
+        classification_types = {
+            'SCL': FeatureType.MASK,
+            'CLD': FeatureType.DATA,
+            'SNW': FeatureType.DATA
+        }
+
+        if isinstance(sen2cor_classification, str):
+            sen2cor_classification = [sen2cor_classification]
+
+        for s2c in sen2cor_classification:
+            if s2c not in classification_types:
+                raise ValueError(f'Unsupported Sen2Cor classification type: {s2c}. '
+                                 f'Possible types are: {classification_types}!')
+
+        if data_collection != DataCollection.SENTINEL2_L2A:
+            raise ValueError('Sen2Cor classification layers are only available on Sentinel-2 L2A data.')
+
+        features = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
+        super().__init__(additional_data=features, data_collection=data_collection, **kwargs)
