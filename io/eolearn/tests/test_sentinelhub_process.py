@@ -1,17 +1,39 @@
 """ Testing SentinelHubInputTask
 """
+import datetime as dt
 import os
 import shutil
 import unittest
 from concurrent import futures
-import datetime as dt
 
 import numpy as np
-from sentinelhub import CRS, BBox, DataCollection
-from eolearn.io import SentinelHubInputTask, SentinelHubDemTask
-from eolearn.core import FeatureType, EOPatch
+from eolearn.core import EOPatch, FeatureType
+from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask
+from sentinelhub import BBox, CRS, DataCollection
 
-from test_io import IoTestCase
+
+class IoTestCase:
+    """
+    Container for each task case of eolearn-io functionalities
+    """
+
+    def __init__(self, name, request, bbox, time_interval, eop=None, feature=None, data_size=None,
+                 timestamp_length=None, feature_type=FeatureType.DATA, stats=None):
+        self.name = name
+        self.request = request
+        self.data_size = data_size
+        self.timestamp_length = timestamp_length
+        self.feature = feature or 'BANDS'
+        self.feature_type = feature_type
+        self.stats = stats
+
+        if eop is None:
+            self.eop = request.execute(bbox=bbox, time_interval=time_interval)
+        elif isinstance(eop, EOPatch):
+            self.eop = request.execute(eop, bbox=bbox, time_interval=time_interval)
+        else:
+            raise TypeError('Task {}: Argument \'eop\' should be an EOPatch, not {}'.format(
+                name, eop.__class__.__name__))
 
 
 def array_stats(array):
@@ -222,20 +244,96 @@ class TestProcessingIO(unittest.TestCase):
     def test_dem(self):
         task = SentinelHubDemTask(
             resolution=10,
-            dem_feature=(FeatureType.DATA_TIMELESS, 'DEM'),
+            feature=(FeatureType.DATA_TIMELESS, 'DEM'),
             max_threads=3
         )
 
         eopatch = task.execute(bbox=self.bbox)
-
         dem = eopatch.data_timeless['DEM']
+
+        width, height = self.size
+        self.assertTrue(dem.shape == (height, width, 1))
+
+    def test_dem_cop(self):
+        task = SentinelHubDemTask(
+            data_collection=DataCollection.DEM_COPERNICUS_30,
+            resolution=10,
+            feature=(FeatureType.DATA_TIMELESS, 'DEM_30'),
+            max_threads=3
+        )
+        eopatch = task.execute(bbox=self.bbox)
+        dem = eopatch.data_timeless['DEM_30']
 
         width, height = self.size
         self.assertTrue(dem.shape == (height, width, 1))
 
     def test_dem_wrong_feature(self):
         with self.assertRaises(ValueError, msg='Expected a ValueError when providing a wrong feature.'):
-            SentinelHubDemTask(resolution=10, dem_feature=(FeatureType.DATA, 'DEM'), max_threads=3)
+            SentinelHubDemTask(resolution=10, feature=(FeatureType.DATA, 'DEM'), max_threads=3)
+
+    def test_sen2cor(self):
+        task = SentinelHubSen2corTask(sen2cor_classification=['SCL', 'CLD'],
+                                      size=self.size,
+                                      maxcc=self.maxcc,
+                                      time_difference=self.time_difference,
+                                      data_collection=DataCollection.SENTINEL2_L2A,
+                                      max_threads=self.max_threads)
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+
+        scl = eopatch[(FeatureType.MASK, 'SCL')]
+        cld = eopatch[(FeatureType.DATA, 'CLD')]
+
+        width, height = self.size
+        self.assertTrue(scl.shape == (4, height, width, 1))
+        self.assertTrue(cld.shape == (4, height, width, 1))
+
+    def test_metadata(self):
+        evalscript = """
+            //VERSION=3
+
+            function setup() {
+                return {
+                    input: [{
+                        bands:["B02","dataMask"],
+                        units: "DN"
+                    }],
+                    output:[
+                    {
+                        id:'bands',
+                        bands: 1,
+                        sampleType: SampleType.UINT16
+                    }
+                    ]   
+                }
+            }
+
+            function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {
+                outputMetadata.userData = { "metadata":  JSON.stringify(scenes) }
+            }
+
+            function evaluatePixel(sample) {
+                return {
+                    'bands': [sample.B02]
+                };
+            }
+        """
+        task = SentinelHubEvalscriptTask(
+            evalscript=evalscript,
+            data_collection=DataCollection.SENTINEL2_L1C,
+            features=[(FeatureType.DATA, 'bands'),
+                      (FeatureType.META_INFO, 'meta_info')],
+            size=self.size,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            max_threads=self.max_threads
+        )
+
+        eop = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+
+        width, height = self.size
+        self.assertTrue(eop.data['bands'].shape == (4, height, width, 1))
+        self.assertTrue(len(eop.meta_info['meta_info']) == 4)
 
     def test_multi_processing(self):
         task = SentinelHubInputTask(
@@ -275,7 +373,6 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
     def setUpClass(cls):
         bbox = BBox(bbox=(-5.05, 48.0, -5.00, 48.05), crs=CRS.WGS84)
         bbox2 = BBox(bbox=(-72.2, -70.4, -71.6, -70.2), crs=CRS.WGS84)
-        slo_bbox = BBox([14.5, 45.9, 14.7, 46.1], crs=CRS.WGS84)
         cls.size = (50, 40)
         time_interval = ('2020-06-1', '2020-06-10')
         time_difference = dt.timedelta(minutes=60)
@@ -296,16 +393,19 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
             function setup() {
               return {
                 input: [{
-                 bands: ["B04", "B08", "dataMask"]
+                 bands: ["B04", "B08", "dataMask"],
+                 units: "DN"
                 }],
                 output: [
-                  { id:"custom", bands:2, sampleType: SampleType.FLOAT32 },
-                  { id:"bool_mask", bands:1, sampleType: SampleType.UINT8 }
+                  { id:"ndvi", bands:1, sampleType: SampleType.FLOAT32 },
+                  { id:"dataMask", bands:1, sampleType: SampleType.UINT8 }
                 ]
               }
             }
             function evaluatePixel(sample) {
-            return {custom: [index(sample.B08, sample.B04)], bool_mask: [sample.dataMask]};
+            return {
+                ndvi: [index(sample.B08, sample.B04)], 
+                dataMask: [sample.dataMask]};
             }
         """
 
@@ -327,15 +427,17 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
             ),
             IoTestCase(
                 name='Sentinel-2 L2A - NDVI evalscript',
-                request=SentinelHubInputTask(
-                    bands_feature=cls.data_feature,
-                    additional_data=[cls.mask_feature],
+                request=SentinelHubEvalscriptTask(
+                    features={
+                        FeatureType.DATA: {'ndvi': 'NDVI-FEATURE'},
+                        FeatureType.MASK: ['dataMask'],
+                    },
+                    evalscript=ndvi_evalscript,
                     size=cls.size,
                     time_difference=time_difference,
                     data_collection=DataCollection.SENTINEL2_L2A,
-                    evalscript=ndvi_evalscript,
-                    bands=['NDVI']
                 ),
+                feature='NDVI-FEATURE',
                 bbox=bbox,
                 time_interval=time_interval,
                 data_size=1,
@@ -473,7 +575,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
         width, height = self.size
         for test in self.test_cases:
             with self.subTest(msg='Test case {}'.format(test.name)):
-                data = test.eop[self.data_feature]
+                data = test.eop[test.feature_type][test.feature]
                 self.assertEqual(data.shape, (test.timestamp_length, height, width, test.data_size))
 
                 timestamps = test.eop.timestamp
@@ -482,7 +584,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
     def test_stats(self):
         for test in self.test_cases:
             with self.subTest(msg='Test case {}'.format(test.name)):
-                data = test.eop[self.data_feature]
+                data = test.eop[test.feature_type][test.feature]
                 stats = array_stats(data)
                 self.assertTrue(np.allclose(stats, test.stats, equal_nan=True),
                                 f'Expected stats: {test.stats}, got {stats}')
