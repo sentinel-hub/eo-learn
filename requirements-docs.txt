@@ -2,7 +2,7 @@ Sphinx
 sphinx-rtd-theme
 nbsphinx
 jupyter
-git+https://github.com/AleksMat/m2r@dev
+m2r2
 
 -e ./core
 -e ./coregistration

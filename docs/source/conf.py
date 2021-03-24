@@ -53,7 +53,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting',
-    'm2r'
+    'm2r2'
 ]
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
@@ -209,7 +209,7 @@ epub_copyright = copyright
 epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3.6/': None}
+intersphinx_mapping = {'https://docs.python.org/3.8/': None}
 
 
 EXAMPLES_FOLDER = './examples'
