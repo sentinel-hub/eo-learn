@@ -19,8 +19,7 @@ from eolearn.core import EOTask, FeatureType
 
 
 class HaralickTask(EOTask):
-    """
-    Task to compute Haralick texture images
+    """ Task to compute Haralick texture images
 
     The task compute the grey-level co-occurrence matrix (GLCM) on a sliding window over the input image and extract the
     texture properties.
@@ -49,10 +48,9 @@ class HaralickTask(EOTask):
                  stride=1):
         """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-        specified it will be saved with name '<feature_name>_HARALICK'
+            specified it will be saved with name '<feature_name>_HARALICK'.
 
-        Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'haralick_values')
-
+            Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'haralick_values')`
         :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param texture_feature: Type of Haralick textural feature to be calculated
         :type texture_feature: str

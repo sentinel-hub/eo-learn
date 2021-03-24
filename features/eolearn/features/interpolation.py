@@ -72,8 +72,7 @@ interpolation_function_parallel = numba.njit(base_interpolation_function, parall
 
 
 class InterpolationTask(EOTask):
-    """
-    Main EOTask class for interpolation and resampling of time-series.
+    """ Main EOTask class for interpolation and resampling of time-series.
 
     The task takes from EOPatch the specified data feature and timestamps. For each pixel in the spatial grid it
     creates an interpolation model using values that are not NaN or masked with `eopatch.mask['VALID_DATA']`. Then
@@ -112,7 +111,7 @@ class InterpolationTask(EOTask):
     :type scale_time: int
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
         interpolation object for the whole image
-    :type interpolate_pixel_wise : bool
+    :type interpolate_pixel_wise: bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
@@ -457,13 +456,12 @@ class LegacyInterpolation(InterpolationTask):
 
 
 class LinearInterpolation(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
+    """ Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and `@numba.jit(nopython=True)`
 
     :param parallel: interpolation is calculated in parallel using as many CPUs as detected
         by the multiprocessing module.
     :type parallel: bool
-    :param **kwargs: parameters of InterpolationTask(EOTask)
+    :param kwargs: parameters of InterpolationTask(EOTask)
     """
     def __init__(self, feature, parallel=False, **kwargs):
         self.parallel = parallel
