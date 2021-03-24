@@ -182,9 +182,10 @@ class OverwritePermission(Enum):
     """ Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
 
     Permissions are in the following hierarchy:
+
     - `ADD_ONLY` - Only new features can be added, anything that is already saved cannot be changed.
     - `OVERWRITE_FEATURES` - Overwrite only data for features which have to be saved. The remaining content of saved
-        EOPatch will stay unchanged.
+      EOPatch will stay unchanged.
     - `OVERWRITE_PATCH` - Overwrite entire content of saved EOPatch and replace it with the new content.
     """
     ADD_ONLY = 0

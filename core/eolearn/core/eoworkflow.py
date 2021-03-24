@@ -330,7 +330,7 @@ class LinearWorkflow(EOWorkflow):
     def __init__(self, *tasks, **kwargs):
         """
         :param tasks: Tasks in the order of execution
-        :type tasks: *EOTask
+        :type tasks: EOTask
         """
         tasks = [self._parse_task(task) for task in tasks]
         tasks = self._make_tasks_unique(tasks)
