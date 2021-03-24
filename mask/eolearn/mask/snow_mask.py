@@ -24,7 +24,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class BaseSnowMask(EOTask):
-    """ Base class for snow detection and masking"""
+    """ Base class for snow detection and masking
+    """
     def __init__(self, data_feature, band_indices, dilation_size=0, undefined_value=0, mask_name='SNOW_MASK'):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
@@ -32,7 +33,7 @@ class BaseSnowMask(EOTask):
         :param band_indices: A list containing the indices at which the required bands can be found in the data_feature.
         :type band_indices: list(int)
         :param dilation_size: Size of the disk in pixels for performing dilation. Value 0 means do not perform
-                              this post-processing step.
+            this post-processing step.
         :type dilation_size: int
         """
         self.bands_feature = next(self._parse_features(data_feature)())
@@ -52,8 +53,7 @@ class BaseSnowMask(EOTask):
 
 
 class SnowMask(BaseSnowMask):
-    """
-    The task calculates the snow mask using the given thresholds.
+    """ The task calculates the snow mask using the given thresholds.
 
     The default values were optimised based on the Sentinel-2 L1C processing level. Values might not be optimal for L2A
     processing level
@@ -122,19 +122,17 @@ class TheiaSnowMask(BaseSnowMask):
     def __init__(self, data_feature, band_indices, cloud_mask_feature, dem_feature, dem_params=(100, 0.1),
                  red_params=(12, 0.3, 0.1, 0.2, 0.040), ndsi_params=(0.4, 0.15, 0.001), b10_index=None, **kwargs):
         """
-        Initialize the snow mask task.
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
             containing the bands B3, B4, and B11
 
-            Example: (FeatureType.DATA, 'ALL-BANDS')
-
+            Example: `(FeatureType.DATA, 'ALL-BANDS')`
         :type data_feature: tuple(FeatureType, str)
         :param band_indices: A list containing the indices at which the required bands can be found in the bands
             feature. If all L1C band values are provided, `band_indices=[2, 3, 11]`. If all L2A band values are
             provided, then `band_indices=[2, 3, 10]`
         :type band_indices: list(int)
         :param cloud_mask_feature: EOPatch CLM feature represented by a tuple in the form of
-                                   `(FeatureType, 'feature_name')` containing the cloud mask
+            `(FeatureType, 'feature_name')` containing the cloud mask
         :type cloud_mask_feature: tuple(FeatureType, str)
         :param dem_feature: EOPatch DEM feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
             containing the digital elevation model
