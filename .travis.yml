@@ -49,8 +49,7 @@ script:
     fi;
   else
     pytest \
-      --ignore io/eolearn/tests/test_io.py \
-      --ignore io/eolearn/tests/test_processing_io.py ;
+      --ignore io/eolearn/tests/test_sentinelhub_process.py ;
   fi
 # - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
 
