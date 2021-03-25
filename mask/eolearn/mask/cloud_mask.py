@@ -15,25 +15,20 @@ import os
 import warnings
 
 import cv2
-import joblib
 import numpy as np
+from lightgbm import Booster
 from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 from sentinelhub import bbox_to_resolution
 from skimage.morphology import disk
 
 from .utilities import map_over_axis, resize_images
 
-INTERP_METHODS = ['nearest', 'linear']
-
 LOGGER = logging.getLogger(__name__)
-
-# Twin classifier
-MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
-MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
 
 
 class CloudMaskTask(EOTask):
-    """ This task wraps around s2cloudless and the SSIM-based multi-temporal classifier.
+    """ Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
+
     Its intended output is a cloud mask that is based on the outputs of both
     individual classifiers (a dilated intersection of individual binary masks).
     Additional cloud masks and probabilities can be added for either classifier or both.
@@ -73,6 +68,9 @@ class CloudMaskTask(EOTask):
     # pylint: disable=R0913
 
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
+    # Twin classifier
+    MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.2.txt'
+    MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.txt'
 
     def __init__(self,
                  mono_classifier=None,
@@ -93,7 +91,7 @@ class CloudMaskTask(EOTask):
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
             Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
             "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
-        :type mono_classifier: sklearn Estimator
+        :type mono_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         :param multi_classifier: Classifier used for multi-temporal cloud detection.
             Must work on the 90 multi-temporal features:
 
@@ -105,7 +103,7 @@ class CloudMaskTask(EOTask):
             - maximum and mean difference in reflectances between the target frame and every other.
 
             Default value: None (SSIM-based model is used)
-        :type multi_classifier: sklearn Estimator
+        :type multi_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         :param data_feature: Name of the key in the `eopatch.data` dictionary, which stores raw reflectance data.
             Default value: `'BANDS-S2-L1C'`.
         :type data_feature: str
@@ -208,7 +206,8 @@ class CloudMaskTask(EOTask):
         """ An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required.
         """
         if self._mono_classifier is None:
-            self._mono_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MONO_CLASSIFIER_NAME))
+            path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
+            self._mono_classifier = Booster(model_file=path)
 
         return self._mono_classifier
 
@@ -217,9 +216,28 @@ class CloudMaskTask(EOTask):
         """ An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required.
         """
         if self._multi_classifier is None:
-            self._multi_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MULTI_CLASSIFIER_NAME))
+            path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
+            self._multi_classifier = Booster(model_file=path)
 
         return self._multi_classifier
+
+    @staticmethod
+    def _run_prediction(classifier, features):
+        """ Uses classifier object on given data
+        """
+        is_booster = isinstance(classifier, Booster)
+
+        if is_booster:
+            predict_method = classifier.predict
+        else:
+            # We assume it is a scikit-learn Estimator model
+            predict_method = classifier.predict_proba
+
+        prediction = execute_with_mp_lock(predict_method, features)
+
+        if is_booster:
+            return prediction
+        return prediction[..., 1]
 
     @staticmethod
     def _get_max(data):
@@ -403,7 +421,7 @@ class CloudMaskTask(EOTask):
     def _mono_iterations(self, bands):
 
         # Init
-        mono_proba = np.empty((np.prod(bands.shape[:-1]), 1))
+        mono_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
         n_times = bands.shape[0]
@@ -417,17 +435,17 @@ class CloudMaskTask(EOTask):
 
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
-            # Run mono classifier
-            mono_proba[nt_min * img_size:nt_max * img_size] = execute_with_mp_lock(
-                self.mono_classifier.predict_proba, mono_features
-            )[..., 1:]
+            mono_proba[nt_min * img_size:nt_max * img_size] = self._run_prediction(
+                self.mono_classifier,
+                mono_features
+            )
 
-        return mono_proba
+        return mono_proba[..., np.newaxis]
 
     def _multi_iterations(self, bands, is_data):
 
         # Init
-        multi_proba = np.empty((np.prod(bands.shape[:-1]), 1))
+        multi_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
         n_times = bands.shape[0]
@@ -455,15 +473,15 @@ class CloudMaskTask(EOTask):
             # Interweave and concatenate
             multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
-            # Run multi classifier
-            multi_proba[t_i * img_size:(t_i + 1) * img_size] = execute_with_mp_lock(
-                self.multi_classifier.predict_proba, multi_features
-            )[..., 1:]
+            multi_proba[t_i * img_size:(t_i + 1) * img_size] = self._run_prediction(
+                self.multi_classifier,
+                multi_features
+            )
 
             prev_nt_min = nt_min
             prev_nt_max = nt_max
 
-        return multi_proba
+        return multi_proba[..., np.newaxis]
 
     def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t):
         """Updates window variance and mean values for a batch"""
