@@ -18,23 +18,22 @@ from eolearn.core import EOTask, FeatureType
 class LocalBinaryPatternTask(EOTask):
     """ Task to compute the Local Binary Pattern images
 
-        LBP looks at points surrounding a central point and tests whether the surrounding points are greater than or
-        less than the central point
+    LBP looks at points surrounding a central point and tests whether the surrounding points are greater than or
+    less than the central point
 
-        The task uses skimage.feature.local_binary_pattern to extract the texture features.
-
+    The task uses skimage.feature.local_binary_pattern to extract the texture features.
+    """
+    def __init__(self, feature, nb_points=24, radius=3):
+        """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-        specified it will be saved with name '<feature_name>_LBP'
+            specified it will be saved with name '<feature_name>_LBP'.
 
-        Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'lbp')
-
+            Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'lbp')
         :param nb_points: Number of point to use
         :type nb_points: int
         :param radius: Radius of the circle of neighbors
         :type radius: int
-    """
-    def __init__(self, feature, nb_points=24, radius=3):
-
+        """
         self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
                                             rename_function='{}_LBP'.format)
 

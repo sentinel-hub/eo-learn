@@ -463,7 +463,7 @@ class MapFeatureTask(EOTask):
 
 class ZipFeatureTask(EOTask):
     """ Passes a set of input_features to a function, which returns a single features as a result and stores it in
-        the eopatch.
+    the given EOPatch.
 
         Example using inheritance:
 
@@ -527,10 +527,7 @@ class ZipFeatureTask(EOTask):
         return eopatch
 
     def zip_method(self, *f):
-        """A function that will be applied to the input features if overridden.
-
-        :raises NotImplementedError: When called and was neither overridden nor function argument was provided in
-        __init__.
+        """ A function that will be applied to the input features if overridden.
         """
         raise NotImplementedError('zip_method should be overridden.')
 

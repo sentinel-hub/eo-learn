@@ -284,7 +284,7 @@ class RasterToVector(EOTask):
     """ Task for transforming raster mask feature into vector feature.
 
     Each connected component with the same value on the raster mask is turned into a shapely polygon. Polygon are
-    returned as a geometry column in a ``geopandas.GeoDataFrame``structure together with a column `VALUE` with
+    returned as a geometry column in a ``geopandas.GeoDataFrame`` structure together with a column `VALUE` with
     values of each polygon.
 
     If raster mask feature has time component, vector feature will also have a column `TIMESTAMP` with timestamps to
@@ -295,13 +295,12 @@ class RasterToVector(EOTask):
     def __init__(self, features, *, values=None, values_column='VALUE', raster_dtype=None, **rasterio_params):
         """
         :param features: One or more raster mask features which will be vectorized together with an optional new name
-        of vector feature. If no new name is given the same name will be used.
+            of vector feature. If no new name is given the same name will be used.
 
-        Examples:
-            features=(FeatureType.MASK, 'CLOUD_MASK', 'VECTOR_CLOUD_MASK')
+            Examples:
 
-            features=[(FeatureType.MASK_TIMELESS, 'CLASSIFICATION'), (FeatureType.MASK, 'MONOTEMPORAL_CLASSIFICATION')]
-
+            - `features=(FeatureType.MASK, 'CLOUD_MASK', 'VECTOR_CLOUD_MASK')`
+            - `features=[(FeatureType.MASK_TIMELESS, 'CLASSIFICATION'), (FeatureType.MASK, 'TEMPORAL_CLASSIFICATION')]`
         :type features: object supported by eolearn.core.utilities.FeatureParser class
         :param values: List of values which will be vectorized. By default is set to ``None`` and all values will be
             vectorized

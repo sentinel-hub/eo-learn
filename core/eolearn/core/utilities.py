@@ -48,43 +48,60 @@ class FeatureParser:
     can be obtained by iterating over an instance of the class. An `EOPatch` is given as a parameter of the generator.
 
     General guidelines:
-        - Almost all `EOTask`s have take as a parameter some information about features. The purpose of this class is
-        to unite and generalize parsing of such parameter over entire eo-learn package
-        - The idea for this class is that it should support more or less any logical way how to describe a collection
-        of features.
-        - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
-        way how to specify certain parts of feature collection.
-        - Supports formats defined with lists, tuples, sets and dictionaries.
+
+    - Almost every `EOTask` requires an initialization parameter to define which features should be used by the task.
+      The purpose of this class is to unite and generalize parsing of such parameters over the entire eo-learn package.
+    - The idea for this class is that it should support more or less any logical way how to describe a collection
+      of features.
+    - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
+      way how to specify certain parts of feature collection.
+    - Supports formats defined with lists, tuples, sets and dictionaries.
 
     Supported input formats:
-        - `...` - Anything that exists in a given `EOPatch`
-        - A feature type describing all features of that type. E.g. `FeatureType.DATA` or `FeatureType.BBOX`
-        - A single feature as a tuple. E.g. (FeatureType.DATA, 'BANDS')
-        - A single feature as a tuple with new name. E.g. (FeatureType.DATA, 'BANDS', 'NEW_BANDS')
-        - A list of features (new names or not).
-        E.g. [(FeatureType.DATA, 'BANDS'), (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK')]
-        - A dictionary with feature types as keys and lists, sets, single feature or `...` of feature names as values.
-        E.g. {
-            FeatureType.DATA: ['S2-BANDS', 'L8-BANDS'],
-            FeatureType.MASK: {'IS_VALID', 'IS_DATA'},
-            FeatureType.MASK_TIMELESS: 'LULC',
-            FeatureType.TIMESTAMP: ...
-        }
-        - A dictionary with feature types as keys and dictionaries, where feature names are mapped into new names, as
-          values.
-        E.g. {
-            FeatureType.DATA: {
-                'S2-BANDS': 'INTERPOLATED_S2_BANDS',
-                'L8-BANDS': 'INTERPOLATED_L8_BANDS',
-                'NDVI': ...
-            },
-        }
+
+    - Anything that exists in a given `EOPatch` is defined with `...`
+    - A feature type describing all features of that type. Example: `FeatureType.DATA` or `FeatureType.BBOX`
+    - A single feature as a tuple. Example: `(FeatureType.DATA, 'BANDS')`
+    - A single feature as a tuple. Example: `(FeatureType.DATA, 'BANDS')`
+    - A single feature as a tuple with new name. Example `(FeatureType.DATA, 'BANDS', 'NEW_BANDS')`
+    - A list of features (new names or not). Example:
+
+        .. code-block:: python
+
+            [
+                (FeatureType.DATA, 'BANDS'),
+                (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK')
+            ]
+    - A dictionary with feature types as keys and lists, sets, single feature or `...` of feature names as values.
+      Example:
+
+        .. code-block:: python
+
+            {
+                FeatureType.DATA: ['S2-BANDS', 'L8-BANDS'],
+                FeatureType.MASK: {'IS_VALID', 'IS_DATA'},
+                FeatureType.MASK_TIMELESS: 'LULC',
+                FeatureType.TIMESTAMP: ...
+            }
+    - A dictionary with feature types as keys and dictionaries, where feature names are mapped into new names, as
+      values. Example:
+
+        .. code-block:: python
+
+            {
+                FeatureType.DATA: {
+                    'S2-BANDS': 'INTERPOLATED_S2_BANDS',
+                    'L8-BANDS': 'INTERPOLATED_L8_BANDS',
+                    'NDVI': ...
+                }
+            }
 
     Note: Therese are most general input formats, but even more are supported or might be supported in the future.
 
     Outputs of the generator:
-        - tuples in form of (feature type, feature name) if parameter `new_names=False`
-        - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
+
+    - tuples in form of (feature type, feature name) if parameter `new_names=False`
+    - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
     """
     def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None,
                  allowed_feature_types=None):
@@ -101,9 +118,10 @@ class FeatureParser:
         :type rename_function: function or None
         :param default_feature_type: If feature type of any given feature is not set, this will be used. By default this
             is set to `None`. In this case if feature type of any feature is not given the following will happen:
-                - if iterated over `EOPatch` - It will try to find a feature with matching name in EOPatch. If such
-                    features exist, it will return any of them. Otherwise it will raise an error.
-                - if iterated without `EOPatch` - It will return `...` instead of a feature type.
+
+            - if iterated over `EOPatch` - It will try to find a feature with matching name in EOPatch. If such
+              features exist, it will return any of them. Otherwise it will raise an error.
+            - if iterated without `EOPatch` - It will return `...` instead of a feature type.
         :type default_feature_type: FeatureType or None
         :param allowed_feature_types: Makes sure that only features of these feature types will be returned, otherwise
             an error is raised

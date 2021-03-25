@@ -29,7 +29,7 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
     :param bbox: Bounding box
     :type bbox: BBox
     :param time_interval: Time interval to query available satellite data from
-    type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
+        type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
     :param data_collection: Source of requested satellite data.
     :type data_collection: DataCollection
     :param maxcc: Maximum cloud coverage, in ratio [0, 1], default is None

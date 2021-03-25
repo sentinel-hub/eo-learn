@@ -18,16 +18,19 @@ from eolearn.core import EOTask, FeatureType
 class HOGTask(EOTask):
     """ Task to compute the histogram of gradient
 
-        Divide the image into small connected regions called cells, and for each cell compute a histogram of gradient
-        directions or edge orientations for the pixels within the cell.
+    Divide the image into small connected regions called cells, and for each cell compute a histogram of gradient
+    directions or edge orientations for the pixels within the cell.
 
-        The algorithm stores the result in images where each band is the value of the histogram for a specific angular
-        bin. If the visualize is True, it also output the images representing the gradients for each orientation.
-
+    The algorithm stores the result in images where each band is the value of the histogram for a specific angular
+    bin. If the visualize is True, it also output the images representing the gradients for each orientation.
+    """
+    def __init__(self, feature, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
+                 visualize=True, hog_feature_vector=False, block_norm='L2-Hys', visualize_feature_name=''):
+        """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-                        specified it will be saved with name '<feature_name>_HOG'
+            specified it will be saved with name '<feature_name>_HOG'
 
-                        Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'hog')
+            Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'hog')`
         :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param orientations: Number of direction to use for the oriented gradient
         :type orientations: int
@@ -38,11 +41,9 @@ class HOGTask(EOTask):
         :param visualize: Produce a visualization for the HOG in an image
         :type visualize: bool
         :param visualize_feature_name: Name of the visualization feature to be added to the eopatch (if empty and
-        visualize is True, the become “new_name”_VIZU
+            visualize is True, the become “new_name”_VIZU
         :type visualize_feature_name: str
-    """
-    def __init__(self, feature, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
-                 visualize=True, hog_feature_vector=False, block_norm='L2-Hys', visualize_feature_name=''):
+        """
         self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
                                             rename_function='{}_HOG'.format)
 

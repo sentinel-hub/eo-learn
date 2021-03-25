@@ -302,10 +302,9 @@ class EOPatch:
         :type feature_type: FeatureType
         :param feature_name: Name of the feature of the attribute
         :type feature_name: str
-        :param new_feature_name : New Name of the feature of the attribute
+        :param new_feature_name: New Name of the feature of the attribute
         :type feature_name: str
         """
-
         self._check_if_dict(feature_type)
         if feature_name != new_feature_name:
             if feature_name in self[feature_type]:
@@ -498,7 +497,7 @@ class EOPatch:
         :param path: A location where to save EOPatch. It can be either a local path or a remote URL path.
         :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default
-        all features will be saved.
+            all features will be saved.
         :type features: list(FeatureType) or list((FeatureType, str)) or ...
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
@@ -547,6 +546,7 @@ class EOPatch:
         :type features: object
         :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
             joining time slices of all arrays will be sorted. Supported options are:
+
             - None (default): If time slices with matching timestamps have the same values, take one. Raise an error
               otherwise.
             - 'concatenate': Keep all time slices, even the ones with matching timestamps
@@ -557,6 +557,7 @@ class EOPatch:
         :type time_dependent_op: str or Callable or None
         :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
             are:
+
             - None (default): If arrays are the same, take one. Raise an error otherwise.
             - 'concatenate': Join arrays over the last (i.e. bands) dimension
             - 'min': Join arrays by taking minimum values. Ignore NaN values.

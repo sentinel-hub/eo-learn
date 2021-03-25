@@ -20,38 +20,40 @@ import pandas as pd
 
 
 class SGMLBaseValidator(ABC):
-    """
-    Abstract class for various validations of SGML image classifiers.
+    """ Abstract class for various validations of SGML image classifiers.
 
     All the work is performed in the validate method, where
     for each EOPatch the following actions are performed:
-        - 1. execute WOWorkflow on EOPatch
-        - 2. extract ground truth (reference) from the EOPatch
-            - sets self.truth_masks
-            - the class values in ground truth has to the same as
-              in the provided dictionary
-        - 3. count truth labeled pixels
-            - sets self.pixel_truth_counts
-        - 4. extract classification from the EOPatch
-            - sets self.classification_masks
-        - 6. count classified pixels
-            - sets self.pixel_classification_counts
-        - 7. collect results
-            - sets pixel_truth_sum and pixel_classification_sum
 
-    Parameters:
-    -----------
+    - 1. execute WOWorkflow on EOPatch
+    - 2. extract ground truth (reference) from the EOPatch
 
-    workflow: EOWorkflow that is executed on EOPatches (can be simply load EOPacth)
+      * sets self.truth_masks
+      * the class values in ground truth has to the same as
+        in the provided dictionary
 
-    class_dictionary: dictionary
-        Dictionary of class names and class values.
+    - 3. count truth labeled pixels
 
-    validation_dirs: list
-        List of directories containing EOPatches of this validation sample
+      * sets self.pixel_truth_counts
+
+    - 4. extract classification from the EOPatch
+
+      * sets self.classification_masks
+
+    - 6. count classified pixels
+
+      * sets self.pixel_classification_counts
+
+    - 7. collect results
+
+      * sets pixel_truth_sum and pixel_classification_sum
     """
 
     def __init__(self, class_dictionary):
+        """
+        :param class_dictionary: Dictionary of class names and class values
+        :type class_dictionary: dict
+        """
         self.class_dictionary = class_dictionary
 
         self.n_validation_sets = 0
@@ -72,13 +74,7 @@ class SGMLBaseValidator(ABC):
 
     @abstractmethod
     def _transform_truth(self, patch):
-        """
-        Transform and extract the truth mask form the EOPatch and store the transformed masks in self.truth_masks.
-
-        Parameters:
-        -----------
-
-        patch: EOPatch containing ground truth
+        """ Transform and extract the truth mask form the EOPatch and store the transformed masks in self.truth_masks.
         """
 
     def reset_counters(self):

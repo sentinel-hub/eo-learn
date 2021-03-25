@@ -53,7 +53,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting',
-    'm2r'
+    'm2r2'
 ]
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
@@ -209,22 +209,42 @@ epub_copyright = copyright
 epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3.6/': None}
+intersphinx_mapping = {'https://docs.python.org/3.8/': None}
 
 
 EXAMPLES_FOLDER = './examples'
 MARKDOWNS_FOLDER = './markdowns'
 
+
+def copy_documentation_examples(source_folder, target_folder):
+    """ Makes sure to copy only notebooks that are actually included in the documentation
+    """
+    notebooks_to_include = []
+
+    for rst_file in ['examples.rst', 'index.rst']:
+        with open(rst_file, 'r') as fp:
+            content = fp.read()
+
+        for line in content.split('\n'):
+            line = line.strip(' \t')
+            if line.startswith('examples/'):
+                notebooks_to_include.append(line.split('/', 1)[1])
+
+    for notebook in notebooks_to_include:
+        source_path = os.path.join(source_folder, notebook)
+        target_path = os.path.join(target_folder, notebook)
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        shutil.copyfile(source_path, target_path)
+
+
 # copy examples
 shutil.rmtree(EXAMPLES_FOLDER, ignore_errors=True)
-shutil.rmtree(MARKDOWNS_FOLDER, ignore_errors=True)
+copy_documentation_examples('../../examples', EXAMPLES_FOLDER)
 
-try:
-    shutil.copytree('../../examples', EXAMPLES_FOLDER)
-    os.mkdir(MARKDOWNS_FOLDER)
-    shutil.copyfile('../../CONTRIBUTING.md', os.path.join(MARKDOWNS_FOLDER, 'CONTRIBUTING.md'))
-except FileExistsError:
-    pass
+
+shutil.rmtree(MARKDOWNS_FOLDER, ignore_errors=True)
+os.mkdir(MARKDOWNS_FOLDER)
+shutil.copyfile('../../CONTRIBUTING.md', os.path.join(MARKDOWNS_FOLDER, 'CONTRIBUTING.md'))
 
 
 def process_readme():

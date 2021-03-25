@@ -12,4 +12,4 @@ Submodules:
 
    eolearn.io.geopedia
    eolearn.io.local_io
-   eolearn.io.processing_api
+   eolearn.io.sentinelhub_process

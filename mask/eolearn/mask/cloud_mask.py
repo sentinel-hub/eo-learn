@@ -41,29 +41,31 @@ class CloudMaskTask(EOTask):
     Prior to feature extraction and classification, it is recommended that the input be
     downscaled by specifying the source and processing resolutions. This should be done
     for the following reasons:
-        - faster execution
-        - lower memory consumption
-        - noise mitigation
+
+    - faster execution
+    - lower memory consumption
+    - noise mitigation
 
     Resizing is performed with linear interpolation. After classification, the cloud
     probabilities are themselves upscaled to the original dimensions, before proceeding
     with masking operations.
 
     Example usage:
-    ```python
-    # Only output the combined mask
-    task1 = AddMultiCloudMaskTask(processing_resolution='120m',
-                                  mask_feature='CLM_INTERSSIM',
-                                  average_over=16,
-                                  dilation_size=8)
 
-    # Only output monotemporal masks. Only monotemporal processing is done.
-    task2 = AddMultiCloudMaskTask(processing_resolution='120m',
-                                  mono_features=(None, 'CLM_S2C'),
-                                  mask_feature=None,
-                                  average_over=16,
-                                  dilation_size=8)
-    ```
+    .. code-block:: python
+
+        # Only output the combined mask
+        task1 = AddMultiCloudMaskTask(processing_resolution='120m',
+                                      mask_feature='CLM_INTERSSIM',
+                                      average_over=16,
+                                      dilation_size=8)
+
+        # Only output monotemporal masks. Only monotemporal processing is done.
+        task2 = AddMultiCloudMaskTask(processing_resolution='120m',
+                                      mono_features=(None, 'CLM_S2C'),
+                                      mask_feature=None,
+                                      average_over=16,
+                                      dilation_size=8)
     """
 
     # A temporary fix of too many arguments and class attributes
@@ -89,64 +91,61 @@ class CloudMaskTask(EOTask):
                  dilation_size=2):
         """
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
-                                Must work on the 10 selected reflectance bands as features
-                                (`B01`, `B02`, `B04`, `B05`, `B08`, `B8A`, `B09`, `B10`, `B11`, `B12`)
-                                Default value: None (s2cloudless is used)
+            Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
+            "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
         :type mono_classifier: sklearn Estimator
         :param multi_classifier: Classifier used for multi-temporal cloud detection.
-                                 Must work on the 90 multi-temporal features:
-                                    - raw reflectance value in the target frame,
-                                    - average value within a spatial window in the target frame,
-                                    - maximum, mean and standard deviation of the structural similarity (SSIM)
-                                    - indices between a spatial window in the target frame and every other,
-                                    - minimum and mean reflectance of all available time frames,
-                                    - maximum and mean difference in reflectances between the target frame
-                                      and every other.
-                                 Default value: None (SSIM-based model is used)
+            Must work on the 90 multi-temporal features:
+
+            - raw reflectance value in the target frame,
+            - average value within a spatial window in the target frame,
+            - maximum, mean and standard deviation of the structural similarity (SSIM)
+            - indices between a spatial window in the target frame and every other,
+            - minimum and mean reflectance of all available time frames,
+            - maximum and mean difference in reflectances between the target frame and every other.
+
+            Default value: None (SSIM-based model is used)
         :type multi_classifier: sklearn Estimator
         :param data_feature: Name of the key in the `eopatch.data` dictionary, which stores raw reflectance data.
-                             Default value:  `'BANDS-S2-L1C'`.
+            Default value: `'BANDS-S2-L1C'`.
         :type data_feature: str
         :param is_data_feature: Name of the key in the `eopatch.mask` dictionary, which indicates whether data is valid.
-                                Default value: `'IS_DATA'`.
+            Default value: `'IS_DATA'`.
         :type is_data_feature: str
         :param all_bands: Flag, which indicates whether images will consist of all 13 Sentinel-2 bands or only
-                          the required 10. Default value:  `True`.
+            the required 10. Default value:  `True`.
         :type all_bands: bool
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
-                                      expressed in meters. Resolution is given as a pair of x and y resolutions.
-                                      If a single value is given, it is used for both dimensions.
-                                      Default is `None` (source resolution).
+            expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
+            it is used for both dimensions. Default is `None` (source resolution).
         :type processing_resolution: int or (int, int)
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
-                                considered in a single batch iteration (To keep memory usage at agreeable levels,
-                                the task operates on smaller batches of time frames). Default value:  `11`.
+            considered in a single batch iteration (To keep memory usage at agreeable levels, the task operates on
+            smaller batches of time frames). Default value:  `11`.
         :type max_proc_frames: int
-        :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!)
-                              of the mono classifier. The probabilities are added to the `eopatch.data` attribute
-                              dictionary, while masks are added to `eopatch.mask`. By default, none of them are added.
+        :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
+            the mono classifier. The probabilities are added to the `eopatch.data` attribute dictionary, while masks
+            are added to `eopatch.mask`. By default, none of them are added.
         :type mono_features: (str | None, str | None)
         :param multi_features: Tuple of keys used for storing cloud probabilities and masks of the multi classifier.
-                               The probabilities are added to the `eopatch.data` attribute dictionary, while masks are
-                               added to `eopatch.mask`. By default, none of them are added.
+            The probabilities are added to the `eopatch.data` attribute dictionary, while masks are added to
+            `eopatch.mask`. By default, none of them are added.
         :type multi_features: (str | None, str | None)
         :param mask_feature: Name of the output intersection feature. The masks are added to the `eopatch.mask`
-                             attribute dictionary. Default value: `'CLM_INTERSSIM'`. If None, the intersection
-                             feature is not computed.
+            attribute dictionary. Default value: `'CLM_INTERSSIM'`. If None, the intersection feature is not computed.
         :type mask_feature: str | None
         :param mono_threshold: Cloud probability threshold for the mono classifier. Default value: `0.4`.
         :type mono_threshold: float
         :param multi_threshold: Cloud probability threshold for the multi classifier. Default value: `0.5`.
         :type multi_threshold: float
         :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
-                             A value of `0` or `None` skips this post-processing step. Default value mimics the
-                             default for s2cloudless: `4`.
+            A value of `0` or `None` skips this post-processing step. Default value mimics the default for
+            s2cloudless: `4`.
         :type average_over: int or None
-        :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips
-                              this post-processing step. Default value mimics the default for s2cloudless: `2`.
+        :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
+            post-processing step. Default value mimics the default for s2cloudless: `2`.
         :type dilation_size: int or None
         """
-
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
         self._mono_classifier = mono_classifier
@@ -329,8 +328,7 @@ class CloudMaskTask(EOTask):
 
     @staticmethod
     def _map_sequence(data, func2d):
-        """
-        Iterate over time and band dimensions and apply a function to each slice.
+        """ Iterate over time and band dimensions and apply a function to each slice.
         Returns a new array with the combined results.
 
         :param data: input array
@@ -550,8 +548,7 @@ class CloudMaskTask(EOTask):
         return multi_features
 
     def execute(self, eopatch):
-        """
-        Add selected features (cloud probabilities and masks) to an EOPatch instance.
+        """ Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
@@ -627,7 +624,8 @@ class CloudMaskTask(EOTask):
 
 
 class AddMultiCloudMaskTask(CloudMaskTask):
-    """Temporary class for backward compatibility. Will raise a warning when used. """
+    """ Temporary class for backward compatibility. Will raise a warning when used.
+    """
     def __init__(self, *args, **kwargs):
         warnings.warn("AddMultiCloudMaskTask has been renamed to CloudMaskTask.", DeprecationWarning)
         super().__init__(*args, **kwargs)
