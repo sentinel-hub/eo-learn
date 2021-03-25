@@ -49,8 +49,8 @@ class FeatureParser:
 
     General guidelines:
 
-    - Almost all EOTasks have take as a parameter some information about features. The purpose of this class is
-      to unite and generalize parsing of such parameter over entire eo-learn package
+    - Almost every `EOTask` requires an initialization parameter to define which features should be used by the task.
+      The purpose of this class is to unite and generalize parsing of such parameters over the entire eo-learn package.
     - The idea for this class is that it should support more or less any logical way how to describe a collection
       of features.
     - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
