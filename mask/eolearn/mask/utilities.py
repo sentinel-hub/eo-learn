@@ -15,12 +15,10 @@ import cv2
 
 
 def map_over_axis(data, func, axis=0):
-    """Map function func over each slice along axis.
+    """ Map function func over each slice along axis.
     If func changes the number of dimensions, mapping axis is moved to the front.
 
     Returns a new array with the combined results of mapping.
-
-
 
     :param data: input array
     :type data: np.array
@@ -37,7 +35,6 @@ def map_over_axis(data, func, axis=0):
     >>> res.shape
     (5, 7, 20)
     """
-
     # Move axis to front
     data = np.moveaxis(data, axis, 0)
 
@@ -69,7 +66,6 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
                           One of 'nearest', 'linear', 'cubic'. Default is 'linear'.
     :type interpolation: string
     """
-
     inter_methods = {
         'nearest': cv2.INTER_NEAREST,
         'linear': cv2.INTER_LINEAR,
@@ -118,8 +114,8 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
 
         return resized
 
-    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2) # Map over channel dimension
-    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0) # Map over time dimension
+    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2)  # Map over channel dimension
+    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0)  # Map over time dimension
 
     # Choose a resize method based on number of dimensions
     resize_methods = {2: _resize2d, 3: _resize3d, 4: _resize4d}

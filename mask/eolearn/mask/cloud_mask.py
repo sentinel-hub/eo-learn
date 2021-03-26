@@ -15,25 +15,20 @@ import os
 import warnings
 
 import cv2
-import joblib
 import numpy as np
+from lightgbm import Booster
 from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 from sentinelhub import bbox_to_resolution
 from skimage.morphology import disk
 
 from .utilities import map_over_axis, resize_images
 
-INTERP_METHODS = ['nearest', 'linear']
-
 LOGGER = logging.getLogger(__name__)
-
-# Twin classifier
-MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
-MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.joblib.dat'
 
 
 class CloudMaskTask(EOTask):
-    """ This task wraps around s2cloudless and the SSIM-based multi-temporal classifier.
+    """ Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
+
     Its intended output is a cloud mask that is based on the outputs of both
     individual classifiers (a dilated intersection of individual binary masks).
     Additional cloud masks and probabilities can be added for either classifier or both.
@@ -68,15 +63,11 @@ class CloudMaskTask(EOTask):
                                       dilation_size=8)
     """
 
-    # A temporary fix of too many arguments and class attributes
-    # pylint: disable=R0902
-    # pylint: disable=R0913
-
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
+    MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.2.txt'
+    MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.txt'
 
     def __init__(self,
-                 mono_classifier=None,
-                 multi_classifier=None,
                  data_feature='BANDS-S2-L1C',
                  is_data_feature='IS_DATA',
                  all_bands=True,
@@ -88,28 +79,14 @@ class CloudMaskTask(EOTask):
                  mono_threshold=0.4,
                  multi_threshold=0.5,
                  average_over=4,
-                 dilation_size=2):
+                 dilation_size=2,
+                 mono_classifier=None,
+                 multi_classifier=None):
         """
-        :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
-            Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
-            "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
-        :type mono_classifier: sklearn Estimator
-        :param multi_classifier: Classifier used for multi-temporal cloud detection.
-            Must work on the 90 multi-temporal features:
-
-            - raw reflectance value in the target frame,
-            - average value within a spatial window in the target frame,
-            - maximum, mean and standard deviation of the structural similarity (SSIM)
-            - indices between a spatial window in the target frame and every other,
-            - minimum and mean reflectance of all available time frames,
-            - maximum and mean difference in reflectances between the target frame and every other.
-
-            Default value: None (SSIM-based model is used)
-        :type multi_classifier: sklearn Estimator
-        :param data_feature: Name of the key in the `eopatch.data` dictionary, which stores raw reflectance data.
+        :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
             Default value: `'BANDS-S2-L1C'`.
         :type data_feature: str
-        :param is_data_feature: Name of the key in the `eopatch.mask` dictionary, which indicates whether data is valid.
+        :param is_data_feature: A mask feature which indicates whether data is valid.
             Default value: `'IS_DATA'`.
         :type is_data_feature: str
         :param all_bands: Flag, which indicates whether images will consist of all 13 Sentinel-2 bands or only
@@ -124,16 +101,16 @@ class CloudMaskTask(EOTask):
             smaller batches of time frames). Default value:  `11`.
         :type max_proc_frames: int
         :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
-            the mono classifier. The probabilities are added to the `eopatch.data` attribute dictionary, while masks
-            are added to `eopatch.mask`. By default, none of them are added.
-        :type mono_features: (str | None, str | None)
+            the mono classifier. The probabilities are added as a data feature, while masks are added as a mask
+            feature. By default, none of them are added.
+        :type mono_features: (str or None, str or None)
         :param multi_features: Tuple of keys used for storing cloud probabilities and masks of the multi classifier.
-            The probabilities are added to the `eopatch.data` attribute dictionary, while masks are added to
-            `eopatch.mask`. By default, none of them are added.
-        :type multi_features: (str | None, str | None)
+            The probabilities are added as a data feature, while masks are added as a mask feature. By default,
+            none of them are added.
+        :type multi_features: (str or None, str or None)
         :param mask_feature: Name of the output intersection feature. The masks are added to the `eopatch.mask`
             attribute dictionary. Default value: `'CLM_INTERSSIM'`. If None, the intersection feature is not computed.
-        :type mask_feature: str | None
+        :type mask_feature: str or None
         :param mono_threshold: Cloud probability threshold for the mono classifier. Default value: `0.4`.
         :type mono_threshold: float
         :param multi_threshold: Cloud probability threshold for the multi classifier. Default value: `0.5`.
@@ -145,23 +122,34 @@ class CloudMaskTask(EOTask):
         :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
             post-processing step. Default value mimics the default for s2cloudless: `2`.
         :type dilation_size: int or None
+        :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
+            Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
+            "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
+        :type mono_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
+        :param multi_classifier: Classifier used for multi-temporal cloud detection.
+            Must work on the 90 multi-temporal features:
+
+            - raw reflectance value in the target frame,
+            - average value within a spatial window in the target frame,
+            - maximum, mean and standard deviation of the structural similarity (SSIM)
+            - indices between a spatial window in the target frame and every other,
+            - minimum and mean reflectance of all available time frames,
+            - maximum and mean difference in reflectances between the target frame and every other.
+
+            Default value: None (SSIM-based model is used)
+        :type multi_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         """
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
         self._mono_classifier = mono_classifier
         self._multi_classifier = multi_classifier
 
-        # Set data info
         self.data_feature = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
         self.is_data_feature = self._parse_features(is_data_feature, default_feature_type=FeatureType.MASK)
         self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
 
-        self.sigma = 1.
-
-        # Set max frames for single iteration
         self.max_proc_frames = max_proc_frames
 
-        # Set feature info
         if mono_features is not None and isinstance(mono_features, tuple):
             self.mono_features = mono_features
         else:
@@ -172,9 +160,10 @@ class CloudMaskTask(EOTask):
         else:
             self.multi_features = (None, None)
 
+        if mask_feature:
+            mask_feature = next(self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)())
         self.mask_feature = mask_feature
 
-        # Set thresholding and morph. ops. parameters and kernels
         self.mono_threshold = mono_threshold
         self.multi_threshold = multi_threshold
 
@@ -187,6 +176,9 @@ class CloudMaskTask(EOTask):
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
         else:
             self.dil_kernel = None
+
+        # Because the real sigma is calculated only later in execute method this task is not thread safe!
+        self.sigma = 1.
 
     @staticmethod
     def _parse_resolution_arg(res):
@@ -208,7 +200,8 @@ class CloudMaskTask(EOTask):
         """ An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required.
         """
         if self._mono_classifier is None:
-            self._mono_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MONO_CLASSIFIER_NAME))
+            path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
+            self._mono_classifier = Booster(model_file=path)
 
         return self._mono_classifier
 
@@ -217,39 +210,38 @@ class CloudMaskTask(EOTask):
         """ An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required.
         """
         if self._multi_classifier is None:
-            self._multi_classifier = joblib.load(os.path.join(self.MODELS_FOLDER, MULTI_CLASSIFIER_NAME))
+            path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
+            self._multi_classifier = Booster(model_file=path)
 
         return self._multi_classifier
 
     @staticmethod
-    def _get_max(data):
-        """Timewise max for masked arrays."""
-        return np.ma.max(data, axis=0).data
+    def _run_prediction(classifier, features):
+        """ Uses classifier object on given data
+        """
+        is_booster = isinstance(classifier, Booster)
 
-    @staticmethod
-    def _get_min(data):
-        """Timewise min for masked arrays."""
-        return np.ma.min(data, axis=0).data
+        if is_booster:
+            predict_method = classifier.predict
+        else:
+            # We assume it is a scikit-learn Estimator model
+            predict_method = classifier.predict_proba
 
-    @staticmethod
-    def _get_mean(data):
-        """Timewise mean for masked arrays."""
-        return np.ma.mean(data, axis=0).data
+        prediction = execute_with_mp_lock(predict_method, features)
 
-    @staticmethod
-    def _get_std(data):
-        """Timewise std for masked arrays."""
-        return np.ma.std(data, axis=0).data
+        if is_booster:
+            return prediction
+        return prediction[..., 1]
 
     def _scale_factors(self, reference_shape, bbox):
-        """ Compute the resampling factor for height and width of the input array
+        """ Compute the resampling factors for height and width of the input array and sigma
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
         :type reference_shape: (int, int)
         :param bbox: An EOPatch bounding box
         :type bbox: sentinelhub.BBox
         :return: Rescale factor for rows and columns
-        :rtype: tuple of floats
+        :rtype: ((float, float), float)
         """
         res_x, res_y = bbox_to_resolution(bbox, width=reference_shape[1], height=reference_shape[0])
 
@@ -264,8 +256,8 @@ class CloudMaskTask(EOTask):
         return rescale, sigma
 
     def _frame_indices(self, num_of_frames, target_idx):
-        """Returns frame indices within a given time window, with the target index relative to it."""
-
+        """ Returns frame indices within a given time window, with the target index relative to it
+        """
         # Get reach
         nt_min = target_idx - self.max_proc_frames // 2
         nt_max = target_idx + self.max_proc_frames - self.max_proc_frames // 2
@@ -283,8 +275,8 @@ class CloudMaskTask(EOTask):
         return nt_min, nt_max, nt_rel
 
     def _red_ssim(self, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5):
-        """Slightly reduced (pre-computed) SSIM computation."""
-
+        """ Slightly reduced (pre-computed) SSIM computation
+        """
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
         data_x = data_x.astype(np.float64) * valid_mask
@@ -311,13 +303,13 @@ class CloudMaskTask(EOTask):
         return np.divide(num, den)
 
     def _win_avg(self, data):
-        """Spatial window average."""
-
+        """ Spatial window average
+        """
         return cv2.GaussianBlur(data.astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
     def _win_prevar(self, data):
-        """Incomplete spatial window variance."""
-
+        """ Incomplete spatial window variance
+        """
         return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
     def _average(self, data):
@@ -336,7 +328,6 @@ class CloudMaskTask(EOTask):
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
         :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
-
         # Map over channel dimension on 3d tensor
         def func3d(dim):
             return map_over_axis(dim, func2d, axis=2)
@@ -350,19 +341,24 @@ class CloudMaskTask(EOTask):
         return output
 
     def _average_all(self, data):
+        """ Average over each spatial slice of data
+        """
         if self.avg_kernel is not None:
             return self._map_sequence(data, self._average)
 
         return data
 
     def _dilate_all(self, data):
+        """ Dilate over each spatial slice of data
+        """
         if self.dil_kernel is not None:
             return self._map_sequence(data, self._dilate)
 
         return data
 
     def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel):
-
+        """ Calculate SSIM stats
+        """
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
         ssim_std = np.empty_like(ssim_max)
@@ -394,16 +390,16 @@ class CloudMaskTask(EOTask):
 
             local_ssim = np.ma.array(np.stack(local_ssim), mask=~valid_mask)
 
-            ssim_max[0, ..., b_i] = self._get_max(local_ssim)
-            ssim_mean[0, ..., b_i] = self._get_mean(local_ssim)
-            ssim_std[0, ..., b_i] = self._get_std(local_ssim)
+            ssim_max[0, ..., b_i] = np.ma.max(local_ssim, axis=0).data
+            ssim_mean[0, ..., b_i] = np.ma.mean(local_ssim, axis=0).data
+            ssim_std[0, ..., b_i] = np.ma.std(local_ssim, axis=0).data
 
         return ssim_max, ssim_mean, ssim_std
 
-    def _mono_iterations(self, bands):
-
-        # Init
-        mono_proba = np.empty((np.prod(bands.shape[:-1]), 1))
+    def _do_single_temporal_cloud_detection(self, bands):
+        """ Performs a cloud detection process on each scene separately
+        """
+        mono_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
         n_times = bands.shape[0]
@@ -417,17 +413,17 @@ class CloudMaskTask(EOTask):
 
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
-            # Run mono classifier
-            mono_proba[nt_min * img_size:nt_max * img_size] = execute_with_mp_lock(
-                self.mono_classifier.predict_proba, mono_features
-            )[..., 1:]
+            mono_proba[nt_min * img_size:nt_max * img_size] = self._run_prediction(
+                self.mono_classifier,
+                mono_features
+            )
 
-        return mono_proba
+        return mono_proba[..., np.newaxis]
 
-    def _multi_iterations(self, bands, is_data):
-
-        # Init
-        multi_proba = np.empty((np.prod(bands.shape[:-1]), 1))
+    def _do_multi_temporal_cloud_detection(self, bands, is_data):
+        """ Performs a cloud detection process on multiple scenes at once
+        """
+        multi_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
         n_times = bands.shape[0]
@@ -439,7 +435,6 @@ class CloudMaskTask(EOTask):
         prev_nt_max = None
 
         for t_i in range(n_times):
-
             # Extract temporal window indices
             nt_min, nt_max, nt_rel = self._frame_indices(n_times, t_i)
 
@@ -455,19 +450,19 @@ class CloudMaskTask(EOTask):
             # Interweave and concatenate
             multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
-            # Run multi classifier
-            multi_proba[t_i * img_size:(t_i + 1) * img_size] = execute_with_mp_lock(
-                self.multi_classifier.predict_proba, multi_features
-            )[..., 1:]
+            multi_proba[t_i * img_size:(t_i + 1) * img_size] = self._run_prediction(
+                self.multi_classifier,
+                multi_features
+            )
 
             prev_nt_min = nt_min
             prev_nt_max = nt_max
 
-        return multi_proba
+        return multi_proba[..., np.newaxis]
 
     def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t):
-        """Updates window variance and mean values for a batch"""
-
+        """ Updates window variance and mean values for a batch
+        """
         # Add window averages and variances to local data
         if loc_mu is None:
             win_avg_bands = self._map_sequence(bands_t, self._win_avg)
@@ -483,7 +478,6 @@ class CloudMaskTask(EOTask):
             loc_var = win_prevars
 
         else:
-
             win_avg_bands = self._map_sequence(
                 bands_t[-1][None, ...], self._win_avg)
             win_avg_is_data = self._map_sequence(
@@ -504,14 +498,14 @@ class CloudMaskTask(EOTask):
         return loc_mu, loc_var
 
     def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands):
-        """Extracts features for a batch."""
-
+        """ Extracts features for a batch
+        """
         # Compute SSIM stats
         ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
 
         # Compute temporal stats
-        temp_min = self._get_min(masked_bands)[None, ...]
-        temp_mean = self._get_mean(masked_bands)[None, ...]
+        temp_min = np.ma.min(masked_bands, axis=0).data[None, ...]
+        temp_mean = np.ma.mean(masked_bands, axis=0).data[None, ...]
 
         # Compute difference stats
         t_all = len(bands_t)
@@ -534,14 +528,11 @@ class CloudMaskTask(EOTask):
         diff_interweaved[..., 1::2] = diff_mean
 
         # Put it all together
-        multi_features = np.concatenate((bands_t[nt_rel][None, ...],
-                                         loc_mu[nt_rel][None, ...],
-                                         ssim_interweaved,
-                                         temp_interweaved,
-                                         diff_interweaved
-                                         ),
-                                        axis=3
-                                        )
+        multi_features = np.concatenate(
+            (bands_t[nt_rel][None, ...], loc_mu[nt_rel][None, ...],
+             ssim_interweaved, temp_interweaved, diff_interweaved),
+            axis=3
+        )
 
         multi_features = multi_features.reshape(np.prod(multi_features.shape[:-1]), multi_features.shape[-1])
 
@@ -553,19 +544,14 @@ class CloudMaskTask(EOTask):
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
         """
+        data_feature = next(self.data_feature(eopatch))
+        bands = eopatch[data_feature][..., self.band_indices].astype(np.float32)
 
-        # Get data and is_data
-        feature_type, feature_name = next(self.data_feature(eopatch))
-        bands = eopatch[feature_type][feature_name][..., self.band_indices].astype(np.float32)
+        is_data_feature = next(self.is_data_feature(eopatch))
+        is_data = eopatch[is_data_feature].astype(bool)
 
-        feature_type, feature_name = next(self.is_data_feature(eopatch))
-        is_data = eopatch[feature_type][feature_name].astype(bool)
-
-        original_shape = bands.shape[1:-1]
+        original_shape = bands.shape[1: -1]
         scale_factors, self.sigma = self._scale_factors(original_shape, eopatch.bbox)
-
-        mono_proba_feature, mono_mask_feature = self.mono_features
-        multi_proba_feature, multi_mask_feature = self.multi_features
 
         is_data_sm = is_data
         # Downscale if specified
@@ -575,10 +561,12 @@ class CloudMaskTask(EOTask):
 
         mono_proba = None
         multi_proba = None
+        mono_proba_feature, mono_mask_feature = self.mono_features
+        multi_proba_feature, multi_mask_feature = self.multi_features
 
         # Run s2cloudless if needed
-        if any(feature is not None for feature in [self.mask_feature, mono_mask_feature, mono_proba_feature]):
-            mono_proba = self._mono_iterations(bands)
+        if any([self.mask_feature, mono_mask_feature, mono_proba_feature]):
+            mono_proba = self._do_single_temporal_cloud_detection(bands)
             mono_proba = mono_proba.reshape(*bands.shape[:-1], 1)
 
             # Upscale if necessary
@@ -589,8 +577,8 @@ class CloudMaskTask(EOTask):
             mono_mask = self._average_all(mono_proba) >= self.mono_threshold
 
         # Run SSIM-based multi-temporal classifier if needed
-        if any(feature is not None for feature in [self.mask_feature, multi_mask_feature, multi_proba_feature]):
-            multi_proba = self._multi_iterations(bands, is_data_sm)
+        if any([self.mask_feature, multi_mask_feature, multi_proba_feature]):
+            multi_proba = self._do_multi_temporal_cloud_detection(bands, is_data_sm)
             multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
 
             # Upscale if necessary
@@ -609,10 +597,10 @@ class CloudMaskTask(EOTask):
             eopatch.mask[multi_mask_feature] = (multi_mask * is_data).astype(bool)
 
         # Intersect
-        if self.mask_feature is not None:
+        if self.mask_feature:
             inter_mask = mono_mask & multi_mask
             inter_mask = self._dilate_all(inter_mask)
-            eopatch.mask[self.mask_feature] = (inter_mask * is_data).astype(bool)
+            eopatch[self.mask_feature] = (inter_mask * is_data).astype(bool)
 
         if mono_proba_feature is not None:
             eopatch.data[mono_proba_feature] = (mono_proba * is_data).astype(np.float32)
