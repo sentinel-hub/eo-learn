@@ -1,3 +1,18 @@
+## [Version 0.9.0] - 2021-03-26
+- Changes in `eo-learn-io` tasks that interact with Sentinel Hub services:
+  * Added `SentinelHubEvalscriptTask` that downloads data given a user-defined evalscript.
+  * Removed all tasks that interact with Sentinel Hub OGC services. They are fully replaced by `SentinelHubInputTask` and `SentinelHubEvalscriptTask` which use [Sentinel Hub Process API](https://docs.sentinel-hub.com/api/latest/api/process/).
+  * Renamed `AddSen2CorClassificationFeature` to `SentinelHubSen2corTask`. Now it uses Process API instead of OGC.
+- Changes in Sentinel-2 cloud-masking tasks:
+  * Renamed `AddMultiCloudMaskTask` to `CloudMaskTask`.
+  * Removed `AddCloudMaskTask` as it is superseded by `CloudMaskTask`.
+  * Fixed problems with incompatibility with the latest `scikit-learn` version.
+- Updated all notebooks in `eo-learn` repository.
+- Minor fixes and improvements:
+  * better handling of `KeyboardInterrupt` in `EOExecutor`,
+  * fixed plotting of raster features with binary dtype,
+  * documentation fixes.
+
 ## [Version 0.8.1] - 2021-03-05
 - Added [example use-case about creating a timelapse with batch processing](https://github.com/sentinel-hub/eo-learn/tree/master/examples/batch-processing/how_to_timelapse).
 - Added [example use-case about crop type classification](https://github.com/sentinel-hub/eo-learn/tree/master/examples/crop-type-classification). Contributed by @Gnilliw
