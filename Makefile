@@ -24,7 +24,7 @@ pylint:
 build-core:
 	cd core
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -32,7 +32,7 @@ build-core:
 build-coregistration:
 	cd coregistration
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -40,7 +40,7 @@ build-coregistration:
 build-features:
 	cd features
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -48,7 +48,7 @@ build-features:
 build-geometry:
 	cd geometry
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -56,7 +56,7 @@ build-geometry:
 build-io:
 	cd io
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -64,7 +64,7 @@ build-io:
 build-mask:
 	cd mask
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -72,7 +72,7 @@ build-mask:
 build-ml-tools:
 	cd ml_tools
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
@@ -80,13 +80,13 @@ build-ml-tools:
 build-visualization:
 	cd visualization
 	cp ../LICENSE LICENSE
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-abstract-package:
-	rm -r dist | true
+	rm -r dist build | true
 	$(PYTHON) setup.py sdist bdist_wheel
 
 upload-core: build-core
