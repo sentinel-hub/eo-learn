@@ -62,7 +62,7 @@ class EOPatchVisualization:
                  timestamp_column='TIMESTAMP', geometry_column='geometry', pixel=False, mask=None):
         self.eopatch = eopatch
         self.feature = feature
-        self.rgb = rgb
+        self.rgb = list(rgb) if isinstance(rgb, tuple) else rgb
         self.rgb_factor = rgb_factor
         self.vdims = vdims
         self.timestamp_column = timestamp_column
@@ -257,8 +257,6 @@ class EOPatchVisualization:
         :rtype: holoviews/geoviews/bokeh
         """
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
-        if data_da.dtype == np.bool:
-            data_da = data_da.astype(np.int8)
         return data_da.hvplot()
 
     def plot_shapes_one(self, data_gpd, timestamp, crs):
@@ -325,8 +323,6 @@ class EOPatchVisualization:
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
         if self.mask:
             data_da = self.mask_data(data_da)
-        if data_da.dtype == np.bool:
-            data_da = data_da.astype(np.int8)
         return data_da.hvplot(x='time')
 
     def mask_data(self, data_da):

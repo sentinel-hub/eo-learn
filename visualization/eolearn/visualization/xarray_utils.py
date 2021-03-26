@@ -152,7 +152,7 @@ def get_dimensions(feature):
     return [depth]
 
 
-def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None):
+def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None, convert_bool=True):
     """ Converts one feature of eopatch to xarray DataArray
 
     :param eopatch: eopatch
@@ -163,6 +163,8 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None):
     :type remove_depth: bool
     :param crs: converts dimensions to crs
     :type crs: sentinelhub.crs
+    :param convert_bool: If True it will convert boolean dtype into uint8 dtype
+    :type convert_bool: bool
     :return: dataarray
     :rtype: xarray DataArray
     """
@@ -185,6 +187,9 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None):
     if remove_depth and dataframe.values.shape[-1] == 1:
         dataframe = dataframe.squeeze()
         dataframe = dataframe.drop(feature_name + '_dim')
+
+    if convert_bool and dataframe.dtype == bool:
+        dataframe = dataframe.astype(np.uint8)
 
     return dataframe
 
