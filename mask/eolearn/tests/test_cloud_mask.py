@@ -50,8 +50,7 @@ class TestCloudMaskTask(unittest.TestCase):
                                 all_bands=True,
                                 is_data_feature='IS_DATA',
                                 mono_features=('CLP_TEST', 'CLM_TEST'),
-                                # multi_features=('CLP_TEST_MULTI', 'CLM_TEST_MULTI'),
-                                mask_feature=None, # 'CLM_INTERSSIM',
+                                mask_feature=None,
                                 average_over=4,
                                 dilation_size=2,
                                 mono_threshold=0.4)
