@@ -4,6 +4,5 @@ figs
 tile-def
 eopatches
 eopatches_sampled
-grid_slovenia_500x500.gpkg
-model_SI_LULC.pkl
+results
 predicted_tiff
