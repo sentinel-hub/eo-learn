@@ -62,8 +62,9 @@ def get_base_filesystem_and_path(*path_parts, **kwargs):
     entire_path = os.path.abspath(os.path.join(*path_parts))
     pure_path = PurePath(entire_path)
     posix_path = pure_path.relative_to(pure_path.anchor).as_posix()
+    filesystem_path = base_path.split('\\')[0] or '/'
 
-    return get_filesystem('/', **kwargs), posix_path
+    return get_filesystem(filesystem_path, **kwargs), posix_path
 
 
 def load_s3_filesystem(path, strict=False, config=None):
