@@ -394,7 +394,7 @@ class MapFeatureTask(EOTask):
         .. code-block:: python
 
             class MultiplyFeatures(MapFeatureTask):
-                def map_function(self, f):
+                def map_method(self, f):
                     return f * 2
 
             multiply = MultiplyFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
