@@ -40,5 +40,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
+    extras_require={
+        'GEODB': parse_requirements('requirements-geodb.txt')
+    },
     zip_safe=False
 )
