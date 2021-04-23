@@ -5,15 +5,11 @@ Copyright (c) 2021-> Matej Aleksandrov, Matej Batič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import logging
-
 import pytest
 
 from eolearn.core import FeatureType
 from eolearn.io import GeoDBVectorImportTask, GeopediaVectorImportTask, VectorImportTask
 from sentinelhub import BBox, CRS
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 @pytest.mark.parametrize(
