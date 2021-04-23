@@ -18,6 +18,7 @@ before_install:
 
 install:
 - pip install -r requirements-dev.txt --upgrade
+- FORCE_CYTHON=1 pip install cartopy  # temporal fix for cartopy==0.19.0
 - if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
     python install_all.py -e;
   else
