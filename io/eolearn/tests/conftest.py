@@ -4,7 +4,7 @@ Module with global fixtures
 import os
 
 import boto3
-import botocore.exceptions
+from botocore.exceptions import ClientError, NoCredentialsError
 import pytest
 
 from sentinelhub import SHConfig
@@ -43,9 +43,10 @@ def s3_gpkg_example_file_fixture(config):
 
     try:
         client.head_bucket(Bucket='eolearn-io')
-        return 's3://eolearn-io/import-gpkg-test.gpkg'
-    except botocore.exceptions.ClientError:
+    except (ClientError, NoCredentialsError):
         return pytest.skip(msg='No access to the bucket.')
+
+    return 's3://eolearn-io/import-gpkg-test.gpkg'
 
 
 @pytest.fixture(name='geodb_client')
