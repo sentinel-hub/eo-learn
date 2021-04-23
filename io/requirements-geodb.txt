@@ -1,0 +1,2 @@
+xcube-geodb @ git+git://github.com/dcs4cop/xcube-geodb.git
+python-dotenv
