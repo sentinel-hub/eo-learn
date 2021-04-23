@@ -1,3 +1,8 @@
+## [Version 0.9.1] - 2021-04-23
+- Added new tasks `VectorImportTask`, `GeopediaVectorImportTask`, and `GeoDBVectorImportTask` to `eo-learn-io`.
+- Code improvements in LULC classification documentation notebook.
+- Minor improvements and fixes.
+
 ## [Version 0.9.0] - 2021-03-26
 - Changes in `eo-learn-io` tasks that interact with Sentinel Hub services:
   * Added `SentinelHubEvalscriptTask` that downloads data given a user-defined evalscript.
