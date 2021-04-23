@@ -17,17 +17,31 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import boto3
 import numpy as np
 from fs.errors import ResourceNotFound
 from moto import mock_s3
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.io import ExportToTiff, ImportFromTiff
-from eolearn.tests.conftest import _create_s3_bucket
 from sentinelhub import read_data
 from sentinelhub.time_utils import serialize_time
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+@mock_s3
+def _create_s3_bucket(bucket_name):
+    s3resource = boto3.resource('s3', region_name='eu-central-1')
+    bucket = s3resource.Bucket(bucket_name)
+
+    if bucket.creation_date:  # If bucket already exists
+        for key in bucket.objects.all():
+            key.delete()
+        bucket.delete()
+
+    s3resource.create_bucket(Bucket=bucket_name,
+                             CreateBucketConfiguration={'LocationConstraint': 'eu-central-1'})
 
 
 class TestExportAndImportTiff(unittest.TestCase):

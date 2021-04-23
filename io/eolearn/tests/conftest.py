@@ -5,9 +5,7 @@ import os
 
 import boto3
 import botocore.exceptions
-
 import pytest
-from moto import mock_s3
 
 from sentinelhub import SHConfig
 
@@ -66,17 +64,3 @@ def geodb_client_fixture():
         client_id=client_id,
         client_secret=client_secret
     )
-
-
-@mock_s3
-def _create_s3_bucket(bucket_name):
-    s3resource = boto3.resource('s3', region_name='eu-central-1')
-    bucket = s3resource.Bucket(bucket_name)
-
-    if bucket.creation_date:  # If bucket already exists
-        for key in bucket.objects.all():
-            key.delete()
-        bucket.delete()
-
-    s3resource.create_bucket(Bucket=bucket_name,
-                             CreateBucketConfiguration={'LocationConstraint': 'eu-central-1'})
