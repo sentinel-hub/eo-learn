@@ -6,7 +6,6 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import logging
-import os
 
 import pytest
 
@@ -27,7 +26,8 @@ logging.basicConfig(level=logging.DEBUG)
         (True, True, 125, BBox([657690, 5071637, 660493, 5074440], CRS.UTM_31N), CRS.UTM_31N)
     ])
 class TestVectorImportTask:
-
+    """ Class for testing vector imports from local file, s3 bucket object and layer from Geopedia
+    """
     def test_import_local_file(self, gpkg_file, reproject, clip, n_features, bbox, crs):
         self._test_import(bbox, clip, crs, gpkg_file, n_features, reproject)
 
@@ -62,13 +62,13 @@ class TestVectorImportTask:
         assert eop[feature].crs == to_crs.pyproj_crs()
 
 
-def test_clipping_wrong_crs():
+def test_clipping_wrong_crs(gpkg_file):
+    """Test for trying to clip using different CRS than the data is in"""
     with pytest.raises(ValueError):
-        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/import-gpkg-test.gpkg')
         feature = FeatureType.VECTOR_TIMELESS, 'lpis_iacs'
         import_task = VectorImportTask(
             feature=feature,
-            path=path,
+            path=gpkg_file,
             reproject=False,
             clip=True
         )
@@ -83,6 +83,9 @@ def test_clipping_wrong_crs():
         (True, True, 116, BBox([857400, 6521900, 860600, 6525100], crs='epsg:2154'))
     ])
 def test_import_from_geodb(geodb_client, reproject, clip, n_features, bbox):
+    """Test for importing from GeoDB.
+    It will only run if geodb credentials are available as the environment variables
+    """
     feature = FeatureType.VECTOR_TIMELESS, 'lpis_iacs'
     import_task = GeoDBVectorImportTask(
         feature=feature,

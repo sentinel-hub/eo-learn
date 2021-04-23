@@ -13,7 +13,7 @@ import logging
 import boto3
 import fiona
 import geopandas as gpd
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureTypeSet
 from fiona.session import AWSSession
 
 from sentinelhub import CRS, GeopediaFeatureIterator, SHConfig
@@ -97,6 +97,7 @@ class VectorImportTask(_BaseVectorImportTask):
         :type clip: bool, default = False
         :param config: A configuration object with AWS credentials (if not provided, ~/.aws/credentials will be used)
         :type config: SHConfig
+        :param kwargs: Additional args that will be passed to `fiona.open` or `geopandas.read` calls (e.g. layer name)
         """
         self.path = path
         self.fiona_kwargs = kwargs
@@ -182,8 +183,8 @@ class GeopediaVectorImportTask(_BaseVectorImportTask):
         :param kwargs: Additional args that will be passed to `GeopediaFeatureIterator`
         """
         self.geopedia_table = geopedia_table
-        self.dataset_crs = CRS.WGS84
         self.geopedia_kwargs = kwargs
+        self.dataset_crs = None
         super().__init__(feature=feature, reproject=reproject, clip=clip)
 
     def _load_vector_data(self, bbox):
@@ -205,8 +206,8 @@ class GeopediaVectorImportTask(_BaseVectorImportTask):
         if not geometry:
             raise ValueError(f'Geopedia table "{self.geopedia_table}" does not contain geometries!')
 
-        crs = CRS(geometry['crs']['properties']['name'])  # always WGS84
-        return gpd.GeoDataFrame.from_features(geopedia_features, crs=crs.pyproj_crs())
+        self.dataset_crs = CRS(geometry['crs']['properties']['name'])  # always WGS84
+        return gpd.GeoDataFrame.from_features(geopedia_features, crs=self.dataset_crs.pyproj_crs())
 
 
 class GeoDBVectorImportTask(_BaseVectorImportTask):
@@ -258,12 +259,12 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
     def _load_vector_data(self, bbox):
         """ Loads vector data from geoDB table
         """
-        prepared_bbox = bbox.transform_bounds(self.dataset_crs) if bbox else None
+        prepared_bbox = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
         return self.geodb_client.get_collection_by_bbox(
             collection=self.geodb_collection,
             database=self.geodb_db,
-            bbox=prepared_bbox.geometry.bounds,
+            bbox=prepared_bbox,
             comparison_mode="contains",
             bbox_crs=self.dataset_crs.epsg,
             **self.geodb_kwargs
