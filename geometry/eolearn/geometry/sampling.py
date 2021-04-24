@@ -10,17 +10,20 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+import os
 import collections
 import functools
 import logging
 from math import sqrt
-
+import random
+import pandas as pd
+from sklearn.utils import resample
 import numpy as np
 import rasterio.features
 import shapely.ops
 from shapely.geometry import Polygon, Point, LinearRing
 
-from eolearn.core import EOTask, EOPatch, FeatureType
+from eolearn.core import EOTask, EOPatch, FeatureType, FeatureParser
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +42,7 @@ class PointSampler:
     :param ignore_labels: A list of label values that should not be sampled.
     :type ignore_labels: list of integers
     """
+
     # pylint: disable=invalid-name
     def __init__(self, raster_mask, no_data_value=None, ignore_labels=None):
         if ignore_labels is None:
@@ -195,6 +199,7 @@ class PointRasterSampler:
          * sampling based on label frequency in raster or even sampling of labels (i.e. over-sampling)
 
     """
+
     def __init__(self, labels, even_sampling=False):
         """ Initialisation of sampler parameters
 
@@ -307,6 +312,7 @@ class PointSamplingTask(EOTask):
     points to be sampled, the name of the `DATA` time-series, the name of the label raster image, and the name of the
     output sample features and sampled labels.
     """
+
     # pylint: disable=too-many-arguments
     def __init__(self, n_samples, ref_mask_feature, ref_labels, sample_features, return_new_eopatch=False,
                  **sampling_params):
@@ -387,3 +393,254 @@ class PointSamplingTask(EOTask):
             new_eopatch[feature_type][new_feature_name] = sampled_data[..., np.newaxis, :]
 
         return new_eopatch
+
+
+class BalancedClassSampler:
+    """
+    A class that samples points from multiple patches and returns a balanced set depending on the class label.
+    This is done by sampling the desired amount on each patch and then balancing the data based on the smallest class
+    or amount. If the amount is provided and there are classes with less than that number of points, random
+    point are duplicated to reach the necessary size.
+    """
+
+    def __init__(self, class_feature, samples_amount=0.1, valid_mask=None,
+                 ignore_labels=None, features=None, weak_classes=None, search_radius=3,
+                 samples_per_class=None, seed=None):
+        """
+        :param class_feature: Feature that contains class labels
+        :type class_feature: (FeatureType, string) or string
+        :param samples_amount: Number of samples taken per patch. If the number is on the interval of [0...1] then that
+            percentage of all points is taken. If the value is 1 all eligible points are taken.
+        :type samples_amount: float
+        :param valid_mask: Feature that defines the area from where samples are
+            taken, if None the whole image is used
+        :type valid_mask: (FeatureType, string), string or None
+        :param ignore_labels: A single item or a list of values that should not be sampled.
+        :type ignore_labels: list of integers or int
+        :param features: Temporal features to include in dataset for each pixel sampled
+        :type features: Input that the FeatureParser class can parse
+        :param samples_per_class: Number of samples per class returned after
+            balancing. If the number is higher than total amount of some classes, then those classes have their
+            points duplicated to reach the desired amount. If the argument is None then limit is set to the size of
+            the number of samples of the smallest class
+        :type samples_per_class: int or None
+        :param seed: Seed for random generator
+        :type seed: int
+        :param weak_classes: Classes that upon finding, also the neighbouring regions
+            will be checked and added if they contain one of the weak classes. Used to enrich the samples
+        :type weak_classes: list of integers or int
+        :param search_radius: How many points in each direction to check for additional weak classes
+        :type search_radius: int
+        """
+        self.class_feature = next(FeatureParser(class_feature, default_feature_type=FeatureType.MASK_TIMELESS)())
+        self.samples_amount = samples_amount
+        self.valid_mask = next(
+            FeatureParser(valid_mask, default_feature_type=FeatureType.MASK_TIMELESS)()) if valid_mask else None
+        self.ignore_labels = ignore_labels if isinstance(ignore_labels, list) else [ignore_labels]
+        self.features = FeatureParser(features, default_feature_type=FeatureType.DATA_TIMELESS) if features else None
+        self.columns = [self.class_feature[1]] + ['patch_identifier', 'x', 'y']
+        if features:
+            self.columns += [x[1] for x in self.features]
+
+        self.samples_per_class = samples_per_class
+        self.seed = seed
+        if seed is not None:
+            random.seed(self.seed)
+        self.weak_classes = weak_classes if isinstance(weak_classes, list) else [weak_classes]
+        self.search_radius = search_radius
+        self.sampled_data = []
+        self.balanced_data = None
+        self.class_distribution = None
+
+    def sample(self, eopatch, patch_identifier):
+        """
+        Collects samples on eopatch. This method does not modify the patch. Once the desired patches are sampled
+        the samples can be balanced and returned by calling get_balanced_data() function
+        :param eopatch: eopatch on which the sampling is performed
+        :param patch_identifier: Patch identifier that is saved along with the samples
+        """
+
+        height, width, _ = eopatch[self.class_feature].shape
+        mask = eopatch[self.valid_mask].squeeze() if self.valid_mask else None
+        total_points = height * width
+        no_samples = self.samples_amount if self.samples_amount > 1 else int(total_points * self.samples_amount)
+        no_samples = min(total_points, no_samples)
+
+        # Finds all the pixels which are not masked or ignored
+        subsample_id = []
+        for loc_h in range(height):
+            for loc_w in range(width):
+                if mask is not None and not mask[loc_h][loc_w]:
+                    continue
+                if self.ignore_labels is not None \
+                        and eopatch[self.class_feature][loc_h][loc_w][0] in self.ignore_labels:
+                    continue
+                subsample_id.append((loc_h, loc_w))
+
+        subsample_id = random.sample(
+            subsample_id,
+            min(no_samples, len(subsample_id))
+        )
+
+        for loc_h, loc_w in subsample_id:
+            class_value = eopatch[self.class_feature][loc_h][loc_w][0]
+
+            point_data = [(self.class_feature[1], class_value)] + [('patch_identifier', patch_identifier),
+                                                                   ('x', loc_h),
+                                                                   ('y', loc_w)]
+            if self.features:
+                point_data += [(f[1], float(eopatch[f][loc_h][loc_w])) for f in self.features]
+
+            self.sampled_data.append(dict(point_data))
+
+            # If the point belongs to one of the weak classes, additional sampling is done in the neighbourhood
+            if self.weak_classes and self.search_radius and (class_value in self.weak_classes):
+                self.local_enrichment(loc_h, loc_w, eopatch, patch_identifier)
+
+    def sample_folder(self, folder, **kwargs):
+        """
+        Samples all the patches in specified folder
+        :param folder: location of folder which contains patches to be sampled
+        :param kwargs: key word arguments that are passed to EOPatch.load()
+        """
+        self.sample_patch_list([f'{folder}/{name}' for name in next(os.walk(folder))[1]], **kwargs)
+
+    def sample_patch_list(self, patch_list, **kwargs):
+        """
+        Samples patches on specified locations
+        :param patch_list: location of patches to be sampled
+        :param kwargs: key word arguments that are passed to EOPatch.load()
+        """
+        for patch_location in patch_list:
+            eopatch = EOPatch.load(patch_location, **kwargs)
+            patch_identifier = os.path.basename(patch_location)
+            self.sample(eopatch, patch_identifier)
+
+    def sample_patch(self, patch_location, **kwargs):
+        """
+        Samples a patch on specified location
+        :param patch_location: location of patch to be sampled
+        :param kwargs: key word arguments that are passed to EOPatch.load()
+        """
+        eopatch = EOPatch.load(patch_location, **kwargs)
+        patch_identifier = os.path.basename(patch_location)
+        self.sample(eopatch, patch_identifier)
+
+    def local_enrichment(self, loc_h, loc_w, eopatch, patch_identifier):
+        """
+        Class that performs additional search on the patch around specified location. All new found points are saved
+        in self.sampled_data
+        :param loc_h: Starting vertical location of search
+        :type loc_h: int
+        :param loc_w: Starting horizontal location of search
+        :type loc_w: int
+        :param eopatch: EOPatch on which to perform the search
+        :param patch_identifier: Patch identifier used to save along the found points
+        :type patch_identifier: string
+        """
+        height, width, _ = eopatch[self.class_feature].shape
+        neighbours = list(range(-self.search_radius, self.search_radius + 1))
+        for vertical_shift in neighbours:
+            for horizontal_shift in neighbours:
+                if vertical_shift != 0 or horizontal_shift != 0:
+                    search_h = loc_h + vertical_shift
+                    search_w = loc_w + horizontal_shift
+                    max_h, max_w = height, width
+                    # Check bounds
+                    if search_h >= max_h or search_w >= max_w \
+                            or search_h <= 0 or search_w <= 0:
+                        continue
+                    # Check if the point is masked
+                    if self.valid_mask:
+                        mask = eopatch[self.valid_mask].squeeze()
+                        if not mask[search_h, search_w]:
+                            continue
+
+                    point_feature = eopatch[self.class_feature][search_h][search_w][0]
+                    if point_feature in self.weak_classes:
+                        point_data = [(self.class_feature[1], point_feature)] \
+                                     + [('patch_identifier', patch_identifier), ('x', search_h), ('y', search_w)]
+                        if self.features:
+                            point_data += [(f[1], float(eopatch[f][search_h][search_w])) for f in self.features]
+                        point_data = dict(point_data)
+
+                        # Add only if its not a duplicate point
+                        if point_data not in self.sampled_data:
+                            self.sampled_data.append(dict(point_data))
+
+    def balance_data(self):
+        """
+        Balances the samples and stores them in self.balanced_data
+        """
+
+        all_sampled_data = pd.DataFrame(self.sampled_data, columns=self.columns)
+        all_sampled_data.dropna(axis=0, inplace=True)
+
+        # Getting the distribution of classes
+        self.class_distribution = collections.Counter(all_sampled_data[self.class_feature[1]])
+        class_count = self.class_distribution.most_common()
+
+        # Setting the bound to which all classes are resampled depending on the least common class if not set previously
+        duplication = False
+        if self.samples_per_class is not None:
+            least_common = self.samples_per_class
+            # Classes will be duplicated if the limit is higher than number of classes
+            duplication = True
+        else:
+            least_common = class_count[-1][1]
+
+        self.balanced_data = pd.DataFrame(columns=self.columns)
+        class_names = [name[0] for name in class_count]
+
+        # Separation of all found classes into arrays used to resample
+        sampled_classes_data = [all_sampled_data[all_sampled_data[self.class_feature[1]] == x] for x in class_names]
+        for individual_class in sampled_classes_data:
+            # Points for each class are resampled to equal number
+            single_data = resample(
+                individual_class,
+                replace=duplication,
+                n_samples=least_common,
+                random_state=self.seed
+            )
+            self.balanced_data = self.balanced_data.append(single_data)
+
+    def get_balanced_data(self):
+        """
+        Balances and returns the dataset
+        :return: Balanced dataset with new index
+        """
+        self.balance_data()
+        return self.balanced_data.reset_index(drop=True)
+
+    def get_prior_class_distribution(self):
+        """
+        :return: Distribution of samples before balancing
+        """
+        all_sampled_data = pd.DataFrame(self.sampled_data, columns=self.columns)
+        all_sampled_data.dropna(axis=0, inplace=True)
+        return dict(collections.Counter(collections.Counter(all_sampled_data[self.class_feature[1]])))
+
+
+class BalancedClassSamplerTask(EOTask, BalancedClassSampler):
+    """
+    Task that collects and balances samples from multiple patches
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initializes the BalancedClassSampler class
+        :param args: arguments passed to the parent class
+        :param kwargs: key word arguments passed to the parent class
+        """
+        BalancedClassSampler.__init__(self, *args, **kwargs)
+
+    def execute(self, eopatch, patch_identifier='N/A'):
+        """
+        Collects samples on eopatch. This method does not modify the patches. Once the desired patches are sampled
+        the samples can be balanced and returned by calling get_balanced_data function
+        :param eopatch: Input eopatch
+        :param patch_identifier: Name of patch to be stored along the samples
+        :return: Unmodified input eopatch
+        """
+        super().sample(eopatch, patch_identifier)
+        return eopatch
