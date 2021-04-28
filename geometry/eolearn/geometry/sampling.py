@@ -251,8 +251,8 @@ class PointRasterSampler:
         :type raster: uint8 numpy array
         :param n_samples: Number of points to sample in total
         :type n_samples: uint32
-        :param sampling_fraction: A fraction of points to sample
-        :type sampling_fraction: float
+        :param sampling_fraction: A maximal fraction of samples to be taken. The value should be from an interval [0, 1]
+        :type sampling_fraction: float or None
         :return: List of row indices of samples, list of column indices of samples
         :rtype: numpy.array, numpy.array
         """
