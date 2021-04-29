@@ -261,11 +261,13 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
         """
         prepared_bbox = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
+        if 'comparison_mode' not in self.geodb_kwargs:
+            self.geodb_kwargs['comparison_mode'] = 'intersects'
+
         return self.geodb_client.get_collection_by_bbox(
             collection=self.geodb_collection,
             database=self.geodb_db,
             bbox=prepared_bbox,
-            comparison_mode="contains",
             bbox_crs=self.dataset_crs.epsg,
             **self.geodb_kwargs
         )
