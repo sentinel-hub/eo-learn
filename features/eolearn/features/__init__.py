@@ -3,7 +3,7 @@ A collection of EOTasks for feature manipulation
 """
 
 from .temporal_features import AddSpatioTemporalFeaturesTask, AddMaxMinTemporalIndicesTask, \
-    AddMaxMinNDVISlopeIndicesTask
+    AddMaxMinNDVISlopeIndicesTask, TemporalRollingWindowTask, SurfaceExtractionTask, MaxMeanLenTask
 from .interpolation import InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, \
     BSplineInterpolation, AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling, \
     KrigingInterpolation, LegacyInterpolation
