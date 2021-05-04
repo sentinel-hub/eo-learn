@@ -83,7 +83,7 @@ class BaseLocalIo(EOTask):
     def _generate_paths(path_template, timestamps):
         """ Uses a filename path template to create a list of actual filename paths
         """
-        if not (path_template.endswith('.tif') or path_template.endswith('.tiff')):
+        if not (path_template.lower().endswith('.tif') or path_template.lower().endswith('.tiff')):
             path_template = f'{path_template}.tif'
 
         if not timestamps:
