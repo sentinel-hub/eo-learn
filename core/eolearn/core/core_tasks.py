@@ -75,7 +75,7 @@ class IOTask(EOTask):
         """ A filesystem property that is being lazy-loaded the first time it is needed
         """
         if self._filesystem is None:
-            self._filesystem = get_filesystem(self.path, create=self._create, config=self.config)
+            return get_filesystem(self.path, create=self._create, config=self.config)
 
         return self._filesystem
 
