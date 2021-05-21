@@ -28,7 +28,7 @@ class TestBandsExtraction(unittest.TestCase):
         eopatch.data['TEST'] = data
 
         eopatch = EuclideanNormTask((FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NORM'), bands)(eopatch)
-        self.assertTrue(np.all(eopatch.data['NORM'] == np.sqrt(len(bands))))
+        self.assertTrue((eopatch.data['NORM'] == np.sqrt(len(bands))).all())
 
     def test_ndi(self):
         eopatch = EOPatch(data={'TEST': np.zeros((4, 3, 3, 9))})
@@ -41,14 +41,14 @@ class TestBandsExtraction(unittest.TestCase):
         eopatch.data['TEST'][..., 0] = band_a
         eopatch.data['TEST'][..., 1] = band_b
         eopatch = NormalizedDifferenceIndexTask(f_in, f_out, bands=[0, 1])(eopatch)
-        self.assertTrue(np.all(eopatch.data['NDI'] == ((band_a - band_b) / (band_a + band_b))))
+        self.assertTrue((eopatch.data['NDI'] == ((band_a - band_b) / (band_a + band_b))).all())
 
         eopatch.data['TEST'][..., 5] = np.nan
         eopatch.data['TEST'][..., 7] = np.inf
         eopatch = NormalizedDifferenceIndexTask(
             (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NAN_INF_INPUT'), bands=[5, 7]
         ).execute(eopatch)
-        self.assertTrue(np.all(np.isnan(eopatch.data['NAN_INF_INPUT'])))
+        self.assertTrue(np.isnan(eopatch.data['NAN_INF_INPUT']).all())
 
         eopatch.data['TEST'][..., 1] = 1
         eopatch.data['TEST'][..., 3] = -1
@@ -56,13 +56,15 @@ class TestBandsExtraction(unittest.TestCase):
             (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_ZERO_NAN'), bands=[1, 3]
         ).execute(eopatch)
 
-        self.assertTrue(np.all(np.isnan(eopatch.data['DIV_ZERO_NAN'])))
+        self.assertTrue(np.isnan(eopatch.data['DIV_ZERO_NAN']).all())
 
+        eopatch.data['TEST'][..., 1] = 0
+        eopatch.data['TEST'][..., 3] = 0
         eopatch = NormalizedDifferenceIndexTask(
-            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_ZERO_INT'), bands=[1, 3], undefined_value=123
+            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_INVALID'), bands=[1, 3], undefined_value=123
         ).execute(eopatch)
 
-        self.assertTrue(np.all(eopatch.data['DIV_ZERO_INT'] == 123))
+        self.assertTrue((eopatch.data['DIV_INVALID'] == 123).all())
 
 
 if __name__ == '__main__':
