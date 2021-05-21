@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
 
+RUN pip3 install --no-cache-dir pip --upgrade
 RUN pip3 install --no-cache-dir shapely --no-binary :all:
 RUN FORCE_CYTHON=1 pip install cartopy
 
@@ -37,11 +38,10 @@ RUN pip3 install --no-cache-dir \
     ./io[GEODB] \
     ./mask \
     ./ml_tools \
-    ./visualization \
-    .
+    ./visualization[FULL]
 
 RUN pip3 install --no-cache-dir \
-    ./visualization[FULL] \
+    . \
     rtree \
     jupyter
 
