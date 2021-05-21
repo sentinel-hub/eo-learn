@@ -424,7 +424,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
 
         if bands_feature:
             if not bands:
-                bands = data_collection.bands
+                bands = self.data_collection.bands
             self._add_request_bands(self.requested_bands, bands)
 
         if additional_data is not None:

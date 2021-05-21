@@ -329,8 +329,9 @@ class LinearWorkflow(EOWorkflow):
     """
     def __init__(self, *tasks, **kwargs):
         """
-        :param tasks: Tasks in the order of execution
-        :type tasks: EOTask
+        :param tasks: Tasks in the order of execution. Each entry can either be an instance of EOTask or a tuple of
+            an EOTask instance and a custom task name.
+        :type tasks: EOTask or (EOTask, str)
         """
         tasks = [self._parse_task(task) for task in tasks]
         tasks = self._make_tasks_unique(tasks)
@@ -347,7 +348,7 @@ class LinearWorkflow(EOWorkflow):
         if isinstance(task, (tuple, list)) and len(task) == 2:
             return task
 
-        raise ValueError('Cannot parse {}, expected an instance of EOTask or a tuple (EOTask, name)'.format(task))
+        raise ValueError(f'Cannot parse {task}, expected an instance of EOTask or a tuple (EOTask, name)')
 
     @staticmethod
     def _make_tasks_unique(tasks):

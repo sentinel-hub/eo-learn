@@ -82,7 +82,7 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
         """
         band_a, band_b = feature[..., self.band_a], feature[..., self.band_b]
 
-        with np.errstate(divide='ignore'):
+        with np.errstate(divide='ignore', invalid='ignore'):
             ndi = (band_a - band_b + self.acorvi_constant) / (band_a + band_b + self.acorvi_constant)
 
         ndi[~np.isfinite(ndi)] = self.undefined_value
