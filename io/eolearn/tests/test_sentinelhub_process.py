@@ -532,7 +532,7 @@ class TestSentinelHubInputTaskDataCollections(unittest.TestCase):
                 time_interval=time_interval,
                 data_size=21,
                 timestamp_length=11,
-                stats=[0.2064, 0.1354, 0.1905]
+                stats=[0.2375, 0.1736, 0.2538]
             ),
             IoTestCase(
                 name='Sentinel-3 SLSTR 500m resolution',
