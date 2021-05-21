@@ -1,3 +1,13 @@
+## [Version 0.9.2] - 2021-05-21
+- Minor fixes and improvements:
+  * `SaveTask` and `LoadTask` don't automatically store a filesystem object anymore,
+  * fix in `ImportFromTiff` about file extensions, contributed by @rpitonak,
+  * fix in `SentinelHubInputTask` about data collection bands handling,
+  * fix in `GeoDBVectorImportTask`,
+  * `NormalizedDifferenceIndexTask` doesn't show division warnings anymore,
+  * improvement in `PointSamplingTask`
+  * improvements in LULC documentation notebook.
+
 ## [Version 0.9.1] - 2021-04-23
 - Added new tasks `VectorImportTask`, `GeopediaVectorImportTask`, and `GeoDBVectorImportTask` to `eo-learn-io`.
 - Code improvements in LULC classification documentation notebook.
