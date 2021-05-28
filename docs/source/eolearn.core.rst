@@ -16,6 +16,5 @@ Submodules:
    eolearn.core.eoexecution
    eolearn.core.eotask
    eolearn.core.eoworkflow
-   eolearn.core.graph
-   eolearn.core.plots
+   eolearn.core.fs_utils
    eolearn.core.utilities

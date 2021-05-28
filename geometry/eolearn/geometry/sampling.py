@@ -1,5 +1,13 @@
 """
 Tasks for spatial sampling of points for building training/validation samples for example.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import collections
@@ -236,13 +244,15 @@ class PointRasterSampler:
 
         return h_idx[rand_idx], w_idx[rand_idx]
 
-    def sample(self, raster, n_samples=1000):
+    def sample(self, raster, n_samples=1000, sampling_fraction=None):
         """ Sample `nsamples` points form raster
 
         :param raster: Input 2D or single-channel 3D label image
         :type raster: uint8 numpy array
         :param n_samples: Number of points to sample in total
         :type n_samples: uint32
+        :param sampling_fraction: A maximal fraction of samples to be taken. The value should be from an interval [0, 1]
+        :type sampling_fraction: float or None
         :return: List of row indices of samples, list of column indices of samples
         :rtype: numpy.array, numpy.array
         """
@@ -254,7 +264,7 @@ class PointRasterSampler:
             raise ValueError('Class operates on 2D or 3D single-channel raster images')
 
         # Calculate mask of all pixels which can be sampled
-        mask = np.zeros(raster.shape, dtype=np.bool)
+        mask = np.zeros(raster.shape, dtype=bool)
         for label in self.labels:
             label_mask = (raster == label)
             mask |= label_mask
@@ -272,6 +282,10 @@ class PointRasterSampler:
             # Number of samples per label is proportional to label frequency
             label_ratio = label_count / np.sum(label_count)
             n_samples_per_label = (np.ceil(n_samples * label_ratio)).astype(np.uint32)
+
+        if sampling_fraction is not None:
+            max_samples_per_label = np.round(sampling_fraction * label_count.astype(float)).astype(np.uint32)
+            n_samples_per_label = np.min([n_samples_per_label, max_samples_per_label], axis=0)
 
         # Apply mask to raster
         unknown_value = self._get_unknown_value()
@@ -299,9 +313,8 @@ class PointSamplingTask(EOTask):
     points to be sampled, the name of the `DATA` time-series, the name of the label raster image, and the name of the
     output sample features and sampled labels.
     """
-    # pylint: disable=too-many-arguments
-    def __init__(self, n_samples, ref_mask_feature, ref_labels, sample_features, return_new_eopatch=False,
-                 **sampling_params):
+    def __init__(self, n_samples, ref_mask_feature, ref_labels, sample_features, sampling_fraction=None,
+                 return_new_eopatch=False, **sampling_params):
         """ Initialise sampling task.
 
         The data to be sampled is supposed to be a time-series stored in `DATA` type of the eopatch, while the raster
@@ -326,6 +339,8 @@ class PointSamplingTask(EOTask):
             Example: [(FeatureType.DATA, 'NDVI'), (FeatureType.MASK, 'cloud_mask', 'cloud_mask_1')]
 
         :type sample_features: list(tuple(FeatureType, str, str) or tuple(FeatureType, str))
+        :param sampling_fraction: A maximal fraction of samples to be taken. The value should be from an interval [0, 1]
+        :type sampling_fraction: float or None
         :param return_new_eopatch: If `True` the task will create new EOPatch, put sampled data and copy of timestamps
             and meta_info data in it and return it. If `False` it will just add sampled data to input EOPatch and
             return it.
@@ -333,6 +348,7 @@ class PointSamplingTask(EOTask):
         :param sampling_params: Any other parameter used by `PointRasterSampler` class
         """
         self.n_samples = n_samples
+        self.sampling_fraction = sampling_fraction
         self.ref_mask_feature = self._parse_features(ref_mask_feature, default_feature_type=FeatureType.MASK_TIMELESS)
         self.ref_labels = list(ref_labels)
         self.sample_features = self._parse_features(sample_features, new_names=True,
@@ -359,7 +375,7 @@ class PointSamplingTask(EOTask):
         # Initialise sampler
         sampler = PointRasterSampler(self.ref_labels, **self.sampling_params)
         # Perform sampling
-        rows, cols = sampler.sample(raster, n_samples=self.n_samples)
+        rows, cols = sampler.sample(raster, n_samples=self.n_samples, sampling_fraction=self.sampling_fraction)
 
         if self.return_new_eopatch:
             new_eopatch = EOPatch()

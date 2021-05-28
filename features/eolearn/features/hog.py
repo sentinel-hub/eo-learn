@@ -1,5 +1,12 @@
 """
 Module for computing the Histogram of gradient in EOPatch
+
+Credits:
+Copyright (c) 2018-2019 Hugo Fournier (Magellium)
+Copyright (c) 2017-2019 Matej Aleksandrov, Devis Peresutti (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import skimage.feature
@@ -11,16 +18,19 @@ from eolearn.core import EOTask, FeatureType
 class HOGTask(EOTask):
     """ Task to compute the histogram of gradient
 
-        Divide the image into small connected regions called cells, and for each cell compute a histogram of gradient
-        directions or edge orientations for the pixels within the cell.
+    Divide the image into small connected regions called cells, and for each cell compute a histogram of gradient
+    directions or edge orientations for the pixels within the cell.
 
-        The algorithm stores the result in images where each band is the value of the histogram for a specific angular
-        bin. If the visualize is True, it also output the images representing the gradients for each orientation.
-
+    The algorithm stores the result in images where each band is the value of the histogram for a specific angular
+    bin. If the visualize is True, it also output the images representing the gradients for each orientation.
+    """
+    def __init__(self, feature, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
+                 visualize=True, hog_feature_vector=False, block_norm='L2-Hys', visualize_feature_name=''):
+        """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-                        specified it will be saved with name '<feature_name>_HOG'
+            specified it will be saved with name '<feature_name>_HOG'
 
-                        Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'hog')
+            Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'hog')`
         :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param orientations: Number of direction to use for the oriented gradient
         :type orientations: int
@@ -31,11 +41,9 @@ class HOGTask(EOTask):
         :param visualize: Produce a visualization for the HOG in an image
         :type visualize: bool
         :param visualize_feature_name: Name of the visualization feature to be added to the eopatch (if empty and
-        visualize is True, the become “new_name”_VIZU
+            visualize is True, the become “new_name”_VIZU
         :type visualize_feature_name: str
-    """
-    def __init__(self, feature, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
-                 visualize=True, hog_feature_vector=False, block_norm='L2-Hys', visualize_feature_name=''):
+        """
         self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
                                             rename_function='{}_HOG'.format)
 
@@ -55,7 +63,7 @@ class HOGTask(EOTask):
                                (int(data.shape[1] // self.pixels_per_cell[0]) - self.cells_per_block[0] + 1) *
                                self.cells_per_block[0],
                                (int(data.shape[2] // self.pixels_per_cell[1]) - self.cells_per_block[1] + 1) *
-                               self.cells_per_block[1], self.n_orientations), dtype=np.float)
+                               self.cells_per_block[1], self.n_orientations), dtype=float)
         if self.visualize:
             im_visu = np.empty(data.shape[0:3] + (1,))
         for time in range(data.shape[0]):

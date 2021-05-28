@@ -1,2 +1,6 @@
 eo-learn-core
-rasterio
+sentinelhub>=3.2.1
+rasterio<=1.1.8
+rtree
+geopandas>=0.5.0,!=0.8.0
+boto3

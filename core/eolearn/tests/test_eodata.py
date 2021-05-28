@@ -1,14 +1,22 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
 import unittest
 import logging
 import os
 import datetime
 import numpy as np
-import tempfile
-import itertools
 
 from geopandas import GeoSeries, GeoDataFrame
 
-from eolearn.core import EOPatch, FeatureType, FeatureTypeSet, OverwritePermission, FileFormat, BBox, CRS
+from sentinelhub import BBox, CRS
+from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -29,7 +37,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         data_examples = []
         for size in range(6):
-            for dtype in [np.float32, np.float64, np.float, np.uint8, np.int64, np.bool]:
+            for dtype in [np.float32, np.float64, float, np.uint8, np.int64, bool]:
                 data_examples.append(np.zeros((2, ) * size, dtype=dtype))
 
         for feature_type in FeatureTypeSet.RASTER_TYPES:
@@ -58,8 +66,8 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
                                        msg='Invalid entry {} for {} should raise an error'.format(entry, feature_type)):
                     eop[feature_type]['TEST'] = entry
 
-        crs_test = {'init': 'epsg:4326'}
-        geo_test = GeoSeries([BBox((1, 2, 3, 4), crs=CRS.WGS84).get_geometry()], crs=crs_test)
+        crs_test = CRS.WGS84.pyproj_crs()
+        geo_test = GeoSeries([BBox((1, 2, 3, 4), crs=CRS.WGS84).geometry], crs=crs_test)
 
         eop.vector_timeless['TEST'] = geo_test
         self.assertTrue(isinstance(eop.vector_timeless['TEST'], GeoDataFrame),
@@ -101,6 +109,19 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         for entry in valid_entries:
             eop.timestamp = entry
+
+    def test_invalid_characters(self):
+        eopatch = EOPatch()
+
+        with self.assertRaises(ValueError):
+            eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+
+    def test_repr_no_crs(self):
+        eop = EOPatch.load(self.PATCH_FILENAME)
+        eop.vector_timeless["LULC"].crs = None
+        repr_str = eop.__repr__()
+        self.assertTrue(isinstance(repr_str, str) and len(repr_str) > 0,
+                        msg='EOPatch __repr__ must return non-empty string even in case of missing crs')
 
 
 class TestEOPatch(unittest.TestCase):
@@ -181,8 +202,7 @@ class TestEOPatch(unittest.TestCase):
         bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
         eop2.data['bands'] = bands2
 
-        eop = eop1 + eop2
-
+        eop = EOPatch.concatenate(eop1, eop2)
         self.assertTrue(np.array_equal(eop.data['bands'], np.concatenate((bands1, bands2), axis=0)),
                         msg="Array mismatch")
 
@@ -195,7 +215,7 @@ class TestEOPatch(unittest.TestCase):
         bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
         eop2.data['measurements'] = bands2
 
-        eop = eop1 + eop2
+        eop = EOPatch.concatenate(eop1, eop2)
         self.assertTrue('bands' in eop.data and 'measurements' in eop.data,
                         'Failed to concatenate different features')
 
@@ -229,11 +249,11 @@ class TestEOPatch(unittest.TestCase):
         eop2.data_timeless['nask'] = 5 * mask
 
         with self.assertRaises(ValueError):
-            _ = eop1 + eop2
+            _ = EOPatch.concatenate(eop1, eop2)
 
     def test_equals(self):
-        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
-        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)})
+        eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
+        eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
         self.assertEqual(eop1, eop2)
 
         eop1.data['bands'][1, ...] = np.nan
@@ -296,150 +316,6 @@ class TestEOPatch(unittest.TestCase):
         self.assertTrue(np.array_equal(mask[1:-1, ...], eop.mask['MASK']))
         self.assertTrue(np.array_equal(scalar[1:-1, ...], eop.scalar['SCALAR']))
         self.assertTrue(np.array_equal(mask_timeless, eop.mask_timeless['MASK_TIMELESS']))
-
-
-class TestSavingLoading(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        eopatch = EOPatch()
-        mask = np.zeros((3, 3, 2), dtype=np.int16)
-        eopatch.data_timeless['mask'] = mask
-        eopatch.timestamp = [datetime.datetime(2017, 1, 1, 10, 4, 7),
-                             datetime.datetime(2017, 1, 4, 10, 14, 5)]
-        eopatch.meta_info['something'] = 'nothing'
-        eopatch.scalar['my scalar with spaces'] = np.array([[1, 2, 3]])
-
-        cls.eopatch = eopatch
-
-    def test_saving_at_exiting_file(self):
-        with tempfile.NamedTemporaryFile() as fp:
-            with self.assertRaises(OSError):
-                self.eopatch.save(fp.name)
-
-    def test_saving_in_empty_folder(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name)
-
-    def test_saving_in_non_empty_folder(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            with open(os.path.join(tmp_dir_name, 'foo.txt'), 'w'):
-                pass
-
-            with self.assertWarns(UserWarning):
-                self.eopatch.save(tmp_dir_name)
-
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
-
-    def test_overwriting_non_empty_folder(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name)
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
-            self.eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
-
-            add_eopatch = EOPatch()
-            add_eopatch.data['some data'] = np.empty((2, 3, 3, 2))
-            add_eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.ADD_ONLY)
-            with self.assertRaises(ValueError):
-                add_eopatch.save(tmp_dir_name, overwrite_permission=OverwritePermission.ADD_ONLY)
-
-            new_eopatch = EOPatch.load(tmp_dir_name, lazy_loading=False, mmap=True)
-            self.assertEqual(new_eopatch, self.eopatch + add_eopatch)
-
-    def test_save_load(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name)
-            eopatch2 = EOPatch.load(tmp_dir_name, mmap=False)
-            self.assertEqual(self.eopatch, eopatch2)
-
-            eopatch2.save(tmp_dir_name, file_format='pkl', overwrite_permission=1)
-            eopatch2 = EOPatch.load(tmp_dir_name)
-            self.assertEqual(self.eopatch, eopatch2)
-
-            eopatch2.save(tmp_dir_name, file_format='npy', overwrite_permission=1)
-            eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=False, mmap=False)
-            self.assertEqual(self.eopatch, eopatch2)
-
-            features = {FeatureType.DATA_TIMELESS: {'mask'}, FeatureType.TIMESTAMP: ...}
-            eopatch2.save(tmp_dir_name, file_format=FileFormat.NPY, features=features,
-                          compress_level=3, overwrite_permission=1)
-            _ = EOPatch.load(tmp_dir_name, lazy_loading=True, mmap=False, features=features)
-            eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=True, mmap=False)
-            self.assertEqual(self.eopatch, eopatch2)
-
-    def test_different_formats_equality(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name, file_format=FileFormat.PICKLE, compress_level=4)
-            eopatch1 = EOPatch.load(tmp_dir_name, lazy_loading=False)
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name, file_format='npy')
-            eopatch2 = EOPatch.load(tmp_dir_name, lazy_loading=False, mmap=True)
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            self.eopatch.save(tmp_dir_name, file_format='npy', compress_level=9)
-            eopatch3 = EOPatch.load(tmp_dir_name, lazy_loading=False)
-
-        patches = [self.eopatch, eopatch1, eopatch2, eopatch3]
-
-        for eopatch1, eopatch2 in itertools.combinations(patches, 2):
-            self.assertEqual(eopatch1, eopatch2)
-
-    def test_feature_names_case_sensitivity(self):
-        eopatch = EOPatch()
-        mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-        eopatch.data_timeless['mask'] = mask
-        eopatch.data_timeless['Mask'] = mask
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(OSError):
-            eopatch.save(tmp_dir_name, file_format='npy')
-
-    def test_invalid_characters(self):
-        eopatch = EOPatch()
-        eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(ValueError):
-            eopatch.save(tmp_dir_name, file_format='npy')
-
-    def test_overwrite_failure(self):
-        # basic patch
-        eopatch = EOPatch()
-        mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-        eopatch.data_timeless['mask'] = mask
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name, self.assertRaises(BaseException):
-            eopatch.save(tmp_dir_name, file_format='npy')
-
-            # load original patch
-            eopatch_before = EOPatch.load(tmp_dir_name, mmap=False)
-
-            # force exception during saving (case sensitivity), backup is reloaded
-            eopatch.data_timeless['Mask'] = mask
-            eopatch.save(tmp_dir_name, file_format='npy', overwrite_permission=2)
-            eopatch_after = EOPatch.load(tmp_dir_name)
-
-            # should be equal
-            self.assertEqual(eopatch_before, eopatch_after)
-
-    def test_overwrite_success(self):
-        # basic patch
-        eopatch = EOPatch()
-        mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-        eopatch.data_timeless['mask1'] = mask
-
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            eopatch.save(tmp_dir_name, file_format='npy')
-
-            # load original patch
-            eopatch_before = EOPatch.load(tmp_dir_name, mmap=False)
-
-            # update original patch
-            eopatch.data_timeless['mask2'] = mask
-            eopatch.save(tmp_dir_name, file_format='npy', overwrite_permission=True)
-            eopatch_after = EOPatch.load(tmp_dir_name, mmap=False)
-
-            # should be different
-            self.assertNotEqual(eopatch_before, eopatch_after)
 
 
 if __name__ == '__main__':

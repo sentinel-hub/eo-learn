@@ -1,2 +1,6 @@
 eo-learn-core
-s2cloudless>=1.3.0
+numpy
+sentinelhub
+opencv-contrib-python-headless
+scikit-image>=0.13.0
+lightgbm>=2.0.11

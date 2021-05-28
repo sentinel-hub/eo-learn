@@ -1,12 +1,19 @@
 """
 Utility function for image co-registration
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 # pylint: disable=invalid-name
 
 import logging
 
 import numpy as np
-import scipy
 
 LOGGER = logging.getLogger(__name__)
 
@@ -122,7 +129,7 @@ class EstimateEulerTransformModel:
         :return: Square root of Target Registration Error
         """
         # Transform source points with estimated transformation
-        trg_fit = scipy.dot(warp_matrix, np.concatenate((self.src_pts[idx, :], np.ones((len(idx), 1))), axis=1).T).T
+        trg_fit = np.dot(warp_matrix, np.concatenate((self.src_pts[idx, :], np.ones((len(idx), 1))), axis=1).T).T
         # Compute error in transformation
         err_per_point = np.sqrt(np.sum((self.trg_pts[idx, :] - trg_fit[:, :2])**2, axis=1))  # sum squared error per row
         return err_per_point

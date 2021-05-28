@@ -28,7 +28,7 @@ def get_version():
 
 setup(
     name='eo-learn-io',
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     version=get_version(),
     description='A collection of input/output utilities and EOTasks',
     long_description=get_long_description(),
@@ -40,5 +40,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
+    extras_require={
+        'GEODB': parse_requirements('requirements-geodb.txt')
+    },
     zip_safe=False
 )

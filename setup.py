@@ -8,7 +8,8 @@ def get_long_description():
     with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 
-    return long_description
+    # Removes lines with an image from description
+    return '\n'.join(line for line in long_description.split('\n') if not line.strip().startswith('<img'))
 
 
 def parse_requirements(file):
@@ -20,8 +21,8 @@ def parse_requirements(file):
 
 setup(
     name='eo-learn',
-    python_requires='>=3.5',
-    version='0.5.0',
+    python_requires='>=3.6',
+    version='0.9.2',
     description='Earth observation processing framework for machine learning in Python',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
@@ -32,14 +33,14 @@ setup(
     packages=[],
     include_package_data=True,
     install_requires=[
-        'eo-learn-core>=0.5.0',
-        'eo-learn-coregistration>=0.5.0',
-        'eo-learn-features>=0.5.0',
-        'eo-learn-geometry>=0.5.0',
-        'eo-learn-io>=0.5.0',
-        'eo-learn-mask>=0.5.0',
-        'eo-learn-ml-tools>=0.5.0',
-        'eo-learn-visualization>=0.5.0'
+        'eo-learn-core>=0.9.2',
+        'eo-learn-coregistration>=0.9.0',
+        'eo-learn-features>=0.9.2',
+        'eo-learn-geometry>=0.9.2',
+        'eo-learn-io>=0.9.2',
+        'eo-learn-mask>=0.9.0',
+        'eo-learn-ml-tools>=0.9.0',
+        'eo-learn-visualization>=0.9.0'
     ],
     extras_require={
         'DEV': parse_requirements('requirements-dev.txt')
@@ -56,9 +57,9 @@ setup(
         'Operating System :: Unix',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Scientific/Engineering',
     ]
 )

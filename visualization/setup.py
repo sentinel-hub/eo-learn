@@ -28,7 +28,7 @@ def get_version():
 
 setup(
     name='eo-learn-visualization',
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     version=get_version(),
     description='A collection of visualization utilities',
     long_description=get_long_description(),
@@ -41,5 +41,8 @@ setup(
     package_data={'eolearn': ['visualization/report_templates/report.html']},
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
+    extras_require={
+        'FULL': parse_requirements('requirements-full.txt')
+    },
     zip_safe=False
 )

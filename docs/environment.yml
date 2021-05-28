@@ -7,8 +7,8 @@ dependencies:
   - Sphinx
   - sphinx-rtd-theme
   - nbsphinx
-  - ipython
-  - m2r>=0.2.0
+  - jupyter
+  - m2r2
 
   - ./../core
   - ./../coregistration
@@ -17,4 +17,4 @@ dependencies:
   - ./../io
   - ./../mask
   - ./../ml_tools
-  - ./../visualization
+  - ./../visualization[FULL]

@@ -1,5 +1,15 @@
 """
 Module for interpolating, smoothing and re-sampling features in EOPatch
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2018-2019 Filip Koprivec (Jožef Stefan Institute)
+Copyright (c) 2018-2019 William Ouellette
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import warnings
@@ -62,8 +72,7 @@ interpolation_function_parallel = numba.njit(base_interpolation_function, parall
 
 
 class InterpolationTask(EOTask):
-    """
-    Main EOTask class for interpolation and resampling of time-series.
+    """ Main EOTask class for interpolation and resampling of time-series.
 
     The task takes from EOPatch the specified data feature and timestamps. For each pixel in the spatial grid it
     creates an interpolation model using values that are not NaN or masked with `eopatch.mask['VALID_DATA']`. Then
@@ -101,8 +110,8 @@ class InterpolationTask(EOTask):
         returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
     :type scale_time: int
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
-    interpolation object for the whole image
-    :type interpolate_pixel_wise : bool
+        interpolation object for the whole image
+    :type interpolate_pixel_wise: bool
     :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
     """
     def __init__(self, feature, interpolation_object, *, resample_range=None, result_interval=None, mask_feature=None,
@@ -242,7 +251,7 @@ class InterpolationTask(EOTask):
         if copy_features:
             existing_features = set(new_eopatch.get_feature_list())
 
-            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features:
+            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features(old_eopatch):
                 new_feature = copy_feature_type, copy_new_feature_name
 
                 if new_feature in existing_features:
@@ -307,8 +316,8 @@ class InterpolationTask(EOTask):
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
         nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
-        nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]],
-                                       dtype=np.bool)
+        nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]], dtype=bool)
+
         if nan_row_res_indices.size:
             # mask out from output values the starting/ending NaNs
             res_temp_values[nan_row_res_indices, col_nans[nan_col_res_indices]] = np.nan
@@ -368,7 +377,7 @@ class InterpolationTask(EOTask):
         elif self.resample_range and np.all([isinstance(date, str) for date in self.resample_range]):
             days = [dateutil.parser.parse(date) for date in self.resample_range]
         elif self.resample_range and np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
-            days = [date for date in self.resample_range]
+            days = list(self.resample_range)
         else:
             raise ValueError('Invalid format in {}, expected strings or datetimes'.format(self.resample_range))
 
@@ -390,7 +399,7 @@ class InterpolationTask(EOTask):
         # Apply a mask on data
         if self.mask_feature is not None:
             for mask_type, mask_name in self.mask_feature(eopatch):
-                negated_mask = ~eopatch[mask_type][mask_name].astype(np.bool)
+                negated_mask = ~eopatch[mask_type][mask_name].astype(bool)
                 feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
 
         # Flatten array
@@ -447,13 +456,12 @@ class LegacyInterpolation(InterpolationTask):
 
 
 class LinearInterpolation(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and @numb.jit(nopython=True)
+    """ Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and `@numba.jit(nopython=True)`
 
     :param parallel: interpolation is calculated in parallel using as many CPUs as detected
         by the multiprocessing module.
     :type parallel: bool
-    :param **kwargs: parameters of InterpolationTask(EOTask)
+    :param kwargs: parameters of InterpolationTask(EOTask)
     """
     def __init__(self, feature, parallel=False, **kwargs):
         self.parallel = parallel
@@ -467,7 +475,7 @@ class LinearInterpolation(InterpolationTask):
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+            array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray
@@ -564,7 +572,7 @@ class ResamplingTask(InterpolationTask):
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-                                array.
+            array.
         :type resampled_times: numpy.array
         :return: Array of interpolated values
         :rtype: numpy.ndarray

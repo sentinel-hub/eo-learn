@@ -1,5 +1,13 @@
 """
 This module implements visualizations for EOPatch
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import numpy as np
@@ -54,7 +62,7 @@ class EOPatchVisualization:
                  timestamp_column='TIMESTAMP', geometry_column='geometry', pixel=False, mask=None):
         self.eopatch = eopatch
         self.feature = feature
-        self.rgb = rgb
+        self.rgb = list(rgb) if isinstance(rgb, tuple) else rgb
         self.rgb_factor = rgb_factor
         self.vdims = vdims
         self.timestamp_column = timestamp_column
@@ -102,7 +110,7 @@ class EOPatchVisualization:
         timestamps = self.eopatch.timestamp
         crs = self.eopatch.bbox.crs
         if not self.rgb:
-            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(int(crs.value)))
+            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(crs.epsg))
         data_rgb = self.eopatch_da_to_rgb(data_da, feature_name, crs)
         rgb_dict = {timestamp_: self.plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
@@ -139,9 +147,9 @@ class EOPatchVisualization:
         data_levels = 11 if data_levels > 11 else data_levels
         data_da = data_da.where(data_da > 0).fillna(-1)
         vis = data_da.hvplot(x='x', y='y',
-                             crs=ccrs.epsg(int(crs.value))).opts(clim=(data_min, data_max),
-                                                                 clipping_colors={'min': 'transparent'},
-                                                                 color_levels=data_levels)
+                             crs=ccrs.epsg(crs.epsg)).opts(clim=(data_min, data_max),
+                                                           clipping_colors={'min': 'transparent'},
+                                                           color_levels=data_levels)
         return vis
 
     def plot_vector(self, feature_name):
@@ -158,7 +166,7 @@ class EOPatchVisualization:
         data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
-            data_gpd = data_gpd.to_crs({'init': 'epsg:{}'.format(crs.value)})
+            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
         shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
                        for timestamp_ in timestamps}
         return hv.HoloMap(shapes_dict, kdims=['time'])
@@ -210,7 +218,8 @@ class EOPatchVisualization:
         for column in geodataframe.columns:
             if column == self.timestamp_column:
                 continue
-            elif column == self.geometry_column:
+
+            if column == self.geometry_column:
                 dataframe[column] = dummy_geometry
             elif column == 'valid':
                 dataframe[column] = False
@@ -248,8 +257,6 @@ class EOPatchVisualization:
         :rtype: holoviews/geoviews/bokeh
         """
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
-        if data_da.dtype == np.bool:
-            data_da = data_da.astype(np.int8)
         return data_da.hvplot()
 
     def plot_shapes_one(self, data_gpd, timestamp, crs):
@@ -276,13 +283,12 @@ class EOPatchVisualization:
         :rtype: geoviews
         """
         crs = self.eopatch.bbox.crs
+        data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
-            data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name].to_crs(
-                {'init': 'epsg:{}'.format(crs.value)})
-        else:
-            data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-        return gv.Polygons(data_gpd, crs=ccrs.epsg(int(crs.value)), vdims=self.vdims)
+            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
+
+        return gv.Polygons(data_gpd, crs=ccrs.epsg(crs.epsg), vdims=self.vdims)
 
     def eopatch_da_to_rgb(self, eopatch_da, feature_name, crs):
         """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
@@ -317,8 +323,6 @@ class EOPatchVisualization:
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
         if self.mask:
             data_da = self.mask_data(data_da)
-        if data_da.dtype == np.bool:
-            data_da = data_da.astype(np.int8)
         return data_da.hvplot(x='time')
 
     def mask_data(self, data_da):

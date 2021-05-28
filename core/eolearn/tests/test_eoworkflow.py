@@ -1,8 +1,17 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import unittest
 import logging
 import functools
 import concurrent.futures
-from io import StringIO
 
 from hypothesis import given, strategies as st
 
@@ -56,10 +65,10 @@ class TestEOWorkflow(unittest.TestCase):
         input_task2 = InputTask()
         divide_task = DivideTask()
 
-        workflow = EOWorkflow(dependencies=[
-            Dependency(task=input_task1, inputs=[]),
-            Dependency(task=input_task2, inputs=[]),
-            Dependency(task=divide_task, inputs=[input_task1, input_task2])
+        workflow = EOWorkflow([
+            (input_task1, []),
+            (input_task2, [], 'some name'),
+            Dependency(task=divide_task, inputs=[input_task1, input_task2], name='some name')
         ])
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
@@ -81,7 +90,6 @@ class TestEOWorkflow(unittest.TestCase):
             input_task1: {'val': 15},
             input_task2: {'val': 3}
         })
-
         self.assertEqual(result1[divide_task], 5)
 
         result2 = workflow.execute({
@@ -100,48 +108,48 @@ class TestEOWorkflow(unittest.TestCase):
 
     def test_linear_workflow(self):
         in_task = InputTask()
+        in_task_name = 'My input task'
         inc_task = Inc()
         pow_task = Pow()
-        eow = LinearWorkflow(in_task, inc_task, pow_task)
+        eow = LinearWorkflow((in_task, in_task_name), inc_task, inc_task, pow_task)
         res = eow.execute({
             in_task: {'val': 2},
-            inc_task: {'d': 2},
+            inc_task: {'d': 2},  # Note that this will assign value only to one instance of Inc task
             pow_task: {'n': 3}
         })
-        self.assertEqual(res[pow_task], (2+2)**3)
+        self.assertEqual(res[pow_task], (2 + 2 + 1) ** 3)
+
+        task_map = eow.get_tasks()
+        self.assertTrue(in_task_name in task_map, "A task with name '{}' should be amongst tasks".format(in_task_name))
+        self.assertEqual(task_map[in_task_name], in_task,
+                         "A task with name '{}' should map into {}".format(in_task_name, in_task))
 
     def test_get_tasks(self):
         in_task = InputTask()
         inc_task = Inc()
-        pow_task = Pow()
 
-        task_names = ['InputTask', 'Inc', 'Pow']
-        workflow_tasks = [in_task, inc_task, pow_task]
-        eow = LinearWorkflow(*workflow_tasks)
+        task_names = ['InputTask', 'Inc', 'Inc_1', 'Inc_2']
+        eow = LinearWorkflow(in_task, inc_task, inc_task, inc_task)
 
         returned_tasks = eow.get_tasks()
 
         # check if tasks are present
-        for task_name in task_names:
-            self.assertIn(task_name, returned_tasks.keys())
+        self.assertEqual(sorted(task_names), sorted(returned_tasks))
 
         # check if tasks still work
         arguments_dict = {
             in_task: {'val': 2},
-            inc_task: {'d': 2},
-            pow_task: {'n': 3}
+            inc_task: {'d': 2}
         }
 
         res_workflow = eow.execute(arguments_dict)
-        res_workflow_value = [res_workflow[key] for key in res_workflow.keys()][0]
+        res_workflow_value = list(res_workflow.values())
 
-        for idx, task in enumerate(workflow_tasks):
-            if idx == 0:
-                res_tasks_value = task.execute(**arguments_dict[task])
-            else:
-                res_tasks_value = task.execute(res_tasks_value, **arguments_dict[task])
+        res_tasks_values = []
+        for idx, task in enumerate(returned_tasks.values()):
+            res_tasks_values = [task.execute(*res_tasks_values, **arguments_dict.get(task, {}))]
 
-        self.assertEqual(res_workflow_value, res_tasks_value)
+        self.assertEqual(res_workflow_value, res_tasks_values)
 
     def test_trivial_workflow(self):
         task = DummyTask()
@@ -159,6 +167,9 @@ class TestEOWorkflow(unittest.TestCase):
         self.assertTrue(isinstance(items[0][0], EOTask))
         self.assertEqual(items[0][1], 42)
         self.assertEqual(result[dep], 42)
+
+        expected_repr = 'WorkflowResults(\n  Dependency(DummyTask):\n    42\n)'
+        self.assertEqual(repr(result), expected_repr)
 
     @given(
         st.lists(
@@ -184,31 +195,15 @@ class TestEOWorkflow(unittest.TestCase):
                 [ver2pos[u] < ver2pos[v] for u, v in edges]
             ))
 
+    def test_exceptions(self):
 
-class TestGraph(unittest.TestCase):
-
-    def setUp(self):
-        input_task1 = InputTask()
-        input_task2 = InputTask()
-        divide_task = DivideTask()
-
-        self.workflow = EOWorkflow(dependencies=[
-            Dependency(task=input_task1, inputs=[]),
-            Dependency(task=input_task2, inputs=[]),
-            Dependency(task=divide_task, inputs=[input_task1, input_task2])
-        ])
-
-    def test_graph_nodes_and_edges(self):
-        dot = self.workflow.get_dot()
-        dot_file = StringIO()
-        dot_file.write(dot.source)
-        dot_file.seek(0)
-
-        digraph = self.workflow.dependency_graph()
-
-
-class TestWorkflowResults(unittest.TestCase):
-    pass
+        for params in [(None,),
+                       (InputTask(), 'a string'),
+                       (InputTask(), ('something', InputTask())),
+                       ((InputTask(), 'name', 'something else'),),
+                       (('task', 'name'),)]:
+            with self.assertRaises(ValueError):
+                LinearWorkflow(*params)
 
 
 class TestUniqueIdGenerator(unittest.TestCase):
@@ -217,10 +212,10 @@ class TestUniqueIdGenerator(unittest.TestCase):
 
         id_gen = _UniqueIdGenerator()
         for _ in range(_UniqueIdGenerator.MAX_UUIDS):
-            id_gen.next()
+            id_gen.get_next()
 
         with self.assertRaises(MemoryError):
-            id_gen.next()
+            id_gen.get_next()
 
 
 if __name__ == '__main__':

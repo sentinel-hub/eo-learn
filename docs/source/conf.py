@@ -15,6 +15,9 @@
 import os
 import shutil
 
+import sphinx.ext.autodoc
+
+
 # -- Project information -----------------------------------------------------
 
 # General information about the project.
@@ -28,11 +31,10 @@ doc_title = 'eo-learn Documentation'
 # built documents.
 #
 # The release is read from __init__ file and version is shortened release string.
-for line in open(os.path.join(os.path.dirname(__file__), '../../core/eolearn/core/__init__.py')):
-    if line.find("__version__") >= 0:
-        release = line.split("=")[1].strip()
-        release = release.strip('"').strip("'")
-version = release.rsplit('.', 1)[0]
+for line in open(os.path.join(os.path.dirname(__file__), '../../setup.py')):
+    if 'version=' in line:
+        release = line.split("=")[1].strip('", \n').strip("'")
+        version = release.rsplit('.', 1)[0]
 
 # -- General configuration ---------------------------------------------------
 
@@ -51,7 +53,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'nbsphinx',
     'IPython.sphinxext.ipython_console_highlighting',
-    'm2r'
+    'm2r2'
 ]
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
@@ -181,6 +183,10 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+# -- Options for Credits ----------------------------------------------
+
+def setup(app):
+    app.connect('autodoc-process-docstring', sphinx.ext.autodoc.between('Credits:', what=['module'], exclude=True))
 
 # -- Options for Epub output ----------------------------------------------
 
@@ -203,22 +209,42 @@ epub_copyright = copyright
 epub_exclude_files = ['search.html']
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/3.6/': None}
+intersphinx_mapping = {'https://docs.python.org/3.8/': None}
 
 
 EXAMPLES_FOLDER = './examples'
 MARKDOWNS_FOLDER = './markdowns'
 
+
+def copy_documentation_examples(source_folder, target_folder):
+    """ Makes sure to copy only notebooks that are actually included in the documentation
+    """
+    notebooks_to_include = []
+
+    for rst_file in ['examples.rst', 'index.rst']:
+        with open(rst_file, 'r') as fp:
+            content = fp.read()
+
+        for line in content.split('\n'):
+            line = line.strip(' \t')
+            if line.startswith('examples/'):
+                notebooks_to_include.append(line.split('/', 1)[1])
+
+    for notebook in notebooks_to_include:
+        source_path = os.path.join(source_folder, notebook)
+        target_path = os.path.join(target_folder, notebook)
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        shutil.copyfile(source_path, target_path)
+
+
 # copy examples
 shutil.rmtree(EXAMPLES_FOLDER, ignore_errors=True)
-shutil.rmtree(MARKDOWNS_FOLDER, ignore_errors=True)
+copy_documentation_examples('../../examples', EXAMPLES_FOLDER)
 
-try:
-    shutil.copytree('../../examples', EXAMPLES_FOLDER)
-    os.mkdir(MARKDOWNS_FOLDER)
-    shutil.copyfile('../../CONTRIBUTING.md', os.path.join(MARKDOWNS_FOLDER, 'CONTRIBUTING.md'))
-except FileExistsError:
-    pass
+
+shutil.rmtree(MARKDOWNS_FOLDER, ignore_errors=True)
+os.mkdir(MARKDOWNS_FOLDER)
+shutil.copyfile('../../CONTRIBUTING.md', os.path.join(MARKDOWNS_FOLDER, 'CONTRIBUTING.md'))
 
 
 def process_readme():

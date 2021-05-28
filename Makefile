@@ -24,70 +24,70 @@ pylint:
 build-core:
 	cd core
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-coregistration:
 	cd coregistration
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-features:
 	cd features
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-geometry:
 	cd geometry
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-io:
 	cd io
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-mask:
 	cd mask
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-ml-tools:
 	cd ml_tools
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-visualization:
 	cd visualization
 	cp ../LICENSE LICENSE
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 	rm LICENSE
 
 .ONESHELL:
 build-abstract-package:
-	rm -r dist
-	$(PYTHON) setup.py sdist
+	rm -r dist build | true
+	$(PYTHON) setup.py sdist bdist_wheel
 
 upload-core: build-core
 	twine upload core/dist/*

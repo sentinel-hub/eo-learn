@@ -1,5 +1,10 @@
+version: 2
+
+sphinx:
+  configuration: docs/source/conf.py
+
 python:
   version: 3.7
 
 conda:
-  file: docs/environment.yml
+  environment: docs/environment.yml

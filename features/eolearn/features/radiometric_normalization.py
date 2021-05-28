@@ -1,5 +1,12 @@
 """
 Module for radiometric normalization
+
+Credits:
+Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
+Copyright (c) 2017-2019 Matej Aleksandrov, Matic Lubej, Devis Peresutti (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import numpy as np
@@ -115,7 +122,7 @@ class BaseCompositing(EOTask):
         k_arr = (valid_obs - 1) * (percentile / 100.0)
         k_arr = np.where(k_arr < 0, 0, k_arr)
         f_arr = np.floor(k_arr + 0.5)
-        f_arr = f_arr.astype(np.int)
+        f_arr = f_arr.astype(int)
         # get floor value of reference band and index band
         ind = f_arr.astype("int16")
         y_val, x_val = ind_tmp.shape[1], ind_tmp.shape[2]

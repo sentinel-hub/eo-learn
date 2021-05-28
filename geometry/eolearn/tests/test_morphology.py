@@ -1,3 +1,13 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import unittest
 import os
 
@@ -15,6 +25,11 @@ class TestErosion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    def test_erosion_value_error(self):
+        self.assertRaises(ValueError, ErosionTask, (FeatureType.MASK_TIMELESS, 'LULC', 'TEST'), disk_radius=None)
+        self.assertRaises(ValueError, ErosionTask, (FeatureType.MASK_TIMELESS, 'LULC', 'TEST'), disk_radius=0)
+        self.assertRaises(ValueError, ErosionTask, (FeatureType.MASK_TIMELESS, 'LULC', 'TEST'), disk_radius='a')
 
     def test_erosion_full(self):
         eopatch = EOPatch.load(self.TEST_PATCH_FILENAME, lazy_loading=True)
@@ -58,8 +73,8 @@ class TestErosion(unittest.TestCase):
                 self.assertLessEqual(np.sum(mask_after == label), np.sum(mask_before == label),
                                      msg="error in the erosion process")
             else:
-                self.assertEqual(np.sum(mask_after == label), np.sum(mask_before == label),
-                                 msg="error in the erosion process")
+                self.assertTrue(np.array_equal(mask_after == label, mask_before == label),
+                                msg="error in the erosion process")
 
 
 if __name__ == '__main__':

@@ -1,8 +1,9 @@
 pytest>=4.0.0
 pytest-cov
+codecov
 pylint
-radon
 hypothesis
 twine
 scikit-image>=0.14.1
 nbval
+moto

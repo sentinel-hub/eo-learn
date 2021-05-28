@@ -1,3 +1,13 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import unittest
 import logging
 import numpy as np
@@ -18,7 +28,7 @@ class BadClassifier:
         return np.max(data), np.min(data)
 
     def predict_proba(self, data):
-        return np.asarray([self._predict_proba(example) for example in data], dtype=np.float)
+        return np.asarray([self._predict_proba(example) for example in data], dtype=float)
 
 
 class DummyPixelClassifier:
@@ -31,10 +41,10 @@ class DummyPixelClassifier:
         return np.max(data), np.min(data)
 
     def predict(self, data):
-        return np.asarray([self._predict(example) for example in data], dtype=np.int)
+        return np.asarray([self._predict(example) for example in data], dtype=int)
 
     def predict_proba(self, data):
-        return np.asarray([self._predict_proba(example) for example in data], dtype=np.float)
+        return np.asarray([self._predict_proba(example) for example in data], dtype=float)
 
 
 class DummyPatchClassifier:
@@ -51,13 +61,13 @@ class DummyPatchClassifier:
 
     def predict(self, data):
         if data.shape[1:3] == self.receptive_field:
-            return np.asarray([self._predict(example) for example in data], dtype=np.int)
+            return np.asarray([self._predict(example) for example in data], dtype=int)
         else:
             raise ValueError('Dummy Classifier: input of incorrect shape')
 
     def predict_proba(self, data):
         if data.shape[1:3] == self.receptive_field:
-            return np.asarray([self._predict_proba(example) for example in data], dtype=np.float)
+            return np.asarray([self._predict_proba(example) for example in data], dtype=float)
         else:
             raise ValueError('Dummy Classifier: input of incorrect shape')
 

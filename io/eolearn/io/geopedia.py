@@ -1,5 +1,13 @@
 """
 Module for adding data obtained from sentinelhub package to existing EOPatches
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
@@ -7,8 +15,7 @@ import logging
 import numpy as np
 import rasterio.transform
 import rasterio.warp
-
-from sentinelhub import MimeType, CustomUrlParam, CRS, GeopediaWmsRequest, transform_bbox
+from sentinelhub import MimeType, CRS, GeopediaWmsRequest
 
 from eolearn.core import EOTask, FeatureType
 
@@ -47,15 +54,14 @@ class AddGeopediaFeature(EOTask):
         """
         Returns WMS request.
         """
-        bbox_3857 = transform_bbox(bbox, CRS.POP_WEB)
+        bbox_3857 = bbox.transform(CRS.POP_WEB)
 
         return GeopediaWmsRequest(layer=self.layer,
                                   theme=self.theme,
                                   bbox=bbox_3857,
                                   width=size_x,
                                   height=size_y,
-                                  image_format=self.image_format,
-                                  custom_url_params={CustomUrlParam.TRANSPARENT: True})
+                                  image_format=self.image_format)
 
     def _get_wcs_request(self, bbox, size_x, size_y):
         """
@@ -71,16 +77,16 @@ class AddGeopediaFeature(EOTask):
 
         dst_raster = np.ones((height, width), dtype=self.raster_dtype)
 
-        src_bbox = transform_bbox(eopatch.bbox, CRS.POP_WEB)
+        src_bbox = eopatch.bbox.transform(CRS.POP_WEB)
         src_transform = rasterio.transform.from_bounds(*src_bbox, width=width, height=height)
 
         dst_bbox = eopatch.bbox
         dst_transform = rasterio.transform.from_bounds(*dst_bbox, width=width, height=height)
 
         rasterio.warp.reproject(src_raster, dst_raster,
-                                src_transform=src_transform, src_crs={'init': CRS.ogc_string(CRS.POP_WEB)},
+                                src_transform=src_transform, src_crs=CRS.POP_WEB.ogc_string(),
                                 src_nodata=0,
-                                dst_transform=dst_transform, dst_crs={'init': CRS.ogc_string(eopatch.bbox.crs)},
+                                dst_transform=dst_transform, dst_crs=eopatch.bbox.crs.ogc_string(),
                                 dst_nodata=self.no_data_val)
 
         return dst_raster

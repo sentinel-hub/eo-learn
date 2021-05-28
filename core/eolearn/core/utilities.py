@@ -1,16 +1,44 @@
 """
 The utilities module is a collection of classes and functions used across the eolearn package, such as checking whether
 two objects are deeply equal, padding of an image, etc.
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import logging
 from collections import OrderedDict
+from logging import Filter
 
 import numpy as np
+import geopandas as gpd
+from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
 
 LOGGER = logging.getLogger(__name__)
+
+
+class LogFileFilter(Filter):
+    """ Filters log messages passed to log file
+    """
+    def __init__(self, thread_name, *args, **kwargs):
+        """
+        :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
+        :type thread_name: str or None
+        """
+        self.thread_name = thread_name
+        super().__init__(*args, **kwargs)
+
+    def filter(self, record):
+        """ Shows everything from the thread that it was initialized in.
+        """
+        return record.threadName == self.thread_name
 
 
 class FeatureParser:
@@ -20,43 +48,60 @@ class FeatureParser:
     can be obtained by iterating over an instance of the class. An `EOPatch` is given as a parameter of the generator.
 
     General guidelines:
-        - Almost all `EOTask`s have take as a parameter some information about features. The purpose of this class is
-        to unite and generalize parsing of such parameter over entire eo-learn package
-        - The idea for this class is that it should support more or less any logical way how to describe a collection
-        of features.
-        - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
-        way how to specify certain parts of feature collection.
-        - Supports formats defined with lists, tuples, sets and dictionaries.
+
+    - Almost every `EOTask` requires an initialization parameter to define which features should be used by the task.
+      The purpose of this class is to unite and generalize parsing of such parameters over the entire eo-learn package.
+    - The idea for this class is that it should support more or less any logical way how to describe a collection
+      of features.
+    - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
+      way how to specify certain parts of feature collection.
+    - Supports formats defined with lists, tuples, sets and dictionaries.
 
     Supported input formats:
-        - `...` - Anything that exists in a given `EOPatch`
-        - A feature type describing all features of that type. E.g. `FeatureType.DATA` or `FeatureType.BBOX`
-        - A single feature as a tuple. E.g. (FeatureType.DATA, 'BANDS')
-        - A single feature as a tuple with new name. E.g. (FeatureType.DATA, 'BANDS', 'NEW_BANDS')
-        - A list of features (new names or not).
-        E.g. [(FeatureType.DATA, 'BANDS'), (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK')]
-        - A dictionary with feature types as keys and lists, sets, single feature or `...` of feature names as values.
-        E.g. {
-            FeatureType.DATA: ['S2-BANDS', 'L8-BANDS'],
-            FeatureType.MASK: {'IS_VALID', 'IS_DATA'},
-            FeatureType.MASK_TIMELESS: 'LULC',
-            FeatureType.TIMESTAMP: ...
-        }
-        - A dictionary with feature types as keys and dictionaries, where feature names are mapped into new names, as
-          values.
-        E.g. {
-            FeatureType.DATA: {
-                'S2-BANDS': 'INTERPOLATED_S2_BANDS',
-                'L8-BANDS': 'INTERPOLATED_L8_BANDS',
-                'NDVI': ...
-            },
-        }
+
+    - Anything that exists in a given `EOPatch` is defined with `...`
+    - A feature type describing all features of that type. Example: `FeatureType.DATA` or `FeatureType.BBOX`
+    - A single feature as a tuple. Example: `(FeatureType.DATA, 'BANDS')`
+    - A single feature as a tuple. Example: `(FeatureType.DATA, 'BANDS')`
+    - A single feature as a tuple with new name. Example `(FeatureType.DATA, 'BANDS', 'NEW_BANDS')`
+    - A list of features (new names or not). Example:
+
+        .. code-block:: python
+
+            [
+                (FeatureType.DATA, 'BANDS'),
+                (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK')
+            ]
+    - A dictionary with feature types as keys and lists, sets, single feature or `...` of feature names as values.
+      Example:
+
+        .. code-block:: python
+
+            {
+                FeatureType.DATA: ['S2-BANDS', 'L8-BANDS'],
+                FeatureType.MASK: {'IS_VALID', 'IS_DATA'},
+                FeatureType.MASK_TIMELESS: 'LULC',
+                FeatureType.TIMESTAMP: ...
+            }
+    - A dictionary with feature types as keys and dictionaries, where feature names are mapped into new names, as
+      values. Example:
+
+        .. code-block:: python
+
+            {
+                FeatureType.DATA: {
+                    'S2-BANDS': 'INTERPOLATED_S2_BANDS',
+                    'L8-BANDS': 'INTERPOLATED_L8_BANDS',
+                    'NDVI': ...
+                }
+            }
 
     Note: Therese are most general input formats, but even more are supported or might be supported in the future.
 
     Outputs of the generator:
-        - tuples in form of (feature type, feature name) if parameter `new_names=False`
-        - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
+
+    - tuples in form of (feature type, feature name) if parameter `new_names=False`
+    - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
     """
     def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None,
                  allowed_feature_types=None):
@@ -73,9 +118,10 @@ class FeatureParser:
         :type rename_function: function or None
         :param default_feature_type: If feature type of any given feature is not set, this will be used. By default this
             is set to `None`. In this case if feature type of any feature is not given the following will happen:
-                - if iterated over `EOPatch` - It will try to find a feature with matching name in EOPatch. If such
-                    features exist, it will return any of them. Otherwise it will raise an error.
-                - if iterated without `EOPatch` - It will return `...` instead of a feature type.
+
+            - if iterated over `EOPatch` - It will try to find a feature with matching name in EOPatch. If such
+              features exist, it will return any of them. Otherwise it will raise an error.
+            - if iterated without `EOPatch` - It will return `...` instead of a feature type.
         :type default_feature_type: FeatureType or None
         :param allowed_feature_types: Makes sure that only features of these feature types will be returned, otherwise
             an error is raised
@@ -353,19 +399,6 @@ def deep_eq(fst_obj, snd_obj):
     :return: `True` if objects are deeply equal, `False` otherwise
     """
     # pylint: disable=too-many-return-statements
-    if isinstance(fst_obj, (np.ndarray, np.memmap)):
-        if not isinstance(snd_obj, (np.ndarray, np.memmap)):
-            return False
-
-        if fst_obj.dtype != snd_obj.dtype:
-            return False
-
-        fst_nan_mask = np.isnan(fst_obj)
-        snd_nan_mask = np.isnan(snd_obj)
-
-        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
-            np.array_equal(fst_nan_mask, snd_nan_mask)
-
     if not isinstance(fst_obj, type(snd_obj)):
         return False
 
@@ -376,6 +409,13 @@ def deep_eq(fst_obj, snd_obj):
         snd_nan_mask = np.isnan(snd_obj)
         return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
             np.array_equal(fst_nan_mask, snd_nan_mask)
+
+    if isinstance(fst_obj, gpd.GeoDataFrame):
+        try:
+            assert_geodataframe_equal(fst_obj, snd_obj)
+            return True
+        except AssertionError:
+            return False
 
     if isinstance(fst_obj, (list, tuple)):
         if len(fst_obj) != len(snd_obj):

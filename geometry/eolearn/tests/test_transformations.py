@@ -1,3 +1,13 @@
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+
 import unittest
 import os
 
@@ -5,6 +15,7 @@ import numpy as np
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.geometry import VectorToRaster, RasterToVector
+from shapely.geometry import Polygon
 
 
 class TestVectorToRaster(unittest.TestCase):
@@ -40,7 +51,9 @@ class TestVectorToRaster(unittest.TestCase):
         cls.raster_feature = FeatureType.MASK_TIMELESS, 'RASTERIZED_LULC'
 
         custom_dataframe = EOPatch.load(cls.TestCase.TEST_PATCH_FILENAME).vector_timeless['LULC']
-        custom_dataframe = custom_dataframe[custom_dataframe['AREA'] < 10 ** 3]
+        custom_dataframe = custom_dataframe[(custom_dataframe['AREA'] < 10 ** 3)]
+
+        reprojected_dataframe = custom_dataframe.to_crs(epsg=3857)
 
         cls.test_cases = [
             cls.TestCase('basic test',
@@ -61,10 +74,41 @@ class TestVectorToRaster(unittest.TestCase):
                          img_min=1, img_max=13, img_mean=12.7093, img_median=13, img_dtype=np.uint16,
                          img_shape=(17, 17, 1)),
             cls.TestCase('deprecated parameters, single value, custom resolution',
-                         VectorToRaster(cls.raster_feature, custom_dataframe, values=14,
+                         VectorToRaster(vector_input=custom_dataframe, raster_feature=cls.raster_feature, values=14,
                                         raster_resolution=(32, 15), no_data_value=-1, raster_dtype=np.int32),
                          img_min=-1, img_max=14, img_mean=-0.8411, img_median=-1, img_dtype=np.int32,
-                         img_shape=(67, 31, 1))
+                         img_shape=(67, 31, 1)),
+            cls.TestCase('empty vector data test',
+                         VectorToRaster(vector_input=custom_dataframe[
+                                            (custom_dataframe.LULC_NAME == 'some_none_existent_name')],
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=0, img_mean=0, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
+            cls.TestCase('negative polygon buffering',
+                         VectorToRaster(vector_input=custom_dataframe,
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        buffer=-2,
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=8, img_mean=0.0229, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
+            cls.TestCase('positive polygon buffering',
+                         VectorToRaster(vector_input=custom_dataframe,
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        buffer=2,
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=8, img_mean=0.0664, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
+            cls.TestCase('different crs',
+                         VectorToRaster(vector_input=reprojected_dataframe,
+                                        raster_feature=cls.raster_feature,
+                                        values_column='LULC_ID',
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0),
+                         img_min=0, img_max=8, img_mean=0.042079, img_median=0, img_dtype=np.uint8,
+                         img_shape=(101, 100, 1)),
         ]
 
         for test_case in cls.test_cases:
@@ -102,6 +146,76 @@ class TestVectorToRaster(unittest.TestCase):
             with self.subTest(msg='Test case {}'.format(test_case.name)):
                 self.assertEqual(test_case.img_shape, data.shape,
                                  msg="Expected shape {}, got {}".format(test_case.img_shape, data.shape))
+
+    def test_polygon_overlap(self):
+        patch_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data', 'TestEOPatch')
+        patch = EOPatch.load(patch_path)
+
+        # create two test bboxes to overlap existing classes
+        bounds = patch.vector_timeless['LULC'].total_bounds
+        test_bounds1 = bounds[0] + 500, bounds[1] + 1000, bounds[2] - 1450, bounds[3] - 1650
+        test_bounds2 = bounds[0] + 300, bounds[1] + 1400, bounds[2] - 1750, bounds[3] - 1300
+
+        dframe = patch.vector_timeless['LULC'][0:50]
+
+        # override 0th row with a test polygon of class 10
+        test_row = dframe.index[0]
+        dframe.at[test_row, 'LULC_ID'] = 10
+        dframe.at[test_row, 'geometry'] = Polygon.from_bounds(*test_bounds1)
+
+        # override the last row with a test polygon of class 5
+        test_row = dframe.index[-1]
+        dframe.at[test_row, 'LULC_ID'] = 5
+        dframe.at[test_row, 'geometry'] = Polygon.from_bounds(*test_bounds2)
+
+        patch.vector_timeless['TEST'] = dframe
+
+        shape_feature = FeatureType.DATA, 'BANDS-S2-L1C'
+
+        # no overlap
+        patch = VectorToRaster(dframe[1:-1], (FeatureType.MASK_TIMELESS, 'OVERLAP_0'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=5)(patch)
+
+        # overlap without taking intersection into account
+        patch = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_1'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=None)(patch)
+
+        # overlap without setting intersections to 0
+        patch = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_2'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=0)(patch)
+
+        # overlap without setting intersections to class 7
+        patch = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_3'),
+                               values_column='LULC_ID', raster_shape=shape_feature, overlap_value=7)(patch)
+
+        # separately render bboxes for comparisons in asserts
+        patch = VectorToRaster(dframe[:1], (FeatureType.MASK_TIMELESS, 'TEST_BBOX1'),
+                               values_column='LULC_ID', raster_shape=shape_feature)(patch)
+        patch = VectorToRaster(dframe[-1:], (FeatureType.MASK_TIMELESS, 'TEST_BBOX2'),
+                               values_column='LULC_ID', raster_shape=shape_feature)(patch)
+
+        bbox1 = patch.mask_timeless['TEST_BBOX1']
+        bbox2 = patch.mask_timeless['TEST_BBOX2']
+
+        overlap0 = patch.mask_timeless['OVERLAP_0']
+        overlap1 = patch.mask_timeless['OVERLAP_1']
+        overlap2 = patch.mask_timeless['OVERLAP_2']
+
+        # 4 gets partially covered by 5
+        self.assertTrue(np.count_nonzero(overlap0 == 4) > np.count_nonzero(overlap1 == 4))
+        # 2 doesn't get covered, stays the same
+        self.assertTrue(np.count_nonzero(overlap0 == 2) == np.count_nonzero(overlap1 == 2))
+        # 10 is bbox2 and it gets covered by other classes
+        self.assertTrue(np.count_nonzero(bbox1) > np.count_nonzero(overlap1 == 10))
+        # 5 is bbox1 and it is rendered on top of all others, so it doesn't get covered
+        self.assertTrue(np.count_nonzero(bbox2) == np.count_nonzero(overlap1 == 5))
+
+        # all classes have their parts intersected, so the sum should reduce
+        self.assertTrue(np.count_nonzero(bbox1) > np.count_nonzero(overlap2 == 10))
+        self.assertTrue(np.count_nonzero(bbox2) > np.count_nonzero(overlap2 == 5))
+        self.assertTrue(np.count_nonzero(overlap0 == 4) > np.count_nonzero(overlap2 == 4))
+        # 2 gets covered completely
+        self.assertTrue(np.count_nonzero(overlap2 == 2) == 0)
 
 
 class TestRasterToVector(unittest.TestCase):

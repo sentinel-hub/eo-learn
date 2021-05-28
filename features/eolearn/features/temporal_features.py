@@ -1,5 +1,13 @@
 """
 Module handling processing of temporal features
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import itertools as it
@@ -130,19 +138,14 @@ class AddMaxMinTemporalIndicesTask(EOTask):
         :param eopatch: Input eopatch
         :return: eopatch with added argmax/argmin features
         """
-        if self.mask_data:
-            valid_data_mask = eopatch.mask['VALID_DATA']
-        else:
-            valid_data_mask = eopatch.mask['IS_DATA']
+        valid_data_mask = eopatch.mask['VALID_DATA'] if self.mask_data else eopatch.mask['IS_DATA']
 
-        if self.data_index is None:
-            data = eopatch.data[self.data_feature]
-        else:
-            data = eopatch.data[self.data_feature][..., self.data_index]
+        data = eopatch.data[self.data_feature] if self.data_index is None \
+            else eopatch.data[self.data_feature][..., self.data_index][..., np.newaxis]
 
         madata = np.ma.array(data,
                              dtype=np.float32,
-                             mask=~valid_data_mask.astype(np.bool))
+                             mask=np.logical_or(~valid_data_mask.astype(bool), np.isnan(data)))
 
         argmax_data = np.ma.MaskedArray.argmax(madata, axis=0)
         argmin_data = np.ma.MaskedArray.argmin(madata, axis=0)
@@ -203,7 +206,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
         ndvi = np.ma.array(eopatch.data[self.data_feature],
                            dtype=np.float32,
-                           mask=~valid_data_mask.astype(np.bool))
+                           mask=~valid_data_mask.astype(bool))
 
         all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
 

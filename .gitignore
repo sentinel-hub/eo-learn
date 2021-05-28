@@ -114,3 +114,6 @@ ENV/
 # pytest
 .pytest_cache/
 features/.pytest_cache
+
+# execution reports
+**execution-report**

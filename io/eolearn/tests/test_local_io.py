@@ -1,17 +1,47 @@
-import os
-import unittest
+"""
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2018-2019 William Ouellette
+Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
+"""
+import copy
+import datetime
 import logging
+import os
 import tempfile
+import unittest
+from unittest.mock import patch
 
+import boto3
 import numpy as np
-
-from sentinelhub import read_data
-from sentinelhub.time_utils import datetime_to_iso
+from fs.errors import ResourceNotFound
+from moto import mock_s3
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.io import ExportToTiff, ImportFromTiff
+from sentinelhub import read_data
+from sentinelhub.time_utils import serialize_time
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+@mock_s3
+def _create_s3_bucket(bucket_name):
+    s3resource = boto3.resource('s3', region_name='eu-central-1')
+    bucket = s3resource.Bucket(bucket_name)
+
+    if bucket.creation_date:  # If bucket already exists
+        for key in bucket.objects.all():
+            key.delete()
+        bucket.delete()
+
+    s3resource.create_bucket(Bucket=bucket_name,
+                             CreateBucketConfiguration={'LocationConstraint': 'eu-central-1'})
 
 
 class TestExportAndImportTiff(unittest.TestCase):
@@ -66,7 +96,7 @@ class TestExportAndImportTiff(unittest.TestCase):
                                                 '../../../example_data/TestEOPatch'))
 
         dates = cls.eopatch.timestamp
-        scalar_array = np.arange(10 * 6, dtype=np.float).reshape(10, 6)
+        scalar_array = np.arange(10 * 6, dtype=np.float32).reshape(10, 6)
         mask_array = np.arange(5*3*2*1, dtype=np.uint16).reshape(5, 3, 2, 1)
         data_timeless_array = np.arange(3*2*5, dtype=np.float64).reshape(3, 2, 5)
         data_array = np.arange(10 * 3 * 2 * 6, dtype=np.float32).reshape(10, 3, 2, 6)
@@ -86,14 +116,14 @@ class TestExportAndImportTiff(unittest.TestCase):
             cls.TestCase('mask_tuple_datetime', FeatureType.MASK, mask_array, times=(dates[2], dates[4]),
                          expected_times=(2, 4)),
             cls.TestCase('mask_tuple_string', FeatureType.MASK, mask_array,
-                         times=(datetime_to_iso(dates[2], only_date=False), datetime_to_iso(dates[4], only_date=False)),
+                         times=(serialize_time(dates[2]), serialize_time(dates[4])),
                          expected_times=(2, 4)),
             cls.TestCase('data_timeless_band_list', FeatureType.DATA_TIMELESS, data_timeless_array, bands=[2, 4, 1, 0]),
             cls.TestCase('data_timeless_band_tuple', FeatureType.DATA_TIMELESS, data_timeless_array, bands=(1, 4)),
             cls.TestCase('data_band_list_time_list', FeatureType.DATA, data_array,
                          bands=[2, 4, 1, 0], times=[1, 7, 0, 2, 3]),
             cls.TestCase('data_band_tuple_time_tuple', FeatureType.DATA, data_array, bands=(1, 4), times=(2, 8)),
-            cls.TestCase('', FeatureType.DATA, data_array),
+            cls.TestCase('data_normal', FeatureType.DATA, data_array),
         ]
 
     def test_export_import(self):
@@ -104,11 +134,17 @@ class TestExportAndImportTiff(unittest.TestCase):
 
                 with tempfile.TemporaryDirectory() as tmp_dir_name:
                     tmp_file_name = 'temp_file.tiff'
+                    tmp_file_name_reproject = 'temp_file_4326.tiff'
                     feature = test_case.feature_type, test_case.name
 
                     export_task = ExportToTiff(feature, folder=tmp_dir_name,
                                                band_indices=test_case.bands, date_indices=test_case.times)
                     export_task.execute(self.eopatch, filename=tmp_file_name)
+
+                    export_task = ExportToTiff(feature, folder=tmp_dir_name,
+                                               band_indices=test_case.bands, date_indices=test_case.times,
+                                               crs='EPSG:4326', compress='lzw')
+                    export_task.execute(self.eopatch, filename=tmp_file_name_reproject)
 
                     import_task = ImportFromTiff(feature, folder=tmp_dir_name,
                                                  timestamp_size=test_case.get_expected_timestamp_size())
@@ -137,6 +173,55 @@ class TestExportAndImportTiff(unittest.TestCase):
                 task = ExportToTiff((FeatureType.DATA, 'data'), folder=tmp_dir_name,
                                     band_indices=bands, date_indices=times, image_dtype=data.dtype)
                 task.execute(self.eopatch, filename=tmp_file_name)
+
+    @patch('logging.Logger.warning')
+    def test_export2tiff_wrong_feature(self, mocked_logger):
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file.tiff'
+            feature = FeatureType.MASK_TIMELESS, 'feature-not-present'
+
+            export_task = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=False)
+            export_task.execute(self.eopatch, filename=tmp_file_name)
+            assert mocked_logger.call_count == 1
+            val_err_tup, _ = mocked_logger.call_args
+            val_err, = val_err_tup
+            assert str(val_err) == 'Feature feature-not-present of type FeatureType.MASK_TIMELESS ' \
+                                   'was not found in EOPatch'
+
+            with self.assertRaises(ValueError):
+                export_task_fail = ExportToTiff(feature, folder=tmp_dir_name, fail_on_missing=True)
+                export_task_fail.execute(self.eopatch, filename=tmp_file_name)
+
+    def test_export2tiff_separate_timestamps(self):
+        test_case = self.test_cases[-1]
+        eopatch = copy.deepcopy(self.eopatch)
+        eopatch[test_case.feature_type][test_case.name] = test_case.data
+        eopatch.timestamp = self.eopatch.timestamp[:test_case.data.shape[0]]
+
+        with tempfile.TemporaryDirectory() as tmp_dir_name:
+            tmp_file_name = 'temp_file_*'
+            tmp_file_name_reproject = 'temp_file_4326_%Y%m%d.tif'
+            feature = test_case.feature_type, test_case.name
+
+            export_task = ExportToTiff(feature,
+                                       band_indices=test_case.bands, date_indices=test_case.times)
+            full_path = os.path.join(tmp_dir_name, tmp_file_name)
+            export_task.execute(eopatch, filename=full_path)
+
+            for timestamp in eopatch.timestamp:
+                expected_path = os.path.join(tmp_dir_name, timestamp.strftime('temp_file_%Y%m%dT%H%M%S.tif'))
+                self.assertTrue(os.path.exists(expected_path), f'Path {expected_path} does not exist')
+
+            full_path = os.path.join(tmp_dir_name, tmp_file_name_reproject)
+            export_task = ExportToTiff(feature, folder=full_path,
+                                       band_indices=test_case.bands, date_indices=test_case.times,
+                                       crs='EPSG:4326', compress='lzw')
+            export_task.execute(eopatch)
+
+            for timestamp in eopatch.timestamp:
+                expected_path = os.path.join(tmp_dir_name, timestamp.strftime(tmp_file_name_reproject))
+                self.assertTrue(os.path.exists(expected_path), f'Path {expected_path} does not exist')
 
 
 class TestImportTiff(unittest.TestCase):
@@ -182,6 +267,64 @@ class TestImportTiff(unittest.TestCase):
         unique_values = list(np.unique(self.eopatch[mask_type][mask_name][:6, -3:, :]))
         self.assertEqual(unique_values, [no_data_value],
                          msg='No data values should all be equal to {}'.format(no_data_value))
+
+
+@mock_s3
+class TestS3ExportAndImport(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        bucket_name = 'mocked-test-bucket'
+        _create_s3_bucket(bucket_name)
+
+        cls.eopatch = EOPatch.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                                '../../../example_data/TestEOPatch'))
+        cls.path = f's3://{bucket_name}/some-folder'
+
+    def test_timeless_feature(self):
+        feature = FeatureType.DATA_TIMELESS, 'DEM'
+        filename = 'relative-path/my-filename.tiff'
+
+        export_task = ExportToTiff(feature, folder=self.path)
+        import_task = ImportFromTiff(feature, folder=self.path)
+
+        export_task.execute(self.eopatch, filename=filename)
+        new_eopatch = import_task.execute(self.eopatch, filename=filename)
+
+        self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
+
+    def test_time_dependent_feature(self):
+        feature = FeatureType.DATA, 'NDVI'
+        filename_export = 'relative-path/*.tiff'
+        filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
+                           for timestamp in self.eopatch.timestamp]
+
+        export_task = ExportToTiff(feature, folder=self.path)
+        import_task = ImportFromTiff(feature, folder=self.path, timestamp_size=68)
+
+        export_task.execute(self.eopatch, filename=filename_export)
+        new_eopatch = import_task.execute(filename=filename_import)
+
+        self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
+
+        self.eopatch.timestamp[-1] = datetime.datetime(2020, 10, 10)
+        filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
+                           for timestamp in self.eopatch.timestamp]
+
+        with self.assertRaises(ResourceNotFound):
+            import_task.execute(filename=filename_import)
+
+    def test_time_dependent_feature_with_timestamps(self):
+        feature = FeatureType.DATA, 'NDVI'
+        filename = 'relative-path/%Y%m%dT%H%M%S.tiff'
+
+        export_task = ExportToTiff(feature, folder=self.path)
+        import_task = ImportFromTiff(feature, folder=self.path)
+
+        export_task.execute(self.eopatch, filename=filename)
+        new_eopatch = import_task.execute(self.eopatch, filename=filename)
+
+        self.assertTrue(np.array_equal(new_eopatch[feature], self.eopatch[feature]))
 
 
 if __name__ == '__main__':

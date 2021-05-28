@@ -1,5 +1,13 @@
 """
 Module for transforming reference labels
+
+Credits:
+Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
+Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import numpy as np
@@ -8,28 +16,26 @@ import numpy as np
 
 
 class Mask2Label:
-    """
-    Transforms mask (shape n x m) into a single label. Transformation works in two modes:
-        - majority: assign label to the class with the largest contribution
-        - target: assign label to target if its contribution percentage is above or equal to target threshold.
-        In other cases label is set to 0.
-
-    The parameters target_value and target_threshold are taken into account only in target mode.
-
-    Parameters
-    ----------
-    mode: str ('majority', 'target')
-        conversion mode
-
-    target_value: int (default 1)
-        target value
-
-    target_threshold: float (default 0.5)
-        fraction of pixels in mask that need to belong to the target to be labeled as target
+    """ Transforms mask (shape n x m) into a single label.
     """
 
     def __init__(self, mode, target_value=1, target_threshold=0.5):
+        """
+        Transformation works in two modes:
 
+        - majority: assign label to the class with the largest contribution
+        - target: assign label to target if its contribution percentage is above or equal to target threshold.
+          In other cases label is set to 0.
+
+        The parameters target_value and target_threshold are taken into account only in target mode.
+
+        :param mode: A conversion mode, options are `'majority'` or `'target'`
+        :type mode: str
+        :param target_value: A target value
+        :type target_value: int
+        :param target_threshold: Fraction of pixels in mask that need to belong to the target to be labeled as target
+        :type target_threshold: float
+        """
         self.mode_ = mode
         if self.mode_ not in ['majority', 'target']:
             print('Invalid mode! Set mode to majority or target.')
@@ -52,10 +58,8 @@ class Mask2Label:
 
     def transform(self, X):
         """
-        Parameters
-        ----------
-        X : array-like, shape [n x m]
-            The mask in form of n x m array.
+        :param X: An array in form of (n, m)
+        :type X: np.ndarray
         """
         if self.mode_ == 'target':
             return np.apply_along_axis(self._target, 1, np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2])))
@@ -71,16 +75,14 @@ class Mask2TwoClass:
     """
     The masks can include non-exclusive-multi-class labels described with bit pattern.
     This transformer simplifies the mask in form of bit-pattern to two class labels.
-
-    Parameters
-    ----------
-    positive_class_definition: int or string
-        int or string (bit pattern, i.e. '100001') defining the positive class
-        if argument is an int then the mask is not interpreted as bit pattern
     """
 
     def __init__(self, positive_class_definition):
-
+        """
+        :param positive_class_definition: A bit pattern, (e.g. '100001') defining the positive class
+            if argument is an int then the mask is not interpreted as bit pattern
+        :type positive_class_definition: int or string
+        """
         if isinstance(positive_class_definition, str):
             self.definition_ = int(positive_class_definition, 2)
             self.binary_ = True
@@ -90,10 +92,8 @@ class Mask2TwoClass:
 
     def transform(self, X):
         """
-        Parameters
-        ----------
-        X : array-like, shape [n x m]
-            The mask in form of n x m array.
+        :param X: An array in form of (n, m)
+        :type X: np.ndarray
         """
 
         if self.binary_:
