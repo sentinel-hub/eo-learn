@@ -29,7 +29,7 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
     :param bbox: Bounding box
     :type bbox: BBox
     :param time_interval: Time interval to query available satellite data from
-        type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
+    :type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
     :param data_collection: Source of requested satellite data.
     :type data_collection: DataCollection
     :param maxcc: Maximum cloud coverage, in ratio [0, 1], default is None
@@ -73,7 +73,7 @@ class SentinelHubInputBase(EOTask):
         :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+        :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
         :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
@@ -214,7 +214,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBase):
         :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+        :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
         :type resolution: float or (float, float)
         :param maxcc: Maximum cloud coverage, a float in interval [0, 1]
@@ -373,7 +373,7 @@ class SentinelHubInputTask(SentinelHubInputBase):
         :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
         :type size: tuple(int, int)
-        :type resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
+        :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
         :type resolution: float or (float, float)
         :param bands_feature: Target feature into which to save the downloaded images.
@@ -660,7 +660,7 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
         """
         :param sen2cor_classification: "SCL" (scene classification), "CLD" (cloud probability) or "SNW"
             (snow probability) masks to be retrieved. Also a list of their combination (e.g. ["SCL","CLD"])
-        :param sen2cor_classification: str or [str]
+        :type sen2cor_classification: str or [str]
         :param kwargs: Additional arguments that will be passed to the `SentinelHubInputTask`
         """
         # definition of possible types and target features
