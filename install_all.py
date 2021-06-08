@@ -11,7 +11,7 @@ SUBPACKAGE_LIST = [
     'coregistration',
     'features',
     'geometry',
-    'io',
+    'io[GEODB,METEOBLUE]',
     'mask',
     'ml_tools',
     'visualization[FULL]'

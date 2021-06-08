@@ -35,7 +35,7 @@ RUN pip3 install --no-cache-dir \
     ./coregistration \
     ./features \
     ./geometry \
-    ./io[GEODB] \
+    ./io[GEODB,METEOBLUE] \
     ./mask \
     ./ml_tools \
     ./visualization[FULL]
