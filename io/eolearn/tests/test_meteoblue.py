@@ -9,8 +9,10 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import os
+import sys
 import datetime as dt
 
+import pytest
 import numpy as np
 from sentinelhub import BBox, CRS
 from meteoblue_dataset_sdk.Dataset_pb2 import DatasetApiProtobuf
@@ -18,6 +20,8 @@ from meteoblue_dataset_sdk.Dataset_pb2 import DatasetApiProtobuf
 from eolearn.core import FeatureType, EOPatch
 from eolearn.io import MeteoblueVectorTask, MeteoblueRasterTask
 
+
+skip_python36 = pytest.mark.skipif(sys.version_info < (3, 7), reason='meteoblue_dataset_sdk works only for Python>=3.7')
 
 RASTER_QUERY = {
     'domain': 'NEMS4',
@@ -58,6 +62,7 @@ BBOX = BBox([7.52, 47.50, 7.7, 47.6], crs=CRS.WGS84)
 TIME_INTERVAL = dt.datetime(year=2020, month=8, day=1), dt.datetime(year=2020, month=8, day=3)
 
 
+@skip_python36
 def test_meteoblue_raster_task(mocker):
     """ Unit test for MeteoblueRasterTask
     """
@@ -86,6 +91,7 @@ def test_meteoblue_raster_task(mocker):
     assert round(data[0, 0, 0, 0], 5) == 23.74646
 
 
+@skip_python36
 def test_meteoblue_vector_task(mocker):
     """ Unit test for MeteoblueVectorTask
     """

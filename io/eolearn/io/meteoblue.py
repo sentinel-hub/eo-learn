@@ -1,7 +1,7 @@
 """
 Module with tasks that provide data from Meteoblue services
 
-To use tasks from this module you have to install METEOBLUE package extension:
+To use tasks from this module you have to use Python >= `3.7` and install METEOBLUE package extension:
 
 .. code-block::
 
