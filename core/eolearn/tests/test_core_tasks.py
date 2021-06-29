@@ -280,7 +280,7 @@ def test_zip_features(test_eopatch):
 
     zip_fail = ZipFeatureTask({FeatureType.DATA: ['CLP', 'NDVI']}, (FeatureType.DATA, 'MERGED'))
     with pytest.raises(NotImplementedError):
-        _ = zip_fail(patch)
+        zip_fail(patch)
 
 
 def test_map_features(test_eopatch):
@@ -303,11 +303,11 @@ def test_map_features(test_eopatch):
 
     map_fail = MapFeatureTask({FeatureType.DATA: ['CLP', 'NDVI']}, {FeatureType.DATA: ['CLP2', 'NDVI2', ]})
     with pytest.raises(NotImplementedError):
-        _ = map_fail(patch)
+        map_fail(patch)
 
     f_in, f_out = {FeatureType.DATA: ['CLP', 'NDVI']}, {FeatureType.DATA: ['CLP2']}
     with pytest.raises(ValueError):
-        _ = MapFeatureTask(f_in, f_out)
+        MapFeatureTask(f_in, f_out)
 
 
 def test_extract_bands(test_eopatch):
@@ -320,7 +320,7 @@ def test_extract_bands(test_eopatch):
     bands = [2, 4, 16]
     move_bands = ExtractBandsTask((FeatureType.DATA, 'REFERENCE_SCENES'), (FeatureType.DATA, 'MOVED_BANDS'), bands)
     with pytest.raises(ValueError):
-        _ = move_bands(patch)
+        move_bands(patch)
 
 
 def test_create_eopatch():

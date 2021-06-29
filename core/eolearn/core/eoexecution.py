@@ -13,7 +13,6 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import os
 import logging
 import threading
@@ -22,6 +21,7 @@ import concurrent.futures
 import datetime as dt
 import multiprocessing
 import warnings
+from enum import Enum
 
 from tqdm.auto import tqdm
 
@@ -31,18 +31,24 @@ from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
 
-try:
-    MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
-except BaseException:
-    MULTIPROCESSING_LOCK = None
+MULTIPROCESSING_LOCK = None
+
+
+class _ProcessingType(Enum):
+    """ Type of EOExecutor processing
+    """
+    SINGLE_PROCESS = 'single process'
+    MULTIPROCESSING = 'multiprocessing'
+    MULTITHREADING = 'multithreading'
+    RAY = 'ray'
 
 
 class EOExecutor:
     """ Simultaneously executes a workflow with different input arguments. In the process it monitors execution and
     handles errors. It can also save logs and create a html report about each execution.
     """
-    REPORT_FILENAME = 'report.html'
 
+    REPORT_FILENAME = 'report.html'
     STATS_START_TIME = 'start_time'
     STATS_END_TIME = 'end_time'
     STATS_ERROR = 'error'
@@ -70,9 +76,8 @@ class EOExecutor:
         """
         self.workflow = workflow
         self.execution_args = self._parse_and_validate_execution_args(execution_args)
-        self.execution_args = execution_args
         self.save_logs = save_logs
-        self.logs_folder = logs_folder
+        self.logs_folder = os.path.abspath(logs_folder)
         self.logs_filter = logs_filter
         self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
 
@@ -132,31 +137,18 @@ class EOExecutor:
         if self.save_logs and not os.path.isdir(self.report_folder):
             os.mkdir(self.report_folder)
 
-        execution_num = len(self.execution_args)
         log_paths = self._get_log_paths()
 
         filter_logs_by_thread = not multiprocess and workers > 1
-        processing_args = [(self.workflow, init_args, log_path, return_results, filter_logs_by_thread)
+        processing_args = [(self.workflow, init_args, log_path, return_results, filter_logs_by_thread, self.logs_filter)
                            for init_args, log_path in zip(self.execution_args, log_paths)]
+        processing_type = self._get_processing_type(workers, multiprocess)
 
-        if workers == 1:
-            processing_type = 'single process'
-            self.execution_stats = list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
-        else:
-            if multiprocess:
-                pool_executor_class = concurrent.futures.ProcessPoolExecutor
-                processing_type = 'multiprocessing'
-            else:
-                pool_executor_class = concurrent.futures.ThreadPoolExecutor
-                processing_type = 'multithreading'
-
-            with pool_executor_class(max_workers=workers) as executor:
-                self.execution_stats = list(tqdm(executor.map(self._execute_workflow, processing_args),
-                                                 total=len(processing_args)))
+        self.execution_stats = self._run_execution(processing_args, workers, processing_type)
 
         self.general_stats = self._prepare_general_stats(workers, processing_type)
 
-        self.execution_logs = [None] * execution_num
+        self.execution_logs = [None] * len(self.execution_args)
         if self.save_logs:
             for idx, log_path in enumerate(log_paths):
                 with open(log_path) as fin:
@@ -164,14 +156,46 @@ class EOExecutor:
 
         return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
 
-    def _try_add_logging(self, log_path, filter_logs_by_thread):
+    @staticmethod
+    def _get_processing_type(workers, multiprocess):
+        """ Decides processing type according to parameters
+        """
+        if workers == 1:
+            return _ProcessingType.SINGLE_PROCESS
+        if multiprocess:
+            return _ProcessingType.MULTIPROCESSING
+        return _ProcessingType.MULTITHREADING
+
+    def _run_execution(self, processing_args, workers, processing_type):
+        """ Runs the execution an each item of processing_args list
+        """
+        if processing_type is _ProcessingType.SINGLE_PROCESS:
+            return list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
+
+        if processing_type is _ProcessingType.MULTITHREADING:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+                return list(tqdm(executor.map(self._execute_workflow, processing_args), total=len(processing_args)))
+
+        # pylint: disable=global-statement
+        global MULTIPROCESSING_LOCK
+        try:
+            MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
+            with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+                result = list(tqdm(executor.map(self._execute_workflow, processing_args), total=len(processing_args)))
+        finally:
+            MULTIPROCESSING_LOCK = None
+
+        return result
+
+    @classmethod
+    def _try_add_logging(cls, log_path, filter_logs_by_thread, logs_filter):
         """ Adds a handler to a logger and returns them both. In case this fails it shows a warning.
         """
         if log_path:
             try:
                 logger = logging.getLogger()
                 logger.setLevel(logging.DEBUG)
-                handler = self._get_log_handler(log_path, filter_logs_by_thread)
+                handler = cls._get_log_handler(log_path, filter_logs_by_thread, logs_filter)
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException as exception:
@@ -193,29 +217,31 @@ class EOExecutor:
             except BaseException:
                 pass
 
-    def _execute_workflow(self, process_args):
+    @classmethod
+    def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
-        workflow, input_args, log_path, return_results, filter_logs_by_thread = process_args
-        logger, handler = self._try_add_logging(log_path, filter_logs_by_thread)
-        stats = {self.STATS_START_TIME: dt.datetime.now()}
+        workflow, input_args, log_path, return_results, filter_logs_by_thread, logs_filter = process_args
+        logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread, logs_filter)
+        stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
             results = workflow.execute(input_args)
 
             if return_results:
-                stats[self.RESULTS] = results
+                stats[cls.RESULTS] = results
 
         except KeyboardInterrupt as exception:
             raise KeyboardInterrupt from exception
         except BaseException:
-            stats[self.STATS_ERROR] = traceback.format_exc()
-        stats[self.STATS_END_TIME] = dt.datetime.now()
+            stats[cls.STATS_ERROR] = traceback.format_exc()
+        stats[cls.STATS_END_TIME] = dt.datetime.now()
 
-        self._try_remove_logging(log_path, logger, handler, stats)
+        cls._try_remove_logging(log_path, logger, handler, stats)
 
         return stats
 
-    def _get_log_handler(self, log_path, filter_logs_by_thread):
+    @staticmethod
+    def _get_log_handler(log_path, filter_logs_by_thread, logs_filter):
         """ Provides object which handles logs
         """
         handler = logging.FileHandler(log_path)
@@ -225,8 +251,8 @@ class EOExecutor:
         if filter_logs_by_thread:
             handler.addFilter(LogFileFilter(threading.currentThread().getName()))
 
-        if self.logs_filter:
-            handler.addFilter(self.logs_filter)
+        if logs_filter:
+            handler.addFilter(logs_filter)
 
         return handler
 
@@ -239,7 +265,7 @@ class EOExecutor:
             self.STATS_END_TIME: dt.datetime.now(),
             'finished': len(self.execution_stats) - failed_count,
             'failed': failed_count,
-            'processing_type': processing_type,
+            'processing_type': processing_type.value,
             'workers': workers
         }
 
@@ -309,5 +335,6 @@ def execute_with_mp_lock(execution_function, *args, **kwargs):
     if multiprocessing.current_process().name == 'MainProcess' or MULTIPROCESSING_LOCK is None:
         return execution_function(*args, **kwargs)
 
+    # pylint: disable=not-context-manager
     with MULTIPROCESSING_LOCK:
         return execution_function(*args, **kwargs)

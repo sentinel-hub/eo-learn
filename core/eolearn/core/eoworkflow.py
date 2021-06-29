@@ -152,12 +152,21 @@ class EOWorkflow:
         :return: An immutable mapping containing results of terminal tasks
         :rtype: WorkflowResults
         """
+        start_time = dt.datetime.now()
+
         out_degs = self.dag.get_outdegrees()
 
         self.validate_input_args(input_args)
         uid_input_args = self._make_uid_input_args(input_args)
 
-        results = self._execute_tasks(uid_input_args=uid_input_args, out_degs=out_degs)
+        output_results, stats_dict = self._execute_tasks(uid_input_args=uid_input_args, out_degs=out_degs)
+
+        results = WorkflowResults(
+            outputs=output_results,
+            start_time=start_time,
+            end_time=dt.datetime.now(),
+            stats=stats_dict
+        )
 
         LOGGER.debug('Workflow finished with %s', repr(results))
         return results
@@ -195,12 +204,12 @@ class EOWorkflow:
         """ Executes tasks comprising the workflow in the predetermined order
 
         :param uid_input_args: External input arguments to the workflow.
-        :type uid_input_args: Dict
+        :type uid_input_args: dict
         :param out_degs: Dictionary mapping vertices (task IDs) to their out-degrees. (The out-degree equals the number
         of tasks that depend on this task.)
-        :type out_degs: Dict
-        :return: An object with results of a workflow
-        :rtype: WorkflowResults
+        :type out_degs: dict
+        :return: Results of a workflow
+        :rtype: dict, dict
         """
         intermediate_results = {}
         output_results = {}
@@ -221,7 +230,7 @@ class EOWorkflow:
                                      out_degrees=out_degs,
                                      intermediate_results=intermediate_results)
 
-        return WorkflowResults(outputs=output_results, stats=stats_dict)
+        return output_results, stats_dict
 
     def _execute_task(self, *, dependency, uid_input_args, intermediate_results):
         """ Executes a task of the workflow
@@ -416,5 +425,6 @@ class WorkflowResults:
     """ An object containing results of an EOWorkflow execution
     """
     outputs: Dict[str, object]
+    start_time: dt.datetime
+    end_time: dt.datetime
     stats: Dict[str, TaskStats]
-

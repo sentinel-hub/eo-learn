@@ -71,45 +71,42 @@ def test_vector_feature_types():
         eop.vector['TEST'] = geo_test
 
 
-def test_bbox_feature_type():
+@pytest.mark.parametrize(
+    'invalid_entry', [0, list(range(4)), tuple(range(5)), {}, set(), [1, 2, 4, 3, 4326, 3], 'BBox']
+)
+def test_bbox_feature_type(invalid_entry):
     eop = EOPatch()
-    invalid_entries = [
-        0, list(range(4)), tuple(range(5)), {}, set(), [1, 2, 4, 3, 4326, 3], 'BBox'
-    ]
-
-    for entry in invalid_entries:
-        with pytest.raises((TypeError, ValueError)):
-            # Invalid bbox entry should raise an error
-            eop.bbox = entry
+    with pytest.raises((TypeError, ValueError)):
+        # Invalid bbox entry should raise an error
+        eop.bbox = invalid_entry
 
 
-def test_timestamp_feature_type():
+@pytest.mark.parametrize(
+    'valid_entry', [['2018-01-01', '15.2.1992'], (datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.date(2017, 1, 11))]
+)
+def test_timestamp_valid_feature_type(valid_entry):
     eop = EOPatch()
-    invalid_entries = [
+    eop.timestamp = valid_entry
+
+
+@pytest.mark.parametrize(
+    'invalid_entry',
+    [
         [datetime.datetime(2017, 1, 1, 10, 4, 7), None, datetime.datetime(2017, 1, 11, 10, 3, 51)],
         'something',
         datetime.datetime(2017, 1, 1, 10, 4, 7)
     ]
-
-    valid_entries = [
-        ['2018-01-01', '15.2.1992'],
-        (datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.date(2017, 1, 11))
-    ]
-
-    for entry in invalid_entries:
-        with pytest.raises((ValueError, TypeError)) as e:
-            # Invalid timestamp entry should raise an error
-            eop.timestamp = entry
-
-    for entry in valid_entries:
-        eop.timestamp = entry
+)
+def test_timestamp_invalid_feature_type(invalid_entry):
+    eop = EOPatch()
+    with pytest.raises((ValueError, TypeError)) as e:
+        eop.timestamp = invalid_entry
 
 
 def test_invalid_characters():
-    eopatch = EOPatch()
-
+    eop = EOPatch()
     with pytest.raises(ValueError):
-        eopatch.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+        eop.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
 
 
 def test_repr_no_crs(test_eopatch):
@@ -246,7 +243,7 @@ def test_concatenate_missmatched_timeless():
     eop2.data_timeless['nask'] = 5 * mask
 
     with pytest.raises(ValueError):
-        _ = EOPatch.concatenate(eop1, eop2)
+        EOPatch.concatenate(eop1, eop2)
 
 
 def test_equals():

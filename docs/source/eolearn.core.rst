@@ -18,3 +18,4 @@ Submodules:
    eolearn.core.eoworkflow
    eolearn.core.fs_utils
    eolearn.core.utilities
+   eolearn.core.extra.ray

@@ -103,19 +103,22 @@ def test_task_copy():
         'Recursive copies of same task should have equal uids.'
 
 
-def test_execution_handling():
+@pytest.mark.parametrize(
+    ('parameter', 'exception_type'), [('test_exception_fail', TypeError), ('value_error', ValueError)]
+)
+def test_execution_handling(parameter, exception_type):
     task = ExceptionTestingTask('test_exception')
     with pytest.raises(TwoParamException):
-        _ = task('test')
+        task('test')
 
     task = ExceptionTestingTask('success')
     assert task('test') == 'success test'
 
-    for parameter, exception_type in [('test_exception_fail', TypeError), ('value_error', ValueError)]:
-        task = ExceptionTestingTask(parameter)
-        with pytest.raises(exception_type):
-            _ = task('test')
-        try:
-            task('test')
-        except exception_type as exception:
-            assert str(exception).startswith('During execution of task ExceptionTestingTask: ')
+    task = ExceptionTestingTask(parameter)
+    with pytest.raises(exception_type):
+        task('test')
+
+    try:
+        task('test')
+    except exception_type as exception:
+        assert str(exception).startswith('During execution of task ExceptionTestingTask: ')

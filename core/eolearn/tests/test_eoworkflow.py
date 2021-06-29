@@ -7,16 +7,15 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import functools
 import concurrent.futures
+import datetime as dt
 
 import pytest
 from hypothesis import given, strategies as st
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, LinearWorkflow
-from eolearn.core.eoworkflow import CyclicDependencyError
-from eolearn.core.eoworkflow_tasks import OutputTask
+from eolearn.core import EOTask, EOWorkflow, Dependency, LinearWorkflow, OutputTask, WorkflowResults
+from eolearn.core.eoworkflow import CyclicDependencyError, TaskStats
 from eolearn.core.graph import DirectedGraph
 
 
@@ -127,7 +126,7 @@ def test_resolve_dependencies(edges):
 
     if DirectedGraph._is_cyclic(dag):
         with pytest.raises(CyclicDependencyError):
-            _ = EOWorkflow._schedule_dependencies(dag)
+            EOWorkflow._schedule_dependencies(dag)
     else:
         vertex_position = {vertex: i for i, vertex in enumerate(EOWorkflow._schedule_dependencies(dag))}
         assert functools.reduce(lambda P, Q: P and Q, [vertex_position[u] < vertex_position[v] for u, v in edges])
@@ -160,3 +159,24 @@ def test_workflows_sharing_tasks():
     task_reuse = EOWorkflow([(in_task, []), (task1, in_task), (task2, task1), (out_task, task2)])
 
     assert original.execute(input_args).outputs['out'] == task_reuse.execute(input_args).outputs['out']
+
+
+def test_workflow_results():
+    input_task = InputTask()
+    output_task = OutputTask(name='out')
+    workflow = LinearWorkflow(input_task, output_task)
+
+    results = workflow.execute({input_task: {'val': 10}})
+
+    assert isinstance(results, WorkflowResults)
+    assert results.outputs == {'out': 10}
+
+    assert isinstance(results.start_time, dt.datetime)
+    assert isinstance(results.end_time, dt.datetime)
+    assert results.start_time < results.end_time < dt.datetime.now()
+
+    assert isinstance(results.stats, dict)
+    assert len(results.stats) == 2
+    for task in [input_task, output_task]:
+        stats_uid = task.private_task_config.uid
+        assert isinstance(results.stats.get(stats_uid), TaskStats)

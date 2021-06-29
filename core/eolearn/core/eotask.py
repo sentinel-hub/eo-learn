@@ -29,10 +29,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class EOTask(ABC):
-
-    """Base class for EOTask."""
+    """ Base class for EOTask
+    """
     def __new__(cls, *args, **kwargs):
-        """Stores initialization parameters and the order to the instance attribute `init_args`."""
+        """ Stores initialization parameters and the order to the instance attribute `init_args`.
+        """
         self = super().__new__(cls)
 
         init_args = {}
@@ -77,6 +78,8 @@ class EOTask(ABC):
         return return_value
 
     def __copy__(self):
+        """ Copies a task and assigns a new task ID to the copy
+        """
         cls = self.__class__
         copied_task = cls.__new__(cls)
         copied_task.__dict__.update(self.__dict__)
@@ -85,6 +88,8 @@ class EOTask(ABC):
         return copied_task
 
     def __deepcopy__(self, memo):
+        """ Deep copies a task with its parameters and assigns a new task ID to the copy
+        """
         cls = self.__class__
         copied_task = cls.__new__(cls)
         memo[id(self)] = copied_task

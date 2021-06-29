@@ -87,7 +87,7 @@ def test_saving_in_empty_folder(eopatch, fs_loader):
 
         subfolder = 'new-subfolder'
         eopatch.save('new-subfolder', filesystem=temp_fs)
-        assert temp_fs.exists('/{}/bbox.pkl'.format(subfolder))
+        assert temp_fs.exists(f'/{subfolder}/bbox.pkl')
 
 
 @mock_s3
