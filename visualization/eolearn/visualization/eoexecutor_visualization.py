@@ -92,7 +92,7 @@ class EOExecutorVisualization:
 
         for task_name, task in self.eoexecutor.workflow.get_tasks().items():
             descriptions.append({
-                'name': "{} ({}_{})".format(task_name, task.__class__.__name__, task.private_task_config.uuid[:6]),
+                'name': "{} ({}_{})".format(task_name, task.__class__.__name__, task.private_task_config.uid),
                 'args': {
                     key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
                     task.private_task_config.init_args.items()

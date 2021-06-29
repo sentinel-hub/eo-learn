@@ -69,7 +69,8 @@ class EOExecutor:
         :type execution_names: list(str) or None
         """
         self.workflow = workflow
-        self.execution_args = self._parse_execution_args(execution_args)
+        self.execution_args = self._parse_and_validate_execution_args(execution_args)
+        self.execution_args = execution_args
         self.save_logs = save_logs
         self.logs_folder = logs_folder
         self.logs_filter = logs_filter
@@ -82,13 +83,16 @@ class EOExecutor:
         self.execution_stats = None
 
     @staticmethod
-    def _parse_execution_args(execution_args):
-        """ Parses execution arguments provided by user and raises an error if something is wrong
+    def _parse_and_validate_execution_args(execution_args):
+        """ Parses and validates execution arguments provided by user and raises an error if something is wrong
         """
         if not isinstance(execution_args, (list, tuple)):
             raise ValueError("Parameter 'execution_args' should be a list")
 
-        return [EOWorkflow.parse_input_args(input_args) for input_args in execution_args]
+        for input_args in execution_args:
+            EOWorkflow.validate_input_args(input_args)
+
+        return [input_args or {} for input_args in execution_args]
 
     @staticmethod
     def _parse_execution_names(execution_names, execution_args):
@@ -196,7 +200,7 @@ class EOExecutor:
         logger, handler = self._try_add_logging(log_path, filter_logs_by_thread)
         stats = {self.STATS_START_TIME: dt.datetime.now()}
         try:
-            results = workflow.execute(input_args, monitor=True)
+            results = workflow.execute(input_args)
 
             if return_results:
                 stats[self.RESULTS] = results
