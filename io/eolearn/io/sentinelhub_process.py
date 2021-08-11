@@ -319,6 +319,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBase):
     def _extract_data(self, eopatch, data_responses, shape):
         """ Extract data from the received images and assign them to eopatch features
         """
+        # pylint: disable=arguments-renamed
         if len(self.features) == 1:
             ftype, fname, _ = self.features[0]
             extension = 'json' if ftype.is_meta() else 'tif'
