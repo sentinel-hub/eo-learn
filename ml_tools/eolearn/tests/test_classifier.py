@@ -8,8 +8,9 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import unittest
 import logging
+
+import pytest
 import numpy as np
 
 from eolearn.ml_tools import ImagePatchClassifier, ImagePixelClassifier, ImagePixel2PatchClassifier
@@ -62,60 +63,56 @@ class DummyPatchClassifier:
     def predict(self, data):
         if data.shape[1:3] == self.receptive_field:
             return np.asarray([self._predict(example) for example in data], dtype=int)
-        else:
-            raise ValueError('Dummy Classifier: input of incorrect shape')
+        raise ValueError('Dummy Classifier: input of incorrect shape')
 
     def predict_proba(self, data):
         if data.shape[1:3] == self.receptive_field:
             return np.asarray([self._predict_proba(example) for example in data], dtype=float)
-        else:
-            raise ValueError('Dummy Classifier: input of incorrect shape')
+        raise ValueError('Dummy Classifier: input of incorrect shape')
 
 
-class TestImageClassifier(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.receptive_field = (2, 2)
-        cls.bad_classifier = BadClassifier()
-        cls.pixel_classifier = DummyPixelClassifier()
-        cls.patch_classifier = DummyPatchClassifier(receptive_field=cls.receptive_field)
-
-    def test_initialisation(self):
-        # Test class raises exceptions if classifier does not implement image_predict and image_predict_proba
-        with self.assertRaises(ValueError):
-            ImagePatchClassifier(self.bad_classifier, self.receptive_field)
-            ImagePixelClassifier(self.bad_classifier)
-            ImagePixel2PatchClassifier(self.bad_classifier, (4, 4))
-
-    def test_pixel_classifier(self):
-        # Test a dummy pixel classifier example
-        image_classifier = ImagePixelClassifier(self.pixel_classifier)
-        data = np.ones((20, 40, 40, 3), dtype=np.uint8)
-        values = np.random.randint(0, 100, (3,), dtype=np.uint8)
-        data *= values[None, None, None, :]
-        data_predicted = image_classifier.image_predict(data)
-        data_prob_predicted = image_classifier.image_predict_proba(data)
-        self.assertTrue(np.array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8)))
-        self.assertTrue(np.array_equal(data_prob_predicted[..., 0],
-                                       np.max(values)*np.ones((20, 40, 40), dtype=np.uint8)))
-        self.assertTrue(np.array_equal(data_prob_predicted[..., 1],
-                                       np.min(values)*np.ones((20, 40, 40), dtype=np.uint8)))
-
-    def test_patch_classifier(self):
-        # Test a dummy patch classifier example
-        image_classifier = ImagePatchClassifier(self.patch_classifier, self.receptive_field)
-        data = np.ones((20, 40, 40, 3), dtype=np.uint8)
-        values = np.random.randint(0, 100, (3,), dtype=np.uint8)
-        data *= values[None, None, None, :]
-        data_predicted = image_classifier.image_predict(data)
-        data_prob_predicted = image_classifier.image_predict_proba(data)
-        self.assertTrue(np.array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8)))
-        self.assertTrue(np.array_equal(data_prob_predicted[..., 0],
-                                       np.max(values)*np.ones((20, 40, 40), dtype=np.uint8)))
-        self.assertTrue(np.array_equal(data_prob_predicted[..., 1],
-                                       np.min(values)*np.ones((20, 40, 40), dtype=np.uint8)))
+RECEPTIVE_FIELD = (2, 2)
+BAD_CLASSIFIER = BadClassifier()
+PIXEL_CLASSIFIER = DummyPixelClassifier()
+PATCH_CLASSIFIER = DummyPatchClassifier(receptive_field=RECEPTIVE_FIELD)
 
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.mark.parametrize('classifier_class, faulty_params', [
+    (ImagePatchClassifier, (BAD_CLASSIFIER, RECEPTIVE_FIELD)),
+    (ImagePixelClassifier, (BAD_CLASSIFIER,)),
+    (ImagePixel2PatchClassifier, (BAD_CLASSIFIER, (4, 4))),
+])
+def test_initialisation(classifier_class, faulty_params):
+    # Test class raises exceptions if classifier does not implement image_predict and image_predict_proba
+    with pytest.raises(ValueError):
+        classifier_class(*faulty_params)
+
+
+def test_pixel_classifier():
+    # Test a dummy pixel classifier example
+    image_classifier = ImagePixelClassifier(PIXEL_CLASSIFIER)
+    data = np.ones((20, 40, 40, 3), dtype=np.uint8)
+    values = np.random.randint(0, 100, (3,), dtype=np.uint8)
+    data *= values[None, None, None, :]
+
+    data_predicted = image_classifier.image_predict(data)
+    data_prob_predicted = image_classifier.image_predict_proba(data)
+
+    assert np.array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
+    assert np.array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
+    assert np.array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))
+
+
+def test_patch_classifier():
+    # Test a dummy patch classifier example
+    image_classifier = ImagePatchClassifier(PATCH_CLASSIFIER, RECEPTIVE_FIELD)
+    data = np.ones((20, 40, 40, 3), dtype=np.uint8)
+    values = np.random.randint(0, 100, (3,), dtype=np.uint8)
+    data *= values[None, None, None, :]
+
+    data_predicted = image_classifier.image_predict(data)
+    data_prob_predicted = image_classifier.image_predict_proba(data)
+
+    assert np.array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
+    assert np.array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
+    assert np.array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))

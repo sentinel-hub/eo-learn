@@ -8,43 +8,37 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import unittest
 import logging
+
+import pytest
 import numpy as np
 
-from eolearn.core.eodata import EOPatch, FeatureType
-
+from eolearn.core import EOPatch, FeatureType
 from eolearn.ml_tools import MorphologicalOperations, MorphologicalStructFactory, MorphologicalFilterTask
-
 
 logging.basicConfig(level=logging.DEBUG)
 
-
-class TestEOPatch(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.patch = EOPatch()
-
-        mask = np.random.randint(20, size=(10, 100, 100, 3))
-        timeless_mask = np.random.randint(20, 50, size=(100, 100, 5))
-
-        cls.mask_name = 'mask'
-        cls.timeless_mask_name = 'timeless_mask'
-        cls.patch.add_feature(FeatureType.MASK, cls.mask_name, value=mask)
-        cls.patch.add_feature(FeatureType.MASK_TIMELESS, cls.timeless_mask_name, value=timeless_mask)
-
-    def test_postprocessing(self):
-        for morph_operation in MorphologicalOperations:
-            with self.subTest(msg='Test case {}'.format(morph_operation.name)):
-                for feature_type, feature_name in [(FeatureType.MASK, self.mask_name),
-                                                   (FeatureType.MASK_TIMELESS, self.timeless_mask_name)]:
-                    for struct_elem in [None, MorphologicalStructFactory.get_disk(5),
-                                        MorphologicalStructFactory.get_rectangle(5, 6)]:
-
-                        task = MorphologicalFilterTask((feature_type, feature_name), morph_operation, struct_elem)
-                        self.patch = task.execute(self.patch)
+MASK_FEATURE = FeatureType.MASK, 'mask'
+MASK_TIMELESS_FEATURE = FeatureType.MASK_TIMELESS, 'timeless_mask'
 
 
-if __name__ == '__main__':
-    unittest.main()
+@pytest.fixture(name='test_eopatch', scope='module')
+def test_eopatch_fixture():
+    patch = EOPatch()
+
+    mask = np.random.randint(20, size=(10, 100, 100, 3))
+    mask_timeless = np.random.randint(20, 50, size=(100, 100, 5))
+
+    patch[MASK_FEATURE] = mask
+    patch[MASK_TIMELESS_FEATURE] = mask_timeless
+    return patch
+
+
+@pytest.mark.parametrize('morph_operation', MorphologicalOperations)
+@pytest.mark.parametrize('feature', [MASK_FEATURE, MASK_TIMELESS_FEATURE])
+@pytest.mark.parametrize('struct_element', [
+    None, MorphologicalStructFactory.get_disk(5), MorphologicalStructFactory.get_rectangle(5, 6)
+])
+def test_postprocessing(test_eopatch, feature, morph_operation, struct_element):
+    task = MorphologicalFilterTask(feature, morph_operation, struct_element)
+    task.execute(test_eopatch)
