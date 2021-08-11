@@ -8,9 +8,8 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import os
 import dataclasses
-import typing
+from typing import Any
 
 import pytest
 import numpy as np
@@ -19,13 +18,11 @@ from eolearn.core import EOTask, EOPatch, FeatureType
 from eolearn.geometry import VectorToRaster, RasterToVector
 from shapely.geometry import Polygon
 
+from conftest import TEST_EOPATCH_PATH
 
 VECTOR_FEATURE = FeatureType.VECTOR_TIMELESS, 'LULC'
 RASTER_FEATURE = FeatureType.MASK_TIMELESS, 'RASTERIZED_LULC'
 
-TEST_EOPATCH_PATH = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), '..', '..', '..', 'example_data', 'TestEOPatch'
-)
 CUSTOM_DATAFRAME = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True)[VECTOR_FEATURE]
 CUSTOM_DATAFRAME = CUSTOM_DATAFRAME[(CUSTOM_DATAFRAME['AREA'] < 10 ** 3)]
 
@@ -185,8 +182,8 @@ def test_polygon_overlap(test_eopatch):
 class RasterToVectorTestCase:
     name: str
     task: EOTask
-    feature: typing.Any
-    vector_feature: typing.Any
+    feature: Any
+    vector_feature: Any
     data_len: int
     test_reverse: bool = False
 

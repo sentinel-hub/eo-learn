@@ -16,7 +16,7 @@ import pytest
 import numpy as np
 from sentinelhub import BBox, CRS
 if sys.version_info >= (3, 7):
-    from meteoblue_dataset_sdk.Dataset_pb2 import DatasetApiProtobuf
+    from meteoblue_dataset_sdk.protobuf.dataset_pb2 import DatasetApiProtobuf
 
 from eolearn.core import FeatureType, EOPatch
 from eolearn.io import MeteoblueVectorTask, MeteoblueRasterTask

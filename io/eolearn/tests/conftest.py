@@ -8,6 +8,16 @@ from botocore.exceptions import ClientError, NoCredentialsError
 import pytest
 
 from sentinelhub import SHConfig
+from eolearn.core import EOPatch
+
+TEST_EOPATCH_PATH = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), '..', '..', '..', 'example_data', 'TestEOPatch'
+)
+
+
+@pytest.fixture(name='test_eopatch')
+def test_eopatch_fixture():
+    return EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True)
 
 
 @pytest.fixture(name='config')
