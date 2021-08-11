@@ -28,7 +28,7 @@ class TestVectorToRaster(unittest.TestCase):
         TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data',
                                            'TestEOPatch')
 
-        def __init__(self, name, task, img_min=0, img_max=0, img_mean=0, img_median=0, img_dtype=None, img_shape=None):
+        def __init__(self, name, task, img_min=0, img_max=0, img_mean=0, img_median=0, img_dtype=None, img_shape=None, timeless=True):
             self.name = name
             self.task = task
             self.img_min = img_min
@@ -37,6 +37,7 @@ class TestVectorToRaster(unittest.TestCase):
             self.img_median = img_median
             self.img_dtype = img_dtype
             self.img_shape = img_shape
+            self.timeless = timeless
 
             self.result = None
 
@@ -49,6 +50,9 @@ class TestVectorToRaster(unittest.TestCase):
     def setUpClass(cls):
         cls.vector_feature = FeatureType.VECTOR_TIMELESS, 'LULC'
         cls.raster_feature = FeatureType.MASK_TIMELESS, 'RASTERIZED_LULC'
+        
+        cls.vector_feature_timed = FeatureType.VECTOR, 'CLM_VECTOR'
+        cls.raster_feature_timed = FeatureType.MASK, 'RASTERIZED_CLM'
 
         custom_dataframe = EOPatch.load(cls.TestCase.TEST_PATCH_FILENAME).vector_timeless['LULC']
         custom_dataframe = custom_dataframe[(custom_dataframe['AREA'] < 10 ** 3)]
@@ -56,6 +60,11 @@ class TestVectorToRaster(unittest.TestCase):
         reprojected_dataframe = custom_dataframe.to_crs(epsg=3857)
 
         cls.test_cases = [
+            cls.TestCase('basic test timed',
+                         VectorToRaster(cls.vector_feature_timed, cls.raster_feature_timed, values_column='VALUE',
+                                        raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=20),
+                         img_min=1, img_max=20, img_mean=12.4854, img_median=20, img_dtype=np.uint8,
+                         img_shape=(68, 101, 100, 1), timeless=False),
             cls.TestCase('basic test',
                          VectorToRaster(cls.vector_feature, cls.raster_feature, values_column='LULC_ID',
                                         raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=20),
@@ -117,7 +126,11 @@ class TestVectorToRaster(unittest.TestCase):
     def test_result(self):
         for test_case in self.test_cases:
             delta = 1e-3
-            data = test_case.result[self.raster_feature[0]][self.raster_feature[1]]
+            if test_case.timeless:
+                raster_feature=self.raster_feature
+            else: 
+                raster_feature=self.raster_feature_timed
+            data = test_case.result[raster_feature[0]][raster_feature[1]]
 
             min_val = np.amin(data)
             with self.subTest(msg='Test case {}'.format(test_case.name)):
