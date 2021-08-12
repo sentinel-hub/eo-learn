@@ -6,9 +6,6 @@ Copyright (c) 2017-2020 Jernej Puc, Nejc Vesel, Jovan Višnjić, Anže Zupanc, L
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import copy
-import os
-
 import pytest
 import numpy as np
 

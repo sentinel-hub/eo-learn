@@ -7,11 +7,9 @@ Copyright (c) 2017-2019 Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import os
-
 import pytest
 import numpy as np
+
 from eolearn.core import FeatureType
 from eolearn.mask import SnowMask, TheiaSnowMask
 
@@ -31,11 +29,17 @@ def test_raises_errors(params, test_eopatch):
 
 
 @pytest.mark.parametrize('task, result', [
-    (SnowMask((FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 7, 11], mask_name='TEST_SNOW_MASK'),
-     (50468, 1405)),
-    (TheiaSnowMask((FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 11], (FeatureType.MASK, 'CLM'),
-                   (FeatureType.DATA_TIMELESS, 'DEM'), b10_index=10, mask_name='TEST_THEIA_SNOW_MASK'),
-     (60682, 10088))
+    (
+        SnowMask((FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 7, 11], mask_name='TEST_SNOW_MASK'),
+        (50468, 1405)
+    ),
+    (
+        TheiaSnowMask(
+            (FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 11], (FeatureType.MASK, 'CLM'),
+            (FeatureType.DATA_TIMELESS, 'DEM'), b10_index=10, mask_name='TEST_THEIA_SNOW_MASK'
+        ),
+        (60682, 10088)
+    ),
 ])
 def test_snow_coverage(task, result, test_eopatch):
     resulting_eopatch = task(test_eopatch)

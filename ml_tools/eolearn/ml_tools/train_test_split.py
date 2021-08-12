@@ -64,7 +64,7 @@ class TrainTestSplitTask(EOTask):
         :type feature: (FeatureType, feature_name, new_name)
         :param bins: Cumulative probabilities of all value classes or a single float, representing a fraction.
         :type bins: a float or list of floats
-        :param split_type: Valye split type, either 'per_pixel', 'per_class' or 'per_value'.
+        :param split_type: Value split type, either 'per_pixel', 'per_class' or 'per_value'.
         :type split_type: str
         :param ignore_values: A list of values to ignore and not assign them to any subsets.
         :type ignore_values: a list of integers

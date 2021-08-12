@@ -153,9 +153,10 @@ def test_export_import(test_case, test_eopatch):
             'Tiff imported into new EOPatch has different dtype as expected'
 
 
-@pytest.mark.parametrize(
-    'bands, times', [([2, 'string', 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, 'string', 2, 3])]
-)
+@pytest.mark.parametrize('bands, times', [
+    ([2, 'string', 1, 0], [1, 7, 0, 2, 3]),
+    ([2, 3, 1, 0], [1, 7, 'string', 2, 3])
+])
 def test_export2tiff_wrong_format(bands, times, test_eopatch):
     test_eopatch.data['data'] = np.arange(10*3*2*6, dtype=float).reshape(10, 3, 2, 6)
 

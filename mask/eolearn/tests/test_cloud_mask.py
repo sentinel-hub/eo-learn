@@ -12,9 +12,8 @@ import pytest
 from pytest import approx
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType
+from eolearn.core import FeatureType
 from eolearn.mask import CloudMaskTask
-from conftest import TEST_EOPATCH_PATH
 
 
 def test_raises_errors(test_eopatch):
