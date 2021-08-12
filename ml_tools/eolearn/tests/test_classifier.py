@@ -12,6 +12,7 @@ import logging
 
 import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from eolearn.ml_tools import ImagePatchClassifier, ImagePixelClassifier, ImagePixel2PatchClassifier
 
@@ -98,9 +99,9 @@ def test_pixel_classifier():
     data_predicted = image_classifier.image_predict(data)
     data_prob_predicted = image_classifier.image_predict_proba(data)
 
-    assert np.array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
-    assert np.array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
-    assert np.array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))
 
 
 def test_patch_classifier():
@@ -113,6 +114,6 @@ def test_patch_classifier():
     data_predicted = image_classifier.image_predict(data)
     data_prob_predicted = image_classifier.image_predict_proba(data)
 
-    assert np.array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
-    assert np.array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
-    assert np.array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))

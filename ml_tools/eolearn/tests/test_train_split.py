@@ -10,6 +10,7 @@ file in the root directory of this source tree.
 
 import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType, EOPatch
 from eolearn.ml_tools import TrainTestSplitTask
@@ -66,7 +67,7 @@ def test_train_split():
     patch = TrainTestSplitTask((*INPUT_MASK_FEATURE, NEW_FEATURE_NAME), bins, split_type='per_class')(patch, seed=1)
     result_seed_equal = patch[NEW_MASK_FEATURE]
     assert set(np.unique(result_seed2)) <= expected_unique
-    assert np.array_equal(result_seed1, result_seed_equal)
+    assert_array_equal(result_seed1, result_seed_equal)
 
     # test ignore_values=[2]
 
@@ -101,8 +102,8 @@ def test_train_split_per_pixel():
     class_percentages = np.round(counts / input_data.size, 1)
     expected_unique = list(range(1, len(bins) + 2))
 
-    assert np.array_equal(unique, expected_unique)
-    assert np.array_equal(class_percentages, [0.2, 0.4, 0.4])
+    assert_array_equal(unique, expected_unique)
+    assert_array_equal(class_percentages, [0.2, 0.4, 0.4])
 
 
 def test_train_split_per_value():
@@ -135,4 +136,4 @@ def test_train_split_per_value():
     for uniq in unique:
         folds1 = otuput1[input1 == uniq]
         folds2 = otuput2[input2 == uniq]
-        assert np.array_equal(np.unique(folds1), np.unique(folds2))
+        assert_array_equal(np.unique(folds1), np.unique(folds2))

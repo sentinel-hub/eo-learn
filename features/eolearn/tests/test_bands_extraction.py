@@ -10,62 +10,65 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import unittest
+import pytest
 import numpy as np
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import EuclideanNormTask, NormalizedDifferenceIndexTask
 
 
-class TestBandsExtraction(unittest.TestCase):
-    def test_euclidean_norm(self):
-        eopatch = EOPatch()
-
-        data = np.zeros(5*10*10*7).reshape(5, 10, 10, 7)
-        bands = [0, 1, 2, 4, 6]
-        data[..., bands] = 1
-
-        eopatch.data['TEST'] = data
-
-        eopatch = EuclideanNormTask((FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NORM'), bands)(eopatch)
-        self.assertTrue((eopatch.data['NORM'] == np.sqrt(len(bands))).all())
-
-    def test_ndi(self):
-        eopatch = EOPatch(data={'TEST': np.zeros((4, 3, 3, 9))})
-
-        f_in, f_out = (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NDI')
-        self.assertRaises(ValueError, NormalizedDifferenceIndexTask, f_in, f_out, bands=[1, 2, 3])
-        self.assertRaises(ValueError, NormalizedDifferenceIndexTask, f_in, f_out, bands='test')
-
-        band_a, band_b = 4.123, 3.321
-        eopatch.data['TEST'][..., 0] = band_a
-        eopatch.data['TEST'][..., 1] = band_b
-        eopatch = NormalizedDifferenceIndexTask(f_in, f_out, bands=[0, 1])(eopatch)
-        self.assertTrue((eopatch.data['NDI'] == ((band_a - band_b) / (band_a + band_b))).all())
-
-        eopatch.data['TEST'][..., 5] = np.nan
-        eopatch.data['TEST'][..., 7] = np.inf
-        eopatch = NormalizedDifferenceIndexTask(
-            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'NAN_INF_INPUT'), bands=[5, 7]
-        ).execute(eopatch)
-        self.assertTrue(np.isnan(eopatch.data['NAN_INF_INPUT']).all())
-
-        eopatch.data['TEST'][..., 1] = 1
-        eopatch.data['TEST'][..., 3] = -1
-        eopatch = NormalizedDifferenceIndexTask(
-            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_ZERO_NAN'), bands=[1, 3]
-        ).execute(eopatch)
-
-        self.assertTrue(np.isnan(eopatch.data['DIV_ZERO_NAN']).all())
-
-        eopatch.data['TEST'][..., 1] = 0
-        eopatch.data['TEST'][..., 3] = 0
-        eopatch = NormalizedDifferenceIndexTask(
-            (FeatureType.DATA, 'TEST'), (FeatureType.DATA, 'DIV_INVALID'), bands=[1, 3], undefined_value=123
-        ).execute(eopatch)
-
-        self.assertTrue((eopatch.data['DIV_INVALID'] == 123).all())
+INPUT_FEATURE = (FeatureType.DATA, 'TEST')
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_euclidean_norm():
+    eopatch = EOPatch()
+
+    data = np.zeros(5 * 10 * 10 * 7).reshape(5, 10, 10, 7)
+    bands = [0, 1, 2, 4, 6]
+    data[..., bands] = 1
+
+    eopatch[INPUT_FEATURE] = data
+
+    eopatch = EuclideanNormTask(INPUT_FEATURE, (FeatureType.DATA, 'NORM'), bands)(eopatch)
+    assert (eopatch.data['NORM'] == np.sqrt(len(bands))).all()
+
+
+@pytest.mark.parametrize('bad_input', ([1, 2, 3], 'test', 0.5))
+def test_bad_input(bad_input):
+    with pytest.raises(ValueError):
+        NormalizedDifferenceIndexTask(INPUT_FEATURE, (FeatureType.DATA, 'NDI'), bands=bad_input)
+
+
+def test_ndi():
+
+    eopatch = EOPatch()
+    eopatch[INPUT_FEATURE] = np.zeros((4, 3, 3, 9))
+
+    band_a, band_b = 4.123, 3.321
+    eopatch[INPUT_FEATURE][..., 0] = band_a
+    eopatch[INPUT_FEATURE][..., 1] = band_b
+    eopatch = NormalizedDifferenceIndexTask(
+        INPUT_FEATURE, (FeatureType.DATA, 'NDI'), bands=[0, 1]
+    ).execute(eopatch)
+    assert (eopatch.data['NDI'] == ((band_a - band_b) / (band_a + band_b))).all()
+
+    eopatch[INPUT_FEATURE][..., 5] = np.nan
+    eopatch[INPUT_FEATURE][..., 7] = np.inf
+    eopatch = NormalizedDifferenceIndexTask(
+        INPUT_FEATURE, (FeatureType.DATA, 'NAN_INF_INPUT'), bands=[5, 7]
+    ).execute(eopatch)
+    assert np.isnan(eopatch.data['NAN_INF_INPUT']).all()
+
+    eopatch[INPUT_FEATURE][..., 1] = 1
+    eopatch[INPUT_FEATURE][..., 3] = -1
+    eopatch = NormalizedDifferenceIndexTask(
+        INPUT_FEATURE, (FeatureType.DATA, 'DIV_ZERO_NAN'), bands=[1, 3]
+    ).execute(eopatch)
+    assert np.isnan(eopatch.data['DIV_ZERO_NAN']).all()
+
+    eopatch[INPUT_FEATURE][..., 1] = 0
+    eopatch[INPUT_FEATURE][..., 3] = 0
+    eopatch = NormalizedDifferenceIndexTask(
+        INPUT_FEATURE, (FeatureType.DATA, 'DIV_INVALID'), bands=[1, 3], undefined_value=123
+    ).execute(eopatch)
+    assert (eopatch.data['DIV_INVALID'] == 123).all()

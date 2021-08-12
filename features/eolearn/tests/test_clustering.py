@@ -1,79 +1,46 @@
-import unittest
-import os.path
 import logging
 
-from eolearn.core import EOPatch, FeatureType
-
-from eolearn.features import ClusteringTask
-
 import numpy as np
+from pytest import approx
+
+from eolearn.core import FeatureType
+from eolearn.features import ClusteringTask
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestEOPatch(unittest.TestCase):
-    TEST_PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'TestInputs', 'TestPatch')
+def test_clustering(test_eopatch):
+    test_features = {FeatureType.DATA_TIMELESS: ['feature1', 'feature2']}
 
-    @classmethod
-    def setUpClass(cls):
-        cls.patch = EOPatch.load(cls.TEST_PATCH_FILENAME)
-        test_features = {FeatureType.DATA_TIMELESS: ['feature1', 'feature2']}
+    ClusteringTask(
+        features=test_features,
+        new_feature_name='clusters_small',
+        n_clusters=100,
+        affinity='cosine',
+        linkage='single',
+        remove_small=3
+    ).execute(test_eopatch)
 
-        ClusteringTask(features=test_features,
-                       new_feature_name='clusters_small',
-                       n_clusters=100,
-                       affinity='cosine',
-                       linkage='single',
-                       remove_small=3).execute(cls.patch)
+    ClusteringTask(
+        features=test_features,
+        new_feature_name='clusters_mask',
+        distance_threshold=0.1,
+        affinity='cosine',
+        linkage='average',
+        mask_name='mask'
+    ).execute(test_eopatch)
 
-        ClusteringTask(features=test_features,
-                       new_feature_name='clusters_mask',
-                       distance_threshold=0.1,
-                       affinity='cosine',
-                       linkage='average',
-                       mask_name='mask').execute(cls.patch)
+    clusters = test_eopatch.data_timeless['clusters_small'].squeeze()
+    delta = 1e-3
 
-    def test_clustering(self):
-        clusters = self.patch.data_timeless['clusters_small'].squeeze()
-        delta = 1e-3
+    assert len(np.unique(clusters)) == 26, "Wrong number of clusters."
+    assert np.median(clusters) == 92
+    assert np.mean(clusters) == approx(68.665, abs=delta)
 
-        test_unique = len(np.unique(clusters))
-        exp_unique = 26
-        self.assertEqual(test_unique, exp_unique,
-                         msg=" Expected number of clusters {}, got {}.".format(exp_unique, test_unique))
+    clusters = test_eopatch.data_timeless['clusters_mask'].squeeze()
+    delta = 1e-4
 
-        test_median = np.median(clusters)
-        exp_median = 92
-        self.assertEqual(test_median, exp_median,
-                         msg="Expected median {}, got {}.".format(exp_median, test_median))
-
-        test_mean = np.mean(clusters)
-        exp_mean = 68.665
-        self.assertAlmostEqual(test_mean, exp_mean, delta=delta,
-                               msg="Expected mean {}, got {}.".format(exp_mean, test_mean))
-
-        clusters = self.patch.data_timeless['clusters_mask'].squeeze()
-        delta = 1e-4
-
-        test_unique = len(np.unique(clusters))
-        exp_unique = 45
-        self.assertEqual(test_unique, exp_unique,
-                         msg="Expected number of clusters {}, got {}.".format(exp_unique, test_unique))
-
-        test_median = np.median(clusters)
-        exp_median = -0.5
-        self.assertEqual(test_median, exp_median,
-                         msg="Expected median {}, got {}.".format(exp_median, test_median))
-
-        test_mean = np.mean(clusters)
-        exp_mean = 3.7075
-        self.assertAlmostEqual(test_mean, exp_mean, delta=delta,
-                               msg="Expected mean {}, got {}.".format(exp_mean, test_mean))
-
-        test_mask = np.all(clusters[0:5, 0:20] == -1)
-        exp_mask = True
-        self.assertTrue(test_mask, msg="Expected area to be {}, got {}.".format(exp_mask, test_mask))
-
-
-if __name__ == '__main__':
-    unittest.main()
+    assert len(np.unique(clusters)) == 45, "Wrong number of clusters."
+    assert np.median(clusters) == -0.5
+    assert np.mean(clusters) == approx(3.7075, abs=delta)
+    assert np.all(clusters[0:5, 0:20] == -1), "Wrong area"

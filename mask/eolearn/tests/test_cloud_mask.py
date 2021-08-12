@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 import pytest
 from pytest import approx
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
 from eolearn.mask import CloudMaskTask
@@ -35,8 +36,8 @@ def test_mono_temporal_cloud_detection(test_eopatch):
     )
     eop_clm = add_tcm(test_eopatch)
 
-    assert np.array_equal(eop_clm.mask['CLM_TEST'], eop_clm.mask['CLM_S2C'])
-    assert np.array_equal(eop_clm.data['CLP_TEST'], eop_clm.data['CLP_S2C'])
+    assert_array_equal(eop_clm.mask['CLM_TEST'], eop_clm.mask['CLM_S2C'])
+    assert_array_equal(eop_clm.data['CLP_TEST'], eop_clm.data['CLP_S2C'])
 
 
 def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
@@ -69,6 +70,6 @@ def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
     assert np.mean(cloudless == eop_clm.label['IS_CLOUDLESS'][:, 0]) > 0.94
 
     # Check multi-temporal results and final mask
-    assert np.array_equal(eop_clm.data['CLP_MULTI_TEST'], eop_clm.data['CLP_MULTI'])
-    assert np.array_equal(eop_clm.mask['CLM_MULTI_TEST'], eop_clm.mask['CLM_MULTI'])
-    assert np.array_equal(eop_clm.mask['CLM_INTERSSIM_TEST'], eop_clm.mask['CLM_INTERSSIM'])
+    assert_array_equal(eop_clm.data['CLP_MULTI_TEST'], eop_clm.data['CLP_MULTI'])
+    assert_array_equal(eop_clm.mask['CLM_MULTI_TEST'], eop_clm.mask['CLM_MULTI'])
+    assert_array_equal(eop_clm.mask['CLM_INTERSSIM_TEST'], eop_clm.mask['CLM_INTERSSIM'])

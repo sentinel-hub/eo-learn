@@ -9,6 +9,7 @@ file in the root directory of this source tree.
 """
 import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
 from eolearn.geometry import ErosionTask
@@ -62,4 +63,4 @@ def test_erosion_partial(test_eopatch):
         elif label in specific_labels:
             assert np.sum(mask_after == label) <= np.sum(mask_before == label), 'Error in the erosion process'
         else:
-            assert np.array_equal(mask_after == label, mask_before == label), 'Error in the erosion process'
+            assert_array_equal(mask_after == label, mask_before == label, err_msg='Error in the erosion process')

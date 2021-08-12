@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from eolearn.core import EOTask, EOPatch, FeatureType
 from eolearn.geometry import VectorToRaster, RasterToVector
@@ -219,5 +220,5 @@ def test_raster_to_vector_result(test_case, test_eopatch):
         )
 
         eop_rerasterized = vector2raster_task(eop_vectorized)
-        assert np.array_equal(eop_rerasterized[new_feature], eop_rerasterized[old_feature]), \
-            'Old and new raster features should be the same'
+        assert_array_equal(eop_rerasterized[new_feature], eop_rerasterized[old_feature],
+                           err_msg='Old and new raster features should be the same')

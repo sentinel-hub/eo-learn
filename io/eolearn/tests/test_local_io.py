@@ -19,6 +19,7 @@ from typing import Optional, Union
 
 import boto3
 import numpy as np
+from numpy.testing import assert_array_equal
 from fs.errors import ResourceNotFound
 from moto import mock_s3
 import pytest
@@ -145,10 +146,10 @@ def test_export_import(test_case, test_eopatch):
         new_eop = import_task(filename=tmp_file_name)
         old_eop = import_task(test_eopatch, filename=tmp_file_name)
 
-        assert np.array_equal(expected_raster, new_eop[test_case.feature_type][test_case.name]), \
-            'Tiff imported into new EOPatch is not the same as expected'
-        assert np.array_equal(expected_raster, old_eop[test_case.feature_type][test_case.name]), \
-            'Tiff imported into old EOPatch is not the same as expected'
+        assert_array_equal(expected_raster, new_eop[test_case.feature_type][test_case.name],
+                           err_msg='Tiff imported into new EOPatch is not the same as expected')
+        assert_array_equal(expected_raster, old_eop[test_case.feature_type][test_case.name],
+                           err_msg='Tiff imported into old EOPatch is not the same as expected')
         assert expected_raster.dtype == new_eop[test_case.feature_type][test_case.name].dtype, \
             'Tiff imported into new EOPatch has different dtype as expected'
 
@@ -228,8 +229,8 @@ def test_import_tiff_subset(test_eopatch):
 
     tiff_img = read_data(path)
 
-    assert np.array_equal(tiff_img[20: 53, 21: 54], test_eopatch[mask_feature][..., 0]), \
-        'Imported tiff data should be the same as original'
+    assert_array_equal(tiff_img[20: 53, 21: 54], test_eopatch[mask_feature][..., 0],
+                       err_msg='Imported tiff data should be the same as original')
 
 
 def test_import_tiff_intersecting(test_eopatch):
@@ -242,8 +243,8 @@ def test_import_tiff_intersecting(test_eopatch):
 
     tiff_img = read_data(path)
 
-    assert np.array_equal(tiff_img[-6:, :3, :], test_eopatch[mask_feature][:6, -3:, :]), \
-        'Imported tiff data should be the same as original'
+    assert_array_equal(tiff_img[-6:, :3, :], test_eopatch[mask_feature][:6, -3:, :],
+                       err_msg='Imported tiff data should be the same as original')
     feature_dtype = test_eopatch[mask_feature].dtype
     assert feature_dtype == np.float64, f'Feature should have dtype numpy.float64 but {feature_dtype} found'
 
@@ -262,7 +263,7 @@ def test_timeless_feature(test_eopatch):
     export_task.execute(test_eopatch, filename=filename)
     new_eopatch = import_task.execute(test_eopatch, filename=filename)
 
-    assert np.array_equal(new_eopatch[feature], test_eopatch[feature])
+    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
 
 def test_time_dependent_feature(test_eopatch):
@@ -277,7 +278,7 @@ def test_time_dependent_feature(test_eopatch):
     export_task(test_eopatch, filename=filename_export)
     new_eopatch = import_task(filename=filename_import)
 
-    assert np.array_equal(new_eopatch[feature], test_eopatch[feature])
+    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
     test_eopatch.timestamp[-1] = datetime.datetime(2020, 10, 10)
     filename_import = [f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff'
@@ -297,4 +298,4 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
     export_task.execute(test_eopatch, filename=filename)
     new_eopatch = import_task(test_eopatch, filename=filename)
 
-    assert np.array_equal(new_eopatch[feature], test_eopatch[feature])
+    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
