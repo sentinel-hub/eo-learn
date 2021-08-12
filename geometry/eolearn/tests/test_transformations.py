@@ -24,6 +24,10 @@ from conftest import TEST_EOPATCH_PATH
 VECTOR_FEATURE = FeatureType.VECTOR_TIMELESS, 'LULC'
 RASTER_FEATURE = FeatureType.MASK_TIMELESS, 'RASTERIZED_LULC'
 
+VECTOR_FEATURE_TIMED = FeatureType.VECTOR, 'CLM_VECTOR'
+RASTER_FEATURE_TIMED = FeatureType.MASK, 'RASTERIZED_CLM'
+
+
 CUSTOM_DATAFRAME = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True)[VECTOR_FEATURE]
 CUSTOM_DATAFRAME = CUSTOM_DATAFRAME[(CUSTOM_DATAFRAME['AREA'] < 10 ** 3)]
 
@@ -48,6 +52,13 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=20
         ),
         img_max=8, img_mean=2.33267, img_median=2, img_shape=(101, 100, 1)),
+    VectorToRasterTestCase(
+        name='basic test timed',
+        task=VectorToRaster(
+            VECTOR_FEATURE_TIMED, RASTER_FEATURE_TIMED, values_column='VALUE',
+            raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=20
+        ),
+        img_min=1, img_max=20, img_mean=12.4854, img_median=20, img_shape=(68, 101, 100, 1)),
     VectorToRasterTestCase(
         name='single value filter, fixed shape',
         task=VectorToRaster(
@@ -104,7 +115,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
 
 @pytest.mark.parametrize('test_case', VECTOR_TO_RASTER_TEST_CASES)
 def test_vector_to_raster_result(test_case, test_eopatch):
-    result = test_case.task(test_eopatch)[RASTER_FEATURE]
+    result = test_case.task(test_eopatch)[test_case.task.raster_feature]
     delta = 1e-3
 
     assert np.amin(result) == pytest.approx(test_case.img_min, abs=delta), 'Minimum values do not match.'
