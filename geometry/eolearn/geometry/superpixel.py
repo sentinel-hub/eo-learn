@@ -93,7 +93,9 @@ class SlicSegmentation(SuperpixelSegmentation):
     def __init__(self, feature, superpixel_feature, **kwargs):
         """ Arguments are passed to `SuperpixelSegmentation` task
         """
-        super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, **kwargs)
+        super().__init__(
+            feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, start_label=0, **kwargs
+        )
 
     def _create_superpixel_mask(self, data):
         """ Method which performs the segmentation
@@ -131,8 +133,8 @@ class MarkSegmentationBoundaries(EOTask):
         feature_type, feature_name = next(self.feature_checker(eopatch))
         segmentation_mask = eopatch[feature_type][feature_name][..., 0]
 
-        bounds_mask = skimage.segmentation.mark_boundaries(np.zeros(segmentation_mask.shape[:2], dtype=np.uint8),
-                                                           segmentation_mask, **self.params)
+        bounds_mask = skimage.segmentation.mark_boundaries(
+            np.zeros(segmentation_mask.shape[:2], dtype=np.uint8), segmentation_mask, **self.params)
 
         bounds_mask = bounds_mask[..., :1].astype(np.uint8)
         eopatch[self.new_feature[0]][self.new_feature[1]] = bounds_mask

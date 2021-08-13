@@ -84,8 +84,8 @@ class AddSpatioTemporalFeaturesTask(EOTask):
         """
         # pylint: disable=invalid-name
         amax_ndvi, amin_ndvi = eopatch.data_timeless[self.argmax_ndvi], eopatch.data_timeless[self.argmin_ndvi]
-        amax_ndvi_slope, amin_ndvi_slope = eopatch.data_timeless[self.argmax_ndvi_slope], \
-                                           eopatch.data_timeless[self.argmin_ndvi_slope]
+        amax_ndvi_slope = eopatch.data_timeless[self.argmax_ndvi_slope]
+        amin_ndvi_slope = eopatch.data_timeless[self.argmin_ndvi_slope]
         amax_red = eopatch.data_timeless[self.argmax_red]
 
         stf_idx = [amax_ndvi, amin_ndvi, amax_ndvi_slope, amin_ndvi_slope, amax_red]
