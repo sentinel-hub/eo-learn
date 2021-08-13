@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 import pytest
 from graphviz import Digraph
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, WorkflowResults, LinearWorkflow
+from eolearn.core import EOTask, EOWorkflow, Dependency
 
 
 class FooTask(EOTask):

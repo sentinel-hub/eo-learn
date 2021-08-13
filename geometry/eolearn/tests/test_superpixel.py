@@ -7,13 +7,10 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import dataclasses
-
 import numpy as np
 import pytest
 
-from eolearn.core import FeatureType, EOTask
+from eolearn.core import FeatureType
 from eolearn.geometry import SuperpixelSegmentation, FelzenszwalbSegmentation, SlicSegmentation
 
 

@@ -38,7 +38,7 @@ def test_content_after_timefilter():
     old_interval = (timestamps[0], timestamps[-1])
     new_interval = (timestamps[new_start], timestamps[new_end])
 
-    new_timestamps = [ts for ts in timestamps[new_start:new_end+1]]
+    new_timestamps = timestamps[new_start:new_end+1]
 
     eop = EOPatch(timestamp=timestamps, data={'data': data}, meta_info={'time_interval': old_interval})
 

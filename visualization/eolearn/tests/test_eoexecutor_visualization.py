@@ -12,8 +12,6 @@ import os
 import logging
 import tempfile
 
-import pytest
-
 from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor
 
 

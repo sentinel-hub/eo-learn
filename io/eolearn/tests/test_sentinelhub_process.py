@@ -29,7 +29,7 @@ def cache_folder_fixture():
     shutil.rmtree(cache_folder)
 
 
-@dataclasses.dataclass()
+@dataclasses.dataclass
 class IoTestCase:
     name: str
     task: EOTask
@@ -53,7 +53,7 @@ def calculate_stats(array):
     return stats
 
 
-class TestProcessingIO():
+class TestProcessingIO:
     """ Test cases for SentinelHubInputTask
     """
     size = (99, 101)
@@ -63,7 +63,7 @@ class TestProcessingIO():
     time_difference = dt.timedelta(minutes=60)
     max_threads = 3
 
-    def test_S2L1C_float32_uint16(self, cache_folder):
+    def test_s2l1c_float32_uint16(self, cache_folder):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, 'BANDS'),
             additional_data=[(FeatureType.MASK, 'dataMask')],
@@ -360,7 +360,7 @@ class TestProcessingIO():
         assert array.shape == (20, height, width, 3)
 
 
-class TestSentinelHubInputTaskDataCollections():
+class TestSentinelHubInputTaskDataCollections:
     """ Integration tests for all supported data collections
     """
 

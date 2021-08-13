@@ -9,9 +9,8 @@ from eolearn.core import EOPatch
 
 
 TEST_EOPATCH_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'TestInputs', 'TestPatch')
-EXAMPLE_EOPATCH_PATH = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), '..', '..', '..', 'example_data', 'TestEOPatch'
-)
+EXAMPLE_DATA_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', '..', 'example_data')
+EXAMPLE_EOPATCH_PATH = os.path.join(EXAMPLE_DATA_PATH, 'TestEOPatch')
 
 
 @pytest.fixture(name='test_eopatch')

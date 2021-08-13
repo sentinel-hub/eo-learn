@@ -46,7 +46,7 @@ def create_s3_bucket_fixture():
         yield
 
 
-@dataclasses.dataclass()
+@dataclasses.dataclass
 class TiffTestCase:
     name: str
     feature_type: FeatureType
@@ -220,8 +220,8 @@ def test_export2tiff_separate_timestamps(test_eopatch):
             assert os.path.exists(expected_path), f'Path {expected_path} does not exist'
 
 
-def test_import_tiff_subset(test_eopatch):
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/import-tiff-test1.tiff')
+def test_import_tiff_subset(test_eopatch, example_data_path):
+    path = os.path.join(example_data_path, 'import-tiff-test1.tiff')
     mask_feature = FeatureType.MASK_TIMELESS, 'TEST_TIF'
 
     task = ImportFromTiff(mask_feature, path)
@@ -233,8 +233,8 @@ def test_import_tiff_subset(test_eopatch):
                        err_msg='Imported tiff data should be the same as original')
 
 
-def test_import_tiff_intersecting(test_eopatch):
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/import-tiff-test2.tiff')
+def test_import_tiff_intersecting(test_eopatch, example_data_path):
+    path = os.path.join(example_data_path, 'import-tiff-test2.tiff')
     mask_feature = FeatureType.MASK_TIMELESS, 'TEST_TIF'
     no_data_value = 1.0
 
