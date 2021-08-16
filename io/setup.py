@@ -41,7 +41,8 @@ setup(
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     extras_require={
-        'GEODB': parse_requirements('requirements-geodb.txt')
+        'GEODB': parse_requirements('requirements-geodb.txt'),
+        'METEOBLUE': parse_requirements('requirements-meteoblue.txt')
     },
     zip_safe=False
 )

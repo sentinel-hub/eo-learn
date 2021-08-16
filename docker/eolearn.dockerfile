@@ -1,6 +1,7 @@
 FROM python:3.8-buster
 
 LABEL maintainer="Sinergise EO research team <eoresearch@sinergise.com>"
+LABEL description="An official eo-learn docker image with a full eo-learn installation and Jupyter notebook."
 
 RUN apt-get update && apt-get install -y \
         gcc \
@@ -35,7 +36,7 @@ RUN pip3 install --no-cache-dir \
     ./coregistration \
     ./features \
     ./geometry \
-    ./io[GEODB] \
+    ./io[GEODB,METEOBLUE] \
     ./mask \
     ./ml_tools \
     ./visualization[FULL]

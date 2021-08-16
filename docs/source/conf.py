@@ -306,9 +306,9 @@ def get_eotasks():
 
 
 with open('eotasks.rst', 'w') as f:
-    f.write('********\n')
-    f.write('EO Tasks\n')
-    f.write('********\n')
+    f.write('*******\n')
+    f.write('EOTasks\n')
+    f.write('*******\n')
     f.write('\n')
 
     eopackage_tasks = {}

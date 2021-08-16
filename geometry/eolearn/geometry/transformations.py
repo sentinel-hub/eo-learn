@@ -10,6 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+import functools
 import logging
 import warnings
 
@@ -30,21 +31,19 @@ LOGGER = logging.getLogger(__name__)
 
 
 class VectorToRaster(EOTask):
-    """ Task that transforms vector data into a raster feature.
+    """ A task for transforming a vector feature into a raster feature
 
     Vector data can be given as an EOPatch feature or as an independent geopandas `GeoDataFrame`.
 
-    In the background it uses `rasterio.features.rasterize`, documented at
-    https://rasterio.readthedocs.io/en/stable/api/rasterio.features.html#rasterio.features.rasterize
-
-    Note: Rasterization of time-dependent vector features is not yet supported.
+    In the background it uses `rasterio.features.rasterize`, documented in `rasterio documentation
+    <https://rasterio.readthedocs.io/en/stable/api/rasterio.features.html#rasterio.features.rasterize>`__.
     """
     def __init__(self, vector_input, raster_feature, *, values=None, values_column=None, raster_shape=None,
                  raster_resolution=None, raster_dtype=np.uint8, no_data_value=0, write_to_existing=False,
                  overlap_value=None, buffer=0, **rasterio_params):
         """
         :param vector_input: Vector data to be used for rasterization. It can be given as a feature in `EOPatch` or
-            as an independent geopandas `GeoDataFrame`.
+            as a geopandas `GeoDataFrame`.
         :type vector_input: (FeatureType, str) or GeoDataFrame
         :param raster_feature: New or existing raster feature into which data will be written. If existing raster
             raster feature is given it will by default take existing values and write over them.
@@ -79,8 +78,10 @@ class VectorToRaster(EOTask):
         :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently
             available parameters are `all_touched` and `merge_alg`
         """
-
         self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
+
+        if self._vector_is_timeless(self.vector_input) and not self.raster_feature[0].is_timeless():
+            raise ValueError('Vector input has no time-dependence but a time-dependent raster feature was selected')
 
         self.values = values
         self.values_column = values_column
@@ -99,6 +100,8 @@ class VectorToRaster(EOTask):
         self.overlap_value = overlap_value
         self.buffer = buffer
 
+        self._rasterize_per_timestamp = self.raster_feature[0].is_time_dependent()
+
     @staticmethod
     def _parse_main_params(vector_input, raster_feature):
         """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
@@ -111,12 +114,17 @@ class VectorToRaster(EOTask):
             return VectorToRaster._parse_main_params(raster_feature, vector_input)
 
         if not VectorToRaster._is_geopandas_object(vector_input):
-            vector_input = VectorToRaster._parse_features(vector_input,
-                                                          allowed_feature_types={FeatureType.VECTOR_TIMELESS})
-        raster_feature = next(iter(
-            VectorToRaster._parse_features(raster_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_3D)
-        ))
+            vector_input = VectorToRaster._parse_features(
+                vector_input,
+                allowed_feature_types={FeatureType.VECTOR_TIMELESS, FeatureType.VECTOR}
+            )
 
+        raster_feature = next(iter(
+            VectorToRaster._parse_features(
+                raster_feature,
+                allowed_feature_types=FeatureTypeSet.RASTER_TYPES_3D.union(FeatureTypeSet.RASTER_TYPES_4D)
+            )
+        ))
         return vector_input, raster_feature
 
     @staticmethod
@@ -125,24 +133,60 @@ class VectorToRaster(EOTask):
         """
         return isinstance(data, (GeoDataFrame, GeoSeries))
 
-    def _get_vector_data(self, eopatch):
-        """ Provides vector data which will be rasterized
+    @staticmethod
+    def _vector_is_timeless(vector_input):
+        """ Used to check if the vector input (either geopandas object EOPatch Feature) is time independent
+        """
+        if VectorToRaster._is_geopandas_object(vector_input):
+            return 'TIMESTAMP' not in vector_input
+
+        vector_type = next(iter(vector_input))[0]
+        return vector_type.is_timeless()
+
+    def _get_vector_data_iterator(self, eopatch, join_per_value):
+        """ Collects and prepares vector shapes for rasterization. It works as an iterator that returns pairs of
+        `(timestamp or None, <iterator over shapes and values>)`
+
+        :param eopatch: An EOPatch from where geometries will be obtained
+        :type eopatch: EOPatch
+        :param join_per_value: If `True` it will join geometries with the same value using a cascaded union
+        :type join_per_value: bool
+        """
+        vector_data = self._get_vector_data_from_eopatch(eopatch)
+        vector_data = self._preprocess_vector_data(vector_data, eopatch.bbox, eopatch.timestamp)
+
+        if self._rasterize_per_timestamp:
+            for timestamp, vector_data_per_timestamp in vector_data.groupby('TIMESTAMP'):
+                yield timestamp.to_pydatetime(), \
+                      self._vector_data_to_shape_iterator(vector_data_per_timestamp, join_per_value)
+        else:
+            yield None, self._vector_data_to_shape_iterator(vector_data, join_per_value)
+
+    def _get_vector_data_from_eopatch(self, eopatch):
+        """ Provides a vector dataframe either from the attribute or from given EOPatch feature
         """
         if self._is_geopandas_object(self.vector_input):
             return self.vector_input
 
-        feature_type, feature_name = next(self.vector_input(eopatch))
-        return eopatch[feature_type][feature_name]
+        feature = next(self.vector_input(eopatch))
+        return eopatch[feature]
 
-    def _get_rasterization_shapes(self, eopatch, group_classes=False):
-        """ Returns a generator of pairs of geometrical shapes and values. In rasterization process each shape will be
-        rasterized to it's corresponding value.
-        If there are no such geometries it will return `None`
-        :param group_classes: If true, function returns a zip that iterates through cascaded unions of polygons of the
-        same class, otherwise zip iterates through all polygons regardless of their class.
-        :type group_classes: boolean
+    def _preprocess_vector_data(self, vector_data, bbox, timestamps):
+        """ Applies preprocessing steps on a dataframe with geometries and potential values and timestamps
         """
-        vector_data = self._get_vector_data(eopatch)
+        columns_to_keep = ['geometry']
+        if self._rasterize_per_timestamp:
+            columns_to_keep.append('TIMESTAMP')
+        if self.values_column is not None:
+            columns_to_keep.append(self.values_column)
+        vector_data = vector_data[columns_to_keep]
+
+        if self._rasterize_per_timestamp:
+            vector_data = vector_data[vector_data.TIMESTAMP.isin(timestamps)]
+
+        if self.values_column is not None and self.values is not None:
+            values = [self.values] if isinstance(self.values, (int, float)) else self.values
+            vector_data = vector_data[vector_data[self.values_column].isin(values)]
 
         gpd_crs = vector_data.crs
         # This special case has to be handled because of WGS84 and lat-lon order:
@@ -150,24 +194,17 @@ class VectorToRaster(EOTask):
             gpd_crs = gpd_crs.to_epsg()
         vector_data_crs = CRS(gpd_crs)
 
-        if eopatch.bbox.crs is not vector_data_crs:
+        if bbox.crs is not vector_data_crs:
             warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
                           'each execution', RuntimeWarning)
-            vector_data = vector_data.to_crs(eopatch.bbox.crs.pyproj_crs())
+            vector_data = vector_data.to_crs(bbox.crs.pyproj_crs())
 
-        bbox_poly = eopatch.bbox.geometry
+        bbox_poly = bbox.geometry
         vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
-
-        if vector_data.empty:
-            return None
 
         if self.buffer:
             vector_data.geometry = vector_data.geometry.buffer(self.buffer)
             vector_data = vector_data[~vector_data.is_empty]
-
-            # vector_data could be empty as a result of (negative) buffer
-            if vector_data.empty:
-                return None
 
         if not vector_data.geometry.is_valid.all():
             warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
@@ -178,14 +215,18 @@ class VectorToRaster(EOTask):
                           RuntimeWarning)
             vector_data.geometry = vector_data.geometry.apply(lambda geo: shapely.wkt.loads(geo.to_wkt()))
 
+        return vector_data
+
+    def _vector_data_to_shape_iterator(self, vector_data, join_per_value):
+        """ Returns an iterator of pairs `(shape, value)` or `None` if given dataframe is empty
+        """
+        if vector_data.empty:
+            return None
+
         if self.values_column is None:
             return zip(vector_data.geometry, [self.values] * len(vector_data.index))
 
-        if self.values is not None:
-            values = [self.values] if isinstance(self.values, (int, float)) else self.values
-            vector_data = vector_data[vector_data[self.values_column].isin(values)]
-
-        if group_classes:
+        if join_per_value:
             classes = np.unique(vector_data[self.values_column])
             grouped = (vector_data.geometry[vector_data[self.values_column] == cl] for cl in classes)
             grouped = (shapely.ops.cascaded_union(group) for group in grouped)
@@ -212,20 +253,33 @@ class VectorToRaster(EOTask):
         raise ValueError('Could not determine shape of the raster image')
 
     def _get_raster(self, eopatch, height, width):
-        """ Provides raster in which data will be written
+        """ Provides raster into which data will be written
         """
         feature_type, feature_name = self.raster_feature
+        raster_shape = (len(eopatch.timestamp), height, width) if self._rasterize_per_timestamp else (height, width)
 
         if self.write_to_existing and feature_name in eopatch[feature_type]:
-            raster = eopatch[self.raster_feature].squeeze(axis=-1)
+            raster = eopatch[self.raster_feature]
 
-            if (height, width) != raster.shape[:2]:
-                warnings.warn('Writing to existing raster with spatial dimensions {}, but dimensions {} were expected'
-                              ''.format(raster.shape[:2], (height, width)), RuntimeWarning)
+            expected_full_shape = raster_shape + (1,)
+            if raster.shape != expected_full_shape:
+                warnings.warn(f'The existing raster feature {self.raster_feature} has a shape {raster.shape} but '
+                              f'the expected shape is {expected_full_shape}. This might cause errors or unexpected '
+                              'results.', RuntimeWarning)
 
-            return raster
+            return raster.squeeze(axis=-1)
 
-        return np.ones((height, width), dtype=self.raster_dtype) * self.no_data_value
+        return np.full(raster_shape, self.no_data_value, dtype=self.raster_dtype)
+
+    def _get_rasterization_function(self, bbox, height, width):
+        """ Provides a function that rasterizes shapes into output raster and already contains all optional parameters
+        """
+        affine_transform = rasterio.transform.from_bounds(*bbox, width=width, height=height)
+        rasterize_params = dict(self.rasterio_params, transform=affine_transform, dtype=self.raster_dtype)
+
+        base_rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
+
+        return functools.partial(base_rasterize_func, **rasterize_params)
 
     def rasterize_overlapped(self, shapes, out, **rasterize_args):
         """ Rasterize overlapped classes.
@@ -262,19 +316,21 @@ class VectorToRaster(EOTask):
 
         height, width = self._get_raster_shape(eopatch)
 
-        group_classes = self.overlap_value is not None
-        rasterization_shapes = self._get_rasterization_shapes(eopatch, group_classes=group_classes)
-
-        if not rasterization_shapes:
-            eopatch[self.raster_feature] = np.full((height, width, 1), self.no_data_value, dtype=self.raster_dtype)
-            return eopatch
-
-        affine_transform = rasterio.transform.from_bounds(*eopatch.bbox, width=width, height=height)
-        rasterize_args = dict(self.rasterio_params, transform=affine_transform, dtype=self.raster_dtype)
-
+        rasterize_func = self._get_rasterization_function(eopatch.bbox, height=height, width=width)
+        vector_data_iterator = self._get_vector_data_iterator(eopatch, join_per_value=self.overlap_value is not None)
         raster = self._get_raster(eopatch, height, width)
-        rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
-        rasterize_func(rasterization_shapes, out=raster, **rasterize_args)
+
+        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamp)}
+
+        for timestamp, shape_iterator in vector_data_iterator:
+            if shape_iterator is None:
+                continue
+
+            if timestamp is None:
+                rasterize_func(shape_iterator, out=raster)
+            else:
+                time_index = timestamp_to_index[timestamp]
+                rasterize_func(shape_iterator, out=raster[time_index, ...])
 
         eopatch[self.raster_feature] = raster[..., np.newaxis]
         return eopatch
@@ -323,7 +379,7 @@ class RasterToVector(EOTask):
 
         for feature_type, _, _ in self.feature_gen:
             if not (feature_type.is_spatial() and feature_type.is_discrete()):
-                raise ValueError('Input features should be a spatial mask, but {} found'.format(feature_type))
+                raise ValueError(f'Input features should be a spatial mask, but {feature_type} found')
 
     def _vectorize_single_raster(self, raster, affine_transform, crs, timestamp=None):
         """ Vectorizes a data slice of a single time component
@@ -355,13 +411,12 @@ class RasterToVector(EOTask):
                 value_list.append(value)
 
         series_dict = {
-            self.values_column: pd.Series(value_list, dtype=self.raster_dtype),
-            'geometry': GeoSeries(geo_list)
+            self.values_column: pd.Series(value_list, dtype=self.raster_dtype)
         }
         if timestamp is not None:
             series_dict['TIMESTAMP'] = pd.to_datetime([timestamp] * len(geo_list))
 
-        vector_data = GeoDataFrame(series_dict, crs=crs.pyproj_crs())
+        vector_data = GeoDataFrame(series_dict, geometry=geo_list, crs=crs.pyproj_crs())
 
         if not vector_data.geometry.is_valid.all():
             vector_data.geometry = vector_data.geometry.buffer(0)
