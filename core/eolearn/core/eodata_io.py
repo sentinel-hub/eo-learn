@@ -29,11 +29,6 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     """
     patch_exists = filesystem.exists(patch_location)
 
-    if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
-        filesystem.removetree(patch_location)
-        if patch_location != '/':  # avoid redundant filesystem.makedirs if the location is '/'
-            patch_exists = False
-
     if not patch_exists:
         filesystem.makedirs(patch_location, recreate=True)
 
@@ -50,11 +45,6 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     else:
         _check_letter_case_collisions(eopatch_features, [])
 
-    ftype_folders = {fs.path.dirname(path) for ftype, _, path in eopatch_features if not ftype.is_meta()}
-    for folder in ftype_folders:
-        if not filesystem.exists(folder):
-            filesystem.makedirs(folder, recreate=True)
-
     features_to_save = []
     for ftype, fname, path in eopatch_features:
         feature_io = FeatureIO(filesystem, path)
@@ -63,14 +53,44 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
         features_to_save.append((feature_io, data, file_format, compress_level))
 
+    # Cannot be done before due to lazy loading (this would delete the files before the data is loaded)
+    if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
+        filesystem.removetree(patch_location)
+        if patch_location != '/':  # avoid redundant filesystem.makedirs if the location is '/'
+            filesystem.makedirs(patch_location, recreate=True)
+
+    ftype_folders = {fs.path.dirname(path) for ftype, _, path in eopatch_features if not ftype.is_meta()}
+    for folder in ftype_folders:
+        if not filesystem.exists(folder):
+            filesystem.makedirs(folder, recreate=True)
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # The following is intentionally wrapped in a list in order to get back potential exceptions
         list(executor.map(lambda params: params[0].save(*params[1:]), features_to_save))
 
-    remove_redundant_files(filesystem, eopatch_features, fs_features, compress_level)
+    if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
+        remove_redundant_files(filesystem, eopatch_features, fs_features, compress_level)
 
 
 def remove_redundant_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
+    """ Removes files that should have been overwriten but were not due to different compression levels
+    """
+    files_to_remove = []
+    saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
+    for ftype, fname, path in filesystem_features:
+        if fname is ... and not ftype.is_meta():
+            continue
+
+        different_compression = path.endswith(FileFormat.GZIP.extension()) != (current_compress_level > 0)
+        if (ftype, fname) in saved_features and different_compression:
+            files_to_remove.append(path)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # The following is intentionally wrapped in a list in order to get back potential exceptions
+        list(executor.map(filesystem.remove, files_to_remove))
+
+
+def remove_old_eopatch_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
     """ Removes files that should have been overwriten but were not due to different compression levels
     """
     files_to_remove = []

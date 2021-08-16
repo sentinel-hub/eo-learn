@@ -265,6 +265,22 @@ class TestEOPatchIO(unittest.TestCase):
                 self.assertTrue(temp_fs.exists(compressed_bbox_path))
                 self.assertTrue(temp_fs.exists(compressed_data_timeless_path))
 
+    def test_lazy_loading_plus_overwrite_patch(self):
+        for folder in ['/', 'foo', 'foo/bar']:
+            for fs_loader in self.filesystem_loaders:
+                with fs_loader() as temp_fs:
+                    self.eopatch.save(folder, filesystem=temp_fs)
+
+                    lazy_eopatch = EOPatch.load(folder, filesystem=temp_fs, lazy_loading=True)
+                    lazy_eopatch.data['whatever'] = np.empty((2, 3, 3, 2))
+                    lazy_eopatch.remove_feature(FeatureType.DATA_TIMELESS, 'mask')
+
+                    lazy_eopatch.save(
+                        folder, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH,
+                    )
+                    self.assertTrue(temp_fs.exists(fs.path.join(folder, 'data', 'whatever.npy')))
+                    self.assertFalse(temp_fs.exists(fs.path.join(folder, 'data_timeless', 'mask.npy')))
+
 
 if __name__ == '__main__':
     unittest.main()
