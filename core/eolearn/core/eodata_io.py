@@ -38,17 +38,17 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
         filesystem.makedirs(patch_location, recreate=True)
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
-
-    if overwrite_permission is OverwritePermission.ADD_ONLY or \
-            (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
-        fs_features = list(walk_filesystem(filesystem, patch_location))
-    else:
-        fs_features = []
-
-    _check_letter_case_collisions(eopatch_features, fs_features)
+    fs_features = list(walk_filesystem(filesystem, patch_location))
 
     if overwrite_permission is OverwritePermission.ADD_ONLY:
+        _check_letter_case_collisions(eopatch_features, fs_features)
         _check_add_only_permission(eopatch_features, fs_features)
+
+    elif sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
+        _check_letter_case_collisions(eopatch_features, fs_features)
+
+    else:
+        _check_letter_case_collisions(eopatch_features, [])
 
     ftype_folders = {fs.path.dirname(path) for ftype, _, path in eopatch_features if not ftype.is_meta()}
     for folder in ftype_folders:
@@ -66,6 +66,26 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # The following is intentionally wrapped in a list in order to get back potential exceptions
         list(executor.map(lambda params: params[0].save(*params[1:]), features_to_save))
+
+    remove_redundant_files(filesystem, eopatch_features, fs_features, compress_level)
+
+
+def remove_redundant_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
+    """ Removes files that should have been overwriten but were not due to different compression levels
+    """
+    files_to_remove = []
+    saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
+    for ftype, fname, path in filesystem_features:
+        if fname is ... and not ftype.is_meta():
+            continue
+
+        different_compression = path.endswith(FileFormat.GZIP.extension()) != (current_compress_level > 0)
+        if (ftype, fname) in saved_features and different_compression:
+            files_to_remove.append(path)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # The following is intentionally wrapped in a list in order to get back potential exceptions
+        list(executor.map(filesystem.remove, files_to_remove))
 
 
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
@@ -105,7 +125,7 @@ def walk_filesystem(filesystem, patch_location, features=...):
             returned_meta_features.add(ftype)
 
         elif ftype not in queried_features and (fname is ... or fname not in existing_features[ftype]):
-            # Need to either collect all features for ftype or there is a not-yet seen feature that could be collected
+            # Either need to collect all features for ftype or there is a not-yet seen feature that could be collected
             queried_features.add(ftype)
             if ... not in existing_features[ftype]:
                 raise IOError(f'There are no features of type {ftype} in saved EOPatch')
@@ -128,8 +148,8 @@ def walk_filesystem(filesystem, patch_location, features=...):
 def walk_main_folder(filesystem, folder_path):
     """ Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem)
 
-    The results depend on the implementation of ``filesystem.listdir``. For each folder that coincides with a feature
-    type it returns (feature type, ..., path). If files in subfolders are also listed by ``listdir`` it returns the
+    The results depend on the implementation of `filesystem.listdir`. For each folder that coincides with a feature
+    type it returns (feature type, ..., path). If files in subfolders are also listed by `listdir` it returns the
     them as well, which allows `walk_filesystem` to skip such subfolders from further searches.
     """
     for path in filesystem.listdir(folder_path):
@@ -145,7 +165,8 @@ def walk_main_folder(filesystem, folder_path):
 
 
 def walk_feature_type_folder(filesystem, folder_path):
-    """ Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem)
+    """ Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem).
+    Skips folders and files in subfolders.
     """
     for path in filesystem.listdir(folder_path):
         if '/' not in path and '.' in path:
@@ -220,7 +241,7 @@ class FeatureIO:
         return f'{self.__class__.__name__}({self.path})'
 
     def load(self):
-        """ Method for loading a feature from
+        """ Method for loading a feature
         """
         with self.filesystem.openbin(self.path, 'r') as file_handle:
             if self.path.endswith(FileFormat.GZIP.extension()):
