@@ -78,27 +78,6 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
     files_to_remove = []
     saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
     for ftype, fname, path in filesystem_features:
-        if fname is ... and not ftype.is_meta():
-            continue
-
-        different_compression = path.endswith(FileFormat.GZIP.extension()) != (current_compress_level > 0)
-        if (ftype, fname) in saved_features and different_compression:
-            files_to_remove.append(path)
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # The following is intentionally wrapped in a list in order to get back potential exceptions
-        list(executor.map(filesystem.remove, files_to_remove))
-
-
-def remove_old_eopatch_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
-    """ Removes files that should have been overwriten but were not due to different compression levels
-    """
-    files_to_remove = []
-    saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
-    for ftype, fname, path in filesystem_features:
-        if fname is ... and not ftype.is_meta():
-            continue
-
         different_compression = path.endswith(FileFormat.GZIP.extension()) != (current_compress_level > 0)
         if (ftype, fname) in saved_features and different_compression:
             files_to_remove.append(path)
