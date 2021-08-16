@@ -29,40 +29,62 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     """
     patch_exists = filesystem.exists(patch_location)
 
-    if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
-        filesystem.removetree(patch_location)
-        if patch_location != '/':
-            patch_exists = False
-
     if not patch_exists:
         filesystem.makedirs(patch_location, recreate=True)
 
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
-
-    if overwrite_permission is OverwritePermission.ADD_ONLY or \
-            (sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES):
-        fs_features = list(walk_filesystem(filesystem, patch_location))
-    else:
-        fs_features = []
-
-    _check_case_matching(eopatch_features, fs_features)
+    fs_features = list(walk_filesystem(filesystem, patch_location))
 
     if overwrite_permission is OverwritePermission.ADD_ONLY:
+        _check_letter_case_collisions(eopatch_features, fs_features)
         _check_add_only_permission(eopatch_features, fs_features)
 
-    ftype_folder_map = {(ftype, fs.path.dirname(path)) for ftype, _, path in eopatch_features if not ftype.is_meta()}
-    for ftype, folder in ftype_folder_map:
+    elif sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
+        _check_letter_case_collisions(eopatch_features, fs_features)
+
+    else:
+        _check_letter_case_collisions(eopatch_features, [])
+
+    features_to_save = []
+    for ftype, fname, path in eopatch_features:
+        feature_io = FeatureIO(filesystem, path)
+        data = eopatch[(ftype, fname)]
+        file_format = FileFormat.NPY if ftype.is_raster() else FileFormat.PICKLE
+
+        features_to_save.append((feature_io, data, file_format, compress_level))
+
+    # Cannot be done before due to lazy loading (this would delete the files before the data is loaded)
+    if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
+        filesystem.removetree(patch_location)
+        if patch_location != '/':  # avoid redundant filesystem.makedirs if the location is '/'
+            filesystem.makedirs(patch_location, recreate=True)
+
+    ftype_folders = {fs.path.dirname(path) for ftype, _, path in eopatch_features if not ftype.is_meta()}
+    for folder in ftype_folders:
         if not filesystem.exists(folder):
             filesystem.makedirs(folder, recreate=True)
-
-    features_to_save = ((FeatureIO(filesystem, path),
-                         eopatch[(ftype, fname)],
-                         FileFormat.NPY if ftype.is_raster() else FileFormat.PICKLE,
-                         compress_level) for ftype, fname, path in eopatch_features)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # The following is intentionally wrapped in a list in order to get back potential exceptions
         list(executor.map(lambda params: params[0].save(*params[1:]), features_to_save))
+
+    if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
+        remove_redundant_files(filesystem, eopatch_features, fs_features, compress_level)
+
+
+def remove_redundant_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
+    """ Removes files that should have been overwriten but were not due to different compression levels
+    """
+    files_to_remove = []
+    saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
+    for ftype, fname, path in filesystem_features:
+        different_compression = path.endswith(FileFormat.GZIP.extension()) != (current_compress_level > 0)
+        if (ftype, fname) in saved_features and different_compression:
+            files_to_remove.append(path)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # The following is intentionally wrapped in a list in order to get back potential exceptions
+        list(executor.map(filesystem.remove, files_to_remove))
 
 
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
@@ -82,7 +104,7 @@ def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading
 
 
 def walk_filesystem(filesystem, patch_location, features=...):
-    """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
+    """ Recursively reads a patch_location and yields tuples of (feature_type, feature_name, file_path)
     """
     existing_features = defaultdict(dict)
     for ftype, fname, path in walk_main_folder(filesystem, patch_location):
@@ -96,20 +118,23 @@ def walk_filesystem(filesystem, patch_location, features=...):
 
         if ftype.is_meta():
             if ftype in returned_meta_features:
+                # Resolves META_INFO that is yielded multiple times by FeatureParser but is saved in one file
                 continue
             fname = ...
             returned_meta_features.add(ftype)
 
         elif ftype not in queried_features and (fname is ... or fname not in existing_features[ftype]):
+            # Either need to collect all features for ftype or there is a not-yet seen feature that could be collected
             queried_features.add(ftype)
             if ... not in existing_features[ftype]:
-                raise IOError('There are no features of type {} in saved EOPatch'.format(ftype))
+                raise IOError(f'There are no features of type {ftype} in saved EOPatch')
 
             for feature_name, path in walk_feature_type_folder(filesystem, existing_features[ftype][...]):
                 existing_features[ftype][feature_name] = path
 
         if fname not in existing_features[ftype]:
-            raise IOError('Feature {} does not exist in saved EOPatch'.format((ftype, fname)))
+            # ftype has already been fully collected, but the feature not found
+            raise IOError(f'Feature {(ftype, fname)} does not exist in saved EOPatch')
 
         if fname is ... and not ftype.is_meta():
             for feature_name, path in existing_features[ftype].items():
@@ -121,11 +146,15 @@ def walk_filesystem(filesystem, patch_location, features=...):
 
 def walk_main_folder(filesystem, folder_path):
     """ Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem)
+
+    The results depend on the implementation of `filesystem.listdir`. For each folder that coincides with a feature
+    type it returns (feature type, ..., path). If files in subfolders are also listed by `listdir` it returns the
+    them as well, which allows `walk_filesystem` to skip such subfolders from further searches.
     """
     for path in filesystem.listdir(folder_path):
         raw_path = path.split('.')[0].strip('/')
 
-        if '/' in raw_path:
+        if '/' in raw_path:  # For cases where S3 does not have a regular folder structure
             ftype_str, fname = fs.path.split(raw_path)
         else:
             ftype_str, fname = raw_path, ...
@@ -135,20 +164,23 @@ def walk_main_folder(filesystem, folder_path):
 
 
 def walk_feature_type_folder(filesystem, folder_path):
-    """ Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem)
+    """ Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem).
+    Skips folders and files in subfolders.
     """
     for path in filesystem.listdir(folder_path):
         if '/' not in path and '.' in path:
             yield path.split('.')[0], fs.path.combine(folder_path, path)
 
 
-def walk_eopatch(eopatch, patch_location, features=...):
-    """ Recursively reads a patch_location and returns yields tuples of (feature_type, feature_name, file_path)
+def walk_eopatch(eopatch, patch_location, features):
+    """ Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path
     """
     returned_meta_features = set()
     for ftype, fname in FeatureParser(features)(eopatch):
         name_basis = fs.path.combine(patch_location, ftype.value)
         if ftype.is_meta():
+            # META_INFO features are yielded separately by FeatureParser. We only yield them once with `...`,
+            # because all META_INFO is saved together
             if eopatch[ftype] and ftype not in returned_meta_features:
                 yield ftype, ..., name_basis
                 returned_meta_features.add(ftype)
@@ -164,12 +196,11 @@ def _check_add_only_permission(eopatch_features, filesystem_features):
 
     intersection = filesystem_features.intersection(eopatch_features)
     if intersection:
-        error_msg = "Cannot save features {} with overwrite_permission=OverwritePermission.ADD_ONLY "
-        raise ValueError(error_msg.format(intersection))
+        raise ValueError(f'Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY')
 
 
-def _check_case_matching(eopatch_features, filesystem_features):
-    """ Checks that no two features in memory or in filesystem differ only by feature name casing
+def _check_letter_case_collisions(eopatch_features, filesystem_features):
+    """ Check that eopatch features have no name clashes (ignoring case) with other eopatch features and saved features
     """
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -180,8 +211,8 @@ def _check_case_matching(eopatch_features, filesystem_features):
 
     for ftype, fname, _ in filesystem_features:
         if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
-            raise IOError('There already exists a feature {} in filesystem that only differs in casing from the one '
-                          'that should be saved'.format((ftype, fname)))
+            raise IOError(f'There already exists a feature {(ftype, fname)} in the filesystem that only differs in '
+                          'casing from a feature that should be saved')
 
 
 def _to_lowercase(ftype, fname, *_):
@@ -191,7 +222,7 @@ def _to_lowercase(ftype, fname, *_):
 
 
 class FeatureIO:
-    """ A class handling saving and loading process of a single feature at a given location
+    """ A class that handles the saving and loading process of a single feature at a given location
     """
     def __init__(self, filesystem, path):
         """
@@ -206,7 +237,7 @@ class FeatureIO:
     def __repr__(self):
         """ A representation method
         """
-        return '{}({})'.format(self.__class__.__name__, self.path)
+        return f'{self.__class__.__name__}({self.path})'
 
     def load(self):
         """ Method for loading a feature
@@ -269,4 +300,4 @@ class FeatureIO:
         if FileFormat.NPY.extension() in path:
             return np.load(file)
 
-        raise ValueError('Unsupported data type.')
+        raise ValueError(f'Unsupported data type for file {path}.')
