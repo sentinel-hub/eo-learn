@@ -587,16 +587,16 @@ class ResamplingTask(InterpolationTask):
         new_data[time_mask] = interp_func(resampled_times[time_mask])
         return new_data
 
-    def get_interpolation_function(self, times, data):
+    def get_interpolation_function(self, times, series):
         """ Initializes interpolation model
 
         :param times: Array of reference times in second relative to the first timestamp
         :type times: numpy.array
-        :param data: One dimensional array of time series
-        :type data: numpy.array
+        :param series: One dimensional array of time series
+        :type series: numpy.array
         :return: Initialized interpolation model class
         """
-        return self.interpolation_object(times, data, axis=0, **self.interpolation_parameters)
+        return self.interpolation_object(times, series, axis=0, **self.interpolation_parameters)
 
 
 class NearestResampling(ResamplingTask):

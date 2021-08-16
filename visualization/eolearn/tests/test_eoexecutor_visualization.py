@@ -8,7 +8,6 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import unittest
 import os
 import logging
 import tempfile
@@ -31,30 +30,22 @@ class ExampleTask(EOTask):
             raise Exception
 
 
-class TestEOExecutor(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        task = ExampleTask()
-        cls.workflow = EOWorkflow([(task, []),
-                                   Dependency(task=ExampleTask(), inputs=[task, task])])
-
-        cls.execution_args = [
-            {task: {'arg1': 1}},
-            {},
-            {task: {'arg1': 3, 'arg3': 10}},
-            {task: {'arg1': None}}
-        ]
-
-    def test_report_creation(self):
-        with tempfile.TemporaryDirectory() as tmp_dir_name:
-            executor = EOExecutor(self.workflow, self.execution_args, logs_folder=tmp_dir_name, save_logs=True,
-                                  execution_names=['ex 1', 2, 0.4, None])
-            executor.run(workers=10)
-            executor.make_report()
-
-            self.assertTrue(os.path.exists(executor.get_report_filename()), 'Execution report was not created')
+TASK = ExampleTask()
+WORKFLOW = EOWorkflow([(TASK, []), Dependency(task=ExampleTask(), inputs=[TASK, TASK])])
+EXECUTION_ARGS = [
+    {TASK: {'arg1': 1}},
+    {},
+    {TASK: {'arg1': 3, 'arg3': 10}},
+    {TASK: {'arg1': None}}
+]
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_report_creation():
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        executor = EOExecutor(
+            WORKFLOW, EXECUTION_ARGS, logs_folder=tmp_dir_name, save_logs=True, execution_names=['ex 1', 2, 0.4, None]
+        )
+        executor.run(workers=10)
+        executor.make_report()
+
+        assert os.path.exists(executor.get_report_filename()), 'Execution report was not created'

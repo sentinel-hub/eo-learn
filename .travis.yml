@@ -22,7 +22,8 @@ install:
 - if [ $TRAVIS_PYTHON_VERSION == '3.6' ]; then
     python install_all.py -e;
   else
-    python install_all.py;
+    python install_all.py &&
+    pip install ./io[METEOBLUE];
   fi
 
 script:

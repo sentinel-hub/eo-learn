@@ -9,8 +9,8 @@ file in the root directory of this source tree.
 """
 
 import logging
-import unittest
 
+import pytest
 import numpy as np
 from eolearn.core import EOPatch, FeatureType
 from eolearn.coregistration import ECCRegistration, InterpolationType
@@ -18,50 +18,47 @@ from eolearn.coregistration import ECCRegistration, InterpolationType
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestEOPatch(unittest.TestCase):
+@pytest.fixture(name='eopatch')
+def eopatch_fixture():
+    bands = np.zeros((2, 20, 20, 1))
+    bands[1] = np.arange(400).reshape(1, 20, 20, 1) / 400
+    bands[0] = bands[1]
+    bands[1, 5:15, 5:15, :] = .5
+    bands[0, 7:17, 5:15, :] = .5
+    mask = np.ones((2, 20, 20, 1), dtype=np.int16)
+    ndvi = np.ones((2, 20, 20, 1))
+    dem = np.ones((20, 20, 1))
 
-    def test_registration(self):
-        # Set up a dummy EOPatch to test execution of registration
-        bands = np.zeros((2, 20, 20, 1))
-        bands[1] = np.arange(400).reshape(1, 20, 20, 1) / 400
-        bands[0] = bands[1]
-        bands[1, 5:15, 5:15, :] = .5
-        bands[0, 7:17, 5:15, :] = .5
-        mask = np.ones((2, 20, 20, 1), dtype=np.int16)
-        ndvi = np.ones((2, 20, 20, 1))
-        dem = np.ones((20, 20, 1))
-
-        eop = EOPatch()
-        eop.add_feature(FeatureType.DATA, 'bands', value=bands)
-        eop.add_feature(FeatureType.DATA, 'ndvi', value=ndvi)
-        eop.add_feature(FeatureType.MASK, 'cm', value=mask)
-        eop.add_feature(FeatureType.DATA_TIMELESS, 'dem', value=dem)
-
-        reg = ECCRegistration((FeatureType.DATA, 'bands'), valid_mask_feature='cm',
-                              interpolation_type=InterpolationType.NEAREST,
-                              apply_to_features={
-                                  FeatureType.DATA: {'bands', 'ndvi'},
-                                  FeatureType.MASK: {'cm'}
-        })
-        reop = reg.execute(eop)
-
-        self.assertEqual(eop.data['bands'].shape, reop.data['bands'].shape,
-                         msg='Shapes of .data[''bands''] do not match')
-        self.assertEqual(eop.data['ndvi'].shape, reop.data['ndvi'].shape,
-                         msg='Shapes of .data[''ndvi''] do not match')
-        self.assertEqual(eop.mask['cm'].shape, reop.mask['cm'].shape,
-                         msg='Shapes of .mask[''cm''] do not match')
-        self.assertEqual(eop.data_timeless['dem'].shape, reop.data_timeless['dem'].shape,
-                         msg='Shapes of .data[''bands''] do not match')
-        self.assertFalse(np.allclose(eop.data['bands'], reop.data['bands']),
-                         msg='Registration did not warp .data[''bands'']')
-        self.assertFalse(np.allclose(eop.data['ndvi'], reop.data['ndvi']),
-                         msg='Registration did not warp .data[''ndvi'']')
-        self.assertFalse(np.allclose(eop.mask['cm'], reop.mask['cm']),
-                         msg='Registration did not warp .mask[''cm'']')
-        self.assertTrue(np.allclose(eop.data_timeless['dem'], reop.data_timeless['dem']),
-                        msg='Registration did warp data_timeless')
+    eop = EOPatch()
+    eop.add_feature(FeatureType.DATA, 'bands', value=bands)
+    eop.add_feature(FeatureType.DATA, 'ndvi', value=ndvi)
+    eop.add_feature(FeatureType.MASK, 'cm', value=mask)
+    eop.add_feature(FeatureType.DATA_TIMELESS, 'dem', value=dem)
+    return eop
 
 
-if __name__ == '__main__':
-    unittest.main()
+def test_registration(eopatch):
+    reg = ECCRegistration(
+        (FeatureType.DATA, 'bands'),
+        valid_mask_feature='cm',
+        interpolation_type=InterpolationType.NEAREST,
+        apply_to_features={FeatureType.DATA: {'bands', 'ndvi'}, FeatureType.MASK: {'cm'}}
+    )
+    reopatch = reg(eopatch)
+
+    assert eopatch.data['bands'].shape == reopatch.data['bands'].shape, \
+        "Shapes of .data['bands'] do not match"
+    assert eopatch.data['ndvi'].shape == reopatch.data['ndvi'].shape, \
+        "Shapes of .data['ndvi'] do not match"
+    assert eopatch.mask['cm'].shape == reopatch.mask['cm'].shape, \
+        "Shapes of .mask['cm'] do not match"
+    assert eopatch.data_timeless['dem'].shape == reopatch.data_timeless['dem'].shape, \
+        "Shapes of .data['bands'] do not match"
+    assert not np.allclose(eopatch.data['bands'], reopatch.data['bands']), \
+        "Registration did not warp .data['bands']"
+    assert not np.allclose(eopatch.data['ndvi'], reopatch.data['ndvi']), \
+        "Registration did not warp .data['ndvi']"
+    assert not np.allclose(eopatch.mask['cm'], reopatch.mask['cm']), \
+        "Registration did not warp .mask['cm']"
+    assert np.allclose(eopatch.data_timeless['dem'], reopatch.data_timeless['dem']), \
+        'Registration did warp data_timeless'

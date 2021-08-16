@@ -248,3 +248,48 @@ def test_nonexistent_location(fs_loader):
         save_task = SaveTask(full_path)
         save_task.execute(empty_eop)
         assert os.path.exists(full_path)
+
+
+@mock_s3
+@pytest.mark.parametrize('fs_loader', FS_LOADERS)
+def test_cleanup_different_compression(fs_loader, eopatch):
+    folder = 'foo-folder'
+    patch_folder = 'patch-folder'
+    with fs_loader() as temp_fs:
+        temp_fs.makedir(folder)
+
+        save_compressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, overwrite_permission=1)
+        save_noncompressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=0, overwrite_permission=1)
+        bbox_path = fs.path.join(folder, patch_folder, 'bbox.pkl')
+        compressed_bbox_path = bbox_path + '.gz'
+        data_timeless_path = fs.path.join(folder, patch_folder, 'data_timeless', 'mask.npy')
+        compressed_data_timeless_path = data_timeless_path + '.gz'
+
+        save_compressed_task(eopatch, eopatch_folder=patch_folder)
+        save_noncompressed_task(eopatch, eopatch_folder=patch_folder)
+        assert temp_fs.exists(bbox_path)
+        assert temp_fs.exists(data_timeless_path)
+        assert not temp_fs.exists(compressed_bbox_path)
+        assert not temp_fs.exists(compressed_data_timeless_path)
+
+        save_compressed_task(eopatch, eopatch_folder=patch_folder)
+        assert not temp_fs.exists(bbox_path)
+        assert not temp_fs.exists(data_timeless_path)
+        assert temp_fs.exists(compressed_bbox_path)
+        assert temp_fs.exists(compressed_data_timeless_path)
+
+
+@mock_s3
+@pytest.mark.parametrize('fs_loader', FS_LOADERS)
+@pytest.mark.parametrize('folder_name', ['/', 'foo', 'foo/bar'])
+def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
+    with fs_loader() as temp_fs:
+        eopatch.save(folder_name, filesystem=temp_fs)
+
+        lazy_eopatch = EOPatch.load(folder_name, filesystem=temp_fs, lazy_loading=True)
+        lazy_eopatch.data['whatever'] = np.empty((2, 3, 3, 2))
+        lazy_eopatch.remove_feature(FeatureType.DATA_TIMELESS, 'mask')
+
+        lazy_eopatch.save(folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+        assert temp_fs.exists(fs.path.join(folder_name, 'data', 'whatever.npy'))
+        assert not temp_fs.exists(fs.path.join(folder_name, 'data_timeless', 'mask.npy'))

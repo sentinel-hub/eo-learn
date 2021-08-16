@@ -76,9 +76,6 @@ class _BaseVectorImportTask(EOTask):
         vectors = self._load_vector_data(bbox)
         eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
 
-        if not eopatch.bbox:
-            eopatch.bbox = bbox
-
         return eopatch
 
 
