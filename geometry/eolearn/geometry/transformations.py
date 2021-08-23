@@ -26,11 +26,12 @@ from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
 
-class VectorToRaster(EOTask):
+class VectorToRasterTask(EOTask):
     """ A task for transforming a vector feature into a raster feature
 
     Vector data can be given as an EOPatch feature or as an independent geopandas `GeoDataFrame`.
@@ -336,7 +337,7 @@ class VectorToRaster(EOTask):
         return eopatch
 
 
-class RasterToVector(EOTask):
+class RasterToVectorTask(EOTask):
     """ Task for transforming raster mask feature into vector feature.
 
     Each connected component with the same value on the raster mask is turned into a shapely polygon. Polygon are
@@ -455,3 +456,15 @@ class RasterToVector(EOTask):
                                                              crs=gpd_list[0].crs)
 
         return eopatch
+
+
+@renamed_and_deprecated
+class VectorToRaster(VectorToRasterTask):
+    """ A deprecated version of VectorToRasterTask
+    """
+
+
+@renamed_and_deprecated
+class RasterToVector(RasterToVectorTask):
+    """ A deprecated version of RasterToVectorTask
+    """

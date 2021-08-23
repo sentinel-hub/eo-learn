@@ -13,7 +13,7 @@ import logging
 import pytest
 import numpy as np
 from eolearn.core import EOPatch, FeatureType
-from eolearn.coregistration import ECCRegistration, InterpolationType
+from eolearn.coregistration import ECCRegistrationTask, InterpolationType
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -38,7 +38,7 @@ def eopatch_fixture():
 
 
 def test_registration(eopatch):
-    reg = ECCRegistration(
+    reg = ECCRegistrationTask(
         (FeatureType.DATA, 'bands'),
         valid_mask_feature='cm',
         interpolation_type=InterpolationType.NEAREST,

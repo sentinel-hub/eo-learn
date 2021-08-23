@@ -24,11 +24,12 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
 from eolearn.core.fs_utils import get_base_filesystem_and_path
+from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseLocalIo(EOTask):
+class BaseLocalIoTask(EOTask):
     """ Base abstract class for local IO tasks
     """
     def __init__(self, feature, folder=None, *, image_dtype=None, no_data_value=0, config=None):
@@ -104,7 +105,7 @@ class BaseLocalIo(EOTask):
         raise NotImplementedError
 
 
-class ExportToTiff(BaseLocalIo):
+class ExportToTiffTask(BaseLocalIoTask):
     """ Task exports specified feature to Geo-Tiff.
 
     When exporting multiple times OR bands, the Geo-Tiff `band` counts are in the expected order.
@@ -325,7 +326,7 @@ class ExportToTiff(BaseLocalIo):
         return eopatch
 
 
-class ImportFromTiff(BaseLocalIo):
+class ImportFromTiffTask(BaseLocalIoTask):
     """ Task for importing data from a Geo-Tiff file into an EOPatch
 
     The task can take an existing EOPatch and read the part of Geo-Tiff image, which intersects with its bounding
@@ -443,3 +444,21 @@ class ImportFromTiff(BaseLocalIo):
         eopatch[feature_type][feature_name] = data
 
         return eopatch
+
+
+@renamed_and_deprecated
+class BaseLocalIo(BaseLocalIoTask):
+    """ A deprecated version of BaseLocalIoTask
+    """
+
+
+@renamed_and_deprecated
+class ExportToTiff(ExportToTiffTask):
+    """ A deprecated version of ExportToTiffTask
+    """
+
+
+@renamed_and_deprecated
+class ImportFromTiff(ImportFromTiffTask):
+    """ A deprecated version of ImportFromTiffTask
+    """

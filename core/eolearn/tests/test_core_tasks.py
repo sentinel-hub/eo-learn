@@ -15,9 +15,11 @@ import os
 import copy
 import numpy as np
 
-from eolearn.core import EOPatch, FeatureType, CRS, CopyTask, DeepCopyTask, AddFeature, RemoveFeature, RenameFeature,\
-    DuplicateFeature, InitializeFeature, MoveFeature, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,\
+from eolearn.core import (
+    EOPatch, FeatureType, CRS, CopyTask, DeepCopyTask, AddFeatureTask, RemoveFeatureTask, RenameFeatureTask,
+    DuplicateFeatureTask, InitializeFeatureTask, MoveFeatureTask, MergeFeatureTask, MapFeatureTask, ZipFeatureTask,
     ExtractBandsTask, CreateEOPatchTask, MergeEOPatchesTask
+)
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -89,20 +91,20 @@ class TestCoreTasks(unittest.TestCase):
 
         patch = copy.deepcopy(self.patch)
 
-        patch = AddFeature((FeatureType.MASK, feature_name))(patch, cloud_mask)
+        patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, cloud_mask)
         self.assertTrue(np.array_equal(patch.mask[feature_name], cloud_mask), 'Feature was not added')
 
-        patch = RenameFeature((FeatureType.MASK, feature_name, new_feature_name))(patch)
+        patch = RenameFeatureTask((FeatureType.MASK, feature_name, new_feature_name))(patch)
         self.assertTrue(np.array_equal(patch.mask[new_feature_name], cloud_mask), 'Feature was not renamed')
         self.assertFalse(feature_name in patch[FeatureType.MASK], 'Old feature still exists')
 
-        patch = RemoveFeature((FeatureType.MASK, new_feature_name))(patch)
+        patch = RemoveFeatureTask((FeatureType.MASK, new_feature_name))(patch)
         self.assertFalse(feature_name in patch.mask, 'Feature was not removed')
 
-        patch = RemoveFeature(FeatureType.MASK_TIMELESS)(patch)
+        patch = RemoveFeatureTask(FeatureType.MASK_TIMELESS)(patch)
         self.assertEqual(len(patch.mask_timeless), 0, 'mask_timeless features were not removed')
 
-        patch = RemoveFeature((FeatureType.MASK, ...))(patch)
+        patch = RemoveFeatureTask((FeatureType.MASK, ...))(patch)
         self.assertEqual(len(patch.mask), 0, 'mask features were not removed')
 
     def test_duplicate_feature(self):
@@ -110,9 +112,9 @@ class TestCoreTasks(unittest.TestCase):
         feature_name = 'MASK1'
         duplicate_name = 'MASK2'
 
-        patch = AddFeature((FeatureType.MASK, feature_name))(self.patch, mask_data)
+        patch = AddFeatureTask((FeatureType.MASK, feature_name))(self.patch, mask_data)
 
-        duplicate_task = DuplicateFeature((FeatureType.MASK, feature_name, duplicate_name))
+        duplicate_task = DuplicateFeatureTask((FeatureType.MASK, feature_name, duplicate_name))
         patch = duplicate_task(patch)
 
         self.assertTrue(duplicate_name in patch.mask, 'Feature was not duplicated. Name not found.')
@@ -125,11 +127,11 @@ class TestCoreTasks(unittest.TestCase):
 
         duplicate_names = {'D1', 'D2'}
         feature_list = [(FeatureType.MASK, 'MASK1', 'D1'), (FeatureType.MASK, 'MASK2', 'D2')]
-        patch = DuplicateFeature(feature_list).execute(patch)
+        patch = DuplicateFeatureTask(feature_list).execute(patch)
 
         self.assertTrue(duplicate_names.issubset(patch.mask), 'Duplicating multiple features failed.')
 
-        patch = DuplicateFeature((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy=True)(patch)
+        patch = DuplicateFeatureTask((FeatureType.MASK, 'MASK1', 'DEEP'), deep_copy=True)(patch)
         self.assertNotEqual(id(patch.mask['MASK1']), id(patch.mask['DEEP']))
         self.assertTrue(np.array_equal(patch.mask['MASK1'], patch.mask['DEEP']),
                         'Feature was not duplicated correctly. Data does not match.')
@@ -139,7 +141,7 @@ class TestCoreTasks(unittest.TestCase):
 
         # duplicate_names = {'D3', 'D4', 'D5'}
         # feature_list = [(FeatureType.MASK, 'MASK1', new) for new in duplicate_names]
-        # patch = DuplicateFeature(feature_list).execute(patch)
+        # patch = DuplicateFeatureTask(feature_list).execute(patch)
 
         # self.assertTrue(duplicate_names.issubset(patch.mask),
         #                 'Duplicating single feature multiple times failed.')
@@ -151,43 +153,43 @@ class TestCoreTasks(unittest.TestCase):
         shape = (5, 10, 10, 3)
         compare_data = np.ones(shape) * init_val
 
-        patch = InitializeFeature((FeatureType.MASK, 'test'), shape=shape, init_value=init_val)(patch)
+        patch = InitializeFeatureTask((FeatureType.MASK, 'test'), shape=shape, init_value=init_val)(patch)
         self.assertEqual(patch.mask['test'].shape, shape)
         self.assertTrue(np.array_equal(patch.mask['test'], compare_data))
 
         failmsg = 'Expected a ValueError when trying to initialize a feature with a wrong shape dmensions.'
         with self.assertRaises(ValueError, msg=failmsg):
-            patch = InitializeFeature((FeatureType.MASK_TIMELESS, 'wrong'), shape=shape, init_value=init_val)(patch)
+            patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, 'wrong'), shape=shape, init_value=init_val)(patch)
 
         init_val = 123
         shape = (10, 10, 3)
         compare_data = np.ones(shape) * init_val
 
-        patch = InitializeFeature((FeatureType.MASK_TIMELESS, 'test'), shape=shape, init_value=init_val)(patch)
+        patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, 'test'), shape=shape, init_value=init_val)(patch)
         self.assertEqual(patch.mask_timeless['test'].shape, shape)
         self.assertTrue(np.array_equal(patch.mask_timeless['test'], compare_data))
 
         fail_msg = 'Expected a ValueError when trying to initialize a feature with a wrong shape dmensions.'
         with self.assertRaises(ValueError, msg=fail_msg):
-            patch = InitializeFeature((FeatureType.MASK, 'wrong'), shape=shape, init_value=init_val)(patch)
+            patch = InitializeFeatureTask((FeatureType.MASK, 'wrong'), shape=shape, init_value=init_val)(patch)
 
         init_val = 123
         shape = (5, 10, 10, 3)
         compare_data = np.ones(shape) * init_val
         new_names = {'F1', 'F2', 'F3'}
 
-        patch = InitializeFeature({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
+        patch = InitializeFeatureTask({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
         fail_msg = "Failed to initialize new features from a shape tuple."
         self.assertTrue(new_names < set(patch.mask), msg=fail_msg)
         self.assertTrue(all(patch.mask[key].shape == shape for key in new_names))
         self.assertTrue(all(np.array_equal(patch.mask[key], compare_data) for key in new_names))
 
-        patch = InitializeFeature({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, 'bands'))(patch)
+        patch = InitializeFeatureTask({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, 'bands'))(patch)
         fail_msg = "Failed to initialize new features from an existing feature."
         self.assertTrue(new_names < set(patch.data), msg=fail_msg)
         self.assertTrue(all(patch.data[key].shape == patch.data['bands'].shape for key in new_names))
 
-        self.assertRaises(ValueError, InitializeFeature, {FeatureType.DATA: new_names}, 1234)
+        self.assertRaises(ValueError, InitializeFeatureTask, {FeatureType.DATA: new_names}, 1234)
 
     def test_move_feature(self):
         patch_src = EOPatch()
@@ -209,16 +211,16 @@ class TestCoreTasks(unittest.TestCase):
                     (FeatureType.MASK_TIMELESS, 'MTless2')]
 
         for feat, dat in zip(features, data):
-            patch_src = AddFeature(feat)(patch_src, dat)
+            patch_src = AddFeatureTask(feat)(patch_src, dat)
 
-        patch_dst = MoveFeature(features)(patch_src, patch_dst)
+        patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
 
         for i, feature in enumerate(features):
             self.assertTrue(id(data[i]) == id(patch_dst[feature]))
             self.assertTrue(np.array_equal(data[i], patch_dst[feature]))
 
         patch_dst = EOPatch()
-        patch_dst = MoveFeature(features, deep_copy=True)(patch_src, patch_dst)
+        patch_dst = MoveFeatureTask(features, deep_copy=True)(patch_src, patch_dst)
 
         for i, feature in enumerate(features):
             self.assertTrue(id(data[i]) != id(patch_dst[feature]))
@@ -226,7 +228,7 @@ class TestCoreTasks(unittest.TestCase):
 
         features = [(FeatureType.MASK_TIMELESS, ...)]
         patch_dst = EOPatch()
-        patch_dst = MoveFeature(features)(patch_src, patch_dst)
+        patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
 
         self.assertTrue(FeatureType.MASK_TIMELESS in patch_dst.get_features())
         self.assertFalse(FeatureType.DATA in patch_dst.get_features())
@@ -253,7 +255,7 @@ class TestCoreTasks(unittest.TestCase):
                     (FeatureType.MASK_TIMELESS, 'MTless2')]
 
         for feat, dat in zip(features, data):
-            patch = AddFeature(feat)(patch, dat)
+            patch = AddFeatureTask(feat)(patch, dat)
 
         patch = MergeFeatureTask(features[:3], (FeatureType.MASK, 'merged'))(patch)
         patch = MergeFeatureTask(features[3:], (FeatureType.MASK_TIMELESS, 'merged_timeless'))(patch)

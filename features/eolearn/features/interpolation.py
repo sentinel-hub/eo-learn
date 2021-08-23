@@ -24,6 +24,7 @@ import numba
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core.utilities import renamed_and_deprecated
 
 
 def base_interpolation_function(data, times, resampled_times):
@@ -444,7 +445,7 @@ class InterpolationTask(EOTask):
         return new_eopatch
 
 
-class LegacyInterpolation(InterpolationTask):
+class LegacyInterpolationTask(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
@@ -455,7 +456,7 @@ class LegacyInterpolation(InterpolationTask):
             super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
 
 
-class LinearInterpolation(InterpolationTask):
+class LinearInterpolationTask(InterpolationTask):
     """ Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and `@numba.jit(nopython=True)`
 
     :param parallel: interpolation is calculated in parallel using as many CPUs as detected
@@ -485,7 +486,7 @@ class LinearInterpolation(InterpolationTask):
         return interpolation_function(data, times, resampled_times)
 
 
-class CubicInterpolation(InterpolationTask):
+class CubicInterpolationTask(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
@@ -493,7 +494,7 @@ class CubicInterpolation(InterpolationTask):
         super().__init__(feature, scipy.interpolate.interp1d, kind='cubic', **kwargs)
 
 
-class SplineInterpolation(InterpolationTask):
+class SplineInterpolationTask(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`
     """
@@ -501,7 +502,7 @@ class SplineInterpolation(InterpolationTask):
         super().__init__(feature, scipy.interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
 
 
-class BSplineInterpolation(InterpolationTask):
+class BSplineInterpolationTask(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`
     """
@@ -509,7 +510,7 @@ class BSplineInterpolation(InterpolationTask):
         super().__init__(feature, scipy.interpolate.make_interp_spline, k=spline_degree, **kwargs)
 
 
-class AkimaInterpolation(InterpolationTask):
+class AkimaInterpolationTask(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`
     """
@@ -540,7 +541,7 @@ class KrigingObject:
         return self.regressor.predict(new_times.reshape(-1, 1)/self.normalizing_factor, **call_args)
 
 
-class KrigingInterpolation(InterpolationTask):
+class KrigingInterpolationTask(InterpolationTask):
     """
     Implements `eolearn.features.InterpolationTask` by using `sklearn.gaussian_process.GaussianProcessRegressor`
     Gaussian processes (superset of kriging) are especially used in geological missing data estimation.
@@ -599,7 +600,7 @@ class ResamplingTask(InterpolationTask):
         return self.interpolation_object(times, series, axis=0, **self.interpolation_parameters)
 
 
-class NearestResampling(ResamplingTask):
+class NearestResamplingTask(ResamplingTask):
     """
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
     """
@@ -607,7 +608,7 @@ class NearestResampling(ResamplingTask):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='nearest', **kwargs)
 
 
-class LinearResampling(ResamplingTask):
+class LinearResamplingTask(ResamplingTask):
     """
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
@@ -615,9 +616,69 @@ class LinearResampling(ResamplingTask):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='linear', **kwargs)
 
 
-class CubicResampling(ResamplingTask):
+class CubicResamplingTask(ResamplingTask):
     """
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
     def __init__(self, feature, resample_range, **kwargs):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='cubic', **kwargs)
+
+
+@renamed_and_deprecated
+class LegacyInterpolation(LegacyInterpolationTask):
+    """ A deprecated version of LegacyInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class LinearInterpolation(LinearInterpolationTask):
+    """ A deprecated version of LinearInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class CubicInterpolation(CubicInterpolationTask):
+    """ A deprecated version of CubicInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class SplineInterpolation(SplineInterpolationTask):
+    """ A deprecated version of SplineInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class BSplineInterpolation(BSplineInterpolationTask):
+    """ A deprecated version of BSplineInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class AkimaInterpolation(AkimaInterpolationTask):
+    """ A deprecated version of AkimaInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class KrigingInterpolation(KrigingInterpolationTask):
+    """ A deprecated version of KrigingInterpolationTask
+    """
+
+
+@renamed_and_deprecated
+class NearestResampling(NearestResamplingTask):
+    """ A deprecated version of NearestResamplingTask
+    """
+
+
+@renamed_and_deprecated
+class LinearResampling(LinearResamplingTask):
+    """ A deprecated version of LinearResamplingTask
+    """
+
+
+@renamed_and_deprecated
+class CubicResampling(CubicResamplingTask):
+    """ A deprecated version of CubicResamplingTask
+    """
