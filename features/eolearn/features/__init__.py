@@ -9,8 +9,8 @@ from .interpolation import (
     InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation,
     AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling, KrigingInterpolation,
     LegacyInterpolation, LinearInterpolationTask, CubicInterpolationTask, SplineInterpolationTask,
-    BSplineInterpolationTask, AkimaInterpolationTask, ResamplingTask, NearestResamplingTask, LinearResamplingTask,
-    CubicResamplingTask, KrigingInterpolationTask, LegacyInterpolationTask
+    BSplineInterpolationTask, AkimaInterpolationTask, NearestResamplingTask, LinearResamplingTask, CubicResamplingTask,
+    KrigingInterpolationTask, LegacyInterpolationTask
 )
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import SimpleFilterTask, FilterTimeSeriesTask, FilterTimeSeries, ValueFilloutTask

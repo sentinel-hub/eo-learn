@@ -524,6 +524,7 @@ def renamed_and_deprecated(deprecated_class):
         Example of use:
 
         .. code-block:: python
+
             @renamed_and_deprecated
             class OldNameForClass(NewNameForClass):
                 ''' Deprecated version of `NewNameForClass`

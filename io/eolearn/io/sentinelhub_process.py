@@ -62,7 +62,7 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
     return filtered_timestamps
 
 
-class SentinelHubInputBase(EOTask):
+class SentinelHubInputBaseTask(EOTask):
     """ Base class for Processing API input tasks
     """
 
@@ -198,7 +198,7 @@ class SentinelHubInputBase(EOTask):
 ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
 
-class SentinelHubEvalscriptTask(SentinelHubInputBase):
+class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
     """ Process API task to download data using evalscript
     """
 
@@ -341,7 +341,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBase):
         return eopatch
 
 
-class SentinelHubInputTask(SentinelHubInputBase):
+class SentinelHubInputTask(SentinelHubInputBaseTask):
     """ Process API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
     # pylint: disable=too-many-arguments
