@@ -12,9 +12,10 @@ file in the root directory of this source tree.
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.utilities import renamed_and_deprecated
 
 
-class ReferenceScenes(EOTask):
+class ReferenceScenesTask(EOTask):
     """ Creates a layer of reference scenes which have the highest fraction of valid pixels.
 
         The number of reference scenes is limited to a definable number.
@@ -55,7 +56,7 @@ class ReferenceScenes(EOTask):
         return eopatch
 
 
-class BaseCompositing(EOTask):
+class BaseCompositingTask(EOTask):
     """ Base class to create a composite of reference scenes
 
         Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
@@ -175,7 +176,7 @@ class BaseCompositing(EOTask):
         return eopatch
 
 
-class BlueCompositing(BaseCompositing):
+class BlueCompositingTask(BaseCompositingTask):
     """ Blue band compositing method
 
         - blue     (25th percentile of the blue band)
@@ -199,7 +200,7 @@ class BlueCompositing(BaseCompositing):
         return data[..., self.blue_idx].astype("float32")
 
 
-class HOTCompositing(BaseCompositing):
+class HOTCompositingTask(BaseCompositingTask):
     """ HOT compositing method
 
         - HOT      (Index using bands blue and red)
@@ -230,7 +231,7 @@ class HOTCompositing(BaseCompositing):
         return data[..., self.blue_idx] - 0.5 * data[..., self.red_idx] - 0.08
 
 
-class MaxNDVICompositing(BaseCompositing):
+class MaxNDVICompositingTask(BaseCompositingTask):
     """ maxNDVI compositing method
 
         - maxNDVI  (temporal maximum of NDVI)
@@ -266,7 +267,7 @@ class MaxNDVICompositing(BaseCompositing):
         return indices
 
 
-class MaxNDWICompositing(BaseCompositing):
+class MaxNDWICompositingTask(BaseCompositingTask):
     """ maxNDWI compositing method
 
         - maxNDWI  (temporal maximum of NDWI)
@@ -295,7 +296,7 @@ class MaxNDWICompositing(BaseCompositing):
         return (nir - swir1) / (nir + swir1)
 
 
-class MaxRatioCompositing(BaseCompositing):
+class MaxRatioCompositingTask(BaseCompositingTask):
     """ maxRatio compositing method
 
         - maxRatio (temporal maximum of a ratio using bands blue, NIR and SWIR)
@@ -330,7 +331,7 @@ class MaxRatioCompositing(BaseCompositing):
         return np.nanmax(np.array([nir, swir1]), axis=0) / blue
 
 
-class HistogramMatching(EOTask):
+class HistogramMatchingTask(EOTask):
     """ Histogram match of each band of each scene within a time-series with respect to the corresponding band of a
         reference composite.
 
@@ -380,3 +381,51 @@ class HistogramMatching(EOTask):
                 source * (std_ref / std_src) + (mean_ref - (mean_src * (std_ref / std_src)))
 
         return eopatch
+
+
+@renamed_and_deprecated
+class ReferenceScenes(ReferenceScenesTask):
+    """ A deprecated version of ReferenceScenesTask
+    """
+
+
+@renamed_and_deprecated
+class BaseCompositing(BaseCompositingTask):
+    """ A deprecated version of BaseCompositingTask
+    """
+
+
+@renamed_and_deprecated
+class BlueCompositing(BlueCompositingTask):
+    """ A deprecated version of BlueCompositingTask
+    """
+
+
+@renamed_and_deprecated
+class MaxNDVICompositing(MaxNDVICompositingTask):
+    """ A deprecated version of MaxNDVICompositingTask
+    """
+
+
+@renamed_and_deprecated
+class MaxNDWICompositing(MaxNDWICompositingTask):
+    """ A deprecated version of MaxNDWICompositingTask
+    """
+
+
+@renamed_and_deprecated
+class HOTCompositing(HOTCompositingTask):
+    """ A deprecated version of HOTCompositingTask
+    """
+
+
+@renamed_and_deprecated
+class MaxRatioCompositing(MaxRatioCompositingTask):
+    """ A deprecated version of MaxRatioCompositingTask
+    """
+
+
+@renamed_and_deprecated
+class HistogramMatching(HistogramMatchingTask):
+    """ A deprecated version of HistogramMatchingTask
+    """

@@ -19,6 +19,7 @@ import numpy as np
 from .eodata import EOPatch
 from .eotask import EOTask
 from .fs_utils import get_filesystem
+from .utilities import renamed_and_deprecated
 
 warnings.simplefilter('default', DeprecationWarning)
 
@@ -127,14 +128,6 @@ class SaveTask(IOTask):
         return eopatch
 
 
-class SaveToDisk(SaveTask):
-    """ A deprecated version of SaveTask
-    """
-    def __init__(self, folder, *args, **kwargs):
-        warnings.warn('This task is deprecated, use SaveTask instead', DeprecationWarning)
-        super().__init__(folder, *args, **kwargs)
-
-
 class LoadTask(IOTask):
     """ Loads an EOPatch from a filesystem
     """
@@ -169,15 +162,7 @@ class LoadTask(IOTask):
         return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
 
 
-class LoadFromDisk(LoadTask):
-    """ A deprecated version of LoadTask
-    """
-    def __init__(self, folder, *args, **kwargs):
-        warnings.warn('This task is deprecated, use LoadTask instead', DeprecationWarning)
-        super().__init__(folder, *args, **kwargs)
-
-
-class AddFeature(EOTask):
+class AddFeatureTask(EOTask):
     """Adds a feature to the given EOPatch.
     """
     def __init__(self, feature):
@@ -205,7 +190,7 @@ class AddFeature(EOTask):
         return eopatch
 
 
-class RemoveFeature(EOTask):
+class RemoveFeatureTask(EOTask):
     """Removes one or multiple features from the given EOPatch.
     """
     def __init__(self, features):
@@ -232,7 +217,7 @@ class RemoveFeature(EOTask):
         return eopatch
 
 
-class RenameFeature(EOTask):
+class RenameFeatureTask(EOTask):
     """Renames one or multiple features from the given EOPatch.
     """
     def __init__(self, features):
@@ -257,7 +242,7 @@ class RenameFeature(EOTask):
         return eopatch
 
 
-class DuplicateFeature(EOTask):
+class DuplicateFeatureTask(EOTask):
     """Duplicates one or multiple features in an EOPatch.
     """
 
@@ -294,7 +279,7 @@ class DuplicateFeature(EOTask):
         return eopatch
 
 
-class InitializeFeature(EOTask):
+class InitializeFeatureTask(EOTask):
     """ Initializes the values of a feature.
 
     Example:
@@ -353,7 +338,7 @@ class InitializeFeature(EOTask):
         return eopatch
 
 
-class MoveFeature(EOTask):
+class MoveFeatureTask(EOTask):
     """ Task to copy/deepcopy fields from one eopatch to another.
     """
     def __init__(self, features, deep_copy=False):
@@ -596,3 +581,51 @@ class MergeEOPatchesTask(EOTask):
             raise ValueError('At least one EOPatch should be given')
 
         return eopatches[0].merge(*eopatches[1:], **self.merge_kwargs)
+
+
+@renamed_and_deprecated
+class SaveToDisk(SaveTask):
+    """ A deprecated version of SaveTask
+    """
+
+
+@renamed_and_deprecated
+class LoadFromDisk(LoadTask):
+    """ A deprecated version of LoadTask
+    """
+
+
+@renamed_and_deprecated
+class AddFeature(AddFeatureTask):
+    """ A deprecated version of AddFeatureTask
+    """
+
+
+@renamed_and_deprecated
+class RemoveFeature(RemoveFeatureTask):
+    """ A deprecated version of RemoveFeatureTask
+    """
+
+
+@renamed_and_deprecated
+class RenameFeature(RenameFeatureTask):
+    """ A deprecated version of RenameFeatureTask
+    """
+
+
+@renamed_and_deprecated
+class DuplicateFeature(DuplicateFeatureTask):
+    """ A deprecated version of DuplicateFeatureTask
+    """
+
+
+@renamed_and_deprecated
+class InitializeFeature(InitializeFeatureTask):
+    """ A deprecated version of InitializeFeatureTask
+    """
+
+
+@renamed_and_deprecated
+class MoveFeature(MoveFeatureTask):
+    """ A deprecated version of MoveFeatureTask
+    """

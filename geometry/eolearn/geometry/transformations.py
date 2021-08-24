@@ -26,11 +26,12 @@ from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
 
-class VectorToRaster(EOTask):
+class VectorToRasterTask(EOTask):
     """ A task for transforming a vector feature into a raster feature
 
     Vector data can be given as an EOPatch feature or as an independent geopandas `GeoDataFrame`.
@@ -80,7 +81,7 @@ class VectorToRaster(EOTask):
         """
         self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
 
-        if self._vector_is_timeless(self.vector_input) and not self.raster_feature[0].is_timeless():
+        if _vector_is_timeless(self.vector_input) and not self.raster_feature[0].is_timeless():
             raise ValueError('Vector input has no time-dependence but a time-dependent raster feature was selected')
 
         self.values = values
@@ -102,46 +103,29 @@ class VectorToRaster(EOTask):
 
         self._rasterize_per_timestamp = self.raster_feature[0].is_time_dependent()
 
-    @staticmethod
-    def _parse_main_params(vector_input, raster_feature):
+    def _parse_main_params(self, vector_input, raster_feature):
         """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
         """
-        if VectorToRaster._is_geopandas_object(raster_feature):
+        if _is_geopandas_object(raster_feature):
             # pylint: disable=W1114
-            warnings.warn('In the new version of VectorToRaster task order of parameters changed. Parameter for '
+            warnings.warn('In the new version of VectorToRasterTask task order of parameters changed. Parameter for '
                           'specifying vector data or feature has to be before parameter specifying new raster feature',
                           DeprecationWarning, stacklevel=3)
-            return VectorToRaster._parse_main_params(raster_feature, vector_input)
+            return self._parse_main_params(raster_feature, vector_input)
 
-        if not VectorToRaster._is_geopandas_object(vector_input):
-            vector_input = VectorToRaster._parse_features(
+        if not _is_geopandas_object(vector_input):
+            vector_input = self._parse_features(
                 vector_input,
                 allowed_feature_types={FeatureType.VECTOR_TIMELESS, FeatureType.VECTOR}
             )
 
         raster_feature = next(iter(
-            VectorToRaster._parse_features(
+            self._parse_features(
                 raster_feature,
                 allowed_feature_types=FeatureTypeSet.RASTER_TYPES_3D.union(FeatureTypeSet.RASTER_TYPES_4D)
             )
         ))
         return vector_input, raster_feature
-
-    @staticmethod
-    def _is_geopandas_object(data):
-        """ A frequently used check if object is geopandas `GeoDataFrame` or `GeoSeries`
-        """
-        return isinstance(data, (GeoDataFrame, GeoSeries))
-
-    @staticmethod
-    def _vector_is_timeless(vector_input):
-        """ Used to check if the vector input (either geopandas object EOPatch Feature) is time independent
-        """
-        if VectorToRaster._is_geopandas_object(vector_input):
-            return 'TIMESTAMP' not in vector_input
-
-        vector_type = next(iter(vector_input))[0]
-        return vector_type.is_timeless()
 
     def _get_vector_data_iterator(self, eopatch, join_per_value):
         """ Collects and prepares vector shapes for rasterization. It works as an iterator that returns pairs of
@@ -165,7 +149,7 @@ class VectorToRaster(EOTask):
     def _get_vector_data_from_eopatch(self, eopatch):
         """ Provides a vector dataframe either from the attribute or from given EOPatch feature
         """
-        if self._is_geopandas_object(self.vector_input):
+        if _is_geopandas_object(self.vector_input):
             return self.vector_input
 
         feature = next(self.vector_input(eopatch))
@@ -336,7 +320,7 @@ class VectorToRaster(EOTask):
         return eopatch
 
 
-class RasterToVector(EOTask):
+class RasterToVectorTask(EOTask):
     """ Task for transforming raster mask feature into vector feature.
 
     Each connected component with the same value on the raster mask is turned into a shapely polygon. Polygon are
@@ -455,3 +439,31 @@ class RasterToVector(EOTask):
                                                              crs=gpd_list[0].crs)
 
         return eopatch
+
+
+def _is_geopandas_object(data):
+    """ A frequently used check if object is geopandas `GeoDataFrame` or `GeoSeries`
+    """
+    return isinstance(data, (GeoDataFrame, GeoSeries))
+
+
+def _vector_is_timeless(vector_input):
+    """ Used to check if the vector input (either geopandas object EOPatch Feature) is time independent
+    """
+    if _is_geopandas_object(vector_input):
+        return 'TIMESTAMP' not in vector_input
+
+    vector_type = next(iter(vector_input))[0]
+    return vector_type.is_timeless()
+
+
+@renamed_and_deprecated
+class VectorToRaster(VectorToRasterTask):
+    """ A deprecated version of VectorToRasterTask
+    """
+
+
+@renamed_and_deprecated
+class RasterToVector(RasterToVectorTask):
+    """ A deprecated version of RasterToVectorTask
+    """

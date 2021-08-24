@@ -10,7 +10,7 @@ import pytest
 import numpy as np
 
 from eolearn.core import FeatureType
-from eolearn.mask import MaskFeature
+from eolearn.mask import MaskFeatureTask
 
 
 BANDS_FEATURE = FeatureType.DATA, 'BANDS-S2-L1C'
@@ -22,7 +22,7 @@ LULC_FEATURE = FeatureType.MASK_TIMELESS, 'LULC'
 def test_bands_with_clm(test_eopatch):
     new_feature = FeatureType.DATA, 'BANDS-S2-L1C_MASKED'
 
-    mask_task = MaskFeature(BANDS_FEATURE, CLOUD_MASK_FEATURE, mask_values=[True], no_data_value=-1)
+    mask_task = MaskFeatureTask(BANDS_FEATURE, CLOUD_MASK_FEATURE, mask_values=[True], no_data_value=-1)
     eop = mask_task(test_eopatch)
 
     masked_count = np.count_nonzero(eop[new_feature] == -1)
@@ -34,7 +34,7 @@ def test_bands_with_clm(test_eopatch):
 def test_ndvi_with_clm(test_eopatch):
     new_feature = FeatureType.DATA, 'NDVI_MASKED'
 
-    mask_task = MaskFeature(NDVI_FEATURE, CLOUD_MASK_FEATURE, mask_values=[True])
+    mask_task = MaskFeatureTask(NDVI_FEATURE, CLOUD_MASK_FEATURE, mask_values=[True])
     eop = mask_task(test_eopatch)
 
     masked_count = np.count_nonzero(np.isnan(eop[new_feature]))
@@ -45,7 +45,7 @@ def test_ndvi_with_clm(test_eopatch):
 def test_clm_with_lulc(test_eopatch):
     new_feature = FeatureType.MASK, 'CLM_MASKED'
 
-    mask_task = MaskFeature(CLOUD_MASK_FEATURE, LULC_FEATURE, mask_values=[2], no_data_value=255)
+    mask_task = MaskFeatureTask(CLOUD_MASK_FEATURE, LULC_FEATURE, mask_values=[2], no_data_value=255)
     eop = mask_task(test_eopatch)
 
     masked_count = np.count_nonzero(eop[new_feature] == 255)
@@ -58,7 +58,7 @@ def test_clm_with_lulc(test_eopatch):
 def test_lulc_with_lulc(test_eopatch):
     new_feature = FeatureType.MASK_TIMELESS, 'LULC_MASKED'
 
-    mask_task = MaskFeature(LULC_FEATURE, LULC_FEATURE, mask_values=[1], no_data_value=100)
+    mask_task = MaskFeatureTask(LULC_FEATURE, LULC_FEATURE, mask_values=[1], no_data_value=100)
     eop = mask_task(test_eopatch)
 
     masked_count = np.count_nonzero(eop[new_feature] == 100)
@@ -68,4 +68,4 @@ def test_lulc_with_lulc(test_eopatch):
 
 def test_wrong_arguments():
     with pytest.raises(ValueError):
-        MaskFeature(BANDS_FEATURE, CLOUD_MASK_FEATURE, mask_values=10)
+        MaskFeatureTask(BANDS_FEATURE, CLOUD_MASK_FEATURE, mask_values=10)

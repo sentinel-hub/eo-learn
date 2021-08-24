@@ -16,7 +16,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 from eolearn.core import EOTask, EOPatch, FeatureType
-from eolearn.geometry import VectorToRaster, RasterToVector
+from eolearn.geometry import VectorToRasterTask, RasterToVectorTask
 from shapely.geometry import Polygon
 
 from conftest import TEST_EOPATCH_PATH
@@ -47,28 +47,28 @@ class VectorToRasterTestCase:
 VECTOR_TO_RASTER_TEST_CASES = (
     VectorToRasterTestCase(
         name='basic test',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             VECTOR_FEATURE, RASTER_FEATURE, values_column='LULC_ID',
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=20
         ),
         img_max=8, img_mean=2.33267, img_median=2, img_shape=(101, 100, 1)),
     VectorToRasterTestCase(
         name='basic test timed',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             VECTOR_FEATURE_TIMED, RASTER_FEATURE_TIMED, values_column='VALUE',
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=20
         ),
         img_min=1, img_max=20, img_mean=12.4854, img_median=20, img_shape=(68, 101, 100, 1)),
     VectorToRasterTestCase(
         name='single value filter, fixed shape',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             VECTOR_FEATURE, RASTER_FEATURE, values=8, values_column='LULC_ID',
             raster_shape=(50, 50), no_data_value=20, write_to_existing=True, raster_dtype=np.int32
         ),
         img_min=8, img_max=20, img_mean=19.76, img_median=20, img_dtype=np.int32, img_shape=(50, 50, 1)),
     VectorToRasterTestCase(
         name='multiple values filter, resolution, all touched',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             VECTOR_FEATURE, RASTER_FEATURE, values=[1, 5], values_column='LULC_ID',
             raster_resolution='60m', no_data_value=13, raster_dtype=np.uint16, all_touched=True,
             write_to_existing=False
@@ -76,14 +76,14 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_min=1, img_max=13, img_mean=12.7093, img_median=13, img_dtype=np.uint16, img_shape=(17, 17, 1)),
     VectorToRasterTestCase(
         name='deprecated parameters, single value, custom resolution',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME, raster_feature=RASTER_FEATURE, values=14,
             raster_resolution=(32, 15), no_data_value=-1, raster_dtype=np.int32
         ),
         img_min=-1, img_max=14, img_mean=-0.8411, img_median=-1, img_dtype=np.int32, img_shape=(67, 31, 1)),
     VectorToRasterTestCase(
         name='empty vector data test',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME[(CUSTOM_DATAFRAME.LULC_NAME == 'some_none_existent_name')],
             raster_feature=RASTER_FEATURE, values_column='LULC_ID',
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0
@@ -91,21 +91,21 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_max=0, img_mean=0, img_median=0, img_shape=(101, 100, 1)),
     VectorToRasterTestCase(
         name='negative polygon buffering',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME, raster_feature=RASTER_FEATURE, values_column='LULC_ID', buffer=-2,
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0
         ),
         img_max=8, img_mean=0.0229, img_median=0, img_shape=(101, 100, 1)),
     VectorToRasterTestCase(
         name='positive polygon buffering',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME, raster_feature=RASTER_FEATURE, values_column='LULC_ID', buffer=2,
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0
         ),
         img_max=8, img_mean=0.0664, img_median=0, img_shape=(101, 100, 1)),
     VectorToRasterTestCase(
         name='different crs',
-        task=VectorToRaster(
+        task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME.to_crs(epsg=3857), raster_feature=RASTER_FEATURE, values_column='LULC_ID',
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0
         ),
@@ -151,20 +151,20 @@ def test_polygon_overlap(test_eopatch):
     eop = test_eopatch
 
     # no overlap
-    eop = VectorToRaster(dframe[1:-1], (FeatureType.MASK_TIMELESS, 'OVERLAP_0'), overlap_value=5, **kwargs)(eop)
+    eop = VectorToRasterTask(dframe[1:-1], (FeatureType.MASK_TIMELESS, 'OVERLAP_0'), overlap_value=5, **kwargs)(eop)
 
     # overlap without taking intersection into account
-    eop = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_1'), overlap_value=None, **kwargs)(eop)
+    eop = VectorToRasterTask(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_1'), overlap_value=None, **kwargs)(eop)
 
     # overlap by setting intersections to 0
-    eop = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_2'), overlap_value=0, **kwargs)(eop)
+    eop = VectorToRasterTask(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_2'), overlap_value=0, **kwargs)(eop)
 
     # overlap by setting intersections to class 7
-    eop = VectorToRaster(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_3'), overlap_value=7, **kwargs)(eop)
+    eop = VectorToRasterTask(dframe, (FeatureType.MASK_TIMELESS, 'OVERLAP_3'), overlap_value=7, **kwargs)(eop)
 
     # separately render bboxes for comparisons in asserts
-    eop = VectorToRaster(dframe[:1], (FeatureType.MASK_TIMELESS, 'TEST_BBOX1'), **kwargs)(eop)
-    eop = VectorToRaster(dframe[-1:], (FeatureType.MASK_TIMELESS, 'TEST_BBOX2'), **kwargs)(eop)
+    eop = VectorToRasterTask(dframe[:1], (FeatureType.MASK_TIMELESS, 'TEST_BBOX1'), **kwargs)(eop)
+    eop = VectorToRasterTask(dframe[-1:], (FeatureType.MASK_TIMELESS, 'TEST_BBOX2'), **kwargs)(eop)
 
     bbox1 = eop.mask_timeless['TEST_BBOX1']
     bbox2 = eop.mask_timeless['TEST_BBOX2']
@@ -203,13 +203,13 @@ class RasterToVectorTestCase:
 RASTER_TO_VECTOR_TEST_CASES = (
     # feature2 = FeatureType.MASK, 'CLM'
     RasterToVectorTestCase(
-        name='reverse test', task=RasterToVector((FeatureType.MASK_TIMELESS, 'LULC', 'NEW_LULC')),
+        name='reverse test', task=RasterToVectorTask((FeatureType.MASK_TIMELESS, 'LULC', 'NEW_LULC')),
         feature=(FeatureType.MASK_TIMELESS, 'LULC'), vector_feature=(FeatureType.VECTOR_TIMELESS, 'NEW_LULC'),
         data_len=126, test_reverse=True
     ),
     RasterToVectorTestCase(
         name='parameters test',
-        task=RasterToVector(
+        task=RasterToVectorTask(
             (FeatureType.MASK, 'CLM'), values=[1, 2], values_column='IS_CLOUD', raster_dtype=np.int16, connectivity=8
         ),
         feature=(FeatureType.MASK, 'CLM'), vector_feature=(FeatureType.VECTOR, 'CLM'), data_len=54
@@ -226,7 +226,7 @@ def test_raster_to_vector_result(test_case, test_eopatch):
         old_feature = test_case.feature
         new_feature = old_feature[0], f'{old_feature[1]}_NEW'
 
-        vector2raster_task = VectorToRaster(
+        vector2raster_task = VectorToRasterTask(
             test_case.vector_feature, new_feature, values_column=test_case.task.values_column, raster_shape=old_feature
         )
 
