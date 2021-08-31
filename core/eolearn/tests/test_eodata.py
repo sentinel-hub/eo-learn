@@ -172,6 +172,41 @@ class TestEOPatch(unittest.TestCase):
 
         self.assertTrue(np.array_equal(eop_bands, bands), msg="Data numpy array not returned properly")
 
+    def test_shallow_copy(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+        eop = EOPatch.load(path)
+
+        eop_copy = eop.copy()
+        assert eop == eop_copy
+        assert eop is not eop_copy
+
+        eop_copy.mask['CLM'] += 1
+        assert eop == eop_copy
+
+        eop_copy.timestamp.pop()
+        assert eop != eop_copy
+
+    def test_deep_copy(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+        eop = EOPatch.load(path)
+
+        eop_copy = eop.copy(deep=True)
+        assert eop == eop_copy
+        assert eop is not eop_copy
+
+        eop_copy.mask['CLM'] += 1
+        assert eop != eop_copy
+
+    def test_copy_features(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+        eop = EOPatch.load(path)
+
+        feature = FeatureType.MASK, 'CLM'
+        eop_copy = eop.copy(features=[feature])
+        assert eop != eop_copy
+        assert eop_copy[feature] is eop[feature]
+        assert eop_copy.timestamp == []
+
     def test_remove_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
         names = ['bands1', 'bands2', 'bands3']
