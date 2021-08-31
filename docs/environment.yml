@@ -9,6 +9,7 @@ dependencies:
   - nbsphinx
   - jupyter
   - m2r2
+  - ray
 
   - ./../core
   - ./../coregistration

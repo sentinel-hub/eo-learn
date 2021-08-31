@@ -1,8 +1,6 @@
 """
 Credits:
-Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja, Eva Erzin (Sinergise)
-Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2021-2021 Žiga Lukšič, Matej Aleksandrov (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -12,19 +10,15 @@ import os
 import logging
 import tempfile
 import datetime
-import concurrent.futures
-import multiprocessing
-import time
 
 import pytest
-from eolearn.core import (
-    EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
-)
+import ray
 
 from eolearn.core import (
-    EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
+    EOTask, EOWorkflow, EOExecutor, Dependency,  WorkflowResults, LinearWorkflow
 )
 from eolearn.core.eoworkflow_tasks import OutputTask
+from eolearn.core.extra.ray import RayExecutor
 
 
 class ExampleTask(EOTask):
@@ -61,17 +55,11 @@ class CustomLogFilter(logging.Filter):
         return record.levelno >= logging.WARNING
 
 
-def logging_function(_=None):
-    """ Logs start, sleeps for 0.5s, logs end
-    """
-    logging.info(multiprocessing.current_process().name)
-    time.sleep(0.5)
-    logging.info(multiprocessing.current_process().name)
-
-
-@pytest.fixture(scope='session', name='num_workers')
-def num_workers_fixture():
-    return 5
+@pytest.fixture(name='simple_cluster', scope='module')
+def simple_cluster_fixture():
+    ray.init(log_to_driver=False)
+    yield
+    ray.shutdown()
 
 
 @pytest.fixture(scope='session', name='test_tasks')
@@ -111,25 +99,24 @@ def execution_args_fixture(test_tasks):
     return execution_args
 
 
-@pytest.mark.parametrize(
-    'test_args',
-    [
-        (1, True, False), (1, False, True),   # singleprocess
-        (5, True, False), (3, True, True),    # multiprocess
-        (3, False, False), (2, False, True),  # multithread
-    ]
-)
+def test_fail_without_ray(workflow, execution_args):
+    executor = RayExecutor(workflow, execution_args)
+    with pytest.raises(RuntimeError):
+        executor.run()
+
+
+@pytest.mark.parametrize('filter_logs', [True, False])
 @pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
-def test_execution_logs(test_args, execution_names, workflow, execution_args):
-    workers, multiprocess, filter_logs = test_args
+def test_execution_logs(filter_logs, execution_names, workflow, execution_args, simple_cluster):
+
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = EOExecutor(
+        executor = RayExecutor(
             workflow, execution_args, save_logs=True,
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
             execution_names=execution_names
         )
-        executor.run(workers=workers, multiprocess=multiprocess)
+        executor.run()
 
         assert len(executor.execution_logs) == 4
         for log in executor.execution_logs:
@@ -149,10 +136,10 @@ def test_execution_logs(test_args, execution_names, workflow, execution_args):
             assert line_count == expected_line_count
 
 
-def test_execution_stats(workflow, execution_args):
+def test_execution_stats(workflow, execution_args, simple_cluster):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = EOExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
-        executor.run(workers=2)
+        executor = RayExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
+        executor.run()
 
         assert len(executor.execution_stats) == 4
         for stats in executor.execution_stats:
@@ -160,11 +147,10 @@ def test_execution_stats(workflow, execution_args):
                 assert time_stat in stats and isinstance(stats[time_stat], datetime.datetime)
 
 
-@pytest.mark.parametrize('multiprocess', [True, False])
-def test_execution_errors(multiprocess, workflow, execution_args):
+def test_execution_errors(workflow, execution_args, simple_cluster):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = EOExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
-        executor.run(workers=5, multiprocess=multiprocess)
+        executor = RayExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
+        executor.run()
 
         for idx, stats in enumerate(executor.execution_stats):
             if idx != 3:
@@ -177,9 +163,9 @@ def test_execution_errors(multiprocess, workflow, execution_args):
 
 
 @pytest.mark.parametrize('return_results', [True, False])
-def test_execution_results(return_results, workflow, execution_args):
-    executor = EOExecutor(workflow, execution_args)
-    results = executor.run(workers=2, multiprocess=True, return_results=return_results)
+def test_execution_results(return_results, workflow, execution_args, simple_cluster):
+    executor = RayExecutor(workflow, execution_args)
+    results = executor.run(return_results=return_results)
 
     if return_results:
         assert isinstance(results, list)
@@ -194,69 +180,49 @@ def test_execution_results(return_results, workflow, execution_args):
         assert results is None
 
 
-def test_exceptions(workflow, execution_args):
-    with pytest.raises(ValueError):
-        EOExecutor(workflow, {})
-    with pytest.raises(ValueError):
-        EOExecutor(workflow, execution_args, execution_names={1, 2, 3, 4})
-    with pytest.raises(ValueError):
-        EOExecutor(workflow, execution_args, execution_names=['a', 'b'])
-
-
-def test_keyboard_interrupt():
+def test_keyboard_interrupt(simple_cluster):
     exception_task = KeyboardExceptionTask()
     workflow = LinearWorkflow(exception_task)
     execution_args = []
     for _ in range(10):
         execution_args.append({exception_task: {'arg1': 1}})
 
-    run_args = [{'workers': 1},
-                {'workers': 3, 'multiprocess': True},
-                {'workers': 3, 'multiprocess': False}]
-    for arg in run_args:
-        with pytest.raises(KeyboardInterrupt):
-            EOExecutor(workflow, execution_args).run(**arg)
+    with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
+        RayExecutor(workflow, execution_args).run()
 
 
-def test_with_lock(num_workers):
-    with tempfile.NamedTemporaryFile() as fp:
-        logger = logging.getLogger()
-        handler = logging.FileHandler(fp.name)
-        handler.setFormatter(logging.Formatter('%(message)s'))
-        logger.addHandler(handler)
+def test_reruns(workflow, execution_args, simple_cluster):
+    executor = RayExecutor(workflow, execution_args)
+    for _ in range(100):
+        executor.run()
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
-            pool.map(execute_with_mp_lock, [logging_function] * num_workers)
+    for _ in range(10):
+        RayExecutor(workflow, execution_args).run()
 
-        handler.close()
-        logger.removeHandler(handler)
-
-        with open(fp.name, 'r') as log_file:
-            lines = log_file.read().strip('\n ').split('\n')
-
-        assert (len(lines) == 2 * num_workers)
-        for idx in range(num_workers):
-            assert lines[2 * idx], lines[2 * idx + 1]
-        for idx in range(1, num_workers):
-            assert lines[2 * idx - 1] != lines[2 * idx]
+    executors = [RayExecutor(workflow, execution_args) for _ in range(10)]
+    for executor in executors:
+        executor.run()
 
 
-def test_without_lock(num_workers):
-    with tempfile.NamedTemporaryFile() as fp:
-        logger = logging.getLogger()
-        handler = logging.FileHandler(fp.name)
-        handler.setFormatter(logging.Formatter('%(message)s'))
-        logger.addHandler(handler)
+def test_run_after_interrupt(workflow, execution_args, simple_cluster):
+    foo_task = FooTask()
+    exception_task = KeyboardExceptionTask()
+    exception_workflow = LinearWorkflow(foo_task, exception_task)
+    exception_executor = RayExecutor(exception_workflow, [{}])
+    executor = RayExecutor(workflow, execution_args[:-1])  # removes args for exception
 
-        with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
-            pool.map(logging_function, [None] * num_workers)
+    result_preexception = executor.run(return_results=True)
+    with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
+        exception_executor.run()
+    result_postexception = executor.run(return_results=True)
 
-        handler.close()
-        logger.removeHandler(handler)
+    assert [res.outputs for res in result_preexception] == [res.outputs for res in result_postexception]
 
-        with open(fp.name, 'r') as log_file:
-            lines = log_file.read().strip('\n ').split('\n')
 
-        assert len(lines) == 2 * num_workers
-        assert len(set(lines[: num_workers])) == num_workers, 'All processes should start'
-        assert len(set(lines[num_workers:])) == num_workers, 'All processes should finish'
+def test_mix_with_eoexecutor(workflow, execution_args, simple_cluster):
+    rayexecutor = RayExecutor(workflow, execution_args)
+    eoexecutor = EOExecutor(workflow, execution_args)
+    for _ in range(10):
+        ray_results = rayexecutor.run()
+        eo_results = eoexecutor.run()
+        assert ray_results == eo_results

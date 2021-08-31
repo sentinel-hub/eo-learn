@@ -8,3 +8,4 @@ twine
 scikit-image>=0.14.1
 nbval
 moto
+ray[default]

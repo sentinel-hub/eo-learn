@@ -3,6 +3,7 @@ sphinx-rtd-theme
 nbsphinx
 jupyter
 m2r2
+ray
 
 -e ./core
 -e ./coregistration
