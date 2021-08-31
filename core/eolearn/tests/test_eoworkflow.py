@@ -11,10 +11,15 @@ import functools
 import concurrent.futures
 import datetime as dt
 
+import ipdb
 import pytest
+import numpy as np
 from hypothesis import given, strategies as st
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, LinearWorkflow, OutputTask, WorkflowResults
+from eolearn.core import (
+    EOPatch, EOTask, EOWorkflow, Dependency, LinearWorkflow, OutputTask, WorkflowResults, FeatureType,
+    InitializeFeatureTask, RemoveFeatureTask
+)
 from eolearn.core.eoworkflow import CyclicDependencyError, TaskStats
 from eolearn.core.graph import DirectedGraph
 
@@ -145,6 +150,36 @@ def test_resolve_dependencies(edges):
 def test_exceptions(faulty_parameters):
     with pytest.raises(ValueError):
         LinearWorkflow(*faulty_parameters)
+
+
+def test_workflow_copying_eopatches():
+    feature1 = FeatureType.DATA, 'data1'
+    feature2 = FeatureType.DATA, 'data2'
+
+    init_task = InitializeFeatureTask(
+        [feature1, feature2],
+        shape=(2, 4, 4, 3),
+        init_value=1
+    )
+    remove_task1 = RemoveFeatureTask(feature1)
+    remove_task2 = RemoveFeatureTask(feature2)
+    output_task1 = OutputTask(name='out1')
+    output_task2 = OutputTask(name='out2')
+
+    workflow = EOWorkflow([
+        (init_task, []),
+        (remove_task1, [init_task]),
+        (remove_task2, [init_task]),
+        (output_task1, [remove_task1]),
+        (output_task2, [remove_task2]),
+    ])
+    results = workflow.execute({init_task: (EOPatch(),)})
+
+    eop1 = results.outputs['out1']
+    eop2 = results.outputs['out2']
+
+    assert eop1 == EOPatch(data={'data2': np.ones((2, 4, 4, 3), dtype=np.uint8)})
+    assert eop2 == EOPatch(data={'data1': np.ones((2, 4, 4, 3), dtype=np.uint8)})
 
 
 def test_workflows_sharing_tasks():
