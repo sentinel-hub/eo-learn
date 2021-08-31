@@ -19,6 +19,7 @@ import cv2
 import numpy as np
 import registration
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.utilities import renamed_and_deprecated
 
 from .coregistration_utilities import EstimateEulerTransformModel, ransac
 
@@ -228,7 +229,7 @@ class RegistrationTask(EOTask, ABC):
         return 1 if int((rot_angle > MAX_ROTATION) or (transl_norm > MAX_TRANSLATION)) else 0
 
 
-class ThunderRegistration(RegistrationTask):
+class ThunderRegistrationTask(RegistrationTask):
     """ Registration task implementing a translational registration using the thunder-registration package
     """
 
@@ -268,7 +269,7 @@ class ThunderRegistration(RegistrationTask):
         pass
 
 
-class ECCRegistration(RegistrationTask):
+class ECCRegistrationTask(RegistrationTask):
     """ Registration task implementing an intensity-based method from OpenCV
     """
 
@@ -319,7 +320,7 @@ class ECCRegistration(RegistrationTask):
         return warp_matrix
 
 
-class PointBasedRegistration(RegistrationTask):
+class PointBasedRegistrationTask(RegistrationTask):
     """ Registration class implementing a point-based registration from OpenCV contrib package
     """
 
@@ -418,3 +419,21 @@ def get_gradient(src):
     # Combine the two gradients
     grad = cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)
     return grad
+
+
+@renamed_and_deprecated
+class ThunderRegistration(ThunderRegistrationTask):
+    """ A deprecated version of ThunderRegistrationTask
+    """
+
+
+@renamed_and_deprecated
+class ECCRegistration(ECCRegistrationTask):
+    """ A deprecated version of ECCRegistrationTask
+    """
+
+
+@renamed_and_deprecated
+class PointBasedRegistration(PointBasedRegistrationTask):
+    """ A deprecated version of PointBasedRegistrationTask
+    """

@@ -17,13 +17,14 @@ import numpy as np
 from skimage.morphology import disk, binary_dilation
 
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.utilities import renamed_and_deprecated
 from .utilities import resize_images
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseSnowMask(EOTask):
+class BaseSnowMaskTask(EOTask):
     """ Base class for snow detection and masking
     """
     def __init__(self, data_feature, band_indices, dilation_size=0, undefined_value=0, mask_name='SNOW_MASK'):
@@ -52,7 +53,7 @@ class BaseSnowMask(EOTask):
         raise NotImplementedError
 
 
-class SnowMask(BaseSnowMask):
+class SnowMaskTask(BaseSnowMaskTask):
     """ The task calculates the snow mask using the given thresholds.
 
     The default values were optimised based on the Sentinel-2 L1C processing level. Values might not be optimal for L2A
@@ -104,7 +105,7 @@ class SnowMask(BaseSnowMask):
         return eopatch
 
 
-class TheiaSnowMask(BaseSnowMask):
+class TheiaSnowMaskTask(BaseSnowMaskTask):
     """ Task to add a snow mask to an EOPatch. The input data is either Sentinel-2 L1C or L2A level
 
     Original implementation and documentation available at https://gitlab.orfeo-toolbox.org/remote_modules/let-it-snow
@@ -267,3 +268,15 @@ class TheiaSnowMask(BaseSnowMask):
         eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(bool)
 
         return eopatch
+
+
+@renamed_and_deprecated
+class SnowMask(SnowMaskTask):
+    """ A deprecated version of SnowMaskTask
+    """
+
+
+@renamed_and_deprecated
+class TheiaSnowMask(TheiaSnowMaskTask):
+    """ A deprecated version of TheiaSnowMaskTask
+    """

@@ -11,7 +11,7 @@ import pytest
 import numpy as np
 
 from eolearn.core import FeatureType
-from eolearn.mask import SnowMask, TheiaSnowMask
+from eolearn.mask import SnowMaskTask, TheiaSnowMaskTask
 
 
 @pytest.mark.parametrize('params', [
@@ -21,7 +21,7 @@ from eolearn.mask import SnowMask, TheiaSnowMask
 ])
 def test_raises_errors(params, test_eopatch):
     with pytest.raises(ValueError):
-        theia_mask = TheiaSnowMask(
+        theia_mask = TheiaSnowMaskTask(
             (FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 11], (FeatureType.MASK, 'CLM'),
             (FeatureType.DATA_TIMELESS, 'DEM'), **params
         )
@@ -30,11 +30,11 @@ def test_raises_errors(params, test_eopatch):
 
 @pytest.mark.parametrize('task, result', [
     (
-        SnowMask((FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 7, 11], mask_name='TEST_SNOW_MASK'),
+        SnowMaskTask((FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 7, 11], mask_name='TEST_SNOW_MASK'),
         (50468, 1405)
     ),
     (
-        TheiaSnowMask(
+        TheiaSnowMaskTask(
             (FeatureType.DATA, 'BANDS-S2-L1C'), [2, 3, 11], (FeatureType.MASK, 'CLM'),
             (FeatureType.DATA_TIMELESS, 'DEM'), b10_index=10, mask_name='TEST_THEIA_SNOW_MASK'
         ),

@@ -14,7 +14,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
-from eolearn.features import FilterTimeSeries, ValueFilloutTask
+from eolearn.features import FilterTimeSeriesTask, ValueFilloutTask
 from eolearn.core import EOPatch, FeatureType
 
 
@@ -42,7 +42,7 @@ def test_content_after_timefilter():
 
     eop = EOPatch(timestamp=timestamps, data={'data': data}, meta_info={'time_interval': old_interval})
 
-    filter_task = FilterTimeSeries(start_date=new_interval[0], end_date=new_interval[1])
+    filter_task = FilterTimeSeriesTask(start_date=new_interval[0], end_date=new_interval[1])
     filter_task.execute(eop)
 
     updated_interval = eop.meta_info['time_interval']

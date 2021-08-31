@@ -17,11 +17,12 @@ import skimage.segmentation
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
 
-class SuperpixelSegmentation(EOTask):
+class SuperpixelSegmentationTask(EOTask):
     """ Super-pixel segmentation task
 
     Given a raster feature it will segment data into super-pixels. Representation of super-pixels will be returned as
@@ -72,26 +73,26 @@ class SuperpixelSegmentation(EOTask):
         return eopatch
 
 
-class FelzenszwalbSegmentation(SuperpixelSegmentation):
+class FelzenszwalbSegmentationTask(SuperpixelSegmentationTask):
     """ Super-pixel segmentation which uses Felzenszwalb's method of segmentation
 
     Uses segmentation function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb
     """
     def __init__(self, feature, superpixel_feature, **kwargs):
-        """ Arguments are passed to `SuperpixelSegmentation` task
+        """ Arguments are passed to `SuperpixelSegmentationTask` task
         """
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.felzenszwalb, **kwargs)
 
 
-class SlicSegmentation(SuperpixelSegmentation):
+class SlicSegmentationTask(SuperpixelSegmentationTask):
     """ Super-pixel segmentation which uses SLIC method of segmentation
 
     Uses segmentation function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.slic
     """
     def __init__(self, feature, superpixel_feature, **kwargs):
-        """ Arguments are passed to `SuperpixelSegmentation` task
+        """ Arguments are passed to `SuperpixelSegmentationTask` task
         """
         super().__init__(
             feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, start_label=0, **kwargs
@@ -105,7 +106,7 @@ class SlicSegmentation(SuperpixelSegmentation):
         return super()._create_superpixel_mask(data)
 
 
-class MarkSegmentationBoundaries(EOTask):
+class MarkSegmentationBoundariesTask(EOTask):
     """ Takes super-pixel segmentation mask and creates a new mask where boundaries of super-pixels are marked
 
     The result is a binary mask with values 0 and 1 and dtype `numpy.uint8`
@@ -139,3 +140,27 @@ class MarkSegmentationBoundaries(EOTask):
         bounds_mask = bounds_mask[..., :1].astype(np.uint8)
         eopatch[self.new_feature[0]][self.new_feature[1]] = bounds_mask
         return eopatch
+
+
+@renamed_and_deprecated
+class SuperpixelSegmentation(SuperpixelSegmentationTask):
+    """ A deprecated version of SuperpixelSegmentationTask
+    """
+
+
+@renamed_and_deprecated
+class FelzenszwalbSegmentation(FelzenszwalbSegmentationTask):
+    """ A deprecated version of FelzenszwalbSegmentationTask
+    """
+
+
+@renamed_and_deprecated
+class SlicSegmentation(SlicSegmentationTask):
+    """ A deprecated version of SlicSegmentationTask
+    """
+
+
+@renamed_and_deprecated
+class MarkSegmentationBoundaries(MarkSegmentationBoundariesTask):
+    """ A deprecated version of MarkSegmentationBoundariesTask
+    """

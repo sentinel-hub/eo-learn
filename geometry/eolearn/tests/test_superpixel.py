@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from eolearn.core import FeatureType
-from eolearn.geometry import SuperpixelSegmentation, FelzenszwalbSegmentation, SlicSegmentation
+from eolearn.geometry import SuperpixelSegmentationTask, FelzenszwalbSegmentationTask, SlicSegmentationTask
 
 
 SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, 'SP_FEATURE'
@@ -19,29 +19,29 @@ SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, 'SP_FEATURE'
 
 @pytest.mark.parametrize('task, expected_min, expected_max, expected_mean, expected_median', (
     [
-        SuperpixelSegmentation(
+        SuperpixelSegmentationTask(
             (FeatureType.DATA, 'BANDS-S2-L1C'), SUPERPIXEL_FEATURE, scale=100, sigma=0.5, min_size=100
         ),
         0, 25, 10.6809, 11
     ],
     [
-        FelzenszwalbSegmentation(
+        FelzenszwalbSegmentationTask(
             (FeatureType.DATA_TIMELESS, 'MAX_NDVI'), SUPERPIXEL_FEATURE, scale=21, sigma=1.0, min_size=52
         ),
         0, 22, 8.5302, 7
     ],
     [
-        FelzenszwalbSegmentation((FeatureType.MASK, 'CLM'), SUPERPIXEL_FEATURE, scale=1, sigma=0, min_size=15),
+        FelzenszwalbSegmentationTask((FeatureType.MASK, 'CLM'), SUPERPIXEL_FEATURE, scale=1, sigma=0, min_size=15),
         0, 171, 86.46267, 90
     ],
     [
-        SlicSegmentation(
+        SlicSegmentationTask(
             (FeatureType.DATA, 'CLP'), SUPERPIXEL_FEATURE, n_segments=55, compactness=25.0, max_iter=20, sigma=0.8
         ),
         0, 48, 24.6072, 25
     ],
     [
-        SlicSegmentation(
+        SlicSegmentationTask(
             (FeatureType.MASK_TIMELESS, 'RANDOM_UINT8'), SUPERPIXEL_FEATURE,
             n_segments=231, compactness=15.0, max_iter=7, sigma=0.2
         ),

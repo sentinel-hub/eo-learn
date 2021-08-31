@@ -18,11 +18,12 @@ import rasterio.warp
 from sentinelhub import MimeType, CRS, GeopediaWmsRequest
 
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
 
-class AddGeopediaFeature(EOTask):
+class AddGeopediaFeatureTask(EOTask):
     """
     Task for adding a feature from Geopedia to an existing EOPatch.
 
@@ -163,3 +164,9 @@ class AddGeopediaFeature(EOTask):
         eopatch[self.feature_type][self.feature_name] = raster
 
         return eopatch
+
+
+@renamed_and_deprecated
+class AddGeopediaFeature(AddGeopediaFeatureTask):
+    """ A deprecated version of AddGeopediaFeatureTask
+    """

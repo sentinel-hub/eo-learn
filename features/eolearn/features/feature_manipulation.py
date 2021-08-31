@@ -18,6 +18,7 @@ import numpy as np
 
 from sentinelhub.time_utils import iso_to_datetime
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.utilities import renamed_and_deprecated
 
 
 LOGGER = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ class SimpleFilterTask(EOTask):
         return eopatch
 
 
-class FilterTimeSeries(SimpleFilterTask):
+class FilterTimeSeriesTask(SimpleFilterTask):
     """
     Removes all frames in the time-series with dates outside the user specified time interval.
     """
@@ -212,3 +213,9 @@ class ValueFilloutTask(EOTask):
         eopatch[self.feature] = data
 
         return eopatch
+
+
+@renamed_and_deprecated
+class FilterTimeSeries(FilterTimeSeriesTask):
+    """ A deprecated version of FilterTimeSeriesTask
+    """

@@ -14,6 +14,7 @@ file in the root directory of this source tree.
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.utilities import renamed_and_deprecated
 
 
 class AddValidDataMaskTask(EOTask):
@@ -47,7 +48,7 @@ class AddValidDataMaskTask(EOTask):
         return eopatch
 
 
-class MaskFeature(EOTask):
+class MaskFeatureTask(EOTask):
     """ Masks out values of a feature using defined values of a given mask feature.
 
     As an example, it can be used to mask the data feature using values from the Sen2cor Scene Classification
@@ -131,3 +132,9 @@ def apply_mask(data, mask, old_value, new_value, data_type, mask_type):
         raise ValueError(f'Mask feature has {mask.shape[-1]} number of bands while data feature has '
                          f'{data.shape[-1]} number of bands')
     return data
+
+
+@renamed_and_deprecated
+class MaskFeature(MaskFeatureTask):
+    """ A deprecated version of MaskFeatureTask
+    """

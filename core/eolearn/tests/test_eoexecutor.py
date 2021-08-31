@@ -17,6 +17,9 @@ import multiprocessing
 import time
 
 import pytest
+from eolearn.core import (
+    EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
+)
 
 from eolearn.core import (
     EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
