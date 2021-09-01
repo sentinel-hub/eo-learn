@@ -32,9 +32,9 @@ class TestEOPatchMerge(unittest.TestCase):
         )
         eop2 = EOPatch(
             data={
-                'bands': np.ones((4, 4, 5, 2))
+                'bands': np.ones((5, 4, 5, 2))
             },
-            timestamp=[all_timestamps[3], all_timestamps[1], all_timestamps[2], all_timestamps[4]]
+            timestamp=[all_timestamps[3], all_timestamps[1], all_timestamps[2], all_timestamps[4], all_timestamps[3]]
         )
 
         eop = eop1.merge(eop2)
@@ -49,13 +49,16 @@ class TestEOPatchMerge(unittest.TestCase):
         eop = eop1.merge(eop2, time_dependent_op='concatenate')
         expected_eop = EOPatch(
             data={
-                'bands': np.ones((7, 4, 5, 2))
+                'bands': np.ones((8, 4, 5, 2))
             },
-            timestamp=all_timestamps[:5] + [all_timestamps[4]] + all_timestamps[5:]
+            timestamp=all_timestamps[:4] + [all_timestamps[3], all_timestamps[4]] + all_timestamps[4:]
         )
         self.assertEqual(eop, expected_eop)
 
-        eop1.data['bands'][-1:, ...] = 3
+        eop1.data['bands'][1, ...] = 6
+        eop1.data['bands'][-1, ...] = 3
+        eop2.data['bands'][0, ...] = 5
+        eop2.data['bands'][1, ...] = 4
 
         with self.assertRaises(ValueError):
             eop1.merge(eop2)
@@ -67,7 +70,10 @@ class TestEOPatchMerge(unittest.TestCase):
             },
             timestamp=all_timestamps
         )
-        expected_eop.data['bands'][4:5, ...] = 2
+        expected_eop.data['bands'][1, ...] = 4
+        expected_eop.data['bands'][3, ...] = 3
+        expected_eop.data['bands'][4, ...] = 2
+        expected_eop.data['bands'][5, ...] = 6
         self.assertEqual(eop, expected_eop)
 
     def test_time_dependent_merge_with_missing_features(self):
