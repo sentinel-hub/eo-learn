@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 """
 import functools
 import warnings
+import itertools as it
 from collections.abc import Callable
 
 import numpy as np
@@ -57,8 +58,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
     all_features = {feature for eopatch in eopatches for feature in FeatureParser(features)(eopatch)}
     eopatch_content = {}
 
-    timestamps, sort_mask, split_mask = _merge_timestamps(eopatches, reduce_timestamps)
-    eopatch_content[FeatureType.TIMESTAMP] = timestamps
+    timestamps, order_mask_per_eopatch = _merge_timestamps(eopatches, reduce_timestamps)
 
     for feature in all_features:
         feature_type, feature_name = feature
@@ -66,7 +66,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
         if feature_type.is_raster():
             if feature_type.is_time_dependent():
                 eopatch_content[feature] = _merge_time_dependent_raster_feature(
-                    eopatches, feature, time_dependent_op, sort_mask, split_mask
+                    eopatches, feature, time_dependent_op, order_mask_per_eopatch
                 )
             else:
                 eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature,
@@ -74,6 +74,9 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
 
         if feature_type.is_vector():
             eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
+
+        if feature_type is FeatureType.TIMESTAMP:
+            eopatch_content[feature] = timestamps
 
         if feature_type is FeatureType.META_INFO:
             eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
@@ -113,48 +116,51 @@ def _return_if_equal_operation(arrays):
 
 
 def _merge_timestamps(eopatches, reduce_timestamps):
-    """ Merges together timestamps from EOPatches. It also prepares masks on how to sort and join data in any
-    time-dependent raster feature.
+    """ Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
+    timestamps should be ordered and joined together.
     """
-    all_timestamps = [timestamp for eopatch in eopatches for timestamp in eopatch.timestamp
-                      if eopatch.timestamp is not None]
+    timestamps_per_eopatch = [eopatch.timestamp for eopatch in eopatches]
+    all_timestamps = [timestamp for eopatch_timestamps in timestamps_per_eopatch for timestamp in eopatch_timestamps]
 
     if not all_timestamps:
-        return [], None, None
+        return [], [np.array([], dtype=np.int32) for _ in range(len(eopatches))]
 
-    sort_mask = np.argsort(all_timestamps)
-    all_timestamps = sorted(all_timestamps)
+    if reduce_timestamps:
+        all_timestamps, order_mask = np.unique(all_timestamps, return_inverse=True)
+        all_timestamps = all_timestamps.tolist()
+    else:
+        order_mask = np.argsort(all_timestamps)
+        all_timestamps = sorted(all_timestamps)
 
-    if not reduce_timestamps:
-        return all_timestamps, sort_mask, None
+    order_mask = order_mask.tolist()
 
-    split_mask = [
-        index + 1 for index, (timestamp, next_timestamp) in enumerate(zip(all_timestamps[:-1], all_timestamps[1:]))
-        if timestamp != next_timestamp
-    ]
-    reduced_timestamps = [timestamp for index, timestamp in enumerate(all_timestamps)
-                          if index == 0 or timestamp != all_timestamps[index - 1]]
+    order_mask_iter = iter(order_mask)
+    order_mask_per_eopatch = [np.array(list(it.islice(order_mask_iter, len(eopatch_timestamps))), dtype=np.int32)
+                              for eopatch_timestamps in timestamps_per_eopatch]
 
-    return reduced_timestamps, sort_mask, split_mask
+    return all_timestamps, order_mask_per_eopatch
 
 
-def _merge_time_dependent_raster_feature(eopatches, feature, operation, sort_mask, split_mask):
-    """ Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to sort and join
+def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_mask_per_eopatch):
+    """ Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to order and join
     time raster's time slices.
     """
-    arrays = _extract_feature_values(eopatches, feature)
+    merged_array, merged_order_mask = _extract_and_join_time_dependent_feature_values(eopatches, feature,
+                                                                                      order_mask_per_eopatch)
 
-    merged_array = np.concatenate(arrays, axis=0)
-    del arrays
-
-    if sort_mask is None:
+    if not merged_array.size:  # Case where feature array has a temporal dimension of size 0
         return merged_array
+
+    sort_mask = np.argsort(merged_order_mask)
     merged_array = merged_array[sort_mask]
 
-    if split_mask is None or len(split_mask) == merged_array.shape[0] - 1:
+    if (merged_order_mask == sort_mask).all():  # Case where all time slices are already unique and no joining is needed
         return merged_array
 
-    split_arrays = np.split(merged_array, split_mask)
+    merged_order_mask = merged_order_mask[sort_mask]
+
+    split_indices = np.nonzero(np.diff(merged_order_mask))[0] + 1
+    split_arrays = np.split(merged_array, split_indices)
     del merged_array
 
     try:
@@ -164,6 +170,27 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, sort_mas
                          f'parameter time_dependent_op') from exception
 
     return np.array(split_arrays)
+
+
+def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_mask_per_eopatch):
+    """ Collects feature arrays from EOPatches that have them and joins them together. It also joins together
+    corresponding order masks.
+    """
+    arrays = []
+    order_masks = []
+    feature_type, feature_name = feature
+
+    for eopatch, order_mask in zip(eopatches, order_mask_per_eopatch):
+        array = eopatch[feature_type].get(feature_name)
+        if array is not None:
+            if order_mask.size != array.shape[0]:
+                raise ValueError(f'Cannot merge a time-dependent feature {feature} because time dimension of an array '
+                                 f'in one EOPatch is {array.shape[0]} but EOPatch has {order_mask.size} timestamps')
+
+            arrays.append(array)
+            order_masks.append(order_mask)
+
+    return np.concatenate(arrays, axis=0), np.concatenate(order_masks)
 
 
 def _merge_timeless_raster_feature(eopatches, feature, operation):

@@ -291,9 +291,11 @@ class TestEOPatch(unittest.TestCase):
         eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
         eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
         self.assertEqual(eop1, eop2)
+        assert eop1.data == eop2.data
 
         eop1.data['bands'][1, ...] = np.nan
         self.assertNotEqual(eop1, eop2)
+        assert eop1.data != eop2.data
 
         eop2.data['bands'][1, ...] = np.nan
         self.assertEqual(eop1, eop2)
@@ -310,7 +312,6 @@ class TestEOPatch(unittest.TestCase):
         self.assertEqual(eop1, eop2)
 
         eop1.data_timeless['dem'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-
         self.assertNotEqual(eop1, eop2)
 
     def test_timestamp_consolidation(self):
