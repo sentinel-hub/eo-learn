@@ -70,6 +70,38 @@ class TestEOPatchMerge(unittest.TestCase):
         expected_eop.data['bands'][4:5, ...] = 2
         self.assertEqual(eop, expected_eop)
 
+    def test_time_dependent_merge_with_missing_features(self):
+        timestamps = [dt.datetime(2020, month, 1) for month in range(1, 7)]
+        eop1 = EOPatch(
+            data={'bands': np.ones((6, 4, 5, 2))},
+            label={'label': np.ones((6, 7), dtype=np.uint8)},
+            timestamp=timestamps
+        )
+        eop2 = EOPatch(timestamp=timestamps[:4])
+
+        eop = eop1.merge(eop2)
+        assert eop == eop1
+
+        eop = eop2.merge(eop1, eop1, eop2, time_dependent_op='min')
+        assert eop == eop1
+
+        eop = eop1.merge()
+        assert eop == eop1
+
+    def test_failed_time_dependent_merge(self):
+        eop1 = EOPatch(
+            data={'bands': np.ones((6, 4, 5, 2))}
+        )
+        with self.assertRaises(ValueError):
+            eop1.merge()
+
+        eop2 = EOPatch(
+            data={'bands': np.ones((1, 4, 5, 2))},
+            timestamp=[dt.datetime(2020, 1, 1)]
+        )
+        with self.assertRaises(ValueError):
+            eop2.merge(eop1)
+
     def test_timeless_merge(self):
         eop1 = EOPatch(
             mask_timeless={
