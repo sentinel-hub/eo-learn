@@ -115,7 +115,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
         eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
         add_eopatch = EOPatch()
-        add_eopatch.data['some data'] = np.empty((2, 3, 3, 2))
+        add_eopatch.data_timeless['some data'] = np.empty((3, 3, 2))
         add_eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
         with pytest.raises(ValueError):
             add_eopatch.save('/', filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)

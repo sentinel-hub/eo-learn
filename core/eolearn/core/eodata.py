@@ -735,6 +735,11 @@ class _FeatureDict(dict):
         """
         return deep_eq(self, other)
 
+    def __ne__(self, other):
+        """ Compares its content against a content of another feature type dictionary
+        """
+        return not self.__eq__(other)
+
     def get_dict(self):
         """Returns a Python dictionary of features and value."""
         return dict(self)
