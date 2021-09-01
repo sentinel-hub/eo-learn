@@ -167,39 +167,33 @@ def test_get_feature():
     assert np.array_equal(eop_bands, bands), 'Data numpy array not returned properly'
 
 
-def test_shallow_copy(test_eopatch_path):
-    eop = EOPatch.load(test_eopatch_path)
+def test_shallow_copy(test_eopatch):
+    eopatch_copy = test_eopatch.copy()
+    assert test_eopatch == eopatch_copy
+    assert test_eopatch is not eopatch_copy
 
-    eop_copy = eop.copy()
-    assert eop == eop_copy
-    assert eop is not eop_copy
+    eopatch_copy.mask['CLM'] += 1
+    assert test_eopatch == eopatch_copy
 
-    eop_copy.mask['CLM'] += 1
-    assert eop == eop_copy
-
-    eop_copy.timestamp.pop()
-    assert eop != eop_copy
+    eopatch_copy.timestamp.pop()
+    assert test_eopatch != eopatch_copy
 
 
-def test_deep_copy(test_eopatch_path):
-    eop = EOPatch.load(test_eopatch_path)
+def test_deep_copy(test_eopatch):
+    eopatch_copy = test_eopatch.copy(deep=True)
+    assert test_eopatch == eopatch_copy
+    assert test_eopatch is not eopatch_copy
 
-    eop_copy = eop.copy(deep=True)
-    assert eop == eop_copy
-    assert eop is not eop_copy
-
-    eop_copy.mask['CLM'] += 1
-    assert eop != eop_copy
+    eopatch_copy.mask['CLM'] += 1
+    assert test_eopatch != eopatch_copy
 
 
-def test_copy_features(test_eopatch_path):
-    eop = EOPatch.load(test_eopatch_path)
-
+def test_copy_features(test_eopatch):
     feature = FeatureType.MASK, 'CLM'
-    eop_copy = eop.copy(features=[feature])
-    assert eop != eop_copy
-    assert eop_copy[feature] is eop[feature]
-    assert eop_copy.timestamp == []
+    eopatch_copy = test_eopatch.copy(features=[feature])
+    assert test_eopatch != eopatch_copy
+    assert eopatch_copy[feature] is test_eopatch[feature]
+    assert eopatch_copy.timestamp == []
 
 
 def test_remove_feature():
