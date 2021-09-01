@@ -28,6 +28,7 @@ import copy
 
 import attr
 
+from .eodata import EOPatch
 from .eotask import EOTask
 from .graph import DirectedGraph
 
@@ -230,16 +231,18 @@ class EOWorkflow:
         :rtype: object
         """
         task = dependency.task
-        inputs = tuple(intermediate_results[self.uuid_dict[input_task.private_task_config.uuid]]
-                       for input_task in dependency.inputs)
+        task_args = [intermediate_results[self.uuid_dict[input_task.private_task_config.uuid]]
+                     for input_task in dependency.inputs]
 
-        kw_inputs = input_args.get(task, {})
-        if isinstance(kw_inputs, tuple):
-            inputs += kw_inputs
-            kw_inputs = {}
+        task_kwargs = input_args.get(task, {})
+        if isinstance(task_kwargs, tuple):
+            task_args.extend(task_kwargs)
+            task_kwargs = {}
 
-        LOGGER.debug("Computing %s(*%s, **%s)", task.__class__.__name__, str(inputs), str(kw_inputs))
-        return task(*inputs, **kw_inputs, monitor=monitor)
+        task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in task_args]
+
+        LOGGER.debug('Computing %s(*%s, **%s)', task.__class__.__name__, str(task_args), str(task_kwargs))
+        return task(*task_args, **task_kwargs, monitor=monitor)
 
     def _relax_dependencies(self, *, dependency, out_degrees, intermediate_results):
         """ Relaxes dependencies incurred by ``task_id``. After the task with ID ``task_id`` has been successfully
