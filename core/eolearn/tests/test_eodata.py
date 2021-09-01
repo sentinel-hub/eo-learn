@@ -174,6 +174,7 @@ def test_shallow_copy(test_eopatch):
 
     eopatch_copy.mask['CLM'] += 1
     assert test_eopatch == eopatch_copy
+    assert test_eopatch.mask['CLM'] is eopatch_copy.mask['CLM']
 
     eopatch_copy.timestamp.pop()
     assert test_eopatch != eopatch_copy
@@ -279,9 +280,11 @@ def test_equals():
     eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     assert eop1 == eop2
+    assert eop1.data == eop2.data
 
     eop1.data['bands'][1, ...] = np.nan
     assert eop1 != eop2
+    assert eop1.data != eop2.data
 
     eop2.data['bands'][1, ...] = np.nan
     assert eop1 == eop2
@@ -298,7 +301,6 @@ def test_equals():
     assert eop1 == eop2
 
     eop1.data_timeless['dem'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-
     assert eop1 != eop2
 
 

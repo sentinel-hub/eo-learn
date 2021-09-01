@@ -11,7 +11,6 @@ import functools
 import concurrent.futures
 import datetime as dt
 
-import ipdb
 import pytest
 import numpy as np
 from hypothesis import given, strategies as st
