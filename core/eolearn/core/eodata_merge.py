@@ -148,16 +148,18 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_ma
     merged_array, merged_order_mask = _extract_and_join_time_dependent_feature_values(eopatches, feature,
                                                                                       order_mask_per_eopatch)
 
-    if not merged_array.size:  # Case where feature array has a temporal dimension of size 0
+    # Case where feature array is already in the correct order and doesn't need splitting, which includes a case
+    # where array has a size 0
+    if _is_strictly_increasing(merged_order_mask):
         return merged_array
 
     sort_mask = np.argsort(merged_order_mask)
     merged_array = merged_array[sort_mask]
-
-    if (merged_order_mask == sort_mask).all():  # Case where all time slices are already unique and no joining is needed
-        return merged_array
-
     merged_order_mask = merged_order_mask[sort_mask]
+
+    # Case where feature array has been sorted but doesn't need splitting
+    if _is_strictly_increasing(merged_order_mask):
+        return merged_array
 
     split_indices = np.nonzero(np.diff(merged_order_mask))[0] + 1
     split_arrays = np.split(merged_array, split_indices)
@@ -190,7 +192,15 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
             arrays.append(array)
             order_masks.append(order_mask)
 
+    if len(arrays) == 1:
+        return arrays[0], order_masks[0]
     return np.concatenate(arrays, axis=0), np.concatenate(order_masks)
+
+
+def _is_strictly_increasing(array):
+    """ Checks if a 1D array of values is strictly increasing
+    """
+    return (np.diff(array) > 0).all()
 
 
 def _merge_timeless_raster_feature(eopatches, feature, operation):
