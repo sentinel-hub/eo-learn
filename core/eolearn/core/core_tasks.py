@@ -563,10 +563,12 @@ class CreateEOPatchTask(EOTask):
 
 class MergeEOPatchesTask(EOTask):
     """ Merge content from multiple EOPatches into a single EOPatch
+
+    Check :func:`EOPatch.merge<eolearn.core.eodata.EOPatch.merge>` for more information about the merging process.
     """
     def __init__(self, **merge_kwargs):
         """
-        :param merge_kwargs: A keyword arguments defined for EOPatch.merge method
+        :param merge_kwargs: Keyword arguments defined for `EOPatch.merge` method.
         """
         self.merge_kwargs = merge_kwargs
 
