@@ -35,5 +35,5 @@ class OutputTask(EOTask):
         :rtype: object
         """
         if isinstance(data, EOPatch):
-            return data.__copy__(features=self.features)
+            return data.copy(features=self.features)
         return data

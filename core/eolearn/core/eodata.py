@@ -235,10 +235,10 @@ class EOPatch:
         return '.'.join([cls.__module__.split('.')[0], cls.__name__])
 
     def __copy__(self, features=...):
-        """Returns a new EOPatch with shallow copies of given features.
+        """ Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
@@ -252,12 +252,12 @@ class EOPatch:
         return new_eopatch
 
     def __deepcopy__(self, memo=None, features=...):
-        """Returns a new EOPatch with deep copies of given features.
+        """ Returns a new EOPatch with deep copies of given features.
 
         :param memo: built-in parameter for memoization
         :type memo: dict
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
+        :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
@@ -267,6 +267,21 @@ class EOPatch:
             new_eopatch[feature_type] = copy.deepcopy(new_eopatch[feature_type], memo)
 
         return new_eopatch
+
+    def copy(self, features=..., deep=False):
+        """ Get a copy of the current `EOPatch`.
+
+        :param features: Features to be copied into a new `EOPatch`. By default all features will be copied.
+        :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
+        :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise only a shallow copy
+            of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMP` will be copied even with a shallow copy.
+        :type deep: bool
+        :return: An EOPatch copy.
+        :rtype: EOPatch
+        """
+        if deep:
+            return self.__deepcopy__(features=features)
+        return self.__copy__(features=features)
 
     def remove_feature(self, feature_type, feature_name):
         """Removes the feature ``feature_name`` from dictionary of ``feature_type``.

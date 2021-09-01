@@ -14,5 +14,5 @@ def test_eopatch_path_fixture():
 
 
 @pytest.fixture(name='test_eopatch')
-def test_eopatch(test_eopatch_path):
+def test_eopatch_fixture(test_eopatch_path):
     return EOPatch.load(test_eopatch_path)

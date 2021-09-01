@@ -29,6 +29,7 @@ from dataclasses import dataclass
 
 import attr
 
+from .eodata import EOPatch
 from .eotask import EOTask
 from .eoworkflow_tasks import OutputTask
 from .graph import DirectedGraph
@@ -246,17 +247,19 @@ class EOWorkflow:
         :rtype: (object, TaskStats)
         """
         task = dependency.task
-        inputs = tuple(intermediate_results[self._uid_dict[input_task.private_task_config.uid]]
-                       for input_task in dependency.inputs)
+        task_args = [intermediate_results[self._uid_dict[input_task.private_task_config.uid]]
+                     for input_task in dependency.inputs]
 
-        kw_inputs = uid_input_args.get(task.private_task_config.uid, {})
-        if isinstance(kw_inputs, tuple):
-            inputs += kw_inputs
-            kw_inputs = {}
+        task_kwargs = uid_input_args.get(task.private_task_config.uid, {})
+        if isinstance(task_kwargs, tuple):
+            task_args.extend(task_kwargs)
+            task_kwargs = {}
 
-        LOGGER.debug("Computing %s(*%s, **%s)", task.__class__.__name__, str(inputs), str(kw_inputs))
+        task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in task_args]
+
+        LOGGER.debug('Computing %s(*%s, **%s)', task.__class__.__name__, str(task_args), str(task_kwargs))
         start_time = dt.datetime.now()
-        result = task(*inputs, **kw_inputs)
+        result = task(*task_args, **task_kwargs)
         end_time = dt.datetime.now()
 
         return result, TaskStats(start_time=start_time, end_time=end_time)
