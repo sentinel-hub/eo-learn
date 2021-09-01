@@ -182,6 +182,7 @@ class TestEOPatch(unittest.TestCase):
 
         eop_copy.mask['CLM'] += 1
         assert eop == eop_copy
+        assert eop.mask['CLM'] is eop_copy.mask['CLM']
 
         eop_copy.timestamp.pop()
         assert eop != eop_copy
