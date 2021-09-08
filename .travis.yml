@@ -8,18 +8,17 @@ notifications:
   email: false
 
 python:
-- "3.6"
 - "3.7"
 - "3.8"
 - "3.9"
 
 before_install:
-- sudo apt-get install -y libgdal-dev graphviz proj-bin gcc libproj-dev
+- sudo apt-get install -y libgdal-dev graphviz proj-bin gcc libproj-dev libspatialindex-dev
 
 install:
 - pip install -r requirements-dev.txt --upgrade
 - FORCE_CYTHON=1 pip install cartopy  # temporal fix for cartopy==0.19.0
-- if [ $TRAVIS_PYTHON_VERSION == '3.8' ]; then
+- if [ $TRAVIS_PYTHON_VERSION == '3.9' ]; then
     python install_all.py -e;
   else
     python install_all.py &&
@@ -32,7 +31,7 @@ script:
     sentinelhub.config --sh_client_secret $SH_CLIENT_SECRET &&
     sentinelhub.config --sh_client_id $SH_CLIENT_ID ;
   fi
-- if [ $TRAVIS_PYTHON_VERSION == '3.8' ]; then
+- if [ $TRAVIS_PYTHON_VERSION == '3.9' ]; then
     pylint core/eolearn/core/*.py &&
     pylint coregistration/eolearn/coregistration/*.py &&
     pylint features/eolearn/features/*.py &&
@@ -44,7 +43,7 @@ script:
   fi
 - >
   if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
-    if [ $TRAVIS_PYTHON_VERSION == '3.8' ]; then
+    if [ $TRAVIS_PYTHON_VERSION == '3.9' ]; then
       pytest -c=.coveragerc;
     else
       pytest;
@@ -56,4 +55,4 @@ script:
 # - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then pytest --nbval-lax examples/visualization/EOPatchVisualization.ipynb  ; fi'
 
 after_success:
-- if [ $TRAVIS_PYTHON_VERSION == '3.8' ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then codecov; fi
+- if [ $TRAVIS_PYTHON_VERSION == '3.9' ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]; then codecov; fi
