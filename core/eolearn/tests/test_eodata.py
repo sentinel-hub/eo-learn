@@ -134,6 +134,36 @@ class TestEOPatch(unittest.TestCase):
 
         self.assertTrue(np.array_equal(eop.data['bands'], bands), msg="Data numpy array not stored")
 
+    def test_delete_feature(self):
+        bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
+        zeros = np.zeros_like(bands, dtype=float)
+        ones = np.ones_like(bands, dtype=int)
+        twos = np.ones_like(bands, dtype=int) * 2
+        threes = np.ones((3, 3, 1)) * 3
+        arranged = np.arange(3*3*1).reshape(3, 3, 1)
+
+        eop = EOPatch(
+            data={'bands': bands, 'zeros': zeros},
+            mask={'ones': ones, 'twos': twos},
+            mask_timeless={'threes': threes, 'arranged': arranged},
+        )
+
+        test_cases = [
+            [FeatureType.DATA, 'zeros', 'bands', bands],
+            [FeatureType.MASK, 'ones', 'twos', twos],
+            [FeatureType.MASK_TIMELESS, 'threes', 'arranged', arranged],
+        ]
+        for feature_type, deleted, remaining, unchanged in test_cases:
+            del eop[(feature_type, deleted)]
+            self.assertTrue(deleted not in eop[feature_type], msg=f'`({feature_type}, {deleted})` not deleted')
+            self.assertTrue(
+                np.array_equal(eop[feature_type][remaining], unchanged),
+                msg=f'`({feature_type}, {remaining})` changed or wrongly deleted'
+                )
+
+        with self.assertRaises(KeyError):
+            del eop[(FeatureType.DATA, 'not_here')]
+
     def test_simplified_feature_operations(self):
         bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
         feature = FeatureType.DATA, 'TEST-BANDS'
