@@ -339,6 +339,7 @@ class EOPatchVisualization:
         else:
             mask = np.squeeze(mask, axis=-1)
         data_da = data_da.copy()
+        # pylint: disable=invalid-unary-operand-type
         data_da.values[~mask] = 0
 
         return data_da

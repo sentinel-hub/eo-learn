@@ -2,5 +2,5 @@ eo-learn-core
 shapely
 geopandas>=0.5.0,!=0.8.0
 descartes
-rasterio<=1.1.8
+rasterio>=1.2.7
 scikit-image>=0.15.0

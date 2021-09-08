@@ -28,7 +28,7 @@ def get_version():
 
 setup(
     name='eo-learn-core',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     version=get_version(),
     description='Core Machine Learning Framework at Sinergise',
     long_description=get_long_description(),
