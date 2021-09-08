@@ -1,11 +1,13 @@
-[![Package version](https://badge.fury.io/py/eo-learn.svg)](https://pypi.org/project/eo-learn/)
-[![Build Status](https://travis-ci.org/sentinel-hub/eo-learn.svg?branch=master)](https://travis-ci.org/sentinel-hub/eo-learn)
+[![Package version](https://badge.fury.io/py/eo-learn.svg)](https://pypi.org/project/eo-learn)
+[![Conda version](https://img.shields.io/conda/vn/conda-forge/eo-learn.svg)](https://anaconda.org/conda-forge/eo-learn)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/eo-learn.svg?style=flat-square)](https://pypi.org/project/eo-learn)
+[![Build Status](https://www.travis-ci.com/sentinel-hub/eo-learn.svg?branch=master)](https://app.travis-ci.com/github/sentinel-hub/eo-learn/builds)
 [![Docs status](https://readthedocs.org/projects/eo-learn/badge/?version=latest)](https://eo-learn.readthedocs.io)
 [![License](https://img.shields.io/pypi/l/eo-learn.svg)](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE)
 [![Overall downloads](http://pepy.tech/badge/eo-learn)](https://pepy.tech/project/eo-learn)
 [![Last month downloads](https://pepy.tech/badge/eo-learn/month)](https://pepy.tech/project/eo-learn)
 [![Docker pulls](https://img.shields.io/docker/pulls/sentinelhub/eolearn.svg)](https://hub.docker.com/r/sentinelhub/eolearn)
-[![codecov](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
+[![Code coverage](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
 <img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
 
