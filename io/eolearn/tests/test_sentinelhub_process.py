@@ -448,7 +448,7 @@ class TestSentinelHubInputTaskDataCollections:
             time_interval=time_interval,
             data_size=11,
             timestamp_length=1,
-            stats=[0.2211, 0.2456, 0.1984]
+            stats=[48.4545, 48.4545, 48.7273]
         ),
         IoTestCase(
             name='MODIS',
@@ -568,6 +568,7 @@ class TestSentinelHubInputTaskDataCollections:
         assert data.shape == (test_case.timestamp_length, height, width, test_case.data_size)
 
         timestamps = eopatch.timestamp
+        assert all(timestamp.tzinfo is None for timestamp in timestamps), f'`tzinfo` present in timestamps {timestamps}'
         assert len(timestamps) == test_case.timestamp_length
 
         data = eopatch[(test_case.feature_type, test_case.feature)]
