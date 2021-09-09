@@ -110,10 +110,12 @@ class SentinelHubInputBaseTask(EOTask):
         else:
             timestamp = eopatch.timestamp
 
-        if eopatch.timestamp and timestamp:
+        eop_timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
+
+        if eopatch.timestamp and eop_timestamp:
             self.check_timestamp_difference(timestamp, eopatch.timestamp)
         elif timestamp:
-            eopatch.timestamp = timestamp
+            eopatch.timestamp = eop_timestamp
 
         requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
         requests = [request.download_list[0] for request in requests]
