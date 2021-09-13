@@ -448,7 +448,7 @@ class TestSentinelHubInputTaskDataCollections:
             time_interval=time_interval,
             data_size=11,
             timestamp_length=1,
-            stats=[48.4545, 48.4545, 48.7273]
+            stats=[48.7592, 48.726, 48.9168]
         ),
         IoTestCase(
             name='MODIS',

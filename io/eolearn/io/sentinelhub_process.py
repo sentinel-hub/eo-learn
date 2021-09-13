@@ -413,8 +413,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :type data_source: DataCollection
         """
         super().__init__(data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder,
-                         config=config, max_threads=max_threads, data_source=data_source
-        )
+                         config=config, max_threads=max_threads, data_source=data_source)
         self.evalscript = evalscript
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
@@ -438,9 +437,25 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         self.additional_data = additional_data
 
-    @staticmethod
-    def _add_request_bands(request_dict, added_bands):
-        predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
+    def _add_request_bands(self, request_dict, added_bands):
+        handfixed_collections = [
+            DataCollection.LANDSAT_TM_L1, DataCollection.LANDSAT_TM_L2,
+            DataCollection.LANDSAT_ETM_L1, DataCollection.LANDSAT_ETM_L2,
+            DataCollection.LANDSAT_OT_L1, DataCollection.LANDSAT_OT_L2,
+            DataCollection.LANDSAT_MSS_L1,
+        ]
+
+        if self.data_collection in handfixed_collections:
+            types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.copy()
+            old = ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA)
+            new = ProcApiType("bands", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
+            types[new] = types[old]
+            del types[old]
+
+            predefined_types = types.items()
+
+        else:
+            predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
 
         for band in added_bands:
             found = next(((btype, band) for btype, bands in predefined_types if band in bands), None)
