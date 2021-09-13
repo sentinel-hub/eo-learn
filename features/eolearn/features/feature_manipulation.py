@@ -16,7 +16,7 @@ import datetime as dt
 
 import numpy as np
 
-from sentinelhub.time_utils import iso_to_datetime
+from sentinelhub import parse_time_interval
 from eolearn.core import EOTask, FeatureType
 from eolearn.core.utilities import renamed_and_deprecated
 
@@ -108,8 +108,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
 
         if 'time_interval' in eopatch.meta_info:
 
-            start_time, end_time = [iso_to_datetime(x) if isinstance(x, str)
-                                    else x for x in eopatch.meta_info['time_interval']]
+            start_time, end_time = parse_time_interval(eopatch.meta_info['time_interval'])
             eopatch.meta_info['time_interval'] = (max(start_time, self.start_date),
                                                   min(end_time, self.end_date))
 

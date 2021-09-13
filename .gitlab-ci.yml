@@ -1,0 +1,17 @@
+image: python:3.9
+
+stages:
+  - test
+
+run_sh_integration_tests:
+  stage: test
+  when: always
+  before_script:
+    - apt-get update
+    - apt-get install -y build-essential libgdal-dev graphviz proj-bin gcc libproj-dev libspatialindex-dev
+  script:
+    - pip install -r requirements-dev.txt --upgrade
+    - FORCE_CYTHON=1 pip install cartopy  # temporary fix for cartopy==0.19.0
+    - python install_all.py
+    - sentinelhub.config --sh_client_id "$SH_CLIENT_ID" --sh_client_secret "$SH_CLIENT_SECRET"
+    - pytest -m sh_integration
