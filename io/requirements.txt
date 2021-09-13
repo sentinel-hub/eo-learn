@@ -1,5 +1,5 @@
 eo-learn-core
-sentinelhub>=3.2.1
+sentinelhub>=3.4.0
 rasterio>=1.2.7
 rtree
 geopandas>=0.5.0,!=0.8.0
