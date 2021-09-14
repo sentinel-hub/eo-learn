@@ -9,6 +9,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import collections
+import copy
 import datetime as dt
 import logging
 from itertools import repeat
@@ -40,7 +41,6 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
     :type config: SHConfig
     :return: list of datetimes with available observations
     """
-
     query = None
     if maxcc and data_collection.has_cloud_coverage:
         if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
@@ -49,7 +49,9 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
 
     fields = {'include': ['properties.datetime'], 'exclude': []}
 
-    catalog = SentinelHubCatalog(base_url=data_collection.service_url, config=config)
+    config = copy.copy(config)
+    config.sh_base_url = data_collection.service_url
+    catalog = SentinelHubCatalog(config=config)
     search_iterator = catalog.search(collection=data_collection, bbox=bbox, time=time_interval,
                                      query=query, fields=fields)
 
@@ -57,7 +59,7 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
     filtered_timestamps = filter_times(all_timestamps, time_difference)
 
     if len(filtered_timestamps) == 0:
-        raise ValueError("No available images for requested time range: {}".format(time_interval))
+        raise ValueError(f'No available images for requested time range: {time_interval}')
 
     return filtered_timestamps
 
@@ -110,10 +112,12 @@ class SentinelHubInputBaseTask(EOTask):
         else:
             timestamp = eopatch.timestamp
 
-        if eopatch.timestamp and timestamp:
+        eop_timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
+
+        if eopatch.timestamp and eop_timestamp:
             self.check_timestamp_difference(timestamp, eopatch.timestamp)
         elif timestamp:
-            eopatch.timestamp = timestamp
+            eopatch.timestamp = eop_timestamp
 
         requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
         requests = [request.download_list[0] for request in requests]
@@ -409,8 +413,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :type data_source: DataCollection
         """
         super().__init__(data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder,
-                         config=config, max_threads=max_threads, data_source=data_source
-        )
+                         config=config, max_threads=max_threads, data_source=data_source)
         self.evalscript = evalscript
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
@@ -434,9 +437,25 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         self.additional_data = additional_data
 
-    @staticmethod
-    def _add_request_bands(request_dict, added_bands):
-        predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
+    def _add_request_bands(self, request_dict, added_bands):
+        handfixed_collections = [
+            DataCollection.LANDSAT_TM_L1, DataCollection.LANDSAT_TM_L2,
+            DataCollection.LANDSAT_ETM_L1, DataCollection.LANDSAT_ETM_L2,
+            DataCollection.LANDSAT_OT_L1, DataCollection.LANDSAT_OT_L2,
+            DataCollection.LANDSAT_MSS_L1,
+        ]
+
+        if self.data_collection in handfixed_collections:
+            types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.copy()
+            old = ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA)
+            new = ProcApiType("bands", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
+            types[new] = types[old]
+            del types[old]
+
+            predefined_types = types.items()
+
+        else:
+            predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
 
         for band in added_bands:
             found = next(((btype, band) for btype, bands in predefined_types if band in bands), None)
@@ -476,13 +495,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         outputs = [
             "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
-                id='\"{}\"'.format(btype.id), num_bands=len(bands), sample_type=btype.sample_type
+                id=f'\"{btype.id}\"', num_bands=len(bands), sample_type=btype.sample_type
             )
             for btype, bands in self.requested_bands.items()
         ]
 
         samples = [
-            (btype.id, '[{samples}]'.format(samples=', '.join("sample.{}".format(band) for band in bands)))
+            (btype.id, '[{samples}]'.format(samples=', '.join(f'sample.{band}' for band in bands)))
             for btype, bands in self.requested_bands.items()
         ]
 
@@ -492,13 +511,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             _, sample_bands = samples[0]
             samples = sample_bands
         else:
-            samples = ', '.join('{band_id}: {bands}'.format(band_id=band_id, bands=bands) for band_id, bands in samples)
-            samples = '{{{samples}}};'.format(samples=samples)
+            samples = ', '.join(f'{band_id}: {bands}' for band_id, bands in samples)
+            samples = f'{{{samples}}};'
 
-        bands = ["\"{}\"".format(band) for bands in self.requested_bands.values() for band in bands]
+        bands = [f'\"{band}\"' for bands in self.requested_bands.values() for band in bands]
 
         units = (unit.unit for btype, bands in self.requested_bands.items() for unit, band in zip(repeat(btype), bands))
-        units = ["\"{}\"".format(unit) for unit in units]
+        units = [f'\"{unit}\"' for unit in units]
 
         evalscript = evalscript.format(
             bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=samples

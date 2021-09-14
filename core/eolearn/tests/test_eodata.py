@@ -11,6 +11,7 @@ import datetime
 
 import pytest
 import numpy as np
+from numpy.testing import assert_array_equal
 from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import BBox, CRS
@@ -154,6 +155,37 @@ def test_rename_feature_missing():
     with pytest.raises(BaseException):
         # Should fail because there is no `missing_bands` feature in the EOPatch.
         eop.rename_feature(FeatureType.DATA, 'missing_bands', 'new_bands')
+
+
+def test_delete_feature():
+    bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
+    zeros = np.zeros_like(bands, dtype=float)
+    ones = np.ones_like(bands, dtype=int)
+    twos = np.ones_like(bands, dtype=int) * 2
+    threes = np.ones((3, 3, 1)) * 3
+    arranged = np.arange(3*3*1).reshape(3, 3, 1)
+
+    eop = EOPatch(
+        data={'bands': bands, 'zeros': zeros},
+        mask={'ones': ones, 'twos': twos},
+        mask_timeless={'threes': threes, 'arranged': arranged},
+    )
+
+    test_cases = [
+        [FeatureType.DATA, 'zeros', 'bands', bands],
+        [FeatureType.MASK, 'ones', 'twos', twos],
+        [FeatureType.MASK_TIMELESS, 'threes', 'arranged', arranged],
+    ]
+    for feature_type, deleted, remaining, unchanged in test_cases:
+        del eop[(feature_type, deleted)]
+        assert deleted not in eop[feature_type], f'`({feature_type}, {deleted})` not deleted'
+        assert_array_equal(
+            eop[feature_type][remaining], unchanged,
+            err_msg=f'`({feature_type}, {remaining})` changed or wrongly deleted'
+            )
+
+    with pytest.raises(KeyError):
+        del eop[(FeatureType.DATA, 'not_here')]
 
 
 def test_get_feature():

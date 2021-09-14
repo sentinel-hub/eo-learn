@@ -205,7 +205,7 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
         })
 
         for code, code_name in zip(geometry.codes, code_names):
-            dataframe[code_name] = code.timeIntervals[index].data
+            dataframe[code_name] = np.array(code.timeIntervals[index].data)
 
         dataframes.append(dataframe)
 

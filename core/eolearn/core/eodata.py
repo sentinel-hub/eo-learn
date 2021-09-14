@@ -153,13 +153,22 @@ class EOPatch:
 
         return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
 
+    def __delitem__(self, feature):
+        """ Deletes the selected feature.
+
+        :param feature: EOPatch feature
+        :type feature: (FeatureType, str)
+        """
+        self._check_tuple_key(feature)
+        feature_type, feature_name = feature
+        del self[feature_type][feature_name]
+
     @staticmethod
     def _check_tuple_key(key):
         """ A helper function that checks a tuple, which should hold (feature_type, feature_name)
         """
         if len(key) != 2:
-            raise ValueError('Given element should be a feature_type or a tuple of (feature_type, feature_name),'
-                             'but {} found'.format(key))
+            raise ValueError(f'Given element should be a tuple of (feature_type, feature_name), but {key} found')
 
     def __eq__(self, other):
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""

@@ -53,6 +53,7 @@ def calculate_stats(array):
     return stats
 
 
+@pytest.mark.sh_integration
 class TestProcessingIO:
     """ Test cases for SentinelHubInputTask
     """
@@ -360,6 +361,7 @@ class TestProcessingIO:
         assert array.shape == (20, height, width, 3)
 
 
+@pytest.mark.sh_integration
 class TestSentinelHubInputTaskDataCollections:
     """ Integration tests for all supported data collections
     """
@@ -442,13 +444,13 @@ class TestSentinelHubInputTaskDataCollections:
                 additional_data=[mask_feature],
                 size=size,
                 time_difference=time_difference,
-                data_collection=DataCollection.LANDSAT8_L1
+                data_collection = DataCollection.LANDSAT_OT_L1
             ),
             bbox=bbox,
             time_interval=time_interval,
             data_size=11,
             timestamp_length=1,
-            stats=[0.2211, 0.2456, 0.1984]
+            stats=[48.7592, 48.726, 48.9168]
         ),
         IoTestCase(
             name='MODIS',
@@ -568,6 +570,7 @@ class TestSentinelHubInputTaskDataCollections:
         assert data.shape == (test_case.timestamp_length, height, width, test_case.data_size)
 
         timestamps = eopatch.timestamp
+        assert all(timestamp.tzinfo is None for timestamp in timestamps), f'`tzinfo` present in timestamps {timestamps}'
         assert len(timestamps) == test_case.timestamp_length
 
         data = eopatch[(test_case.feature_type, test_case.feature)]
