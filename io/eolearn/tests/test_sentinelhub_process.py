@@ -53,6 +53,7 @@ def calculate_stats(array):
     return stats
 
 
+@pytest.mark.sh_integration
 class TestProcessingIO:
     """ Test cases for SentinelHubInputTask
     """
@@ -360,6 +361,7 @@ class TestProcessingIO:
         assert array.shape == (20, height, width, 3)
 
 
+@pytest.mark.sh_integration
 class TestSentinelHubInputTaskDataCollections:
     """ Integration tests for all supported data collections
     """

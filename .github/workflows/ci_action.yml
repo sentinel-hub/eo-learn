@@ -1,0 +1,69 @@
+name: build
+
+on:
+  push:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  test-on-github:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - '3.7'
+          - '3.8'
+          - '3.9'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgdal-dev graphviz proj-bin gcc libproj-dev libspatialindex-dev
+          pip install -r requirements-dev.txt --upgrade
+          FORCE_CYTHON=1 pip install cartopy  # temporary fix for cartopy==0.19.0
+          python install_all.py -e
+
+      - name: Run full tests and code coverage
+        if: matrix.python-version == '3.8'
+        run: |
+          sentinelhub.config \
+            --sh_client_id "${{ secrets.SH_CLIENT_ID }}" \
+            --sh_client_secret "${{ secrets.SH_CLIENT_SECRET }}"
+          pytest --cov -c=.coveragerc --cov-report=term --cov-report=xml
+
+      - name: Run pylint and reduced tests
+        if: matrix.python-version != '3.8'
+        run: |
+          make pylint
+          pytest -m "not sh_integration"
+
+      - name: Upload code coverage
+        if: matrix.python-version == '3.8'
+        uses: codecov/codecov-action@v2
+        with:
+          files: coverage.xml
+          fail_ci_if_error: true
+          verbose: false
+
+  mirror-and-integration-test-on-gitlab:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Mirror + trigger CI
+        uses: SvanBoxel/gitlab-mirror-and-ci-action@master
+        with:
+          args: "https://git.sinergise.com/eo/code/eo-learn/"
+        env:
+          GITLAB_HOSTNAME: "git.sinergise.com"
+          GITLAB_USERNAME: "github-action"
+          GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
+          GITLAB_PROJECT_ID: "164"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
