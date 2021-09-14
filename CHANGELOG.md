@@ -1,3 +1,17 @@
+## [Version 0.10.0] - 2021-09-14
+- `EOWorkflow` now automatically makes a shallow copy of each `EOPatch` before passing it to any `EOTask` in the workflow.
+- Streamlined naming conventions of EOTasks - every name now ends with `Task`. Old names have been deprecated.
+- Improved functionality of merging EOPatches, particularly of merging time-dependent features.
+- Removed support for Python 3.6 and added official support for Python 3.9.
+- Implemented `EOPatch.copy` and `EOPatch.__delitem__` methods.
+- Added `eolearn.io.MeteoblueRasterTask` and `eolearn.io.MeteoblueVectorTask` for obtaining weather data. Joint effort with Meteoblue.
+- `VectorToRasterTask` now supports rasterization of time-dependant vector features. Contributed by @asylve.
+- Fixes in `SentinelHubInputTask`. Both `SentinelHubInputTask` and `SentinelHubEvalscriptTask` now return EOPatches with timestamps that don't have timezone information anymore.
+- Changed `rasterio` dependency to `rasterio>=1.2.7`
+- All but `eolearn.core` tests ported to `pytest` framework.
+- Switched from Travis CI to GitHub actions.
+- Minor fixes and improvements.
+
 ## [Version 0.9.2] - 2021-05-21
 - Minor fixes and improvements:
   * `SaveTask` and `LoadTask` don't automatically store a filesystem object anymore,
