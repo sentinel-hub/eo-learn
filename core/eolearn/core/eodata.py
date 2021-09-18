@@ -104,8 +104,8 @@ class EOPatch:
                 return [timestamp if isinstance(timestamp, datetime.date) else dateutil.parser.parse(timestamp)
                         for timestamp in value]
 
-        raise TypeError('Attribute {} requires value of type {} - '
-                        'failed to parse given value {}'.format(feature_type, feature_type.type(), value))
+        raise TypeError(f'Attribute {feature_type} requires value of type {feature_type.type()} - '
+                        f'failed to parse given value {value}')
 
     def __getattribute__(self, key, load=True, feature_name=None):
         """ Handles lazy loading and it can even provide a single feature from _FeatureDict
@@ -186,16 +186,19 @@ class EOPatch:
         return self.merge(other)
 
     def __repr__(self):
-        feature_repr_list = ['{}('.format(self.__class__.__name__)]
+        feature_repr_list = [f'{self.__class__.__name__}(']
         for feature_type in FeatureType:
             content = self[feature_type]
 
             if isinstance(content, dict) and content:
-                content_str = '\n    '.join(['{'] + ['{}: {}'.format(label, self._repr_value(value)) for label, value in
-                                                     sorted(content.items())]) + '\n  }'
+                content_str = (
+                    '{\n    '
+                    + '\n    '.join([f'{label}: {self._repr_value(value)}' for label, value in sorted(content.items())])
+                    + '\n  }'
+                )
             else:
                 content_str = self._repr_value(content)
-            feature_repr_list.append('{}: {}'.format(feature_type.value, content_str))
+            feature_repr_list.append(f'{feature_type.value}: {content_str}')
 
         return '\n  '.join(feature_repr_list) + '\n)'
 
@@ -208,31 +211,28 @@ class EOPatch:
         :rtype: str
         """
         if isinstance(value, np.ndarray):
-            return '{}(shape={}, dtype={})'.format(EOPatch._repr_value_class(value), value.shape, value.dtype)
+            return f'{EOPatch._repr_value_class(value)}(shape={value.shape}, dtype={value.dtype})'
 
         if isinstance(value, gpd.GeoDataFrame):
             crs = CRS(value.crs).ogc_string() if value.crs else value.crs
-            return f'{EOPatch._repr_value_class(value)}(' \
-                   f'columns={list(value)}, ' \
-                   f'length={len(value)}, ' \
-                   f'crs={crs})'
+            return f'{EOPatch._repr_value_class(value)}(columns={list(value)}, length={len(value)}, crs={crs})'
 
         if isinstance(value, (list, tuple, dict)) and value:
             repr_str = str(value)
             if len(repr_str) <= MAX_DATA_REPR_LEN:
                 return repr_str
 
-            bracket_str = '[{}]' if isinstance(value, list) else '({})'
+            l_bracket, r_bracket = '[]' if isinstance(value, list) else '()'
             if isinstance(value, (list, tuple)) and len(value) > 2:
-                repr_str = bracket_str.format('{}, ..., {}'.format(repr(value[0]), repr(value[-1])))
+                repr_str = f'{l_bracket}{repr(value[0])}, ..., {repr(value[-1])}{r_bracket}'
 
             if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
-                repr_str = bracket_str.format('{}, ...'.format(repr(value[0])))
+                repr_str = f'{l_bracket}{repr(value[0])}, ...{r_bracket}'
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
 
-            return '{}, length={}'.format(repr_str, len(value))
+            return f'{repr_str}, length={len(value)}'
 
         return repr(value)
 
@@ -337,8 +337,7 @@ class EOPatch:
                 self[feature_type][new_feature_name] = self[feature_type][feature_name]
                 del self[feature_type][feature_name]
             else:
-                raise ValueError("Feature {} from attribute {} does not exist!".format(
-                    feature_name, feature_type.value))
+                raise ValueError(f"Feature {feature_name} from attribute {feature_type.value} does not exist!")
         else:
             LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name)
 
@@ -352,7 +351,7 @@ class EOPatch:
         """
         feature_type = FeatureType(feature_type)
         if feature_type.type() is not dict:
-            raise TypeError('{} does not contain a dictionary of features'.format(feature_type))
+            raise TypeError(f'{feature_type} does not contain a dictionary of features')
 
     def reset_feature_type(self, feature_type):
         """Resets the values of the given feature type.
@@ -484,8 +483,8 @@ class EOPatch:
                     if feature_type.is_time_dependent() and not timestamps_match:
                         eopatch_content[feature_type.value][feature_name] = EOPatch.concatenate_data(data1, data2)
                     elif not deep_eq(data1, data2):
-                        raise ValueError('Could not merge ({}, {}) feature because values differ'.format(feature_type,
-                                                                                                         feature_name))
+                        raise ValueError(f'Could not merge ({feature_type}, {feature_name}) feature because values '
+                                         'differ')
 
             elif feature_type is FeatureType.TIMESTAMP and timestamps_exist and not timestamps_match:
                 eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
@@ -495,7 +494,7 @@ class EOPatch:
                 elif not eopatch2[feature_type]:
                     eopatch_content[feature_type.value] = copy.copy(eopatch1[feature_type])
                 else:
-                    raise ValueError('Could not merge {} feature because values differ'.format(feature_type))
+                    raise ValueError(f'Could not merge {feature_type} feature because values differ')
 
         return EOPatch(**eopatch_content)
 
@@ -718,16 +717,15 @@ class _FeatureDict(dict):
 
     def _check_feature_name(self, feature_name):
         if not isinstance(feature_name, str):
-            error_msg = "Feature name must be a string but an object of type {} was given."
-            raise ValueError(error_msg.format(type(feature_name)))
+            raise ValueError(f'Feature name must be a string but an object of type {type(feature_name)} was given.')
 
         for char in feature_name:
             if char in self.FORBIDDEN_CHARS:
-                error_msg = "The name of feature ({}, {}) contains an illegal character '{}'."
-                raise ValueError(error_msg.format(self.feature_type, feature_name, char))
+                raise ValueError(f"The name of feature ({self.feature_type}, {feature_name}) contains an illegal "
+                                 f"character '{char}'.")
 
         if feature_name == '':
-            raise ValueError("Feature name cannot be an empty string.")
+            raise ValueError('Feature name cannot be an empty string.')
 
     def __getitem__(self, feature_name, load=True):
         """Implements lazy loading."""
@@ -765,27 +763,27 @@ class _FeatureDict(dict):
 
         if self.ndim:
             if not isinstance(value, np.ndarray):
-                raise ValueError('{} feature has to be a numpy array'.format(self.feature_type))
+                raise ValueError(f'{self.feature_type} feature has to be a numpy array')
             if value.ndim != self.ndim:
-                raise ValueError('Numpy array of {} feature has to have {} '
-                                 'dimension{}'.format(self.feature_type, self.ndim, 's' if self.ndim > 1 else ''))
+                raise ValueError(f'Numpy array of {self.feature_type} feature has to have {self.ndim} '
+                                 f'dimension{"s" if self.ndim > 1 else ""}')
 
             if self.feature_type.is_discrete():
                 if not issubclass(value.dtype.type, (np.integer, bool, np.bool_, np.bool8)):
-                    msg = '{} is a discrete feature type therefore dtype of data should be a subtype of ' \
-                          'numpy.integer or numpy.bool, found type {}. In the future an error will be raised because ' \
-                          'of this'.format(self.feature_type, value.dtype.type)
+                    msg = (
+                        f'{self.feature_type} is a discrete feature type therefore dtype of data should be a subtype '
+                        f'of numpy.integer or numpy.bool, found type {value.dtype.type}. In the future an error will '
+                        'be raised because of this'
+                    )
                     warnings.warn(msg, DeprecationWarning, stacklevel=3)
 
-                    # raise ValueError('{} is a discrete feature type therefore dtype of data has to be a subtype of '
-                    #                  'numpy.integer or numpy.bool, found type {}'.format(self.feature_type,
-                    #                                                                      value.dtype.type))
-            # This checking is disabled for now
+            #         raise ValueError(f'{self.feature_type} is a discrete feature type therefore dtype of data has to '
+            #                          f'be a subtype of numpy.integer or numpy.bool, found type {value.dtype.type}')
+            # # This checking is disabled for now
             # else:
             #     if not issubclass(value.dtype.type, (np.floating, np.float)):
-            #         raise ValueError('{} is a floating feature type therefore dtype of data has to be a subtype of '
-            #                          'numpy.floating or numpy.float, found type {}'.format(self.feature_type,
-            #                                                                                value.dtype.type))
+            #         raise ValueError(f'{self.feature_type} is a floating feature type therefore dtype of data has to '
+            #                          f'be a subtype of numpy.floating or numpy.float, found type {value.dtype.type}')
             return value
 
         if self.is_vector:
@@ -795,12 +793,12 @@ class _FeatureDict(dict):
             if isinstance(value, gpd.GeoDataFrame):
                 if self.feature_type is FeatureType.VECTOR:
                     if FeatureType.TIMESTAMP.value.upper() not in value:
-                        raise ValueError("{} feature has to contain a column 'TIMESTAMP' with "
-                                         "timestamps".format(self.feature_type))
+                        raise ValueError(f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with "
+                                         "timestamps")
 
                 return value
 
-            raise ValueError('{} feature works with data of type {}, parsing data type {} is not supported'
-                             'given'.format(self.feature_type, gpd.GeoDataFrame.__name__, type(value)))
+            raise ValueError(f'{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__}, '
+                             f'parsing data type {type(value)} is not supported')
 
         return value

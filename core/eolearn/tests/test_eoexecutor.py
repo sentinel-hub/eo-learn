@@ -105,7 +105,7 @@ class TestEOExecutor(unittest.TestCase):
 
                 if execution_names:
                     for name, log_filename in zip(execution_names, log_filenames):
-                        self.assertTrue(log_filename == 'eoexecution-{}.log'.format(name))
+                        self.assertTrue(log_filename == f'eoexecution-{name}.log')
 
                 log_path = os.path.join(executor.report_folder, log_filenames[0])
                 with open(log_path, 'r') as fp:
@@ -131,7 +131,7 @@ class TestEOExecutor(unittest.TestCase):
 
                 for idx, stats in enumerate(executor.execution_stats):
                     if idx != 3:
-                        self.assertFalse('error' in stats, 'Workflow {} should be executed without errors'.format(idx))
+                        self.assertFalse('error' in stats, f'Workflow {idx} should be executed without errors')
                     else:
                         self.assertTrue('error' in stats and stats['error'],
                                         'This workflow should be executed with an error')
@@ -180,7 +180,7 @@ class TestEOExecutor(unittest.TestCase):
                     {'workers':3, 'multiprocess':False}]
         for arg in run_args:
             self.assertRaises(KeyboardInterrupt, EOExecutor(workflow, execution_args).run, **arg)
-        
+
 
 class TestExecuteWithMultiprocessingLock(unittest.TestCase):
 

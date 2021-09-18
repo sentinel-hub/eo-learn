@@ -175,7 +175,7 @@ class FeatureParser:
         if isinstance(features, str):
             return OrderedDict([(None, OrderedDict([(features, ...)]))])
 
-        raise ValueError('Unknown format of input features: {}'.format(features))
+        raise ValueError(f'Unknown format of input features: {features}')
 
     @staticmethod
     def _parse_dict(features, new_names):
@@ -185,8 +185,8 @@ class FeatureParser:
             try:
                 feature_type = FeatureType(feature_type)
             except ValueError:
-                ValueError('Failed to parse {}, keys of the dictionary have to be instances '
-                           'of {}'.format(features, FeatureType.__name__))
+                ValueError(f'Failed to parse {features}, keys of the dictionary have to be instances '
+                           f'of {FeatureType.__name__}')
 
             feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
 
@@ -216,7 +216,7 @@ class FeatureParser:
                     if feature_collection[feature_type] is not ...:
                         feature_collection[feature_type].update(feature_dict)
             else:
-                raise ValueError('Failed to parse {}, expected a tuple'.format(feature))
+                raise ValueError(f'Failed to parse {feature}, expected a tuple')
         return feature_collection
 
     @staticmethod
@@ -245,7 +245,7 @@ class FeatureParser:
         if isinstance(feature_names, (tuple, list)):
             return FeatureParser._parse_names_tuple(feature_names, new_names)
 
-        raise ValueError('Failed to parse {}, expected dictionary, set or tuple'.format(feature_names))
+        raise ValueError(f'Failed to parse {feature_names}, expected dictionary, set or tuple')
 
     @staticmethod
     def _parse_names_set(feature_names):
@@ -255,7 +255,7 @@ class FeatureParser:
             if isinstance(feature_name, str):
                 feature_collection[feature_name] = ...
             else:
-                raise ValueError('Failed to parse {}, expected string'.format(feature_name))
+                raise ValueError(f'Failed to parse {feature_name}, expected string')
         return feature_collection
 
     @staticmethod
@@ -268,8 +268,8 @@ class FeatureParser:
                 feature_collection[feature_name] = new_feature_name
             else:
                 if not isinstance(feature_name, str):
-                    raise ValueError('Failed to parse {}, expected string'.format(feature_name))
-                raise ValueError('Failed to parse {}, expected string or Ellipsis'.format(new_feature_name))
+                    raise ValueError(f'Failed to parse {feature_name}, expected string')
+                raise ValueError(f'Failed to parse {new_feature_name}, expected string or Ellipsis')
         return feature_collection
 
     @staticmethod
@@ -277,7 +277,7 @@ class FeatureParser:
         """Helping function of `_parse_feature_names` that parses a tuple or a list of feature names."""
         for feature in feature_names:
             if not isinstance(feature, str) and feature is not ...:
-                raise ValueError('Failed to parse {}, expected a string'.format(feature))
+                raise ValueError(f'Failed to parse {feature}, expected a string')
 
         if feature_names[0] is ...:
             return ...
@@ -287,7 +287,7 @@ class FeatureParser:
                 return OrderedDict([(feature_names[0], ...)])
             if len(feature_names) == 2:
                 return OrderedDict([(feature_names[0], feature_names[1])])
-            raise ValueError("Failed to parse {}, it should contain at most two strings".format(feature_names))
+            raise ValueError(f'Failed to parse {feature_names}, it should contain at most two strings')
 
         if ... in feature_names:
             return ...
@@ -303,8 +303,8 @@ class FeatureParser:
 
         for feature_type in self.feature_collection:
             if feature_type is not None and feature_type not in self.allowed_feature_types:
-                raise ValueError('Feature type has to be one of {}, but {} found'.format(self.allowed_feature_types,
-                                                                                         feature_type))
+                raise ValueError(f'Feature type has to be one of {self.allowed_feature_types}, but {feature_type} '
+                                 'found')
 
     def _get_features(self, eopatch=None):
         """A generator of parsed features.
@@ -327,9 +327,10 @@ class FeatureParser:
                         if found_feature_type:
                             yield self._return_feature(found_feature_type, feature_name, new_feature_name)
                         else:
-                            raise ValueError("Feature with name '{}' does not exist among features of allowed feature"
-                                             " types in given EOPatch. Allowed feature types are "
-                                             "{}".format(feature_name, self.allowed_feature_types))
+                            raise ValueError(
+                                f"Feature with name '{feature_name}' does not exist among features of allowed feature "
+                                f"types in given EOPatch. Allowed feature types are {self.allowed_feature_types}"
+                            )
             elif feature_dict is ...:
                 if not feature_type.has_dict() or eopatch is None:
                     yield self._return_feature(feature_type, ...)
@@ -339,8 +340,7 @@ class FeatureParser:
             else:
                 for feature_name, new_feature_name in feature_dict.items():
                     if eopatch is not None and feature_name not in eopatch[feature_type]:
-                        raise ValueError('Feature {} of type {} was not found in EOPatch'.format(feature_name,
-                                                                                                 feature_type))
+                        raise ValueError(f'Feature {feature_name} of type {feature_type} was not found in EOPatch')
                     yield self._return_feature(feature_type, feature_name, new_feature_name)
 
     def _find_feature_type(self, feature_name, eopatch):

@@ -163,8 +163,7 @@ class RegistrationTask(EOTask, ABC):
 
             # Flag suspicious registrations and set them to the identity
             if rflag:
-                LOGGER.warning("{:s} warning in pair-wise reg {:d} to {:d}".format(self.__class__.__name__, idx,
-                                                                                   idx-1))
+                LOGGER.warning('%s warning in pair-wise reg %d to %d', self.__class__.__name__, idx, idx-1)
                 warp_matrix = np.eye(2, 3)
 
             # Apply tranformation to every given feature
@@ -204,7 +203,7 @@ class RegistrationTask(EOTask, ABC):
                 warped_img[..., idx] = cv2.warpAffine(img[..., idx].astype(np.float32), warp_matrix, (width, height),
                                                       flags=iflag).astype(img.dtype)
         else:
-            raise ValueError('Image has incorrect number of dimensions: {}'.format(img.ndim))
+            raise ValueError(f'Image has incorrect number of dimensions: {img.ndim}')
 
         return warped_img
 
@@ -263,7 +262,7 @@ class ThunderRegistrationTask(RegistrationTask):
         return warp_matrix
 
     def get_params(self):
-        LOGGER.info("{:s}:This registration does not require parameters".format(self.__class__.__name__))
+        LOGGER.info('{self.__class__.__name__}:This registration does not require parameters')
 
     def check_params(self):
         pass
@@ -274,16 +273,16 @@ class ECCRegistrationTask(RegistrationTask):
     """
 
     def get_params(self):
-        LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
-        LOGGER.info("\t\t\t\tMaxIters: {:d}".format(self.params['MaxIters']))
-        LOGGER.info("\t\t\t\tgaussFiltSize: {:d}".format(self.params['gaussFiltSize']))
+        LOGGER.info("%s:Params for this registration are:", self.__class__.__name__)
+        LOGGER.info("\t\t\t\tMaxIters: %d", self.params['MaxIters'])
+        LOGGER.info("\t\t\t\tgaussFiltSize: %d", self.params['gaussFiltSize'])
 
     def check_params(self):
         if not isinstance(self.params.get('MaxIters'), int):
-            LOGGER.info("{:s}:MaxIters set to 200".format(self.__class__.__name__))
+            LOGGER.info("%s:MaxIters set to 200", self.__class__.__name__)
             self.params['MaxIters'] = 200
         if not isinstance(self.params.get('gaussFilterSize'), int):
-            LOGGER.info("{:s}:gaussFilterSize set to 1".format(self.__class__.__name__))
+            LOGGER.info("%s:gaussFilterSize set to 1", self.__class__.__name__)
             self.params['gaussFiltSize'] = 1
 
     def register(self, src, trg, trg_mask=None, src_mask=None):
@@ -325,24 +324,24 @@ class PointBasedRegistrationTask(RegistrationTask):
     """
 
     def get_params(self):
-        LOGGER.info("{:s}:Params for this registration are:".format(self.__class__.__name__))
-        LOGGER.info("\t\t\t\tModel: {:s}".format(self.params['Model']))
-        LOGGER.info("\t\t\t\tDescriptor: {:s}".format(self.params['Descriptor']))
-        LOGGER.info("\t\t\t\tMaxIters: {:d}".format(self.params['MaxIters']))
-        LOGGER.info("\t\t\t\tRANSACThreshold: {:.2f}".format(self.params['RANSACThreshold']))
+        LOGGER.info("%s:Params for this registration are:", self.__class__.__name__)
+        LOGGER.info("\t\t\t\tModel: %s", self.params['Model'])
+        LOGGER.info("\t\t\t\tDescriptor: %s", self.params['Descriptor'])
+        LOGGER.info("\t\t\t\tMaxIters: %d", self.params['MaxIters'])
+        LOGGER.info("\t\t\t\tRANSACThreshold: %.2f", self.params['RANSACThreshold'])
 
     def check_params(self):
         if not (self.params.get('Model') in ['Euler', 'PartialAffine', 'Homography']):
-            LOGGER.info("{:s}:Model set to Euler".format(self.__class__.__name__))
+            LOGGER.info("%s:Model set to Euler", self.__class__.__name__)
             self.params['Model'] = 'Euler'
         if not (self.params.get('Descriptor') in ['SIFT', 'SURF']):
-            LOGGER.info("{:s}:Descriptor set to SIFT".format(self.__class__.__name__))
+            LOGGER.info("%s:Descriptor set to SIFT", self.__class__.__name__)
             self.params['Descriptor'] = 'SIFT'
         if not isinstance(self.params.get('MaxIters'), int):
-            LOGGER.info("{:s}:RANSAC MaxIters set to 1000".format(self.__class__.__name__))
+            LOGGER.info("%s:RANSAC MaxIters set to 1000", self.__class__.__name__)
             self.params['MaxIters'] = 1000
         if not isinstance(self.params.get('RANSACThreshold'), float):
-            LOGGER.info("{:s}:RANSAC threshold set to 7.0".format(self.__class__.__name__))
+            LOGGER.info("%s:RANSAC threshold set to 7.0", self.__class__.__name__)
             self.params['RANSACThreshold'] = 7.0
 
     def register(self, src, trg, trg_mask=None, src_mask=None):

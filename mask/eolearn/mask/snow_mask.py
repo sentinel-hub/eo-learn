@@ -171,8 +171,8 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         """ Check length of parameters defining threshold values """
         for params, n_params in [(self.dem_params, 2), (self.red_params, 5), (self.ndsi_params, 3)]:
             if not isinstance(params, (tuple, list)) or len(params) != n_params:
-                raise ValueError('Incorrect format or number of parameters for {0}. '
-                                 'Has to be a tuple of length {1}'.format(params, n_params))
+                raise ValueError(f'Incorrect format or number of parameters for {params}. '
+                                 f'Has to be a tuple of length {n_params}')
 
     def _resample_red(self, input_array):
         """ Method to resample the values of the red band

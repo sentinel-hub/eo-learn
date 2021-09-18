@@ -183,14 +183,14 @@ class ExportToTiffTask(BaseLocalIoTask):
             return array
         if isinstance(self.band_indices, list):
             if [band for band in self.band_indices if not isinstance(band, int)]:
-                raise ValueError('Invalid format in {} list, expected integers'.format(self.band_indices))
+                raise ValueError(f'Invalid format in {self.band_indices} list, expected integers')
             return array[..., self.band_indices]
         if isinstance(self.band_indices, tuple):
             if tuple(map(type, self.band_indices)) != (int, int):
-                raise ValueError('Invalid format in {} tuple, expected integers'.format(self.band_indices))
+                raise ValueError(f'Invalid format in {self.band_indices} tuple, expected integers')
             return array[..., self.band_indices[0]: self.band_indices[1] + 1]
 
-        raise ValueError('Invalid format in {}, expected tuple or list'.format(self.band_indices))
+        raise ValueError(f'Invalid format in {self.band_indices}, expected tuple or list')
 
     def _get_dates_subset(self, array, dates):
         """ Reduce array by selecting a subset of times
@@ -199,7 +199,7 @@ class ExportToTiffTask(BaseLocalIoTask):
             return array
         if isinstance(self.date_indices, list):
             if [date for date in self.date_indices if not isinstance(date, int)]:
-                raise ValueError('Invalid format in {} list, expected integers'.format(self.date_indices))
+                raise ValueError(f'Invalid format in {self.date_indices} list, expected integers')
             return array[np.array(self.date_indices), ...]
         if isinstance(self.date_indices, tuple):
             dates = np.array(dates)
@@ -213,11 +213,10 @@ class ExportToTiffTask(BaseLocalIoTask):
                 start_date = self.date_indices[0]
                 end_date = self.date_indices[1]
             else:
-                raise ValueError('Invalid format in {} tuple, expected ints, strings, or datetimes'.format(
-                    self.date_indices))
+                raise ValueError(f'Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes')
             return array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
 
-        raise ValueError('Invalid format in {}, expected tuple or list'.format(self.date_indices))
+        raise ValueError(f'Invalid format in {self.date_indices}, expected tuple or list')
 
     def _set_export_dtype(self, data_array, feature):
         """ To a given array it sets a dtype in which data will be exported
@@ -226,8 +225,8 @@ class ExportToTiffTask(BaseLocalIoTask):
 
         if image_dtype == np.int64:
             image_dtype = np.int32
-            warnings.warn('Data from feature {} cannot be exported to tiff with dtype numpy.int64. Will export as '
-                          'numpy.int32 instead'.format(feature))
+            warnings.warn(f'Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export '
+                          'as numpy.int32 instead')
 
         if image_dtype == data_array.dtype:
             return data_array

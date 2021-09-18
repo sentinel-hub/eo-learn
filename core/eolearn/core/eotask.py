@@ -77,7 +77,7 @@ class EOTask(ABC):
 
             # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
             try:
-                errmsg = 'During execution of task {}: {}'.format(self.__class__.__name__, exception)
+                errmsg = f'During execution of task {self.__class__.__name__}: {exception}'
                 extended_exception = type(exception)(errmsg)
             except TypeError:
                 extended_exception = exception

@@ -120,9 +120,9 @@ class TestEOWorkflow(unittest.TestCase):
         self.assertEqual(res[pow_task], (2 + 2 + 1) ** 3)
 
         task_map = eow.get_tasks()
-        self.assertTrue(in_task_name in task_map, "A task with name '{}' should be amongst tasks".format(in_task_name))
+        self.assertTrue(in_task_name in task_map, f"A task with name '{in_task_name}' should be amongst tasks")
         self.assertEqual(task_map[in_task_name], in_task,
-                         "A task with name '{}' should map into {}".format(in_task_name, in_task))
+                         f"A task with name '{in_task_name}' should map into {in_task}")
 
     def test_get_tasks(self):
         in_task = InputTask()

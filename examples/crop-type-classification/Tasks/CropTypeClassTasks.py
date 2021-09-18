@@ -96,18 +96,18 @@ class GroupLPIS(EOTask):
         specified by self.lpis_to_group_file.
         """
         # Group LPIS classes
-        lpis = eopatch.vector_timeless["LPIS_{}".format(self.year)]
+        lpis = eopatch.vector_timeless[f"LPIS_{self.year}"]
         mapping = pd.read_csv(self.lpis_to_group_file, sep=";")
         result = pd.merge(lpis, mapping, how="left", left_on=[col_cropN_lpis], right_on=[col_cropN_lpistogroup])
 
         # Assign GroupID to GroupName
         group_id = pd.read_csv(self.crop_group_file, sep=";")
         resultend = pd.merge(result, group_id, how="left", on="GROUP_1")
-        eopatch.vector_timeless["LPIS_{}".format(self.year)] = resultend
+        eopatch.vector_timeless[f"LPIS_{self.year}"] = resultend
 
         # Fill GroupID NaN values with zeros
-        group = eopatch.vector_timeless["LPIS_{}".format(self.year)]["GROUP_1_ID"]
-        eopatch.vector_timeless["LPIS_{}".format(self.year)]["GROUP_1_ID"] = group.fillna(0)
+        group = eopatch.vector_timeless[f"LPIS_{self.year}"]["GROUP_1_ID"]
+        eopatch.vector_timeless[f"LPIS_{self.year}"]["GROUP_1_ID"] = group.fillna(0)
 
         return eopatch
 
@@ -139,11 +139,11 @@ class CleanLPIS(EOTask):
         self.year = year
 
     def execute(self, eopatch):
-        lpis = eopatch.vector_timeless["LPIS_{}".format(self.year)]
+        lpis = eopatch.vector_timeless[f"LPIS_{self.year}"]
 
         lpis.drop(columns=["SNAR_BEZEI_NAME", "CROP_ID", "english", "slovenian", "latin", "GROUP_1", "GROUP_1_ID"], axis=1, inplace=True)
 
-        eopatch.vector_timeless["LPIS_{}".format(self.year)] = lpis
+        eopatch.vector_timeless[f"LPIS_{self.year}"] = lpis
 
         return eopatch
 
@@ -158,7 +158,7 @@ class SamplingTaskTask(EOTask):
 
     def execute(self, eopatch):
 
-        classes = eopatch.mask_timeless['LPIS_class_{}_ERODED'.format(self.grouping_id)]
+        classes = eopatch.mask_timeless[f'LPIS_class_{self.grouping_id}_ERODED']
         w,h,c = classes.shape
         classes = classes.reshape(w * h, 1).squeeze()
         unique, counts = np.unique(classes, return_counts=True)
@@ -177,13 +177,13 @@ class SamplingTaskTask(EOTask):
         spatial_sampling = PointSamplingTask(
             even_sampling = True,
             n_samples=n_samples,
-            ref_mask_feature='LPIS_class_{}_ERODED'.format(self.grouping_id),
+            ref_mask_feature=f'LPIS_class_{self.grouping_id}_ERODED',
             ref_labels=ref_labels,
             sample_features=[  # tag fields to sample
                 (FeatureType.DATA, 'FEATURES', 'FEATURES_SAMPLED'), # feature dicts to sample and where to save samples
                 (FeatureType.MASK_TIMELESS,
-                 'LPIS_class_{}_ERODED'.format(self.grouping_id), # label dict to sample
-                 'LPIS_class_{}_ERODED_SAMPLED'.format(self.grouping_id)) # label dict to save samples
+                 f'LPIS_class_{self.grouping_id}_ERODED', # label dict to sample
+                 f'LPIS_class_{self.grouping_id}_ERODED_SAMPLED') # label dict to save samples
             ])
 
         spatial_sampling.execute(eopatch)

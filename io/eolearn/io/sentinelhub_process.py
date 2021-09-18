@@ -494,6 +494,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         """
 
         outputs = [
+            # pylint: disable=consider-using-f-string
             "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
                 id=f'\"{btype.id}\"', num_bands=len(bands), sample_type=btype.sample_type
             )
@@ -501,7 +502,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         ]
 
         samples = [
-            (btype.id, '[{samples}]'.format(samples=', '.join(f'sample.{band}' for band in bands)))
+            (btype.id, '[' + ', '.join(f'sample.{band}' for band in bands) + ']')
             for btype, bands in self.requested_bands.items()
         ]
 

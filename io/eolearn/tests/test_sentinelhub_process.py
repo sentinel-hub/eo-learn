@@ -444,7 +444,7 @@ class TestSentinelHubInputTaskDataCollections:
                 additional_data=[mask_feature],
                 size=size,
                 time_difference=time_difference,
-                data_collection = DataCollection.LANDSAT_OT_L1
+                data_collection=DataCollection.LANDSAT_OT_L1
             ),
             bbox=bbox,
             time_interval=time_interval,

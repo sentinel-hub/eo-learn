@@ -81,7 +81,7 @@ def load_s3_filesystem(path, strict=False, config=None):
     :rtype: fs_s3fs.S3FS
     """
     if not path.startswith('s3://'):
-        raise ValueError("AWS path has to start with s3:// but found '{}'".format(path))
+        raise ValueError(f"AWS path has to start with s3:// but found '{path}'")
 
     if config is None:
         config = SHConfig()
