@@ -539,8 +539,8 @@ class TestSentinelHubInputTaskDataCollections:
             bbox=bbox,
             time_interval=('2021-02-10', '2021-02-15'),
             data_size=3,
-            timestamp_length=14,
-            stats=[0.4236, 0.6353, 0.5117]
+            timestamp_length=13,
+            stats=[0.4236, 0.6339, 0.5117]
         ),
         IoTestCase(
             name='Sentinel-5P',
