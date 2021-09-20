@@ -494,10 +494,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         """
 
         outputs = [
-            # pylint: disable=consider-using-f-string
-            "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
-                id=f'\"{btype.id}\"', num_bands=len(bands), sample_type=btype.sample_type
-            )
+            '{ ' + f'id:"{btype.id}", bands:{len(bands)}, sampleType: SampleType.{btype.sample_type}' +' }'
             for btype, bands in self.requested_bands.items()
         ]
 
