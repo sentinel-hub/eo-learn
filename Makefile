@@ -1,24 +1,32 @@
 # Makefile for creating a new release of the package and uploading it to PyPI
 
 PYTHON = python3
-PACKAGES = core coregistration features geometry io mask ml_tools
+PACKAGES = core coregistration features geometry io mask ml_tools visualization
 PYLINT = pylint
 
 .PHONY: $(PACKAGES:test)
+.SILENT: pylint pylint-fast
 
 help:
 	@echo "Use 'make upload-<package>' to upload the package to PyPi"
 	@echo "Use 'make pylint' to run pylint on the code of all subpackages"
 
 pylint:
-	$(PYLINT) core/eolearn/core/*.py
-	$(PYLINT) coregistration/eolearn/coregistration/*.py
-	$(PYLINT) features/eolearn/features/*.py
-	$(PYLINT) geometry/eolearn/geometry/*.py
-	$(PYLINT) io/eolearn/io/*.py
-	$(PYLINT) mask/eolearn/mask/*.py
-	$(PYLINT) ml_tools/eolearn/ml_tools/*.py
-	$(PYLINT) visualization/eolearn/visualization/*.py
+	# Runs pylint on all subpackages consecutively and makes sure any error status code gets propagated.
+	export PYLINT_STATUS=0
+	for package in $(PACKAGES) ; do \
+    	$(PYLINT) $$package/eolearn/$$package || export PYLINT_STATUS=$$?; \
+	done;
+	exit $$PYLINT_STATUS
+
+
+pylint-fast:
+	# Runs pylint on all subpackages in parallel. Because of that output verdicts are not in the order of package
+	# names and this process cannot be interrupted.
+	for package in $(PACKAGES) ; do \
+    	$(PYLINT) $$package/eolearn/$$package & \
+	done;
+	wait
 
 .ONESHELL:
 build-core:

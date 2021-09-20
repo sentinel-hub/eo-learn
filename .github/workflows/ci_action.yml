@@ -15,7 +15,16 @@ jobs:
           - '3.8'
           - '3.9'
     steps:
-      - uses: actions/checkout@v2
+      - name: Check out current branch in case of a push event
+        if: github.event_name == 'push'
+        uses: actions/checkout@v2
+
+      - name: Check out develop branch in case of a scheduled event
+        if: github.event_name == 'schedule'
+        uses: actions/checkout@v2
+        with:
+          ref: develop
+
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
