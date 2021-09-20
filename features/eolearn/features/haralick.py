@@ -71,7 +71,7 @@ class HaralickTask(EOTask):
         self.texture_feature = texture_feature
         if self.texture_feature not in self.AVAILABLE_TEXTURES.union(self.AVAILABLE_TEXTURES_SKIMAGE):
             raise ValueError(
-                'Haralick texture feature must be one of these :'
+                'Haralick texture feature must be one of these: '
                 f'{self.AVAILABLE_TEXTURES.union(self.AVAILABLE_TEXTURES_SKIMAGE)}'
             )
 
