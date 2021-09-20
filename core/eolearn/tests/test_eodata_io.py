@@ -91,7 +91,7 @@ class TestEOPatchIO(unittest.TestCase):
 
                 subfolder = 'new-subfolder'
                 self.eopatch.save('new-subfolder', filesystem=temp_fs)
-                self.assertTrue(temp_fs.exists('/{}/bbox.pkl'.format(subfolder)))
+                self.assertTrue(temp_fs.exists(f'/{subfolder}/bbox.pkl'))
 
     def test_saving_in_non_empty_folder(self):
         for fs_loader in self.filesystem_loaders:

@@ -213,7 +213,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         if ndvi.ndim == 4:
             h, w = ndvi.shape[1: 3]
         else:
-            raise ValueError('{} feature has incorrect number of dimensions'.format(self.data_feature))
+            raise ValueError(f'{self.data_feature} feature has incorrect number of dimensions')
 
         argmax_ndvi_slope, argmin_ndvi_slope = np.zeros((h, w, 1), dtype=np.uint8), np.zeros((h, w, 1), dtype=np.uint8)
 

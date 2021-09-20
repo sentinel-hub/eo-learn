@@ -48,7 +48,7 @@ class TestFilesystemUtils(unittest.TestCase):
     @mock_s3
     def test_s3_filesystem(self):
         folder_name = 'my_folder'
-        s3_url = 's3://test-eo-bucket/{}'.format(folder_name)
+        s3_url = f's3://test-eo-bucket/{folder_name}'
 
         filesystem = get_filesystem(s3_url)
         self.assertTrue(isinstance(filesystem, S3FS))

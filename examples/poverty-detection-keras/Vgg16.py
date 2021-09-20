@@ -46,7 +46,7 @@ def vgg16_net(params):
     K.clear_session()  # Remove any existing graphs
     mst_str = dt.now().strftime("%m%d_%H%M%S")
 
-    print('\n' + '=' * 40 + '\nStarting model at {}'.format(mst_str))
+    print('\n' + '=' * 40 + f'\nStarting model at {mst_str}')
     # print('Model # %s' % len(trials))
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(params)
@@ -166,7 +166,7 @@ def vgg16_net(params):
                   loss=params['loss'],
                   metrics=MP['metrics'])
 
-    print('/nPhase 2, training from layer {} on.'.format(params['freeze_cutoff']))
+    print(f'/nPhase 2, training from layer {params["freeze_cutoff"]} on.')
     test_iter = test_gen.flow_from_directory(
         directory=op.join(data_dir, 'test'), shuffle=False,  # Helps maintain consistency in testing phase
         **DF['flow_from_dir'])

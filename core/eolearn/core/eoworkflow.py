@@ -119,8 +119,8 @@ class EOWorkflow:
             for vertex in dep.inputs:
                 task_uuid = vertex.private_task_config.uuid
                 if task_uuid not in self.uuid_dict:
-                    raise ValueError('Task {}, which is an input of a task {}, is not part of the defined '
-                                     'workflow'.format(vertex.__class__.__name__, dep.name))
+                    raise ValueError(f'Task {vertex.__class__.__name__}, which is an input of a task {dep.name}, is '
+                                     'not part of the defined workflow')
                 dag.add_edge(self.uuid_dict[task_uuid], dep)
             if not dep.inputs:
                 dag.add_vertex(dep)
@@ -182,11 +182,11 @@ class EOWorkflow:
         input_args = input_args if input_args else {}
         for task, args in input_args.items():
             if not isinstance(task, EOTask):
-                raise ValueError('Invalid input argument {}, should be an instance of EOTask'.format(task))
+                raise ValueError(f'Invalid input argument {task}, should be an instance of EOTask')
 
             if not isinstance(args, (tuple, dict)):
                 raise ValueError('Execution input arguments of each task should be a dictionary or a tuple, for task '
-                                 '{} got arguments of type {}'.format(task.__class__.__name__, type(args)))
+                                 f'{task.__class__.__name__} got arguments of type {type(args)}')
 
         return input_args
 
@@ -389,16 +389,16 @@ class Dependency:
         """ This is executed right after init method
         """
         if not isinstance(self.task, EOTask):
-            raise ValueError('Value {} should be an instance of {}'.format(self.task, EOTask.__name__))
+            raise ValueError(f'Value {self.task} should be an instance of {EOTask.__name__}')
         self.task = self.task
 
         if isinstance(self.inputs, EOTask):
             self.inputs = [self.inputs]
         if not isinstance(self.inputs, (list, tuple)):
-            raise ValueError('Value {} should be a list'.format(self.inputs))
+            raise ValueError(f'Value {self.inputs} should be a list')
         for input_task in self.inputs:
             if not isinstance(input_task, EOTask):
-                raise ValueError('Value {} should be an instance of {}'.format(input_task, EOTask.__name__))
+                raise ValueError(f'Value {input_task} should be an instance of {EOTask.__name__}')
 
         if self.name is None:
             self.name = self.task.__class__.__name__
@@ -412,7 +412,7 @@ class Dependency:
         """ Provides custom task name according to given number. E.g. FooTask -> FooTask
         """
         if number:
-            return '{}_{}'.format(self.name, number)
+            return f'{self.name}_{number}'
         return self.name
 
 
@@ -474,11 +474,11 @@ class WorkflowResults(collections.abc.Mapping):
         return list(self.values())[-1]
 
     def __repr__(self):
-        repr_list = ['{}('.format(self.__class__.__name__)]
+        repr_list = [f'{self.__class__.__name__}(']
 
         for _, dep in self._uuid_dict.items():
             result_repr = repr(self._result[dep]).replace('\n', '\n    ')
-            dependency_repr = '{}({}):\n    {}'.format(Dependency.__name__, dep.name, result_repr)
+            dependency_repr = f'{Dependency.__name__}({dep.name}):\n    {result_repr}'
 
             repr_list.append(dependency_repr)
 

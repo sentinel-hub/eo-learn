@@ -59,7 +59,7 @@ class FeatureExtendedExtractor:
     def ensure_follows(lexer, expected_ch):
         ch = lexer.next()
         if ch != expected_ch:
-            raise SyntaxError("Expected '{}', got '{}'".format(expected_ch, ch))
+            raise SyntaxError(f"Expected '{expected_ch}', got '{ch}'")
 
     def parse_E(self, lexer):
         vals = [self.parse_T(lexer)]

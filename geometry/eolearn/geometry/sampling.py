@@ -292,7 +292,7 @@ class PointRasterSampler:
         raster[~mask] = unknown_value
         if not np.array_equal(~mask, raster == unknown_value):
             raise ValueError('Failed to set unknown value. Too many labels for sampling reference mask of type '
-                             '{}'.format(raster.dtype))
+                             f'{raster.dtype}')
 
         # Sample raster
         samples = np.concatenate([self._binary_sample(raster, label, n_sample_label, label_count)

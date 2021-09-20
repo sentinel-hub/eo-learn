@@ -153,7 +153,7 @@ class FileFormat(Enum):
     def extension(self):
         """ Returns file extension of file format
         """
-        return '.{}'.format(self.value)
+        return f'.{self.value}'
 
     @staticmethod
     def split_by_extensions(filename):

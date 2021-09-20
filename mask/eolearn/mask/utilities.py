@@ -91,7 +91,7 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
         raise ValueError('Exactly one of the arguments new_size, scale_factors must be given.')
 
     if interpolation not in inter_methods:
-        raise ValueError('Invalid interpolation method: %s' % interpolation)
+        raise ValueError(f'Invalid interpolation method: {interpolation}')
 
     interpolation_method = inter_methods[interpolation]
     downscaling = scale_factors[0] < 1 or scale_factors[1] < 1

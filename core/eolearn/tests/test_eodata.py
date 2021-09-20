@@ -51,7 +51,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
                     pass
 
             self.assertEqual(valid_count, 6,  # 3 * (2 - feature_type.is_discrete()),
-                             msg='Feature type {} should take only a specific type of data'.format(feature_type))
+                             msg=f'Feature type {feature_type} should take only a specific type of data')
 
     def test_vector_feature_types(self):
         eop = EOPatch()
@@ -63,7 +63,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
         for feature_type in FeatureTypeSet.VECTOR_TYPES:
             for entry in invalid_entries:
                 with self.assertRaises(ValueError,
-                                       msg='Invalid entry {} for {} should raise an error'.format(entry, feature_type)):
+                                       msg=f'Invalid entry {entry} for {feature_type} should raise an error'):
                     eop[feature_type]['TEST'] = entry
 
         crs_test = CRS.WGS84.pyproj_crs()
@@ -86,7 +86,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         for entry in invalid_entries:
             with self.assertRaises((ValueError, TypeError),
-                                   msg='Invalid bbox entry {} should raise an error'.format(entry)):
+                                   msg=f'Invalid bbox entry {entry} should raise an error'):
                 eop.bbox = entry
 
     def test_timestamp_feature_type(self):
@@ -104,7 +104,7 @@ class TestEOPatchFeatureTypes(unittest.TestCase):
 
         for entry in invalid_entries:
             with self.assertRaises((ValueError, TypeError),
-                                   msg='Invalid timestamp entry {} should raise an error'.format(entry)):
+                                   msg='Invalid timestamp entry {entry} should raise an error'):
                 eop.timestamp = entry
 
         for entry in valid_entries:
@@ -248,16 +248,14 @@ class TestEOPatch(unittest.TestCase):
         eop[FeatureType.DATA][names[2]] = bands
 
         for feature_name in names:
-            self.assertTrue(feature_name in eop.data, "Feature {} was not added to EOPatch".format(feature_name))
-            self.assertTrue(np.array_equal(eop.data[feature_name], bands), "Data of feature {} is "
-                                                                           "incorrect".format(feature_name))
+            self.assertTrue(feature_name in eop.data, f"Feature {feature_name} was not added to EOPatch")
+            self.assertTrue(np.array_equal(eop.data[feature_name], bands), f"Data of feature {feature_name} is wrong")
 
         eop.remove_feature(FeatureType.DATA, names[0])
         del eop.data[names[1]]
         del eop[FeatureType.DATA][names[2]]
         for feature_name in names:
-            self.assertFalse(feature_name in eop.data, msg="Feature {} should be deleted from "
-                                                           "EOPatch".format(feature_name))
+            self.assertFalse(feature_name in eop.data, msg=f"Feature {feature_name} should be deleted from EOPatch")
 
     def test_concatenate(self):
         eop1 = EOPatch()

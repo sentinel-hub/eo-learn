@@ -269,7 +269,7 @@ class DuplicateFeatureTask(EOTask):
 
         for feature_type, feature_name, new_feature_name in self.feature_gen(eopatch):
             if new_feature_name in eopatch[feature_type]:
-                raise ValueError("A feature named '{}' already exists.".format(new_feature_name))
+                raise ValueError(f"A feature named '{new_feature_name}' already exists.")
 
             if self.deep:
                 eopatch[feature_type][new_feature_name] = copy.deepcopy(eopatch[feature_type][feature_name])
