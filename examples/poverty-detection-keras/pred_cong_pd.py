@@ -18,6 +18,6 @@ pred_params = dict(model_time='0813_192409', #201910_L5.39
                    single_batch_size=16,  # Number of images seen by a single GPU
                    n_gpus=1,
                    deci_prec=2)  # Number of decimal places in prediction precision
-pred_params.update(dict(model_arch_fname='{}_arch.yaml'.format(pred_params['model_time']),
-                        model_params_fname='{}_params.yaml'.format(pred_params['model_time']),
-                        model_weights_fname='{}_L1.20_E13_weights.h5'.format(pred_params['model_time'])))
+pred_params.update(dict(model_arch_fname=f'{pred_params["model_time"]}_arch.yaml',
+                        model_params_fname=f'{pred_params["model_time"]}_params.yaml',
+                        model_weights_fname=f'{pred_params["model_time"]}_L1.20_E13_weights.h5'))

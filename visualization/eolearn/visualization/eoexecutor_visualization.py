@@ -56,8 +56,8 @@ class EOExecutorVisualization:
             dependency_graph = self._create_dependency_graph()
         except graphviz.backend.ExecutableNotFound as ex:
             dependency_graph = None
-            warnings.warn("{}.\nPlease install the system package 'graphviz' (in addition "
-                          "to the python package) to have the dependency graph in the final report!".format(ex),
+            warnings.warn(f"{ex}.\nPlease install the system package 'graphviz' (in addition "
+                          "to the python package) to have the dependency graph in the final report!",
                           Warning, stacklevel=2)
 
         formatter = HtmlFormatter(linenos=True)
@@ -111,7 +111,7 @@ class EOExecutorVisualization:
             if task.__module__.startswith("eolearn"):
                 continue
 
-            key = "{} ({})".format(task.__class__.__name__, task.__module__)
+            key = "{task.__class__.__name__} ({task.__module__})"
             if key in sources:
                 continue
 

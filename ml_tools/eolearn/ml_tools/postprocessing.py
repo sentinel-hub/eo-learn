@@ -149,6 +149,6 @@ class MorphologicalFilterTask(PostprocessingTask):
             for time, dim in it.product(range(raster.shape[0]), range(raster.shape[3])):
                 raster[time, :, :, dim] = self.morph_operation(raster[time, :, :, dim], self.struct_elem)
         else:
-            raise ValueError('Invalid number of dimensions: {}'.format(dim))
+            raise ValueError(f'Invalid number of dimensions: {dim}')
 
         return raster

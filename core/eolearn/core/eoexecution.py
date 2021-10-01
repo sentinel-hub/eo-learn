@@ -199,8 +199,7 @@ class EOExecutor:
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException as exception:
-                warnings.warn('Failed to create logs with exception: {}'.format(repr(exception)),
-                              category=RuntimeWarning)
+                warnings.warn(f'Failed to create logs with exception: {repr(exception)}', category=RuntimeWarning)
 
         return None, None
 
@@ -210,7 +209,8 @@ class EOExecutor:
         """
         if log_path:
             try:
-                message = 'EOWorkflow execution {}'.format('failed' if cls.STATS_ERROR in stats else 'finished')
+                status = 'failed' if cls.STATS_ERROR in stats else 'finished'
+                message = f'EOWorkflow execution {status}'
                 logger.debug(message)
                 handler.close()
                 logger.removeHandler(handler)
@@ -273,13 +273,13 @@ class EOExecutor:
         """ Returns file path of folder where report will be saved
         """
         return os.path.join(self.logs_folder,
-                            'eoexecution-report-{}'.format(self.start_time.strftime("%Y_%m_%d-%H_%M_%S")))
+                            f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}')
 
     def _get_log_paths(self):
         """ Returns a list of file paths containing logs
         """
         if self.save_logs:
-            return [os.path.join(self.report_folder, 'eoexecution-{}.log'.format(name))
+            return [os.path.join(self.report_folder, f'eoexecution-{name}.log')
                     for name in self.execution_names]
 
         return [None] * len(self.execution_names)

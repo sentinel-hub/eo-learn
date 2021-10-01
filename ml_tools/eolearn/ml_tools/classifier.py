@@ -90,10 +90,9 @@ class ImageBaseClassifier(ABC):
         self._image_size = X.shape[1:3]
 
         if (self._image_size[0] % self.receptive_field[0]) or (self._image_size[0] % self.receptive_field[0]):
-            raise ValueError('Image (%d,%d) and receptive fields (%d,%d) mismatch.\n'
-                             'Resize your image to be divisible with receptive field.'
-                             % (self._image_size[0], self._image_size[0], self.receptive_field[0],
-                                self.receptive_field[1]))
+            raise ValueError(f'Image {(self._image_size[0], self._image_size[0])} and receptive fields '
+                             f'{(self.receptive_field[0], self.receptive_field[1])} mismatch.\n'
+                             'Resize your image to be divisible with receptive field.')
 
     @staticmethod
     def _transform_input(X):

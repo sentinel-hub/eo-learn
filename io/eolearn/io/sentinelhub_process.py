@@ -197,6 +197,7 @@ class SentinelHubInputBaseTask(EOTask):
     def _get_timestamp(self, time_interval, bbox):
         """ Get the timestamp array needed as a parameter for downloading the images
         """
+        raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
 
 
 ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
@@ -286,7 +287,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         """ Get the timestamp array needed as a parameter for downloading the images
         """
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
-            return None
+            return []
 
         return get_available_timestamps(bbox=bbox, time_interval=time_interval, data_collection=self.data_collection,
                                         maxcc=self.maxcc, time_difference=self.time_difference, config=self.config)
@@ -494,14 +495,12 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         """
 
         outputs = [
-            "{{ id:{id}, bands:{num_bands}, sampleType: SampleType.{sample_type} }}".format(
-                id=f'\"{btype.id}\"', num_bands=len(bands), sample_type=btype.sample_type
-            )
+            '{ ' + f'id:"{btype.id}", bands:{len(bands)}, sampleType: SampleType.{btype.sample_type}' + ' }'
             for btype, bands in self.requested_bands.items()
         ]
 
         samples = [
-            (btype.id, '[{samples}]'.format(samples=', '.join(f'sample.{band}' for band in bands)))
+            (btype.id, '[' + ', '.join(f'sample.{band}' for band in bands) + ']')
             for btype, bands in self.requested_bands.items()
         ]
 

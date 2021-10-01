@@ -41,7 +41,7 @@ def test_pathlib_support(tmp_path):
 @mock_s3
 def test_s3_filesystem():
     folder_name = 'my_folder'
-    s3_url = 's3://test-eo-bucket/{}'.format(folder_name)
+    s3_url = f's3://test-eo-bucket/{folder_name}'
 
     filesystem = get_filesystem(s3_url)
     assert isinstance(filesystem, S3FS)

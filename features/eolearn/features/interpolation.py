@@ -161,11 +161,11 @@ class InterpolationTask(EOTask):
 
         if mask_type.is_spatial() and feature_data.shape[1: 3] != mask.shape[-3: -1]:
             raise ValueError('Spatial dimensions of interpolation and mask feature do not match: '
-                             '{} {}'.format(feature_data.shape, mask.shape))
+                             f'{feature_data.shape} {mask.shape}')
 
         if mask_type.is_time_dependent() and feature_data.shape[0] != mask.shape[0]:
             raise ValueError('Time dimension of interpolation and mask feature do not match: '
-                             '{} {}'.format(feature_data.shape, mask.shape))
+                             f'{feature_data.shape} {mask.shape}')
 
         # This allows masking each channel differently but causes some complications while masking with label
         if mask.shape[-1] != feature_data.shape[-1]:
@@ -256,8 +256,8 @@ class InterpolationTask(EOTask):
                 new_feature = copy_feature_type, copy_new_feature_name
 
                 if new_feature in existing_features:
-                    raise ValueError('Feature {} of {} already exists in the new EOPatch! '
-                                     'Use a different name!'.format(copy_new_feature_name, copy_feature_type))
+                    raise ValueError(f'Feature {copy_new_feature_name} of {copy_feature_type} already exists in the '
+                                     'new EOPatch! Use a different name!')
                 existing_features.add(new_feature)
 
                 new_eopatch[copy_feature_type][copy_new_feature_name] = \
@@ -365,7 +365,7 @@ class InterpolationTask(EOTask):
             return timestamp
 
         if not isinstance(self.resample_range, (tuple, list)):
-            raise ValueError('Invalid resample_range {}, expected tuple'.format(self.resample_range))
+            raise ValueError(f'Invalid resample_range {self.resample_range}, expected tuple')
 
         if tuple(map(type, self.resample_range)) == (str, str, int):
             start_date = dateutil.parser.parse(self.resample_range[0])
@@ -380,7 +380,7 @@ class InterpolationTask(EOTask):
         elif self.resample_range and np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
             days = list(self.resample_range)
         else:
-            raise ValueError('Invalid format in {}, expected strings or datetimes'.format(self.resample_range))
+            raise ValueError('Invalid format in {self.resample_range}, expected strings or datetimes')
 
         return days
 
@@ -394,8 +394,8 @@ class InterpolationTask(EOTask):
         feature_data = eopatch[feature_type][feature_name].copy()
         time_num, height, width, band_num = feature_data.shape
         if time_num <= 1:
-            raise ValueError('Feature {} has time dimension of size {}, required at least size '
-                             '2'.format((feature_type, feature_name), time_num))
+            raise ValueError(f'Feature {(feature_type, feature_name)} has time dimension of size {time_num}, '
+                             'required at least size 2')
 
         # Apply a mask on data
         if self.mask_feature is not None:
