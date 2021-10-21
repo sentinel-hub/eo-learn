@@ -213,7 +213,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
                  max_threads=None, config=None, mosaicking_order=None, aux_request_args=None):
         """
         :param features: Features to construct from the evalscript.
-        :param evalscript: Evascript for the request. Beware that all outputs from SentinelHub services should be named
+        :param evalscript: Evalscript for the request. Beware that all outputs from SentinelHub services should be named
             and should have the same name as corresponding feature
         :type evalscript: str
         :param data_collection: Source of requested satellite data.
