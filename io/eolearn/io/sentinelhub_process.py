@@ -49,8 +49,9 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
 
     fields = {'include': ['properties.datetime'], 'exclude': []}
 
-    config = copy.copy(config)
-    config.sh_base_url = data_collection.service_url
+    if data_collection.service_url:
+        config = copy.copy(config)
+        config.sh_base_url = data_collection.service_url
     catalog = SentinelHubCatalog(config=config)
     search_iterator = catalog.search(collection=data_collection, bbox=bbox, time=time_interval,
                                      query=query, fields=fields)

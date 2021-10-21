@@ -11,9 +11,12 @@ import pytest
 from pytest import approx
 import numpy as np
 
+from sentinelhub import BBox, CRS, DataCollection, SHConfig
 from eolearn.core import EOPatch, FeatureType, EOTask
-from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask
-from sentinelhub import BBox, CRS, DataCollection
+from eolearn.io import (
+    SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask,
+    get_available_timestamps
+)
 
 
 @pytest.fixture(name='cache_folder')
@@ -359,6 +362,20 @@ class TestProcessingIO:
 
         width, height = self.size
         assert array.shape == (20, height, width, 3)
+
+    def test_get_available_timestamps_with_missing_data_collection_service_url(self):
+        collection = DataCollection.SENTINEL2_L1C.define_from('COLLECTION_WITHOUT_URL', service_url=None)
+        timestamps = get_available_timestamps(
+            bbox=self.bbox,
+            config=SHConfig(),
+            data_collection=collection,
+            time_difference=self.time_difference,
+            time_interval=self.time_interval,
+            maxcc=self.maxcc
+        )
+
+        assert len(timestamps) == 4
+        assert all(timestamp.tzinfo is not None for timestamp in timestamps)
 
 
 @pytest.mark.sh_integration
