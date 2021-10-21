@@ -49,8 +49,9 @@ def get_available_timestamps(bbox, config, data_collection, time_difference, tim
 
     fields = {'include': ['properties.datetime'], 'exclude': []}
 
-    config = copy.copy(config)
-    config.sh_base_url = data_collection.service_url
+    if data_collection.service_url:
+        config = copy.copy(config)
+        config.sh_base_url = data_collection.service_url
     catalog = SentinelHubCatalog(config=config)
     search_iterator = catalog.search(collection=data_collection, bbox=bbox, time=time_interval,
                                      query=query, fields=fields)
@@ -212,7 +213,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
                  max_threads=None, config=None, mosaicking_order=None, aux_request_args=None):
         """
         :param features: Features to construct from the evalscript.
-        :param evalscript: Evascript for the request. Beware that all outputs from SentinelHub services should be named
+        :param evalscript: Evalscript for the request. Beware that all outputs from SentinelHub services should be named
             and should have the same name as corresponding feature
         :type evalscript: str
         :param data_collection: Source of requested satellite data.

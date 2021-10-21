@@ -111,7 +111,7 @@ class EOExecutorVisualization:
             if task.__module__.startswith("eolearn"):
                 continue
 
-            key = "{task.__class__.__name__} ({task.__module__})"
+            key = f"{task.__class__.__name__} ({task.__module__})"
             if key in sources:
                 continue
 
