@@ -17,6 +17,7 @@ from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import BBox, CRS
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core.eodata_io import FeatureIO
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -237,6 +238,31 @@ class TestEOPatch(unittest.TestCase):
         assert eop != eop_copy
         assert eop_copy[feature] is eop[feature]
         assert eop_copy.timestamp == []
+
+    def test_copy_lazy_loaded_patch(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+        original_eopatch = EOPatch.load(path, lazy_loading=True)
+        copied_eopatch = original_eopatch.copy()
+
+        value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+        assert isinstance(value1, FeatureIO)
+        value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+        assert isinstance(value2, FeatureIO)
+        assert id(value1) == id(value2)
+
+        mask1 = original_eopatch.mask['CLM']
+        mask2 = copied_eopatch.mask['CLM']
+        assert isinstance(mask1, np.ndarray)
+        assert id(mask1) == id(mask2)
+
+        original_eopatch = EOPatch.load(path, lazy_loading=True)
+        copied_eopatch = original_eopatch.copy(deep=True)
+
+        value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+        assert isinstance(value1, FeatureIO)
+        value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+        assert isinstance(value2, FeatureIO)
+        assert id(value1) != id(value2)
 
     def test_remove_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
