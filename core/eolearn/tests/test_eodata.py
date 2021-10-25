@@ -241,28 +241,34 @@ class TestEOPatch(unittest.TestCase):
 
     def test_copy_lazy_loaded_patch(self):
         path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
-        original_eopatch = EOPatch.load(path, lazy_loading=True)
-        copied_eopatch = original_eopatch.copy()
+        for features in (..., [(FeatureType.MASK, 'CLM')]):
+            original_eopatch = EOPatch.load(path, lazy_loading=True)
+            copied_eopatch = original_eopatch.copy(features=features)
 
-        value1 = original_eopatch.mask.__getitem__('CLM', load=False)
-        assert isinstance(value1, FeatureIO)
-        value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
-        assert isinstance(value2, FeatureIO)
-        assert id(value1) == id(value2)
+            value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value1, FeatureIO)
+            value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value2, FeatureIO)
+            assert value1 is value2
 
-        mask1 = original_eopatch.mask['CLM']
-        mask2 = copied_eopatch.mask['CLM']
-        assert isinstance(mask1, np.ndarray)
-        assert id(mask1) == id(mask2)
+            mask1 = original_eopatch.mask['CLM']
+            assert copied_eopatch.mask.__getitem__('CLM', load=False).loaded_value is not None
+            mask2 = copied_eopatch.mask['CLM']
+            assert isinstance(mask1, np.ndarray)
+            assert mask1 is mask2
 
-        original_eopatch = EOPatch.load(path, lazy_loading=True)
-        copied_eopatch = original_eopatch.copy(deep=True)
+            original_eopatch = EOPatch.load(path, lazy_loading=True)
+            copied_eopatch = original_eopatch.copy(features=features, deep=True)
 
-        value1 = original_eopatch.mask.__getitem__('CLM', load=False)
-        assert isinstance(value1, FeatureIO)
-        value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
-        assert isinstance(value2, FeatureIO)
-        assert id(value1) != id(value2)
+            value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value1, FeatureIO)
+            value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value2, FeatureIO)
+            assert value1 is not value2
+            mask1 = original_eopatch.mask['CLM']
+            assert copied_eopatch.mask.__getitem__('CLM', load=False).loaded_value is None
+            mask2 = copied_eopatch.mask['CLM']
+            assert np.array_equal(mask1, mask2) and mask1 is not mask2
 
     def test_remove_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)

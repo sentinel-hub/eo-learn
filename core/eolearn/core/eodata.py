@@ -279,7 +279,7 @@ class EOPatch:
                 value = self[feature_type].__getitem__(feature_name, load=False)
 
                 if isinstance(value, FeatureIO):
-                    # We cannot copy the entire object because of the filesystem attribute
+                    # We cannot deepcopy the entire object because of the filesystem attribute
                     value = copy.copy(value)
                     value.loaded_value = copy.deepcopy(value.loaded_value, memo=memo)
                 else:

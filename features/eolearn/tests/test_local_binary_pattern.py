@@ -15,6 +15,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
+from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import LocalBinaryPatternTask
 
 
@@ -38,6 +39,8 @@ def test_local_binary_pattern(eopatch, task, expected_min, expected_max, expecte
 
     # Test that no other features were modified
     for feature, value in initial_patch.data.items():
+        if isinstance(value, FeatureIO):
+            value = value.load()
         assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
 
     delta = 1e-4

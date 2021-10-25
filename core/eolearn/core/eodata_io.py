@@ -242,8 +242,8 @@ class FeatureIO:
         return f'{self.__class__.__name__}({self.path})'
 
     def load(self):
-        """ Method for loading a feature. Loaded value is stored into an attribute in case the same value would have
-        to be loaded again from a this FeatureIO inside a shallow-copied EOPatch.
+        """ Method for loading a feature. The loaded value is stored into an attribute in case a second load request is
+        triggered inside a shallow-copied EOPatch.
         """
         if self.loaded_value is not None:
             return self.loaded_value
