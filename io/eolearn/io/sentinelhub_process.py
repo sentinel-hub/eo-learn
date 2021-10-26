@@ -403,11 +403,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.aux_request_args = aux_request_args
 
         self.bands_feature = None
-        if bands_feature:
-            self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
-
         self.requested_bands = []
         if bands_feature:
+            self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
             if bands:
                 self.requested_bands = self._parse_requested_bands(bands, self.data_collection.bands)
             else:
@@ -429,8 +427,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         for band_name in bands:
             if band_name in band_info_dict:
                 requested_bands.append(band_info_dict[band_name])
-                continue
-            if self.data_collection.is_batch or self.data_collection.is_byoc:
+            elif self.data_collection.is_batch or self.data_collection.is_byoc:
                 requested_bands.append(Band(band_name, (Unit.DN,), (np.float32,)))
             else:
                 raise ValueError(
