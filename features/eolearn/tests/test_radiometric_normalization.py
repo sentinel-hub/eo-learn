@@ -15,6 +15,7 @@ import pytest
 from pytest import approx
 
 from eolearn.core import FeatureType
+from eolearn.core.eodata_io import FeatureIO
 from eolearn.mask import MaskFeature
 from eolearn.features import (
     ReferenceScenesTask, BlueCompositingTask, HOTCompositingTask, MaxNDVICompositingTask, MaxNDWICompositingTask,
@@ -100,6 +101,8 @@ def test_haralick(eopatch, task, test_feature, expected_min, expected_max, expec
 
     # Test that no other features were modified
     for feature, value in initial_patch.data.items():
+        if isinstance(value, FeatureIO):
+            value = value.load()
         assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
 
     assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"

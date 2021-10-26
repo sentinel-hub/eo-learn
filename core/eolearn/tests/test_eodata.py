@@ -17,6 +17,7 @@ from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import BBox, CRS
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core.eodata_io import FeatureIO
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -237,6 +238,37 @@ class TestEOPatch(unittest.TestCase):
         assert eop != eop_copy
         assert eop_copy[feature] is eop[feature]
         assert eop_copy.timestamp == []
+
+    def test_copy_lazy_loaded_patch(self):
+        path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
+        for features in (..., [(FeatureType.MASK, 'CLM')]):
+            original_eopatch = EOPatch.load(path, lazy_loading=True)
+            copied_eopatch = original_eopatch.copy(features=features)
+
+            value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value1, FeatureIO)
+            value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value2, FeatureIO)
+            assert value1 is value2
+
+            mask1 = original_eopatch.mask['CLM']
+            assert copied_eopatch.mask.__getitem__('CLM', load=False).loaded_value is not None
+            mask2 = copied_eopatch.mask['CLM']
+            assert isinstance(mask1, np.ndarray)
+            assert mask1 is mask2
+
+            original_eopatch = EOPatch.load(path, lazy_loading=True)
+            copied_eopatch = original_eopatch.copy(features=features, deep=True)
+
+            value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value1, FeatureIO)
+            value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+            assert isinstance(value2, FeatureIO)
+            assert value1 is not value2
+            mask1 = original_eopatch.mask['CLM']
+            assert copied_eopatch.mask.__getitem__('CLM', load=False).loaded_value is None
+            mask2 = copied_eopatch.mask['CLM']
+            assert np.array_equal(mask1, mask2) and mask1 is not mask2
 
     def test_remove_feature(self):
         bands = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
