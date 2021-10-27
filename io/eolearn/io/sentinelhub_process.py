@@ -8,18 +8,17 @@ Copyright (c) 2019-2021 Beno Šircelj
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import collections
 import copy
 import datetime as dt
 import logging
-from itertools import repeat
 
 import numpy as np
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
-from sentinelhub import DataCollection, MimeType, SHConfig, SentinelHubCatalog, SentinelHubDownloadClient, \
-    SentinelHubRequest, bbox_to_dimensions, filter_times, parse_time_interval
-from sentinelhub.data_collections import handle_deprecated_data_source
+from sentinelhub import (
+    DataCollection, MimeType, SHConfig, SentinelHubCatalog, SentinelHubDownloadClient, SentinelHubRequest,
+    bbox_to_dimensions, filter_times, parse_time_interval, Band, Unit
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -69,8 +68,7 @@ class SentinelHubInputBaseTask(EOTask):
     """ Base class for Processing API input tasks
     """
 
-    def __init__(self, data_collection, size=None, resolution=None, cache_folder=None, config=None, max_threads=None,
-                 data_source=None):
+    def __init__(self, data_collection, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
         """
         :param data_collection: A collection of requested satellite data.
         :type data_collection: DataCollection
@@ -85,8 +83,6 @@ class SentinelHubInputBaseTask(EOTask):
         :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
-        :param data_source: A deprecated alternative to data_collection
-        :type data_source: DataCollection
         """
         if (size is None) == (resolution is None):
             raise ValueError("Exactly one of the parameters 'size' and 'resolution' should be given.")
@@ -95,7 +91,7 @@ class SentinelHubInputBaseTask(EOTask):
         self.resolution = resolution
         self.config = config or SHConfig()
         self.max_threads = max_threads
-        self.data_collection = DataCollection(handle_deprecated_data_source(data_collection, data_source))
+        self.data_collection = DataCollection(data_collection)
         self.cache_folder = cache_folder
 
     def execute(self, eopatch=None, bbox=None, time_interval=None):
@@ -199,9 +195,6 @@ class SentinelHubInputBaseTask(EOTask):
         """ Get the timestamp array needed as a parameter for downloading the images
         """
         raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
-
-
-ProcApiType = collections.namedtuple('ProcApiType', 'id unit sample_type np_dtype feature_type')
 
 
 class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
@@ -351,30 +344,17 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     """ Process API input task that loads 16bit integer data and converts it to a 32bit float feature.
     """
     # pylint: disable=too-many-arguments
-    PREDEFINED_BAND_TYPES = {
-        ProcApiType("bool_mask", 'DN', 'UINT8', bool, FeatureType.MASK): [
-            "dataMask"
-        ],
-        ProcApiType("mask", 'DN', 'UINT8', np.uint8, FeatureType.MASK): [
-            "CLM", "SCL"
-        ],
-        ProcApiType("uint8_data", 'DN', 'UINT8', np.uint8, FeatureType.DATA): [
-            "SNW", "CLD", "CLP"
-        ],
-        ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA): [
-            "B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12", "B13"
-        ],
-        ProcApiType("other", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA): [
-            "sunAzimuthAngles", "sunZenithAngles", "viewAzimuthMean", "viewZenithMean"
-        ]
+    DTYPE_TO_SAMPLE_TYPE = {
+        bool: 'SampleType.UINT8',
+        np.uint8: 'SampleType.UINT8',
+        np.uint16: 'SampleType.UINT16',
+        np.float32: 'SampleType.FLOAT32',
     }
-
-    CUSTOM_BAND_TYPE = ProcApiType("custom", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
 
     def __init__(self, data_collection=None, size=None, resolution=None, bands_feature=None, bands=None,
                  additional_data=None, evalscript=None, maxcc=None, time_difference=None, cache_folder=None,
-                 max_threads=None, config=None, bands_dtype=np.float32, single_scene=False,
-                 mosaicking_order=None, aux_request_args=None, data_source=None):
+                 max_threads=None, config=None, bands_dtype=None, single_scene=False, mosaicking_order=None,
+                 aux_request_args=None):
         """
         :param data_collection: Source of requested satellite data.
         :type data_collection: DataCollection
@@ -402,8 +382,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
-        :param bands_dtype: dtype of the bands array
-        :type bands_dtype: type
+        :param bands_dtype: output type of the bands array, if set to None the default is used
+        :type bands_dtype: type or None
         :param single_scene: If true, the service will compute a single image for the given time interval using
             mosaicking.
         :type single_scene: bool
@@ -411,11 +391,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :type mosaicking_order: str
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :type aux_request_args: dict
-        :param data_source: A deprecated alternative to data_collection
-        :type data_source: DataCollection
         """
         super().__init__(data_collection=data_collection, size=size, resolution=resolution, cache_folder=cache_folder,
-                         config=config, max_threads=max_threads, data_source=data_source)
+                         config=config, max_threads=max_threads)
         self.evalscript = evalscript
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
@@ -424,49 +402,40 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.mosaicking_order = mosaicking_order
         self.aux_request_args = aux_request_args
 
-        self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])()) \
-            if bands_feature else None
-        self.requested_bands = {}
-
+        self.bands_feature = None
+        self.requested_bands = []
         if bands_feature:
-            if not bands:
-                bands = self.data_collection.bands
-            self._add_request_bands(self.requested_bands, bands)
+            self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
+            if bands:
+                self.requested_bands = self._parse_requested_bands(bands, self.data_collection.bands)
+            else:
+                self.requested_bands = list(self.data_collection.bands)
 
+        self.requested_additional_bands = []
         if additional_data is not None:
             additional_data = list(self._parse_features(additional_data, new_names=True)())
-            self._add_request_bands(self.requested_bands, (band for ftype, band, new_name in additional_data))
+            additional_bands = [band for _, band, _ in additional_data]
+            parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
+            self.requested_additional_bands = parsed_bands
 
         self.additional_data = additional_data
 
-    def _add_request_bands(self, request_dict, added_bands):
-        handfixed_collections = [
-            DataCollection.LANDSAT_TM_L1, DataCollection.LANDSAT_TM_L2,
-            DataCollection.LANDSAT_ETM_L1, DataCollection.LANDSAT_ETM_L2,
-            DataCollection.LANDSAT_OT_L1, DataCollection.LANDSAT_OT_L2,
-            DataCollection.LANDSAT_MSS_L1,
-        ]
-
-        if self.data_collection in handfixed_collections:
-            types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.copy()
-            old = ProcApiType("bands", 'DN', 'UINT16', np.uint16, FeatureType.DATA)
-            new = ProcApiType("bands", 'REFLECTANCE', 'FLOAT32', np.float32, FeatureType.DATA)
-            types[new] = types[old]
-            del types[old]
-
-            predefined_types = types.items()
-
-        else:
-            predefined_types = SentinelHubInputTask.PREDEFINED_BAND_TYPES.items()
-
-        for band in added_bands:
-            found = next(((btype, band) for btype, bands in predefined_types if band in bands), None)
-            api_type, band = found or (SentinelHubInputTask.CUSTOM_BAND_TYPE, band)
-
-            if api_type not in request_dict:
-                request_dict[api_type] = []
-
-            request_dict[api_type].append(band)
+    def _parse_requested_bands(self, bands, available_bands):
+        """ Checks that all requested bands are available and returns the band information for further processing """
+        requested_bands = []
+        band_info_dict = {band_info.name: band_info for band_info in available_bands}
+        for band_name in bands:
+            if band_name in band_info_dict:
+                requested_bands.append(band_info_dict[band_name])
+            elif self.data_collection.is_batch or self.data_collection.is_byoc:
+                requested_bands.append(Band(band_name, (Unit.DN,), (np.float32,)))
+            else:
+                raise ValueError(
+                    f'Data collection {self.data_collection} does not have specifications for {band_name}.'
+                    f'Available bands are {[band.name for band in self.data_collection.bands]} and meta-bands'
+                    f'{[band.name for band in self.data_collection.metabands]}'
+                )
+        return requested_bands
 
     def generate_evalscript(self):
         """ Generate the evalscript to be passed with the request, based on chosen bands
@@ -486,41 +455,31 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
                 }}
             }}
 
-            function updateOutputMetadata(scenes, inputMetadata, outputMetadata) {{
-                outputMetadata.userData = {{ "norm_factor":  inputMetadata.normalizationFactor }}
-            }}
-
             function evaluatePixel(sample) {{
-                return {samples}
+                return {{ {samples} }}
             }}
         """
 
-        outputs = [
-            '{ ' + f'id:"{btype.id}", bands:{len(bands)}, sampleType: SampleType.{btype.sample_type}' + ' }'
-            for btype, bands in self.requested_bands.items()
-        ]
+        bands, units, outputs, samples = [], [], [], []
+        for band in self.requested_bands + self.requested_additional_bands:
+            unit_choice = 0  # use default units
+            if band in self.requested_bands and self.bands_dtype is not None:
+                if self.bands_dtype not in band.output_types:
+                    raise ValueError(
+                        f'Band {band.name} only supports output types {band.output_types} but `bands_dtype` is set to '
+                        f'{self.bands_dtype}. To use default types set `bands_dtype` to None.'
+                    )
+                unit_choice = band.output_types.index(self.bands_dtype)
 
-        samples = [
-            (btype.id, '[' + ', '.join(f'sample.{band}' for band in bands) + ']')
-            for btype, bands in self.requested_bands.items()
-        ]
+            sample_type = SentinelHubInputTask.DTYPE_TO_SAMPLE_TYPE[band.output_types[unit_choice]]
 
-        # return value of the evaluatePixel has to be a list if we're returning just one output, and a dict otherwise
-        # an issue has been reported to the service team and this might get fixed
-        if len(samples) == 1:
-            _, sample_bands = samples[0]
-            samples = sample_bands
-        else:
-            samples = ', '.join(f'{band_id}: {bands}' for band_id, bands in samples)
-            samples = f'{{{samples}}};'
-
-        bands = [f'\"{band}\"' for bands in self.requested_bands.values() for band in bands]
-
-        units = (unit.unit for btype, bands in self.requested_bands.items() for unit, band in zip(repeat(btype), bands))
-        units = [f'\"{unit}\"' for unit in units]
+            bands.append(f'"{band.name}"')
+            units.append(f'"{band.units[unit_choice].value}"')
+            samples.append(f'{band.name}: [sample.{band.name}]')
+            outputs.append(f'{{ id: "{band.name}", bands: 1, sampleType: {sample_type} }}')
 
         evalscript = evalscript.format(
-            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=samples
+            bands=', '.join(bands), units=', '.join(units), outputs=', '.join(outputs), samples=', '.join(samples)
         )
 
         return evalscript
@@ -547,8 +506,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y):
         """ Create an instance of SentinelHubRequest
         """
-        responses = [SentinelHubRequest.output_response(btype.id, MimeType.TIFF) for btype in self.requested_bands]
-        responses.append(SentinelHubRequest.output_response('userdata', MimeType.JSON))
+        responses = [SentinelHubRequest.output_response(band.name, MimeType.TIFF)
+                     for band in self.requested_bands + self.requested_additional_bands]
 
         return SentinelHubRequest(
             evalscript=self.evalscript or self.generate_evalscript(),
@@ -571,6 +530,11 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     def _extract_data(self, eopatch, images, shape):
         """ Extract data from the received images and assign them to eopatch features
         """
+        if len(self.requested_bands) + len(self.requested_additional_bands) == 1:
+            # if only one band is requested the response is not a tar so we reshape it
+            only_band = (self.requested_bands + self.requested_additional_bands)[0]
+            images = [{only_band.name + '.tif': image} for image in images]
+
         if self.additional_data:
             self._extract_additional_features(eopatch, images, shape)
 
@@ -582,39 +546,26 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     def _extract_additional_features(self, eopatch, images, shape):
         """ Extracts additional features from response into an EOPatch
         """
-        feature = {band: (ftype, new_name) for ftype, band, new_name in self.additional_data}
-        for btype, tifs, bands in self._iter_tifs(images, ['bool_mask', 'mask', 'uint8_data', 'other']):
-            for band in bands:
-                eopatch[feature[band]] = self._extract_array(tifs, bands.index(band), shape, btype.np_dtype)
+        for (ftype, _, new_name), band_info in zip(self.additional_data, self.requested_additional_bands):
+            tifs = [tar[band_info.name + '.tif'] for tar in images]
+            eopatch[ftype, new_name] = self._extract_array(tifs, 0, shape, band_info.output_types[0])
 
     def _extract_bands_feature(self, eopatch, images, shape):
         """ Extract the bands feature arrays and concatenate them along the last axis
         """
-        tifs = self._iter_tifs(images, ['bands', 'custom'])
-        norms = [(img.get('userdata.json') or {}).get('norm_factor', 1) for img in images]
+        processed_bands = []
+        for band_info in self.requested_bands:
+            tifs = [tar[band_info.name + '.tif'] for tar in images]
+            dtype = self.bands_dtype or band_info.output_types[0]
+            processed_bands.append(self._extract_array(tifs, 0, shape, dtype))
 
-        itr = [(btype, images, bands, bands.index(band)) for btype, images, bands in tifs for band in bands]
-        bands = [self._extract_array(images, idx, shape, self.bands_dtype, norms) for btype, images, band, idx in itr]
-
-        if self.bands_dtype == np.uint16:
-            norms = np.asarray(norms).reshape(shape[0], 1).astype(np.float32)
-            eopatch[(FeatureType.SCALAR, 'NORM_FACTORS')] = norms
-
-        eopatch[self.bands_feature] = np.concatenate(bands, axis=-1)
-
-    def _iter_tifs(self, tars, band_types):
-        rtypes = (btype for btype in self.requested_bands if btype.id in band_types)
-        return ((btype, [tar[btype.id + '.tif'] for tar in tars], self.requested_bands[btype]) for btype in rtypes)
+        eopatch[self.bands_feature] = np.concatenate(processed_bands, axis=-1)
 
     @staticmethod
-    def _extract_array(tifs, idx, shape, dtype, norms=None):
-        """ Extract a numpy array from the received tifs and normalize it if normalization factors are provided
+    def _extract_array(tifs, idx, shape, dtype):
+        """ Extract a numpy array from the received tifs
         """
-
         feature_arrays = (np.atleast_3d(img)[..., idx] for img in tifs)
-        if norms and dtype == np.float32:
-            feature_arrays = (np.round(array * norm, 4) for array, norm in zip(feature_arrays, norms))
-
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
 
 
@@ -630,18 +581,23 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         elif isinstance(feature, str):
             feature = (FeatureType.DATA_TIMELESS, feature)
 
-        if feature[0].is_time_dependent():
+        feature_type, feature_name = feature
+        if feature_type.is_time_dependent():
             raise ValueError("DEM feature should be timeless!")
 
-        ft_name = feature[1]
+        band = data_collection.bands[0]
+
         evalscript = f"""
             //VERSION=3
 
             function setup() {{
                 return {{
-                    input: ["DEM"],
+                    input: [{{
+                        bands: ["{band.name}"],
+                        units: ["{band.units[0].value}"]
+                    }}],
                     output: {{
-                        id: "{ft_name}",
+                        id: "{feature_name}",
                         bands: 1,
                         sampleType: SampleType.UINT16
                     }}
@@ -649,7 +605,7 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
             }}
 
             function evaluatePixel(sample) {{
-                return {{ {ft_name}: [sample.DEM] }}
+                return {{ {feature_name}: [sample.{band.name}] }}
             }}
         """
 
