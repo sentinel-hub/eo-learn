@@ -10,4 +10,4 @@ from .sentinelhub_process import SentinelHubDemTask, SentinelHubEvalscriptTask, 
 from .meteoblue import MeteoblueVectorTask, MeteoblueRasterTask
 
 
-__version__ = '0.10.0'
+__version__ = '0.10.1'
