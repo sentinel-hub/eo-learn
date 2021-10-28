@@ -16,6 +16,7 @@ from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import BBox, CRS
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core.eodata_io import FeatureIO
 
 
 def test_loading_valid(test_eopatch_path):
@@ -219,6 +220,37 @@ def test_deep_copy(test_eopatch):
 
     eopatch_copy.mask['CLM'] += 1
     assert test_eopatch != eopatch_copy
+
+
+@pytest.mark.parametrize('features', (..., [(FeatureType.MASK, 'CLM')]))
+def test_copy_lazy_loaded_patch(test_eopatch_path, features):
+    original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
+    copied_eopatch = original_eopatch.copy(features=features)
+
+    value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+    assert isinstance(value1, FeatureIO)
+    value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+    assert isinstance(value2, FeatureIO)
+    assert value1 is value2
+
+    mask1 = original_eopatch.mask['CLM']
+    assert copied_eopatch.mask.__getitem__('CLM', load=False).loaded_value is not None
+    mask2 = copied_eopatch.mask['CLM']
+    assert isinstance(mask1, np.ndarray)
+    assert mask1 is mask2
+
+    original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
+    copied_eopatch = original_eopatch.copy(features=features, deep=True)
+
+    value1 = original_eopatch.mask.__getitem__('CLM', load=False)
+    assert isinstance(value1, FeatureIO)
+    value2 = copied_eopatch.mask.__getitem__('CLM', load=False)
+    assert isinstance(value2, FeatureIO)
+    assert value1 is not value2
+    mask1 = original_eopatch.mask['CLM']
+    assert copied_eopatch.mask.__getitem__('CLM', load=False).loaded_value is None
+    mask2 = copied_eopatch.mask['CLM']
+    assert np.array_equal(mask1, mask2) and mask1 is not mask2
 
 
 def test_copy_features(test_eopatch):

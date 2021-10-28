@@ -234,20 +234,28 @@ class FeatureIO:
         self.filesystem = filesystem
         self.path = path
 
+        self.loaded_value = None
+
     def __repr__(self):
         """ A representation method
         """
         return f'{self.__class__.__name__}({self.path})'
 
     def load(self):
-        """ Method for loading a feature
+        """ Method for loading a feature. The loaded value is stored into an attribute in case a second load request is
+        triggered inside a shallow-copied EOPatch.
         """
+        if self.loaded_value is not None:
+            return self.loaded_value
+
         with self.filesystem.openbin(self.path, 'r') as file_handle:
             if self.path.endswith(FileFormat.GZIP.extension()):
                 with gzip.open(file_handle, 'rb') as gzip_fp:
-                    return self._decode(gzip_fp, self.path)
+                    self.loaded_value = self._decode(gzip_fp, self.path)
+            else:
+                self.loaded_value = self._decode(file_handle, self.path)
 
-            return self._decode(file_handle, self.path)
+        return self.loaded_value
 
     def save(self, data, file_format, compress_level=0):
         """ Method for saving a feature

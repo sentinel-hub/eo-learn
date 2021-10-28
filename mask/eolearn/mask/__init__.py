@@ -8,4 +8,4 @@ from .snow_mask import SnowMask, TheiaSnowMask, SnowMaskTask, TheiaSnowMaskTask
 from .utilities import resize_images
 from .mask_counting import ClassFrequencyTask
 
-__version__ = '0.10.0'
+__version__ = '0.10.1'

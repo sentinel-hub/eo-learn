@@ -28,4 +28,4 @@ from .clustering import ClusteringTask
 from .doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
-__version__ = '0.10.0'
+__version__ = '0.10.1'

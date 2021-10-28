@@ -1,3 +1,8 @@
+## [Version 0.10.1] - 2021-10-27
+- Copying EOPatches no longer forces loading of features if the EOPatch was loaded with `lazy_loading=True`
+- `SentinelHubInputTask` now requests bands with correct units and should now work with more data collections. The parameter `bands_dtype` is now by default set to `None`, which uses the default units of each band. **Note:** due to changes the task no longer normalizes the output when `bands_dtype=np.uint16` is used.
+- Minor fixes and improvements
+
 ## [Version 0.10.0] - 2021-09-14
 - `EOWorkflow` now automatically makes a shallow copy of each `EOPatch` before passing it to any `EOTask` in the workflow.
 - Streamlined naming conventions of EOTasks - every name now ends with `Task`. Old names have been deprecated.

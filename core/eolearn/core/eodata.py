@@ -257,7 +257,7 @@ class EOPatch:
             if feature_name is ...:
                 new_eopatch[feature_type] = copy.copy(self[feature_type])
             else:
-                new_eopatch[feature_type][feature_name] = self[feature_type][feature_name]
+                new_eopatch[feature_type][feature_name] = self[feature_type].__getitem__(feature_name, load=False)
         return new_eopatch
 
     def __deepcopy__(self, memo=None, features=...):
@@ -271,9 +271,21 @@ class EOPatch:
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
 
-        new_eopatch = self.__copy__(features=features)
-        for feature_type in FeatureType:
-            new_eopatch[feature_type] = copy.deepcopy(new_eopatch[feature_type], memo)
+        new_eopatch = EOPatch()
+        for feature_type, feature_name in FeatureParser(features)(self):
+            if feature_name is ...:
+                new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
+            else:
+                value = self[feature_type].__getitem__(feature_name, load=False)
+
+                if isinstance(value, FeatureIO):
+                    # We cannot deepcopy the entire object because of the filesystem attribute
+                    value = copy.copy(value)
+                    value.loaded_value = copy.deepcopy(value.loaded_value, memo=memo)
+                else:
+                    value = copy.deepcopy(value, memo=memo)
+
+                new_eopatch[feature_type][feature_name] = value
 
         return new_eopatch
 
