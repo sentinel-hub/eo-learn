@@ -183,8 +183,8 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
     feature_type, feature_name = feature
 
     for eopatch, order_mask in zip(eopatches, order_mask_per_eopatch):
-        array = eopatch[feature_type].get(feature_name)
-        if array is not None:
+        if feature_name in eopatch[feature_type]:
+            array = eopatch[feature_type, feature_name]
             if order_mask.size != array.shape[0]:
                 raise ValueError(f'Cannot merge a time-dependent feature {feature} because time dimension of an array '
                                  f'in one EOPatch is {array.shape[0]} but EOPatch has {order_mask.size} timestamps')
