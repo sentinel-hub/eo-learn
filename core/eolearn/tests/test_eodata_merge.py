@@ -7,6 +7,7 @@ Copyright (c) 2017-2020 Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import os
 import unittest
 import logging
 import datetime as dt
@@ -15,12 +16,15 @@ import numpy as np
 from geopandas import GeoDataFrame
 
 from sentinelhub import BBox, CRS
-from eolearn.core import EOPatch
+from eolearn.core import EOPatch, FeatureType
+from eolearn.core.eodata_io import FeatureIO
 
 logging.basicConfig(level=logging.INFO)
 
 
 class TestEOPatchMerge(unittest.TestCase):
+
+    PATCH_FILENAME = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../example_data/TestEOPatch')
 
     def test_time_dependent_merge(self):
         all_timestamps = [dt.datetime(2020, month, 1) for month in range(1, 7)]
@@ -206,6 +210,15 @@ class TestEOPatchMerge(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             eop1.merge(eop2)
+
+    def test_lazy_loading(self):
+        eop1 = EOPatch.load(self.PATCH_FILENAME, lazy_loading=True)
+        eop2 = EOPatch.load(self.PATCH_FILENAME, lazy_loading=True)
+
+        eop = eop1.merge(eop2, features=(FeatureType.MASK, ...))
+        assert isinstance(eop.mask.get('CLM'), np.ndarray)
+        assert isinstance(eop1.mask.get('CLM'), np.ndarray)
+        assert isinstance(eop1.mask_timeless.get('LULC'), FeatureIO)
 
 
 if __name__ == '__main__':
