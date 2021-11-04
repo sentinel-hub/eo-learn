@@ -14,7 +14,8 @@ import numpy as np
 from geopandas import GeoDataFrame
 
 from sentinelhub import BBox, CRS
-from eolearn.core import EOPatch
+from eolearn.core import EOPatch, FeatureType
+from eolearn.core.eodata_io import FeatureIO
 
 
 def test_time_dependent_merge():
@@ -189,3 +190,13 @@ def test_bbox_merge():
 
     with pytest.raises(ValueError):
         eop1.merge(eop2)
+
+
+def test_lazy_loading(test_eopatch_path):
+    eop1 = EOPatch.load(test_eopatch_path, lazy_loading=True)
+    eop2 = EOPatch.load(test_eopatch_path, lazy_loading=True)
+
+    eop = eop1.merge(eop2, features=(FeatureType.MASK, ...))
+    assert isinstance(eop.mask.get('CLM'), np.ndarray)
+    assert isinstance(eop1.mask.get('CLM'), np.ndarray)
+    assert isinstance(eop1.mask_timeless.get('LULC'), FeatureIO)
