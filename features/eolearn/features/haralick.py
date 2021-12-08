@@ -168,11 +168,11 @@ class HaralickTask(EOTask):
                 for i in range(0, image.shape[0], self.stride):
                     for j in range(0, image.shape[1], self.stride):
                         window = digitized_image[i: i + self.window_size, j: j + self.window_size]
-                        glcm = skimage.feature.greycomatrix(window, [self.distance], [self.angle], levels=self.levels,
+                        glcm = skimage.feature.graycomatrix(window, [self.distance], [self.angle], levels=self.levels,
                                                             normed=True, symmetric=True)
 
                         if self.texture_feature in self.AVAILABLE_TEXTURES_SKIMAGE:
-                            res = skimage.feature.greycoprops(glcm, self.texture_feature)[0][0]
+                            res = skimage.feature.graycoprops(glcm, self.texture_feature)[0][0]
                         else:
                             res = self._custom_texture(glcm[:, :, 0, 0])
 
