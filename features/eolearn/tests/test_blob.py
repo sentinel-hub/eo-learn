@@ -40,16 +40,16 @@ def test_blob_feature(eopatch):
         'DoG derived class result not equal to base class result'
 
 
-HARALICK_TESTS = [
-    [DoGBlobTask(FEATURE, threshold=0), 0.0, 37.9625, 0.0545, 0.0],
-    [DoHBlobTask(FEATURE, num_sigma=5, threshold=0), 0.0, 1.4142, 0.0007, 0.0]
+BLOB_TESTS = [
+    [DoGBlobTask(FEATURE, threshold=0), 0.0, 37.9625, 0.0566, 0.0],
+    [DoHBlobTask(FEATURE, num_sigma=5, threshold=0), 0.0, 1.4142, 0.0007, 0.0],
 ]
 if sys.version_info >= (3, 8):  # For Python 3.7 scikit-image returns less accurate result for this test
-    HARALICK_TESTS.append([LoGBlobTask(FEATURE, log_scale=True, threshold=0), 0, 13.65408, 0.05768, 0.0])
+    BLOB_TESTS.append([LoGBlobTask(FEATURE, log_scale=True, threshold=0), 0, 13.65408, 0.05768, 0.0])
 
 
-@pytest.mark.parametrize('task, expected_min, expected_max, expected_mean, expected_median', HARALICK_TESTS)
-def test_haralick(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+@pytest.mark.parametrize('task, expected_min, expected_max, expected_mean, expected_median', BLOB_TESTS)
+def test_blob(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
     initial_patch = copy.deepcopy(eopatch)
     task.execute(eopatch)
 
