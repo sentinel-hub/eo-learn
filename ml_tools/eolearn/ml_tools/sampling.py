@@ -31,17 +31,17 @@ def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generato
     """
     rng = rng or np.random.default_rng()
 
-    xs, ys = triangle.exterior.coords.xy
-    vertex_a, vertex_b, vertex_c = zip(xs[:-1], ys[:-1])
-    r1, r2 = rng.random(), rng.random()
-    rx, ry = (
-        (1 - sqrt(r1)) * np.asarray(vertex_a)
-        + sqrt(r1) * (1 - r2) * np.asarray(vertex_b)
-        + sqrt(r1) * r2 * np.asarray(vertex_c)
+    x_coords, y_coords = triangle.exterior.coords.xy
+    vertex_a, vertex_b, vertex_c = zip(x_coords[:-1], y_coords[:-1])
+    random1, random2 = rng.random(), rng.random()
+    random_x, random_y = (
+        (1 - sqrt(random1)) * np.asarray(vertex_a)
+        + sqrt(random1) * (1 - random2) * np.asarray(vertex_b)
+        + sqrt(random1) * random2 * np.asarray(vertex_c)
     )
     if use_int_coords:
-        return Point(round(rx), round(ry))
-    return Point(rx, ry)
+        return Point(round(random_x), round(random_y))
+    return Point(random_x, random_y)
 
 
 def sample_by_values(
