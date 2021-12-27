@@ -3,7 +3,6 @@ Subpackage containing EOTasks for geometrical transformations
 """
 
 from .morphology import ErosionTask
-from .sampling import PointSamplingTask, PointSampler, PointRasterSampler
 from .superpixel import (
     SuperpixelSegmentationTask, FelzenszwalbSegmentationTask, SlicSegmentationTask, MarkSegmentationBoundariesTask,
     SuperpixelSegmentation, FelzenszwalbSegmentation, SlicSegmentation, MarkSegmentationBoundaries
