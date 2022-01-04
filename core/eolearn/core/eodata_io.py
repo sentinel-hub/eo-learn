@@ -8,19 +8,27 @@ Copyright (c) 2017-2020 Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import json
 import pickle
 import gzip
+import warnings
 import concurrent.futures
 from collections import defaultdict
 
 import fs
 from fs.tempfs import TempFS
 import numpy as np
+import pandas as pd
+import geopandas as gpd
 from geopandas import GeoDataFrame, GeoSeries
+from sentinelhub import Geometry, CRS
+from sentinelhub.exceptions import SHUserWarning
 from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FileFormat, OverwritePermission
 from .utilities import FeatureParser
+
+warnings.simplefilter('default', DeprecationWarning)
 
 
 def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_permission=OverwritePermission.ADD_ONLY,
@@ -47,9 +55,9 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     features_to_save = []
     for ftype, fname, path in eopatch_features:
-        feature_io = FeatureIO(filesystem, path)
+        feature_io = FeatureIO(filesystem, path, ftype)
         data = eopatch[(ftype, fname)]
-        file_format = FileFormat.NPY if ftype.is_raster() else FileFormat.PICKLE
+        file_format = _get_file_format(ftype)
 
         features_to_save.append((feature_io, data, file_format, compress_level))
 
@@ -91,7 +99,7 @@ def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading
     """ A utility function used by EOPatch.load method
     """
     features = list(walk_filesystem(filesystem, patch_location, features))
-    loading_data = [FeatureIO(filesystem, path) for _, _, path in features]
+    loading_data = [FeatureIO(filesystem, path, ftype) for ftype, _, path in features]
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -221,18 +229,30 @@ def _to_lowercase(ftype, fname, *_):
     return ftype, fname if fname is ... else fname.lower()
 
 
+def _get_file_format(feature_type: FeatureType) -> FileFormat:
+    """ For each feature type it decides to which file format it will be serialized
+    """
+    if feature_type is FeatureType.BBOX:
+        return FileFormat.GEOJSON
+    if feature_type.is_raster():
+        return FileFormat.NPY
+    if feature_type.is_vector():
+        return FileFormat.GPKG
+    return FileFormat.JSON
+
+
 class FeatureIO:
     """ A class that handles the saving and loading process of a single feature at a given location
     """
-    def __init__(self, filesystem, path):
+    def __init__(self, filesystem: fs.base.FS, path: str, feature_type: FeatureType):
         """
         :param filesystem: A filesystem object
-        :type filesystem: fs.FS
         :param path: A path in the filesystem
-        :type path: str
+        :param feature_type: A feature type
         """
         self.filesystem = filesystem
         self.path = path
+        self.feature_type = feature_type
 
         self.loaded_value = None
 
@@ -249,9 +269,11 @@ class FeatureIO:
             return self.loaded_value
 
         with self.filesystem.openbin(self.path, 'r') as file_handle:
-            if self.path.endswith(FileFormat.GZIP.extension()):
+            gzip_extension = FileFormat.GZIP.extension()
+            if self.path.endswith(gzip_extension):
+                path = self.path[:-len(gzip_extension)]
                 with gzip.open(file_handle, 'rb') as gzip_fp:
-                    self.loaded_value = self._decode(gzip_fp, self.path)
+                    self.loaded_value = self._decode(gzip_fp, path)
             else:
                 self.loaded_value = self._decode(file_handle, self.path)
 
@@ -281,20 +303,69 @@ class FeatureIO:
             with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level, mode='wb') as gzip_file_handle:
                 self._write_to_file(data, gzip_file_handle, file_format)
 
-    @staticmethod
-    def _write_to_file(data, file, file_format):
+    def _write_to_file(self, data, file, file_format):
         """ Writes to a file
         """
         if file_format is FileFormat.NPY:
-            np.save(file, data)
-        elif file_format is FileFormat.PICKLE:
-            pickle.dump(data, file)
+            return np.save(file, data)
 
-    @staticmethod
-    def _decode(file, path):
+        if file_format is FileFormat.GPKG:
+            return data.to_file(file, driver="GPKG", encoding="utf-8", layer=fs.path.basename(self.path))
+
+        if file_format in [FileFormat.JSON, FileFormat.GEOJSON]:
+            if self.feature_type is FeatureType.BBOX:
+                data = data.geojson
+
+            if self.feature_type is FeatureType.TIMESTAMP:
+                data = [timestamp.isoformat() for timestamp in data]
+
+            try:
+                json_data = json.dumps(data, indent=2)
+            except TypeError as exception:
+                raise TypeError(
+                    f'Failed to serialize {self.feature_type} into a JSON file. Make sure that this feature type '
+                    f'contains only basic Python types before attempting to serialize it.'
+                ) from exception
+
+            return file.write(json_data.encode())
+
+        raise ValueError(f'Unsupported file format {file_format} for feature type {self.feature_type}.')
+
+    def _decode(self, file, path):
         """ Loads from a file and decodes content
         """
-        if FileFormat.PICKLE.extension() in path:
+        if path.endswith(FileFormat.NPY.extension()):
+            return np.load(file)
+
+        if path.endswith(FileFormat.GPKG.extension()):
+            dataframe = gpd.read_file(file)
+
+            if dataframe.crs is not None:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=SHUserWarning)
+                    dataframe.crs = CRS(dataframe.crs).pyproj_crs()
+
+            if 'TIMESTAMP' in dataframe:
+                dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
+
+            return dataframe
+
+        if path.endswith(FileFormat.JSON.extension()) or path.endswith(FileFormat.GEOJSON.extension()):
+            json_data = json.load(file)
+
+            if self.feature_type is FeatureType.BBOX:
+                return Geometry.from_geojson(json_data).bbox
+
+            return json_data
+
+        if path.endswith(FileFormat.PICKLE.extension()):
+            warnings.warn(
+                f"File {self.path} with data of type {self.feature_type} is in pickle format which is deprecated "
+                f"since eo-learn version 1.0. Please re-save this EOPatch with the new eo-learn version to "
+                f"update the format. In newer versions this backward compatibility will be removed.",
+                DeprecationWarning
+            )
+
             data = pickle.load(file)
 
             # There seems to be an issue in geopandas==0.8.1 where unpickling GeoDataFrames, which were saved with an
@@ -304,8 +375,4 @@ class FeatureIO:
                 data = data.set_geometry('geometry')
 
             return data
-
-        if FileFormat.NPY.extension() in path:
-            return np.load(file)
-
         raise ValueError(f'Unsupported data type for file {path}.')

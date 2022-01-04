@@ -148,6 +148,9 @@ class FileFormat(Enum):
     """
     PICKLE = 'pkl'
     NPY = 'npy'
+    GPKG = 'gpkg'
+    JSON = 'json'
+    GEOJSON = 'geojson'
     GZIP = 'gz'
 
     def extension(self):
