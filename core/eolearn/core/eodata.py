@@ -10,7 +10,6 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import logging
-import warnings
 import copy
 import datetime
 
@@ -454,75 +453,6 @@ class EOPatch:
             elif self[feature_type]:
                 feature_list.append(feature_type)
         return feature_list
-
-    @staticmethod
-    def concatenate(eopatch1, eopatch2):
-        """Joins all data from two EOPatches and returns a new EOPatch.
-
-        If timestamps don't match it will try to join all time-dependent features with the same name.
-
-        Note: In general the data won't be deep copied. Deep copy will only happen when merging time-dependent features
-        along time
-
-        :param eopatch1: First EOPatch
-        :type eopatch1: EOPatch
-        :param eopatch2: First EOPatch
-        :type eopatch2: EOPatch
-        :return: Joined EOPatch
-        :rtype: EOPatch
-        """
-        warnings.warn('EOPatch.concatenate is deprecated, use a more general EOPatch.merge method instead',
-                      EODeprecationWarning)
-
-        eopatch_content = {}
-
-        timestamps_exist = eopatch1.timestamp and eopatch2.timestamp
-        timestamps_match = timestamps_exist and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
-
-        # if not timestamps_match and timestamps_exist and eopatch1.timestamp[-1] >= eopatch2.timestamp[0]:
-        #     raise ValueError('Could not merge timestamps because any timestamp of the first EOPatch must be before '
-        #                      'any timestamp of the second EOPatch')
-
-        for feature_type in FeatureType:
-            if feature_type.has_dict():
-                eopatch_content[feature_type.value] = {**eopatch1[feature_type], **eopatch2[feature_type]}
-
-                for feature_name in eopatch1[feature_type].keys() & eopatch2[feature_type].keys():
-                    data1 = eopatch1[feature_type][feature_name]
-                    data2 = eopatch2[feature_type][feature_name]
-
-                    if feature_type.is_time_dependent() and not timestamps_match:
-                        eopatch_content[feature_type.value][feature_name] = EOPatch.concatenate_data(data1, data2)
-                    elif not deep_eq(data1, data2):
-                        raise ValueError(f'Could not merge ({feature_type}, {feature_name}) feature because values '
-                                         'differ')
-
-            elif feature_type is FeatureType.TIMESTAMP and timestamps_exist and not timestamps_match:
-                eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
-            else:
-                if not eopatch1[feature_type] or deep_eq(eopatch1[feature_type], eopatch2[feature_type]):
-                    eopatch_content[feature_type.value] = copy.copy(eopatch2[feature_type])
-                elif not eopatch2[feature_type]:
-                    eopatch_content[feature_type.value] = copy.copy(eopatch1[feature_type])
-                else:
-                    raise ValueError(f'Could not merge {feature_type} feature because values differ')
-
-        return EOPatch(**eopatch_content)
-
-    @staticmethod
-    def concatenate_data(data1, data2):
-        """A method that concatenates two numpy array along first axis.
-
-        :param data1: Numpy array of shape (times1, height, width, n_features)
-        :type data1: numpy.ndarray
-        :param data2: Numpy array of shape (times2, height, width, n_features)
-        :type data1: numpy.ndarray
-        :return: Numpy array of shape (times1 + times2, height, width, n_features)
-        :rtype: numpy.ndarray
-        """
-        if data1.shape[1:] != data2.shape[1:]:
-            raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
-        return np.concatenate((data1, data2), axis=0)
 
     def save(self, path, features=..., overwrite_permission=OverwritePermission.ADD_ONLY, compress_level=0,
              filesystem=None):
