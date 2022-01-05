@@ -58,9 +58,8 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
     for ftype, fname, path in eopatch_features:
         feature_io = FeatureIO(ftype, path, filesystem)
         data = eopatch[(ftype, fname)]
-        file_format = _get_file_format(ftype)
 
-        features_to_save.append((feature_io, data, file_format, compress_level))
+        features_to_save.append((feature_io, data, ftype.file_format(), compress_level))
 
     # Cannot be done before due to lazy loading (this would delete the files before the data is loaded)
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
@@ -228,18 +227,6 @@ def _to_lowercase(ftype, fname, *_):
     """ Transforms a feature to it's lowercase representation
     """
     return ftype, fname if fname is ... else fname.lower()
-
-
-def _get_file_format(feature_type: FeatureType) -> MimeType:
-    """ For each feature type it decides to which file format it will be serialized
-    """
-    if feature_type is FeatureType.BBOX:
-        return MimeType.GEOJSON
-    if feature_type.is_raster():
-        return MimeType.NPY
-    if feature_type.is_vector():
-        return MimeType.GPKG
-    return MimeType.JSON
 
 
 class FeatureIO:

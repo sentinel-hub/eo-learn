@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 
 from enum import Enum
 
-from sentinelhub import BBox
+from sentinelhub import BBox, MimeType
 
 
 class FeatureType(Enum):
@@ -115,6 +115,16 @@ class FeatureType(Enum):
         if self is FeatureType.BBOX:
             return BBox
         return dict
+
+    def file_format(self) -> MimeType:
+        """Returns a mime type enum of a file format into which data of the feature type will be serialized"""
+        if self.is_raster():
+            return MimeType.NPY
+        if self.is_vector():
+            return MimeType.GPKG
+        if self is FeatureType.BBOX:
+            return MimeType.GEOJSON
+        return MimeType.JSON
 
 
 class FeatureTypeSet:
