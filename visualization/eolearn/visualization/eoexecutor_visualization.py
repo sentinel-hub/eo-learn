@@ -30,6 +30,8 @@ import pygments.lexers
 from pygments.formatters.html import HtmlFormatter
 from jinja2 import Environment, FileSystemLoader
 
+from eolearn.core.exceptions import EOUserWarning
+
 
 class EOExecutorVisualization:
     """ Class handling EOExecutor visualizations, particularly creating reports
@@ -56,9 +58,11 @@ class EOExecutorVisualization:
             dependency_graph = self._create_dependency_graph()
         except graphviz.backend.ExecutableNotFound as ex:
             dependency_graph = None
-            warnings.warn(f"{ex}.\nPlease install the system package 'graphviz' (in addition "
-                          "to the python package) to have the dependency graph in the final report!",
-                          Warning, stacklevel=2)
+            warnings.warn(
+                f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to have "
+                f"the dependency graph in the final report!",
+                EOUserWarning
+            )
 
         formatter = HtmlFormatter(linenos=True)
 
