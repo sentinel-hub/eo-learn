@@ -21,6 +21,7 @@ import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
+from .exceptions import EODeprecationWarning
 
 LOGGER = logging.getLogger(__name__)
 
