@@ -44,7 +44,8 @@ def test_numpy_feature_types():
             except ValueError:
                 pass
 
-        assert valid_count == 6, f'Feature type {feature_type} should take only a specific type of data'
+        expected_count = 3 if feature_type.is_discrete() else 6
+        assert valid_count == expected_count, f'Feature type {feature_type} should take only a specific type of data'
 
 
 def test_vector_feature_types():
@@ -163,8 +164,8 @@ def test_delete_feature():
     zeros = np.zeros_like(bands, dtype=float)
     ones = np.ones_like(bands, dtype=int)
     twos = np.ones_like(bands, dtype=int) * 2
-    threes = np.ones((3, 3, 1)) * 3
-    arranged = np.arange(3*3*1).reshape(3, 3, 1)
+    threes = np.ones((3, 3, 1), dtype=np.uint8) * 3
+    arranged = np.arange(3*3*1, dtype=np.uint16).reshape(3, 3, 1)
 
     eop = EOPatch(
         data={'bands': bands, 'zeros': zeros},
