@@ -17,6 +17,7 @@ import skimage.segmentation
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class SuperpixelSegmentationTask(EOTask):
         """ Method which performs the segmentation
         """
         with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=RuntimeWarning, module=skimage.segmentation.__name__)
+            warnings.filterwarnings('ignore', category=RuntimeWarning)
             return self.segmentation_object(data, **self.segmentation_params)
 
     def execute(self, eopatch):
@@ -59,7 +60,7 @@ class SuperpixelSegmentationTask(EOTask):
 
         if np.isnan(data).any():
             warnings.warn('There are NaN values in given data, super-pixel segmentation might produce bad results',
-                          RuntimeWarning)
+                          EORuntimeWarning)
 
         if feature_type.is_time_dependent():
             data = np.moveaxis(data, 0, 2)
