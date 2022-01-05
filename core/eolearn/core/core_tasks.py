@@ -21,8 +21,6 @@ from .eotask import EOTask
 from .fs_utils import get_filesystem
 from .utilities import renamed_and_deprecated
 
-warnings.simplefilter('default', DeprecationWarning)
-
 
 class CopyTask(EOTask):
     """Makes a shallow copy of the given EOPatch.

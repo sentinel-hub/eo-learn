@@ -29,7 +29,6 @@ from .utilities import deep_eq, FeatureParser
 
 
 LOGGER = logging.getLogger(__name__)
-warnings.simplefilter('default', DeprecationWarning)
 
 MAX_DATA_REPR_LEN = 100
 
@@ -473,7 +472,7 @@ class EOPatch:
         :rtype: EOPatch
         """
         warnings.warn('EOPatch.concatenate is deprecated, use a more general EOPatch.merge method instead',
-                      DeprecationWarning)
+                      EODeprecationWarning)
 
         eopatch_content = {}
 
@@ -723,7 +722,7 @@ class _FeatureDict(dict):
         """ Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
         transform value in correct form.
         """
-        value = self._parse_feature_value(value)
+        value = self._parse_feature_value(value, feature_name)
         self._check_feature_name(feature_name)
         super().__setitem__(feature_name, value)
 
@@ -763,7 +762,7 @@ class _FeatureDict(dict):
         """Returns a Python dictionary of features and value."""
         return dict(self)
 
-    def _parse_feature_value(self, value):
+    def _parse_feature_value(self, value, feature_name):
         """ Checks if value fits the feature type. If not it tries to fix it or raise an error
 
         :raises: ValueError
@@ -777,25 +776,18 @@ class _FeatureDict(dict):
             if not isinstance(value, np.ndarray):
                 raise ValueError(f'{self.feature_type} feature has to be a numpy array')
             if value.ndim != self.ndim:
-                raise ValueError(f'Numpy array of {self.feature_type} feature has to have {self.ndim} '
-                                 f'dimension{"s" if self.ndim > 1 else ""}')
+                raise ValueError(
+                    f'Numpy array of {self.feature_type} feature has to have {self.ndim} '
+                    f'dimension{"s" if self.ndim > 1 else ""} but feature {feature_name} has {value.ndim}'
+                )
 
-            if self.feature_type.is_discrete():
-                if not issubclass(value.dtype.type, (np.integer, bool, np.bool_, np.bool8)):
-                    msg = (
-                        f'{self.feature_type} is a discrete feature type therefore dtype of data should be a subtype '
-                        f'of numpy.integer or numpy.bool, found type {value.dtype.type}. In the future an error will '
-                        'be raised because of this'
-                    )
-                    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            if self.feature_type.is_discrete() and \
+                    not issubclass(value.dtype.type, (np.integer, bool, np.bool_, np.bool8)):
+                raise ValueError(
+                    f'{self.feature_type} is a discrete feature type therefore dtype of data array '
+                    f'has to be either integer or boolean type but feature {feature_name} has dtype {value.dtype.type}'
+                )
 
-            #         raise ValueError(f'{self.feature_type} is a discrete feature type therefore dtype of data has to '
-            #                          f'be a subtype of numpy.integer or numpy.bool, found type {value.dtype.type}')
-            # # This checking is disabled for now
-            # else:
-            #     if not issubclass(value.dtype.type, (np.floating, np.float)):
-            #         raise ValueError(f'{self.feature_type} is a floating feature type therefore dtype of data has to '
-            #                          f'be a subtype of numpy.floating or numpy.float, found type {value.dtype.type}')
             return value
 
         if self.is_vector:
@@ -803,14 +795,17 @@ class _FeatureDict(dict):
                 value = gpd.GeoDataFrame(dict(geometry=value), crs=value.crs)
 
             if isinstance(value, gpd.GeoDataFrame):
-                if self.feature_type is FeatureType.VECTOR:
-                    if FeatureType.TIMESTAMP.value.upper() not in value:
-                        raise ValueError(f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with "
-                                         "timestamps")
+                if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
+                    raise ValueError(
+                        f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with timestamps but "
+                        f"feature {feature_name} doesn't not have it"
+                    )
 
                 return value
 
-            raise ValueError(f'{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__}, '
-                             f'parsing data type {type(value)} is not supported')
+            raise ValueError(
+                f'{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__} but feature '
+                f'{feature_name} has data of type {type(value)}'
+            )
 
         return value

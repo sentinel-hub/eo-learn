@@ -536,7 +536,7 @@ def renamed_and_deprecated(deprecated_class):
         warnings.warn(
             f'The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. '
             'The old name is deprecated and will be removed in version 1.0',
-            DeprecationWarning
+            EODeprecationWarning
         )
         super(deprecated_class, self).__init__(*args, **kwargs)
 

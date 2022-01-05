@@ -26,9 +26,8 @@ from sentinelhub.exceptions import SHUserWarning
 from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FileFormat, OverwritePermission
+from .exceptions import EODeprecationWarning
 from .utilities import FeatureParser
-
-warnings.simplefilter('default', DeprecationWarning)
 
 
 def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_permission=OverwritePermission.ADD_ONLY,
@@ -362,7 +361,7 @@ class FeatureIO:
                 f"File {self.path} with data of type {self.feature_type} is in pickle format which is deprecated "
                 "since eo-learn version 1.0. Please re-save this EOPatch with the new eo-learn version to "
                 "update the format. In newer versions this backward compatibility will be removed.",
-                DeprecationWarning
+                EODeprecationWarning
             )
 
             data = pickle.load(file)
