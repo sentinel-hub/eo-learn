@@ -21,11 +21,12 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 from geopandas import GeoDataFrame, GeoSeries
-from sentinelhub import Geometry, CRS
+
+from sentinelhub import Geometry, CRS, MimeType
 from sentinelhub.exceptions import SHUserWarning
 from sentinelhub.os_utils import sys_is_windows
 
-from .constants import FeatureType, FileFormat, OverwritePermission
+from .constants import FeatureType, OverwritePermission
 from .utilities import FeatureParser
 
 warnings.simplefilter('default', DeprecationWarning)
@@ -86,7 +87,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
     files_to_remove = []
     saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
     for ftype, fname, path in filesystem_features:
-        different_compression = path.endswith(FileFormat.GZIP.extension()) != (current_compress_level > 0)
+        different_compression = MimeType.GZIP.is_extension_of(path) != (current_compress_level > 0)
         if (ftype, fname) in saved_features and different_compression:
             files_to_remove.append(path)
 
@@ -229,16 +230,16 @@ def _to_lowercase(ftype, fname, *_):
     return ftype, fname if fname is ... else fname.lower()
 
 
-def _get_file_format(feature_type: FeatureType) -> FileFormat:
+def _get_file_format(feature_type: FeatureType) -> MimeType:
     """ For each feature type it decides to which file format it will be serialized
     """
     if feature_type is FeatureType.BBOX:
-        return FileFormat.GEOJSON
+        return MimeType.GEOJSON
     if feature_type.is_raster():
-        return FileFormat.NPY
+        return MimeType.NPY
     if feature_type.is_vector():
-        return FileFormat.GPKG
-    return FileFormat.JSON
+        return MimeType.GPKG
+    return MimeType.JSON
 
 
 class FeatureIO:
@@ -269,7 +270,7 @@ class FeatureIO:
             return self.loaded_value
 
         with self.filesystem.openbin(self.path, 'r') as file_handle:
-            if self.path.endswith(FileFormat.GZIP.extension()):
+            if MimeType.GZIP.is_extension_of(self.path):
                 path = fs.path.splitext(self.path)[0]
                 with gzip.open(file_handle, 'rb') as gzip_fp:
                     self.loaded_value = self._decode(gzip_fp, path)
@@ -281,8 +282,8 @@ class FeatureIO:
     def save(self, data, file_format, compress_level=0):
         """ Method for saving a feature
         """
-        gz_extension = FileFormat.GZIP.extension() if compress_level else ''
-        path = self.path + file_format.extension() + gz_extension
+        gz_extension = ('.' + MimeType.GZIP.extension) if compress_level else ''
+        path = f'{self.path}.{file_format.extension}{gz_extension}'
 
         if isinstance(self.filesystem, (fs.osfs.OSFS, TempFS)):
             with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
@@ -305,13 +306,13 @@ class FeatureIO:
     def _write_to_file(self, data, file, file_format):
         """ Writes to a file
         """
-        if file_format is FileFormat.NPY:
+        if file_format is MimeType.NPY:
             return np.save(file, data)
 
-        if file_format is FileFormat.GPKG:
+        if file_format is MimeType.GPKG:
             return data.to_file(file, driver="GPKG", encoding="utf-8", layer=fs.path.basename(self.path))
 
-        if file_format in [FileFormat.JSON, FileFormat.GEOJSON]:
+        if file_format in [MimeType.JSON, MimeType.GEOJSON]:
             if self.feature_type is FeatureType.BBOX:
                 data = data.geojson
 
@@ -333,10 +334,12 @@ class FeatureIO:
     def _decode(self, file, path):
         """ Loads from a file and decodes content
         """
-        if path.endswith(FileFormat.NPY.extension()):
+        file_format = MimeType(fs.path.splitext(path)[1].strip('.'))
+
+        if file_format is MimeType.NPY:
             return np.load(file)
 
-        if path.endswith(FileFormat.GPKG.extension()):
+        if file_format is MimeType.GPKG:
             dataframe = gpd.read_file(file)
 
             if dataframe.crs is not None:
@@ -349,7 +352,7 @@ class FeatureIO:
 
             return dataframe
 
-        if path.endswith(FileFormat.JSON.extension()) or path.endswith(FileFormat.GEOJSON.extension()):
+        if file_format in [MimeType.JSON, MimeType.GEOJSON]:
             json_data = json.load(file)
 
             if self.feature_type is FeatureType.BBOX:
@@ -357,7 +360,7 @@ class FeatureIO:
 
             return json_data
 
-        if path.endswith(FileFormat.PICKLE.extension()):
+        if file_format is MimeType.PICKLE:
             warnings.warn(
                 f"File {self.path} with data of type {self.feature_type} is in pickle format which is deprecated "
                 "since eo-learn version 1.0. Please re-save this EOPatch with the new eo-learn version to "

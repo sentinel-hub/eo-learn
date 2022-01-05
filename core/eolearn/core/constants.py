@@ -143,44 +143,6 @@ class FeatureTypeSet:
     RASTER_TYPES_1D = frozenset([FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS])
 
 
-class FileFormat(Enum):
-    """ Enum class for file formats used for saving and loading EOPatches
-    """
-    PICKLE = 'pkl'
-    NPY = 'npy'
-    GPKG = 'gpkg'
-    JSON = 'json'
-    GEOJSON = 'geojson'
-    GZIP = 'gz'
-
-    def extension(self):
-        """ Returns file extension of file format
-        """
-        return f'.{self.value}'
-
-    @staticmethod
-    def split_by_extensions(filename):
-        """ Splits the filename string by the extension of the file
-        """
-        parts = filename.split('.')
-        idx = len(parts) - 1
-        while FileFormat.is_file_format(parts[idx]):
-            parts[idx] = FileFormat(parts[idx])
-            idx -= 1
-        return ['.'.join(parts[:idx + 1])] + parts[idx + 1:]
-
-    @classmethod
-    def is_file_format(cls, value):
-        """ Tests whether value represents one of the supported file formats
-
-        :param value: The string representation of the enum constant
-        :type value: str
-        :return: `True` if string is file format and `False` otherwise
-        :rtype: bool
-        """
-        return any(value == item.value for item in cls)
-
-
 class OverwritePermission(Enum):
     """ Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
 
