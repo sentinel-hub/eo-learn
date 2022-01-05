@@ -55,7 +55,7 @@ def save_eopatch(eopatch, filesystem, patch_location, features=..., overwrite_pe
 
     features_to_save = []
     for ftype, fname, path in eopatch_features:
-        feature_io = FeatureIO(filesystem, path, ftype)
+        feature_io = FeatureIO(ftype, path, filesystem)
         data = eopatch[(ftype, fname)]
         file_format = _get_file_format(ftype)
 
@@ -99,7 +99,7 @@ def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading
     """ A utility function used by EOPatch.load method
     """
     features = list(walk_filesystem(filesystem, patch_location, features))
-    loading_data = [FeatureIO(filesystem, path, ftype) for ftype, _, path in features]
+    loading_data = [FeatureIO(ftype, path, filesystem) for ftype, _, path in features]
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -224,7 +224,7 @@ def _check_letter_case_collisions(eopatch_features, filesystem_features):
 
 
 def _to_lowercase(ftype, fname, *_):
-    """ Tranforms a feature to it's lowercase representation
+    """ Transforms a feature to it's lowercase representation
     """
     return ftype, fname if fname is ... else fname.lower()
 
@@ -244,15 +244,15 @@ def _get_file_format(feature_type: FeatureType) -> FileFormat:
 class FeatureIO:
     """ A class that handles the saving and loading process of a single feature at a given location
     """
-    def __init__(self, filesystem: fs.base.FS, path: str, feature_type: FeatureType):
+    def __init__(self, feature_type: FeatureType, path: str, filesystem: fs.base.FS):
         """
-        :param filesystem: A filesystem object
-        :param path: A path in the filesystem
         :param feature_type: A feature type
+        :param path: A path in the filesystem
+        :param filesystem: A filesystem object
         """
-        self.filesystem = filesystem
-        self.path = path
         self.feature_type = feature_type
+        self.path = path
+        self.filesystem = filesystem
 
         self.loaded_value = None
 
@@ -269,9 +269,8 @@ class FeatureIO:
             return self.loaded_value
 
         with self.filesystem.openbin(self.path, 'r') as file_handle:
-            gzip_extension = FileFormat.GZIP.extension()
-            if self.path.endswith(gzip_extension):
-                path = self.path[:-len(gzip_extension)]
+            if self.path.endswith(FileFormat.GZIP.extension()):
+                path = fs.path.splitext(self.path)[0]
                 with gzip.open(file_handle, 'rb') as gzip_fp:
                     self.loaded_value = self._decode(gzip_fp, path)
             else:
@@ -324,7 +323,7 @@ class FeatureIO:
             except TypeError as exception:
                 raise TypeError(
                     f'Failed to serialize {self.feature_type} into a JSON file. Make sure that this feature type '
-                    f'contains only basic Python types before attempting to serialize it.'
+                    'contains only JSON serializable Python types before attempting to serialize it.'
                 ) from exception
 
             return file.write(json_data.encode())
@@ -361,8 +360,8 @@ class FeatureIO:
         if path.endswith(FileFormat.PICKLE.extension()):
             warnings.warn(
                 f"File {self.path} with data of type {self.feature_type} is in pickle format which is deprecated "
-                f"since eo-learn version 1.0. Please re-save this EOPatch with the new eo-learn version to "
-                f"update the format. In newer versions this backward compatibility will be removed.",
+                "since eo-learn version 1.0. Please re-save this EOPatch with the new eo-learn version to "
+                "update the format. In newer versions this backward compatibility will be removed.",
                 DeprecationWarning
             )
 
