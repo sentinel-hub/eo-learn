@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 
 import pytest
+import unittest.mock as mock
+from botocore.credentials import Credentials
 from fs.osfs import OSFS
 from fs.errors import CreateFailed
 from fs_s3fs import S3FS
@@ -17,6 +19,7 @@ from moto import mock_s3
 
 from sentinelhub import SHConfig
 from eolearn.core import get_filesystem, load_s3_filesystem
+from eolearn.core.fs_utils import get_aws_credentials
 
 
 def test_get_local_filesystem(tmp_path):
@@ -57,3 +60,22 @@ def test_s3_filesystem():
         assert isinstance(filesystem, S3FS)
         assert filesystem.aws_access_key_id == custom_config.aws_access_key_id
         assert filesystem.aws_secret_access_key == custom_config.aws_secret_access_key
+
+
+@mock.patch('eolearn.core.fs_utils.Session')
+def test_get_aws_credentials(mocked_copy):
+    fake_credentials = Credentials(
+        access_key='my-aws-access-key',
+        secret_key='my-aws-secret-key'
+    )
+
+    mocked_copy.return_value.get_credentials.return_value = fake_credentials
+
+    config = get_aws_credentials('xyz')
+    assert config.aws_access_key_id == fake_credentials.access_key
+    assert config.aws_secret_access_key == fake_credentials.secret_key
+
+    default_config = SHConfig()
+    config = get_aws_credentials('default', config=default_config)
+    assert config.aws_access_key_id != default_config.aws_access_key_id
+    assert config.aws_secret_access_key != default_config.aws_secret_access_key

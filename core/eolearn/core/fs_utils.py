@@ -10,14 +10,16 @@ file in the root directory of this source tree.
 """
 import os
 from pathlib import Path, PurePath
+from typing import Optional, Tuple
 
 import fs
 from fs_s3fs import S3FS
+from boto3 import Session
 
 from sentinelhub import SHConfig
 
 
-def get_filesystem(path, create=False, config=None, **kwargs):
+def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> fs.base.FS:
     """ A utility function for initializing any type of filesystem object with PyFilesystem2 package
 
     :param path: A filesystem path
@@ -39,7 +41,7 @@ def get_filesystem(path, create=False, config=None, **kwargs):
     return fs.open_fs(path, create=create, **kwargs)
 
 
-def get_base_filesystem_and_path(*path_parts, **kwargs):
+def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS, str]:
     """ Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
     on the filesystem
 
@@ -67,7 +69,8 @@ def get_base_filesystem_and_path(*path_parts, **kwargs):
     return get_filesystem(filesystem_path, **kwargs), posix_path
 
 
-def load_s3_filesystem(path, strict=False, config=None):
+def load_s3_filesystem(path: str, strict: bool = False, config: Optional[SHConfig] = None,
+                       aws_profile: Optional[str] = None) -> S3FS:
     """ Loads AWS s3 filesystem from a path
 
     :param path: A path to a folder on s3 bucket that will be the base folder in this filesystem
@@ -77,14 +80,16 @@ def load_s3_filesystem(path, strict=False, config=None):
     :param config: A configuration object with AWS credentials. By default is set to None and in this case the default
         configuration will be taken.
     :type config: SHConfig or None
+    :param aws_profile: A name of AWS profile. If given, AWS credentials will be taken from there.
     :return: A S3 filesystem object
     :rtype: fs_s3fs.S3FS
     """
     if not path.startswith('s3://'):
         raise ValueError(f"AWS path has to start with s3:// but found '{path}'")
 
-    if config is None:
-        config = SHConfig()
+    config = config or SHConfig()
+    if aws_profile:
+        config = get_aws_credentials(aws_profile, config=config)
 
     path_chunks = path.split('/', 3)[2:]
     bucket_name = path_chunks[0]
@@ -97,3 +102,21 @@ def load_s3_filesystem(path, strict=False, config=None):
         aws_secret_access_key=config.aws_secret_access_key if config.aws_secret_access_key else None,
         strict=strict
     )
+
+
+def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> SHConfig:
+    """Collects credentials from AWS profile and adds them to an instance of SHConfig
+
+    :param aws_profile: A name of AWS profile
+    :param config: If existing config object is given credentials will be added to its copy, otherwise a new config
+        object will be created.
+    :return: A config object with AWS credentials that have been loaded from AWS profile.
+    """
+    config = config.copy() if config else SHConfig()
+
+    aws_session = Session(profile_name=aws_profile)
+    aws_credentials = aws_session.get_credentials()
+
+    config.aws_access_key_id = aws_credentials.access_key
+    config.aws_secret_access_key = aws_credentials.secret_key
+    return config
