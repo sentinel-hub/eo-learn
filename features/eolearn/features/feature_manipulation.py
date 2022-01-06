@@ -16,7 +16,6 @@ import datetime as dt
 
 import numpy as np
 
-from sentinelhub import parse_time_interval
 from eolearn.core import EOTask, FeatureType
 from eolearn.core.utilities import renamed_and_deprecated
 
