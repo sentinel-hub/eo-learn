@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 import pytest
-from boto3 import Session
+import unittest.mock as mock
 from botocore.credentials import Credentials
 from fs.osfs import OSFS
 from fs.errors import CreateFailed
@@ -62,23 +62,16 @@ def test_s3_filesystem():
         assert filesystem.aws_secret_access_key == custom_config.aws_secret_access_key
 
 
-def test_get_aws_credentials(mocker):
+@mock.patch('eolearn.core.fs_utils.Session')
+def test_get_aws_credentials(mocked_copy):
     fake_credentials = Credentials(
         access_key='my-aws-access-key',
         secret_key='my-aws-secret-key'
     )
 
-    class FakeSession:
-        def __init__(self, profile_name):
-            pass
+    mocked_copy.return_value.get_credentials.return_value = fake_credentials
 
-        @staticmethod
-        def get_credentials():
-            return fake_credentials
-
-    mocker.patch.object(Session, '__new__', return_value=FakeSession)
-
-    config = get_aws_credentials('default')
+    config = get_aws_credentials('xyz')
     assert config.aws_access_key_id == fake_credentials.access_key
     assert config.aws_secret_access_key == fake_credentials.secret_key
 
