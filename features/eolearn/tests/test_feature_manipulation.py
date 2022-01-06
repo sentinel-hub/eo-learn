@@ -40,16 +40,12 @@ def test_content_after_timefilter():
 
     new_timestamps = timestamps[new_start:new_end+1]
 
-    eop = EOPatch(timestamp=timestamps, data={'data': data}, meta_info={'time_interval': old_interval})
+    eop = EOPatch(timestamp=timestamps, data={'data': data})
 
     filter_task = FilterTimeSeriesTask(start_date=new_interval[0], end_date=new_interval[1])
     filter_task.execute(eop)
 
-    updated_interval = eop.meta_info['time_interval']
-    updated_timestamps = eop.timestamp
-
-    assert new_interval == updated_interval
-    assert new_timestamps == updated_timestamps
+    assert new_timestamps == eop.timestamp
 
 
 def test_fill():

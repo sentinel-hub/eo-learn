@@ -17,7 +17,7 @@ from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
 from sentinelhub import (
     DataCollection, MimeType, SHConfig, SentinelHubCatalog, SentinelHubDownloadClient, SentinelHubRequest,
-    bbox_to_dimensions, filter_times, parse_time_interval, Band, Unit
+    bbox_to_dimensions, filter_times, parse_time_interval, serialize_time, Band, Unit
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ class SentinelHubInputBaseTask(EOTask):
         eopatch.meta_info['size_x'] = size_x
         eopatch.meta_info['size_y'] = size_y
         if timestamp:  # do not overwrite time interval in case of timeless features
-            eopatch.meta_info['time_interval'] = time_interval
+            eopatch.meta_info['time_interval'] = serialize_time(time_interval)
 
         self._add_meta_info(eopatch)
 
@@ -155,7 +155,7 @@ class SentinelHubInputBaseTask(EOTask):
         if self.maxcc:
             eopatch.meta_info['maxcc'] = self.maxcc
         if self.time_difference:
-            eopatch.meta_info['time_difference'] = self.time_difference
+            eopatch.meta_info['time_difference'] = self.time_difference.total_seconds()
 
     @staticmethod
     def _check_and_set_eopatch_bbox(bbox, eopatch):
