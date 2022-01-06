@@ -104,16 +104,6 @@ class FilterTimeSeriesTask(SimpleFilterTask):
 
         super().__init__(FeatureType.TIMESTAMP, lambda date: start_date <= date <= end_date, filter_features)
 
-    def _update_other_data(self, eopatch):
-
-        if 'time_interval' in eopatch.meta_info:
-
-            start_time, end_time = parse_time_interval(eopatch.meta_info['time_interval'])
-            eopatch.meta_info['time_interval'] = (max(start_time, self.start_date),
-                                                  min(end_time, self.end_date))
-
-        return eopatch
-
 
 class ValueFilloutTask(EOTask):
     """ Overwrites occurrences of a desired value with their neighbor values in either forward, backward direction or
