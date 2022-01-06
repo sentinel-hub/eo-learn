@@ -86,7 +86,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
     files_to_remove = []
     saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
     for ftype, fname, path in filesystem_features:
-        different_compression = MimeType.GZIP.is_extension_of(path) != (current_compress_level > 0)
+        different_compression = MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
         if (ftype, fname) in saved_features and different_compression:
             files_to_remove.append(path)
 
@@ -257,7 +257,7 @@ class FeatureIO:
             return self.loaded_value
 
         with self.filesystem.openbin(self.path, 'r') as file_handle:
-            if MimeType.GZIP.is_extension_of(self.path):
+            if MimeType.GZIP.matches_extension(self.path):
                 path = fs.path.splitext(self.path)[0]
                 with gzip.open(file_handle, 'rb') as gzip_fp:
                     self.loaded_value = self._decode(gzip_fp, path)
