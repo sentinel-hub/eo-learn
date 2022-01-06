@@ -26,6 +26,7 @@ from geopandas import GeoSeries, GeoDataFrame
 
 from sentinelhub import CRS, bbox_to_dimensions
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
@@ -106,13 +107,6 @@ class VectorToRasterTask(EOTask):
     def _parse_main_params(self, vector_input, raster_feature):
         """ Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved
         """
-        if _is_geopandas_object(raster_feature):
-            # pylint: disable=W1114
-            warnings.warn('In the new version of VectorToRasterTask task order of parameters changed. Parameter for '
-                          'specifying vector data or feature has to be before parameter specifying new raster feature',
-                          DeprecationWarning, stacklevel=3)
-            return self._parse_main_params(raster_feature, vector_input)
-
         if not _is_geopandas_object(vector_input):
             vector_input = self._parse_features(
                 vector_input,
@@ -180,7 +174,7 @@ class VectorToRasterTask(EOTask):
 
         if bbox.crs is not vector_data_crs:
             warnings.warn('Vector data is not in the same CRS as EOPatch, this task will re-project vector data for '
-                          'each execution', RuntimeWarning)
+                          'each execution', EORuntimeWarning)
             vector_data = vector_data.to_crs(bbox.crs.pyproj_crs())
 
         bbox_poly = bbox.geometry
@@ -191,12 +185,12 @@ class VectorToRasterTask(EOTask):
             vector_data = vector_data[~vector_data.is_empty]
 
         if not vector_data.geometry.is_valid.all():
-            warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', RuntimeWarning)
+            warnings.warn('Given vector polygons contain some invalid geometries, they will be fixed', EORuntimeWarning)
             vector_data.geometry = vector_data.geometry.buffer(0)
 
         if vector_data.geometry.has_z.any():
             warnings.warn('Given vector polygons contain some 3D geometries, they will be projected to 2D',
-                          RuntimeWarning)
+                          EORuntimeWarning)
             vector_data.geometry = vector_data.geometry.apply(lambda geo: shapely.wkt.loads(geo.to_wkt()))
 
         return vector_data
@@ -249,7 +243,7 @@ class VectorToRasterTask(EOTask):
             if raster.shape != expected_full_shape:
                 warnings.warn(f'The existing raster feature {self.raster_feature} has a shape {raster.shape} but '
                               f'the expected shape is {expected_full_shape}. This might cause errors or unexpected '
-                              'results.', RuntimeWarning)
+                              'results.', EORuntimeWarning)
 
             return raster.squeeze(axis=-1)
 

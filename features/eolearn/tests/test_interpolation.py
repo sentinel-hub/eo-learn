@@ -21,8 +21,7 @@ from pytest import approx
 from eolearn.core import EOTask, FeatureType
 from eolearn.features import (
     LinearInterpolationTask, CubicInterpolationTask, SplineInterpolationTask, BSplineInterpolationTask,
-    AkimaInterpolationTask, LinearResamplingTask, CubicResamplingTask, NearestResamplingTask, KrigingInterpolationTask,
-    LegacyInterpolationTask
+    AkimaInterpolationTask, LinearResamplingTask, CubicResamplingTask, NearestResamplingTask, KrigingInterpolationTask
 )
 
 
@@ -51,21 +50,6 @@ class InterpolationTestCase:
 
 
 INTERPOLATION_TEST_CASES = [
-    InterpolationTestCase(
-        'linear',
-        LegacyInterpolationTask(
-            'NDVI', result_interval=(0.0, 1.0), mask_feature=(FeatureType.MASK, 'IS_VALID'), unknown_value=10
-        ),
-        result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405, img_median=0.59765935
-    ),
-    InterpolationTestCase(
-        'linear_change_timescale',
-        LegacyInterpolationTask(
-            'NDVI', result_interval=(0.0, 1.0), mask_feature=(FeatureType.MASK, 'IS_VALID'), unknown_value=10,
-            scale_time=1
-        ),
-        result_len=68, img_min=0.0, img_max=10.0, img_mean=0.720405, img_median=0.597656965
-    ),
     InterpolationTestCase(
         'linear',
         LinearInterpolationTask(
@@ -167,26 +151,6 @@ INTERPOLATION_TEST_CASES = [
             ]
         ),
         result_len=68, img_min=0.000200, img_max=10.0, img_mean=0.3487376, img_median=0.10036667
-    ),
-    InterpolationTestCase(
-        'linear custom list',
-        LegacyInterpolationTask(
-            'NDVI', result_interval=(-0.2, 1.0), unknown_value=-2,
-            resample_range=('2015-09-01', '2016-01-01', '2016-07-01', '2017-01-01', '2017-07-01'),
-        ),
-        result_len=5, img_min=-0.032482587, img_max=0.8427637, img_mean=0.5108417, img_median=0.5042224
-    ),
-    InterpolationTestCase(
-        'linear with bands and multiple masks',
-        LegacyInterpolationTask(
-            'BANDS-S2-L1C', result_interval=(0.0, 1.0), unknown_value=10,
-            mask_feature=[
-                (FeatureType.MASK, 'IS_VALID'),
-                (FeatureType.MASK_TIMELESS, 'RANDOM_UINT8'),
-                (FeatureType.LABEL, 'RANDOM_DIGIT'),
-            ]
-        ),
-        result_len=68, img_min=0.000200, img_max=10.0, img_mean=0.34815648, img_median=0.1003600
     ),
 ]
 

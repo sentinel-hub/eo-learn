@@ -16,7 +16,7 @@ from pytest import approx
 
 from eolearn.core import FeatureType
 from eolearn.core.eodata_io import FeatureIO
-from eolearn.mask import MaskFeature
+from eolearn.mask import MaskFeatureTask
 from eolearn.features import (
     ReferenceScenesTask, BlueCompositingTask, HOTCompositingTask, MaxNDVICompositingTask, MaxNDWICompositingTask,
     MaxRatioCompositingTask, HistogramMatchingTask
@@ -41,7 +41,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, 'TEST'
 
 @pytest.mark.parametrize('task, test_feature, expected_min, expected_max, expected_mean, expected_median', (
     [
-        MaskFeature(
+        MaskFeatureTask(
             (FeatureType.DATA, 'BANDS-S2-L1C', 'TEST'), (FeatureType.MASK, 'SCL'),
             mask_values=[0, 1, 2, 3, 8, 9, 10, 11]
         ),

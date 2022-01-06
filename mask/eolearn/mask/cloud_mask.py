@@ -12,7 +12,6 @@ file in the root directory of this source tree.
 
 import logging
 import os
-import warnings
 
 import cv2
 import numpy as np
@@ -609,11 +608,3 @@ class CloudMaskTask(EOTask):
             eopatch.data[multi_proba_feature] = (multi_proba * is_data).astype(np.float32)
 
         return eopatch
-
-
-class AddMultiCloudMaskTask(CloudMaskTask):
-    """ Temporary class for backward compatibility. Will raise a warning when used.
-    """
-    def __init__(self, *args, **kwargs):
-        warnings.warn("AddMultiCloudMaskTask has been renamed to CloudMaskTask.", DeprecationWarning)
-        super().__init__(*args, **kwargs)

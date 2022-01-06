@@ -235,21 +235,21 @@ def test_import_tiff_subset(test_eopatch, example_data_path):
 
 def test_import_tiff_intersecting(test_eopatch, example_data_path):
     path = os.path.join(example_data_path, 'import-tiff-test2.tiff')
-    mask_feature = FeatureType.MASK_TIMELESS, 'TEST_TIF'
+    feature = FeatureType.DATA_TIMELESS, 'TEST_TIF'
     no_data_value = 1.0
 
-    task = ImportFromTiffTask(mask_feature, path, image_dtype=np.float64, no_data_value=no_data_value)
+    task = ImportFromTiffTask(feature, path, image_dtype=np.float64, no_data_value=no_data_value)
     task(test_eopatch)
 
     tiff_img = read_data(path)
 
-    assert_array_equal(tiff_img[-6:, :3, :], test_eopatch[mask_feature][:6, -3:, :],
+    assert_array_equal(tiff_img[-6:, :3, :], test_eopatch[feature][:6, -3:, :],
                        err_msg='Imported tiff data should be the same as original')
-    feature_dtype = test_eopatch[mask_feature].dtype
+    feature_dtype = test_eopatch[feature].dtype
     assert feature_dtype == np.float64, f'Feature should have dtype numpy.float64 but {feature_dtype} found'
 
-    test_eopatch[mask_feature][:6, -3:, :] = no_data_value
-    unique_values = list(np.unique(test_eopatch[mask_feature][:6, -3:, :]))
+    test_eopatch[feature][:6, -3:, :] = no_data_value
+    unique_values = list(np.unique(test_eopatch[feature][:6, -3:, :]))
     assert unique_values == [no_data_value], f'No data values should all be equal to {no_data_value}'
 
 

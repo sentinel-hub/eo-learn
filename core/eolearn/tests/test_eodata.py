@@ -44,7 +44,8 @@ def test_numpy_feature_types():
             except ValueError:
                 pass
 
-        assert valid_count == 6, f'Feature type {feature_type} should take only a specific type of data'
+        expected_count = 3 if feature_type.is_discrete() else 6
+        assert valid_count == expected_count, f'Feature type {feature_type} should take only a specific type of data'
 
 
 def test_vector_feature_types():
@@ -163,8 +164,8 @@ def test_delete_feature():
     zeros = np.zeros_like(bands, dtype=float)
     ones = np.ones_like(bands, dtype=int)
     twos = np.ones_like(bands, dtype=int) * 2
-    threes = np.ones((3, 3, 1)) * 3
-    arranged = np.arange(3*3*1).reshape(3, 3, 1)
+    threes = np.ones((3, 3, 1), dtype=np.uint8) * 3
+    arranged = np.arange(3*3*1, dtype=np.uint16).reshape(3, 3, 1)
 
     eop = EOPatch(
         data={'bands': bands, 'zeros': zeros},
@@ -279,65 +280,6 @@ def test_remove_feature():
     del eop[FeatureType.DATA][names[2]]
     for feature_name in names:
         assert not (feature_name in eop.data), f'Feature {feature_name} should be deleted from EOPatch'
-
-
-def test_concatenate():
-    eop1 = EOPatch()
-    bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
-    eop1.data['bands'] = bands1
-
-    eop2 = EOPatch()
-    bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
-    eop2.data['bands'] = bands2
-
-    eop = EOPatch.concatenate(eop1, eop2)
-    assert np.array_equal(eop.data['bands'], np.concatenate((bands1, bands2), axis=0))
-
-
-def test_concatenate_different_key():
-    eop1 = EOPatch()
-    bands1 = np.arange(2*3*3*2).reshape(2, 3, 3, 2)
-    eop1.data['bands'] = bands1
-
-    eop2 = EOPatch()
-    bands2 = np.arange(3*3*3*2).reshape(3, 3, 3, 2)
-    eop2.data['measurements'] = bands2
-
-    eop = EOPatch.concatenate(eop1, eop2)
-    assert 'bands' in eop.data and 'measurements' in eop.data, 'Failed to concatenate different features'
-
-
-def test_concatenate_timeless():
-    eop1 = EOPatch()
-    mask1 = np.arange(3*3*2).reshape(3, 3, 2)
-    eop1.data_timeless['mask1'] = mask1
-    eop1.data_timeless['mask'] = 5 * mask1
-
-    eop2 = EOPatch()
-    mask2 = np.arange(3*3*2).reshape(3, 3, 2)
-    eop2.data_timeless['mask2'] = mask2
-    eop2.data_timeless['mask'] = 5 * mask1  # add mask1 to eop2
-
-    eop = EOPatch.concatenate(eop1, eop2)
-
-    for name in ['mask', 'mask1', 'mask2']:
-        assert name in eop.data_timeless
-    assert np.array_equal(eop.data_timeless['mask'], 5 * mask1), 'Data with same values should stay the same'
-
-
-def test_concatenate_missmatched_timeless():
-    mask = np.arange(3*3*2).reshape(3, 3, 2)
-
-    eop1 = EOPatch()
-    eop1.data_timeless['mask'] = mask
-    eop1.data_timeless['nask'] = 3 * mask
-
-    eop2 = EOPatch()
-    eop2.data_timeless['mask'] = mask
-    eop2.data_timeless['nask'] = 5 * mask
-
-    with pytest.raises(ValueError):
-        EOPatch.concatenate(eop1, eop2)
 
 
 def test_equals():

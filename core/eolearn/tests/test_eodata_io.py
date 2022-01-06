@@ -87,7 +87,7 @@ def test_saving_in_empty_folder(eopatch, fs_loader):
 
         subfolder = 'new-subfolder'
         eopatch.save('new-subfolder', filesystem=temp_fs)
-        assert temp_fs.exists(f'/{subfolder}/bbox.pkl')
+        assert temp_fs.exists(f'/{subfolder}/bbox.geojson')
 
 
 @mock_s3
@@ -195,7 +195,7 @@ def test_save_and_load_tasks(eopatch, fs_loader):
         load_task = LoadTask(folder, filesystem=temp_fs, lazy_loading=False)
 
         saved_eop = save_task(eopatch, eopatch_folder=patch_folder)
-        bbox_path = fs.path.join(folder, patch_folder, 'bbox.pkl.gz')
+        bbox_path = fs.path.join(folder, patch_folder, 'bbox.geojson.gz')
         assert temp_fs.exists(bbox_path)
         assert saved_eop == eopatch
 
@@ -260,7 +260,7 @@ def test_cleanup_different_compression(fs_loader, eopatch):
 
         save_compressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, overwrite_permission=1)
         save_noncompressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=0, overwrite_permission=1)
-        bbox_path = fs.path.join(folder, patch_folder, 'bbox.pkl')
+        bbox_path = fs.path.join(folder, patch_folder, 'bbox.geojson')
         compressed_bbox_path = bbox_path + '.gz'
         data_timeless_path = fs.path.join(folder, patch_folder, 'data_timeless', 'mask.npy')
         compressed_data_timeless_path = data_timeless_path + '.gz'

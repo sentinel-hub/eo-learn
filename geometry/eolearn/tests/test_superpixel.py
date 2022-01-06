@@ -36,14 +36,14 @@ SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, 'SP_FEATURE'
     ],
     [
         SlicSegmentationTask(
-            (FeatureType.DATA, 'CLP'), SUPERPIXEL_FEATURE, n_segments=55, compactness=25.0, max_iter=20, sigma=0.8
+            (FeatureType.DATA, 'CLP'), SUPERPIXEL_FEATURE, n_segments=55, compactness=25.0, max_num_iter=20, sigma=0.8
         ),
         0, 48, 24.6072, 25
     ],
     [
         SlicSegmentationTask(
             (FeatureType.MASK_TIMELESS, 'RANDOM_UINT8'), SUPERPIXEL_FEATURE,
-            n_segments=231, compactness=15.0, max_iter=7, sigma=0.2
+            n_segments=231, compactness=15.0, max_num_iter=7, sigma=0.2
         ),
         0, 195, 100.1844, 101
     ],

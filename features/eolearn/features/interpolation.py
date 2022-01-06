@@ -24,6 +24,7 @@ import numba
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core.exceptions import EOUserWarning
 from eolearn.core.utilities import renamed_and_deprecated
 
 
@@ -132,7 +133,8 @@ class InterpolationTask(EOTask):
 
         if resample_range is None and copy_features is not None:
             self.copy_features = None
-            warnings.warn('Argument "copy_features" will be ignored if "resample_range" is None. Nothing to copy.')
+            warnings.warn('Argument "copy_features" will be ignored if "resample_range" is None. Nothing to copy.',
+                          EOUserWarning)
         else:
             self.copy_features = None if copy_features is None else self._parse_features(copy_features, new_names=True)
 
@@ -445,17 +447,6 @@ class InterpolationTask(EOTask):
         return new_eopatch
 
 
-class LegacyInterpolationTask(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='linear')`
-    """
-    def __init__(self, feature, library='numpy', **kwargs):
-        if library == 'numpy':
-            super().__init__(feature, np.interp, **kwargs)
-        else:
-            super().__init__(feature, scipy.interpolate.interp1d, kind='linear', **kwargs)
-
-
 class LinearInterpolationTask(InterpolationTask):
     """ Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and `@numba.jit(nopython=True)`
 
@@ -622,12 +613,6 @@ class CubicResamplingTask(ResamplingTask):
     """
     def __init__(self, feature, resample_range, **kwargs):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind='cubic', **kwargs)
-
-
-@renamed_and_deprecated
-class LegacyInterpolation(LegacyInterpolationTask):
-    """ A deprecated version of LegacyInterpolationTask
-    """
 
 
 @renamed_and_deprecated
