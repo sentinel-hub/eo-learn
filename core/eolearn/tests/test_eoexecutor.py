@@ -17,14 +17,10 @@ import multiprocessing
 import time
 
 import pytest
-from eolearn.core import (
-    EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
-)
 
 from eolearn.core import (
-    EOTask, EOWorkflow, Dependency, EOExecutor, WorkflowResults, execute_with_mp_lock, LinearWorkflow
+    EOTask, EOWorkflow, EONode, EOExecutor, WorkflowResults, execute_with_mp_lock, OutputTask
 )
-from eolearn.core.eoworkflow_tasks import OutputTask
 
 
 class ExampleTask(EOTask):
@@ -74,39 +70,30 @@ def num_workers_fixture():
     return 5
 
 
-@pytest.fixture(scope='session', name='test_tasks')
-def test_tasks_fixture():
-    tasks = {
-        'example': ExampleTask(),
-        'foo': FooTask(),
-        'output': OutputTask('output')
-    }
-    return tasks
+@pytest.fixture(scope='session', name='test_nodes')
+def test_nodes_fixture():
+    example = EONode(ExampleTask())
+    foo = EONode(FooTask(), inputs=[example, example])
+    output = EONode(OutputTask('output'), inputs=[foo])
+    nodes = {'example': example, 'foo': foo, 'output': output}
+    return nodes
 
 
 @pytest.fixture(name='workflow')
-def workflow_fixture(test_tasks):
-    example_task = test_tasks['example']
-    foo_task = test_tasks['foo']
-    output_task = test_tasks['output']
-
-    workflow = EOWorkflow([
-        (example_task, []),
-        Dependency(task=foo_task, inputs=[example_task, example_task]),
-        (output_task, [foo_task])
-    ])
+def workflow_fixture(test_nodes):
+    workflow = EOWorkflow(list(test_nodes.values()))
     return workflow
 
 
 @pytest.fixture(name='execution_args')
-def execution_args_fixture(test_tasks):
-    example_task = test_tasks['example']
+def execution_args_fixture(test_nodes):
+    example_node = test_nodes['example']
 
     execution_args = [
-        {example_task: {'arg1': 1}},
+        {example_node: {'arg1': 1}},
         {},
-        {example_task: {'arg1': 3, 'arg3': 10}},
-        {example_task: {'arg1': None}}
+        {example_node: {'arg1': 3, 'arg3': 10}},
+        {example_node: {'arg1': None}}
     ]
     return execution_args
 
@@ -204,11 +191,11 @@ def test_exceptions(workflow, execution_args):
 
 
 def test_keyboard_interrupt():
-    exception_task = KeyboardExceptionTask()
-    workflow = LinearWorkflow(exception_task)
+    exception_node = EONode(KeyboardExceptionTask())
+    workflow = EOWorkflow([exception_node])
     execution_args = []
     for _ in range(10):
-        execution_args.append({exception_task: {'arg1': 1}})
+        execution_args.append({exception_node: {'arg1': 1}})
 
     run_args = [{'workers': 1},
                 {'workers': 3, 'multiprocess': True},

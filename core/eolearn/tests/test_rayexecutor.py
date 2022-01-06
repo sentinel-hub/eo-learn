@@ -15,7 +15,7 @@ import pytest
 import ray
 
 from eolearn.core import (
-    EOTask, EOWorkflow, EOExecutor, Dependency,  WorkflowResults, LinearWorkflow
+    EOTask, EOWorkflow, EOExecutor, EONode,  WorkflowResults
 )
 from eolearn.core.eoworkflow_tasks import OutputTask
 from eolearn.core.extra.ray import RayExecutor
@@ -62,39 +62,30 @@ def simple_cluster_fixture():
     ray.shutdown()
 
 
-@pytest.fixture(scope='session', name='test_tasks')
-def test_tasks_fixture():
-    tasks = {
-        'example': ExampleTask(),
-        'foo': FooTask(),
-        'output': OutputTask('output')
-    }
-    return tasks
+@pytest.fixture(scope='session', name='test_nodes')
+def test_nodes_fixture():
+    example = EONode(ExampleTask())
+    foo = EONode(FooTask(), inputs=[example, example])
+    output = EONode(OutputTask('output'), inputs=[foo])
+    nodes = {'example': example, 'foo': foo, 'output': output}
+    return nodes
 
 
 @pytest.fixture(name='workflow')
-def workflow_fixture(test_tasks):
-    example_task = test_tasks['example']
-    foo_task = test_tasks['foo']
-    output_task = test_tasks['output']
-
-    workflow = EOWorkflow([
-        (example_task, []),
-        Dependency(task=foo_task, inputs=[example_task, example_task]),
-        (output_task, [foo_task])
-    ])
+def workflow_fixture(test_nodes):
+    workflow = EOWorkflow(list(test_nodes.values()))
     return workflow
 
 
 @pytest.fixture(name='execution_args')
-def execution_args_fixture(test_tasks):
-    example_task = test_tasks['example']
+def execution_args_fixture(test_nodes):
+    example_node = test_nodes['example']
 
     execution_args = [
-        {example_task: {'arg1': 1}},
+        {example_node: {'arg1': 1}},
         {},
-        {example_task: {'arg1': 3, 'arg3': 10}},
-        {example_task: {'arg1': None}}
+        {example_node: {'arg1': 3, 'arg3': 10}},
+        {example_node: {'arg1': None}}
     ]
     return execution_args
 
@@ -181,11 +172,11 @@ def test_execution_results(return_results, workflow, execution_args, simple_clus
 
 
 def test_keyboard_interrupt(simple_cluster):
-    exception_task = KeyboardExceptionTask()
-    workflow = LinearWorkflow(exception_task)
+    exception_node = EONode(KeyboardExceptionTask())
+    workflow = EOWorkflow([exception_node])
     execution_args = []
     for _ in range(10):
-        execution_args.append({exception_task: {'arg1': 1}})
+        execution_args.append({exception_node: {'arg1': 1}})
 
     with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
         RayExecutor(workflow, execution_args).run()
@@ -205,9 +196,9 @@ def test_reruns(workflow, execution_args, simple_cluster):
 
 
 def test_run_after_interrupt(workflow, execution_args, simple_cluster):
-    foo_task = FooTask()
-    exception_task = KeyboardExceptionTask()
-    exception_workflow = LinearWorkflow(foo_task, exception_task)
+    foo_node = EONode(FooTask())
+    exception_node = EONode(KeyboardExceptionTask(), inputs=[foo_node])
+    exception_workflow = EOWorkflow([foo_node, exception_node])
     exception_executor = RayExecutor(exception_workflow, [{}])
     executor = RayExecutor(workflow, execution_args[:-1])  # removes args for exception
 

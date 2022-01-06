@@ -75,34 +75,6 @@ def test_call_equals_execute():
     assert task(14) == task.execute(14), 't(x) should given the same result as t.execute(x)'
 
 
-def test_task_different_uids():
-    uids = set()
-    for _ in range(5000):
-        task = PlusOneTask()
-        uids.add(task.private_task_config.uid)
-
-    assert len(uids) == 5000, 'Different tasks should have different uids.'
-
-
-def test_task_copy():
-    task1 = PlusConstSquaredTask(12)
-    task2 = SelfRecursiveTask([1, 2, 3], 3, 'apple', this=12, that=task1)
-    assert task1.private_task_config.uid != copy.copy(task1).private_task_config.uid, \
-        'Copied tasks should have different uids.'
-    assert task1.private_task_config.uid != copy.deepcopy(task1).private_task_config.uid, \
-        'Copied tasks should have different uids.'
-
-    assert id(task2.arg_x) == id(copy.copy(task2).arg_x), 'Shallow copies should not recursively copy values.'
-    assert id(task2.kwargs['that']) != id(copy.deepcopy(task2).kwargs['that']), \
-        'Deep copies should recursively copy values.'
-    assert all(x == y for x, y in zip(task2.arg_x, copy.deepcopy(task2).arg_x)), \
-        'Recursively copied values should be copied correctly.'
-
-    deepcopied_task = copy.deepcopy(task2)
-    assert deepcopied_task.private_task_config.uid == deepcopied_task.recursive.private_task_config.uid, \
-        'Recursive copies of same task should have equal uids.'
-
-
 @pytest.mark.parametrize(
     ('parameter', 'exception_type'), [('test_exception_fail', TypeError), ('value_error', ValueError)]
 )

@@ -16,6 +16,7 @@ import warnings
 from collections import OrderedDict
 from logging import Filter
 
+import uuid
 import numpy as np
 import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
@@ -517,6 +518,17 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
 def bgr_to_rgb(bgr):
     """Converts Blue, Green, Red to Red, Green, Blue."""
     return bgr[..., [2, 1, 0]]
+
+
+def generate_uid(prefix: str):
+    """ Generates a (sufficiently) unique ID starting with the `prefix`
+
+    The ID is composed from the prefix, a hexadecimal string obtained from the current time and a random hexadecimal
+    string. This makes the uid sufficiently unique.
+    """
+    time_uid = uuid.uuid1(node=0).hex[:-12]
+    random_uid = uuid.uuid4().hex[:12]
+    return f'{prefix}-{time_uid}-{random_uid}'
 
 
 def renamed_and_deprecated(deprecated_class):

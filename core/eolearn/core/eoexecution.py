@@ -94,10 +94,10 @@ class EOExecutor:
         if not isinstance(execution_args, (list, tuple)):
             raise ValueError("Parameter 'execution_args' should be a list")
 
-        for input_args in execution_args:
-            EOWorkflow.validate_input_args(input_args)
+        for input_kwargs in execution_args:
+            EOWorkflow.validate_input_kwargs(input_kwargs)
 
-        return [input_args or {} for input_args in execution_args]
+        return [input_kwargs or {} for input_kwargs in execution_args]
 
     @staticmethod
     def _parse_execution_names(execution_names, execution_args):

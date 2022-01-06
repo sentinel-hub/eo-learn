@@ -4,7 +4,8 @@ The following objects and functions are the core of eo-learn package
 from .constants import FeatureType, FeatureTypeSet, OverwritePermission
 from .eodata import EOPatch
 from .eotask import EOTask
-from .eoworkflow import EOWorkflow, LinearWorkflow, Dependency, WorkflowResults
+from .eonode import EONode, linearly_connect_tasks
+from .eoworkflow import EOWorkflow, WorkflowResults
 from .eoworkflow_tasks import OutputTask
 from .eoexecution import EOExecutor, execute_with_mp_lock
 

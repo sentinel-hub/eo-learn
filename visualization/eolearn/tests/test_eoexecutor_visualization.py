@@ -12,7 +12,7 @@ import os
 import logging
 import tempfile
 
-from eolearn.core import EOTask, EOWorkflow, Dependency, EOExecutor
+from eolearn.core import EOTask, EOWorkflow, EONode, EOExecutor
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -30,13 +30,13 @@ class ExampleTask(EOTask):
             raise Exception
 
 
-TASK = ExampleTask()
-WORKFLOW = EOWorkflow([(TASK, []), Dependency(task=ExampleTask(), inputs=[TASK, TASK])])
+NODE = EONode(ExampleTask())
+WORKFLOW = EOWorkflow([NODE, EONode(task=ExampleTask(), inputs=[NODE, NODE])])
 EXECUTION_ARGS = [
-    {TASK: {'arg1': 1}},
+    {NODE: {'arg1': 1}},
     {},
-    {TASK: {'arg1': 3, 'arg3': 10}},
-    {TASK: {'arg1': None}}
+    {NODE: {'arg1': 3, 'arg3': 10}},
+    {NODE: {'arg1': None}}
 ]
 
 

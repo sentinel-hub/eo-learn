@@ -2,13 +2,13 @@
 The eoworkflow module, together with eotask and eodata, provides core building blocks for specifying and executing
 workflows.
 
-A workflow is a directed (acyclic) graph composed of instances of EOTask objects. Each task may take as input the
-results of other tasks and external arguments. The external arguments are passed anew each time the workflow is
-executed. The workflow builds the computational graph, performs dependency resolution, and executes the tasks.
-If the input graph is cyclic, the workflow raises a `CyclicDependencyError`.
+A workflow is a directed (acyclic) graph composed of instances of EONode objects. Each node may take as input the
+results of tasks in other nodes as well as external arguments. The external arguments are passed anew each time the
+workflow is executed. The workflow builds the computational graph, performs dependency resolution, and executes the
+tasks inside each node. If the input graph is cyclic, the workflow raises a `CyclicDependencyError`.
 
-The result of a workflow execution is an immutable mapping from tasks to results. The result contains tasks with
-zero out-degree (i.e. terminal tasks).
+The result of a workflow execution is an immutable mapping from nodes to results. The result also contain data that
+was marked as output through the use of `OutputTask` objects.
 
 The workflow can be exported to a DOT description language and visualized.
 
@@ -20,17 +20,13 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import collections
 import logging
-import copy
 import datetime as dt
-from typing import Dict
+from typing import Dict, List, Optional, Sequence, Tuple, Set
 from dataclasses import dataclass
 
-import attr
-
 from .eodata import EOPatch
-from .eotask import EOTask
+from .eonode import EONode, NodeStats
 from .eoworkflow_tasks import OutputTask
 from .graph import DirectedGraph
 
@@ -38,129 +34,115 @@ from .graph import DirectedGraph
 LOGGER = logging.getLogger(__name__)
 
 
-class CyclicDependencyError(ValueError):
-    """ This error is raised when trying to initialize `EOWorkflow` with a cyclic dependency graph
-    """
-
-
 class EOWorkflow:
-    """ A basic eo-learn object for building workflows from a list of task dependencies
+    """ An object for verifying and executing workflows defined by inter-dependent `EONodes`.
 
     Example:
 
         .. code-block:: python
+            node1 = EONode(task1, name='first task')  # custom names can be provided for better logging
+            node2 = EONode(task2, inputs=[node1])  # depends on previous task
+            node3 = EONode(task3, inputs=[node1])
+            node4 = EONode(task4, inputs=[node2, node3])  # depends on two tasks
 
-            workflow = EOWorkflow([  # task1, task2, task3 are initialized EOTasks
-                (task1, [], 'My first task'),
-                (task2, []),
-                (task3, [task1, task2], 'Task that depends on previous 2 tasks')
-            ])
+            workflow = EOWorkflow([node1, node2, node3, node4])
+
+            # One can pass keyword arguments to task execution in the form of a dictionary
+            results = workflow.execute(
+                {node2: {'k': 2, 'ascending': True}}
+            )
     """
-    def __init__(self, dependencies):
+    def __init__(self, workflow_nodes: Sequence[EONode]):
         """
-        :param dependencies: A list of dependencies between tasks, specifying the computational graph.
-        :type dependencies: list(tuple or Dependency)
+        :param workflow_nodes: A sequence of `EONode`s, specifying the computational graph.
         """
-        dependencies = self._parse_dependencies(dependencies)
-        self._uid_dict = self._make_uid_dict(dependencies)
-        self.dag = self._create_dag(dependencies)
-        self._dependencies = self._schedule_dependencies(self.dag)
+        workflow_nodes = self._parse_and_validate_nodes(workflow_nodes)
+        self._uid_dict = self._make_uid_dict(workflow_nodes)
+        self.uid_dag = self._create_dag(workflow_nodes)
+
+        topologically_ordered_nodes = self.uid_dag.toplogically_ordered_vertices()
+
+        self._nodes = [self._uid_dict[uid] for uid in topologically_ordered_nodes]
 
     @staticmethod
-    def _parse_dependencies(dependencies):
-        """ Parses dependencies into correct form
+    def _parse_and_validate_nodes(nodes: Sequence[EONode]) -> Sequence[EONode]:
+        """ Parses and verifies workflow nodes
 
-        :param dependencies: List of inputs that define of dependencies
-        :type dependencies: list(tuple or Dependency)
-        :return: List of dependencies
-        :rtype: list(Dependency)
+        :param nodes: Sequence of nodes forming a workflow
+        :return: Sequence of verified nodes
         """
-        return [copy.copy(dep) if isinstance(dep, Dependency) else Dependency(*dep) for dep in dependencies]
+        if not isinstance(nodes, Sequence):
+            raise ValueError(
+                f'{EOWorkflow.__name__} must be initialized with a sequence of {EONode.__name__} objects.'
+            )
+
+        for node in nodes:
+            if not isinstance(node, EONode):
+                raise ValueError(f"Expected a {EONode.__name__} object but got {type(node)}")
+
+        return nodes
 
     @staticmethod
-    def _make_uid_dict(dependencies):
-        """ Creates a dictionary mapping task IDs to task dependency while checking uniqueness of tasks
+    def _make_uid_dict(nodes: Sequence[EONode]) -> Dict[str, EONode]:
+        """ Creates a dictionary mapping node IDs to nodes while checking uniqueness of tasks
 
-        :param dependencies: The list of dependencies between tasks defining the computational graph
-        :type dependencies: list(Dependency)
-        :return: A dictionary mapping task IDs to dependencies
-        :rtype: dict(int: Dependency)
+        :param nodes: The sequence of workflow nodes defining the computational graph
+        :return: A dictionary mapping IDs to nodes
         """
         uid_dict = {}
-        for dep in dependencies:
-            uid = dep.task.private_task_config.uid
-            if uid in uid_dict:
-                raise ValueError(f'EOWorkflow cannot execute the same instance of EOTask {dep.task.__class__.__name__}'
-                                 ' multiple times')
-            uid_dict[uid] = dep
+        for node in nodes:
+            if node.uid in uid_dict:
+                raise ValueError(
+                    f'EOWorkflow should not contain the same node twice. Found multiple instances of {node}.'
+                )
+            uid_dict[node.uid] = node
 
         return uid_dict
 
-    def _create_dag(self, dependencies):
-        """ Creates a directed graph from dependencies
+    def _create_dag(self, nodes: Sequence[EONode]) -> DirectedGraph:
+        """ Creates a directed graph from workflow nodes that is used for scheduling purposes
 
-        :param dependencies: A list of Dependency objects
-        :type dependencies: list(Dependency)
-        :return: A directed graph of the workflow
-        :rtype: DirectedGraph
+        :param nodes: A sequence of `EONode` objects
+        :return: A directed graph of the workflow, with graph nodes containing `EONode` uids
         """
         dag = DirectedGraph()
-        for dep in dependencies:
-            for vertex in dep.inputs:
-                task_uid = vertex.private_task_config.uid
-                if task_uid not in self._uid_dict:
-                    raise ValueError(f'Task {vertex.__class__.__name__}, which is an input of a task {dep.name}, is not'
-                                     ' part of the defined workflow')
-                dag.add_edge(self._uid_dict[task_uid], dep)
-            if not dep.inputs:
-                dag.add_vertex(dep)
+        for node in nodes:
+            for input_node in node.inputs:
+                if input_node.uid not in self._uid_dict:
+                    raise ValueError(
+                        f'Node {input_node}, which is an input of a task {node.name}, is not part of the workflow'
+                    )
+                dag.add_edge(input_node.uid, node.uid)
+            if not node.inputs:
+                dag.add_vertex(node.uid)
         return dag
 
-    @staticmethod
-    def _schedule_dependencies(dag):
-        """ Computes an ordering < of tasks so that for any two tasks t and t' we have that if t depends on t' then
-        t' < t. In words, all dependencies of a task precede the task in this ordering.
-
-        :param dag: A directed acyclic graph representing dependencies between tasks.
-        :type dag: DirectedGraph
-        :return: A list of topologically ordered dependencies
-        :rtype: list(Dependency)
+    @classmethod
+    def from_endnodes(cls, endnodes: Sequence[EONode]) -> 'EOWorkflow':
+        """ Constructs the EOWorkflow from the end-nodes by recursively extracting all nodes in the workflow structure
         """
-        in_degrees = dag.get_indegrees()
+        all_nodes: Set[EONode] = set()
+        memo: Dict[EONode, Set[EONode]] = {}
+        for endnode in endnodes:
+            all_nodes = all_nodes.union(endnode.get_dependencies(_memo=memo))
+        return cls(list(all_nodes))
 
-        independent_vertices = collections.deque([vertex for vertex in dag if dag.get_indegree(vertex) == 0])
-        topological_order = []
-        while independent_vertices:
-            v_vertex = independent_vertices.popleft()
-            topological_order.append(v_vertex)
-
-            for u_vertex in dag[v_vertex]:
-                in_degrees[u_vertex] -= 1
-                if in_degrees[u_vertex] == 0:
-                    independent_vertices.append(u_vertex)
-
-        if len(topological_order) != len(dag):
-            raise CyclicDependencyError('Tasks form a cyclic graph')
-
-        return topological_order
-
-    def execute(self, input_args=None):
+    def execute(self, input_kwargs: Optional[Dict[EONode, Dict[str, object]]] = None) -> 'WorkflowResults':
         """ Executes the workflow
 
-        :param input_args: External input arguments to the workflow. They have to be in a form of a dictionary where
-            each key is an EOTask used in the workflow and each value is a dictionary or a tuple of arguments.
-        :type input_args: dict(EOTask: dict(str: object) or tuple(object))
+        :param input_kwargs: External input arguments to the workflow. They have to be in a form of a dictionary where
+            each key is an `EONode` used in the workflow and each value is a dictionary or a tuple of arguments.
         :return: An immutable mapping containing results of terminal tasks
-        :rtype: WorkflowResults
         """
         start_time = dt.datetime.now()
 
-        out_degs = self.dag.get_outdegrees()
+        out_degrees: Dict[str, int] = self.uid_dag.get_outdegrees()
 
-        self.validate_input_args(input_args)
-        uid_input_args = self._make_uid_input_args(input_args)
+        input_kwargs = input_kwargs or {}
+        self.validate_input_kwargs(input_kwargs)
+        uid_input_kwargs = {node.uid: args for node, args in input_kwargs.items()}
 
-        output_results, stats_dict = self._execute_tasks(uid_input_args=uid_input_args, out_degs=out_degs)
+        output_results, stats_dict = self._execute_tasks(uid_input_kwargs=uid_input_kwargs, out_degrees=out_degrees)
 
         results = WorkflowResults(
             outputs=output_results,
@@ -173,141 +155,115 @@ class EOWorkflow:
         return results
 
     @staticmethod
-    def validate_input_args(input_args):
+    def validate_input_kwargs(input_kwargs: Dict[EONode, Dict[str, object]]):
         """ Validates EOWorkflow input arguments provided by user and raises an error if something is wrong.
 
-        :param input_args: A dictionary mapping tasks to task execution arguments
-        :type input_args: dict
+        :param input_kwargs: A dictionary mapping tasks to task execution arguments
         """
-        input_args = input_args or {}
+        for node, kwargs in input_kwargs.items():
+            if not isinstance(node, EONode):
+                raise ValueError(
+                    f'Keys of the execution argument dictionary should be instances of {EONode.__name__}, got'
+                    f' {type(node)} instead.'
+                )
 
-        for task, args in input_args.items():
-            if not isinstance(task, EOTask):
-                raise ValueError(f'Invalid input argument {task}, should be an instance of EOTask')
+            if not isinstance(kwargs, dict):
+                raise ValueError(
+                    f'Execution arguments of each node should be a dictionary, for node '
+                    f'{node.get_custom_name()} got arguments of type {type(kwargs)}'
+                )
 
-            if not isinstance(args, (tuple, dict)):
-                raise ValueError('Execution input arguments of each task should be a dictionary or a tuple, for task '
-                                 f'{task.__class__.__name__} got arguments of type {type(args)}')
+            if not all(isinstance(key, str) for key in kwargs):
+                raise ValueError(
+                    f'Keys of input argument dictionaries should names of variables, in arguments for node '
+                    f'{node.get_custom_name()} one of the keys is not a string'
+                )
 
-    @staticmethod
-    def _make_uid_input_args(input_args):
-        """ Parses EOWorkflow input arguments, switching keys from tasks to task uids to avoid serialization issues.
+    def _execute_tasks(
+        self, *, uid_input_kwargs: Dict[str, Dict[str, object]], out_degrees: Dict[str, int]
+    ) -> Tuple[dict, dict]:
+        """ Executes tasks inside nodes comprising the workflow in the predetermined order
 
-        :param input_args: A dictionary mapping tasks to task execution arguments
-        :type input_args: dict
-        :return: A dictionary mapping task uids to task execution arguments
-        :rtype: dict
-        """
-        input_args = input_args or {}
-        return {task.private_task_config.uid: args for task, args in input_args.items()}
-
-    def _execute_tasks(self, *, uid_input_args, out_degs):
-        """ Executes tasks comprising the workflow in the predetermined order
-
-        :param uid_input_args: External input arguments to the workflow.
-        :type uid_input_args: dict
-        :param out_degs: Dictionary mapping vertices (task IDs) to their out-degrees. (The out-degree equals the number
-        of tasks that depend on this task.)
-        :type out_degs: dict
+        :param uid_input_kwargs: External input arguments to the workflow.
+        :param out_degrees: Dictionary mapping node IDs to their out-degrees. (The out-degree equals the number
+            of tasks that depend on this task.)
         :return: Results of a workflow
-        :rtype: dict, dict
         """
-        intermediate_results = {}
+        intermediate_results: Dict[str, object] = {}
         output_results = {}
         stats_dict = {}
 
-        for dep in self._dependencies:
-            result, stats = self._execute_task(dependency=dep,
-                                               uid_input_args=uid_input_args,
-                                               intermediate_results=intermediate_results)
+        for node in self._nodes:
+            result, stats = self._execute_node(
+                node=node,
+                node_input_values=[intermediate_results[input_node.uid] for input_node in node.inputs],
+                node_input_kwargs=uid_input_kwargs.get(node.uid, {}),
+            )
 
-            intermediate_results[dep] = result
-            if isinstance(dep.task, OutputTask):
-                output_results[dep.task.name] = result
+            intermediate_results[node.uid] = result
+            if isinstance(node.task, OutputTask):
+                output_results[node.task.name] = result
 
-            stats_dict[dep.task.private_task_config.uid] = stats
+            stats_dict[node.uid] = stats
 
-            self._relax_dependencies(dependency=dep,
-                                     out_degrees=out_degs,
-                                     intermediate_results=intermediate_results)
+            self._relax_dependencies(
+                node=node, out_degrees=out_degrees, intermediate_results=intermediate_results
+            )
 
         return output_results, stats_dict
 
-    def _execute_task(self, *, dependency, uid_input_args, intermediate_results):
-        """ Executes a task of the workflow
+    @staticmethod
+    def _execute_node(
+        *, node: EONode, node_input_values: List[object], node_input_kwargs: Dict[str, object]
+    ) -> Tuple[object, 'NodeStats']:
+        """ Executes a node in the workflow by running its task and returning the results
 
-        :param dependency: A workflow dependency
-        :type dependency: Dependency
-        :param uid_input_args: External task parameters.
-        :type uid_input_args: dict
-        :param intermediate_results: The dictionary containing intermediate results, including the results of all
-        tasks that the current task depends on.
-        :type intermediate_results: dict
-        :return: The result of the task in dependency
-        :rtype: (object, TaskStats)
+        :param node: A node of the workflow.
+        :param node_input_values: Values obtained from input nodes in the workflow.
+        :param node_input_kwargs: Dictionary containing execution arguments specified by the user.
+        :return: The result and statistics of the task in the node.
         """
-        task = dependency.task
-        task_args = [intermediate_results[self._uid_dict[input_task.private_task_config.uid]]
-                     for input_task in dependency.inputs]
+        task = node.task
+        # EOPatches are copied beforehand
+        task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in node_input_values]
 
-        task_kwargs = uid_input_args.get(task.private_task_config.uid, {})
-        if isinstance(task_kwargs, tuple):
-            task_args.extend(task_kwargs)
-            task_kwargs = {}
-
-        task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in task_args]
-
-        LOGGER.debug('Computing %s(*%s, **%s)', task.__class__.__name__, str(task_args), str(task_kwargs))
+        LOGGER.debug('Computing %s(*%s, **%s)', task.__class__.__name__, str(task_args), str(node_input_kwargs))
         start_time = dt.datetime.now()
-        result = task(*task_args, **task_kwargs)
+        result = task(*task_args, **node_input_kwargs)
         end_time = dt.datetime.now()
 
-        return result, TaskStats(start_time=start_time, end_time=end_time)
+        return result, NodeStats(start_time=start_time, end_time=end_time)
 
-    def _relax_dependencies(self, *, dependency, out_degrees, intermediate_results):
-        """ Relaxes dependencies incurred by ``task_id``. After the task with ID ``task_id`` has been successfully
-        executed, all the tasks it depended on are updated. If ``task_id`` was the last remaining dependency of a task
-        ``t`` then ``t``'s result is removed from memory and, depending on ``remove_intermediate``, from disk.
+    @staticmethod
+    def _relax_dependencies(*, node: EONode, out_degrees: Dict[str, int], intermediate_results: Dict[str, object]):
+        """ Relaxes dependencies incurred by `node` after it has been successfully executed. All the nodes it
+        depended on are updated. If `node` was the last remaining node depending on a node `n` then `n`'s result
+        are removed from memory.
 
-        :param dependency: A workflow dependency
-        :type dependency: Dependency
+        :param node: A workflow node
         :param out_degrees: Out-degrees of tasks
-        :type out_degrees: dict
-        :param intermediate_results: The dictionary containing the intermediate results (needed by tasks that have yet
-        to be executed) of the already-executed tasks
-        :type intermediate_results: dict
+        :param intermediate_results: The dictionary containing the intermediate results (needed by nodes that have yet
+        to be executed) of the already-executed nodes
         """
-        for input_task in [dependency.task] + dependency.inputs:
-            dep = self._uid_dict[input_task.private_task_config.uid]
+        for input_node in node.inputs:
+            out_degrees[input_node.uid] -= 1
 
-            if input_task is not dependency.task:
-                out_degrees[dep] -= 1
+        for relevant_node in {node} | set(node.inputs):
+            # use sets in order not to attempt to delete the same node twice
+            if out_degrees[relevant_node.uid] == 0:
+                LOGGER.debug(
+                    'Removing intermediate result of %s (node uid: %s)',
+                    relevant_node.get_custom_name(),
+                    relevant_node.uid
+                )
+                del intermediate_results[relevant_node.uid]
 
-            if out_degrees[dep] == 0:
-                LOGGER.debug('Removing intermediate result of %s', input_task.__class__.__name__)
-                del intermediate_results[dep]
+    def get_nodes(self) -> List[EONode]:
+        """ Returns an ordered list of all nodes within this workflow, ordered in the execution order
 
-    def get_tasks(self):
-        """ Returns an ordered dictionary {task_name: task} of all tasks within this workflow
-
-        :return: Ordered dictionary with key being task_name (str) and an instance of a corresponding task from this
-            workflow. The order of tasks is the same as in which they will be executed.
-        :rtype: OrderedDict
+        :return: List of all nodes withing workflow. The order of nodes is the same as the order of execution.
         """
-        task_dict = collections.OrderedDict()
-        for dep in self._dependencies:
-            task_name = dep.name
-
-            if task_name in task_dict:
-                count = 0
-                while dep.get_custom_name(count) in task_dict:
-                    count += 1
-
-                task_name = dep.get_custom_name(count)
-
-            task_dict[task_name] = dep.task
-
-        return task_dict
+        return self._nodes[:]
 
     def get_dot(self):
         """ Generates the DOT description of the underlying computational graph
@@ -318,12 +274,11 @@ class EOWorkflow:
         visualization = self._get_visualization()
         return visualization.get_dot()
 
-    def dependency_graph(self, filename=None):
+    def dependency_graph(self, filename: Optional[str] = None):
         """ Visualize the computational graph
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
             `pdf`, ... . Check `graphviz` Python package for more options
-        :type filename: str
         :return: The DOT representation of the computational graph, with some more formatting
         :rtype: Digraph
         """
@@ -339,88 +294,7 @@ class EOWorkflow:
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use EOWorkflow '
                                'visualization methods')
-        return EOWorkflowVisualization(self._dependencies, self._uid_dict)
-
-
-class LinearWorkflow(EOWorkflow):
-    """ A linear version of EOWorkflow where each tasks only gets results of the previous task
-
-    Example:
-
-        .. code-block:: python
-
-            workflow = LinearWorkflow(task1, task2, task3)
-    """
-    def __init__(self, *tasks, **kwargs):
-        """
-        :param tasks: Tasks in the order of execution. Each entry can either be an instance of EOTask or a tuple of
-            an EOTask instance and a custom task name.
-        :type tasks: EOTask or (EOTask, str)
-        """
-        tasks = [self._parse_task(task) for task in tasks]
-
-        dependencies = [(task, [tasks[idx - 1][0]] if idx > 0 else [], name) for idx, (task, name) in enumerate(tasks)]
-        super().__init__(dependencies, **kwargs)
-
-    @staticmethod
-    def _parse_task(task):
-        """ Parses input task
-        """
-        if isinstance(task, EOTask):
-            return task, None
-        if isinstance(task, (tuple, list)) and len(task) == 2:
-            return task
-
-        raise ValueError(f'Cannot parse {task}, expected an instance of EOTask or a tuple (EOTask, name)')
-
-
-@attr.s(eq=False)  # eq=False preserves the original hash
-class Dependency:
-    """ Class representing a node in EOWorkflow graph
-
-    :param task: An instance of EOTask
-    :type task: EOTask
-    :param inputs: A list of EOTask instances which are dependencies of the given `task`
-    :type inputs: list(EOTask) or EOTask
-    :param name: Name of the Dependency node
-    :type name: str or None
-    """
-    task = attr.ib(default=None)  # validator parameter could be used, but its error msg is ugly
-    inputs = attr.ib(factory=list)
-    name = attr.ib(default=None)
-
-    def __attrs_post_init__(self):
-        """ This is executed right after init method
-        """
-        if not isinstance(self.task, EOTask):
-            raise ValueError(f'Value {self.task} should be an instance of {EOTask.__name__}')
-        self.task = self.task
-
-        if isinstance(self.inputs, EOTask):
-            self.inputs = [self.inputs]
-        if not isinstance(self.inputs, (list, tuple)):
-            raise ValueError(f'Value {self.inputs} should be a list')
-        for input_task in self.inputs:
-            if not isinstance(input_task, EOTask):
-                raise ValueError(f'Value {input_task} should be an instance of {EOTask.__name__}')
-
-        if self.name is None:
-            self.name = self.task.__class__.__name__
-
-    def get_custom_name(self, number=0):
-        """ Provides custom task name according to given number. E.g. FooTask -> FooTask
-        """
-        if number:
-            return f'{self.name}_{number}'
-        return self.name
-
-
-@dataclass(frozen=True)
-class TaskStats:
-    """ An object containing statistical info about a task execution
-    """
-    start_time: dt.datetime
-    end_time: dt.datetime
+        return EOWorkflowVisualization(self._nodes)
 
 
 @dataclass(frozen=True)
@@ -430,4 +304,4 @@ class WorkflowResults:
     outputs: Dict[str, object]
     start_time: dt.datetime
     end_time: dt.datetime
-    stats: Dict[str, TaskStats]
+    stats: Dict[str, NodeStats]

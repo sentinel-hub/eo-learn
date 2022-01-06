@@ -15,7 +15,7 @@ import inspect
 import warnings
 import base64
 import copy
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 try:
     import matplotlib.pyplot as plt
@@ -70,7 +70,7 @@ class EOExecutorVisualization:
 
         html = template.render(dependency_graph=dependency_graph,
                                general_stats=self.eoexecutor.general_stats,
-                               task_descriptions=self._get_task_descriptions(),
+                               task_descriptions=self._get_node_descriptions(),
                                task_sources=self._render_task_sources(formatter),
                                execution_stats=self._render_execution_errors(formatter),
                                execution_logs=self.eoexecutor.execution_logs,
@@ -89,17 +89,21 @@ class EOExecutorVisualization:
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
-    def _get_task_descriptions(self):
-        """ Prepares a list of task names and their initialization parameters
+    def _get_node_descriptions(self):
+        """ Prepares a list of node names and initialization parameters of their tasks
         """
         descriptions = []
+        name_counts = defaultdict(lambda: 0)
 
-        for task_name, task in self.eoexecutor.workflow.get_tasks().items():
+        for node in self.eoexecutor.workflow.get_nodes():
+            node_name = node.get_custom_name(name_counts[node.name])
+            name_counts[node.name] += 1
+
             descriptions.append({
-                'name': f'{task_name} ({task.private_task_config.uid})',
+                'name': f'{node_name} ({node.uid})',
                 'args': {
                     key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
-                    task.private_task_config.init_args.items()
+                    node.task.private_task_config.init_args.items()
                 }
             })
 
@@ -111,7 +115,8 @@ class EOExecutorVisualization:
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
         sources = OrderedDict()
 
-        for task in self.eoexecutor.workflow.get_tasks().values():
+        for node in self.eoexecutor.workflow.get_nodes():
+            task = node.task
             if task.__module__.startswith("eolearn"):
                 continue
 
