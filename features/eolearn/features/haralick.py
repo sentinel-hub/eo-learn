@@ -16,6 +16,7 @@ import skimage.feature
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.exceptions import EOUserWarning
 
 
 class HaralickTask(EOTask):
@@ -85,7 +86,8 @@ class HaralickTask(EOTask):
 
         self.stride = stride
         if self.stride >= self.window_size + 1:
-            warnings.warn('Haralick stride is superior to the window size; some pixel values will be ignored')
+            warnings.warn('Haralick stride is superior to the window size; some pixel values will be ignored',
+                          EOUserWarning)
 
     def _custom_texture(self, glcm):
         # Sum of square: Variance

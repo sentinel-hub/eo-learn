@@ -23,6 +23,7 @@ import numpy as np
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.fs_utils import get_base_filesystem_and_path
 from eolearn.core.utilities import renamed_and_deprecated
 
@@ -226,7 +227,7 @@ class ExportToTiffTask(BaseLocalIoTask):
         if image_dtype == np.int64:
             image_dtype = np.int32
             warnings.warn(f'Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export '
-                          'as numpy.int32 instead')
+                          'as numpy.int32 instead', EORuntimeWarning)
 
         if image_dtype == data_array.dtype:
             return data_array

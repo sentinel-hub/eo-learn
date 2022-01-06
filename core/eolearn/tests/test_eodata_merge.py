@@ -16,6 +16,7 @@ from geopandas import GeoDataFrame
 from sentinelhub import BBox, CRS
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
+from eolearn.core.exceptions import EORuntimeWarning
 
 
 def test_time_dependent_merge():
@@ -176,7 +177,7 @@ def test_meta_info_merge():
     assert eop == expected_eop
 
     eop2.meta_info['a'] = 3
-    with pytest.warns(UserWarning):
+    with pytest.warns(EORuntimeWarning):
         eop = eop1.merge(eop2)
     assert eop == expected_eop
 

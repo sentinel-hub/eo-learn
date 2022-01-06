@@ -374,7 +374,7 @@ def test_kwargs():
 
 
 def test_merge_eopatches(test_eopatch):
-    task = MergeEOPatchesTask(time_dependent_op='mean', timeless_op='concatenate')
+    task = MergeEOPatchesTask(time_dependent_op='max', timeless_op='concatenate')
 
     del test_eopatch.data['REFERENCE_SCENES']  # wrong time dimension
 

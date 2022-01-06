@@ -26,7 +26,7 @@ from enum import Enum
 from tqdm.auto import tqdm
 
 from .eoworkflow import EOWorkflow
-
+from .exceptions import EORuntimeWarning
 from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
@@ -199,7 +199,7 @@ class EOExecutor:
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException as exception:
-                warnings.warn(f'Failed to create logs with exception: {repr(exception)}', category=RuntimeWarning)
+                warnings.warn(f'Failed to create logs with exception: {repr(exception)}', category=EORuntimeWarning)
 
         return None, None
 

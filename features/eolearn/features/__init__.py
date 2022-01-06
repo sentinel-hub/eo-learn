@@ -8,9 +8,9 @@ from .temporal_features import (
 from .interpolation import (
     InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation,
     AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling, KrigingInterpolation,
-    LegacyInterpolation, LinearInterpolationTask, CubicInterpolationTask, SplineInterpolationTask,
+    LinearInterpolationTask, CubicInterpolationTask, SplineInterpolationTask,
     BSplineInterpolationTask, AkimaInterpolationTask, NearestResamplingTask, LinearResamplingTask, CubicResamplingTask,
-    KrigingInterpolationTask, LegacyInterpolationTask
+    KrigingInterpolationTask
 )
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import SimpleFilterTask, FilterTimeSeriesTask, FilterTimeSeries, ValueFilloutTask

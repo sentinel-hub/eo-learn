@@ -19,6 +19,7 @@ import pandas as pd
 from geopandas import GeoDataFrame
 
 from .constants import FeatureType
+from .exceptions import EORuntimeWarning
 from .utilities import FeatureParser
 
 
@@ -248,7 +249,7 @@ def _select_meta_info_feature(eopatches, feature_name):
     if not _all_equal(values):
         message = f'EOPatches have different values of meta info feature {feature_name}. The first value will be ' \
                   f'used in a merged EOPatch'
-        warnings.warn(message, category=UserWarning)
+        warnings.warn(message, category=EORuntimeWarning)
 
     return values[0]
 

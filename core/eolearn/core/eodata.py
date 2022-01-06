@@ -10,7 +10,6 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import logging
-import warnings
 import copy
 import datetime
 
@@ -29,7 +28,6 @@ from .utilities import deep_eq, FeatureParser
 
 
 LOGGER = logging.getLogger(__name__)
-warnings.simplefilter('default', DeprecationWarning)
 
 MAX_DATA_REPR_LEN = 100
 
@@ -456,75 +454,6 @@ class EOPatch:
                 feature_list.append(feature_type)
         return feature_list
 
-    @staticmethod
-    def concatenate(eopatch1, eopatch2):
-        """Joins all data from two EOPatches and returns a new EOPatch.
-
-        If timestamps don't match it will try to join all time-dependent features with the same name.
-
-        Note: In general the data won't be deep copied. Deep copy will only happen when merging time-dependent features
-        along time
-
-        :param eopatch1: First EOPatch
-        :type eopatch1: EOPatch
-        :param eopatch2: First EOPatch
-        :type eopatch2: EOPatch
-        :return: Joined EOPatch
-        :rtype: EOPatch
-        """
-        warnings.warn('EOPatch.concatenate is deprecated, use a more general EOPatch.merge method instead',
-                      DeprecationWarning)
-
-        eopatch_content = {}
-
-        timestamps_exist = eopatch1.timestamp and eopatch2.timestamp
-        timestamps_match = timestamps_exist and deep_eq(eopatch1.timestamp, eopatch2.timestamp)
-
-        # if not timestamps_match and timestamps_exist and eopatch1.timestamp[-1] >= eopatch2.timestamp[0]:
-        #     raise ValueError('Could not merge timestamps because any timestamp of the first EOPatch must be before '
-        #                      'any timestamp of the second EOPatch')
-
-        for feature_type in FeatureType:
-            if feature_type.has_dict():
-                eopatch_content[feature_type.value] = {**eopatch1[feature_type], **eopatch2[feature_type]}
-
-                for feature_name in eopatch1[feature_type].keys() & eopatch2[feature_type].keys():
-                    data1 = eopatch1[feature_type][feature_name]
-                    data2 = eopatch2[feature_type][feature_name]
-
-                    if feature_type.is_time_dependent() and not timestamps_match:
-                        eopatch_content[feature_type.value][feature_name] = EOPatch.concatenate_data(data1, data2)
-                    elif not deep_eq(data1, data2):
-                        raise ValueError(f'Could not merge ({feature_type}, {feature_name}) feature because values '
-                                         'differ')
-
-            elif feature_type is FeatureType.TIMESTAMP and timestamps_exist and not timestamps_match:
-                eopatch_content[feature_type.value] = eopatch1[feature_type] + eopatch2[feature_type]
-            else:
-                if not eopatch1[feature_type] or deep_eq(eopatch1[feature_type], eopatch2[feature_type]):
-                    eopatch_content[feature_type.value] = copy.copy(eopatch2[feature_type])
-                elif not eopatch2[feature_type]:
-                    eopatch_content[feature_type.value] = copy.copy(eopatch1[feature_type])
-                else:
-                    raise ValueError(f'Could not merge {feature_type} feature because values differ')
-
-        return EOPatch(**eopatch_content)
-
-    @staticmethod
-    def concatenate_data(data1, data2):
-        """A method that concatenates two numpy array along first axis.
-
-        :param data1: Numpy array of shape (times1, height, width, n_features)
-        :type data1: numpy.ndarray
-        :param data2: Numpy array of shape (times2, height, width, n_features)
-        :type data1: numpy.ndarray
-        :return: Numpy array of shape (times1 + times2, height, width, n_features)
-        :rtype: numpy.ndarray
-        """
-        if data1.shape[1:] != data2.shape[1:]:
-            raise ValueError('Could not concatenate data because non-temporal dimensions do not match')
-        return np.concatenate((data1, data2), axis=0)
-
     def save(self, path, features=..., overwrite_permission=OverwritePermission.ADD_ONLY, compress_level=0,
              filesystem=None):
         """ Method to save an EOPatch from memory to a storage
@@ -723,7 +652,7 @@ class _FeatureDict(dict):
         """ Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
         transform value in correct form.
         """
-        value = self._parse_feature_value(value)
+        value = self._parse_feature_value(value, feature_name)
         self._check_feature_name(feature_name)
         super().__setitem__(feature_name, value)
 
@@ -763,7 +692,7 @@ class _FeatureDict(dict):
         """Returns a Python dictionary of features and value."""
         return dict(self)
 
-    def _parse_feature_value(self, value):
+    def _parse_feature_value(self, value, feature_name):
         """ Checks if value fits the feature type. If not it tries to fix it or raise an error
 
         :raises: ValueError
@@ -777,25 +706,18 @@ class _FeatureDict(dict):
             if not isinstance(value, np.ndarray):
                 raise ValueError(f'{self.feature_type} feature has to be a numpy array')
             if value.ndim != self.ndim:
-                raise ValueError(f'Numpy array of {self.feature_type} feature has to have {self.ndim} '
-                                 f'dimension{"s" if self.ndim > 1 else ""}')
+                raise ValueError(
+                    f'Numpy array of {self.feature_type} feature has to have {self.ndim} '
+                    f'dimension{"s" if self.ndim > 1 else ""} but feature {feature_name} has {value.ndim}'
+                )
 
-            if self.feature_type.is_discrete():
-                if not issubclass(value.dtype.type, (np.integer, bool, np.bool_, np.bool8)):
-                    msg = (
-                        f'{self.feature_type} is a discrete feature type therefore dtype of data should be a subtype '
-                        f'of numpy.integer or numpy.bool, found type {value.dtype.type}. In the future an error will '
-                        'be raised because of this'
-                    )
-                    warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            if self.feature_type.is_discrete() and \
+                    not issubclass(value.dtype.type, (np.integer, bool, np.bool_, np.bool8)):
+                raise ValueError(
+                    f'{self.feature_type} is a discrete feature type therefore dtype of data array '
+                    f'has to be either integer or boolean type but feature {feature_name} has dtype {value.dtype.type}'
+                )
 
-            #         raise ValueError(f'{self.feature_type} is a discrete feature type therefore dtype of data has to '
-            #                          f'be a subtype of numpy.integer or numpy.bool, found type {value.dtype.type}')
-            # # This checking is disabled for now
-            # else:
-            #     if not issubclass(value.dtype.type, (np.floating, np.float)):
-            #         raise ValueError(f'{self.feature_type} is a floating feature type therefore dtype of data has to '
-            #                          f'be a subtype of numpy.floating or numpy.float, found type {value.dtype.type}')
             return value
 
         if self.is_vector:
@@ -803,14 +725,17 @@ class _FeatureDict(dict):
                 value = gpd.GeoDataFrame(dict(geometry=value), crs=value.crs)
 
             if isinstance(value, gpd.GeoDataFrame):
-                if self.feature_type is FeatureType.VECTOR:
-                    if FeatureType.TIMESTAMP.value.upper() not in value:
-                        raise ValueError(f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with "
-                                         "timestamps")
+                if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
+                    raise ValueError(
+                        f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with timestamps but "
+                        f"feature {feature_name} doesn't not have it"
+                    )
 
                 return value
 
-            raise ValueError(f'{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__}, '
-                             f'parsing data type {type(value)} is not supported')
+            raise ValueError(
+                f'{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__} but feature '
+                f'{feature_name} has data of type {type(value)}'
+            )
 
         return value

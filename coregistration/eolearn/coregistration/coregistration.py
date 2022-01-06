@@ -12,6 +12,7 @@ file in the root directory of this source tree.
 
 import copy
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
 
@@ -19,6 +20,7 @@ import cv2
 import numpy as np
 import registration
 from eolearn.core import EOTask, FeatureType
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utilities import renamed_and_deprecated
 
 from .coregistration_utilities import EstimateEulerTransformModel, ransac
@@ -141,7 +143,7 @@ class RegistrationTask(EOTask, ABC):
             sliced_data = [get_gradient(d) for d in sliced_data]
             sliced_data = [np.clip(d, np.percentile(d, 5), np.percentile(d, 95)) for d in sliced_data]
         except BaseException:
-            LOGGER.warning("Could not calculate gradients, using original data")
+            warnings.warn("Could not calculate gradients, using original data", EORuntimeWarning)
             sliced_data = list(sliced_data)
 
         iflag = self._get_interpolation_flag(self.interpolation_type)
@@ -163,7 +165,8 @@ class RegistrationTask(EOTask, ABC):
 
             # Flag suspicious registrations and set them to the identity
             if rflag:
-                LOGGER.warning('%s warning in pair-wise reg %d to %d', self.__class__.__name__, idx, idx-1)
+                warnings.warn(f'A problem in pair-wise registration of time slices {idx} and {idx - 1}',
+                              EORuntimeWarning)
                 warp_matrix = np.eye(2, 3)
 
             # Apply tranformation to every given feature
