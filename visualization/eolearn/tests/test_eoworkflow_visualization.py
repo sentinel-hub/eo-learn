@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 import pytest
 from graphviz import Digraph
 
-from eolearn.core import EOTask, EOWorkflow, Dependency
+from eolearn.core import EOTask, EOWorkflow, EONode
 
 
 class FooTask(EOTask):
@@ -20,14 +20,10 @@ class FooTask(EOTask):
 
 @pytest.fixture(name='workflow')
 def workflow_fixture():
-    task1, task2, task3 = FooTask(), FooTask(), FooTask()
+    node1, node2 = EONode(FooTask()), EONode(FooTask())
+    node3 = EONode(FooTask(), [node1, node2])
 
-    workflow = EOWorkflow(
-        dependencies=[
-            Dependency(task=task1, inputs=[]),
-            Dependency(task=task2, inputs=[]),
-            Dependency(task=task3, inputs=[task1, task2])
-        ])
+    workflow = EOWorkflow([node1, node2, node3])
     return workflow
 
 

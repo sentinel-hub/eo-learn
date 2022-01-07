@@ -9,31 +9,28 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from typing import Sequence, Optional, Dict
 
 from graphviz import Digraph
+
+from eolearn.core import EONode
 
 
 class EOWorkflowVisualization:
     """ Class handling EOWorkflow visualization
     """
-    def __init__(self, dependencies, uid_dict):
+    def __init__(self, nodes: Sequence[EONode]):
         """
-        :param dependencies: A list of topologically ordered dependencies
-        :type dependencies: list(Dependency)
-        :param uid_dict: A dictionary linking task uids with the dependencies that contain said tasks
-        :type uid_dict: dict(int: Dependency)
+        :param nodes: A sequence of topologically ordered workflow nodes
         """
-        self.dependencies = dependencies
-        self.uid_dict = uid_dict
+        self.nodes = nodes
 
-    def dependency_graph(self, filename=None):
+    def dependency_graph(self, filename: Optional[str] = None) -> Digraph:
         """ Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
             `pdf`, ... . Check `graphviz` Python package for more options
-        :type filename: str
         :return: The DOT representation of the computational graph, with some more formatting
-        :rtype: Digraph
         """
         dot = self.get_dot()
         dot.attr(rankdir='LR')  # Show graph from left to right
@@ -45,38 +42,33 @@ class EOWorkflowVisualization:
 
         return dot
 
-    def get_dot(self):
+    def get_dot(self) -> Digraph:
         """Generates the DOT description of the underlying computational graph.
 
         :return: The DOT representation of the computational graph
-        :rtype: Digraph
         """
         dot = Digraph(format='png')
 
-        dep_to_dot_name = self._get_dep_to_dot_name_mapping(self.dependencies)
+        node_uid_to_dot_name = self._get_node_uid_to_dot_name_mapping(self.nodes)
 
-        for dep in self.dependencies:
-            for input_task in dep.inputs:
-                dot.edge(dep_to_dot_name[self.uid_dict[input_task.private_task_config.uid]],
-                         dep_to_dot_name[dep])
+        for node in self.nodes:
+            for input_node in node.inputs:
+                dot.edge(node_uid_to_dot_name[input_node.uid], node_uid_to_dot_name[node.uid])
         return dot
 
     @staticmethod
-    def _get_dep_to_dot_name_mapping(dependencies):
-        """ Creates mapping between Dependency classes and names used in DOT graph
+    def _get_node_uid_to_dot_name_mapping(nodes: Sequence[EONode]) -> Dict[str, str]:
+        """ Creates mapping between EONode classes and names used in DOT graph
         """
-        dot_name_to_deps = {}
-        for dep in dependencies:
-            dot_name = dep.name
+        # Collect nodes with identical names
+        dot_name_to_nodes: Dict[str, EONode] = {}
+        for node in nodes:
+            dot_name_to_nodes[node.name] = dot_name_to_nodes.get(node.name, [])
+            dot_name_to_nodes[node.name].append(node)
 
-            if dot_name not in dot_name_to_deps:
-                dot_name_to_deps[dot_name] = [dep]
-            else:
-                dot_name_to_deps[dot_name].append(dep)
+        node_to_dot_name = {}
+        for _, same_name_nodes in dot_name_to_nodes.items():
+            for idx, node in enumerate(same_name_nodes):
+                node_to_dot_name[node.uid] = node.get_custom_name(idx)
 
-        dep_to_dot_name = {}
-        for dot_name, deps in dot_name_to_deps.items():
-            for idx, dep in enumerate(deps):
-                dep_to_dot_name[dep] = dep.get_custom_name(idx)
-
-        return dep_to_dot_name
+        return node_to_dot_name

@@ -1,13 +1,26 @@
 """
 Test for module eoworkflow_tasks.py
 """
-from eolearn.core import EOTask, EOWorkflow, FeatureType, LoadTask, OutputTask
+from eolearn.core import EOTask, EOWorkflow, FeatureType, LoadTask, OutputTask, EONode
+from eolearn.core.eoworkflow_tasks import InputTask
 
 
 class DummyTask(EOTask):
 
     def execute(self, *eopatches):
         return eopatches[0]
+
+
+def test_input_task():
+    """ Test basic functionalities of InputTask
+    """
+    task = InputTask(value=31)
+    assert task.execute() == 31
+    assert task.execute(value=42) == 42
+
+    task = InputTask()
+    assert task.execute() is None
+    assert task.execute(value=42) == 42
 
 
 def test_output_task(test_eopatch):
@@ -25,14 +38,10 @@ def test_output_task(test_eopatch):
 
 
 def test_output_task_in_workflow(test_eopatch_path, test_eopatch):
-    load = LoadTask(test_eopatch_path)
-    output = OutputTask(name='result-name')
+    load = EONode(LoadTask(test_eopatch_path))
+    output = EONode(OutputTask(name='result-name'), inputs=[load])
 
-    workflow = EOWorkflow([
-        (load, []),
-        (output, [load]),
-        (DummyTask(), [load])
-    ])
+    workflow = EOWorkflow([load, output, EONode(DummyTask(), inputs=[load])])
 
     results = workflow.execute()
 
