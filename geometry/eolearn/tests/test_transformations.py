@@ -7,11 +7,12 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
+from functools import partial
 import dataclasses
 from typing import Any
 
 import pytest
+import shapely
 import numpy as np
 from numpy.testing import assert_array_equal
 
@@ -30,6 +31,8 @@ RASTER_FEATURE_TIMED = FeatureType.MASK, 'RASTERIZED_CLM'
 
 CUSTOM_DATAFRAME = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True)[VECTOR_FEATURE]
 CUSTOM_DATAFRAME = CUSTOM_DATAFRAME[(CUSTOM_DATAFRAME['AREA'] < 10 ** 3)]
+CUSTOM_DATAFRAME_3D = CUSTOM_DATAFRAME.copy()
+CUSTOM_DATAFRAME_3D.geometry = CUSTOM_DATAFRAME_3D.geometry.map(partial(shapely.ops.transform, lambda x, y: (x, y, 0)))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -107,6 +110,13 @@ VECTOR_TO_RASTER_TEST_CASES = (
         name='different crs',
         task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME.to_crs(epsg=3857), raster_feature=RASTER_FEATURE, values_column='LULC_ID',
+            raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0
+        ),
+        img_max=8, img_mean=0.042079, img_median=0, img_shape=(101, 100, 1)),
+    VectorToRasterTestCase(
+        name='3D polygons',
+        task=VectorToRasterTask(
+            vector_input=CUSTOM_DATAFRAME_3D, raster_feature=RASTER_FEATURE, values_column='LULC_ID',
             raster_shape=(FeatureType.DATA, 'BANDS-S2-L1C'), no_data_value=0
         ),
         img_max=8, img_mean=0.042079, img_median=0, img_shape=(101, 100, 1)),
