@@ -10,7 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-from functools import partial
+import functools
 import logging
 import warnings
 
@@ -191,7 +191,9 @@ class VectorToRasterTask(EOTask):
         if vector_data.geometry.has_z.any():
             warnings.warn('Given vector polygons contain some 3D geometries, they will be projected to 2D',
                           EORuntimeWarning)
-            vector_data.geometry = vector_data.geometry.map(partial(shapely.ops.transform, lambda *args: args[:2]))
+            vector_data.geometry = vector_data.geometry.map(
+                functools.partial(shapely.ops.transform, lambda *args: args[:2])
+            )
 
         return vector_data
 
@@ -207,7 +209,8 @@ class VectorToRasterTask(EOTask):
         if join_per_value:
             classes = np.unique(vector_data[self.values_column])
             grouped = (vector_data.geometry[vector_data[self.values_column] == cl] for cl in classes)
-            grouped = (shapely.ops.unary_union(group) for group in grouped)
+            join_function = shapely.ops.unary_union if shapely.__version__ >= '1.8.0' else shapely.ops.cascaded_union
+            grouped = (join_function(group) for group in grouped)
             return zip(grouped, classes)
 
         return zip(vector_data.geometry, vector_data[self.values_column])
@@ -257,7 +260,7 @@ class VectorToRasterTask(EOTask):
 
         base_rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
 
-        return partial(base_rasterize_func, **rasterize_params)
+        return functools.partial(base_rasterize_func, **rasterize_params)
 
     def rasterize_overlapped(self, shapes, out, **rasterize_args):
         """ Rasterize overlapped classes.
