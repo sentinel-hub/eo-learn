@@ -111,7 +111,7 @@ class EOExecutor:
                              "execution arguments")
         return execution_names
 
-    def run(self, workers=1, multiprocess=True, return_results=False):
+    def run(self, workers=1, multiprocess=True):
         """ Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -126,11 +126,8 @@ class EOExecutor:
             `concurrent.futures.ProcessPoolExecutor`.
             In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
         :type multiprocess: bool
-        :param return_results: If `True` this method will return a list of all results of the execution. Note that
-            this might exceed the available memory. By default this parameter is set to `False`.
-        :type: bool
-        :return: If `return_results` is set to `True` it will return a list of results, otherwise it will return `None`
-        :rtype: None or list(eolearn.core.WorkflowResults)
+        :return: A list of EOWorkflow results
+        :rtype: list(eolearn.core.WorkflowResults)
         """
         self.start_time = dt.datetime.now()
         self.report_folder = self._get_report_folder()
@@ -140,7 +137,7 @@ class EOExecutor:
         log_paths = self._get_log_paths()
 
         filter_logs_by_thread = not multiprocess and workers > 1
-        processing_args = [(self.workflow, init_args, log_path, return_results, filter_logs_by_thread, self.logs_filter)
+        processing_args = [(self.workflow, init_args, log_path, filter_logs_by_thread, self.logs_filter)
                            for init_args, log_path in zip(self.execution_args, log_paths)]
         processing_type = self._get_processing_type(workers, multiprocess)
 
@@ -154,7 +151,7 @@ class EOExecutor:
                 with open(log_path) as fin:
                     self.execution_logs[idx] = fin.read()
 
-        return [stats.get(self.RESULTS) for stats in self.execution_stats] if return_results else None
+        return [stats.get(self.RESULTS) for stats in self.execution_stats]
 
     @staticmethod
     def _get_processing_type(workers, multiprocess):
@@ -221,14 +218,11 @@ class EOExecutor:
     def _execute_workflow(cls, process_args):
         """ Handles a single execution of a workflow
         """
-        workflow, input_args, log_path, return_results, filter_logs_by_thread, logs_filter = process_args
+        workflow, input_args, log_path, filter_logs_by_thread, logs_filter = process_args
         logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread, logs_filter)
         stats = {cls.STATS_START_TIME: dt.datetime.now()}
         try:
-            results = workflow.execute(input_args)
-
-            if return_results:
-                stats[cls.RESULTS] = results
+            stats[cls.RESULTS] = workflow.execute(input_args)
 
         except KeyboardInterrupt as exception:
             raise KeyboardInterrupt from exception

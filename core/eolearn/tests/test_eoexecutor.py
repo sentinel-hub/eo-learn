@@ -163,22 +163,16 @@ def test_execution_errors(multiprocess, workflow, execution_args):
         assert executor.get_failed_executions() == [3]
 
 
-@pytest.mark.parametrize('return_results', [True, False])
-def test_execution_results(return_results, workflow, execution_args):
+def test_execution_results(workflow, execution_args):
     executor = EOExecutor(workflow, execution_args)
-    results = executor.run(workers=2, multiprocess=True, return_results=return_results)
+    results = executor.run(workers=2, multiprocess=True)
 
-    if return_results:
-        assert isinstance(results, list)
+    assert isinstance(results, list)
 
-        for idx, workflow_results in enumerate(results):
-            if idx == 3:
-                assert workflow_results is None
-            else:
-                assert isinstance(workflow_results, WorkflowResults)
-                assert workflow_results.outputs['output'] == 42
-    else:
-        assert results is None
+    for idx, workflow_results in enumerate(results):
+        if idx != 3:
+            assert isinstance(workflow_results, WorkflowResults)
+            assert workflow_results.outputs['output'] == 42
 
 
 def test_exceptions(workflow, execution_args):
