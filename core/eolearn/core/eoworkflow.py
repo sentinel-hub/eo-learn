@@ -21,12 +21,14 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import logging
+import traceback
 import datetime as dt
 from typing import Dict, List, Optional, Sequence, Tuple, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
+from .eotask import EOTask
 from .eoworkflow_tasks import OutputTask
 from .graph import DirectedGraph
 
@@ -127,11 +129,17 @@ class EOWorkflow:
             all_nodes = all_nodes.union(endnode.get_dependencies(_memo=memo))
         return cls(list(all_nodes))
 
-    def execute(self, input_kwargs: Optional[Dict[EONode, Dict[str, object]]] = None) -> 'WorkflowResults':
+    def execute(self, input_kwargs: Optional[Dict[EONode, Dict[str, object]]] = None,
+                raise_errors: bool = True) -> 'WorkflowResults':
         """ Executes the workflow
 
         :param input_kwargs: External input arguments to the workflow. They have to be in a form of a dictionary where
             each key is an `EONode` used in the workflow and each value is a dictionary or a tuple of arguments.
+        :param raise_errors: In case a task in the workflow raises an error this parameter determines how the error
+            will be handled. If `True` it will propagate the error and if `False` it will catch the error, write its
+            stack trace in logs and in the `WorkflowResults`. In either case workflow execute will stop if an error is
+            raised. This rule is not followed only in case of `KeyboardInterrupt` exception where the exception is
+            always raised.
         :return: An immutable mapping containing results of terminal tasks
         """
         start_time = dt.datetime.now()
@@ -142,7 +150,11 @@ class EOWorkflow:
         self.validate_input_kwargs(input_kwargs)
         uid_input_kwargs = {node.uid: args for node, args in input_kwargs.items()}
 
-        output_results, stats_dict = self._execute_tasks(uid_input_kwargs=uid_input_kwargs, out_degrees=out_degrees)
+        output_results, stats_dict = self._execute_nodes(
+            uid_input_kwargs=uid_input_kwargs,
+            out_degrees=out_degrees,
+            raise_errors=raise_errors
+        )
 
         results = WorkflowResults(
             outputs=output_results,
@@ -179,10 +191,10 @@ class EOWorkflow:
                     f'{node.get_custom_name()} one of the keys is not a string'
                 )
 
-    def _execute_tasks(
-        self, *, uid_input_kwargs: Dict[str, Dict[str, object]], out_degrees: Dict[str, int]
+    def _execute_nodes(
+        self, *, uid_input_kwargs: Dict[str, Dict[str, object]], out_degrees: Dict[str, int], raise_errors: bool
     ) -> Tuple[dict, dict]:
-        """ Executes tasks inside nodes comprising the workflow in the predetermined order
+        """ Executes workflow nodes in the predetermined order
 
         :param uid_input_kwargs: External input arguments to the workflow.
         :param out_degrees: Dictionary mapping node IDs to their out-degrees. (The out-degree equals the number
@@ -198,13 +210,16 @@ class EOWorkflow:
                 node=node,
                 node_input_values=[intermediate_results[input_node.uid] for input_node in node.inputs],
                 node_input_kwargs=uid_input_kwargs.get(node.uid, {}),
+                raise_errors=raise_errors
             )
+
+            stats_dict[node.uid] = stats
+            if stats.exception is not None:
+                break
 
             intermediate_results[node.uid] = result
             if isinstance(node.task, OutputTask):
                 output_results[node.task.name] = result
-
-            stats_dict[node.uid] = stats
 
             self._relax_dependencies(
                 node=node, out_degrees=out_degrees, intermediate_results=intermediate_results
@@ -212,9 +227,8 @@ class EOWorkflow:
 
         return output_results, stats_dict
 
-    @staticmethod
     def _execute_node(
-        *, node: EONode, node_input_values: List[object], node_input_kwargs: Dict[str, object]
+        self, *, node: EONode, node_input_values: List[object], node_input_kwargs: Dict[str, object], raise_errors: bool
     ) -> Tuple[object, 'NodeStats']:
         """ Executes a node in the workflow by running its task and returning the results
 
@@ -223,16 +237,44 @@ class EOWorkflow:
         :param node_input_kwargs: Dictionary containing execution arguments specified by the user.
         :return: The result and statistics of the task in the node.
         """
-        task = node.task
         # EOPatches are copied beforehand
         task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in node_input_values]
 
-        LOGGER.debug('Computing %s(*%s, **%s)', task.__class__.__name__, str(task_args), str(node_input_kwargs))
+        LOGGER.debug('Computing %s(*%s, **%s)', node.task.__class__.__name__, str(task_args), str(node_input_kwargs))
         start_time = dt.datetime.now()
-        result = task(*task_args, **node_input_kwargs)
+        result, is_success = self._execute_task(node.task, task_args, node_input_kwargs, raise_errors=raise_errors)
         end_time = dt.datetime.now()
 
-        return result, NodeStats(start_time=start_time, end_time=end_time)
+        node_stats_params = {
+            'node_uid': node.uid,
+            'node_name': node.name,
+            'start_time': start_time,
+            'end_time': end_time
+        }
+
+        if is_success:
+            return result, NodeStats(**node_stats_params)
+
+        result: Tuple[BaseException, str]
+        exception, exception_traceback = result
+        LOGGER.error("Task '%s' with id %s failed with stack trace:\n%s", node.name, node.uid, exception_traceback)
+        return None, NodeStats(exception=exception, exception_traceback=exception_traceback, **node_stats_params)
+
+    @staticmethod
+    def _execute_task(task: EOTask, task_args: List[object], task_kwargs: Dict[str, object],
+                      raise_errors: bool) -> Tuple[object, bool]:
+        """ Executes an EOTask and handles any potential exceptions
+        """
+        if raise_errors:
+            return task.execute(*task_args, **task_kwargs), True
+
+        try:
+            return task.execute(*task_args, **task_kwargs), True
+        except KeyboardInterrupt as exception:
+            raise KeyboardInterrupt from exception
+        except BaseException as exception:
+            exception_traceback = traceback.format_exc()
+            return (exception, exception_traceback), False
 
     @staticmethod
     def _relax_dependencies(*, node: EONode, out_degrees: Dict[str, int], intermediate_results: Dict[str, object]):
@@ -305,3 +347,11 @@ class WorkflowResults:
     start_time: dt.datetime
     end_time: dt.datetime
     stats: Dict[str, NodeStats]
+    error_node_uid: Optional[str] = field(init=False, default=None)
+
+    def __post_init__(self):
+        """Checks if there is any node that failed during the workflow execution"""
+        for node_uid, node_stats in self.stats.items():
+            if node_stats.exception is not None:
+                super().__setattr__('error_node_uid', node_uid)
+                break

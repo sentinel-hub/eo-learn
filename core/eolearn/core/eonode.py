@@ -89,5 +89,9 @@ def linearly_connect_tasks(*tasks: Union[EOTask, Tuple[EOTask, str]]) -> List[EO
 class NodeStats:
     """ An object containing statistical info about a node execution
     """
+    node_uid: str
+    node_name: str
     start_time: dt.datetime
     end_time: dt.datetime
+    exception: Optional[BaseException] = None
+    exception_traceback: Optional[str] = None
