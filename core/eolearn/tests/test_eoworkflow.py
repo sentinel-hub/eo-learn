@@ -20,6 +20,10 @@ from eolearn.core import (
 from eolearn.core.eoworkflow import NodeStats
 
 
+class CustomException(ValueError):
+    pass
+
+
 class InputTask(EOTask):
     def execute(self, *, val=None):
         return val
@@ -30,14 +34,14 @@ class DivideTask(EOTask):
         return x / y + z
 
 
-class Inc(EOTask):
+class IncTask(EOTask):
     def execute(self, x, *, d=1):
         return x + d
 
 
-class Pow(EOTask):
-    def execute(self, x, *, n=2):
-        return x ** n
+class ExceptionTask(EOTask):
+    def execute(self, *_, **__):
+        raise CustomException
 
 
 def test_workflow_arguments():
@@ -70,9 +74,9 @@ def test_workflow_arguments():
 
 def test_get_nodes():
     in_node = EONode(InputTask())
-    inc_node0 = EONode(Inc(), inputs=[in_node])
-    inc_node1 = EONode(Inc(), inputs=[inc_node0])
-    inc_node2 = EONode(Inc(), inputs=[inc_node1])
+    inc_node0 = EONode(IncTask(), inputs=[in_node])
+    inc_node1 = EONode(IncTask(), inputs=[inc_node0])
+    inc_node2 = EONode(IncTask(), inputs=[inc_node1])
     output_node = EONode(OutputTask(name='out'), inputs=[inc_node2])
 
     eow = EOWorkflow([in_node, inc_node0, inc_node1, inc_node2, output_node])
@@ -96,12 +100,12 @@ def test_get_nodes():
 @pytest.mark.parametrize(
     'faulty_parameters',
     [
-        [InputTask(), Inc(), Inc()],
+        [InputTask(), IncTask(), IncTask()],
         EONode(InputTask()),
-        [EONode(Inc()), Inc()],
-        [EONode(Inc()), (EONode(Inc()), 'name')],
-        [EONode(Inc()), (EONode(Inc(), inputs=[EONode(Inc())]))],
-        [EONode(Inc()), (EONode(Inc()), Inc())],
+        [EONode(IncTask()), IncTask()],
+        [EONode(IncTask()), (EONode(IncTask()), 'name')],
+        [EONode(IncTask()), (EONode(IncTask(), inputs=[EONode(IncTask())]))],
+        [EONode(IncTask()), (EONode(IncTask()), IncTask())],
     ]
 )
 def test_input_exceptions(faulty_parameters):
@@ -111,9 +115,9 @@ def test_input_exceptions(faulty_parameters):
 
 def test_bad_structure_exceptions():
     in_node = EONode(InputTask())
-    inc_node0 = EONode(Inc(), inputs=[in_node])
-    inc_node1 = EONode(Inc(), inputs=[inc_node0])
-    inc_node2 = EONode(Inc(), inputs=[inc_node1])
+    inc_node0 = EONode(IncTask(), inputs=[in_node])
+    inc_node1 = EONode(IncTask(), inputs=[inc_node0])
+    inc_node2 = EONode(IncTask(), inputs=[inc_node1])
     output_node = EONode(OutputTask(name='out'), inputs=[inc_node2])
 
     # This one must work
@@ -135,7 +139,7 @@ def test_bad_structure_exceptions():
 
 def test_multiedge_workflow():
     in_node = EONode(InputTask())
-    inc_node = EONode(Inc(), inputs=[in_node])
+    inc_node = EONode(IncTask(), inputs=[in_node])
     div_node = EONode(DivideTask(), inputs=[inc_node, inc_node])
     output_node = EONode(OutputTask(name='out'), inputs=[div_node])
 
@@ -173,8 +177,8 @@ def test_workflow_copying_eopatches():
 def test_workflows_reusing_nodes():
 
     in_node = EONode(InputTask())
-    node1 = EONode(Inc(), inputs=[in_node])
-    node2 = EONode(Inc(), inputs=[node1])
+    node1 = EONode(IncTask(), inputs=[in_node])
+    node2 = EONode(IncTask(), inputs=[node1])
     out_node = EONode(OutputTask(name='out'), inputs=[node2])
     input_args = {in_node: {'val': 2}, node2: {'d': 2}}
 
@@ -193,6 +197,10 @@ def test_workflow_results():
 
     assert isinstance(results, WorkflowResults)
     assert results.outputs == {'out': 10}
+
+    results_without_outputs = results.drop_outputs()
+    assert results_without_outputs.outputs == {}
+    assert id(results_without_outputs) != id(results)
 
     assert isinstance(results.start_time, dt.datetime)
     assert isinstance(results.end_time, dt.datetime)
@@ -232,3 +240,32 @@ def test_workflow_from_endnodes():
         assert all(
             x.result().outputs['out'] == y.result().outputs['out'] for x, y in zip(regular_results, endnode_results)
         )
+
+
+def test_exception_handling():
+    input_node = EONode(InputTask(), name='xyz')
+    exception_node = EONode(ExceptionTask(), inputs=[input_node])
+    increase_node = EONode(IncTask(), inputs=[exception_node])
+    workflow = EOWorkflow([input_node, exception_node, increase_node])
+
+    with pytest.raises(CustomException):
+        workflow.execute()
+
+    results = workflow.execute(raise_errors=False)
+
+    assert results.outputs == {}
+    assert results.error_node_uid == exception_node.uid
+    assert len(results.stats) == 2
+
+    for node in [input_node, exception_node]:
+        node_stats = results.stats[node.uid]
+
+        assert node_stats.node_uid == node.uid
+        assert node_stats.node_name == node.name
+
+        if node is exception_node:
+            assert isinstance(node_stats.exception, CustomException)
+            assert node_stats.exception_traceback.startswith('Traceback')
+        else:
+            assert node_stats.exception is None
+            assert node_stats.exception_traceback is None

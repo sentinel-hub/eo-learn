@@ -16,7 +16,6 @@ file in the root directory of this source tree.
 """
 import inspect
 import logging
-import sys
 from abc import ABC, abstractmethod
 from typing import Dict
 from dataclasses import dataclass
@@ -57,20 +56,7 @@ class EOTask(ABC):
     def __call__(self, *eopatches, **kwargs):
         """ Executes the task and handles proper error propagation
         """
-        try:
-            return_value = self.execute(*eopatches, **kwargs)
-        except BaseException as exception:
-            traceback = sys.exc_info()[2]
-
-            # Some special exceptions don't accept an error message as a parameter and raise a TypeError in such case.
-            try:
-                errmsg = f'During execution of task {self.__class__.__name__}: {exception}'
-                extended_exception = type(exception)(errmsg)
-            except TypeError:
-                extended_exception = exception
-
-            raise extended_exception.with_traceback(traceback)
-        return return_value
+        return self.execute(*eopatches, **kwargs)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):

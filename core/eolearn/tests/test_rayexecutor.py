@@ -127,15 +127,15 @@ def test_execution_logs(filter_logs, execution_names, workflow, execution_args, 
             assert line_count == expected_line_count
 
 
-def test_execution_stats(workflow, execution_args, simple_cluster):
+def test_execution_results(workflow, execution_args, simple_cluster):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
         executor.run()
 
-        assert len(executor.execution_stats) == 4
-        for stats in executor.execution_stats:
-            for time_stat in ['start_time', 'end_time']:
-                assert time_stat in stats and isinstance(stats[time_stat], datetime.datetime)
+        assert len(executor.execution_results) == 4
+        for results in executor.execution_results:
+            for time_stat in [results.start_time, results.end_time]:
+                assert isinstance(time_stat, datetime.datetime)
 
 
 def test_execution_errors(workflow, execution_args, simple_cluster):
@@ -143,32 +143,25 @@ def test_execution_errors(workflow, execution_args, simple_cluster):
         executor = RayExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
         executor.run()
 
-        for idx, stats in enumerate(executor.execution_stats):
-            if idx != 3:
-                assert 'error' not in stats, f'Workflow {idx} should be executed without errors'
+        for idx, results in enumerate(executor.execution_results):
+            if idx == 3:
+                assert results.workflow_failed()
             else:
-                assert 'error' in stats and stats['error'], 'This workflow should be executed with an error'
+                assert not results.workflow_failed()
 
         assert executor.get_successful_executions() == [0, 1, 2]
         assert executor.get_failed_executions() == [3]
 
 
-@pytest.mark.parametrize('return_results', [True, False])
-def test_execution_results(return_results, workflow, execution_args, simple_cluster):
+def test_execution_results(workflow, execution_args, simple_cluster):
     executor = RayExecutor(workflow, execution_args)
-    results = executor.run(return_results=return_results)
+    results = executor.run()
 
-    if return_results:
-        assert isinstance(results, list)
-
-        for idx, workflow_results in enumerate(results):
-            if idx == 3:
-                assert workflow_results is None
-            else:
-                assert isinstance(workflow_results, WorkflowResults)
-                assert workflow_results.outputs['output'] == 42
-    else:
-        assert results is None
+    assert isinstance(results, list)
+    for idx, workflow_results in enumerate(results):
+        assert isinstance(workflow_results, WorkflowResults)
+        if idx != 3:
+            assert workflow_results.outputs['output'] == 42
 
 
 def test_keyboard_interrupt(simple_cluster):
@@ -202,10 +195,10 @@ def test_run_after_interrupt(workflow, execution_args, simple_cluster):
     exception_executor = RayExecutor(exception_workflow, [{}])
     executor = RayExecutor(workflow, execution_args[:-1])  # removes args for exception
 
-    result_preexception = executor.run(return_results=True)
+    result_preexception = executor.run()
     with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
         exception_executor.run()
-    result_postexception = executor.run(return_results=True)
+    result_postexception = executor.run()
 
     assert [res.outputs for res in result_preexception] == [res.outputs for res in result_postexception]
 
@@ -216,4 +209,8 @@ def test_mix_with_eoexecutor(workflow, execution_args, simple_cluster):
     for _ in range(10):
         ray_results = rayexecutor.run()
         eo_results = eoexecutor.run()
-        assert ray_results == eo_results
+
+        ray_outputs = [results.outputs for results in ray_results]
+        eo_outputs = [results.outputs for results in eo_results]
+
+        assert ray_outputs == eo_outputs

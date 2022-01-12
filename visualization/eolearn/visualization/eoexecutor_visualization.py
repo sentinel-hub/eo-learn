@@ -14,7 +14,6 @@ import os
 import inspect
 import warnings
 import base64
-import copy
 from collections import OrderedDict, defaultdict
 
 try:
@@ -47,7 +46,7 @@ class EOExecutorVisualization:
     def make_report(self):
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
-        if self.eoexecutor.execution_stats is None:
+        if self.eoexecutor.execution_results is None:
             raise RuntimeError('Cannot produce a report without running the executor first, check EOExecutor.run '
                                'method')
 
@@ -72,7 +71,8 @@ class EOExecutorVisualization:
                                general_stats=self.eoexecutor.general_stats,
                                task_descriptions=self._get_node_descriptions(),
                                task_sources=self._render_task_sources(formatter),
-                               execution_stats=self._render_execution_errors(formatter),
+                               execution_results=self.eoexecutor.execution_results,
+                               execution_tracebacks=self._render_execution_tracebacks(formatter),
                                execution_logs=self.eoexecutor.execution_logs,
                                execution_names=self.eoexecutor.execution_names,
                                code_css=formatter.get_style_defs())
@@ -137,23 +137,22 @@ class EOExecutorVisualization:
 
         return sources
 
-    def _render_execution_errors(self, formatter):
+    def _render_execution_tracebacks(self, formatter):
         """ Renders stack traces of those executions which failed
         """
         tb_lexer = pygments.lexers.get_lexer_by_name("py3tb", stripall=True)
 
-        executions = []
+        tracebacks = []
+        for results in self.eoexecutor.execution_results:
+            if results.workflow_failed():
+                failed_node_stats = results.stats[results.error_node_uid]
+                traceback = pygments.highlight(failed_node_stats.exception_traceback, tb_lexer, formatter)
+            else:
+                traceback = None
 
-        for orig_execution in self.eoexecutor.execution_stats:
-            execution = copy.deepcopy(orig_execution)
+            tracebacks.append(traceback)
 
-            if self.eoexecutor.STATS_ERROR in execution:
-                execution[self.eoexecutor.STATS_ERROR] = pygments.highlight(execution[self.eoexecutor.STATS_ERROR],
-                                                                            tb_lexer, formatter)
-
-            executions.append(execution)
-
-        return executions
+        return tracebacks
 
     def _get_template(self):
         """ Loads and sets up a template for report

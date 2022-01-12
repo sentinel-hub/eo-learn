@@ -92,8 +92,8 @@
         </ul>
 
         <p>
-            {% for execution in execution_stats %}
-                <a class="exec-status {{ 'exec-failed' if 'error' in execution else 'exec-finished' }}"
+            {% for execution in execution_results %}
+                <a class="exec-status {{ 'exec-failed' if execution.workflow_failed() else 'exec-finished' }}"
                    title="Execution {{ execution_names[loop.index - 1] }}"
                    href="#execution{{ loop.index }}"
                 ></a>
@@ -154,19 +154,19 @@
     <h2> Execution details </h2>
 
     <div class="indent">
-        {% for execution in execution_stats %}
+        {% for execution in execution_results %}
             <h3 id="execution{{ loop.index }}"> Execution {{ execution_names[loop.index - 1] }} </h3>
 
             <div class="indent">
                 Statistics<br/>
                 <ul>
-                    <li>Start time: {{ execution['start_time'] | datetime }}</li>
-                    <li>End time: {{ execution['end_time'] | datetime }}</li>
-                    <li>Duration: {{ timedelta(execution['start_time'], execution['end_time']) }}</li>
+                    <li>Start time: {{ execution.start_time | datetime }}</li>
+                    <li>End time: {{ execution.end_time | datetime }}</li>
+                    <li>Duration: {{ timedelta(execution.start_time, execution.end_time) }}</li>
                 </ul>
-                {% if 'error' in execution %}
+                {% if execution.workflow_failed() %}
                     Error<br/>
-                    {{ execution['error'] }}
+                    {{ execution_tracebacks[loop.index - 1] }}
                 {% endif %}
 
                 <button class="collapsible">Logs</button>

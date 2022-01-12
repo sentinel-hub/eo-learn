@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 try:
     import ray
 except ImportError as exception:
-    raise ImportError('This module requires an installation of ray Python package') from exception
+    raise ImportError('This module requires an installation of Ray Python package') from exception
 from tqdm.auto import tqdm
 
 from ..eoexecution import EOExecutor, _ProcessingType
@@ -21,22 +21,19 @@ from ..eoexecution import EOExecutor, _ProcessingType
 class RayExecutor(EOExecutor):
     """ A special type of `EOExecutor` that works with Ray framework
     """
-    def run(self, return_results=False):
+    def run(self):
         """ Runs the executor using a Ray cluster
 
         Before calling this method make sure to initialize a Ray cluster using `ray.init`.
 
-        :param return_results: If `True` this method will return a list of all results of the execution. Note that
-            this might exceed the available memory. By default this parameter is set to `False`.
-        :type: bool
-        :return: If `return_results` is set to `True` it will return a list of results, otherwise it will return `None`
+        :return: A list of EOWorkflow results
         :rtype: None or list(eolearn.core.WorkflowResults)
         """
         if not ray.is_initialized():
             raise RuntimeError('Please initialize a Ray cluster before calling this method')
 
         workers = ray.available_resources().get('CPU')
-        return super().run(workers=workers, multiprocess=True, return_results=return_results)
+        return super().run(workers=workers, multiprocess=True)
 
     @staticmethod
     def _get_processing_type(*_, **__):

@@ -136,15 +136,15 @@ def test_execution_logs(test_args, execution_names, workflow, execution_args):
             assert line_count == expected_line_count
 
 
-def test_execution_stats(workflow, execution_args):
+def test_execution_results(workflow, execution_args):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
         executor.run(workers=2)
 
-        assert len(executor.execution_stats) == 4
-        for stats in executor.execution_stats:
-            for time_stat in ['start_time', 'end_time']:
-                assert time_stat in stats and isinstance(stats[time_stat], datetime.datetime)
+        assert len(executor.execution_results) == 4
+        for results in executor.execution_results:
+            for time_stat in [results.start_time, results.end_time]:
+                assert isinstance(time_stat, datetime.datetime)
 
 
 @pytest.mark.parametrize('multiprocess', [True, False])
@@ -153,32 +153,26 @@ def test_execution_errors(multiprocess, workflow, execution_args):
         executor = EOExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
         executor.run(workers=5, multiprocess=multiprocess)
 
-        for idx, stats in enumerate(executor.execution_stats):
-            if idx != 3:
-                assert 'error' not in stats, f'Workflow {idx} should be executed without errors'
+        for idx, results in enumerate(executor.execution_results):
+            if idx == 3:
+                assert results.workflow_failed()
             else:
-                assert 'error' in stats and stats['error'], 'This workflow should be executed with an error'
+                assert not results.workflow_failed()
 
         assert executor.get_successful_executions() == [0, 1, 2]
         assert executor.get_failed_executions() == [3]
 
 
-@pytest.mark.parametrize('return_results', [True, False])
-def test_execution_results(return_results, workflow, execution_args):
+def test_execution_results(workflow, execution_args):
     executor = EOExecutor(workflow, execution_args)
-    results = executor.run(workers=2, multiprocess=True, return_results=return_results)
+    results = executor.run(workers=2, multiprocess=True)
 
-    if return_results:
-        assert isinstance(results, list)
+    assert isinstance(results, list)
 
-        for idx, workflow_results in enumerate(results):
-            if idx == 3:
-                assert workflow_results is None
-            else:
-                assert isinstance(workflow_results, WorkflowResults)
-                assert workflow_results.outputs['output'] == 42
-    else:
-        assert results is None
+    for idx, workflow_results in enumerate(results):
+        assert isinstance(workflow_results, WorkflowResults)
+        if idx != 3:
+            assert workflow_results.outputs['output'] == 42
 
 
 def test_exceptions(workflow, execution_args):
