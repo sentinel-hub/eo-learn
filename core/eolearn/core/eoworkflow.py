@@ -229,7 +229,7 @@ class EOWorkflow:
 
     def _execute_node(
         self, *, node: EONode, node_input_values: List[object], node_input_kwargs: Dict[str, object], raise_errors: bool
-    ) -> Tuple[object, 'NodeStats']:
+    ) -> Tuple[object, NodeStats]:
         """ Executes a node in the workflow by running its task and returning the results
 
         :param node: A node of the workflow.
@@ -255,7 +255,6 @@ class EOWorkflow:
         if is_success:
             return result, NodeStats(**node_stats_params)
 
-        result: Tuple[BaseException, str]
         exception, exception_traceback = result
         LOGGER.error("Task '%s' with id %s failed with stack trace:\n%s", node.name, node.uid, exception_traceback)
         return None, NodeStats(exception=exception, exception_traceback=exception_traceback, **node_stats_params)

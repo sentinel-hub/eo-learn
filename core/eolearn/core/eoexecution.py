@@ -21,8 +21,8 @@ import datetime as dt
 import multiprocessing
 import warnings
 from enum import Enum
-from logging import Filter
-from typing import List, Dict, Optional
+from logging import Logger, Handler, Filter
+from typing import Sequence, List, Tuple, Dict, Optional, Callable
 
 from tqdm.auto import tqdm
 
@@ -54,14 +54,14 @@ class EOExecutor:
     STATS_START_TIME = 'start_time'
     STATS_END_TIME = 'end_time'
 
-    def __init__(self, workflow: EOWorkflow, execution_args: List[Dict[EONode, Dict[str, object]]], *,
+    def __init__(self, workflow: EOWorkflow, execution_args: Sequence[Dict[EONode, Dict[str, object]]], *,
                  save_logs: bool = False, logs_folder: str = '.', logs_filter: Optional[Filter] = None,
                  execution_names: Optional[List[str]] = None):
         """
         :param workflow: A prepared instance of EOWorkflow class
         :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the
             workflow. `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The
-            content of such dictionary will be used as `input_args` parameter in `EOWorkflow.execution` method.
+            content of such dictionary will be used as `input_kwargs` parameter in `EOWorkflow.execution` method.
             Check `EOWorkflow.execution` for definition of a dictionary structure.
         :param save_logs: Flag used to specify if execution log files should be saved locally on disk
         :param logs_folder: A folder where logs and execution report should be saved
@@ -95,7 +95,7 @@ class EOExecutor:
         return [input_kwargs or {} for input_kwargs in execution_args]
 
     @staticmethod
-    def _parse_execution_names(execution_names, execution_args: Optional[List[str]]) -> List[str]:
+    def _parse_execution_names(execution_names: object, execution_args: Sequence) -> List[str]:
         """ Parses a list of execution names
         """
         if execution_names is None:
@@ -123,8 +123,8 @@ class EOExecutor:
         """
         self.start_time = dt.datetime.now()
         self.report_folder = self._get_report_folder()
-        if self.save_logs and not os.path.isdir(self.report_folder):
-            os.makedirs(self.report_folder)
+        if self.save_logs:
+            os.makedirs(self.report_folder, exist_ok=True)
 
         log_paths = self._get_log_paths()
 
@@ -156,7 +156,8 @@ class EOExecutor:
             return _ProcessingType.MULTIPROCESSING
         return _ProcessingType.MULTITHREADING
 
-    def _run_execution(self, processing_args, workers: int, processing_type: _ProcessingType) -> List[WorkflowResults]:
+    def _run_execution(self, processing_args: Sequence, workers: int,
+                       processing_type: _ProcessingType) -> List[WorkflowResults]:
         """ Runs the execution an each item of processing_args list
         """
         if processing_type is _ProcessingType.SINGLE_PROCESS:
@@ -178,7 +179,8 @@ class EOExecutor:
         return result
 
     @classmethod
-    def _try_add_logging(cls, log_path, filter_logs_by_thread, logs_filter):
+    def _try_add_logging(cls, log_path: str, filter_logs_by_thread: bool,
+                         logs_filter: Optional[Filter]) -> Tuple[Optional[Logger], Optional[Handler]]:
         """ Adds a handler to a logger and returns them both. In case this fails it shows a warning.
         """
         if log_path:
@@ -194,7 +196,7 @@ class EOExecutor:
         return None, None
 
     @classmethod
-    def _try_remove_logging(cls, log_path, logger, handler):
+    def _try_remove_logging(cls, log_path: str, logger: Optional[Logger], handler: Optional[Handler]):
         """ Removes a handler from a logger in case that handler exists.
         """
         if log_path and logger:
@@ -205,7 +207,7 @@ class EOExecutor:
                 warnings.warn(f'Failed to end logging with exception: {repr(exception)}', category=EORuntimeWarning)
 
     @classmethod
-    def _execute_workflow(cls, process_args):
+    def _execute_workflow(cls, process_args: object) -> WorkflowResults:
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, filter_logs_by_thread, logs_filter = process_args
@@ -223,7 +225,7 @@ class EOExecutor:
         return results
 
     @staticmethod
-    def _get_log_handler(log_path, filter_logs_by_thread, logs_filter):
+    def _get_log_handler(log_path: str, filter_logs_by_thread: bool, logs_filter: Optional[Filter]) -> Handler:
         """ Provides object which handles logs
         """
         handler = logging.FileHandler(log_path)
@@ -238,7 +240,7 @@ class EOExecutor:
 
         return handler
 
-    def _prepare_general_stats(self, workers, processing_type):
+    def _prepare_general_stats(self, workers: int, processing_type: _ProcessingType) -> Dict[str, object]:
         """ Prepares a dictionary with a general statistics about executions
         """
         failed_count = sum(results.workflow_failed() for results in self.execution_results)
@@ -251,13 +253,13 @@ class EOExecutor:
             'workers': workers
         }
 
-    def _get_report_folder(self):
+    def _get_report_folder(self) -> str:
         """ Returns file path of folder where report will be saved
         """
         return os.path.join(self.logs_folder,
                             f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}')
 
-    def _get_log_paths(self):
+    def _get_log_paths(self) -> List[Optional[str]]:
         """ Returns a list of file paths containing logs
         """
         if self.save_logs:
@@ -266,29 +268,26 @@ class EOExecutor:
 
         return [None] * len(self.execution_names)
 
-    def get_successful_executions(self):
+    def get_successful_executions(self) -> List[int]:
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_args) - 1]`, sorted in increasing order.
 
         :return: List of successful execution IDs
-        :rtype: list(int)
         """
         return [idx for idx, results in enumerate(self.execution_results) if not results.workflow_failed()]
 
-    def get_failed_executions(self):
+    def get_failed_executions(self) -> List[int]:
         """ Returns a list of IDs of failed executions. The IDs are integers from interval
         `[0, len(execution_args) - 1]`, sorted in increasing order.
 
         :return: List of failed execution IDs
-        :rtype: list(int)
         """
         return [idx for idx, results in enumerate(self.execution_results) if results.workflow_failed()]
 
-    def get_report_filename(self):
+    def get_report_filename(self) -> str:
         """ Returns the filename and file path of the report
 
         :return: Report filename
-        :rtype: str
         """
         return os.path.join(self.report_folder, self.REPORT_FILENAME)
 
@@ -305,7 +304,7 @@ class EOExecutor:
         return EOExecutorVisualization(self).make_report()
 
 
-def execute_with_mp_lock(execution_function, *args, **kwargs):
+def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:
     """ A helper utility function that executes a given function with multiprocessing lock if the process is being
     executed in a multi-processing mode
 
