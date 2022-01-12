@@ -198,6 +198,10 @@ def test_workflow_results():
     assert isinstance(results, WorkflowResults)
     assert results.outputs == {'out': 10}
 
+    results_without_outputs = results.drop_outputs()
+    assert results_without_outputs.outputs == {}
+    assert id(results_without_outputs) != id(results)
+
     assert isinstance(results.start_time, dt.datetime)
     assert isinstance(results.end_time, dt.datetime)
     assert results.start_time < results.end_time < dt.datetime.now()

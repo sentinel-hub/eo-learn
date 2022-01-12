@@ -133,8 +133,9 @@ class EOExecutor:
                            for init_args, log_path in zip(self.execution_args, log_paths)]
         processing_type = self._get_processing_type(workers, multiprocess)
 
-        self.execution_results = self._run_execution(processing_args, workers, processing_type)
+        full_execution_results = self._run_execution(processing_args, workers, processing_type)
 
+        self.execution_results = [results.drop_outputs() for results in full_execution_results]
         self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         self.execution_logs = [None] * len(self.execution_args)
@@ -143,7 +144,7 @@ class EOExecutor:
                 with open(log_path) as fin:
                     self.execution_logs[idx] = fin.read()
 
-        return self.execution_results
+        return full_execution_results
 
     @staticmethod
     def _get_processing_type(workers: int, multiprocess: bool) -> _ProcessingType:

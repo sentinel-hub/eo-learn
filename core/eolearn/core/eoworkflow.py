@@ -24,7 +24,7 @@ import logging
 import traceback
 import datetime as dt
 from typing import Dict, List, Optional, Sequence, Tuple, Set
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
@@ -359,3 +359,11 @@ class WorkflowResults:
     def workflow_failed(self) -> bool:
         """Informs if the EOWorkflow execution failed"""
         return self.error_node_uid is not None
+
+    def drop_outputs(self) -> 'WorkflowResults':
+        """Creates a new WorkflowResults object without outputs which can take a lot of memory"""
+        new_params = {
+            param.name: {} if param.name == 'outputs' else getattr(self, param.name)
+            for param in fields(self) if param.init
+        }
+        return WorkflowResults(**new_params)
