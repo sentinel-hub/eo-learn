@@ -32,8 +32,9 @@ from .exceptions import EORuntimeWarning
 from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
-
 MULTIPROCESSING_LOCK = None
+
+_ExecutorProcessingArgsType = Tuple[EOWorkflow, Dict[EONode, Dict[str, object]], str, bool, Filter]
 
 
 class _ProcessingType(Enum):
@@ -83,7 +84,8 @@ class EOExecutor:
         self.execution_results = None
 
     @staticmethod
-    def _parse_and_validate_execution_args(execution_args: object) -> List[Dict[EONode, Dict[str, object]]]:
+    def _parse_and_validate_execution_args(
+            execution_args: Sequence[Dict[EONode, Dict[str, object]]]) -> List[Dict[EONode, Dict[str, object]]]:
         """ Parses and validates execution arguments provided by user and raises an error if something is wrong
         """
         if not isinstance(execution_args, (list, tuple)):
@@ -95,7 +97,7 @@ class EOExecutor:
         return [input_kwargs or {} for input_kwargs in execution_args]
 
     @staticmethod
-    def _parse_execution_names(execution_names: object, execution_args: Sequence) -> List[str]:
+    def _parse_execution_names(execution_names: Optional[List[str]], execution_args: Sequence) -> List[str]:
         """ Parses a list of execution names
         """
         if execution_names is None:
@@ -156,7 +158,7 @@ class EOExecutor:
             return _ProcessingType.MULTIPROCESSING
         return _ProcessingType.MULTITHREADING
 
-    def _run_execution(self, processing_args: Sequence, workers: int,
+    def _run_execution(self, processing_args: List[_ExecutorProcessingArgsType], workers: int,
                        processing_type: _ProcessingType) -> List[WorkflowResults]:
         """ Runs the execution an each item of processing_args list
         """
@@ -207,7 +209,7 @@ class EOExecutor:
                 warnings.warn(f'Failed to end logging with exception: {repr(exception)}', category=EORuntimeWarning)
 
     @classmethod
-    def _execute_workflow(cls, process_args: object) -> WorkflowResults:
+    def _execute_workflow(cls, process_args: _ExecutorProcessingArgsType) -> WorkflowResults:
         """ Handles a single execution of a workflow
         """
         workflow, input_args, log_path, filter_logs_by_thread, logs_filter = process_args
