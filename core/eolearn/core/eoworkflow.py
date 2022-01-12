@@ -163,7 +163,7 @@ class EOWorkflow:
             stats=stats_dict
         )
 
-        LOGGER.debug('Workflow finished with %s', repr(results))
+        LOGGER.debug('EOWorkflow ended with results %s', repr(results))
         return results
 
     @staticmethod
@@ -355,3 +355,7 @@ class WorkflowResults:
             if node_stats.exception is not None:
                 super().__setattr__('error_node_uid', node_uid)
                 break
+
+    def workflow_failed(self) -> bool:
+        """Informs if the EOWorkflow execution failed"""
+        return self.error_node_uid is not None
