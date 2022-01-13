@@ -120,23 +120,22 @@ class InterpolationTask(EOTask):
                  copy_features=None, unknown_value=np.nan, filling_factor=10, scale_time=3600,
                  interpolate_pixel_wise=False, **interpolation_parameters):
 
-        self.feature = self._parse_features(feature, new_names=True, default_feature_type=FeatureType.DATA,
-                                            allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
+        self.renamed_feature = self.parse_renamed_feature(feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
 
         self.interpolation_object = interpolation_object
         self.resample_range = resample_range
         self.result_interval = result_interval
 
-        self.mask_feature = None if mask_feature is None else \
-            self._parse_features(mask_feature, default_feature_type=FeatureType.MASK,
-                                 allowed_feature_types={FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL})
+        self.mask_feature_parser = None if mask_feature is None else self.get_feature_parser(
+                mask_feature, allowed_feature_types={FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL}
+            )
 
         if resample_range is None and copy_features is not None:
             self.copy_features = None
             warnings.warn('Argument "copy_features" will be ignored if "resample_range" is None. Nothing to copy.',
                           EOUserWarning)
         else:
-            self.copy_features = None if copy_features is None else self._parse_features(copy_features, new_names=True)
+            self.copy_features_parser = None if copy_features is None else self.get_feature_parser(copy_features)
 
         self.unknown_value = unknown_value
         self.interpolation_parameters = interpolation_parameters
@@ -238,23 +237,19 @@ class InterpolationTask(EOTask):
 
         return data, times
 
-    @staticmethod
-    def _copy_old_features(new_eopatch, old_eopatch, copy_features):
+    def _copy_old_features(self, new_eopatch, old_eopatch):
         """ Copy features from old EOPatch
 
         :param new_eopatch: New EOPatch container where the old features will be copied to
         :type new_eopatch: EOPatch
         :param old_eopatch: Old EOPatch container where the old features are located
         :type old_eopatch: EOPatch
-        :param copy_features: List of tuples of type (FeatureType, str) or (FeatureType, str, str) that are copied
-            over into the new EOPatch. The first string is the feature name, and the second one (optional) is a new name
-            to be used for the feature
-        :type copy_features: list((FeatureType, str) or (FeatureType, str, str))
         """
-        if copy_features:
+        if self.copy_features_parser is not None:
             existing_features = set(new_eopatch.get_feature_list())
 
-            for copy_feature_type, copy_feature_name, copy_new_feature_name in copy_features(old_eopatch):
+            renamed_features = self.copy_features_parser.get_renamed_features(old_eopatch)
+            for copy_feature_type, copy_feature_name, copy_new_feature_name in renamed_features:
                 new_feature = copy_feature_type, copy_new_feature_name
 
                 if new_feature in existing_features:
@@ -390,7 +385,7 @@ class InterpolationTask(EOTask):
         """ Execute method that processes EOPatch and returns EOPatch
         """
         # pylint: disable=too-many-locals
-        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
+        feature_type, feature_name, new_feature_name = self.renamed_feature
 
         # Make a copy not to change original numpy array
         feature_data = eopatch[feature_type][feature_name].copy()
@@ -400,8 +395,8 @@ class InterpolationTask(EOTask):
                              'required at least size 2')
 
         # Apply a mask on data
-        if self.mask_feature is not None:
-            for mask_type, mask_name in self.mask_feature(eopatch):
+        if self.mask_feature_parser is not None:
+            for mask_type, mask_name in self.mask_feature_parser.get_features(eopatch):
                 negated_mask = ~eopatch[mask_type][mask_name].astype(bool)
                 feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
 
@@ -442,7 +437,7 @@ class InterpolationTask(EOTask):
                                                                  (feature_data.shape[0], height, width, band_num))
 
         # append features from old patch
-        new_eopatch = self._copy_old_features(new_eopatch, eopatch, self.copy_features)
+        new_eopatch = self._copy_old_features(new_eopatch, eopatch)
 
         return new_eopatch
 

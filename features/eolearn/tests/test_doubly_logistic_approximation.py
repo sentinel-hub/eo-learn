@@ -18,7 +18,9 @@ def test_double_logistic_approximation(example_eopatch):
     eopatch.data['TEST'] = np.reshape(data[start:stop, 0, 0, 0], (-1, 1, 1, 1))
     eopatch.mask['IS_VALID'] = np.reshape(mask[start:stop, 0, 0, 0], (-1, 1, 1, 1))
     eopatch = DoublyLogisticApproximationTask(
-        feature='TEST', valid_mask=(FeatureType.MASK, 'IS_VALID'), new_feature='TEST_OUT'
+        feature=(FeatureType.DATA, 'TEST'),
+        valid_mask=(FeatureType.MASK, 'IS_VALID'),
+        new_feature=(FeatureType.DATA_TIMELESS, 'TEST_OUT')
     ).execute(eopatch)
 
     names = 'c1', 'c2', 'a1', 'a2', 'a3', 'a4', 'a5'

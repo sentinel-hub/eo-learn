@@ -38,9 +38,10 @@ class SuperpixelSegmentationTask(EOTask):
             `skimage.segmentation.felzenszwalb`
         :param segmentation_params: Additional parameters which will be passed to segmentation_object function
         """
-        self.feature_checker = self._parse_features(feature, allowed_feature_types=FeatureTypeSet.SPATIAL_TYPES)
-        self.superpixel_feature = next(self._parse_features(superpixel_feature,
-                                                            allowed_feature_types={FeatureType.MASK_TIMELESS})())
+        self.feature = self.parse_feature(feature, allowed_feature_types=FeatureTypeSet.SPATIAL_TYPES)
+        self.superpixel_feature = self.parse_feature(
+            superpixel_feature, allowed_feature_types={FeatureType.MASK_TIMELESS}
+        )
         self.segmentation_object = segmentation_object
         self.segmentation_params = segmentation_params
 
@@ -54,22 +55,19 @@ class SuperpixelSegmentationTask(EOTask):
     def execute(self, eopatch):
         """ Main execute method
         """
-        feature_type, feature_name = next(self.feature_checker(eopatch))
-
-        data = eopatch[feature_type][feature_name]
+        data = eopatch[self.feature]
 
         if np.isnan(data).any():
             warnings.warn('There are NaN values in given data, super-pixel segmentation might produce bad results',
                           EORuntimeWarning)
 
-        if feature_type.is_time_dependent():
+        if self.feature[0].is_time_dependent():
             data = np.moveaxis(data, 0, 2)
             data = data.reshape((data.shape[0], data.shape[1], data.shape[2] * data.shape[3]))
 
         superpixel_mask = np.atleast_3d(self._create_superpixel_mask(data))
 
-        new_feature_type, new_feature_name = self.superpixel_feature
-        eopatch[new_feature_type][new_feature_name] = superpixel_mask
+        eopatch[self.superpixel_feature] = superpixel_mask
 
         return eopatch
 
@@ -124,16 +122,15 @@ class MarkSegmentationBoundariesTask(EOTask):
         :param params: Additional parameters which will be passed to `mark_boundaries`. Supported parameters are `mode`
             and `background_label`
         """
-        self.feature_checker = self._parse_features(feature, allowed_feature_types={FeatureType.MASK_TIMELESS})
-        self.new_feature = next(self._parse_features(new_feature, allowed_feature_types={FeatureType.MASK_TIMELESS})())
+        self.feature = self.parse_feature(feature, allowed_feature_types={FeatureType.MASK_TIMELESS})
+        self.new_feature = self.parse_feature(new_feature, allowed_feature_types={FeatureType.MASK_TIMELESS})
 
         self.params = params
 
     def execute(self, eopatch):
         """ Execute method
         """
-        feature_type, feature_name = next(self.feature_checker(eopatch))
-        segmentation_mask = eopatch[feature_type][feature_name][..., 0]
+        segmentation_mask = eopatch[self.feature][..., 0]
 
         bounds_mask = skimage.segmentation.mark_boundaries(
             np.zeros(segmentation_mask.shape[:2], dtype=np.uint8), segmentation_mask, **self.params)

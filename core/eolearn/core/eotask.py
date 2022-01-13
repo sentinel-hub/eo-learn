@@ -18,10 +18,12 @@ import inspect
 import logging
 import sys
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, Iterable, Optional
 from dataclasses import dataclass
 
-from .utilities import FeatureParser
+from eolearn.core.constants import FeatureType
+
+from .utilities import FeatureParser, parse_feature, parse_renamed_feature, parse_features, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +31,11 @@ LOGGER = logging.getLogger(__name__)
 class EOTask(ABC):
     """ Base class for EOTask
     """
+    parse_feature = staticmethod(parse_feature)
+    parse_renamed_feature = staticmethod(parse_renamed_feature)
+    parse_features = staticmethod(parse_features)
+    parse_renamed_features = staticmethod(parse_renamed_features)
+
     def __new__(cls, *args, **kwargs):
         """ Stores initialization parameters and the order to the instance attribute `init_args`.
         """
@@ -79,12 +86,10 @@ class EOTask(ABC):
         raise NotImplementedError
 
     @staticmethod
-    def _parse_features(features, new_names=False, rename_function=None, default_feature_type=None,
-                        allowed_feature_types=None):
-        """ See eolearn.core.utilities.FeatureParser class.
+    def get_feature_parser(features, allowed_feature_types: Optional[Iterable[FeatureType]] = None) -> FeatureParser:
+        """ See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
-        return FeatureParser(features, new_names=new_names, rename_function=rename_function,
-                             default_feature_type=default_feature_type, allowed_feature_types=allowed_feature_types)
+        return FeatureParser(features, allowed_feature_types=allowed_feature_types)
 
 
 @dataclass(frozen=True)

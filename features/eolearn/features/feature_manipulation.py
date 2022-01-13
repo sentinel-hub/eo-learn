@@ -39,9 +39,9 @@ class SimpleFilterTask(EOTask):
         :param filter_features: A collection of features which will be filtered
         :type filter_features: dict(FeatureType: set(str))
         """
-        self.feature = self._parse_features(feature)
+        self.feature = self.parse_feature(feature)
         self.filter_func = filter_func
-        self.filter_features = self._parse_features(filter_features)
+        self.filter_features_parser = self.get_feature_parser(filter_features)
 
     def _get_filtered_indices(self, feature_data):
         return [idx for idx, img in enumerate(feature_data) if self.filter_func(img)]
@@ -56,14 +56,11 @@ class SimpleFilterTask(EOTask):
         :return: Transformed eo patch
         :rtype: EOPatch
         """
-        feature_type, feature_name = next(self.feature(eopatch))
-
-        good_idxs = self._get_filtered_indices(eopatch[feature_type][feature_name] if feature_name is not ... else
-                                               eopatch[feature_type])
+        good_idxs = self._get_filtered_indices(eopatch[self.feature])
         if not good_idxs:
             raise RuntimeError('EOPatch has no good indices after filtering with given filter function')
 
-        for feature_type, feature_name in self.filter_features(eopatch):
+        for feature_type, feature_name in self.filter_features_parser.get_features(eopatch):
             if feature_type.is_time_dependent():
                 if feature_type.has_dict():
                     if feature_type.contains_ndarrays():
@@ -133,7 +130,7 @@ class ValueFilloutTask(EOTask):
         if operations not in ['f', 'b', 'fb', 'bf']:
             raise ValueError("'operations' parameter should be one of the following options: f, b, fb, bf.")
 
-        self.feature = next(self._parse_features(feature)())
+        self.feature = self.parse_feature(feature)
         self.operations = operations
         self.value = value
         self.axis = axis

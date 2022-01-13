@@ -33,16 +33,13 @@ class ReferenceScenesTask(EOTask):
 
     """
     def __init__(self, feature, valid_fraction_feature, max_scene_number=None):
-        self.feature = self._parse_features(feature, new_names=True,
-                                            default_feature_type=FeatureType.DATA,
-                                            rename_function='{}_REFERENCE'.format)
-        self.valid_fraction_feature = self._parse_features(valid_fraction_feature,
-                                                           default_feature_type=FeatureType.SCALAR)
+        self.renamed_feature = self.parse_renamed_feature(feature)
+        self.valid_fraction_feature = self.parse_feature(valid_fraction_feature)
         self.number = max_scene_number
 
     def execute(self, eopatch):
-        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
-        valid_fraction_feature_type, valid_fraction_feature_name = next(self.valid_fraction_feature(eopatch))
+        feature_type, feature_name, new_feature_name = self.renamed_feature
+        valid_fraction_feature_type, valid_fraction_feature_name = self.valid_fraction_feature
 
         valid_frac = list(eopatch[valid_fraction_feature_type][valid_fraction_feature_name].flatten())
         data = eopatch[feature_type][feature_name]
@@ -80,11 +77,8 @@ class BaseCompositingTask(EOTask):
 
     def __init__(self, feature, feature_composite, percentile=None, max_index=255, interpolation='lower',
                  no_data_value=np.nan):
-        self.feature = self._parse_features(feature,
-                                            default_feature_type=FeatureType.DATA,
-                                            rename_function='{}_COMPOSITE'.format)
-        self.composite_type, self.composite_name = next(
-            self._parse_features(feature_composite, default_feature_type=FeatureType.DATA_TIMELESS)())
+        self.feature = self.parse_feature(feature)
+        self.composite_type, self.composite_name = self.parse_feature(feature_composite)
         self.percentile = percentile
         self.max_index = max_index
         self.interpolation = interpolation
@@ -156,8 +150,7 @@ class BaseCompositingTask(EOTask):
             :param eopatch: eopatch holding time-series
             :return: eopatch with composite image of time-series
         """
-        feature_type, feature_name = next(self.feature(eopatch))
-        data = eopatch[feature_type][feature_name].copy()
+        data = eopatch[self.feature].copy()
 
         # compute band according to compositing method (e.g. blue, maxNDVI, maxNDWI)
         reference_bands = self._get_reference_band(data)
@@ -346,10 +339,8 @@ class HistogramMatchingTask(EOTask):
         """
 
     def __init__(self, feature, reference):
-        self.feature = self._parse_features(feature, new_names=True,
-                                            default_feature_type=FeatureType.DATA,
-                                            rename_function='{}_NORMALISED'.format)
-        self.reference = self._parse_features(reference, default_feature_type=FeatureType.DATA_TIMELESS)
+        self.renamed_feature = self.parse_renamed_feature(feature)
+        self.reference = self.parse_feature(reference)
 
     def execute(self, eopatch):
         """ Perform histogram matching of the time-series with respect to a reference scene
@@ -358,8 +349,8 @@ class HistogramMatchingTask(EOTask):
             :type eopatch: EOPatch
             :return: The same eopatch instance with the normalised time-series
         """
-        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
-        reference_type, reference_name = next(self.reference(eopatch))
+        feature_type, feature_name, new_feature_name = self.renamed_feature
+        reference_type, reference_name = self.reference
 
         reference_scene = eopatch[reference_type][reference_name]
         # check if band dimension matches

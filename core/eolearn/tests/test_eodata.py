@@ -282,6 +282,24 @@ def test_remove_feature():
         assert not (feature_name in eop.data), f'Feature {feature_name} should be deleted from EOPatch'
 
 
+@pytest.mark.parametrize('ftype, fname', [
+    [FeatureType.DATA, 'bands'],
+    [FeatureType.MASK, 'mask'],
+    [FeatureType.BBOX, ...],
+    [FeatureType.TIMESTAMP, None],
+])
+def test_contains(ftype, fname, test_eopatch):
+    assert ftype in test_eopatch
+    assert ftype, fname in test_eopatch
+
+    if ftype.has_dict():
+        test_eopatch.remove_feature(ftype, fname)
+    else:
+        test_eopatch[ftype] = None if ftype is FeatureType.BBOX else []
+
+    assert ftype, fname not in test_eopatch
+
+
 def test_equals():
     eop1 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     eop2 = EOPatch(data={'bands': np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})

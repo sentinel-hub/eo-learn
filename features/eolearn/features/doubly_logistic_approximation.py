@@ -22,21 +22,22 @@ class DoublyLogisticApproximationTask(EOTask):
     EOTask class for calculation of doubly logistic approximation on each pixel for a feature. The task creates new
     feature with the function parameters for each pixel as vectors.
     :param feature: A feature on which the function will be approximated
-    :type feature: (FeatureType, str) or str
+    :type feature: (FeatureType, str)
     :param new_feature: Name of the new feature where parameters of the function are saved
-    :type new_feature: (FeatureType, str) or str
+    :type new_feature: (FeatureType, str)
     :param initial_parameters: Initial parameter guess
     :type initial_parameters: List of floats length 7 corresponding to each parameter
     :param valid_mask: A feature used as a mask for valid regions. If left as None the whole patch is used
-    :type valid_mask: (FeatureType, str), str or None
+    :type valid_mask: (FeatureType, str) or None
     """
 
     def __init__(self, feature, new_feature='DOUBLY_LOGISTIC_PARAM', initial_parameters=None, valid_mask=None):
         self.initial_parameters = initial_parameters
-        self.feature = next(self._parse_features(feature, default_feature_type=FeatureType.DATA)())
-        self.new_feature = next(self._parse_features(new_feature, default_feature_type=FeatureType.DATA_TIMELESS)())
-        self.valid_mask = next(self._parse_features(valid_mask,
-                                                    default_feature_type=FeatureType.MASK)()) if valid_mask else None
+        self.feature = self.parse_feature(feature)
+        self.new_feature = self.parse_feature(new_feature)
+        self.valid_mask = (
+            self.parse_feature(valid_mask, allowed_feature_types=[FeatureType.MASK]) if valid_mask else None
+        )
 
     def _fit_optimize(self, x_axis, y_axis):
         """

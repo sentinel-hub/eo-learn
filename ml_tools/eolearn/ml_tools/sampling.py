@@ -161,25 +161,22 @@ class BaseSamplingTask(EOTask):
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         :type mask_of_samples: (FeatureType, str) or None
         """
-        self.features_to_sample = self._parse_features(
+        self.features_parser = self.get_feature_parser(
             features_to_sample,
-            new_names=True,
             allowed_feature_types=FeatureTypeSet.SPATIAL_TYPES & FeatureTypeSet.RASTER_TYPES,
         )
 
         self.mask_of_samples = mask_of_samples
         if mask_of_samples is not None:
-            self.mask_of_samples = next(self._parse_features(
-                self.mask_of_samples,
-                default_feature_type=FeatureType.MASK_TIMELESS,
-                allowed_feature_types={FeatureType.MASK_TIMELESS}
-            )())
+            self.mask_of_samples = self.parse_feature(
+                self.mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
+            )
 
     def _apply_sampling(self, eopatch: EOPatch, row_grid: np.ndarray, column_grid: np.ndarray) -> EOPatch:
         """ Applies masks of sampled indices to EOPatch features to create sampled features and a mask of samples
         """
         image_shape = None
-        for feature_type, feature_name, new_feature_name in self.features_to_sample(eopatch):
+        for feature_type, feature_name, new_feature_name in self.features_parser.get_renamed_features(eopatch):
             data_to_sample = eopatch[feature_type][feature_name]
             eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
@@ -221,11 +218,7 @@ class FractionSamplingTask(BaseSamplingTask):
         """
         super().__init__(features_to_sample, **kwargs)
 
-        self.sampling_feature = next(self._parse_features(
-            sampling_feature,
-            default_feature_type=FeatureType.MASK_TIMELESS,
-            allowed_feature_types={FeatureType.MASK_TIMELESS})()
-        )
+        self.sampling_feature = self.parse_feature(sampling_feature, allowed_feature_types={FeatureType.MASK_TIMELESS})
 
         self.fraction = fraction
         self.exclude_values = exclude_values or []
@@ -325,8 +318,7 @@ class BlockSamplingTask(BaseSamplingTask):
     def _generate_dummy_mask(self, eopatch: EOPatch) -> np.ndarray:
         """ Generate a mask consisting entirely of `values` entries, used for sampling on whole raster
         """
-        feature_type, feature_name, _ = next(self.features_to_sample(eopatch))
-
+        feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
         height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
         height -= self.sample_size[0] - 1
         width -= self.sample_size[1] - 1
@@ -400,7 +392,7 @@ class GridSamplingTask(BaseSamplingTask):
         :param eopatch: Input eopatch to be sampled
         :return: An EOPatch with additional spatially sampled features
         """
-        feature_type, feature_name, _ = next(self.features_to_sample(eopatch))
+        feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
         image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
 
         rows, columns = self._sample_regular_grid(image_shape)

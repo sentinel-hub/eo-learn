@@ -35,7 +35,7 @@ class _BaseVectorImportTask(EOTask):
         :param config: A configuration object with credentials
         :type config: SHConfig
         """
-        self.feature = next(self._parse_features(feature, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)())
+        self.feature = self.parse_feature(feature, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)
         self.config = config or SHConfig()
         self.reproject = reproject
         self.clip = clip

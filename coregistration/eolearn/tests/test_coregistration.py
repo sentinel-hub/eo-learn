@@ -40,9 +40,9 @@ def eopatch_fixture():
 def test_registration(eopatch):
     reg = ECCRegistrationTask(
         (FeatureType.DATA, 'bands'),
-        valid_mask_feature='cm',
+        valid_mask_feature=(FeatureType.MASK, 'cm'),
         interpolation_type=InterpolationType.NEAREST,
-        apply_to_features={FeatureType.DATA: {'bands', 'ndvi'}, FeatureType.MASK: {'cm'}}
+        apply_to_features={FeatureType.DATA: ['bands', 'ndvi'], FeatureType.MASK: ['cm']}
     )
     reopatch = reg(eopatch)
 

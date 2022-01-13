@@ -66,8 +66,7 @@ class BlobTask(EOTask):
     """
 
     def __init__(self, feature, blob_object, **blob_parameters):
-        self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
-                                            rename_function='{}_BLOB'.format)
+        self.feature_parser = self.get_feature_parser(feature)
 
         self.blob_object = blob_object
         self.blob_parameters = blob_parameters
@@ -92,7 +91,7 @@ class BlobTask(EOTask):
         :return: EOPatch instance with new key holding the blob image.
         :rtype: eolearn.core.EOPatch
         """
-        for feature_type, feature_name, new_feature_name in self.feature:
+        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = self._compute_blob(
                 eopatch[feature_type][feature_name].astype(np.float64)).astype(np.float32)
 

@@ -19,7 +19,7 @@ from enum import Enum
 import cv2
 import numpy as np
 import registration
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utilities import renamed_and_deprecated
 
@@ -77,18 +77,17 @@ class RegistrationTask(EOTask, ABC):
 
     def __init__(self, registration_feature, channel=0, valid_mask_feature=None, apply_to_features=...,
                  interpolation_type=InterpolationType.CUBIC, **params):
-        self.registration_feature = self._parse_features(registration_feature, default_feature_type=FeatureType.DATA)
+        self.registration_feature = self.parse_feature(registration_feature)
 
         self.channel = channel
 
-        self.valid_mask_feature = None if valid_mask_feature is None else \
-            self._parse_features(valid_mask_feature, default_feature_type=FeatureType.MASK)
+        self.valid_mask_feature = None if valid_mask_feature is None else self.parse_feature(valid_mask_feature)
 
         if apply_to_features is ...:
-            apply_to_features = [next(self.registration_feature())]
+            apply_to_features = [self.registration_feature]
             if valid_mask_feature:
-                apply_to_features.append(next(self.valid_mask_feature()))
-        self.apply_to_features = self._parse_features(apply_to_features)
+                apply_to_features.append(self.valid_mask_feature)
+        self.apply_features_parser = self.get_feature_parser(apply_to_features)
 
         self.interpolation_type = interpolation_type
         self.params = params
@@ -134,8 +133,7 @@ class RegistrationTask(EOTask, ABC):
         new_eopatch = copy.deepcopy(eopatch)
 
         # get data used for registration
-        f_type, f_name = next(self.registration_feature(eopatch))
-        sliced_data = copy.deepcopy(eopatch[f_type][f_name][..., self.channel])
+        sliced_data = copy.deepcopy(eopatch[self.registration_feature][..., self.channel])
         time_frames = sliced_data.shape[0]
 
         # extract and normalize gradients
@@ -153,9 +151,8 @@ class RegistrationTask(EOTask, ABC):
 
             src_mask, trg_mask = None, None
             if self.valid_mask_feature is not None:
-                f_type, f_name = next(self.valid_mask_feature(eopatch))
-                src_mask = new_eopatch[f_type][f_name][idx]
-                trg_mask = new_eopatch[f_type][f_name][idx-1]
+                src_mask = new_eopatch[self.valid_mask_feature][idx]
+                trg_mask = new_eopatch[self.valid_mask_feature][idx-1]
 
             # Estimate transformation
             warp_matrix = self.register(sliced_data[idx], sliced_data[idx-1], src_mask=src_mask, trg_mask=trg_mask)
@@ -170,7 +167,7 @@ class RegistrationTask(EOTask, ABC):
                 warp_matrix = np.eye(2, 3)
 
             # Apply tranformation to every given feature
-            for feature_type, feature_name in self.apply_to_features(eopatch):
+            for feature_type, feature_name in self.apply_features_parser.get_features(eopatch):
                 new_eopatch[feature_type][feature_name][idx-1] = \
                     self.warp(warp_matrix, new_eopatch[feature_type][feature_name][idx-1], iflag)
 

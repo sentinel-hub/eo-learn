@@ -409,8 +409,8 @@ class ImageClassificationMaskTask(EOTask):
         :param classifier: A classifier that works over [n, w, h, d]-dimensional numpy arrays.
         :type classifier: ImageBaseClassifier
         """
-        self.input_feature = self._parse_features(input_feature)
-        self.output_feature = self._parse_features(output_feature)
+        self.input_feature = self.parse_feature(input_feature)
+        self.output_feature = self.parse_feature(output_feature)
         self.classifier = classifier
 
     def execute(self, eopatch):
@@ -421,9 +421,6 @@ class ImageClassificationMaskTask(EOTask):
         :return: Outputs EOPatch with n classification masks appended to out_feature_type with out_feature_name key
         :rtype: EOPatch
         """
-        in_type, in_name = next(self.input_feature(eopatch))
-        out_type, out_name = next(self.input_feature())
-
-        eopatch[out_type][out_name] = self.classifier.image_predict(eopatch[in_type][in_name])
+        eopatch[self.output_feature] = self.classifier.image_predict(eopatch[self.input_feature])
 
         return eopatch

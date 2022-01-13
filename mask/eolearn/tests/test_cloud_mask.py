@@ -17,17 +17,11 @@ from eolearn.core import FeatureType
 from eolearn.mask import CloudMaskTask
 
 
-def test_raises_errors(test_eopatch):
-    add_tcm = CloudMaskTask(data_feature='bands')
-    with pytest.raises(ValueError):
-        add_tcm(test_eopatch)
-
-
 def test_mono_temporal_cloud_detection(test_eopatch):
     add_tcm = CloudMaskTask(
-        data_feature='BANDS-S2-L1C',
+        data_feature=(FeatureType.DATA, 'BANDS-S2-L1C'),
         all_bands=True,
-        is_data_feature='IS_DATA',
+        is_data_feature=(FeatureType.MASK, 'IS_DATA'),
         mono_features=('CLP_TEST', 'CLM_TEST'),
         mask_feature=None,
         average_over=4,
@@ -43,11 +37,11 @@ def test_mono_temporal_cloud_detection(test_eopatch):
 def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
 
     add_tcm = CloudMaskTask(
-        data_feature='BANDS-S2-L1C',
+        data_feature=(FeatureType.DATA, 'BANDS-S2-L1C'),
         processing_resolution=120,
         mono_features=('CLP_TEST', 'CLM_TEST'),
         multi_features=('CLP_MULTI_TEST', 'CLM_MULTI_TEST'),
-        mask_feature='CLM_INTERSSIM_TEST',
+        mask_feature=(FeatureType.MASK, 'CLM_INTERSSIM_TEST'),
         average_over=8,
         dilation_size=4
     )

@@ -119,7 +119,7 @@ def walk_filesystem(filesystem, patch_location, features=...):
 
     returned_meta_features = set()
     queried_features = set()
-    for ftype, fname in FeatureParser(features):
+    for ftype, fname in FeatureParser(features).get_feature_specifications():
         if fname is ... and not existing_features[ftype]:
             continue
 
@@ -183,7 +183,7 @@ def walk_eopatch(eopatch, patch_location, features):
     """ Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path
     """
     returned_meta_features = set()
-    for ftype, fname in FeatureParser(features)(eopatch):
+    for ftype, fname in FeatureParser(features).get_features(eopatch):
         name_basis = fs.path.combine(patch_location, ftype.value)
         if ftype.is_meta():
             # META_INFO features are yielded separately by FeatureParser. We only yield them once with `...`,
@@ -207,7 +207,7 @@ def _check_add_only_permission(eopatch_features, filesystem_features):
 
 
 def _check_letter_case_collisions(eopatch_features, filesystem_features):
-    """ Check that eopatch features have no name clashes (ignoring case) with other eopatch features and saved features
+    """ Check that EOPatch features have no name clashes (ignoring case) with other EOPatch features and saved features
     """
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 

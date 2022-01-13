@@ -67,14 +67,14 @@ class CloudMaskTask(EOTask):
     MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.txt'
 
     def __init__(self,
-                 data_feature='BANDS-S2-L1C',
-                 is_data_feature='IS_DATA',
+                 data_feature=(FeatureType.DATA, 'BANDS-S2-L1C'),
+                 is_data_feature=(FeatureType.MASK, 'IS_DATA'),
                  all_bands=True,
                  processing_resolution=None,
                  max_proc_frames=11,
                  mono_features=None,
                  multi_features=None,
-                 mask_feature='CLM_INTERSSIM',
+                 mask_feature=(FeatureType.MASK, 'CLM_INTERSSIM'),
                  mono_threshold=0.4,
                  multi_threshold=0.5,
                  average_over=4,
@@ -143,8 +143,8 @@ class CloudMaskTask(EOTask):
         self._mono_classifier = mono_classifier
         self._multi_classifier = multi_classifier
 
-        self.data_feature = self._parse_features(data_feature, default_feature_type=FeatureType.DATA)
-        self.is_data_feature = self._parse_features(is_data_feature, default_feature_type=FeatureType.MASK)
+        self.data_feature = self.parse_feature(data_feature)
+        self.is_data_feature = self.parse_feature(is_data_feature)
         self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
 
         self.max_proc_frames = max_proc_frames
@@ -159,9 +159,7 @@ class CloudMaskTask(EOTask):
         else:
             self.multi_features = (None, None)
 
-        if mask_feature:
-            mask_feature = next(self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)())
-        self.mask_feature = mask_feature
+        self.mask_feature = mask_feature if mask_feature is None else self.parse_feature(mask_feature)
 
         self.mono_threshold = mono_threshold
         self.multi_threshold = multi_threshold
@@ -543,11 +541,9 @@ class CloudMaskTask(EOTask):
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
         """
-        data_feature = next(self.data_feature(eopatch))
-        bands = eopatch[data_feature][..., self.band_indices].astype(np.float32)
+        bands = eopatch[self.data_feature][..., self.band_indices].astype(np.float32)
 
-        is_data_feature = next(self.is_data_feature(eopatch))
-        is_data = eopatch[is_data_feature].astype(bool)
+        is_data = eopatch[self.is_data_feature].astype(bool)
 
         original_shape = bands.shape[1: -1]
         scale_factors, self.sigma = self._scale_factors(original_shape, eopatch.bbox)

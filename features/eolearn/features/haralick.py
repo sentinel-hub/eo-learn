@@ -66,8 +66,7 @@ class HaralickTask(EOTask):
         :param stride: How much the GLCM window moves each time
         :type stride: int
         """
-        self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
-                                            rename_function='{}_HARALICK'.format)
+        self.feature_parser = self.get_feature_parser(feature)
 
         self.texture_feature = texture_feature
         if self.texture_feature not in self.AVAILABLE_TEXTURES.union(self.AVAILABLE_TEXTURES_SKIMAGE):
@@ -183,7 +182,7 @@ class HaralickTask(EOTask):
 
     def execute(self, eopatch):
 
-        for feature_type, feature_name, new_feature_name in self.feature:
+        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = self._calculate_haralick(eopatch[feature_type][feature_name])
 
         return eopatch
