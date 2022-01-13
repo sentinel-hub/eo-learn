@@ -15,7 +15,7 @@ import itertools as it
 import skimage.feature
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 from eolearn.core.exceptions import EOUserWarning
 
 

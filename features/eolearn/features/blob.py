@@ -14,7 +14,7 @@ from math import sqrt
 import skimage.feature
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 
 
 class BlobTask(EOTask):

@@ -11,7 +11,7 @@ file in the root directory of this source tree.
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 from eolearn.core.utilities import renamed_and_deprecated
 
 

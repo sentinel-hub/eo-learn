@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 import skimage.feature
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 
 
 class LocalBinaryPatternTask(EOTask):
