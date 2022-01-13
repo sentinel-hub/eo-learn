@@ -9,11 +9,11 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import os
 import inspect
 import warnings
 import base64
+import datetime as dt
 from collections import OrderedDict, defaultdict
 
 try:
@@ -168,13 +168,13 @@ class EOExecutorVisualization:
         return template
 
     @staticmethod
-    def _format_datetime(value):
+    def _format_datetime(value: dt.datetime) -> str:
         """ Method for formatting datetime objects into report
         """
-        return value.strftime('%X %x %Z')
+        return value.strftime("%Y-%m-%d %H:%M:%S")
 
     @staticmethod
-    def _format_timedelta(value1, value2):
+    def _format_timedelta(value1: dt.datetime, value2: dt.datetime) -> str:
         """ Method for formatting time delta into report
         """
         return str(value2 - value1)
