@@ -22,7 +22,7 @@ import multiprocessing
 import warnings
 from enum import Enum
 from logging import Logger, Handler, Filter
-from typing import Sequence, List, Tuple, Dict, Optional, Callable
+from typing import Sequence, List, Tuple, Dict, Optional, Callable, Iterable, TypeVar
 
 from tqdm.auto import tqdm
 
@@ -34,6 +34,8 @@ from .utilities import LogFileFilter
 LOGGER = logging.getLogger(__name__)
 MULTIPROCESSING_LOCK = None
 
+_InputType = TypeVar('_InputType')
+_OutputType = TypeVar('_OutputType')
 _ExecutorProcessingArgsType = Tuple[EOWorkflow, Dict[EONode, Dict[str, object]], str, bool, Filter]
 
 
@@ -167,18 +169,16 @@ class EOExecutor:
 
         if processing_type is _ProcessingType.MULTITHREADING:
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-                return list(tqdm(executor.map(self._execute_workflow, processing_args), total=len(processing_args)))
+                return submit_and_monitor_execution(executor, self._execute_workflow, processing_args)
 
         # pylint: disable=global-statement
         global MULTIPROCESSING_LOCK
         try:
             MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
             with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-                result = list(tqdm(executor.map(self._execute_workflow, processing_args), total=len(processing_args)))
+                return submit_and_monitor_execution(executor, self._execute_workflow, processing_args)
         finally:
             MULTIPROCESSING_LOCK = None
-
-        return result
 
     @classmethod
     def _try_add_logging(cls, log_path: str, filter_logs_by_thread: bool,
@@ -304,6 +304,30 @@ class EOExecutor:
                                'reports')
 
         return EOExecutorVisualization(self).make_report()
+
+
+def submit_and_monitor_execution(
+        executor: concurrent.futures.Executor,
+        function: Callable[[_InputType], _OutputType],
+        execution_params: Iterable[_InputType]
+) -> List[_OutputType]:
+    """Performs the execution parallelization and monitors the process using a progress bar.
+
+    :param executor: An object that performs parallelization.
+    :param function: A function to be parallelized.
+    :param execution_params: Each element in a sequence are parameters for a single call of `function`.
+    :return: A list of results in the same order as input parameters given by `executor_params`.
+    """
+    futures = [executor.submit(function, params) for params in execution_params]
+    future_order = {future: i for i, future in enumerate(futures)}
+
+    results = [None] * len(futures)
+    with tqdm(total=len(futures)) as pbar:
+        for future in concurrent.futures.as_completed(futures):
+            results[future_order[future]] = future.result()
+            pbar.update(1)
+
+    return results
 
 
 def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:
