@@ -23,7 +23,7 @@ class AddValidDataMaskTask(EOTask):
         This task allows the user to specify the criteria used to generate a valid data mask, which can be used to
         filter the data stored in the `FeatureType.DATA`
     """
-    def __init__(self, predicate, valid_data_feature='VALID_DATA'):
+    def __init__(self, predicate, valid_data_feature=(FeatureType.MASK, 'VALID_DATA')):
         """ Constructor of the class requires a predicate defining the function used to generate the valid data mask. A
         predicate is a function that returns the truth value of some condition.
 
@@ -35,7 +35,7 @@ class AddValidDataMaskTask(EOTask):
         :type valid_data_feature: str
         """
         self.predicate = predicate
-        self.valid_data_feature = self._parse_features(valid_data_feature, default_feature_type=FeatureType.MASK)
+        self.valid_data_feature = self.parse_feature(valid_data_feature)
 
     def execute(self, eopatch):
         """ Execute predicate on input eopatch
@@ -68,10 +68,8 @@ class MaskFeatureTask(EOTask):
         :type no_data_value: float
         :return: The same `eopatch` instance with a masked array
         """
-        self.feature = self._parse_features(feature, new_names=True,
-                                            default_feature_type=FeatureType.DATA,
-                                            rename_function='{}_MASKED'.format)
-        self.mask_feature = self._parse_features(mask_feature, default_feature_type=FeatureType.MASK)
+        self.renamed_feature = self.parse_renamed_feature(feature)
+        self.mask_feature = self.parse_feature(mask_feature)
         self.mask_values = mask_values
         self.no_data_value = no_data_value
 
@@ -84,8 +82,8 @@ class MaskFeatureTask(EOTask):
         :param eopatch: `eopatch` to be processed
         :return: Same `eopatch` instance with masked `feature`
         """
-        feature_type, feature_name, new_feature_name = next(self.feature(eopatch))
-        mask_feature_type, mask_feature_name = next(self.mask_feature(eopatch))
+        feature_type, feature_name, new_feature_name = self.renamed_feature
+        mask_feature_type, mask_feature_name = self.mask_feature
 
         data = np.copy(eopatch[feature_type][feature_name])
         mask = eopatch[mask_feature_type][mask_feature_name]

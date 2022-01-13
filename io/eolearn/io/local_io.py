@@ -46,7 +46,7 @@ class BaseLocalIoTask(EOTask):
         :param config: A configuration object containing AWS credentials
         :type config: SHConfig
         """
-        self.feature = self._parse_features(feature)
+        self.feature = self.parse_feature(feature)
         self.folder = folder
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
@@ -282,16 +282,14 @@ class ExportToTiffTask(BaseLocalIoTask):
         :return: Unchanged input EOPatch
         :rtype: EOPatch
         """
-        try:
-            feature = next(self.feature(eopatch))
-        except ValueError as error:
-            LOGGER.warning(error)
-
+        if self.feature not in eopatch:
+            error_msg = f"Feature {self.feature[1]} of type {self.feature[0]} was not found in EOPatch"
+            LOGGER.warning(error_msg)
             if self.fail_on_missing:
-                raise ValueError(error) from error
+                raise ValueError(error_msg)
             return eopatch
 
-        image_array = self._prepare_image_array(eopatch, feature)
+        image_array = self._prepare_image_array(eopatch, self.feature)
 
         channel_count, height, width = image_array.shape
 
@@ -397,7 +395,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
         :return: New EOPatch with added raster layer
         :rtype: EOPatch
         """
-        feature_type, feature_name = next(self.feature())
+        feature_type, feature_name = self.feature
         if eopatch is None:
             eopatch = EOPatch()
 

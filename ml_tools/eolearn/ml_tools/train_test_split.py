@@ -69,8 +69,7 @@ class TrainTestSplitTask(EOTask):
         :param ignore_values: A list of values to ignore and not assign them to any subsets.
         :type ignore_values: a list of integers
         """
-        allowed_types = [FeatureType.MASK_TIMELESS]
-        self.feature = next(self._parse_features(feature, new_names=True, allowed_feature_types=allowed_types)())
+        self.feature = self.parse_renamed_feature(feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
 
         if np.isscalar(bins):
             bins = [bins]

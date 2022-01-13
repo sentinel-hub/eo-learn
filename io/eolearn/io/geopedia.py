@@ -39,7 +39,7 @@ class AddGeopediaFeatureTask(EOTask):
     def __init__(self, feature, layer, theme, raster_value, raster_dtype=np.uint8, no_data_val=0,
                  image_format=MimeType.PNG, mean_abs_difference=2):
 
-        self.feature_type, self.feature_name = next(self._parse_features(feature)())
+        self.feature_type, self.feature_name = self.parse_feature(feature)
 
         self.raster_value = raster_value
         self.raster_dtype = raster_dtype

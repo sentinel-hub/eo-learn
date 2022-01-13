@@ -12,6 +12,7 @@ file in the root directory of this source tree.
 import logging
 import copy
 import datetime
+from typing import Tuple, Union
 
 import attr
 import dateutil.parser
@@ -24,7 +25,7 @@ from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
 from .eodata_merge import merge_eopatches
 from .fs_utils import get_filesystem
-from .utilities import deep_eq, FeatureParser
+from .utilities import deep_eq, parse_features
 
 
 LOGGER = logging.getLogger(__name__)
@@ -178,6 +179,19 @@ class EOPatch:
                 return False
         return True
 
+    def __contains__(self, feature: Union[FeatureType, Tuple[FeatureType, str]]):
+        if isinstance(feature, FeatureType):
+            return bool(self[feature])
+        if isinstance(feature, tuple) and len(feature) == 2:
+            ftype, fname = FeatureType(feature[0]), feature[1]
+            if ftype.has_dict():
+                return fname in self[ftype]
+            return bool(self[ftype])
+        raise ValueError(
+            f"Membership checking is only implemented elements of type `{FeatureType.__name__}` and for "
+            "`(feature_type, feature_name)` tuples."
+        )
+
     def __add__(self, other):
         """ Merges two EOPatches into a new EOPatch
         """
@@ -251,11 +265,11 @@ class EOPatch:
             features = ...
 
         new_eopatch = EOPatch()
-        for feature_type, feature_name in FeatureParser(features)(self):
-            if feature_name is ...:
-                new_eopatch[feature_type] = copy.copy(self[feature_type])
-            else:
+        for feature_type, feature_name in parse_features(features, eopatch=self):
+            if feature_type.has_dict():
                 new_eopatch[feature_type][feature_name] = self[feature_type].__getitem__(feature_name, load=False)
+            else:
+                new_eopatch[feature_type] = copy.copy(self[feature_type])
         return new_eopatch
 
     def __deepcopy__(self, memo=None, features=...):
@@ -270,10 +284,8 @@ class EOPatch:
             features = ...
 
         new_eopatch = EOPatch()
-        for feature_type, feature_name in FeatureParser(features)(self):
-            if feature_name is ...:
-                new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
-            else:
+        for feature_type, feature_name in parse_features(features, eopatch=self):
+            if feature_type.has_dict():
                 value = self[feature_type].__getitem__(feature_name, load=False)
 
                 if isinstance(value, FeatureIO):
@@ -284,6 +296,8 @@ class EOPatch:
                     value = copy.deepcopy(value, memo=memo)
 
                 new_eopatch[feature_type][feature_name] = value
+            else:
+                new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
 
         return new_eopatch
 
@@ -312,7 +326,7 @@ class EOPatch:
         """
         LOGGER.debug("Removing feature '%s' from attribute '%s'", feature_name, feature_type.value)
 
-        self._check_if_dict(feature_type)
+        self._fail_if_not_dict(feature_type)
         if feature_name in self[feature_type]:
             del self[feature_type][feature_name]
 
@@ -326,7 +340,7 @@ class EOPatch:
         :param value: New value of the feature
         :type value: object
         """
-        self._check_if_dict(feature_type)
+        self._fail_if_not_dict(feature_type)
         self[feature_type][feature_name] = value
 
     def rename_feature(self, feature_type, feature_name, new_feature_name):
@@ -339,7 +353,7 @@ class EOPatch:
         :param new_feature_name: New Name of the feature of the attribute
         :type feature_name: str
         """
-        self._check_if_dict(feature_type)
+        self._fail_if_not_dict(feature_type)
         if feature_name != new_feature_name:
             if feature_name in self[feature_type]:
                 LOGGER.debug("Renaming feature '%s' from attribute '%s' to '%s'",
@@ -352,7 +366,7 @@ class EOPatch:
             LOGGER.debug("Feature '%s' was not renamed because new name is identical.", feature_name)
 
     @staticmethod
-    def _check_if_dict(feature_type):
+    def _fail_if_not_dict(feature_type):
         """Checks if the given feature type contains a dictionary and raises an error if it doesn't.
 
         :param feature_type: Type of feature
@@ -360,7 +374,7 @@ class EOPatch:
         :raise: TypeError
         """
         feature_type = FeatureType(feature_type)
-        if feature_type.type() is not dict:
+        if not feature_type.has_dict():
             raise TypeError(f'{feature_type} does not contain a dictionary of features')
 
     def reset_feature_type(self, feature_type):
@@ -590,7 +604,7 @@ class EOPatch:
 
     def plot(self, feature, rgb=None, rgb_factor=3.5, vdims=None, timestamp_column='TIMESTAMP',
              geometry_column='geometry', pixel=False, mask=None):
-        """ Plots eopatch features
+        """ Plots EOPatch features
 
         :param feature: feature of eopatch
         :type feature: (FeatureType, str)

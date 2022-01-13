@@ -56,7 +56,8 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
     time_dependent_op = _parse_operation(time_dependent_op, is_timeless=False)
     timeless_op = _parse_operation(timeless_op, is_timeless=True)
 
-    all_features = {feature for eopatch in eopatches for feature in FeatureParser(features)(eopatch)}
+    feature_parser = FeatureParser(features)
+    all_features = {feature for eopatch in eopatches for feature in feature_parser.get_features(eopatch)}
     eopatch_content = {}
 
     timestamps, order_mask_per_eopatch = _merge_timestamps(eopatches, reduce_timestamps)

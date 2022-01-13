@@ -55,7 +55,7 @@ class BaseMeteoblueTask(EOTask):
         :param cache_max_age: Maximum age in seconds to use a cached result. Default 1 week.
         :type cache_max_age: int
         """
-        self.feature = next(self._parse_features(feature)())
+        self.feature = self.parse_feature(feature)
         cache = None
         if cache_folder:
             cache = FileCache(path=cache_folder, max_age=cache_max_age)

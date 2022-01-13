@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 import skimage.feature
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask
 
 
 class LocalBinaryPatternTask(EOTask):
@@ -34,8 +34,7 @@ class LocalBinaryPatternTask(EOTask):
         :param radius: Radius of the circle of neighbors
         :type radius: int
         """
-        self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
-                                            rename_function='{}_LBP'.format)
+        self.feature_parser = self.get_feature_parser(feature)
 
         self.nb_points = nb_points
         self.radius = radius
@@ -59,7 +58,7 @@ class LocalBinaryPatternTask(EOTask):
             :return: EOPatch instance with new key holding the LBP image.
             :rtype: eolearn.core.EOPatch
         """
-        for feature_type, feature_name, new_feature_name in self.feature:
+        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = self._compute_lbp(eopatch[feature_type][feature_name])
 
         return eopatch

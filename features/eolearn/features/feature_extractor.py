@@ -150,12 +150,12 @@ class FeatureExtractionTask(EOTask):
         :param expression: Algebraic expression that works on each value of the feature
         :type expression: str
         """
-        self.feature = self._parse_features(feature, new_names=True)
+        self.features = self.parse_renamed_features(feature)
         self.fee = FeatureExtendedExtractor(expression)
 
     def execute(self, eopatch):
 
-        for feature_type, feature_name, new_feature_name in self.feature:  # Can transform multiple features
+        for feature_type, feature_name, new_feature_name in self.features:  # Can transform multiple features
             shp = eopatch[feature_type][feature_name].shape
 
             LOGGER.debug("Input array shape: %s", shp)

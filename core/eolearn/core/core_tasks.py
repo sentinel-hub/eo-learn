@@ -167,7 +167,7 @@ class AddFeatureTask(EOTask):
         :param feature: Feature to be added
         :type feature: (FeatureType, feature_name) or FeatureType
         """
-        self.feature_type, self.feature_name = next(self._parse_features(feature)())
+        self.feature_type, self.feature_name = self.parse_feature(feature)
 
     def execute(self, eopatch, data):
         """Returns the EOPatch with added features.
@@ -195,7 +195,7 @@ class RemoveFeatureTask(EOTask):
         :param features: A collection of features to be removed.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
-        self.feature_gen = self._parse_features(features)
+        self.feature_parser = self.get_feature_parser(features)
 
     def execute(self, eopatch):
         """Returns the EOPatch with removed features.
@@ -205,7 +205,7 @@ class RemoveFeatureTask(EOTask):
         :return: input EOPatch without the specified feature
         :rtype: EOPatch
         """
-        for feature_type, feature_name in list(self.feature_gen(eopatch)):
+        for feature_type, feature_name in self.feature_parser.get_features(eopatch):
             if feature_name is ...:
                 eopatch.reset_feature_type(feature_type)
             else:
@@ -222,7 +222,7 @@ class RenameFeatureTask(EOTask):
         :param features: A collection of features to be renamed.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
-        self.feature_gen = self._parse_features(features, new_names=True)
+        self.feature_parser = self.get_feature_parser(features)
 
     def execute(self, eopatch):
         """Returns the EOPatch with renamed features.
@@ -232,7 +232,7 @@ class RenameFeatureTask(EOTask):
         :return: input EOPatch with the renamed features
         :rtype: EOPatch
         """
-        for feature_type, feature_name, new_feature_name in self.feature_gen(eopatch):
+        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
             del eopatch[feature_type][feature_name]
 
@@ -250,7 +250,7 @@ class DuplicateFeatureTask(EOTask):
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
-        self.feature_gen = self._parse_features(features, new_names=True)
+        self.feature_parser = self.get_feature_parser(features)
         self.deep = deep_copy
 
     def execute(self, eopatch):
@@ -264,7 +264,7 @@ class DuplicateFeatureTask(EOTask):
             already existing feature name.
         """
 
-        for feature_type, feature_name, new_feature_name in self.feature_gen(eopatch):
+        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             if new_feature_name in eopatch[feature_type]:
                 raise ValueError(f"A feature named '{new_feature_name}' already exists.")
 
@@ -301,10 +301,10 @@ class InitializeFeatureTask(EOTask):
         :raises ValueError: Raises an exception when passing the wrong shape argument.
         """
 
-        self.features = self._parse_features(features)
+        self.features = self.parse_features(features)
 
         try:
-            self.shape_feature = next(self._parse_features(shape)())
+            self.shape_feature = self.parse_feature(shape)
         except ValueError:
             self.shape_feature = None
 
@@ -336,7 +336,7 @@ class InitializeFeatureTask(EOTask):
 
 
 class MoveFeatureTask(EOTask):
-    """ Task to copy/deepcopy fields from one eopatch to another.
+    """ Task to copy/deepcopy fields from one EOPatch to another.
     """
     def __init__(self, features, deep_copy=False):
         """
@@ -345,7 +345,7 @@ class MoveFeatureTask(EOTask):
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
         :type deep_copy: bool
         """
-        self.feature_gen = self._parse_features(features)
+        self.feature_parser = self.get_feature_parser(features)
         self.deep = deep_copy
 
     def execute(self, src_eopatch, dst_eopatch):
@@ -358,7 +358,7 @@ class MoveFeatureTask(EOTask):
         :rtype: EOPatch
         """
 
-        for feature in self.feature_gen(src_eopatch):
+        for feature in self.feature_parser.get_features(src_eopatch):
             if self.deep:
                 dst_eopatch[feature] = copy.deepcopy(src_eopatch[feature])
             else:
@@ -415,8 +415,8 @@ class MapFeatureTask(EOTask):
         :raises ValueError: Raises an exception when passing feature collections with different lengths.
         :param kwargs: kwargs to be passed to the map function.
         """
-        self.input_features = list(self._parse_features(input_features))
-        self.output_feature = list(self._parse_features(output_features))
+        self.input_features = self.parse_features(input_features)
+        self.output_feature = self.parse_features(output_features)
         self.kwargs = kwargs
 
         if len(self.input_features) != len(self.output_feature):
@@ -490,8 +490,8 @@ class ZipFeatureTask(EOTask):
         :param zip_function: A function or lambda to be applied to the input data.
         :param kwargs: kwargs to be passed to the zip function.
         """
-        self.input_features = list(self._parse_features(input_features))
-        self.output_feature = next(self._parse_features(output_feature)())
+        self.input_features = self.parse_features(input_features)
+        self.output_feature = self.parse_feature(output_feature)
         self.function = zip_function if zip_function else self.zip_method
         self.kwargs = kwargs
 

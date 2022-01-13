@@ -159,8 +159,8 @@ def test_workflow_copying_eopatches():
         InitializeFeatureTask([feature1, feature2], shape=(2, 4, 4, 3), init_value=1),
         inputs=[create_node],
     )
-    remove_node1 = EONode(RemoveFeatureTask(feature1), inputs=[init_node])
-    remove_node2 = EONode(RemoveFeatureTask(feature2), inputs=[init_node])
+    remove_node1 = EONode(RemoveFeatureTask([feature1]), inputs=[init_node])
+    remove_node2 = EONode(RemoveFeatureTask([feature2]), inputs=[init_node])
     output_node1 = EONode(OutputTask(name='out1'), inputs=[remove_node1])
     output_node2 = EONode(OutputTask(name='out2'), inputs=[remove_node2])
 

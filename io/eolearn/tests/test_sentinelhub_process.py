@@ -444,7 +444,7 @@ class TestSentinelHubInputTaskDataCollections:
             name='Sentinel-2 L2A - NDVI evalscript',
             task=SentinelHubEvalscriptTask(
                 features={
-                    FeatureType.DATA: {'ndvi': 'NDVI-FEATURE'},
+                    FeatureType.DATA: [('ndvi', 'NDVI-FEATURE')],
                     FeatureType.MASK: ['dataMask'],
                 },
                 evalscript=ndvi_evalscript,

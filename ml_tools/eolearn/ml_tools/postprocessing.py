@@ -100,7 +100,7 @@ class PostprocessingTask(EOTask):
     :type feature: (FeatureType, str)
     """
     def __init__(self, feature):
-        self.feature = self._parse_features(feature)
+        self.feature = self.parse_feature(feature)
 
     @abstractmethod
     def process(self, raster):
@@ -111,9 +111,7 @@ class PostprocessingTask(EOTask):
     def execute(self, eopatch):
         """ Execute method takes EOPatch and changes the specified feature
         """
-        feature_type, feature_name = next(self.feature(eopatch))
-
-        eopatch[feature_type][feature_name] = self.process(eopatch[feature_type][feature_name])
+        eopatch[self.feature] = self.process(eopatch[self.feature])
 
         return eopatch
 

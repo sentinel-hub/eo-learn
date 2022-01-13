@@ -37,7 +37,7 @@ class BaseSnowMaskTask(EOTask):
             this post-processing step.
         :type dilation_size: int
         """
-        self.bands_feature = next(self._parse_features(data_feature)())
+        self.bands_feature = self.parse_feature(data_feature)
         self.band_indices = band_indices
         self.dilation_size = dilation_size
         self.undefined_value = undefined_value
@@ -159,8 +159,8 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         :type ndsi_params: (float, float, float)
         """
         super().__init__(data_feature, band_indices, **kwargs)
-        self.dem_feature = next(self._parse_features(dem_feature)())
-        self.clm_feature = next(self._parse_features(cloud_mask_feature)())
+        self.dem_feature = self.parse_feature(dem_feature)
+        self.clm_feature = self.parse_feature(cloud_mask_feature)
         self.dem_params = dem_params
         self.red_params = red_params
         self.ndsi_params = ndsi_params

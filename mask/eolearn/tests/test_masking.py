@@ -20,35 +20,35 @@ LULC_FEATURE = FeatureType.MASK_TIMELESS, 'LULC'
 
 
 def test_bands_with_clm(test_eopatch):
-    new_feature = FeatureType.DATA, 'BANDS-S2-L1C_MASKED'
+    ftype, old_name, new_name = FeatureType.DATA, 'BANDS-S2-L1C', 'BANDS-S2-L1C_MASKED'
 
-    mask_task = MaskFeatureTask(BANDS_FEATURE, CLOUD_MASK_FEATURE, mask_values=[True], no_data_value=-1)
+    mask_task = MaskFeatureTask([ftype, old_name, new_name], CLOUD_MASK_FEATURE, mask_values=[True], no_data_value=-1)
     eop = mask_task(test_eopatch)
 
-    masked_count = np.count_nonzero(eop[new_feature] == -1)
+    masked_count = np.count_nonzero(eop[ftype, new_name] == -1)
     clm_count = np.count_nonzero(eop[CLOUD_MASK_FEATURE])
     bands_num = eop[BANDS_FEATURE].shape[-1]
     assert masked_count == clm_count * bands_num
 
 
 def test_ndvi_with_clm(test_eopatch):
-    new_feature = FeatureType.DATA, 'NDVI_MASKED'
+    ftype, old_name, new_name = FeatureType.DATA, 'NDVI', 'NDVI_MASKED'
 
-    mask_task = MaskFeatureTask(NDVI_FEATURE, CLOUD_MASK_FEATURE, mask_values=[True])
+    mask_task = MaskFeatureTask([ftype, old_name, new_name], CLOUD_MASK_FEATURE, mask_values=[True])
     eop = mask_task(test_eopatch)
 
-    masked_count = np.count_nonzero(np.isnan(eop[new_feature]))
+    masked_count = np.count_nonzero(np.isnan(eop[ftype, new_name]))
     clm_count = np.count_nonzero(eop[CLOUD_MASK_FEATURE])
     assert masked_count == clm_count
 
 
 def test_clm_with_lulc(test_eopatch):
-    new_feature = FeatureType.MASK, 'CLM_MASKED'
+    ftype, old_name, new_name = FeatureType.MASK, 'CLM', 'CLM_MASKED'
 
-    mask_task = MaskFeatureTask(CLOUD_MASK_FEATURE, LULC_FEATURE, mask_values=[2], no_data_value=255)
+    mask_task = MaskFeatureTask([ftype, old_name, new_name], LULC_FEATURE, mask_values=[2], no_data_value=255)
     eop = mask_task(test_eopatch)
 
-    masked_count = np.count_nonzero(eop[new_feature] == 255)
+    masked_count = np.count_nonzero(eop[ftype, new_name] == 255)
     lulc_count = np.count_nonzero(eop[LULC_FEATURE] == 2)
     bands_num = eop[CLOUD_MASK_FEATURE].shape[-1]
     time_num = eop[CLOUD_MASK_FEATURE].shape[0]
@@ -56,12 +56,12 @@ def test_clm_with_lulc(test_eopatch):
 
 
 def test_lulc_with_lulc(test_eopatch):
-    new_feature = FeatureType.MASK_TIMELESS, 'LULC_MASKED'
+    ftype, old_name, new_name = FeatureType.MASK_TIMELESS, 'LULC', 'LULC_MASKED'
 
-    mask_task = MaskFeatureTask(LULC_FEATURE, LULC_FEATURE, mask_values=[1], no_data_value=100)
+    mask_task = MaskFeatureTask([ftype, old_name, new_name], LULC_FEATURE, mask_values=[1], no_data_value=100)
     eop = mask_task(test_eopatch)
 
-    masked_count = np.count_nonzero(eop[new_feature] == 100)
+    masked_count = np.count_nonzero(eop[ftype, new_name] == 100)
     lulc_count = np.count_nonzero(eop[LULC_FEATURE] == 1)
     assert masked_count == lulc_count
 

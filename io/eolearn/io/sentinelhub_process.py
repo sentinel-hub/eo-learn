@@ -254,7 +254,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             raise ValueError('features must be defined')
 
         allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
-        _features = list(self._parse_features(features, allowed_feature_types=allowed_features, new_names=True)())
+        _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
 
         ftr_data_types = set(ft for ft, _, _ in _features if not ft.is_meta())
         if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_time_dependent() for ft in ftr_data_types):
@@ -405,7 +405,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.bands_feature = None
         self.requested_bands = []
         if bands_feature:
-            self.bands_feature = next(self._parse_features(bands_feature, allowed_feature_types=[FeatureType.DATA])())
+            self.bands_feature = self.parse_feature(bands_feature, allowed_feature_types=[FeatureType.DATA])
             if bands:
                 self.requested_bands = self._parse_requested_bands(bands, self.data_collection.bands)
             else:
@@ -413,7 +413,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         self.requested_additional_bands = []
         if additional_data is not None:
-            additional_data = list(self._parse_features(additional_data, new_names=True)())
+            additional_data = self.parse_renamed_features(additional_data)
             additional_bands = [band for _, band, _ in additional_data]
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands

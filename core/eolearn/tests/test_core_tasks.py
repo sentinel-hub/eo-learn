@@ -96,7 +96,7 @@ def test_add_rename_remove_feature(patch):
     patch = RemoveFeatureTask((FeatureType.MASK, new_feature_name))(patch)
     assert feature_name not in patch.mask, 'Feature was not removed'
 
-    patch = RemoveFeatureTask(FeatureType.MASK_TIMELESS)(patch)
+    patch = RemoveFeatureTask((FeatureType.MASK_TIMELESS, ...))(patch)
     assert len(patch.mask_timeless) == 0, 'mask_timeless features were not removed'
 
     patch = RemoveFeatureTask((FeatureType.MASK, ...))(patch)
@@ -174,15 +174,15 @@ def test_initialize_feature(patch):
     init_val = 123
     shape = (5, 10, 10, 3)
     compare_data = np.ones(shape) * init_val
-    new_names = {'F1', 'F2', 'F3'}
+    new_names = ('F1', 'F2', 'F3')
 
     patch = InitializeFeatureTask({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
-    assert new_names < set(patch.mask), 'Failed to initialize new features from a shape tuple.'
+    assert set(new_names) < set(patch.mask), 'Failed to initialize new features from a shape tuple.'
     assert all(patch.mask[key].shape == shape for key in new_names)
     assert all(np.array_equal(patch.mask[key], compare_data) for key in new_names)
 
     patch = InitializeFeatureTask({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, 'bands'))(patch)
-    assert new_names < set(patch.data), 'Failed to initialize new features from an existing feature.'
+    assert set(new_names) < set(patch.data), 'Failed to initialize new features from an existing feature.'
     assert all(patch.data[key].shape == patch.data['bands'].shape for key in new_names)
 
     with pytest.raises(ValueError):

@@ -50,7 +50,7 @@ class ClusteringTask(EOTask):
         :param mask_name: An optional mask feature used for exclusion of the area from clustering
         :type mask_name: str
         """
-        self.features = features
+        self.features_parser = self.get_feature_parser(features)
         self.distance_threshold = distance_threshold
         self.affinity = affinity
         self.linkage = linkage
@@ -65,21 +65,18 @@ class ClusteringTask(EOTask):
         self.connectivity = connectivity
         self.mask_name = mask_name
 
-    @staticmethod
-    def construct_data(eopatch, features):
+    def construct_data(self, eopatch):
         """
         :param eopatch: EOPatch with all features that will be used
-        :param features: Features for clustering
         :return: array of vectors constructed from the features listed
         """
 
-        feature = EOTask._parse_features(features, default_feature_type=FeatureType.DATA_TIMELESS)
         data = None
-        for i in feature:
+        for feature in self.features_parser.get_features(eopatch):
             if data is None:
-                data = eopatch.data_timeless[i[1]]
+                data = eopatch[feature]
             else:
-                data = np.concatenate((data, eopatch.data_timeless[i[1]]), axis=2)
+                data = np.concatenate((data, eopatch[feature]), axis=2)
 
         return data
 
@@ -90,7 +87,7 @@ class ClusteringTask(EOTask):
         :return: Transformed EOPatch
         :rtype: EOPatch
         """
-        data = self.construct_data(eopatch, self.features)
+        data = self.construct_data(eopatch)
 
         # Reshapes the data, because AgglomerativeClustering method only takes one dimensional arrays of vectors
         org_shape = data.shape

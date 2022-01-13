@@ -44,8 +44,7 @@ class HOGTask(EOTask):
             visualize is True, the become “new_name”_VIZU
         :type visualize_feature_name: str
         """
-        self.feature = self._parse_features(feature, default_feature_type=FeatureType.DATA, new_names=True,
-                                            rename_function='{}_HOG'.format)
+        self.feature_parser = self.get_feature_parser(feature, allowed_feature_types=[FeatureType.DATA])
 
         self.n_orientations = orientations
         self.pixels_per_cell = pixels_per_cell
@@ -99,7 +98,7 @@ class HOGTask(EOTask):
             :return: EOPatch instance with new keys holding the HoG features and HoG image for visualisation.
             :rtype: eolearn.core.EOPatch
         """
-        for feature_type, feature_name, new_feature_name in self.feature:
+        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             result = self._compute_hog(eopatch[feature_type][feature_name])
             eopatch[feature_type][new_feature_name] = result[0]
             if self.visualize:

@@ -10,11 +10,11 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import logging
 import warnings
-from collections import OrderedDict
-from logging import Filter
+from itertools import repeat
+from logging import Filter, LogRecord
+from typing import Optional, Union, Tuple, Sequence, Iterable, List, cast
 
 import uuid
 import numpy as np
@@ -30,344 +30,347 @@ LOGGER = logging.getLogger(__name__)
 class LogFileFilter(Filter):
     """ Filters log messages passed to log file
     """
-    def __init__(self, thread_name, *args, **kwargs):
+    def __init__(self, thread_name: Optional[str], *args, **kwargs):
         """
         :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
-        :type thread_name: str or None
         """
         self.thread_name = thread_name
         super().__init__(*args, **kwargs)
 
-    def filter(self, record):
+    def filter(self, record: LogRecord):
         """ Shows everything from the thread that it was initialized in.
         """
         return record.threadName == self.thread_name
 
 
 class FeatureParser:
-    """ Takes a collection of features structured in a various ways and parses them into one way. It can parse features
-    straight away or it can parse them only if they exist in a given `EOPatch`. If input format is not recognized or
-    feature don't exist in a given `EOPatch` it raises an error. The class is a generator therefore parsed features
-    can be obtained by iterating over an instance of the class. An `EOPatch` is given as a parameter of the generator.
+    """ Class for parsing a variety of feature specifications into a streamlined format.
 
-    General guidelines:
+    This class takes care of parsing multiple inputs that specify features and includes some additional options:
+    - Fix allowed types, which raises an appropriate exception if a forbidden type is detected.
+    - Parsing directly or parsing over an EOPatch. If an EOPatch object is provided the parser fails if a specified
+      feature is missing from the EOPatch. Because EOPatch objects are usually provided to EOTasks at runtime, the
+      parser preprocesses and validates the input feature specifications at initialization to ensure exceptions at an
+      appropriate point.
+    - The user can provide ellipsis `...` as a way to specify all features. When combined with a feature type it is
+      understood as all features of a given type. When using `...` an EOPatch must be provided when parsing features,
+      except when used only for BBox and timestamp features.
+    - The parser can output pairs `(feature_type, feature_name)` or triples `(feature_type, old_name, new_name)`, which
+      come in hand in many cases. If the user does not provide an explicit new name, the `old_name` and `new_name` are
+      equal.
 
-    - Almost every `EOTask` requires an initialization parameter to define which features should be used by the task.
-      The purpose of this class is to unite and generalize parsing of such parameters over the entire eo-learn package.
-    - The idea for this class is that it should support more or less any logical way how to describe a collection
-      of features.
-    - Parameter `...` is used as a contextual clue. In the supported formats it is used to describe the most obvious
-      way how to specify certain parts of feature collection.
-    - Supports formats defined with lists, tuples, sets and dictionaries.
+    The main input formats are as follows:
 
-    Supported input formats:
+    1. Ellipsis `...` signify that all features of all types should be parsed.
 
-    - Anything that exists in a given `EOPatch` is defined with `...`
-    - A feature type describing all features of that type. Example: `FeatureType.DATA` or `FeatureType.BBOX`
-    - A single feature as a tuple. Example: `(FeatureType.DATA, 'BANDS')`
-    - A single feature as a tuple. Example: `(FeatureType.DATA, 'BANDS')`
-    - A single feature as a tuple with new name. Example `(FeatureType.DATA, 'BANDS', 'NEW_BANDS')`
-    - A list of features (new names or not). Example:
+    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMP` or a tuple where the
+       first element is a `FeatureType` element and the other (or two for renaming) is a string.
+
+    3. Dictionary mapping `feature_type` keys to sequences of feature names. Feature names are either a sequence of
+       strings, pairs of shape `(old_name, new_name)` or `...`. For feature types with no names (BBox and timestamps)
+       one should use `None` in place of the sequence. Example:
+
+        .. code-block:: python
+
+            {
+                FeatureType.DATA: [
+                    ('S2-BANDS', 'INTERPOLATED_S2_BANDS'),
+                    ('L8-BANDS', 'INTERPOLATED_L8_BANDS'),
+                    'NDVI',
+                    'NDWI',
+                },
+                FeatureType.MASK: ...
+                FeatureType.BBOX: None
+            }
+
+    4. Sequences of elements, each describing a feature. For elements describing a feature type it is understood as
+       `(feature_type, ...)`. For specific features one can use `(feature_type, feature_name)` or even
+       `(feature_type, old_name, new_name)` for renaming.
 
         .. code-block:: python
 
             [
                 (FeatureType.DATA, 'BANDS'),
-                (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK')
+                (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK'),
+                FeatureType.BBOX
             ]
-    - A dictionary with feature types as keys and lists, sets, single feature or `...` of feature names as values.
-      Example:
 
-        .. code-block:: python
+    Outputs of the FeatureParser are:
 
-            {
-                FeatureType.DATA: ['S2-BANDS', 'L8-BANDS'],
-                FeatureType.MASK: {'IS_VALID', 'IS_DATA'},
-                FeatureType.MASK_TIMELESS: 'LULC',
-                FeatureType.TIMESTAMP: ...
-            }
-    - A dictionary with feature types as keys and dictionaries, where feature names are mapped into new names, as
-      values. Example:
-
-        .. code-block:: python
-
-            {
-                FeatureType.DATA: {
-                    'S2-BANDS': 'INTERPOLATED_S2_BANDS',
-                    'L8-BANDS': 'INTERPOLATED_L8_BANDS',
-                    'NDVI': ...
-                }
-            }
-
-    Note: Therese are most general input formats, but even more are supported or might be supported in the future.
-
-    Outputs of the generator:
-
-    - tuples in form of (feature type, feature name) if parameter `new_names=False`
-    - tuples in form of (feature type, feature name, new feature name) if parameter `new_names=True`
+    - For `get_features` a list of pairs `(feature_type, feature_name)`.
+    - For `get_renamed_features` a list of triples `(feature_type, old_name, new_name)`.
     """
-    def __init__(self, features, new_names=False, rename_function=None, default_feature_type=None,
-                 allowed_feature_types=None):
+    def __init__(
+        self, features: Union[dict, Sequence], allowed_feature_types: Optional[Iterable[FeatureType]] = None
+    ):
         """
         :param features: A collection of features in one of the supported formats
-        :type features: object
-        :param new_names: If `False` the generator will only return tuples with in form of
-            (feature type, feature name). If `True` it will return tuples
-            (feature type, feature name, new feature name) which can be used for renaming
-            features or creating new features out of old ones.
-        :type new_names: bool
-        :param rename_function: A function which transforms feature name into a new feature name, default is identity
-            function. This parameter is only applied if `new_names` is set to `True`.
-        :type rename_function: function or None
-        :param default_feature_type: If feature type of any given feature is not set, this will be used. By default this
-            is set to `None`. In this case if feature type of any feature is not given the following will happen:
-
-            - if iterated over `EOPatch` - It will try to find a feature with matching name in EOPatch. If such
-              features exist, it will return any of them. Otherwise it will raise an error.
-            - if iterated without `EOPatch` - It will return `...` instead of a feature type.
-        :type default_feature_type: FeatureType or None
         :param allowed_feature_types: Makes sure that only features of these feature types will be returned, otherwise
             an error is raised
-        :type: set(FeatureType) or None
         :raises: ValueError
         """
-        self.feature_collection = self._parse_features(features, new_names)
-        self.new_names = new_names
-        self.rename_function = rename_function
-        self.default_feature_type = default_feature_type
-        self.allowed_feature_types = FeatureType if allowed_feature_types is None else set(allowed_feature_types)
+        self.allowed_feature_types = set(FeatureType) if allowed_feature_types is None else set(allowed_feature_types)
+        self._feature_specs = self._parse_features(features)
 
-        if rename_function is None:
-            self.rename_function = self._identity_rename_function  # <- didn't use lambda function - it can't be pickled
+    def _parse_features(
+        self, features: Union[dict, Sequence]
+    ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
+        """ This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
 
-        if allowed_feature_types is not None:
-            self._check_feature_types()
-
-    def __call__(self, eopatch=None):
-        return self._get_features(eopatch)
-
-    def __iter__(self):
-        return self._get_features()
-
-    @staticmethod
-    def _parse_features(features, new_names):
-        """Takes a collection of features structured in a various ways and parses them into one way.
-
-        If input format is not recognized it raises an error.
-
-        :return: A collection of features
-        :rtype: collections.OrderedDict(FeatureType: collections.OrderedDict(str: str or Ellipsis) or Ellipsis)
-        :raises: ValueError
+        Due to typing issues the all-features requests are transformed from `(ftype, ...)` to `(ftype, None, None)`.
+        This is a correct schema for BBOX and TIMESTAMP while for other features this is corrected when outputting,
+        either by processing the request or by substituting ellipses back (case of `get_feature_specifications`).
         """
         if isinstance(features, dict):
-            return FeatureParser._parse_dict(features, new_names)
+            return self._parse_dict(features)
 
-        if isinstance(features, list):
-            return FeatureParser._parse_list(features, new_names)
-
-        if isinstance(features, tuple):
-            return FeatureParser._parse_tuple(features, new_names)
+        if isinstance(features, Sequence):
+            return self._parse_sequence(features)
 
         if features is ...:
-            return OrderedDict([(feature_type, ...) for feature_type in FeatureType])
+            return list(zip(self.allowed_feature_types, repeat(None), repeat(None)))
 
-        if isinstance(features, FeatureType):
-            return OrderedDict([(features, ...)])
+        if features is FeatureType.BBOX or features is FeatureType.TIMESTAMP:
+            return [(features, None, None)]
 
-        if isinstance(features, str):
-            return OrderedDict([(None, OrderedDict([(features, ...)]))])
+        raise ValueError(
+            f'Unable to parse features {features}. Please see specifications of FeatureParser on viable inputs.'
+        )
 
-        raise ValueError(f'Unknown format of input features: {features}')
+    def _parse_dict(self, features: dict) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
+        """ Implements parsing and validation in case the input is a dictionary.
+        """
 
-    @staticmethod
-    def _parse_dict(features, new_names):
-        """Helping function of `_parse_features` that parses a list."""
-        feature_collection = OrderedDict()
+        feature_specs: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
+
         for feature_type, feature_names in features.items():
+            feature_type = self._parse_feature_type(feature_type, message_about_position='keys of the dictionary')
+
+            if feature_names in (..., None):
+                feature_specs.append((feature_type, None, None))
+                continue
+
+            self._fail_for_noname_features(feature_type, feature_names)
+
+            if not isinstance(feature_names, Sequence):
+                raise ValueError('Values of dictionary must be `...` or sequences with feature names.')
+
+            parsed_names = [(feature_type, *self._parse_feature_name(feature_type, name)) for name in feature_names]
+            feature_specs.extend(parsed_names)
+
+        return feature_specs
+
+    def _parse_sequence(
+        self, features: Sequence
+    ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
+        """ Implements parsing and validation in case the input is a sequence.
+        """
+
+        feature_specs: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
+
+        # Check for possible singleton
+        if 2 <= len(features) <= 3:
             try:
-                feature_type = FeatureType(feature_type)
+                return [(self._parse_singelton(features))]
             except ValueError:
-                ValueError(f'Failed to parse {features}, keys of the dictionary have to be instances '
-                           f'of {FeatureType.__name__}')
+                pass
 
-            feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
-
-            if feature_names is ...:
-                feature_collection[feature_type] = ...
-
-            if feature_type.has_dict() and feature_collection[feature_type] is not ...:
-                feature_collection[feature_type].update(FeatureParser._parse_feature_names(feature_names, new_names))
-
-        return feature_collection
-
-    @staticmethod
-    def _parse_list(features, new_names):
-        """Helping function of `_parse_features` that parses a list."""
-        feature_collection = OrderedDict()
         for feature in features:
-            if isinstance(feature, FeatureType):
-                feature_collection[feature] = ...
+            if isinstance(feature, (tuple, list)) and 2 <= len(feature) <= 3:
+                feature_specs.append(self._parse_singelton(feature))
 
-            elif isinstance(feature, (tuple, list)):
-                for feature_type, feature_dict in FeatureParser._parse_tuple(feature, new_names).items():
-                    feature_collection[feature_type] = feature_collection.get(feature_type, OrderedDict())
+            elif isinstance(feature, FeatureType):
+                feature_type = self._parse_feature_type(feature, message_about_position='singleton elements')
+                feature_specs.append((feature_type, None, None))
 
-                    if feature_dict is ...:
-                        feature_collection[feature_type] = ...
-
-                    if feature_collection[feature_type] is not ...:
-                        feature_collection[feature_type].update(feature_dict)
             else:
-                raise ValueError(f'Failed to parse {feature}, expected a tuple')
-        return feature_collection
+                raise ValueError(
+                    f"Failed to parse {feature}, expected a tuple of form `(feature_type, feature_name)` or "
+                    f"`(feature_type, old_name, new_name)`."
+                )
 
-    @staticmethod
-    def _parse_tuple(features, new_names):
-        """Helping function of `_parse_features` that parses a tuple."""
-        name_idx = 1
+        return feature_specs
+
+    def _parse_singelton(
+        self, feature: Sequence
+    ) -> Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]:
+        """ Parses a pair or triple specifying a single feature or a get-all request """
+        feature_type, *feature_name = feature
+        feature_type = self._parse_feature_type(feature_type, message_about_position='first elements of tuples')
+
+        if len(feature_name) == 1 and feature_name[0] in (..., None):
+            return (feature_type, None, None)
+
+        self._fail_for_noname_features(feature_type, feature_name)
+
+        feature_name = feature_name[0] if len(feature_name) == 1 else feature_name
+        parsed_name = self._parse_feature_name(feature_type, feature_name)
+        return (feature_type, *parsed_name)
+
+    def _parse_feature_type(self, feature_type, *, message_about_position: str) -> FeatureType:
+        """ Tries to extract a feature type if possible, fails otherwise.
+
+        The parameter `message_about_position` is used for more informative error messages.
+        """
         try:
-            feature_type = FeatureType(features[0])
-        except ValueError:
-            feature_type = None
-            name_idx = 0
+            feature_type = FeatureType(feature_type)
+        except ValueError as exception:
+            raise ValueError(
+                f'Failed to parse {feature_type}, {message_about_position} must be {FeatureType.__name__}'
+            ) from exception
 
-        if feature_type and not feature_type.has_dict():
-            return OrderedDict([(feature_type, ...)])
-        return OrderedDict([(feature_type, FeatureParser._parse_names_tuple(features[name_idx:], new_names))])
-
-    @staticmethod
-    def _parse_feature_names(feature_names, new_names):
-        """Helping function of `_parse_features` that parses a collection of feature names."""
-        if isinstance(feature_names, set):
-            return FeatureParser._parse_names_set(feature_names)
-
-        if isinstance(feature_names, dict):
-            return FeatureParser._parse_names_dict(feature_names)
-
-        if isinstance(feature_names, (tuple, list)):
-            return FeatureParser._parse_names_tuple(feature_names, new_names)
-
-        raise ValueError(f'Failed to parse {feature_names}, expected dictionary, set or tuple')
+        if feature_type not in self.allowed_feature_types:
+            raise ValueError(
+                f'Allowed feature types were set to be {self.allowed_feature_types} but found {feature_type}'
+            )
+        return feature_type
 
     @staticmethod
-    def _parse_names_set(feature_names):
-        """Helping function of `_parse_feature_names` that parses a set of feature names."""
-        feature_collection = OrderedDict()
-        for feature_name in feature_names:
-            if isinstance(feature_name, str):
-                feature_collection[feature_name] = ...
+    def _parse_feature_name(feature_type: FeatureType, name: object) -> Tuple[str, str]:
+        """ Parses input in places where a feature name is expected, handling the cases of a name and renaming pair.
+        """
+        if isinstance(name, str):
+            return name, name
+        if isinstance(name, (tuple, list)):
+            if len(name) != 2 or not all(isinstance(n, str) for n in name):
+                raise ValueError(
+                    'When specifying a re-name for a feature it must be a pair of strings `(old_name, new_name)`, '
+                    f'got {name}.'
+                )
+            return cast(Tuple[str, str], tuple(name))
+        raise ValueError(
+            f'For {feature_type} found invalid feature name {name}. The sequence of feature names can contain only'
+            ' strings or pairs of form `(old_name, new_name)`'
+        )
+
+    @staticmethod
+    def _fail_for_noname_features(feature_type: FeatureType, specification: object):
+        """ Fails if the feature type does not support names
+
+        Should only be used after the viable names `...` and `None` have already been handled.
+        """
+        if not feature_type.has_dict():
+            raise ValueError(
+                f'For features of type {feature_type} the only acceptable specification is `...` or `None`, got'
+                f' {specification} instead.'
+            )
+
+    @staticmethod
+    def _validate_parsing_request(feature_type: FeatureType, name: Optional[str], eopatch: Optional['EOPatch']):
+        """ Checks if the parsing request is viable with current arguments
+
+        This means checking that `eopatch` is provided if the request is an all-features request and in the case
+        where an EOPatch is provided, that the feature exists in the EOPatch.
+        """
+        if not feature_type.has_dict():
+            return
+
+        if name is None and eopatch is None:
+            raise ValueError(
+                f'Input specifies that for feature type {feature_type} all existing features are parsed, but the '
+                '`eopatch` parameter was not provided.'
+            )
+
+        if eopatch is not None and name is not None and (feature_type, name) not in eopatch:
+            raise ValueError(f'Requested feature {(feature_type, name)} not part of eopatch.')
+
+    def get_feature_specifications(self) -> List[Tuple[FeatureType, object]]:
+        """ Returns the feature specifications in a more streamlined fashion.
+
+        Requests for all features, e.g. `(FeatureType.DATA, ...)`, are returned directly.
+        """
+        return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
+
+    def get_features(self, eopatch: Optional['EOPatch'] = None) -> List[Tuple[FeatureType, Optional[str]]]:
+        """ Returns a list of `(feature_type, feature_name)` pairs.
+
+        For features that specify renaming, the new name of the feature is ignored.
+
+        If `eopatch` is provided, the method checks that the EOPatch contains all the specified data and processes
+        requests for all features, e.g. `(FeatureType.DATA, ...)`, by listing all available features of given type.
+
+        If `eopatch` is not provided the method fails if an all-feature request is in the specification.
+        """
+        feature_names = []
+        for feature_type, name, _ in self._feature_specs:
+            self._validate_parsing_request(feature_type, name, eopatch)
+            if name is None and feature_type.has_dict():
+                feature_names.extend(list(zip(repeat(feature_type), eopatch[feature_type])))  # type: ignore
             else:
-                raise ValueError(f'Failed to parse {feature_name}, expected string')
-        return feature_collection
+                feature_names.append((feature_type, name))
+        return feature_names
 
-    @staticmethod
-    def _parse_names_dict(feature_names):
-        """Helping function of `_parse_feature_names` that parses a dictionary of feature names."""
-        feature_collection = OrderedDict()
-        for feature_name, new_feature_name in feature_names.items():
-            if isinstance(feature_name, str) and (isinstance(new_feature_name, str) or
-                                                  new_feature_name is ...):
-                feature_collection[feature_name] = new_feature_name
+    def get_renamed_features(
+        self, eopatch: Optional['EOPatch'] = None,
+    ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
+        """ Returns a list of `(feature_type, old_name, new_name)` triples.
+
+        For features without a specified renaming the new name is equal to the old one.
+
+        If `eopatch` is provided, the method checks that the EOPatch contains all the specified data and processes
+        requests for all features, e.g. `(FeatureType.DATA, ...)`, by listing all available features of given type.
+        In these cases the returned `old_name` and `new_name` are equal.
+
+        If `eopatch` is not provided the method fails if an all-feature request is in the specification.
+        """
+        feature_names = []
+        for feature_type, old_name, new_name in self._feature_specs:
+            self._validate_parsing_request(feature_type, old_name, eopatch)
+            if old_name is None and feature_type.has_dict():
+                feature_names.extend(
+                    list(zip(repeat(feature_type), eopatch[feature_type], eopatch[feature_type]))  # type: ignore
+                )
             else:
-                if not isinstance(feature_name, str):
-                    raise ValueError(f'Failed to parse {feature_name}, expected string')
-                raise ValueError(f'Failed to parse {new_feature_name}, expected string or Ellipsis')
-        return feature_collection
+                feature_names.append((feature_type, old_name, new_name))
+        return feature_names
 
-    @staticmethod
-    def _parse_names_tuple(feature_names, new_names):
-        """Helping function of `_parse_feature_names` that parses a tuple or a list of feature names."""
-        for feature in feature_names:
-            if not isinstance(feature, str) and feature is not ...:
-                raise ValueError(f'Failed to parse {feature}, expected a string')
 
-        if feature_names[0] is ...:
-            return ...
+def parse_feature(
+    feature, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+) -> Tuple[FeatureType, Optional[str]]:
+    """ Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
-        if new_names:
-            if len(feature_names) == 1:
-                return OrderedDict([(feature_names[0], ...)])
-            if len(feature_names) == 2:
-                return OrderedDict([(feature_names[0], feature_names[1])])
-            raise ValueError(f'Failed to parse {feature_names}, it should contain at most two strings')
+    See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
+    """
 
-        if ... in feature_names:
-            return ...
-        return OrderedDict([(feature_name, ...) for feature_name in feature_names])
+    features = FeatureParser([feature], allowed_feature_types=allowed_feature_types).get_features(eopatch)
+    if len(features) != 1:
+        raise ValueError(f"Specification {feature} resulted in {len(features)} features, expected 1.")
+    return features[0]
 
-    def _check_feature_types(self):
-        """ Checks that feature types are a subset of allowed feature types. (`None` is handled
 
-        :raises: ValueError
-        """
-        if self.default_feature_type is not None and self.default_feature_type not in self.allowed_feature_types:
-            raise ValueError('Default feature type parameter must be one of the allowed feature types')
+def parse_renamed_feature(
+    feature, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+) -> Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]:
+    """ Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
 
-        for feature_type in self.feature_collection:
-            if feature_type is not None and feature_type not in self.allowed_feature_types:
-                raise ValueError(f'Feature type has to be one of {self.allowed_feature_types}, but {feature_type} '
-                                 'found')
+    See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
+    """
 
-    def _get_features(self, eopatch=None):
-        """A generator of parsed features.
+    features = FeatureParser([feature], allowed_feature_types=allowed_feature_types).get_renamed_features(eopatch)
+    if len(features) != 1:
+        raise ValueError(f"Specification {feature} resulted in {len(features)} features, expected 1.")
+    return features[0]
 
-        :param eopatch: A given EOPatch
-        :type eopatch: EOPatch or None
-        :return: One by one feature
-        :rtype: tuple(FeatureType, str) or tuple(FeatureType, str, str)
-        """
-        for feature_type, feature_dict in self.feature_collection.items():
-            if feature_type is None and self.default_feature_type is not None:
-                feature_type = self.default_feature_type
 
-            if feature_type is None:
-                for feature_name, new_feature_name in feature_dict.items():
-                    if eopatch is None:
-                        yield self._return_feature(..., feature_name, new_feature_name)
-                    else:
-                        found_feature_type = self._find_feature_type(feature_name, eopatch)
-                        if found_feature_type:
-                            yield self._return_feature(found_feature_type, feature_name, new_feature_name)
-                        else:
-                            raise ValueError(
-                                f"Feature with name '{feature_name}' does not exist among features of allowed feature "
-                                f"types in given EOPatch. Allowed feature types are {self.allowed_feature_types}"
-                            )
-            elif feature_dict is ...:
-                if not feature_type.has_dict() or eopatch is None:
-                    yield self._return_feature(feature_type, ...)
-                else:
-                    for feature_name in eopatch[feature_type]:
-                        yield self._return_feature(feature_type, feature_name)
-            else:
-                for feature_name, new_feature_name in feature_dict.items():
-                    if eopatch is not None and feature_name not in eopatch[feature_type]:
-                        raise ValueError(f'Feature {feature_name} of type {feature_type} was not found in EOPatch')
-                    yield self._return_feature(feature_type, feature_name, new_feature_name)
+def parse_features(
+    features, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+) -> List[Tuple[FeatureType, Optional[str]]]:
+    """ Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
-    def _find_feature_type(self, feature_name, eopatch):
-        """ Iterates over allowed feature types of given EOPatch and tries to find a feature type for which there
-        exists a feature with given name
+    See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
+    """
+    return FeatureParser(features, allowed_feature_types=allowed_feature_types).get_features(eopatch)
 
-        :return: A feature type or `None` if such feature type does not exist
-        :rtype: FeatureType or None
-        """
-        for feature_type in self.allowed_feature_types:
-            if feature_type.has_dict() and feature_name in eopatch[feature_type]:
-                return feature_type
-        return None
 
-    def _return_feature(self, feature_type, feature_name, new_feature_name=...):
-        """ Helping function of `get_features`
-        """
-        if self.new_names:
-            return feature_type, feature_name, (self.rename_function(feature_name) if new_feature_name is ... else
-                                                new_feature_name)
-        return feature_type, feature_name
+def parse_renamed_features(
+    features, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
+    """ Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 
-    @staticmethod
-    def _identity_rename_function(name):
-        return name
+    See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
+    """
+    return FeatureParser(features, allowed_feature_types=allowed_feature_types).get_renamed_features(eopatch)
 
 
 def get_common_timestamps(source, target):
