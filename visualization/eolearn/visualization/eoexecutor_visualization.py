@@ -67,15 +67,17 @@ class EOExecutorVisualization:
 
         template = self._get_template()
 
-        html = template.render(dependency_graph=dependency_graph,
-                               general_stats=self.eoexecutor.general_stats,
-                               task_descriptions=self._get_node_descriptions(),
-                               task_sources=self._render_task_sources(formatter),
-                               execution_results=self.eoexecutor.execution_results,
-                               execution_tracebacks=self._render_execution_tracebacks(formatter),
-                               execution_logs=self.eoexecutor.execution_logs,
-                               execution_names=self.eoexecutor.execution_names,
-                               code_css=formatter.get_style_defs())
+        html = template.render(
+            dependency_graph=dependency_graph,
+            general_stats=self.eoexecutor.general_stats,
+            task_descriptions=self._get_node_descriptions(),
+            task_sources=self._render_task_sources(formatter),
+            execution_results=self.eoexecutor.execution_results,
+            execution_tracebacks=self._render_execution_tracebacks(formatter),
+            execution_logs=self.eoexecutor.execution_logs,
+            execution_names=self.eoexecutor.execution_names,
+            code_css=formatter.get_style_defs()
+        )
 
         if not os.path.isdir(self.eoexecutor.report_folder):
             os.mkdir(self.eoexecutor.report_folder)
