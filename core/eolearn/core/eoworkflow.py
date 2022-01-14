@@ -120,7 +120,7 @@ class EOWorkflow:
         return dag
 
     @classmethod
-    def from_endnodes(cls, endnodes: Sequence[EONode]) -> 'EOWorkflow':
+    def from_endnodes(cls, *endnodes: EONode) -> 'EOWorkflow':
         """ Constructs the EOWorkflow from the end-nodes by recursively extracting all nodes in the workflow structure
         """
         all_nodes: Set[EONode] = set()
