@@ -98,7 +98,7 @@ def test_fail_without_ray(workflow, execution_args):
 
 @pytest.mark.parametrize('filter_logs', [True, False])
 @pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
-def test_execution_logs(filter_logs, execution_names, workflow, execution_args, simple_cluster):
+def test_read_logs(filter_logs, execution_names, workflow, execution_args, simple_cluster):
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(
@@ -109,8 +109,9 @@ def test_execution_logs(filter_logs, execution_names, workflow, execution_args, 
         )
         executor.run()
 
-        assert len(executor.execution_logs) == 4
-        for log in executor.execution_logs:
+        execution_logs = executor.read_logs()
+        assert len(execution_logs) == 4
+        for log in execution_logs:
             assert len(log.split()) >= 3
 
         log_filenames = sorted(os.listdir(executor.report_folder))
