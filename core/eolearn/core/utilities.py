@@ -10,11 +10,13 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import logging
 import warnings
 from itertools import repeat
 from logging import Filter, LogRecord
-from typing import Optional, Union, Tuple, Sequence, Iterable, List, cast
+from typing import Optional, Union, Tuple, Sequence, Iterable, List, cast, TYPE_CHECKING
 
 import uuid
 import numpy as np
@@ -23,6 +25,10 @@ from geopandas.testing import assert_geodataframe_equal
 
 from .constants import FeatureType
 from .exceptions import EODeprecationWarning
+
+if TYPE_CHECKING:
+    from .eodata import EOPatch
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -256,7 +262,7 @@ class FeatureParser:
             )
 
     @staticmethod
-    def _validate_parsing_request(feature_type: FeatureType, name: Optional[str], eopatch: Optional['EOPatch']):
+    def _validate_parsing_request(feature_type: FeatureType, name: Optional[str], eopatch: Optional[EOPatch]):
         """ Checks if the parsing request is viable with current arguments
 
         This means checking that `eopatch` is provided if the request is an all-features request and in the case
@@ -281,7 +287,7 @@ class FeatureParser:
         """
         return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
 
-    def get_features(self, eopatch: Optional['EOPatch'] = None) -> List[Tuple[FeatureType, Optional[str]]]:
+    def get_features(self, eopatch: Optional[EOPatch] = None) -> List[Tuple[FeatureType, Optional[str]]]:
         """ Returns a list of `(feature_type, feature_name)` pairs.
 
         For features that specify renaming, the new name of the feature is ignored.
@@ -301,7 +307,7 @@ class FeatureParser:
         return feature_names
 
     def get_renamed_features(
-        self, eopatch: Optional['EOPatch'] = None,
+        self, eopatch: Optional[EOPatch] = None,
     ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
         """ Returns a list of `(feature_type, old_name, new_name)` triples.
 
@@ -326,7 +332,7 @@ class FeatureParser:
 
 
 def parse_feature(
-    feature, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+    feature, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> Tuple[FeatureType, Optional[str]]:
     """ Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
@@ -340,7 +346,7 @@ def parse_feature(
 
 
 def parse_renamed_feature(
-    feature, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+    feature, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]:
     """ Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
 
@@ -354,7 +360,7 @@ def parse_renamed_feature(
 
 
 def parse_features(
-    features, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+    features, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> List[Tuple[FeatureType, Optional[str]]]:
     """ Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
@@ -364,7 +370,7 @@ def parse_features(
 
 
 def parse_renamed_features(
-    features, eopatch: Optional['EOpatch'] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
+    features, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
     """ Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 
