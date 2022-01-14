@@ -36,14 +36,13 @@ class EOExecutorVisualization:
     """ Class handling EOExecutor visualizations, particularly creating reports
     """
 
-    def __init__(self, eoexecutor):
+    def __init__(self, eoexecutor: 'eolearn.core.EOExecutor'):
         """
         :param eoexecutor: An instance of EOExecutor
-        :type eoexecutor: EOExecutor
         """
         self.eoexecutor = eoexecutor
 
-    def make_report(self):
+    def make_report(self, include_logs: bool = True):
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         if self.eoexecutor.execution_results is None:
@@ -67,6 +66,12 @@ class EOExecutorVisualization:
 
         template = self._get_template()
 
+        execution_log_filenames = [os.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
+        if self.eoexecutor.save_logs:
+            execution_logs = self.eoexecutor.read_logs() if include_logs else None
+        else:
+            execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_args)
+
         html = template.render(
             dependency_graph=dependency_graph,
             general_stats=self.eoexecutor.general_stats,
@@ -74,19 +79,19 @@ class EOExecutorVisualization:
             task_sources=self._render_task_sources(formatter),
             execution_results=self.eoexecutor.execution_results,
             execution_tracebacks=self._render_execution_tracebacks(formatter),
-            execution_logs=self.eoexecutor.execution_logs,
+            execution_logs=execution_logs,
+            execution_log_filenames=execution_log_filenames,
             execution_names=self.eoexecutor.execution_names,
             code_css=formatter.get_style_defs()
         )
 
-        if not os.path.isdir(self.eoexecutor.report_folder):
-            os.mkdir(self.eoexecutor.report_folder)
+        os.makedirs(self.eoexecutor.report_folder, exist_ok=True)
 
         with open(self.eoexecutor.get_report_filename(), 'w') as fout:
             fout.write(html)
 
     def _create_dependency_graph(self):
-        """ Provides an image of dependecy graph
+        """ Provides an image of dependency graph
         """
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()

@@ -164,6 +164,8 @@ class EOWorkflow:
         )
 
         LOGGER.debug('EOWorkflow ended with results %s', repr(results))
+        status = 'failed' if results.workflow_failed() else 'finished'
+        LOGGER.debug('EOWorkflow execution %s!', status)
         return results
 
     @staticmethod

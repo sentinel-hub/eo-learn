@@ -170,10 +170,15 @@
                     {{ execution_tracebacks[loop.index - 1] }}
                 {% endif %}
 
-                <button class="collapsible">Logs</button>
-                <div class="collapsible-content">
-                  <pre>{{ execution_logs[loop.index - 1] }}</pre>
-                </div>
+                {% if execution_logs %}
+                    <button class="collapsible">Logs</button>
+                    <div class="collapsible-content">
+                      <pre>{{ execution_logs[loop.index - 1] }}</pre>
+                    </div>
+                {% else %}
+                    {% set logs_filename = execution_log_filenames[loop.index - 1] %}
+                    Logs: <a href="{{ logs_filename }}">{{ logs_filename }}</a>
+                {% endif %}
             </div>
         {% endfor %}
     </div>

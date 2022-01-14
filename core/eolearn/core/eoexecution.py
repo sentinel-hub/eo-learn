@@ -24,6 +24,7 @@ from enum import Enum
 from logging import Logger, Handler, Filter
 from typing import Sequence, List, Tuple, Dict, Optional, Callable, Iterable, TypeVar
 
+import fs
 from tqdm.auto import tqdm
 
 from .eonode import EONode
@@ -36,7 +37,7 @@ MULTIPROCESSING_LOCK = None
 
 _InputType = TypeVar('_InputType')
 _OutputType = TypeVar('_OutputType')
-_ExecutorProcessingArgsType = Tuple[EOWorkflow, Dict[EONode, Dict[str, object]], str, bool, Filter]
+_ExecutorProcessingArgsType = Tuple[EOWorkflow, Dict[EONode, Dict[str, object]], Optional[str], bool, Filter]
 
 
 class _ProcessingType(Enum):
@@ -58,31 +59,31 @@ class EOExecutor:
     STATS_END_TIME = 'end_time'
 
     def __init__(self, workflow: EOWorkflow, execution_args: Sequence[Dict[EONode, Dict[str, object]]], *,
-                 save_logs: bool = False, logs_folder: str = '.', logs_filter: Optional[Filter] = None,
-                 execution_names: Optional[List[str]] = None):
+                 execution_names: Optional[List[str]] = None, save_logs: bool = False, logs_folder: str = '.',
+                 logs_filter: Optional[Filter] = None, filesystem: fs.base.FS = None):
         """
         :param workflow: A prepared instance of EOWorkflow class
         :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the
             workflow. `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The
             content of such dictionary will be used as `input_kwargs` parameter in `EOWorkflow.execution` method.
             Check `EOWorkflow.execution` for definition of a dictionary structure.
+        :param execution_names: A list of execution names, which will be shown in execution report
         :param save_logs: Flag used to specify if execution log files should be saved locally on disk
         :param logs_folder: A folder where logs and execution report should be saved
         :param logs_filter: An instance of a custom filter object that will filter certain logs from being written into
             logs. It works only if save_logs parameter is set to True.
-        :param execution_names: A list of execution names, which will be shown in execution report
         """
         self.workflow = workflow
         self.execution_args = self._parse_and_validate_execution_args(execution_args)
+        self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
         self.save_logs = save_logs
         self.logs_folder = os.path.abspath(logs_folder)
         self.logs_filter = logs_filter
-        self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
+        self.filesystem = filesystem
 
         self.start_time = None
         self.report_folder = None
         self.general_stats = {}
-        self.execution_logs = None
         self.execution_results = None
 
     @staticmethod
@@ -130,7 +131,7 @@ class EOExecutor:
         if self.save_logs:
             os.makedirs(self.report_folder, exist_ok=True)
 
-        log_paths = self._get_log_paths()
+        log_paths = self.get_log_paths() if self.save_logs else [None] * len(self.execution_args)
 
         filter_logs_by_thread = not multiprocess and workers > 1
         processing_args = [(self.workflow, init_args, log_path, filter_logs_by_thread, self.logs_filter)
@@ -141,12 +142,6 @@ class EOExecutor:
 
         self.execution_results = [results.drop_outputs() for results in full_execution_results]
         self.general_stats = self._prepare_general_stats(workers, processing_type)
-
-        self.execution_logs = [None] * len(self.execution_args)
-        if self.save_logs:
-            for idx, log_path in enumerate(log_paths):
-                with open(log_path) as fin:
-                    self.execution_logs[idx] = fin.read()
 
         return full_execution_results
 
@@ -181,7 +176,7 @@ class EOExecutor:
             MULTIPROCESSING_LOCK = None
 
     @classmethod
-    def _try_add_logging(cls, log_path: str, filter_logs_by_thread: bool,
+    def _try_add_logging(cls, log_path: Optional[str], filter_logs_by_thread: bool,
                          logs_filter: Optional[Filter]) -> Tuple[Optional[Logger], Optional[Handler]]:
         """ Adds a handler to a logger and returns them both. In case this fails it shows a warning.
         """
@@ -198,7 +193,7 @@ class EOExecutor:
         return None, None
 
     @classmethod
-    def _try_remove_logging(cls, log_path: str, logger: Optional[Logger], handler: Optional[Handler]):
+    def _try_remove_logging(cls, log_path: Optional[str], logger: Optional[Logger], handler: Optional[Handler]):
         """ Removes a handler from a logger in case that handler exists.
         """
         if log_path and logger:
@@ -217,13 +212,7 @@ class EOExecutor:
 
         results = workflow.execute(input_args, raise_errors=False)
 
-        if logger:
-            status = 'failed' if results.workflow_failed() else 'finished'
-            message = f'EOWorkflow execution {status}!'
-            logger.debug(message)
-
         cls._try_remove_logging(log_path, logger, handler)
-
         return results
 
     @staticmethod
@@ -261,15 +250,6 @@ class EOExecutor:
         return os.path.join(self.logs_folder,
                             f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}')
 
-    def _get_log_paths(self) -> List[Optional[str]]:
-        """ Returns a list of file paths containing logs
-        """
-        if self.save_logs:
-            return [os.path.join(self.report_folder, f'eoexecution-{name}.log')
-                    for name in self.execution_names]
-
-        return [None] * len(self.execution_names)
-
     def get_successful_executions(self) -> List[int]:
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_args) - 1]`, sorted in increasing order.
@@ -293,8 +273,12 @@ class EOExecutor:
         """
         return os.path.join(self.report_folder, self.REPORT_FILENAME)
 
-    def make_report(self):
+    def make_report(self, include_logs: bool = True):
         """ Makes a html report and saves it into the same folder where logs are stored.
+
+        :param include_logs: If `True` log files will be loaded into the report file. If `False` they will be just
+            referenced with a link to a log file. In case of a very large number of executions it is recommended that
+            this parameter is set to `False` to avoid compiling a too large report file.
         """
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
@@ -303,7 +287,32 @@ class EOExecutor:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to create EOExecutor '
                                'reports')
 
-        return EOExecutorVisualization(self).make_report()
+        return EOExecutorVisualization(self).make_report(include_logs=include_logs)
+
+    def get_log_paths(self) -> List[str]:
+        """ Returns a list of file paths containing logs
+        """
+        return [os.path.join(self.report_folder, f'eoexecution-{name}.log') for name in self.execution_names]
+
+    def read_logs(self) -> List[Optional[str]]:
+        """ Loads the content of log files if logs have been saved
+        """
+        if not self.save_logs:
+            return [None] * len(self.execution_args)
+
+        log_paths = self.get_log_paths()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return list(executor.map(self._read_log_file, log_paths))
+
+    @staticmethod
+    def _read_log_file(log_path: str) -> str:
+        """Read a content of a log file"""
+        try:
+            with open(log_path, "r") as file_handle:
+                return file_handle.read()
+        except BaseException as exception:
+            warnings.warn(f'Failed to load logs with exception: {repr(exception)}', category=EORuntimeWarning)
+            return 'Failed to load logs'
 
 
 def submit_and_monitor_execution(

@@ -12,6 +12,8 @@ import os
 import logging
 import tempfile
 
+import pytest
+
 from eolearn.core import EOTask, EOWorkflow, EONode, EOExecutor
 
 
@@ -40,12 +42,15 @@ EXECUTION_ARGS = [
 ]
 
 
-def test_report_creation():
+@pytest.mark.parametrize('save_logs', [True, False])
+@pytest.mark.parametrize('include_logs', [True, False])
+def test_report_creation(save_logs, include_logs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
-            WORKFLOW, EXECUTION_ARGS, logs_folder=tmp_dir_name, save_logs=True, execution_names=['ex 1', 2, 0.4, None]
+            WORKFLOW, EXECUTION_ARGS, logs_folder=tmp_dir_name, save_logs=save_logs,
+            execution_names=['ex 1', 2, 0.4, None]
         )
         executor.run(workers=10)
-        executor.make_report()
+        executor.make_report(include_logs=include_logs)
 
         assert os.path.exists(executor.get_report_filename()), 'Execution report was not created'
