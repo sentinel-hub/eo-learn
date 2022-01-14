@@ -29,6 +29,7 @@ import pygments.lexers
 from pygments.formatters.html import HtmlFormatter
 from jinja2 import Environment, FileSystemLoader
 
+from eolearn.core import EOExecutor
 from eolearn.core.exceptions import EOUserWarning
 
 
@@ -36,7 +37,7 @@ class EOExecutorVisualization:
     """ Class handling EOExecutor visualizations, particularly creating reports
     """
 
-    def __init__(self, eoexecutor: 'eolearn.core.EOExecutor'):
+    def __init__(self, eoexecutor: EOExecutor):
         """
         :param eoexecutor: An instance of EOExecutor
         """
