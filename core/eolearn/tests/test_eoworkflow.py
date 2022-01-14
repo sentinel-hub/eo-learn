@@ -220,7 +220,7 @@ def test_workflow_from_endnodes():
     output_node = EONode(OutputTask(name='out'), inputs=[divide_node])
 
     regular_workflow = EOWorkflow([input_node1, input_node2, divide_node, output_node])
-    endnode_workflow = EOWorkflow.from_endnodes([output_node])
+    endnode_workflow = EOWorkflow.from_endnodes(output_node)
 
     assert isinstance(endnode_workflow, EOWorkflow)
     assert set(endnode_workflow.get_nodes()) == set(regular_workflow.get_nodes()), "Nodes are different"
@@ -240,6 +240,11 @@ def test_workflow_from_endnodes():
         assert all(
             x.result().outputs['out'] == y.result().outputs['out'] for x, y in zip(regular_results, endnode_results)
         )
+
+    endnode_duplicates = EOWorkflow.from_endnodes(output_node, output_node, divide_node)
+    assert set(endnode_duplicates.get_nodes()) == set(regular_workflow.get_nodes()), (
+        "Fails if endnodes are repeated"
+    )
 
 
 def test_exception_handling():
