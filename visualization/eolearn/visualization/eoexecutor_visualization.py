@@ -9,11 +9,11 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import os
 import inspect
 import warnings
 import base64
+import datetime as dt
 from collections import OrderedDict, defaultdict
 
 try:
@@ -29,6 +29,7 @@ import pygments.lexers
 from pygments.formatters.html import HtmlFormatter
 from jinja2 import Environment, FileSystemLoader
 
+from eolearn.core import EOExecutor
 from eolearn.core.exceptions import EOUserWarning
 
 
@@ -36,14 +37,13 @@ class EOExecutorVisualization:
     """ Class handling EOExecutor visualizations, particularly creating reports
     """
 
-    def __init__(self, eoexecutor):
+    def __init__(self, eoexecutor: EOExecutor):
         """
         :param eoexecutor: An instance of EOExecutor
-        :type eoexecutor: EOExecutor
         """
         self.eoexecutor = eoexecutor
 
-    def make_report(self):
+    def make_report(self, include_logs: bool = True):
         """ Makes a html report and saves it into the same folder where logs are stored.
         """
         if self.eoexecutor.execution_results is None:
@@ -67,24 +67,32 @@ class EOExecutorVisualization:
 
         template = self._get_template()
 
-        html = template.render(dependency_graph=dependency_graph,
-                               general_stats=self.eoexecutor.general_stats,
-                               task_descriptions=self._get_node_descriptions(),
-                               task_sources=self._render_task_sources(formatter),
-                               execution_results=self.eoexecutor.execution_results,
-                               execution_tracebacks=self._render_execution_tracebacks(formatter),
-                               execution_logs=self.eoexecutor.execution_logs,
-                               execution_names=self.eoexecutor.execution_names,
-                               code_css=formatter.get_style_defs())
+        execution_log_filenames = [os.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
+        if self.eoexecutor.save_logs:
+            execution_logs = self.eoexecutor.read_logs() if include_logs else None
+        else:
+            execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_args)
 
-        if not os.path.isdir(self.eoexecutor.report_folder):
-            os.mkdir(self.eoexecutor.report_folder)
+        html = template.render(
+            dependency_graph=dependency_graph,
+            general_stats=self.eoexecutor.general_stats,
+            task_descriptions=self._get_node_descriptions(),
+            task_sources=self._render_task_sources(formatter),
+            execution_results=self.eoexecutor.execution_results,
+            execution_tracebacks=self._render_execution_tracebacks(formatter),
+            execution_logs=execution_logs,
+            execution_log_filenames=execution_log_filenames,
+            execution_names=self.eoexecutor.execution_names,
+            code_css=formatter.get_style_defs()
+        )
+
+        os.makedirs(self.eoexecutor.report_folder, exist_ok=True)
 
         with open(self.eoexecutor.get_report_filename(), 'w') as fout:
             fout.write(html)
 
     def _create_dependency_graph(self):
-        """ Provides an image of dependecy graph
+        """ Provides an image of dependency graph
         """
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
@@ -166,13 +174,13 @@ class EOExecutorVisualization:
         return template
 
     @staticmethod
-    def _format_datetime(value):
+    def _format_datetime(value: dt.datetime) -> str:
         """ Method for formatting datetime objects into report
         """
-        return value.strftime('%X %x %Z')
+        return value.strftime("%Y-%m-%d %H:%M:%S")
 
     @staticmethod
-    def _format_timedelta(value1, value2):
+    def _format_timedelta(value1: dt.datetime, value2: dt.datetime) -> str:
         """ Method for formatting time delta into report
         """
         return str(value2 - value1)

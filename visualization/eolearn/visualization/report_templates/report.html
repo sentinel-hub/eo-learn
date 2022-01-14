@@ -165,14 +165,20 @@
                     <li>Duration: {{ timedelta(execution.start_time, execution.end_time) }}</li>
                 </ul>
                 {% if execution.workflow_failed() %}
-                    Error<br/>
+                    {% set error_node = execution.stats[execution.error_node_uid] %}
+                    Error in task {{ error_node.node_name }} ({{ error_node.node_uid }}):<br/>
                     {{ execution_tracebacks[loop.index - 1] }}
                 {% endif %}
 
-                <button class="collapsible">Logs</button>
-                <div class="collapsible-content">
-                  <pre>{{ execution_logs[loop.index - 1] }}</pre>
-                </div>
+                {% if execution_logs %}
+                    <button class="collapsible">Logs</button>
+                    <div class="collapsible-content">
+                      <pre>{{ execution_logs[loop.index - 1] }}</pre>
+                    </div>
+                {% else %}
+                    {% set logs_filename = execution_log_filenames[loop.index - 1] %}
+                    Logs: <a href="{{ logs_filename }}">{{ logs_filename }}</a>
+                {% endif %}
             </div>
         {% endfor %}
     </div>

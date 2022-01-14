@@ -107,7 +107,7 @@ def execution_args_fixture(test_nodes):
     ]
 )
 @pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
-def test_execution_logs(test_args, execution_names, workflow, execution_args):
+def test_read_logs(test_args, execution_names, workflow, execution_args):
     workers, multiprocess, filter_logs = test_args
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
@@ -118,8 +118,9 @@ def test_execution_logs(test_args, execution_names, workflow, execution_args):
         )
         executor.run(workers=workers, multiprocess=multiprocess)
 
-        assert len(executor.execution_logs) == 4
-        for log in executor.execution_logs:
+        execution_logs = executor.read_logs()
+        assert len(execution_logs) == 4
+        for log in execution_logs:
             assert len(log.split()) >= 3
 
         log_filenames = sorted(os.listdir(executor.report_folder))
