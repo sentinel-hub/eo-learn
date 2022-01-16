@@ -74,6 +74,7 @@ class EOExecutorVisualization:
             execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_args)
 
         html = template.render(
+            title=f'Report {self._format_datetime(self.eoexecutor.start_time)}',
             dependency_graph=dependency_graph,
             general_stats=self.eoexecutor.general_stats,
             task_descriptions=self._get_node_descriptions(),
