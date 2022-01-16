@@ -42,10 +42,10 @@ class RayExecutor(EOExecutor):
         return _ProcessingType.RAY
 
     @classmethod
-    def _run_execution(cls, processing_args, *_, **__):
+    def _run_execution(cls, execution_kwargs, *_, **__):
         """ Runs ray execution
         """
-        futures = [_ray_workflow_executor.remote(workflow_args) for workflow_args in processing_args]
+        futures = [_ray_workflow_executor.remote(workflow_kwargs) for workflow_kwargs in execution_kwargs]
 
         for _ in tqdm(_progress_bar_iterator(futures), total=len(futures)):
             pass
@@ -54,11 +54,11 @@ class RayExecutor(EOExecutor):
 
 
 @ray.remote
-def _ray_workflow_executor(workflow_args):
+def _ray_workflow_executor(workflow_kwargs):
     """ Called to execute a workflow on a ray worker
     """
     # pylint: disable=protected-access
-    return RayExecutor._execute_workflow(workflow_args)
+    return RayExecutor._execute_workflow(workflow_kwargs)
 
 
 def _progress_bar_iterator(futures):

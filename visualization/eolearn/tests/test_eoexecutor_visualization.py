@@ -34,7 +34,7 @@ class ExampleTask(EOTask):
 
 NODE = EONode(ExampleTask())
 WORKFLOW = EOWorkflow([NODE, EONode(task=ExampleTask(), inputs=[NODE, NODE])])
-EXECUTION_ARGS = [
+EXECUTION_KWARGS = [
     {NODE: {'arg1': 1}},
     {},
     {NODE: {'arg1': 3, 'arg3': 10}},
@@ -47,7 +47,7 @@ EXECUTION_ARGS = [
 def test_report_creation(save_logs, include_logs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
-            WORKFLOW, EXECUTION_ARGS, logs_folder=tmp_dir_name, save_logs=save_logs,
+            WORKFLOW, EXECUTION_KWARGS, logs_folder=tmp_dir_name, save_logs=save_logs,
             execution_names=['ex 1', 2, 0.4, None]
         )
         executor.run(workers=10)

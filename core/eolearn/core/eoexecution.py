@@ -58,12 +58,12 @@ class EOExecutor:
     STATS_START_TIME = 'start_time'
     STATS_END_TIME = 'end_time'
 
-    def __init__(self, workflow: EOWorkflow, execution_args: Sequence[Dict[EONode, Dict[str, object]]], *,
+    def __init__(self, workflow: EOWorkflow, execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]], *,
                  execution_names: Optional[List[str]] = None, save_logs: bool = False, logs_folder: str = '.',
                  logs_filter: Optional[Filter] = None, filesystem: fs.base.FS = None):
         """
         :param workflow: A prepared instance of EOWorkflow class
-        :param execution_args: A list of dictionaries where each dictionary represents execution inputs for the
+        :param execution_kwargs: A list of dictionaries where each dictionary represents execution inputs for the
             workflow. `EOExecutor` will execute the workflow for each of the given dictionaries in the list. The
             content of such dictionary will be used as `input_kwargs` parameter in `EOWorkflow.execution` method.
             Check `EOWorkflow.execution` for definition of a dictionary structure.
@@ -74,8 +74,8 @@ class EOExecutor:
             logs. It works only if save_logs parameter is set to True.
         """
         self.workflow = workflow
-        self.execution_args = self._parse_and_validate_execution_args(execution_args)
-        self.execution_names = self._parse_execution_names(execution_names, self.execution_args)
+        self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
+        self.execution_names = self._parse_execution_names(execution_names, self.execution_kwargs)
         self.save_logs = save_logs
         self.logs_folder = os.path.abspath(logs_folder)
         self.logs_filter = logs_filter
@@ -87,26 +87,26 @@ class EOExecutor:
         self.execution_results = None
 
     @staticmethod
-    def _parse_and_validate_execution_args(
-            execution_args: Sequence[Dict[EONode, Dict[str, object]]]) -> List[Dict[EONode, Dict[str, object]]]:
+    def _parse_and_validate_execution_kwargs(
+            execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]]) -> List[Dict[EONode, Dict[str, object]]]:
         """ Parses and validates execution arguments provided by user and raises an error if something is wrong
         """
-        if not isinstance(execution_args, (list, tuple)):
-            raise ValueError("Parameter 'execution_args' should be a list")
+        if not isinstance(execution_kwargs, (list, tuple)):
+            raise ValueError("Parameter 'execution_kwargs' should be a list")
 
-        for input_kwargs in execution_args:
+        for input_kwargs in execution_kwargs:
             EOWorkflow.validate_input_kwargs(input_kwargs)
 
-        return [input_kwargs or {} for input_kwargs in execution_args]
+        return [input_kwargs or {} for input_kwargs in execution_kwargs]
 
     @staticmethod
-    def _parse_execution_names(execution_names: Optional[List[str]], execution_args: Sequence) -> List[str]:
+    def _parse_execution_names(execution_names: Optional[List[str]], execution_kwargs: Sequence) -> List[str]:
         """ Parses a list of execution names
         """
         if execution_names is None:
-            return [str(num) for num in range(1, len(execution_args) + 1)]
+            return [str(num) for num in range(1, len(execution_kwargs) + 1)]
 
-        if not isinstance(execution_names, (list, tuple)) or len(execution_names) != len(execution_args):
+        if not isinstance(execution_names, (list, tuple)) or len(execution_names) != len(execution_kwargs):
             raise ValueError("Parameter 'execution_names' has to be a list of the same size as the list of "
                              "execution arguments")
         return execution_names
@@ -131,11 +131,11 @@ class EOExecutor:
         if self.save_logs:
             os.makedirs(self.report_folder, exist_ok=True)
 
-        log_paths = self.get_log_paths() if self.save_logs else [None] * len(self.execution_args)
+        log_paths = self.get_log_paths() if self.save_logs else [None] * len(self.execution_kwargs)
 
         filter_logs_by_thread = not multiprocess and workers > 1
-        processing_args = [(self.workflow, init_args, log_path, filter_logs_by_thread, self.logs_filter)
-                           for init_args, log_path in zip(self.execution_args, log_paths)]
+        processing_args = [(self.workflow, workflow_kwargs, log_path, filter_logs_by_thread, self.logs_filter)
+                           for workflow_kwargs, log_path in zip(self.execution_kwargs, log_paths)]
         processing_type = self._get_processing_type(workers, multiprocess)
 
         full_execution_results = self._run_execution(processing_args, workers, processing_type)
@@ -207,10 +207,10 @@ class EOExecutor:
     def _execute_workflow(cls, process_args: _ExecutorProcessingArgsType) -> WorkflowResults:
         """ Handles a single execution of a workflow
         """
-        workflow, input_args, log_path, filter_logs_by_thread, logs_filter = process_args
+        workflow, workflow_kwargs, log_path, filter_logs_by_thread, logs_filter = process_args
         logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread, logs_filter)
 
-        results = workflow.execute(input_args, raise_errors=False)
+        results = workflow.execute(workflow_kwargs, raise_errors=False)
 
         cls._try_remove_logging(log_path, logger, handler)
         return results
@@ -252,7 +252,7 @@ class EOExecutor:
 
     def get_successful_executions(self) -> List[int]:
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
-        `[0, len(execution_args) - 1]`, sorted in increasing order.
+        `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
 
         :return: List of successful execution IDs
         """
@@ -260,7 +260,7 @@ class EOExecutor:
 
     def get_failed_executions(self) -> List[int]:
         """ Returns a list of IDs of failed executions. The IDs are integers from interval
-        `[0, len(execution_args) - 1]`, sorted in increasing order.
+        `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
 
         :return: List of failed execution IDs
         """
@@ -298,7 +298,7 @@ class EOExecutor:
         """ Loads the content of log files if logs have been saved
         """
         if not self.save_logs:
-            return [None] * len(self.execution_args)
+            return [None] * len(self.execution_kwargs)
 
         log_paths = self.get_log_paths()
         with concurrent.futures.ThreadPoolExecutor() as executor:

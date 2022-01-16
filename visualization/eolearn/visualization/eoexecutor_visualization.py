@@ -71,7 +71,7 @@ class EOExecutorVisualization:
         if self.eoexecutor.save_logs:
             execution_logs = self.eoexecutor.read_logs() if include_logs else None
         else:
-            execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_args)
+            execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
 
         html = template.render(
             title=f'Report {self._format_datetime(self.eoexecutor.start_time)}',
