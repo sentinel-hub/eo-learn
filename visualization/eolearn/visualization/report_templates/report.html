@@ -107,6 +107,26 @@
             <a class="exec-status exec-failed"></a> &nbsp;... Execution failed because of an error
         </div>
 
+        {% if exception_stats %}
+        <h3> Summary of exceptions </h3>
+
+        <div class="indent">
+            <ul>
+            {% for node_name, node_uid, exception_list in exception_stats %}
+                <li>
+                    <b>{{ node_name }} ({{ node_uid }}):</b>
+                    <ul>
+                    {% for exception_string, count in exception_list %}
+                        <li>
+                            {{ count }} times: {{ exception_string }}
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
 
     <h2> EOTasks </h2>
@@ -126,7 +146,11 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p></p>
+                <div class="indent">
+                    <p>
+                        No initialization parameters
+                    </p>
+                </div>
             {% endif %}
 
         {% endfor %}

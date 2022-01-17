@@ -78,6 +78,7 @@ class EOExecutorVisualization:
             title=f'Report {self._format_datetime(self.eoexecutor.start_time)}',
             dependency_graph=dependency_graph,
             general_stats=self.eoexecutor.general_stats,
+            exception_stats=self._get_exception_stats(),
             task_descriptions=self._get_node_descriptions(),
             task_sources=self._render_task_sources(formatter),
             execution_results=self.eoexecutor.execution_results,
@@ -98,6 +99,36 @@ class EOExecutorVisualization:
         """
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
+
+    def _get_exception_stats(self):
+        """ Creates aggregated stats about exceptions
+        """
+        formatter = HtmlFormatter()
+        lexer = pygments.lexers.get_lexer_by_name('python', stripall=True)
+
+        exception_stats = defaultdict(lambda: defaultdict(lambda: 0))
+
+        for workflow_results in self.eoexecutor.execution_results:
+            if not workflow_results.error_node_uid:
+                continue
+
+            error_node = workflow_results.stats[workflow_results.error_node_uid]
+            exception_str = pygments.highlight(
+                f'{error_node.exception.__class__.__name__}: {error_node.exception}',
+                lexer,
+                formatter
+            )
+            exception_stats[error_node.node_uid][exception_str] += 1
+
+        sorted_exception_stats = []
+        for node in self.eoexecutor.workflow.get_nodes():
+            if node.uid not in exception_stats:
+                continue
+
+            node_stats = exception_stats[node.uid]
+            sorted_exception_stats.append((node.name, node.uid, sorted(node_stats.items(), key=lambda item: -item[1])))
+
+        return sorted_exception_stats
 
     def _get_node_descriptions(self):
         """ Prepares a list of node names and initialization parameters of their tasks
