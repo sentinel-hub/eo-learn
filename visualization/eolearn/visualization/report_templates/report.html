@@ -132,7 +132,7 @@
         {% endfor %}
         </div>
 
-        <h3> Source code of custom tasks </h3>
+        <h3> Task sources </h3>
 
         <div class="indent">
             {% for task_title, task_source in task_sources.items() %}
@@ -143,8 +143,12 @@
                         <p>
                             Cannot collect source code of a task which is not defined in a .py file
                         </p>
-                    {% else %}
+                    {% elif task_source is string %}
                         {{ task_source }}
+                    {% else %}
+                        <p>
+                            Imported from {{ task_source[0] }} version {{ task_source[1] }}
+                        </p>
                     {% endif %}
                 </div>
             {% endfor %}

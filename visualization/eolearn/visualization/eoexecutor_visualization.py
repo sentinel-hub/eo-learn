@@ -10,11 +10,12 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import os
+import importlib
 import inspect
 import warnings
 import base64
 import datetime as dt
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 
 try:
     import matplotlib.pyplot as plt
@@ -122,25 +123,29 @@ class EOExecutorVisualization:
         """ Renders source code of EOTasks
         """
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
-        sources = OrderedDict()
+        sources = {}
 
         for node in self.eoexecutor.workflow.get_nodes():
             task = node.task
-            if task.__module__.startswith("eolearn"):
-                continue
 
             key = f"{task.__class__.__name__} ({task.__module__})"
             if key in sources:
                 continue
 
-            try:
-                source = inspect.getsource(task.__class__)
-                source = pygments.highlight(source, lexer, formatter)
-            except TypeError:
-                # Jupyter notebook does not have __file__ method to collect source code
-                # StackOverflow provides no solutions
-                # Could be investigated further by looking into Jupyter Notebook source code
-                source = None
+            if task.__module__.startswith("eolearn"):
+                subpackage_name = '.'.join(task.__module__.split('.')[:2])
+                subpackage = importlib.import_module(subpackage_name)
+                subpackage_version = subpackage.__version__ if hasattr(subpackage, "__version__") else "unknown"
+                source = subpackage_name, subpackage_version
+            else:
+                try:
+                    source = inspect.getsource(task.__class__)
+                    source = pygments.highlight(source, lexer, formatter)
+                except TypeError:
+                    # Jupyter notebook does not have __file__ method to collect source code
+                    # StackOverflow provides no solutions
+                    # Could be investigated further by looking into Jupyter Notebook source code
+                    source = None
 
             sources[key] = source
 
