@@ -37,7 +37,10 @@ MULTIPROCESSING_LOCK = None
 
 _InputType = TypeVar('_InputType')
 _OutputType = TypeVar('_OutputType')
-_ExecutorProcessingArgsType = Tuple[EOWorkflow, Dict[EONode, Dict[str, object]], Optional[str], bool, Filter]
+_LogsHandlerFactoryType = Callable[[str], Handler]
+_ExecutorProcessingArgsType = Tuple[
+    EOWorkflow, Dict[EONode, Dict[str, object]], Optional[str], bool, Filter, _LogsHandlerFactoryType
+]
 
 
 class _ProcessingType(Enum):
@@ -60,7 +63,8 @@ class EOExecutor:
 
     def __init__(self, workflow: EOWorkflow, execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]], *,
                  execution_names: Optional[List[str]] = None, save_logs: bool = False, logs_folder: str = '.',
-                 filesystem: Optional[fs.base.FS] = None, logs_filter: Optional[Filter] = None):
+                 filesystem: Optional[fs.base.FS] = None, logs_filter: Optional[Filter] = None,
+                 logs_handler_factory: _LogsHandlerFactoryType = logging.FileHandler):
         """
         :param workflow: A prepared instance of EOWorkflow class
         :param execution_kwargs: A list of dictionaries where each dictionary represents execution inputs for the
@@ -74,6 +78,8 @@ class EOExecutor:
         :param filesystem: A filesystem object for saving logs and a report.
         :param logs_filter: An instance of a custom filter object that will filter certain logs from being written into
             logs. It works only if save_logs parameter is set to True.
+        :param logs_handler_factory: A callable class or function that takes logging path as its only input parameter
+            and creates an instance of logging handler object
         """
         self.workflow = workflow
         self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
@@ -81,6 +87,7 @@ class EOExecutor:
         self.save_logs = save_logs
         self.filesystem, self.logs_folder = self._parse_logs_filesystem(filesystem, logs_folder)
         self.logs_filter = logs_filter
+        self.logs_handler_factory = logs_handler_factory
 
         self.start_time = None
         self.report_folder = None
@@ -143,9 +150,10 @@ class EOExecutor:
         log_paths = self.get_log_paths(full_path=True) if self.save_logs else [None] * len(self.execution_kwargs)
 
         filter_logs_by_thread = not multiprocess and workers > 1
-        processing_args = [(self.workflow, workflow_kwargs, log_path, filter_logs_by_thread, self.logs_filter)
-                           for workflow_kwargs, log_path in zip(self.execution_kwargs, log_paths)]
         processing_type = self._get_processing_type(workers, multiprocess)
+        processing_args = [
+            (self.workflow, workflow_kwargs, log_path, filter_logs_by_thread, self.logs_filter,
+             self.logs_handler_factory) for workflow_kwargs, log_path in zip(self.execution_kwargs, log_paths)]
 
         full_execution_results = self._run_execution(processing_args, workers, processing_type)
 
@@ -185,15 +193,15 @@ class EOExecutor:
             MULTIPROCESSING_LOCK = None
 
     @classmethod
-    def _try_add_logging(cls, log_path: Optional[str], filter_logs_by_thread: bool,
-                         logs_filter: Optional[Filter]) -> Tuple[Optional[Logger], Optional[Handler]]:
+    def _try_add_logging(cls, log_path: Optional[str], filter_logs_by_thread: bool, logs_filter: Optional[Filter],
+                         logs_handler_factory: _LogsHandlerFactoryType) -> Tuple[Optional[Logger], Optional[Handler]]:
         """ Adds a handler to a logger and returns them both. In case this fails it shows a warning.
         """
         if log_path:
             try:
                 logger = logging.getLogger()
                 logger.setLevel(logging.DEBUG)
-                handler = cls._get_log_handler(log_path, filter_logs_by_thread, logs_filter)
+                handler = cls._get_log_handler(log_path, filter_logs_by_thread, logs_filter, logs_handler_factory)
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException as exception:
@@ -216,8 +224,8 @@ class EOExecutor:
     def _execute_workflow(cls, process_args: _ExecutorProcessingArgsType) -> WorkflowResults:
         """ Handles a single execution of a workflow
         """
-        workflow, workflow_kwargs, log_path, filter_logs_by_thread, logs_filter = process_args
-        logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread, logs_filter)
+        workflow, workflow_kwargs, log_path, filter_logs_by_thread, logs_filter, logs_handler_factory = process_args
+        logger, handler = cls._try_add_logging(log_path, filter_logs_by_thread, logs_filter, logs_handler_factory)
 
         results = workflow.execute(workflow_kwargs, raise_errors=False)
 
@@ -225,12 +233,15 @@ class EOExecutor:
         return results
 
     @staticmethod
-    def _get_log_handler(log_path: str, filter_logs_by_thread: bool, logs_filter: Optional[Filter]) -> Handler:
+    def _get_log_handler(log_path: str, filter_logs_by_thread: bool, logs_filter: Optional[Filter],
+                         logs_handler_factory: _LogsHandlerFactoryType) -> Handler:
         """ Provides object which handles logs
         """
-        handler = logging.FileHandler(log_path)
-        formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-        handler.setFormatter(formatter)
+        handler = logs_handler_factory(log_path)
+
+        if not handler.formatter:
+            formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+            handler.setFormatter(formatter)
 
         if filter_logs_by_thread:
             handler.addFilter(LogFileFilter(threading.currentThread().getName()))
