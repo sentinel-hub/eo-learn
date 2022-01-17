@@ -16,6 +16,7 @@ import warnings
 import base64
 import datetime as dt
 from collections import defaultdict
+from typing import DefaultDict, List, Tuple
 
 try:
     import matplotlib.pyplot as plt
@@ -121,15 +122,24 @@ class EOExecutorVisualization:
             )
             exception_stats[error_node.node_uid][exception_str] += 1
 
-        sorted_exception_stats = []
+        return self._to_ordered_stats(exception_stats)
+
+    def _to_ordered_stats(
+            self,
+            exception_stats: DefaultDict[str, DefaultDict[str, int]]
+    ) -> List[Tuple[str, str, List[Tuple[str, int]]]]:
+        """ Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
+        for the the same node get ordered by number of occurrences in a decreasing order.
+        """
+        ordered_exception_stats = []
         for node in self.eoexecutor.workflow.get_nodes():
             if node.uid not in exception_stats:
                 continue
 
             node_stats = exception_stats[node.uid]
-            sorted_exception_stats.append((node.name, node.uid, sorted(node_stats.items(), key=lambda item: -item[1])))
+            ordered_exception_stats.append((node.name, node.uid, sorted(node_stats.items(), key=lambda item: -item[1])))
 
-        return sorted_exception_stats
+        return ordered_exception_stats
 
     def _get_node_descriptions(self):
         """ Prepares a list of node names and initialization parameters of their tasks
