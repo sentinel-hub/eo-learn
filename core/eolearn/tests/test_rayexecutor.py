@@ -114,7 +114,7 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, sim
         for log in execution_logs:
             assert len(log.split()) >= 3
 
-        log_filenames = sorted(os.listdir(executor.report_folder))
+        log_filenames = sorted(executor.filesystem.listdir(executor.report_folder))
         assert len(log_filenames) == 4
 
         if execution_names:
@@ -122,7 +122,7 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, sim
                 assert log_filename == f'eoexecution-{name}.log'
 
         log_path = os.path.join(executor.report_folder, log_filenames[0])
-        with open(log_path, 'r') as fp:
+        with executor.filesystem.open(log_path, 'r') as fp:
             line_count = len(fp.readlines())
             expected_line_count = 2 if filter_logs else 12
             assert line_count == expected_line_count

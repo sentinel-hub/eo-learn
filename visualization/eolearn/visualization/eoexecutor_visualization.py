@@ -24,6 +24,7 @@ except ImportError:
     matplotlib.use('agg')
     import matplotlib.pyplot as plt
 
+import fs
 import graphviz
 import pygments
 import pygments.lexers
@@ -68,7 +69,7 @@ class EOExecutorVisualization:
 
         template = self._get_template()
 
-        execution_log_filenames = [os.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
+        execution_log_filenames = [fs.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
         if self.eoexecutor.save_logs:
             execution_logs = self.eoexecutor.read_logs() if include_logs else None
         else:
@@ -89,10 +90,10 @@ class EOExecutorVisualization:
             code_css=formatter.get_style_defs()
         )
 
-        os.makedirs(self.eoexecutor.report_folder, exist_ok=True)
+        self.eoexecutor.filesystem.makedirs(self.eoexecutor.report_folder, recreate=True)
 
-        with open(self.eoexecutor.get_report_path(), 'w') as fout:
-            fout.write(html)
+        with self.eoexecutor.filesystem.open(self.eoexecutor.get_report_path(full_path=False), 'w') as file_handle:
+            file_handle.write(html)
 
     def _create_dependency_graph(self):
         """ Provides an image of dependency graph

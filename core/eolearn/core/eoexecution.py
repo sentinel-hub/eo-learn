@@ -13,7 +13,6 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import os
 import logging
 import threading
 import concurrent.futures
@@ -30,6 +29,7 @@ from tqdm.auto import tqdm
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
 from .exceptions import EORuntimeWarning
+from .fs_utils import get_base_filesystem_and_path, get_full_path
 from .utilities import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class EOExecutor:
 
     def __init__(self, workflow: EOWorkflow, execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]], *,
                  execution_names: Optional[List[str]] = None, save_logs: bool = False, logs_folder: str = '.',
-                 logs_filter: Optional[Filter] = None, filesystem: fs.base.FS = None):
+                 filesystem: Optional[fs.base.FS] = None, logs_filter: Optional[Filter] = None):
         """
         :param workflow: A prepared instance of EOWorkflow class
         :param execution_kwargs: A list of dictionaries where each dictionary represents execution inputs for the
@@ -69,7 +69,9 @@ class EOExecutor:
             Check `EOWorkflow.execution` for definition of a dictionary structure.
         :param execution_names: A list of execution names, which will be shown in execution report
         :param save_logs: Flag used to specify if execution log files should be saved locally on disk
-        :param logs_folder: A folder where logs and execution report should be saved
+        :param logs_folder: A folder where logs and execution report should be saved. If `filesystem` parameter is
+            defined the folder path should be relative to the filesystem.
+        :param filesystem: A filesystem object for saving logs and a report.
         :param logs_filter: An instance of a custom filter object that will filter certain logs from being written into
             logs. It works only if save_logs parameter is set to True.
         """
@@ -77,9 +79,8 @@ class EOExecutor:
         self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
         self.execution_names = self._parse_execution_names(execution_names, self.execution_kwargs)
         self.save_logs = save_logs
-        self.logs_folder = os.path.abspath(logs_folder)
+        self.filesystem, self.logs_folder = self._parse_logs_filesystem(filesystem, logs_folder)
         self.logs_filter = logs_filter
-        self.filesystem = filesystem
 
         self.start_time = None
         self.report_folder = None
@@ -111,6 +112,14 @@ class EOExecutor:
                              "execution arguments")
         return execution_names
 
+    @staticmethod
+    def _parse_logs_filesystem(filesystem: Optional[fs.base.FS], logs_folder: str) -> Tuple[fs.base.FS, str]:
+        """ Ensures a filesystem and a file path relative to it.
+        """
+        if filesystem is None:
+            return get_base_filesystem_and_path(logs_folder)
+        return filesystem, logs_folder
+
     def run(self, workers: int = 1, multiprocess: bool = True) -> List[WorkflowResults]:
         """ Runs the executor with n workers.
 
@@ -129,9 +138,9 @@ class EOExecutor:
         self.start_time = dt.datetime.now()
         self.report_folder = self._get_report_folder()
         if self.save_logs:
-            os.makedirs(self.report_folder, exist_ok=True)
+            self.filesystem.makedirs(self.report_folder, recreate=True)
 
-        log_paths = self.get_log_paths() if self.save_logs else [None] * len(self.execution_kwargs)
+        log_paths = self.get_log_paths(full_path=True) if self.save_logs else [None] * len(self.execution_kwargs)
 
         filter_logs_by_thread = not multiprocess and workers > 1
         processing_args = [(self.workflow, workflow_kwargs, log_path, filter_logs_by_thread, self.logs_filter)
@@ -247,8 +256,7 @@ class EOExecutor:
     def _get_report_folder(self) -> str:
         """ Returns file path of folder where report will be saved
         """
-        return os.path.join(self.logs_folder,
-                            f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}')
+        return fs.path.combine(self.logs_folder, f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}')
 
     def get_successful_executions(self) -> List[int]:
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
@@ -266,12 +274,17 @@ class EOExecutor:
         """
         return [idx for idx, results in enumerate(self.execution_results) if results.workflow_failed()]
 
-    def get_report_path(self) -> str:
+    def get_report_path(self, full_path: bool = True) -> str:
         """ Returns the filename and file path of the report
 
+        :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
+            filesystem object.
         :return: Report filename
         """
-        return os.path.join(self.report_folder, self.REPORT_FILENAME)
+        report_path = fs.path.combine(self.report_folder, self.REPORT_FILENAME)
+        if full_path:
+            return get_full_path(self.filesystem, report_path)
+        return report_path
 
     def make_report(self, include_logs: bool = True):
         """ Makes a html report and saves it into the same folder where logs are stored.
@@ -289,10 +302,17 @@ class EOExecutor:
 
         return EOExecutorVisualization(self).make_report(include_logs=include_logs)
 
-    def get_log_paths(self) -> List[str]:
+    def get_log_paths(self, full_path: bool = True) -> List[str]:
         """ Returns a list of file paths containing logs
+
+        :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
+            filesystem object.
+        :return: A list of paths to log files.
         """
-        return [os.path.join(self.report_folder, f'eoexecution-{name}.log') for name in self.execution_names]
+        log_paths = [fs.path.combine(self.report_folder, f'eoexecution-{name}.log') for name in self.execution_names]
+        if full_path:
+            return [get_full_path(self.filesystem, path) for path in log_paths]
+        return log_paths
 
     def read_logs(self) -> List[Optional[str]]:
         """ Loads the content of log files if logs have been saved
@@ -300,15 +320,14 @@ class EOExecutor:
         if not self.save_logs:
             return [None] * len(self.execution_kwargs)
 
-        log_paths = self.get_log_paths()
+        log_paths = self.get_log_paths(full_path=False)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             return list(executor.map(self._read_log_file, log_paths))
 
-    @staticmethod
-    def _read_log_file(log_path: str) -> str:
+    def _read_log_file(self, log_path: str) -> str:
         """Read a content of a log file"""
         try:
-            with open(log_path, "r") as file_handle:
+            with self.filesystem.open(log_path, "r") as file_handle:
                 return file_handle.read()
         except BaseException as exception:
             warnings.warn(f'Failed to load logs with exception: {repr(exception)}', category=EORuntimeWarning)
