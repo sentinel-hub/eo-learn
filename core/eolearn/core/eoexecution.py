@@ -266,7 +266,7 @@ class EOExecutor:
         """
         return [idx for idx, results in enumerate(self.execution_results) if results.workflow_failed()]
 
-    def get_report_filename(self) -> str:
+    def get_report_path(self) -> str:
         """ Returns the filename and file path of the report
 
         :return: Report filename

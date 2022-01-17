@@ -91,7 +91,7 @@ class EOExecutorVisualization:
 
         os.makedirs(self.eoexecutor.report_folder, exist_ok=True)
 
-        with open(self.eoexecutor.get_report_filename(), 'w') as fout:
+        with open(self.eoexecutor.get_report_path(), 'w') as fout:
             fout.write(html)
 
     def _create_dependency_graph(self):

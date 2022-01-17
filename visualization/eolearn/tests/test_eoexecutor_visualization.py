@@ -53,4 +53,4 @@ def test_report_creation(save_logs, include_logs):
         executor.run(workers=10)
         executor.make_report(include_logs=include_logs)
 
-        assert os.path.exists(executor.get_report_filename()), 'Execution report was not created'
+        assert os.path.exists(executor.get_report_path()), 'Execution report was not created'
