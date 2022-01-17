@@ -111,6 +111,7 @@ class EOExecutorVisualization:
 
             descriptions.append({
                 'name': f'{node_name} ({node.uid})',
+                'uid': node.uid,
                 'args': {
                     key: value.replace('<', '&lt;').replace('>', '&gt;') for key, value in
                     node.task.private_task_config.init_args.items()

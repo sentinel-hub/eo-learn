@@ -117,7 +117,7 @@
 
         <div class="indent">
         {% for task in task_descriptions %}
-            <h4> {{ task['name'] }} </h4>
+            <h4 id="{{ task['uid'] }}"> {{ task['name'] }} </h4>
 
             {% if  task['args'] %}
                 <ul>
@@ -170,7 +170,7 @@
                 </ul>
                 {% if execution.workflow_failed() %}
                     {% set error_node = execution.stats[execution.error_node_uid] %}
-                    Error in task {{ error_node.node_name }} ({{ error_node.node_uid }}):<br/>
+                    Error in task <a href="#{{error_node.node_uid}}"> {{ error_node.node_name }} ({{ error_node.node_uid }})</a>:<br/>
                     {{ execution_tracebacks[loop.index - 1] }}
                 {% endif %}
 
