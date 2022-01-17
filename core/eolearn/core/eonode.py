@@ -42,7 +42,7 @@ class EONode:
         if self.name is None:
             super().__setattr__('name', self.task.__class__.__name__)
 
-        super().__setattr__('uid', generate_uid(self.name))
+        super().__setattr__('uid', generate_uid(self.task.__class__.__name__))
 
     def get_custom_name(self, number=0):
         """ Provides custom node name according to the class of the contained task and a given number
