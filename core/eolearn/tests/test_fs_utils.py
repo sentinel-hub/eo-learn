@@ -19,7 +19,7 @@ from moto import mock_s3
 
 from sentinelhub import SHConfig
 from eolearn.core import get_filesystem, load_s3_filesystem
-from eolearn.core.fs_utils import get_aws_credentials
+from eolearn.core.fs_utils import get_aws_credentials, get_full_path, join_path
 
 
 def test_get_local_filesystem(tmp_path):
@@ -79,3 +79,28 @@ def test_get_aws_credentials(mocked_copy):
     config = get_aws_credentials('default', config=default_config)
     assert config.aws_access_key_id != default_config.aws_access_key_id
     assert config.aws_secret_access_key != default_config.aws_secret_access_key
+
+
+@pytest.mark.parametrize(
+    argnames="path_parts, expected_path",
+    ids=["local", "s3"],
+    argvalues=[
+        (["/tmp", "folder", "xyz", "..", "file.json"], os.path.join("/tmp", "folder", "file.json")),
+        (["s3://xx/", "/y/z", "a", "..", "b.json"], "s3://xx/y/z/b.json"),
+    ],
+)
+def test_join_path(path_parts, expected_path):
+    assert join_path(*path_parts) == expected_path
+
+
+@pytest.mark.parametrize(
+    "filesystem, path, expected_full_path",
+    [
+        (OSFS("/tmp"), "my/folder", "/tmp/my/folder"),
+        (S3FS(bucket_name="data", dir_path="/folder"), "/sub/folder", "s3://data/folder/sub/folder"),
+        (S3FS(bucket_name="data"), "/sub/folder", "s3://data/sub/folder"),
+    ],
+)
+def test_get_full_path(filesystem, path, expected_full_path):
+    full_path = get_full_path(filesystem, path)
+    assert full_path == expected_full_path

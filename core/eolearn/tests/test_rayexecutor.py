@@ -77,32 +77,32 @@ def workflow_fixture(test_nodes):
     return workflow
 
 
-@pytest.fixture(name='execution_args')
-def execution_args_fixture(test_nodes):
+@pytest.fixture(name='execution_kwargs')
+def execution_kwargs_fixture(test_nodes):
     example_node = test_nodes['example']
 
-    execution_args = [
+    execution_kwargs = [
         {example_node: {'arg1': 1}},
         {},
         {example_node: {'arg1': 3, 'arg3': 10}},
         {example_node: {'arg1': None}}
     ]
-    return execution_args
+    return execution_kwargs
 
 
-def test_fail_without_ray(workflow, execution_args):
-    executor = RayExecutor(workflow, execution_args)
+def test_fail_without_ray(workflow, execution_kwargs):
+    executor = RayExecutor(workflow, execution_kwargs)
     with pytest.raises(RuntimeError):
         executor.run()
 
 
 @pytest.mark.parametrize('filter_logs', [True, False])
 @pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
-def test_read_logs(filter_logs, execution_names, workflow, execution_args, simple_cluster):
+def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, simple_cluster):
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(
-            workflow, execution_args, save_logs=True,
+            workflow, execution_kwargs, save_logs=True,
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
             execution_names=execution_names
@@ -114,7 +114,7 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_args, simpl
         for log in execution_logs:
             assert len(log.split()) >= 3
 
-        log_filenames = sorted(os.listdir(executor.report_folder))
+        log_filenames = sorted(executor.filesystem.listdir(executor.report_folder))
         assert len(log_filenames) == 4
 
         if execution_names:
@@ -122,15 +122,15 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_args, simpl
                 assert log_filename == f'eoexecution-{name}.log'
 
         log_path = os.path.join(executor.report_folder, log_filenames[0])
-        with open(log_path, 'r') as fp:
+        with executor.filesystem.open(log_path, 'r') as fp:
             line_count = len(fp.readlines())
             expected_line_count = 2 if filter_logs else 12
             assert line_count == expected_line_count
 
 
-def test_execution_results(workflow, execution_args, simple_cluster):
+def test_execution_results(workflow, execution_kwargs, simple_cluster):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = RayExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
+        executor = RayExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
         executor.run()
 
         assert len(executor.execution_results) == 4
@@ -139,9 +139,9 @@ def test_execution_results(workflow, execution_args, simple_cluster):
                 assert isinstance(time_stat, datetime.datetime)
 
 
-def test_execution_errors(workflow, execution_args, simple_cluster):
+def test_execution_errors(workflow, execution_kwargs, simple_cluster):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = RayExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
+        executor = RayExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
         executor.run()
 
         for idx, results in enumerate(executor.execution_results):
@@ -154,8 +154,8 @@ def test_execution_errors(workflow, execution_args, simple_cluster):
         assert executor.get_failed_executions() == [3]
 
 
-def test_execution_results(workflow, execution_args, simple_cluster):
-    executor = RayExecutor(workflow, execution_args)
+def test_execution_results(workflow, execution_kwargs, simple_cluster):
+    executor = RayExecutor(workflow, execution_kwargs)
     results = executor.run()
 
     assert isinstance(results, list)
@@ -168,33 +168,33 @@ def test_execution_results(workflow, execution_args, simple_cluster):
 def test_keyboard_interrupt(simple_cluster):
     exception_node = EONode(KeyboardExceptionTask())
     workflow = EOWorkflow([exception_node])
-    execution_args = []
+    execution_kwargs = []
     for _ in range(10):
-        execution_args.append({exception_node: {'arg1': 1}})
+        execution_kwargs.append({exception_node: {'arg1': 1}})
 
     with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
-        RayExecutor(workflow, execution_args).run()
+        RayExecutor(workflow, execution_kwargs).run()
 
 
-def test_reruns(workflow, execution_args, simple_cluster):
-    executor = RayExecutor(workflow, execution_args)
+def test_reruns(workflow, execution_kwargs, simple_cluster):
+    executor = RayExecutor(workflow, execution_kwargs)
     for _ in range(100):
         executor.run()
 
     for _ in range(10):
-        RayExecutor(workflow, execution_args).run()
+        RayExecutor(workflow, execution_kwargs).run()
 
-    executors = [RayExecutor(workflow, execution_args) for _ in range(10)]
+    executors = [RayExecutor(workflow, execution_kwargs) for _ in range(10)]
     for executor in executors:
         executor.run()
 
 
-def test_run_after_interrupt(workflow, execution_args, simple_cluster):
+def test_run_after_interrupt(workflow, execution_kwargs, simple_cluster):
     foo_node = EONode(FooTask())
     exception_node = EONode(KeyboardExceptionTask(), inputs=[foo_node])
     exception_workflow = EOWorkflow([foo_node, exception_node])
     exception_executor = RayExecutor(exception_workflow, [{}])
-    executor = RayExecutor(workflow, execution_args[:-1])  # removes args for exception
+    executor = RayExecutor(workflow, execution_kwargs[:-1])  # removes args for exception
 
     result_preexception = executor.run()
     with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
@@ -204,9 +204,9 @@ def test_run_after_interrupt(workflow, execution_args, simple_cluster):
     assert [res.outputs for res in result_preexception] == [res.outputs for res in result_postexception]
 
 
-def test_mix_with_eoexecutor(workflow, execution_args, simple_cluster):
-    rayexecutor = RayExecutor(workflow, execution_args)
-    eoexecutor = EOExecutor(workflow, execution_args)
+def test_mix_with_eoexecutor(workflow, execution_kwargs, simple_cluster):
+    rayexecutor = RayExecutor(workflow, execution_kwargs)
+    eoexecutor = EOExecutor(workflow, execution_kwargs)
     for _ in range(10):
         ray_results = rayexecutor.run()
         eo_results = eoexecutor.run()

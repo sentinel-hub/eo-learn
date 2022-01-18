@@ -35,7 +35,7 @@ def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] =
     if isinstance(path, Path):
         path = str(path)
 
-    if path.startswith('s3://'):
+    if is_s3_path(path):
         return load_s3_filesystem(path, config=config, **kwargs)
 
     return fs.open_fs(path, create=create, **kwargs)
@@ -84,7 +84,7 @@ def load_s3_filesystem(path: str, strict: bool = False, config: Optional[SHConfi
     :return: A S3 filesystem object
     :rtype: fs_s3fs.S3FS
     """
-    if not path.startswith('s3://'):
+    if not is_s3_path(path):
         raise ValueError(f"AWS path has to start with s3:// but found '{path}'")
 
     config = config or SHConfig()
@@ -120,3 +120,33 @@ def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> 
     config.aws_access_key_id = aws_credentials.access_key
     config.aws_secret_access_key = aws_credentials.secret_key
     return config
+
+
+def get_full_path(filesystem: fs.base.FS, relative_path: str) -> str:
+    """Given a filesystem object and a path, relative to the filesystem it provides a full path."""
+    if isinstance(filesystem, S3FS):
+        # pylint: disable=protected-access
+        return join_path(f"s3://{filesystem._bucket_name}", filesystem.dir_path, relative_path)
+
+    return os.path.normpath(filesystem.getsyspath(relative_path))
+
+
+def join_path(*path_parts: str) -> str:
+    """A utility function for joining a path that is either local or S3.
+
+    :param path_parts: Partial paths where the first part will be used to decide if it is an S3 path or a local path
+    :return: Joined path that is also normalized and absolute.
+    """
+    if is_s3_path(path_parts[0]):
+        path_parts = ((part[5:] if index == 0 else part) for index, part in enumerate(path_parts))
+        path = "/".join(part.strip("/") for part in path_parts)
+        path = fs.path.normpath(path)
+        return f"s3://{path}"
+
+    # pylint: disable=no-value-for-parameter
+    return os.path.abspath(os.path.join(*path_parts))
+
+
+def is_s3_path(path: str) -> bool:
+    """Returns True if the path points to a S3 bucket, False otherwise."""
+    return path.startswith("s3://")

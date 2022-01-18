@@ -85,17 +85,17 @@ def workflow_fixture(test_nodes):
     return workflow
 
 
-@pytest.fixture(name='execution_args')
-def execution_args_fixture(test_nodes):
+@pytest.fixture(name='execution_kwargs')
+def execution_kwargs_fixture(test_nodes):
     example_node = test_nodes['example']
 
-    execution_args = [
+    execution_kwargs = [
         {example_node: {'arg1': 1}},
         {},
         {example_node: {'arg1': 3, 'arg3': 10}},
         {example_node: {'arg1': None}}
     ]
-    return execution_args
+    return execution_kwargs
 
 
 @pytest.mark.parametrize(
@@ -107,11 +107,11 @@ def execution_args_fixture(test_nodes):
     ]
 )
 @pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
-def test_read_logs(test_args, execution_names, workflow, execution_args):
+def test_read_logs(test_args, execution_names, workflow, execution_kwargs):
     workers, multiprocess, filter_logs = test_args
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
-            workflow, execution_args, save_logs=True,
+            workflow, execution_kwargs, save_logs=True,
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
             execution_names=execution_names
@@ -123,7 +123,7 @@ def test_read_logs(test_args, execution_names, workflow, execution_args):
         for log in execution_logs:
             assert len(log.split()) >= 3
 
-        log_filenames = sorted(os.listdir(executor.report_folder))
+        log_filenames = sorted(executor.filesystem.listdir(executor.report_folder))
         assert len(log_filenames) == 4
 
         if execution_names:
@@ -131,15 +131,15 @@ def test_read_logs(test_args, execution_names, workflow, execution_args):
                 assert log_filename == f'eoexecution-{name}.log'
 
         log_path = os.path.join(executor.report_folder, log_filenames[0])
-        with open(log_path, 'r') as fp:
+        with executor.filesystem.open(log_path, 'r') as fp:
             line_count = len(fp.readlines())
             expected_line_count = 2 if filter_logs else 12
             assert line_count == expected_line_count
 
 
-def test_execution_results(workflow, execution_args):
+def test_execution_results(workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = EOExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
+        executor = EOExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
         executor.run(workers=2)
 
         assert len(executor.execution_results) == 4
@@ -149,9 +149,9 @@ def test_execution_results(workflow, execution_args):
 
 
 @pytest.mark.parametrize('multiprocess', [True, False])
-def test_execution_errors(multiprocess, workflow, execution_args):
+def test_execution_errors(multiprocess, workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        executor = EOExecutor(workflow, execution_args, logs_folder=tmp_dir_name)
+        executor = EOExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
         executor.run(workers=5, multiprocess=multiprocess)
 
         for idx, results in enumerate(executor.execution_results):
@@ -164,8 +164,8 @@ def test_execution_errors(multiprocess, workflow, execution_args):
         assert executor.get_failed_executions() == [3]
 
 
-def test_execution_results(workflow, execution_args):
-    executor = EOExecutor(workflow, execution_args)
+def test_execution_results(workflow, execution_kwargs):
+    executor = EOExecutor(workflow, execution_kwargs)
     results = executor.run(workers=2, multiprocess=True)
 
     assert isinstance(results, list)
@@ -176,28 +176,28 @@ def test_execution_results(workflow, execution_args):
             assert workflow_results.outputs['output'] == 42
 
 
-def test_exceptions(workflow, execution_args):
+def test_exceptions(workflow, execution_kwargs):
     with pytest.raises(ValueError):
         EOExecutor(workflow, {})
     with pytest.raises(ValueError):
-        EOExecutor(workflow, execution_args, execution_names={1, 2, 3, 4})
+        EOExecutor(workflow, execution_kwargs, execution_names={1, 2, 3, 4})
     with pytest.raises(ValueError):
-        EOExecutor(workflow, execution_args, execution_names=['a', 'b'])
+        EOExecutor(workflow, execution_kwargs, execution_names=['a', 'b'])
 
 
 def test_keyboard_interrupt():
     exception_node = EONode(KeyboardExceptionTask())
     workflow = EOWorkflow([exception_node])
-    execution_args = []
+    execution_kwargs = []
     for _ in range(10):
-        execution_args.append({exception_node: {'arg1': 1}})
+        execution_kwargs.append({exception_node: {'arg1': 1}})
 
-    run_args = [{'workers': 1},
+    run_kwargs = [{'workers': 1},
                 {'workers': 3, 'multiprocess': True},
                 {'workers': 3, 'multiprocess': False}]
-    for arg in run_args:
+    for kwarg in run_kwargs:
         with pytest.raises(KeyboardInterrupt):
-            EOExecutor(workflow, execution_args).run(**arg)
+            EOExecutor(workflow, execution_kwargs).run(**kwarg)
 
 
 def test_with_lock(num_workers):

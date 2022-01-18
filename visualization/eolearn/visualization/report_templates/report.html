@@ -107,6 +107,26 @@
             <a class="exec-status exec-failed"></a> &nbsp;... Execution failed because of an error
         </div>
 
+        {% if exception_stats %}
+        <h3> Summary of exceptions </h3>
+
+        <div class="indent">
+            <ul>
+            {% for node_name, node_uid, exception_list in exception_stats %}
+                <li>
+                    <b>{{ node_name }} ({{ node_uid }}):</b>
+                    <ul>
+                    {% for exception_string, count in exception_list %}
+                        <li>
+                            {{ count }} times: {{ exception_string }}
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
     </div>
 
     <h2> EOTasks </h2>
@@ -117,7 +137,7 @@
 
         <div class="indent">
         {% for task in task_descriptions %}
-            <h4> {{ task['name'] }} </h4>
+            <h4 id="{{ task['uid'] }}"> {{ task['name'] }} </h4>
 
             {% if  task['args'] %}
                 <ul>
@@ -126,13 +146,17 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p></p>
+                <div class="indent">
+                    <p>
+                        No initialization parameters
+                    </p>
+                </div>
             {% endif %}
 
         {% endfor %}
         </div>
 
-        <h3> Source code of custom tasks </h3>
+        <h3> Task sources </h3>
 
         <div class="indent">
             {% for task_title, task_source in task_sources.items() %}
@@ -143,8 +167,12 @@
                         <p>
                             Cannot collect source code of a task which is not defined in a .py file
                         </p>
-                    {% else %}
+                    {% elif task_source is string %}
                         {{ task_source }}
+                    {% else %}
+                        <p>
+                            Imported from {{ task_source[0] }} version {{ task_source[1] }}
+                        </p>
                     {% endif %}
                 </div>
             {% endfor %}
@@ -166,7 +194,7 @@
                 </ul>
                 {% if execution.workflow_failed() %}
                     {% set error_node = execution.stats[execution.error_node_uid] %}
-                    Error in task {{ error_node.node_name }} ({{ error_node.node_uid }}):<br/>
+                    Error in task <a href="#{{error_node.node_uid}}"> {{ error_node.node_name }} ({{ error_node.node_uid }})</a>:<br/>
                     {{ execution_tracebacks[loop.index - 1] }}
                 {% endif %}
 
