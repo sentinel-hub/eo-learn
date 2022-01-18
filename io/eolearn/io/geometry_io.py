@@ -116,6 +116,7 @@ class VectorImportTask(_BaseVectorImportTask):
             if self.config and self.config.aws_access_key_id and self.config.aws_secret_access_key:
                 session_credentials['aws_access_key_id'] = self.config.aws_access_key_id
                 session_credentials['aws_secret_access_key'] = self.config.aws_secret_access_key
+                session_credentials['aws_session_token'] = self.config.aws_session_token
 
             boto_session = boto3.session.Session(**session_credentials)
             self._aws_session = AWSSession(boto_session)
