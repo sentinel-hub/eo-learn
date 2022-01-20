@@ -313,6 +313,15 @@ class EOWorkflow:
         """
         return self._nodes[:]
 
+    def get_node_with_uid(self, uid: Optional[str], fail_if_missing: bool = False) -> Optional[EONode]:
+        """Returns node with give uid, if it exists in the workflow."""
+        relevant_nodes = [node for node in self._nodes if node.uid == uid]
+        if relevant_nodes:
+            return relevant_nodes[0]  # uniqueness of uid within a workflow
+        if fail_if_missing:
+            raise KeyError(f"No {EONode.__name__} with uid {uid} found in workflow.")
+        return None
+
     def get_dot(self):
         """ Generates the DOT description of the underlying computational graph
 
