@@ -63,12 +63,12 @@ class EOWorkflowVisualization:
         # Collect nodes with identical names
         dot_name_to_nodes: Dict[str, EONode] = {}
         for node in nodes:
-            dot_name_to_nodes[node.name] = dot_name_to_nodes.get(node.name, [])
-            dot_name_to_nodes[node.name].append(node)
+            dot_name_to_nodes[node.get_name()] = dot_name_to_nodes.get(node.get_name(), [])
+            dot_name_to_nodes[node.get_name()].append(node)
 
         node_to_dot_name = {}
         for _, same_name_nodes in dot_name_to_nodes.items():
             for idx, node in enumerate(same_name_nodes):
-                node_to_dot_name[node.uid] = node.get_custom_name(idx)
+                node_to_dot_name[node.uid] = node.get_name(idx)
 
         return node_to_dot_name

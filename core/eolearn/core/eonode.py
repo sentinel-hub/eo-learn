@@ -4,7 +4,7 @@ This module implements the EONode class, which specifies the local dependencies 
 
 import datetime as dt
 from dataclasses import dataclass, field
-from typing import Sequence, Optional, List, Tuple, Union, Set, Dict
+from typing import Sequence, Optional, List, Tuple, Union, Set, Dict, cast
 
 from .eotask import EOTask
 from .utilities import generate_uid
@@ -44,12 +44,12 @@ class EONode:
 
         super().__setattr__('uid', generate_uid(self.task.__class__.__name__))
 
-    def get_custom_name(self, number=0):
-        """ Provides custom node name according to the class of the contained task and a given number
+    def get_name(self, suffix_number: int = 0) -> str:
+        """ Provides node name according to the class of the contained task and a given number
         """
-        if number:
-            return f'{self.name}_{number}'
-        return self.name
+        if suffix_number:
+            return f'{self.name}_{suffix_number}'
+        return cast(str, self.name)
 
     def get_dependencies(self, *, _memo: Optional[Dict['EONode', Set['EONode']]] = None) -> Set['EONode']:
         """ Returns a set of nodes that this node depends on. Set includes the node itself

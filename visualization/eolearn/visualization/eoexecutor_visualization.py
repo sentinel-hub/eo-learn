@@ -137,7 +137,9 @@ class EOExecutorVisualization:
                 continue
 
             node_stats = exception_stats[node.uid]
-            ordered_exception_stats.append((node.name, node.uid, sorted(node_stats.items(), key=lambda item: -item[1])))
+            ordered_exception_stats.append(
+                (node.get_name(), node.uid, sorted(node_stats.items(), key=lambda item: -item[1]))
+            )
 
         return ordered_exception_stats
 
@@ -148,8 +150,8 @@ class EOExecutorVisualization:
         name_counts = defaultdict(lambda: 0)
 
         for node in self.eoexecutor.workflow.get_nodes():
-            node_name = node.get_custom_name(name_counts[node.name])
-            name_counts[node.name] += 1
+            node_name = node.get_name(name_counts[node.get_name()])
+            name_counts[node.get_name()] += 1
 
             descriptions.append({
                 'name': f'{node_name} ({node.uid})',

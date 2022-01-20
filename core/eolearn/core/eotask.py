@@ -16,18 +16,18 @@ file in the root directory of this source tree.
 """
 import inspect
 import logging
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Dict, Iterable, Optional
 from dataclasses import dataclass
 
-from eolearn.core.constants import FeatureType
+from .constants import FeatureType
 
 from .utilities import FeatureParser, parse_feature, parse_renamed_feature, parse_features, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
 
-class EOTask(ABC):
+class EOTask(metaclass=ABCMeta):
     """ Base class for EOTask
     """
     parse_feature = staticmethod(parse_feature)
@@ -61,15 +61,14 @@ class EOTask(ABC):
         return self._private_task_config
 
     def __call__(self, *eopatches, **kwargs):
-        """ Executes the task and handles proper error propagation
+        """ Syntactic sugar for task execution
         """
         return self.execute(*eopatches, **kwargs)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
-        """ Implement execute function
+        """ Override to specify action performed by task
         """
-        raise NotImplementedError
 
     @staticmethod
     def get_feature_parser(features, allowed_feature_types: Optional[Iterable[FeatureType]] = None) -> FeatureParser:

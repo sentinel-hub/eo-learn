@@ -23,7 +23,7 @@ file in the root directory of this source tree.
 import logging
 import traceback
 import datetime as dt
-from typing import Dict, List, Optional, Sequence, Tuple, Set
+from typing import Dict, List, Optional, Sequence, Tuple, Set, cast
 from dataclasses import dataclass, field, fields
 
 from .eodata import EOPatch
@@ -112,7 +112,7 @@ class EOWorkflow:
             for input_node in node.inputs:
                 if input_node.uid not in self._uid_dict:
                     raise ValueError(
-                        f'Node {input_node}, which is an input of a task {node.name}, is not part of the workflow'
+                        f'Node {input_node}, which is an input of a task {node.get_name()}, is not part of the workflow'
                     )
                 dag.add_edge(input_node.uid, node.uid)
             if not node.inputs:
@@ -184,13 +184,13 @@ class EOWorkflow:
             if not isinstance(kwargs, dict):
                 raise ValueError(
                     f'Execution arguments of each node should be a dictionary, for node '
-                    f'{node.get_custom_name()} got arguments of type {type(kwargs)}'
+                    f'{node.get_name()} got arguments of type {type(kwargs)}'
                 )
 
             if not all(isinstance(key, str) for key in kwargs):
                 raise ValueError(
                     f'Keys of input argument dictionaries should names of variables, in arguments for node '
-                    f'{node.get_custom_name()} one of the keys is not a string'
+                    f'{node.get_name()} one of the keys is not a string'
                 )
 
     def _execute_nodes(
@@ -247,19 +247,24 @@ class EOWorkflow:
         result, is_success = self._execute_task(node.task, task_args, node_input_kwargs, raise_errors=raise_errors)
         end_time = dt.datetime.now()
 
-        node_stats_params = {
-            'node_uid': node.uid,
-            'node_name': node.name,
-            'start_time': start_time,
-            'end_time': end_time
-        }
-
         if is_success:
-            return result, NodeStats(**node_stats_params)
+            exception, exception_traceback = None, None
+        else:
+            exception, exception_traceback = cast(Tuple[BaseException, str], result)  # temporary fix until 3.8
+            result = None
+            LOGGER.error(
+                "Task '%s' with id %s failed with stack trace:\n%s", node.get_name(), node.uid, exception_traceback
+            )
 
-        exception, exception_traceback = result
-        LOGGER.error("Task '%s' with id %s failed with stack trace:\n%s", node.name, node.uid, exception_traceback)
-        return None, NodeStats(exception=exception, exception_traceback=exception_traceback, **node_stats_params)
+        node_stats = NodeStats(
+            node_uid=node.uid,
+            node_name=node.get_name(),
+            start_time=start_time,
+            end_time=end_time,
+            exception=exception,
+            exception_traceback=exception_traceback,
+        )
+        return result, node_stats
 
     @staticmethod
     def _execute_task(task: EOTask, task_args: List[object], task_kwargs: Dict[str, object],
@@ -296,7 +301,7 @@ class EOWorkflow:
             if out_degrees[relevant_node.uid] == 0:
                 LOGGER.debug(
                     'Removing intermediate result of %s (node uid: %s)',
-                    relevant_node.get_custom_name(),
+                    relevant_node.get_name(),
                     relevant_node.uid
                 )
                 del intermediate_results[relevant_node.uid]
