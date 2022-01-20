@@ -9,6 +9,7 @@ Copyright (c) 2017-2019 Blaž Sovdat, Nejc Vesel, Jovan Višnjić, Anže Zupanc,
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from abc import ABCMeta
 from math import sqrt
 from numbers import Number
 from typing import Dict, Tuple, List, Optional, Union
@@ -150,7 +151,7 @@ def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, colu
     return mask
 
 
-class BaseSamplingTask(EOTask):
+class BaseSamplingTask(EOTask, metaclass=ABCMeta):
     """ A base class for sampling tasks
     """
 

@@ -64,12 +64,6 @@ class AddGeopediaFeatureTask(EOTask):
                                   height=size_y,
                                   image_format=self.image_format)
 
-    def _get_wcs_request(self, bbox, size_x, size_y):
-        """
-        Returns WMS request.
-        """
-        raise NotImplementedError
-
     def _reproject(self, eopatch, src_raster):
         """
         Reprojects the raster data from Geopedia's CRS (POP_WEB) to EOPatch's CRS.
