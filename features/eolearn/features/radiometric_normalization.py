@@ -382,7 +382,7 @@ class ReferenceScenes(ReferenceScenesTask):
 
 
 @renamed_and_deprecated
-class BaseCompositing(BaseCompositingTask):
+class BaseCompositing(BaseCompositingTask, metaclass=ABCMeta):
     """ A deprecated version of BaseCompositingTask
     """
 
