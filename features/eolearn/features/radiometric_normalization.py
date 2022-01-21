@@ -8,6 +8,7 @@ Copyright (c) 2017-2019 Matej Aleksandrov, Matic Lubej, Devis Peresutti (Sinergi
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from abc import ABCMeta
 
 import numpy as np
 
@@ -53,7 +54,7 @@ class ReferenceScenesTask(EOTask):
         return eopatch
 
 
-class BaseCompositingTask(EOTask):
+class BaseCompositingTask(EOTask, metaclass=ABCMeta):
     """ Base class to create a composite of reference scenes
 
         Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
@@ -381,7 +382,7 @@ class ReferenceScenes(ReferenceScenesTask):
 
 
 @renamed_and_deprecated
-class BaseCompositing(BaseCompositingTask):
+class BaseCompositing(BaseCompositingTask, metaclass=ABCMeta):
     """ A deprecated version of BaseCompositingTask
     """
 

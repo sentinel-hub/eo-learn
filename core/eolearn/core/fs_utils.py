@@ -46,12 +46,10 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS
     on the filesystem
 
     :param path_parts: One or more strings defining a filesystem path
-    :type path_parts: str
     :param kwargs: Parameters passed to get_filesystem function
     :return: A filesystem object and a relative path
-    :rtype: (fs.FS, str)
     """
-    path_parts = [str(part) for part in path_parts if part is not None]
+    path_parts = tuple(str(part) for part in path_parts if part is not None)
     base_path = path_parts[0]
 
     if '://' in base_path:
@@ -138,7 +136,7 @@ def join_path(*path_parts: str) -> str:
     :return: Joined path that is also normalized and absolute.
     """
     if is_s3_path(path_parts[0]):
-        path_parts = ((part[5:] if index == 0 else part) for index, part in enumerate(path_parts))
+        path_parts = tuple((part[5:] if index == 0 else part) for index, part in enumerate(path_parts))
         path = "/".join(part.strip("/") for part in path_parts)
         path = fs.path.normpath(path)
         return f"s3://{path}"

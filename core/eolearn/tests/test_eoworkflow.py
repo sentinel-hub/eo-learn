@@ -97,6 +97,19 @@ def test_get_nodes():
     assert workflow_res.outputs['out'] == manual_res[0], 'Manually running returned nodes produces different results.'
 
 
+def test_get_node_with_uid():
+    in_node = EONode(InputTask())
+    inc_node = EONode(IncTask(), inputs=[in_node])
+    output_node = EONode(OutputTask(name='out'), inputs=[inc_node])
+
+    eow = EOWorkflow([in_node, inc_node, output_node])
+
+    assert all(node == eow.get_node_with_uid(node.uid) for node in (in_node, inc_node, output_node))
+    assert eow.get_node_with_uid("nonexsitant") is None
+    with pytest.raises(KeyError):
+        eow.get_node_with_uid("nonexsitant", fail_if_missing=True)
+
+
 @pytest.mark.parametrize(
     'faulty_parameters',
     [

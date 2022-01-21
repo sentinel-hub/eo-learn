@@ -409,7 +409,7 @@ class TestSentinelHubInputTaskDataCollections:
             return {
             input: [{
                 bands: ["B04", "B08", "dataMask"],
-                units: "DN"
+                units: ["REFLECTANCE", "REFLECTANCE", "DN"]
             }],
             output: [
                 { id:"ndvi", bands:1, sampleType: SampleType.FLOAT32 },
@@ -438,7 +438,7 @@ class TestSentinelHubInputTaskDataCollections:
             time_interval=time_interval,
             data_size=12,
             timestamp_length=2,
-            stats=[0.4681, 0.6334, 0.7608]
+            stats=[0.4676, 0.6313, 0.7688]
         ),
         IoTestCase(
             name='Sentinel-2 L2A - NDVI evalscript',
@@ -457,7 +457,7 @@ class TestSentinelHubInputTaskDataCollections:
             time_interval=time_interval,
             data_size=1,
             timestamp_length=2,
-            stats=[0.0036, 0.0158, 0.0088]
+            stats=[0.0088, 0.0083, 0.0008]
         ),
         IoTestCase(
             name='Landsat8',

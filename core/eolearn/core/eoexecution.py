@@ -22,7 +22,7 @@ import warnings
 from enum import Enum
 from logging import Logger, Handler, Filter
 from dataclasses import dataclass
-from typing import Sequence, List, Tuple, Dict, Optional, Callable, Iterable, TypeVar
+from typing import Sequence, List, Tuple, Dict, Optional, Callable, Iterable, TypeVar, cast
 
 import fs
 from tqdm.auto import tqdm
@@ -99,10 +99,10 @@ class EOExecutor:
         self.logs_filter = logs_filter
         self.logs_handler_factory = logs_handler_factory
 
-        self.start_time = None
-        self.report_folder = None
-        self.general_stats = {}
-        self.execution_results = None
+        self.start_time: Optional[dt.datetime] = None
+        self.report_folder: Optional[str] = None
+        self.general_stats: Dict[str, object] = {}
+        self.execution_results: List[WorkflowResults] = []
 
     @staticmethod
     def _parse_and_validate_execution_kwargs(
@@ -153,7 +153,9 @@ class EOExecutor:
         :return: A list of EOWorkflow results
         """
         self.start_time = dt.datetime.now()
-        self.report_folder = self._get_report_folder()
+        self.report_folder = fs.path.combine(
+            self.logs_folder, f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}'
+        )
         if self.save_logs:
             self.filesystem.makedirs(self.report_folder, recreate=True)
 
@@ -197,15 +199,15 @@ class EOExecutor:
             return list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
 
         if processing_type is _ProcessingType.MULTITHREADING:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-                return submit_and_monitor_execution(executor, self._execute_workflow, processing_args)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as thread_executor:
+                return submit_and_monitor_execution(thread_executor, self._execute_workflow, processing_args)
 
         # pylint: disable=global-statement
         global MULTIPROCESSING_LOCK
         try:
             MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
-            with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-                return submit_and_monitor_execution(executor, self._execute_workflow, processing_args)
+            with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as process_executor:
+                return submit_and_monitor_execution(process_executor, self._execute_workflow, processing_args)
         finally:
             MULTIPROCESSING_LOCK = None
 
@@ -230,7 +232,7 @@ class EOExecutor:
     def _try_remove_logging(cls, log_path: Optional[str], logger: Optional[Logger], handler: Optional[Handler]):
         """ Removes a handler from a logger in case that handler exists.
         """
-        if log_path and logger:
+        if log_path and logger and handler:
             try:
                 handler.close()
                 logger.removeHandler(handler)
@@ -282,11 +284,6 @@ class EOExecutor:
             'workers': workers
         }
 
-    def _get_report_folder(self) -> str:
-        """ Returns file path of folder where report will be saved
-        """
-        return fs.path.combine(self.logs_folder, f'eoexecution-report-{self.start_time.strftime("%Y_%m_%d-%H_%M_%S")}')
-
     def get_successful_executions(self) -> List[int]:
         """ Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
@@ -310,6 +307,8 @@ class EOExecutor:
             filesystem object.
         :return: Report filename
         """
+        if self.report_folder is None:
+            raise RuntimeError("Executor has to be run before the report path is created.")
         report_path = fs.path.combine(self.report_folder, self.REPORT_FILENAME)
         if full_path:
             return get_full_path(self.filesystem, report_path)
@@ -338,6 +337,8 @@ class EOExecutor:
             filesystem object.
         :return: A list of paths to log files.
         """
+        if self.report_folder is None:
+            raise RuntimeError("Executor has to be run before log paths are created.")
         log_paths = [fs.path.combine(self.report_folder, f'eoexecution-{name}.log') for name in self.execution_names]
         if full_path:
             return [get_full_path(self.filesystem, path) for path in log_paths]
@@ -378,13 +379,13 @@ def submit_and_monitor_execution(
     futures = [executor.submit(function, params) for params in execution_params]
     future_order = {future: i for i, future in enumerate(futures)}
 
-    results = [None] * len(futures)
+    results: List[Optional[_OutputType]] = [None] * len(futures)
     with tqdm(total=len(futures)) as pbar:
         for future in concurrent.futures.as_completed(futures):
             results[future_order[future]] = future.result()
             pbar.update(1)
 
-    return results
+    return cast(List[_OutputType], results)
 
 
 def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:

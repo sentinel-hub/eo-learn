@@ -14,7 +14,7 @@ file in the root directory of this source tree.
 import datetime
 import logging
 import warnings
-from abc import abstractmethod
+from abc import ABCMeta
 
 import dateutil
 import fs
@@ -30,7 +30,7 @@ from eolearn.core.utilities import renamed_and_deprecated
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseLocalIoTask(EOTask):
+class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
     """ Base abstract class for local IO tasks
     """
     def __init__(self, feature, folder=None, *, image_dtype=None, no_data_value=0, config=None):
@@ -98,12 +98,6 @@ class BaseLocalIoTask(EOTask):
             return [path_template]
 
         return [timestamp.strftime(path_template) for timestamp in timestamps]
-
-    @abstractmethod
-    def execute(self, eopatch, **kwargs):
-        """ Execute of a base class is not implemented
-        """
-        raise NotImplementedError
 
 
 class ExportToTiffTask(BaseLocalIoTask):
@@ -445,7 +439,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
 
 
 @renamed_and_deprecated
-class BaseLocalIo(BaseLocalIoTask):
+class BaseLocalIo(BaseLocalIoTask, metaclass=ABCMeta):
     """ A deprecated version of BaseLocalIoTask
     """
 

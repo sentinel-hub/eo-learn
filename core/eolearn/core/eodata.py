@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 import logging
 import copy
 import datetime
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import attr
 import dateutil.parser
@@ -234,7 +234,7 @@ class EOPatch:
             if len(repr_str) <= MAX_DATA_REPR_LEN:
                 return repr_str
 
-            l_bracket, r_bracket = '[]' if isinstance(value, list) else '()'
+            l_bracket, r_bracket = ('[', ']') if isinstance(value, list) else ('(', ')')
             if isinstance(value, (list, tuple)) and len(value) > 2:
                 repr_str = f'{l_bracket}{repr(value[0])}, ..., {repr(value[-1])}{r_bracket}'
 
@@ -451,15 +451,14 @@ class EOPatch:
         raise ValueError('FeatureType used to determine the width and height of raster must be'
                          ' time dependent or spatial.')
 
-    def get_feature_list(self):
+    def get_feature_list(self) -> List[Union[FeatureType, Tuple[FeatureType, str]]]:
         """Returns a list of all non-empty features of EOPatch.
 
         The elements are either only FeatureType or a pair of FeatureType and feature name.
 
         :return: list of features
-        :rtype: list(FeatureType or (FeatureType, str))
         """
-        feature_list = []
+        feature_list: List[Union[FeatureType, Tuple[FeatureType, str]]] = []
         for feature_type in FeatureType:
             if feature_type.has_dict():
                 for feature_name in self[feature_type]:
