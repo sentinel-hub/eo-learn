@@ -9,7 +9,6 @@ file in the root directory of this source tree.
 """
 import concurrent.futures
 import datetime as dt
-import pylint
 
 import pytest
 import numpy as np
