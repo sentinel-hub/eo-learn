@@ -3,7 +3,7 @@ Public classes and functions of mask subpackage
 """
 
 from .cloud_mask import CloudMaskTask
-from .masking import AddValidDataMaskTask, MaskFeatureTask, MaskFeature
+from .masking import AddValidDataMaskTask, MaskFeatureTask, MaskFeature, JoinMasksTask
 from .snow_mask import SnowMask, TheiaSnowMask, SnowMaskTask, TheiaSnowMaskTask
 from .utilities import resize_images
 from .mask_counting import ClassFrequencyTask

@@ -13,10 +13,11 @@ file in the root directory of this source tree.
 
 import logging
 import datetime as dt
+from typing import Optional
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask, FeatureType, MapFeatureTask
 from eolearn.core.utilities import renamed_and_deprecated
 
 
@@ -198,6 +199,34 @@ class ValueFilloutTask(EOTask):
         eopatch[self.feature] = data
 
         return eopatch
+
+
+class LinearFunctionTask(MapFeatureTask):
+    """Applies a linear function to the values of input features.
+
+    Each value in the feature is modified as `x -> x * slope + intercept`. The `dtype` of the result can be customized.
+    """
+
+    def __init__(
+        self, input_features, output_features=None, slope: float = 1, intercept: float = 0, dtype: Optional[str] = None
+    ):
+        """
+        :param input_features: Feature or features on which the function is used.
+        :param output_features: Feature or features for saving the result. If not provided the input_features are
+            overwritten.
+        :param slope: Slope of the function i.e. the multiplication factor.
+        :param intercept: Intercept of the function i.e. the value added.
+        :param dtype: Numpy dtype of the output feature. If not provided the dtype is determined by Numpy, so it is
+            recommended to set manually.
+        """
+        if output_features is None:
+            output_features = input_features
+        super().__init__(input_features, output_features, slope=slope, intercept=intercept, dtype=dtype)
+
+    def map_method(self, feature: np.ndarray, slope: float, intercept: float, dtype: Optional[str]) -> np.ndarray:
+        """A method where feature is multiplied by a slope"""
+        rescaled_feature = feature * slope + intercept
+        return rescaled_feature if dtype is None else rescaled_feature.astype(dtype)
 
 
 @renamed_and_deprecated
