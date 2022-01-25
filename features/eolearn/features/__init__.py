@@ -13,7 +13,9 @@ from .interpolation import (
     KrigingInterpolationTask
 )
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
-from .feature_manipulation import SimpleFilterTask, FilterTimeSeriesTask, FilterTimeSeries, ValueFilloutTask
+from .feature_manipulation import (
+    SimpleFilterTask, FilterTimeSeriesTask, FilterTimeSeries, ValueFilloutTask, LinearFunctionTask
+)
 from .haralick import HaralickTask
 from .radiometric_normalization import (
     ReferenceScenes, HistogramMatching, BlueCompositing, HOTCompositing, MaxNDVICompositing, MaxNDWICompositing,

@@ -10,10 +10,11 @@ Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from typing import Union, Callable
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOTask, FeatureType, ZipFeatureTask
 from eolearn.core.utilities import renamed_and_deprecated
 
 
@@ -46,6 +47,39 @@ class AddValidDataMaskTask(EOTask):
         feature_type, feature_name = next(self.valid_data_feature())
         eopatch[feature_type][feature_name] = self.predicate(eopatch)
         return eopatch
+
+
+class JoinMasksTask(ZipFeatureTask):
+    """Joins together masks with the provided logical operation."""
+
+    def __init__(self, input_features, output_feature, join_operation: Union[str, Callable] = 'and'):
+        """
+        :param input_features: Mask features to be joined together.
+        :param output_feature: Feature to which to save the joined mask.
+        :param join_operation: How to join masks. Supports `'and'`, `'or'`, `'xor'`, or a `Callable` object.
+        """
+        input_features = self.parse_features(input_features)
+        output_feature = self.parse_feature(output_feature)
+
+        if isinstance(join_operation, str):
+            methods = {'and': np.logical_and, 'or': np.logical_or, 'xor': np.logical_xor}
+            if join_operation not in methods:
+                raise ValueError(
+                    f"Join operation {join_operation} is not a viable choice. For operations other than {list(methods)}"
+                    "the user must provide a `Callable` object."
+                )
+            self.join_method = methods[join_operation]
+        else:
+            self.join_method = join_operation
+
+        super().__init__(input_features, output_feature)
+
+    def zip_method(self, *masks: np.ndarray) -> np.ndarray:
+        """Joins masks using the provided operation"""
+        final_mask, *masks = masks
+        for mask in masks:
+            final_mask = self.join_method(final_mask, mask)
+        return final_mask
 
 
 class MaskFeatureTask(EOTask):

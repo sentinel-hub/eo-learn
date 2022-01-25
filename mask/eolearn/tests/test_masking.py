@@ -9,8 +9,8 @@ file in the root directory of this source tree.
 import pytest
 import numpy as np
 
-from eolearn.core import FeatureType
-from eolearn.mask import MaskFeatureTask
+from eolearn.core import FeatureType, EOPatch
+from eolearn.mask import MaskFeatureTask, JoinMasksTask
 
 
 BANDS_FEATURE = FeatureType.DATA, 'BANDS-S2-L1C'
@@ -69,3 +69,40 @@ def test_lulc_with_lulc(test_eopatch):
 def test_wrong_arguments():
     with pytest.raises(ValueError):
         MaskFeatureTask(BANDS_FEATURE, CLOUD_MASK_FEATURE, mask_values=10)
+
+
+def test_join_masks():
+    eopatch = EOPatch()
+
+    mask1 = (FeatureType.MASK_TIMELESS, "Mask1")
+    mask_data1 = np.zeros((10, 10, 1), dtype=np.uint8)
+    mask_data1[2:5, 2:5] = 1
+    eopatch[mask1] = mask_data1
+
+    mask2 = (FeatureType.MASK_TIMELESS, "Mask2")
+    mask_data2 = np.zeros((10, 10, 1), dtype=np.uint8)
+    mask_data2[0:3, 7:8] = 1
+    eopatch[mask2] = mask_data2
+
+    mask3 = (FeatureType.MASK_TIMELESS, "Mask3")
+    mask_data3 = np.zeros((10, 10, 1), dtype=np.uint8)
+    mask_data3[1:1] = 1
+    eopatch[mask3] = mask_data3
+
+    input_features = [mask1, mask2, mask3]
+    output_feature = (FeatureType.MASK_TIMELESS, "Output")
+    
+    task1 = JoinMasksTask(input_features, output_feature)
+    expected_result = mask_data1 & mask_data2 & mask_data3
+    task1(eopatch)
+    assert np.array_equal(eopatch[output_feature], expected_result)
+
+    task2 = JoinMasksTask(input_features, output_feature, 'or')
+    expected_result = mask_data1 | mask_data2 | mask_data3
+    task2(eopatch)
+    assert np.array_equal(eopatch[output_feature], expected_result)
+
+    task3 = JoinMasksTask(input_features, output_feature, lambda x, y: x + y)
+    expected_result = mask_data1 + mask_data2 + mask_data3
+    task3(eopatch)
+    assert np.array_equal(eopatch[output_feature], expected_result)
