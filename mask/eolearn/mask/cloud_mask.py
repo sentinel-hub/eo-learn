@@ -16,9 +16,10 @@ import os
 import cv2
 import numpy as np
 from lightgbm import Booster
-from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
-from sentinelhub import bbox_to_resolution
 from skimage.morphology import disk
+
+from sentinelhub import bbox_to_resolution
+from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 
 from .utilities import map_over_axis, resize_images
 
