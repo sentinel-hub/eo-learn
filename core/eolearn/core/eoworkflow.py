@@ -346,7 +346,7 @@ class EOWorkflow:
         """
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
-            from eolearn.visualization import EOWorkflowVisualization
+            from eolearn.visualization.eoworkflow import EOWorkflowVisualization
         except ImportError:
             raise RuntimeError('Subpackage eo-learn-visualization has to be installed in order to use EOWorkflow '
                                'visualization methods')
