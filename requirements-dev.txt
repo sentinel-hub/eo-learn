@@ -1,11 +1,10 @@
-pytest>=4.0.0
+pytest>=6.0.0
 pytest-mock
 pytest-cov
 codecov
-pylint==2.10.2
+pylint>=2.12.2
 hypothesis
 twine
-scikit-image>=0.14.1
 nbval
 moto
 ray[default]

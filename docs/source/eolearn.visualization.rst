@@ -10,7 +10,7 @@ Submodules:
 
 .. toctree::
 
-   eolearn.visualization.eoexecutor_visualization
-   eolearn.visualization.eopatch_visualization
-   eolearn.visualization.eoworkflow_visualization
+   eolearn.visualization.eoexecutor
+   eolearn.visualization.eopatch
+   eolearn.visualization.eoworkflow
    eolearn.visualization.xarray_utils

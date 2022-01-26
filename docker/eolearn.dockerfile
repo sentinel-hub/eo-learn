@@ -33,10 +33,12 @@ COPY setup.py README.md requirements-dev.txt ./
 
 RUN pip3 install --no-cache-dir \
     ./core \
+    -r ./core/requirements-ray.txt \
     ./coregistration \
     ./features \
     ./geometry \
-    ./io[GEODB,METEOBLUE] \
+    ./io[METEOBLUE] \
+    -r ./io/requirements-geodb.txt \
     ./mask \
     ./ml_tools \
     ./visualization[FULL]

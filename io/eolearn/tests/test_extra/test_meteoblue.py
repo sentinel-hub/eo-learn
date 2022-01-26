@@ -2,8 +2,7 @@
 Module containing tests for Meteoblue tasks
 
 Credits:
-Copyright (c) 2021 Patrick Zippenfenig (Meteoblue)
-Copyright (c) 2021 Matej Aleksandrov (Sinergise)
+Copyright (c) 2021 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -16,7 +15,7 @@ from sentinelhub import BBox, CRS
 from meteoblue_dataset_sdk.protobuf.dataset_pb2 import DatasetApiProtobuf
 
 from eolearn.core import FeatureType, EOPatch
-from eolearn.io import MeteoblueVectorTask, MeteoblueRasterTask
+from eolearn.io.extra.meteoblue import MeteoblueVectorTask, MeteoblueRasterTask
 
 
 RASTER_QUERY = {
@@ -121,7 +120,7 @@ def _load_meteoblue_client_response(filename):
     with open('<path>', 'wb') as fp:
         fp.write(result.SerializeToString())
     """
-    path = os.path.join(os.path.dirname(__file__), 'TestInputs', filename)
+    path = os.path.join(os.path.dirname(__file__), '..', 'TestInputs', filename)
 
     with open(path, 'rb') as fp:
         return DatasetApiProtobuf.FromString(fp.read())

@@ -26,7 +26,8 @@ from shapely.geometry import Polygon
 
 from sentinelhub import CRS
 
-from eolearn.core import FeatureType, FeatureTypeSet, FeatureParser
+from eolearn.core import FeatureType, FeatureTypeSet
+from eolearn.core.utilities import parse_feature
 
 from .xarray_utils import array_to_dataframe, new_coordinates, string_to_variable
 
@@ -36,7 +37,7 @@ PLOT_HEIGHT = 500
 
 class EOPatchVisualization:
     """
-    Plot class for making visulizations.
+    Plot class for making visualizations.
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
@@ -77,8 +78,8 @@ class EOPatchVisualization:
         :rtype: holovies/bokeh
         """
 
-        features = list(FeatureParser(self.feature))
-        feature_type, feature_name = features[0]
+        feature = parse_feature(self.feature)
+        feature_type, feature_name = feature
         if self.pixel and feature_type in FeatureTypeSet.RASTER_TYPES_4D:
             vis = self.plot_pixel(feature_type, feature_name)
         elif feature_type in (FeatureType.MASK, *FeatureTypeSet.RASTER_TYPES_3D):

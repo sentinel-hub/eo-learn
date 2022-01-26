@@ -22,7 +22,7 @@ def parse_requirements(file):
 setup(
     name='eo-learn',
     python_requires='>=3.7',
-    version='0.10.1',
+    version='1.0.0',
     description='Earth observation processing framework for machine learning in Python',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
@@ -33,21 +33,21 @@ setup(
     packages=[],
     include_package_data=True,
     install_requires=[
-        'eo-learn-core>=0.10.1',
-        'eo-learn-coregistration>=0.10.1',
-        'eo-learn-features>=0.10.1',
-        'eo-learn-geometry>=0.10.1',
-        'eo-learn-io>=0.10.1',
-        'eo-learn-mask>=0.10.1',
-        'eo-learn-ml-tools>=0.10.1',
-        'eo-learn-visualization>=0.10.1'
+        'eo-learn-core>=1.0.0',
+        'eo-learn-coregistration>=1.0.0',
+        'eo-learn-features>=1.0.0',
+        'eo-learn-geometry>=1.0.0',
+        'eo-learn-io>=1.0.0',
+        'eo-learn-mask>=1.0.0',
+        'eo-learn-ml-tools>=1.0.0',
+        'eo-learn-visualization>=1.0.0'
     ],
     extras_require={
         'DEV': parse_requirements('requirements-dev.txt')
     },
     zip_safe=False,
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',

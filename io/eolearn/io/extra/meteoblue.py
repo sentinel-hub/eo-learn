@@ -1,15 +1,14 @@
 """
 Module with tasks that provide data from Meteoblue services
 
-To use tasks from this module you have to use Python >= `3.7` and install METEOBLUE package extension:
+To use tasks from this module you have to install METEOBLUE package extension:
 
 .. code-block::
 
     pip install eo-learn-io[METEOBLUE]
 
 Credits:
-Copyright (c) 2021 Patrick Zippenfenig (Meteoblue)
-Copyright (c) 2021 Matej Aleksandrov (Sinergise)
+Copyright (c) 2021 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -22,13 +21,14 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import shapely.geometry
-from sentinelhub import parse_time_interval, serialize_time, Geometry, CRS
+
 try:
     import meteoblue_dataset_sdk
     from meteoblue_dataset_sdk.caching import FileCache
-except ImportError:
-    pass
+except ImportError as exception:
+    raise ImportError('This module requires an installation of meteoblue_dataset_sdk package') from exception
 
+from sentinelhub import parse_time_interval, serialize_time, Geometry, CRS
 from eolearn.core import EOTask, EOPatch
 
 

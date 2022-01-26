@@ -53,6 +53,7 @@ class FeatureParser:
     """ Class for parsing a variety of feature specifications into a streamlined format.
 
     This class takes care of parsing multiple inputs that specify features and includes some additional options:
+
     - Fix allowed types, which raises an appropriate exception if a forbidden type is detected.
     - Parsing directly or parsing over an EOPatch. If an EOPatch object is provided the parser fails if a specified
       feature is missing from the EOPatch. Because EOPatch objects are usually provided to EOTasks at runtime, the
