@@ -22,7 +22,7 @@ from eolearn.core import EOPatch, EOTask, FeatureTypeSet
 LOGGER = logging.getLogger(__name__)
 
 
-class _BaseVectorImportTask(EOTask):
+class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
     """Base Vector Import Task, implementing common methods
     """
     def __init__(self, feature, reproject=True, clip=False, config=None):
