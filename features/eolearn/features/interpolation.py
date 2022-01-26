@@ -20,12 +20,18 @@ from functools import partial
 import dateutil
 import scipy.interpolate
 import numpy as np
-import numba
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EOUserWarning
 from eolearn.core.utilities import renamed_and_deprecated
+
+try:
+    import numba
+except ImportError as exception:
+    warnings.warn(
+        f"Failed to import numba with exception: '{exception}'. Some interpolation tasks won't work", EOUserWarning
+    )
 
 
 def base_interpolation_function(data, times, resampled_times):
@@ -68,9 +74,12 @@ def base_interpolation_function(data, times, resampled_times):
     return new_bands
 
 
-# pylint: disable=invalid-name
-interpolation_function = numba.njit(base_interpolation_function)
-interpolation_function_parallel = numba.njit(base_interpolation_function, parallel=True)
+try:
+    # pylint: disable=invalid-name
+    interpolation_function = numba.njit(base_interpolation_function)
+    interpolation_function_parallel = numba.njit(base_interpolation_function, parallel=True)
+except NameError:
+    pass
 
 
 class InterpolationTask(EOTask):
