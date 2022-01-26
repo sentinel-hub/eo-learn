@@ -41,22 +41,23 @@ class EOWorkflow:
 
     Example:
 
-        .. code-block:: python
-            node1 = EONode(task1, name='first task')  # custom names can be provided for better logging
-            node2 = EONode(task2, inputs=[node1])  # depends on previous task
-            node3 = EONode(task3, inputs=[node1])
-            node4 = EONode(task4, inputs=[node2, node3])  # depends on two tasks
+    .. code-block:: python
 
-            workflow = EOWorkflow([node1, node2, node3, node4])
+        node1 = EONode(task1, name='first task')  # custom names can be provided for better logging
+        node2 = EONode(task2, inputs=[node1])  # depends on previous task
+        node3 = EONode(task3, inputs=[node1])
+        node4 = EONode(task4, inputs=[node2, node3])  # depends on two tasks
 
-            # One can pass keyword arguments to task execution in the form of a dictionary
-            results = workflow.execute(
-                {node2: {'k': 2, 'ascending': True}}
-            )
+        workflow = EOWorkflow([node1, node2, node3, node4])
+
+        # One can pass keyword arguments to task execution in the form of a dictionary
+        results = workflow.execute(
+            {node2: {'k': 2, 'ascending': True}}
+        )
     """
     def __init__(self, workflow_nodes: Sequence[EONode]):
         """
-        :param workflow_nodes: A sequence of `EONode`s, specifying the computational graph.
+        :param workflow_nodes: A sequence of EONodes, specifying the computational graph.
         """
         workflow_nodes = self._parse_and_validate_nodes(workflow_nodes)
         self._uid_dict = self._make_uid_dict(workflow_nodes)

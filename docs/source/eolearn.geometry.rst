@@ -11,6 +11,5 @@ Submodules:
 .. toctree::
 
    eolearn.geometry.morphology
-   eolearn.geometry.sampling
    eolearn.geometry.superpixel
    eolearn.geometry.transformations
