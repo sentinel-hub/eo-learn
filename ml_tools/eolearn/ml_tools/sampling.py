@@ -179,7 +179,6 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):
         image_shape = None
         for feature_type, feature_name, new_feature_name in self.features_parser.get_renamed_features(eopatch):
             data_to_sample = eopatch[feature_type][feature_name]
-            eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
             feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
             if image_shape is not None and feature_shape != image_shape:
@@ -187,6 +186,8 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):
                     f"All features should have same spatial dimensions but found {image_shape} and {feature_shape}"
                 )
             image_shape = feature_shape
+
+            eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
         if self.mask_of_samples is not None:
             mask = get_mask_of_samples(image_shape, row_grid, column_grid)

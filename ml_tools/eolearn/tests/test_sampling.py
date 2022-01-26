@@ -227,7 +227,7 @@ def test_grid_sampling_task(test_eopatch, sample_size, stride, expected_shape):
     task = GridSamplingTask(
         features_to_sample=[
             (FeatureType.DATA, 'BANDS-S2-L1C', 'SAMPLED_BANDS'),
-            (FeatureType.MASK_TIMELESS, 'LULC', 'SAMPLED_LULC')
+            (FeatureType.MASK_TIMELESS, 'LULC', 'LULC')
         ],
         sample_size=sample_size,
         stride=stride,
