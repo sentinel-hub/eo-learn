@@ -9,4 +9,4 @@ from .superpixel import (
 )
 from .transformations import VectorToRasterTask, RasterToVectorTask, VectorToRaster, RasterToVector
 
-__version__ = '0.10.1'
+__version__ = '1.0.0'

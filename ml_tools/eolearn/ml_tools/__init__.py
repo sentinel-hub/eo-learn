@@ -11,4 +11,4 @@ from .postprocessing import MorphologicalOperations, MorphologicalStructFactory,
     MorphologicalFilterTask
 from .train_test_split import TrainTestSplitTask
 
-__version__ = '0.10.1'
+__version__ = '1.0.0'
