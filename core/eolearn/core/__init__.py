@@ -14,12 +14,6 @@ from .core_tasks import (
     DeepCopyTask,
     SaveTask,
     LoadTask,
-    AddFeature,
-    RemoveFeature,
-    RenameFeature,
-    DuplicateFeature,
-    InitializeFeature,
-    MoveFeature,
     AddFeatureTask,
     RemoveFeatureTask,
     RenameFeatureTask,
@@ -31,8 +25,6 @@ from .core_tasks import (
     ZipFeatureTask,
     ExtractBandsTask,
     CreateEOPatchTask,
-    SaveToDisk,
-    LoadFromDisk,
     MergeEOPatchesTask,
 )
 
