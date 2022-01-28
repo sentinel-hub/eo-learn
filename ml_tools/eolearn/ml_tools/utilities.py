@@ -20,7 +20,8 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     import matplotlib
-    matplotlib.use('agg')
+
+    matplotlib.use("agg")
     import matplotlib.pyplot as plt
 
 
@@ -29,7 +30,7 @@ LOGGER = logging.getLogger(__name__)
 
 # This code was copied from https://gist.github.com/seberg/3866040
 def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toend=True):
-    """ Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New
+    """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New
     dimensions are added at the end of `array` or after the corresponding original dimension.
 
     Examples:
@@ -135,7 +136,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
         if len(asteps) > array.ndim:
             raise ValueError("`asteps` cannot be longer then the `array` dimension.")
         # does not enforce alignment, so that steps can be same as window too.
-        _asteps[-len(asteps):] = asteps
+        _asteps[-len(asteps) :] = asteps
 
         if np.any(asteps < 1):
             raise ValueError("All elements of `asteps` must be larger then 1.")
@@ -154,7 +155,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     wsteps = _wsteps
 
     # Check that the window would not be larger then the original:
-    if np.any(orig_shape[-len(window):] < window * wsteps):
+    if np.any(orig_shape[-len(window) :] < window * wsteps):
         raise ValueError("`window` * `wsteps` larger then `array` in at least one dimension.")
 
     new_shape = orig_shape  # just renaming...
@@ -163,7 +164,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     _window = window.copy()
     _window[_window == 0] = 1
 
-    new_shape[-len(window):] += wsteps - _window * wsteps
+    new_shape[-len(window) :] += wsteps - _window * wsteps
     new_shape = (new_shape + asteps - 1) // asteps
     # make sure the new_shape is at least 1 in any "old" dimension (ie. steps
     # is (too) large, but we do not care.
@@ -172,7 +173,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
 
     strides = np.asarray(array.strides)
     strides *= asteps
-    new_strides = array.strides[-len(window):] * wsteps
+    new_strides = array.strides[-len(window) :] * wsteps
 
     # The full new shape and strides:
     if toend:
@@ -180,9 +181,9 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
         new_strides = np.concatenate((strides, new_strides))
     else:
         _ = np.zeros_like(shape)
-        _[-len(window):] = window
+        _[-len(window) :] = window
         _window = _.copy()
-        _[-len(window):] = new_strides
+        _[-len(window) :] = new_strides
         _new_strides = _
 
         new_shape = np.zeros(len(shape) * 2, dtype=int)
@@ -199,30 +200,34 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     return np.lib.stride_tricks.as_strided(array, shape=new_shape, strides=new_strides)
 
 
-def plot_confusion_matrix(matrix, classes, normalize=False, title='Confusion matrix',
-                          cmap=plt.cm.Blues):
+def plot_confusion_matrix(matrix, classes, normalize=False, title="Confusion matrix", cmap=plt.cm.Blues):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     (This function is copied from the scikit docs.)
     """
     plt.figure()
-    plt.imshow(matrix, interpolation='nearest', cmap=cmap)
+    plt.imshow(matrix, interpolation="nearest", cmap=cmap)
     plt.title(title)
     plt.colorbar()
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)
 
-    fmt = '.2f' if normalize else 'd'
+    fmt = ".2f" if normalize else "d"
     if normalize:
-        matrix = matrix.astype('float') / matrix.sum(axis=1)[:, np.newaxis]
+        matrix = matrix.astype("float") / matrix.sum(axis=1)[:, np.newaxis]
     print(matrix)
-    thresh = matrix.max() / 2.
+    thresh = matrix.max() / 2.0
     for i, j in itertools.product(range(matrix.shape[0]), range(matrix.shape[1])):
-        plt.text(j, i, format(matrix[i, j], fmt), horizontalalignment="center",
-                 color="white" if matrix[i, j] > thresh else "black")
+        plt.text(
+            j,
+            i,
+            format(matrix[i, j], fmt),
+            horizontalalignment="center",
+            color="white" if matrix[i, j] > thresh else "black",
+        )
 
     plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    plt.ylabel("True label")
+    plt.xlabel("Predicted label")

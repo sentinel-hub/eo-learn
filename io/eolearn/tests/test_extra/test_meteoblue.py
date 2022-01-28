@@ -19,38 +19,35 @@ from eolearn.io.extra.meteoblue import MeteoblueVectorTask, MeteoblueRasterTask
 
 
 RASTER_QUERY = {
-    'domain': 'NEMS4',
-    'gapFillDomain': None,
-    'timeResolution': 'hourly',
-    'codes': [{'code': 11, 'level': '2 m above gnd'}],
-    'transformations': [
+    "domain": "NEMS4",
+    "gapFillDomain": None,
+    "timeResolution": "hourly",
+    "codes": [{"code": 11, "level": "2 m above gnd"}],
+    "transformations": [
+        {"type": "aggregateTimeInterval", "aggregation": "mean"},
         {
-            'type': 'aggregateTimeInterval',
-            'aggregation': 'mean'
+            "type": "spatialTransformV2",
+            "gridResolution": 0.02,
+            "interpolationMethod": "linear",
+            "spatialAggregation": "mean",
+            "disjointArea": "keep",
         },
-        {
-            'type': 'spatialTransformV2',
-            'gridResolution': 0.02,
-            'interpolationMethod': 'linear',
-            'spatialAggregation': 'mean',
-            'disjointArea': 'keep',
-        }
-    ]
+    ],
 }
 
 VECTOR_QUERY = {
-    'domain': 'NEMS4',
-    'gapFillDomain': None,
-    'timeResolution': 'daily',
-    'codes': [{'code': 11, 'level': '2 m above gnd', 'aggregation': 'mean'}],
-    'transformations': None,
+    "domain": "NEMS4",
+    "gapFillDomain": None,
+    "timeResolution": "daily",
+    "codes": [{"code": 11, "level": "2 m above gnd", "aggregation": "mean"}],
+    "transformations": None,
 }
 
 UNITS = {
-    'temperature': 'C',
-    'velocity': 'km/h',
-    'length': 'metric',
-    'energy': 'watts',
+    "temperature": "C",
+    "velocity": "km/h",
+    "length": "metric",
+    "energy": "watts",
 }
 
 BBOX = BBox([7.52, 47.50, 7.7, 47.6], crs=CRS.WGS84)
@@ -58,20 +55,16 @@ TIME_INTERVAL = dt.datetime(year=2020, month=8, day=1), dt.datetime(year=2020, m
 
 
 def test_meteoblue_raster_task(mocker):
-    """ Unit test for MeteoblueRasterTask
-    """
+    """Unit test for MeteoblueRasterTask"""
     mocker.patch(
-        'meteoblue_dataset_sdk.Client.querySync',
-        return_value=_load_meteoblue_client_response('test_meteoblue_raster_input.bin')
+        "meteoblue_dataset_sdk.Client.querySync",
+        return_value=_load_meteoblue_client_response("test_meteoblue_raster_input.bin"),
     )
 
-    feature = FeatureType.DATA, 'WEATHER-DATA'
-    meteoblue_task = MeteoblueRasterTask(feature, 'dummy-api-key', query=RASTER_QUERY, units=UNITS)
+    feature = FeatureType.DATA, "WEATHER-DATA"
+    meteoblue_task = MeteoblueRasterTask(feature, "dummy-api-key", query=RASTER_QUERY, units=UNITS)
 
-    eopatch = meteoblue_task.execute(
-        bbox=BBOX,
-        time_interval=TIME_INTERVAL
-    )
+    eopatch = meteoblue_task.execute(bbox=BBOX, time_interval=TIME_INTERVAL)
 
     assert eopatch.bbox == BBOX
     assert eopatch.timestamp == [dt.datetime(2020, 8, 1)]
@@ -86,21 +79,17 @@ def test_meteoblue_raster_task(mocker):
 
 
 def test_meteoblue_vector_task(mocker):
-    """ Unit test for MeteoblueVectorTask
-    """
+    """Unit test for MeteoblueVectorTask"""
     mocker.patch(
-        'meteoblue_dataset_sdk.Client.querySync',
-        return_value=_load_meteoblue_client_response('test_meteoblue_vector_input.bin')
+        "meteoblue_dataset_sdk.Client.querySync",
+        return_value=_load_meteoblue_client_response("test_meteoblue_vector_input.bin"),
     )
 
-    feature = FeatureType.VECTOR, 'WEATHER-DATA'
-    meteoblue_task = MeteoblueVectorTask(feature, 'dummy-api-key', query=VECTOR_QUERY, units=UNITS)
+    feature = FeatureType.VECTOR, "WEATHER-DATA"
+    meteoblue_task = MeteoblueVectorTask(feature, "dummy-api-key", query=VECTOR_QUERY, units=UNITS)
 
     eopatch = EOPatch(bbox=BBOX)
-    eopatch = meteoblue_task.execute(
-        eopatch,
-        time_interval=TIME_INTERVAL
-    )
+    eopatch = meteoblue_task.execute(eopatch, time_interval=TIME_INTERVAL)
 
     assert eopatch.bbox == BBOX
 
@@ -108,19 +97,19 @@ def test_meteoblue_vector_task(mocker):
     assert len(data.index) == 18
     assert data.crs.to_epsg() == 4326
 
-    data_series = data['11_2 m above gnd_mean']
+    data_series = data["11_2 m above gnd_mean"]
     assert round(data_series.mean(), 5) == 23.75278
     assert round(data_series.std(), 5) == 2.99785
 
 
 def _load_meteoblue_client_response(filename):
-    """ Loads locally stored responses of Meteoblue client
+    """Loads locally stored responses of Meteoblue client
 
     To update content of saved files use:
     with open('<path>', 'wb') as fp:
         fp.write(result.SerializeToString())
     """
-    path = os.path.join(os.path.dirname(__file__), '..', 'TestInputs', filename)
+    path = os.path.join(os.path.dirname(__file__), "..", "TestInputs", filename)
 
-    with open(path, 'rb') as fp:
+    with open(path, "rb") as fp:
         return DatasetApiProtobuf.FromString(fp.read())

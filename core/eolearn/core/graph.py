@@ -17,8 +17,7 @@ from typing import List, Dict, Optional, Any, Sequence, Tuple
 
 
 class CyclicDependencyError(ValueError):
-    """ This error is raised when trying to get a topological ordering of a `DirectedGraph`.
-    """
+    """This error is raised when trying to get a topological ordering of a `DirectedGraph`."""
 
 
 class DirectedGraph:
@@ -28,6 +27,7 @@ class DirectedGraph:
 
     :param adjacency_dict: A dictionary mapping vertices to lists of neighbors
     """
+
     def __init__(self, adjacency_dict: Optional[Dict[object, List[object]]] = None):
         self._adj_dict = (
             collections.defaultdict(list, adjacency_dict) if adjacency_dict else collections.defaultdict(list)
@@ -60,8 +60,7 @@ class DirectedGraph:
         return in_degs
 
     def get_indegrees(self) -> Dict[Any, int]:
-        """Returns a dictionary containing in-degrees of vertices of the graph.
-        """
+        """Returns a dictionary containing in-degrees of vertices of the graph."""
         return dict(self._indegrees)
 
     def get_indegree(self, vertex) -> int:
@@ -160,18 +159,16 @@ class DirectedGraph:
         return True
 
     def is_edge(self, u_vertex, v_vertex) -> bool:
-        """True if `u_vertex -> v_vertex` is an edge of the graph. False otherwise.
-        """
+        """True if `u_vertex -> v_vertex` is an edge of the graph. False otherwise."""
         return v_vertex in self._adj_dict[u_vertex]
 
     def get_neighbors(self, vertex) -> list:
-        """Returns the set of successor vertices of `vertex`.
-        """
+        """Returns the set of successor vertices of `vertex`."""
         return copy.copy(self._adj_dict[vertex])
 
     @staticmethod
-    def from_edges(edges: Sequence[Tuple[object, object]]) -> 'DirectedGraph':
-        """ Return DirectedGraph created from edges
+    def from_edges(edges: Sequence[Tuple[object, object]]) -> "DirectedGraph":
+        """Return DirectedGraph created from edges
         :param edges: Pairs of objects that describe all the edges of the graph
         :return: DirectedGraph
         """
@@ -181,7 +178,7 @@ class DirectedGraph:
         return dag
 
     @staticmethod
-    def _is_cyclic(graph: 'DirectedGraph') -> bool:
+    def _is_cyclic(graph: "DirectedGraph") -> bool:
         """True if the directed graph contains a cycle. False otherwise.
 
         The algorithm is naive, running in O(V^2) time, and not intended for serious use! For production purposes on
@@ -203,7 +200,7 @@ class DirectedGraph:
         return False
 
     def toplogically_ordered_vertices(self) -> list:
-        """ Computes an ordering `<` of vertices so that for any two vertices `v` and `v'` we have that if `v˙ depends
+        """Computes an ordering `<` of vertices so that for any two vertices `v` and `v'` we have that if `v˙ depends
         on `v'` then `v' < v`. In words, all dependencies of a vertex precede the vertex in this ordering.
 
         :return: A list of topologically ordered dependencies
@@ -222,6 +219,6 @@ class DirectedGraph:
                     independent_vertices.append(u_vertex)
 
         if len(topological_order) != len(self):
-            raise CyclicDependencyError('Nodes form a cyclic graph, cannot produce a topologically ordered list')
+            raise CyclicDependencyError("Nodes form a cyclic graph, cannot produce a topologically ordered list")
 
         return topological_order

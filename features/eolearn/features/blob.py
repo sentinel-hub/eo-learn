@@ -84,7 +84,7 @@ class BlobTask(EOTask):
         return result
 
     def execute(self, eopatch):
-        """ Execute computation of blobs on input eopatch
+        """Execute computation of blobs on input eopatch
 
         :param eopatch: Input eopatch
         :type eopatch: eolearn.core.EOPatch
@@ -93,32 +93,61 @@ class BlobTask(EOTask):
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = self._compute_blob(
-                eopatch[feature_type][feature_name].astype(np.float64)).astype(np.float32)
+                eopatch[feature_type][feature_name].astype(np.float64)
+            ).astype(np.float32)
 
         return eopatch
 
 
 class DoGBlobTask(BlobTask):
-    """ Task to compute blobs with Difference of Gaussian (DoG) method
-    """
+    """Task to compute blobs with Difference of Gaussian (DoG) method"""
+
     def __init__(self, feature, *, sigma_ratio=1.6, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs):
-        super().__init__(feature, skimage.feature.blob_dog, sigma_ratio=sigma_ratio, min_sigma=min_sigma,
-                         max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
+        super().__init__(
+            feature,
+            skimage.feature.blob_dog,
+            sigma_ratio=sigma_ratio,
+            min_sigma=min_sigma,
+            max_sigma=max_sigma,
+            threshold=threshold,
+            overlap=overlap,
+            **kwargs
+        )
 
 
 class DoHBlobTask(BlobTask):
-    """ Task to compute blobs with Determinant of the Hessian (DoH) method
-    """
-    def __init__(self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5,
-                 **kwargs):
-        super().__init__(feature, skimage.feature.blob_doh, num_sigma=num_sigma, log_scale=log_scale,
-                         min_sigma=min_sigma, max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
+    """Task to compute blobs with Determinant of the Hessian (DoH) method"""
+
+    def __init__(
+        self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs
+    ):
+        super().__init__(
+            feature,
+            skimage.feature.blob_doh,
+            num_sigma=num_sigma,
+            log_scale=log_scale,
+            min_sigma=min_sigma,
+            max_sigma=max_sigma,
+            threshold=threshold,
+            overlap=overlap,
+            **kwargs
+        )
 
 
 class LoGBlobTask(BlobTask):
-    """ Task to compute blobs with Laplacian of Gaussian (LoG) method
-    """
-    def __init__(self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5,
-                 **kwargs):
-        super().__init__(feature, skimage.feature.blob_log, num_sigma=num_sigma, log_scale=log_scale,
-                         min_sigma=min_sigma, max_sigma=max_sigma, threshold=threshold, overlap=overlap, **kwargs)
+    """Task to compute blobs with Laplacian of Gaussian (LoG) method"""
+
+    def __init__(
+        self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs
+    ):
+        super().__init__(
+            feature,
+            skimage.feature.blob_log,
+            num_sigma=num_sigma,
+            log_scale=log_scale,
+            min_sigma=min_sigma,
+            max_sigma=max_sigma,
+            threshold=threshold,
+            overlap=overlap,
+            **kwargs
+        )

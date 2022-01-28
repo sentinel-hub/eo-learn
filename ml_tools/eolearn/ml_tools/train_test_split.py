@@ -17,15 +17,15 @@ from eolearn.core import EOTask, FeatureType
 
 
 class TrainTestSplitType(Enum):
-    """ An enum defining TrainTestSplitTask's methods of splitting the data into subsets
-    """
-    PER_PIXEL = 'per_pixel'
-    PER_CLASS = 'per_class'
-    PER_VALUE = 'per_value'
+    """An enum defining TrainTestSplitTask's methods of splitting the data into subsets"""
+
+    PER_PIXEL = "per_pixel"
+    PER_CLASS = "per_class"
+    PER_VALUE = "per_value"
 
 
 class TrainTestSplitTask(EOTask):
-    """ Randomly assign each pixel or groups of pixels to multiple subsets (e.g., test/train/validate).
+    """Randomly assign each pixel or groups of pixels to multiple subsets (e.g., test/train/validate).
 
     Input pixels are defined by an input feature (e.g., MASK_TIMELESS with polygon ids, connected component ids, or
     similar), that groups together pixels with similar properties.
@@ -74,9 +74,14 @@ class TrainTestSplitTask(EOTask):
         if np.isscalar(bins):
             bins = [bins]
 
-        if not isinstance(bins, list) or not all(isinstance(bi, float) for bi in bins) \
-                or np.any(np.diff(bins) <= 0) or bins[0] <= 0 or bins[-1] >= 1:
-            raise ValueError('bins argument should be a list of ascending floats inside an open interval (0, 1)')
+        if (
+            not isinstance(bins, list)
+            or not all(isinstance(bi, float) for bi in bins)
+            or np.any(np.diff(bins) <= 0)
+            or bins[0] <= 0
+            or bins[-1] >= 1
+        ):
+            raise ValueError("bins argument should be a list of ascending floats inside an open interval (0, 1)")
 
         self.ignore_values = set() if ignore_values is None else set(ignore_values)
         self.bins = bins

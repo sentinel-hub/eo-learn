@@ -14,78 +14,73 @@ import datetime
 import pytest
 import ray
 
-from eolearn.core import (
-    EOTask, EOWorkflow, EOExecutor, EONode,  WorkflowResults
-)
+from eolearn.core import EOTask, EOWorkflow, EOExecutor, EONode, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
 from eolearn.core.extra.ray import RayExecutor
 
 
 class ExampleTask(EOTask):
-
     def execute(self, *_, **kwargs):
         my_logger = logging.getLogger(__file__)
-        my_logger.debug('Debug statement of Example task with kwargs: %s', kwargs)
-        my_logger.info('Info statement of Example task with kwargs: %s', kwargs)
-        my_logger.warning('Warning statement of Example task with kwargs: %s', kwargs)
-        my_logger.critical('Super important log')
+        my_logger.debug("Debug statement of Example task with kwargs: %s", kwargs)
+        my_logger.info("Info statement of Example task with kwargs: %s", kwargs)
+        my_logger.warning("Warning statement of Example task with kwargs: %s", kwargs)
+        my_logger.critical("Super important log")
 
-        if 'arg1' in kwargs and kwargs['arg1'] is None:
+        if "arg1" in kwargs and kwargs["arg1"] is None:
             raise Exception
 
 
 class FooTask(EOTask):
-
     @staticmethod
     def execute(*_, **__):
         return 42
 
 
 class KeyboardExceptionTask(EOTask):
-
     @staticmethod
     def execute(*_, **__):
         raise KeyboardInterrupt
 
 
 class CustomLogFilter(logging.Filter):
-    """ A custom filter that keeps only logs with level warning or critical
-    """
+    """A custom filter that keeps only logs with level warning or critical"""
+
     def filter(self, record):
         return record.levelno >= logging.WARNING
 
 
-@pytest.fixture(name='simple_cluster', scope='module')
+@pytest.fixture(name="simple_cluster", scope="module")
 def simple_cluster_fixture():
     ray.init(log_to_driver=False)
     yield
     ray.shutdown()
 
 
-@pytest.fixture(scope='session', name='test_nodes')
+@pytest.fixture(scope="session", name="test_nodes")
 def test_nodes_fixture():
     example = EONode(ExampleTask())
     foo = EONode(FooTask(), inputs=[example, example])
-    output = EONode(OutputTask('output'), inputs=[foo])
-    nodes = {'example': example, 'foo': foo, 'output': output}
+    output = EONode(OutputTask("output"), inputs=[foo])
+    nodes = {"example": example, "foo": foo, "output": output}
     return nodes
 
 
-@pytest.fixture(name='workflow')
+@pytest.fixture(name="workflow")
 def workflow_fixture(test_nodes):
     workflow = EOWorkflow(list(test_nodes.values()))
     return workflow
 
 
-@pytest.fixture(name='execution_kwargs')
+@pytest.fixture(name="execution_kwargs")
 def execution_kwargs_fixture(test_nodes):
-    example_node = test_nodes['example']
+    example_node = test_nodes["example"]
 
     execution_kwargs = [
-        {example_node: {'arg1': 1}},
+        {example_node: {"arg1": 1}},
         {},
-        {example_node: {'arg1': 3, 'arg3': 10}},
-        {example_node: {'arg1': None}}
+        {example_node: {"arg1": 3, "arg3": 10}},
+        {example_node: {"arg1": None}},
     ]
     return execution_kwargs
 
@@ -96,16 +91,18 @@ def test_fail_without_ray(workflow, execution_kwargs):
         executor.run()
 
 
-@pytest.mark.parametrize('filter_logs', [True, False])
-@pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
+@pytest.mark.parametrize("filter_logs", [True, False])
+@pytest.mark.parametrize("execution_names", [None, [4, "x", "y", "z"]])
 def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, simple_cluster):
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(
-            workflow, execution_kwargs, save_logs=True,
+            workflow,
+            execution_kwargs,
+            save_logs=True,
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
-            execution_names=execution_names
+            execution_names=execution_names,
         )
         executor.run()
 
@@ -119,10 +116,10 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, sim
 
         if execution_names:
             for name, log_filename in zip(execution_names, log_filenames):
-                assert log_filename == f'eoexecution-{name}.log'
+                assert log_filename == f"eoexecution-{name}.log"
 
         log_path = os.path.join(executor.report_folder, log_filenames[0])
-        with executor.filesystem.open(log_path, 'r') as fp:
+        with executor.filesystem.open(log_path, "r") as fp:
             line_count = len(fp.readlines())
             expected_line_count = 2 if filter_logs else 12
             assert line_count == expected_line_count
@@ -162,7 +159,7 @@ def test_execution_results(workflow, execution_kwargs, simple_cluster):
     for idx, workflow_results in enumerate(results):
         assert isinstance(workflow_results, WorkflowResults)
         if idx != 3:
-            assert workflow_results.outputs['output'] == 42
+            assert workflow_results.outputs["output"] == 42
 
 
 def test_keyboard_interrupt(simple_cluster):
@@ -170,7 +167,7 @@ def test_keyboard_interrupt(simple_cluster):
     workflow = EOWorkflow([exception_node])
     execution_kwargs = []
     for _ in range(10):
-        execution_kwargs.append({exception_node: {'arg1': 1}})
+        execution_kwargs.append({exception_node: {"arg1": 1}})
 
     with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
         RayExecutor(workflow, execution_kwargs).run()

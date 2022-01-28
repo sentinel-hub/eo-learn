@@ -20,7 +20,7 @@ import pandas as pd
 
 
 class SGMLBaseValidator(ABC):
-    """ Abstract class for various validations of SGML image classifiers.
+    """Abstract class for various validations of SGML image classifiers.
 
     All the work is performed in the validate method, where
     for each EOPatch the following actions are performed:
@@ -74,8 +74,7 @@ class SGMLBaseValidator(ABC):
 
     @abstractmethod
     def _transform_truth(self, patch):
-        """ Transform and extract the truth mask form the EOPatch and store the transformed masks in self.truth_masks.
-        """
+        """Transform and extract the truth mask form the EOPatch and store the transformed masks in self.truth_masks."""
 
     def reset_counters(self):
         """
@@ -94,8 +93,7 @@ class SGMLBaseValidator(ABC):
         """
         Count the pixels belonging to each truth class
         """
-        pixel_count = np.array([[np.nonzero(mask)[0].shape[0] for mask in masktype]
-                                for masktype in self.truth_masks])
+        pixel_count = np.array([[np.nonzero(mask)[0].shape[0] for mask in masktype] for masktype in self.truth_masks])
 
         pixel_count = np.moveaxis(pixel_count, 0, -1)
 
@@ -110,10 +108,18 @@ class SGMLBaseValidator(ABC):
         """
         class_values = self.class_dictionary.values()
 
-        classification_count = np.array([[[np.count_nonzero(prediction[np.nonzero(mask)] == class_val)
-                                           for prediction, mask in zip(self.classification_masks, masktype)]
-                                          for masktype in self.truth_masks]
-                                         for class_val in class_values])
+        classification_count = np.array(
+            [
+                [
+                    [
+                        np.count_nonzero(prediction[np.nonzero(mask)] == class_val)
+                        for prediction, mask in zip(self.classification_masks, masktype)
+                    ]
+                    for masktype in self.truth_masks
+                ]
+                for class_val in class_values
+            ]
+        )
 
         classification_count = np.moveaxis(classification_count, 0, -1)
         classification_count = np.moveaxis(classification_count, 0, -2)
@@ -161,7 +167,7 @@ class SGMLBaseValidator(ABC):
         """
         Save validator object to pickle.
         """
-        with open(filename, 'wb') as output:
+        with open(filename, "wb") as output:
             pickle.dump(self, output, protocol=pickle.HIGHEST_PROTOCOL)
 
     def pandas_df(self):
@@ -182,15 +188,16 @@ class SGMLBaseValidator(ABC):
         if self.val_df is not None:
             return self.val_df
 
-        clf = self.pixel_classification_counts.reshape(self.pixel_classification_counts.shape[0],
-                                                       self.pixel_classification_counts.shape[1] *
-                                                       self.pixel_classification_counts.shape[2])
+        clf = self.pixel_classification_counts.reshape(
+            self.pixel_classification_counts.shape[0],
+            self.pixel_classification_counts.shape[1] * self.pixel_classification_counts.shape[2],
+        )
 
         combo = np.hstack((self.pixel_truth_counts, clf))
 
         columns = list(itertools.product(self.truth_classes, list(self.class_dictionary.keys())))
-        columns = [(item[0] + '_as_' + item[1]).replace(" ", "_") for item in columns]
-        truth_columns = ['truth_' + item.replace(" ", "_") for item in self.truth_classes]
+        columns = [(item[0] + "_as_" + item[1]).replace(" ", "_") for item in columns]
+        truth_columns = ["truth_" + item.replace(" ", "_") for item in self.truth_classes]
 
         self.val_df = pd.DataFrame(combo, columns=truth_columns + columns)
 
@@ -218,26 +225,38 @@ class SGMLBaseValidator(ABC):
         conf_matrix = self.confusion_matrix()
 
         if normalised:
-            sns.heatmap(conf_matrix,
-                        annot=True, annot_kws={"size": 12}, fmt='2.1f', cmap='YlGnBu', vmin=0.0,
-                        vmax=100.0,
-                        xticklabels=list(self.class_dictionary.keys()),
-                        yticklabels=self.truth_classes)
+            sns.heatmap(
+                conf_matrix,
+                annot=True,
+                annot_kws={"size": 12},
+                fmt="2.1f",
+                cmap="YlGnBu",
+                vmin=0.0,
+                vmax=100.0,
+                xticklabels=list(self.class_dictionary.keys()),
+                yticklabels=self.truth_classes,
+            )
         else:
-            sns.heatmap(self.pixel_classification_counts,
-                        annot=True, annot_kws={"size": 12}, fmt='2.1f', cmap='YlGnBu', vmin=0.0,
-                        vmax=np.max(self.pixel_classification_counts),
-                        xticklabels=list(self.class_dictionary.keys()),
-                        yticklabels=self.truth_classes)
+            sns.heatmap(
+                self.pixel_classification_counts,
+                annot=True,
+                annot_kws={"size": 12},
+                fmt="2.1f",
+                cmap="YlGnBu",
+                vmin=0.0,
+                vmax=np.max(self.pixel_classification_counts),
+                xticklabels=list(self.class_dictionary.keys()),
+                yticklabels=self.truth_classes,
+            )
 
     def summary(self, scoring):
         """
         Prints out the summary of validation for giving scoring function.
         """
 
-        if scoring == 'class_confusion':
-            print('*' * 50)
-            print('  Confusion Matrix ')
-            print('x-axis: ' + ' | '.join(list(self.class_dictionary.keys())))
-            print('y-axis: ' + ' | '.join(self.truth_classes))
+        if scoring == "class_confusion":
+            print("*" * 50)
+            print("  Confusion Matrix ")
+            print("x-axis: " + " | ".join(list(self.class_dictionary.keys())))
+            print("y-axis: " + " | ".join(self.truth_classes))
             print(self.confusion_matrix())

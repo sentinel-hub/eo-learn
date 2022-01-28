@@ -18,7 +18,7 @@ from eolearn.core import EOTask
 
 
 class AddSpatioTemporalFeaturesTask(EOTask):
-    """ Task that implements and adds to eopatch the spatio-temporal features proposed in [1].
+    """Task that implements and adds to eopatch the spatio-temporal features proposed in [1].
 
     This task assumes that the argmax/argmin of NDVI, NDVI slope and B4 are present in eopatch. The computed
     spatio-temporal features correspond to the concatenation of reflectance (green, red, near-infrared and short-wave
@@ -36,10 +36,19 @@ class AddSpatioTemporalFeaturesTask(EOTask):
     Photogrammetry and Remote Sensing, 2015
 
     """
-    def __init__(self, argmax_ndvi='ARGMAX_NDVI', argmin_ndvi='ARGMIN_NDVI', argmax_red='ARGMAX_B4',
-                 argmax_ndvi_slope='ARGMAX_NDVI_SLOPE', argmin_ndvi_slope='ARGMIN_NDVI_SLOPE', feats_feature='STF',
-                 data_feature='BANDS-S2-L1C', indices=None):
-        """ Class constructor
+
+    def __init__(
+        self,
+        argmax_ndvi="ARGMAX_NDVI",
+        argmin_ndvi="ARGMIN_NDVI",
+        argmax_red="ARGMAX_B4",
+        argmax_ndvi_slope="ARGMAX_NDVI_SLOPE",
+        argmin_ndvi_slope="ARGMIN_NDVI_SLOPE",
+        feats_feature="STF",
+        data_feature="BANDS-S2-L1C",
+        indices=None,
+    ):
+        """Class constructor
 
         Initialisation of task variables. The name of the dictionary keys that will be used for the computation of the
         features needs to be specified. These features are assumed to be existing in the eopatch. The indices of the
@@ -77,7 +86,7 @@ class AddSpatioTemporalFeaturesTask(EOTask):
         self.indices = indices
 
     def execute(self, eopatch):
-        """ Compute spatio-temporal features for input eopatch
+        """Compute spatio-temporal features for input eopatch
 
         :param eopatch: Input eopatch
         :return: eopatch with computed spatio-temporal features
@@ -102,17 +111,24 @@ class AddSpatioTemporalFeaturesTask(EOTask):
 
 
 class AddMaxMinTemporalIndicesTask(EOTask):
-    """ Task to compute temporal indices of the maximum and minimum of a data feature
+    """Task to compute temporal indices of the maximum and minimum of a data feature
 
-        This class computes the `argmax` and `argmin` of a data feature in the input eopatch (e.g. NDVI, B4). The data
-        can be masked out by setting the `mask_data` flag to `True`. In that case, the `'VALID_DATA'` mask feature is
-        used for masking. If `mask_data` is `False`, the data is masked using the `'IS_DATA'` feature.
+    This class computes the `argmax` and `argmin` of a data feature in the input eopatch (e.g. NDVI, B4). The data
+    can be masked out by setting the `mask_data` flag to `True`. In that case, the `'VALID_DATA'` mask feature is
+    used for masking. If `mask_data` is `False`, the data is masked using the `'IS_DATA'` feature.
 
-        Two new features are added to the `data_timeless` attribute.
+    Two new features are added to the `data_timeless` attribute.
     """
-    def __init__(self, data_feature='NDVI', data_index=None, amax_data_feature='ARGMAX_NDVI',
-                 amin_data_feature='ARGMIN_NDVI', mask_data=True):
-        """ Task constructor
+
+    def __init__(
+        self,
+        data_feature="NDVI",
+        data_index=None,
+        amax_data_feature="ARGMAX_NDVI",
+        amin_data_feature="ARGMIN_NDVI",
+        mask_data=True,
+    ):
+        """Task constructor
 
         :param data_feature: Name of the feature in data used for computation of max/min. Default is `'NDVI'`
         :type data_feature: str
@@ -133,19 +149,20 @@ class AddMaxMinTemporalIndicesTask(EOTask):
         self.amin_feature = amin_data_feature
 
     def execute(self, eopatch):
-        """ Compute argmax/argmin of specified `data_feature` and `data_index`
+        """Compute argmax/argmin of specified `data_feature` and `data_index`
 
         :param eopatch: Input eopatch
         :return: eopatch with added argmax/argmin features
         """
-        valid_data_mask = eopatch.mask['VALID_DATA'] if self.mask_data else eopatch.mask['IS_DATA']
+        valid_data_mask = eopatch.mask["VALID_DATA"] if self.mask_data else eopatch.mask["IS_DATA"]
 
-        data = eopatch.data[self.data_feature] if self.data_index is None \
+        data = (
+            eopatch.data[self.data_feature]
+            if self.data_index is None
             else eopatch.data[self.data_feature][..., self.data_index][..., np.newaxis]
+        )
 
-        madata = np.ma.array(data,
-                             dtype=np.float32,
-                             mask=np.logical_or(~valid_data_mask.astype(bool), np.isnan(data)))
+        madata = np.ma.array(data, dtype=np.float32, mask=np.logical_or(~valid_data_mask.astype(bool), np.isnan(data)))
 
         argmax_data = np.ma.MaskedArray.argmax(madata, axis=0)
         argmin_data = np.ma.MaskedArray.argmin(madata, axis=0)
@@ -163,16 +180,22 @@ class AddMaxMinTemporalIndicesTask(EOTask):
 
 
 class AddMaxMinNDVISlopeIndicesTask(EOTask):
-    """ Task to compute the argmax and armgin of the NDVI slope
+    """Task to compute the argmax and armgin of the NDVI slope
 
     This task computes the slope of the NDVI feature using central differences. The NDVI feature can be masked using the
     `'VALID_DATA'` mask. Current implementation loops through every location of eopatch, and is therefore slow.
 
     The NDVI slope at date t is comuted as $(NDVI_{t+1}-NDVI_{t-1})/(date_{t+1}-date_{t-1})$.
     """
-    def __init__(self, data_feature='NDVI', argmax_feature='ARGMAX_NDVI_SLOPE', argmin_feature='ARGMIN_NDVI_SLOPE',
-                 mask_data=True):
-        """ Task constructor
+
+    def __init__(
+        self,
+        data_feature="NDVI",
+        argmax_feature="ARGMAX_NDVI_SLOPE",
+        argmin_feature="ARGMIN_NDVI_SLOPE",
+        mask_data=True,
+    ):
+        """Task constructor
 
         :param data_feature: Name of data feature with NDVI values. Default is `'NDVI'`
         :type data_feature: str
@@ -188,7 +211,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         self.mask_data = mask_data
 
     def execute(self, eopatch):
-        """ Computation of NDVI slope using finite central differences
+        """Computation of NDVI slope using finite central differences
 
         This implementation loops through every spatial location, considers the valid NDVI values and approximates their
         first order derivative using central differences. The argument of min and max is added to the eopatch.
@@ -200,20 +223,18 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         """
         # pylint: disable=invalid-name
         if self.mask_data:
-            valid_data_mask = eopatch.mask['VALID_DATA']
+            valid_data_mask = eopatch.mask["VALID_DATA"]
         else:
-            valid_data_mask = eopatch.mask['IS_DATA']
+            valid_data_mask = eopatch.mask["IS_DATA"]
 
-        ndvi = np.ma.array(eopatch.data[self.data_feature],
-                           dtype=np.float32,
-                           mask=~valid_data_mask.astype(bool))
+        ndvi = np.ma.array(eopatch.data[self.data_feature], dtype=np.float32, mask=~valid_data_mask.astype(bool))
 
         all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
 
         if ndvi.ndim == 4:
-            h, w = ndvi.shape[1: 3]
+            h, w = ndvi.shape[1:3]
         else:
-            raise ValueError(f'{self.data_feature} feature has incorrect number of dimensions')
+            raise ValueError(f"{self.data_feature} feature has incorrect number of dimensions")
 
         argmax_ndvi_slope, argmin_ndvi_slope = np.zeros((h, w, 1), dtype=np.uint8), np.zeros((h, w, 1), dtype=np.uint8)
 
@@ -225,8 +246,9 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
             ndvi_curve = ndvi_curve[valid_idx]
             valid_dates = all_dates[valid_idx]
 
-            ndvi_slope = np.convolve(ndvi_curve.squeeze(), [1, 0, -1], 'valid') / np.convolve(valid_dates, [1, 0, -1],
-                                                                                              'valid')
+            ndvi_slope = np.convolve(ndvi_curve.squeeze(), [1, 0, -1], "valid") / np.convolve(
+                valid_dates, [1, 0, -1], "valid"
+            )
 
             # +1 to compensate for the 'valid' convolution which eliminates first and last
             argmax_ndvi_slope[ih, iw] = valid_idx[np.argmax(ndvi_slope) + 1]

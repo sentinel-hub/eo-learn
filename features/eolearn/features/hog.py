@@ -16,7 +16,7 @@ from eolearn.core import EOTask, FeatureType
 
 
 class HOGTask(EOTask):
-    """ Task to compute the histogram of gradient
+    """Task to compute the histogram of gradient
 
     Divide the image into small connected regions called cells, and for each cell compute a histogram of gradient
     directions or edge orientations for the pixels within the cell.
@@ -24,8 +24,18 @@ class HOGTask(EOTask):
     The algorithm stores the result in images where each band is the value of the histogram for a specific angular
     bin. If the visualize is True, it also output the images representing the gradients for each orientation.
     """
-    def __init__(self, feature, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3),
-                 visualize=True, hog_feature_vector=False, block_norm='L2-Hys', visualize_feature_name=''):
+
+    def __init__(
+        self,
+        feature,
+        orientations=9,
+        pixels_per_cell=(8, 8),
+        cells_per_block=(3, 3),
+        visualize=True,
+        hog_feature_vector=False,
+        block_norm="L2-Hys",
+        visualize_feature_name="",
+    ):
         """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
             specified it will be saved with name '<feature_name>_HOG'
@@ -53,16 +63,20 @@ class HOGTask(EOTask):
         self.block_norm = block_norm
         self.hog_feature_vector = hog_feature_vector
         self.visualize_name = visualize_feature_name
-        if self.visualize_name == '':
+        if self.visualize_name == "":
             for _, _, new_feature_name in self.feature:
-                self.visualize_name = new_feature_name + '_VISU'
+                self.visualize_name = new_feature_name + "_VISU"
 
     def _compute_hog(self, data):
-        results_im = np.empty((data.shape[0],
-                               (int(data.shape[1] // self.pixels_per_cell[0]) - self.cells_per_block[0] + 1) *
-                               self.cells_per_block[0],
-                               (int(data.shape[2] // self.pixels_per_cell[1]) - self.cells_per_block[1] + 1) *
-                               self.cells_per_block[1], self.n_orientations), dtype=float)
+        results_im = np.empty(
+            (
+                data.shape[0],
+                (int(data.shape[1] // self.pixels_per_cell[0]) - self.cells_per_block[0] + 1) * self.cells_per_block[0],
+                (int(data.shape[2] // self.pixels_per_cell[1]) - self.cells_per_block[1] + 1) * self.cells_per_block[1],
+                self.n_orientations,
+            ),
+            dtype=float,
+        )
         if self.visualize:
             im_visu = np.empty(data.shape[0:3] + (1,))
         for time in range(data.shape[0]):
@@ -76,7 +90,7 @@ class HOGTask(EOTask):
                 cells_per_block=self.cells_per_block,
                 block_norm=self.block_norm,
                 feature_vector=self.hog_feature_vector,
-                channel_axis=-1 if is_multichannel else None
+                channel_axis=-1 if is_multichannel else None,
             )
             if self.visualize:
                 im_visu[time, :, :, 0] = image
@@ -91,12 +105,12 @@ class HOGTask(EOTask):
         return results_im, im_visu
 
     def execute(self, eopatch):
-        """ Execute computation of HoG features on input eopatch
+        """Execute computation of HoG features on input eopatch
 
-            :param eopatch: Input eopatch
-            :type eopatch: eolearn.core.EOPatch
-            :return: EOPatch instance with new keys holding the HoG features and HoG image for visualisation.
-            :rtype: eolearn.core.EOPatch
+        :param eopatch: Input eopatch
+        :type eopatch: eolearn.core.EOPatch
+        :return: EOPatch instance with new keys holding the HoG features and HoG image for visualisation.
+        :rtype: eolearn.core.EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             result = self._compute_hog(eopatch[feature_type][feature_name])

@@ -19,7 +19,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def ransac(npts, model, n, k, t, d):
-    """ Fit model parameters to data using the RANSAC algorithm
+    """Fit model parameters to data using the RANSAC algorithm
 
     This implementation is written from pseudo-code found at
     http://en.wikipedia.org/w/index.php?title=RANSAC&oldid=116358182
@@ -42,10 +42,10 @@ def ransac(npts, model, n, k, t, d):
         test_err = model.score(test_idxs, maybemodel)
         also_idxs = test_idxs[test_err < t]  # select indices of rows with accepted points
 
-        LOGGER.debug('test_err.min() %f', test_err.min() if test_err.size else None)
-        LOGGER.debug('test_err.max() %f', test_err.max() if test_err.size else None)
-        LOGGER.debug('numpy.mean(test_err) %f', np.mean(test_err) if test_err.size else None)
-        LOGGER.debug('iteration %d, len(alsoinliers) = %d', iterations, len(also_idxs))
+        LOGGER.debug("test_err.min() %f", test_err.min() if test_err.size else None)
+        LOGGER.debug("test_err.max() %f", test_err.max() if test_err.size else None)
+        LOGGER.debug("numpy.mean(test_err) %f", np.mean(test_err) if test_err.size else None)
+        LOGGER.debug("iteration %d, len(alsoinliers) = %d", iterations, len(also_idxs))
 
         if len(also_idxs) > d:
             betteridxs = np.concatenate((maybe_idxs, also_idxs))
@@ -70,12 +70,13 @@ def random_partition(n, n_data):
 
 
 class EstimateEulerTransformModel:
-    """ Estimate Euler transform linear system solved using linear least squares
+    """Estimate Euler transform linear system solved using linear least squares
 
-        This class estimates an Euler 2D transformation between two cloud of 2D points using SVD decomposition
+    This class estimates an Euler 2D transformation between two cloud of 2D points using SVD decomposition
     """
+
     def __init__(self, src_pts, trg_pts):
-        """ Initialise target and source cloud points as Nx2 matrices. The transformation aligning source points to
+        """Initialise target and source cloud points as Nx2 matrices. The transformation aligning source points to
         target points is estimated.
 
         :param src_pts: Array of source points
@@ -85,7 +86,7 @@ class EstimateEulerTransformModel:
         self.trg_pts = trg_pts
 
     def estimate_rigid_transformation(self, idx):
-        """ Estimate rigid transformation given a set of indices
+        """Estimate rigid transformation given a set of indices
 
         :param idx: Array of indices used to estimate the transformation
         :return: Estimated transformation matrix
@@ -113,7 +114,7 @@ class EstimateEulerTransformModel:
         return warp_matrix
 
     def fit(self, idx):
-        """ Estimate Euler transform on points listed in `idx`
+        """Estimate Euler transform on points listed in `idx`
 
         :param idx: Indices used to estimate transformation
         :return: Transformation matrix
@@ -122,7 +123,7 @@ class EstimateEulerTransformModel:
         return x
 
     def score(self, idx, warp_matrix):
-        """ Estimate the registration error of estimated transformation matrix
+        """Estimate the registration error of estimated transformation matrix
 
         :param idx: List of points used to estimate the transformation
         :param warp_matrix: Matrix estimating Euler trasnformation
@@ -131,5 +132,7 @@ class EstimateEulerTransformModel:
         # Transform source points with estimated transformation
         trg_fit = np.dot(warp_matrix, np.concatenate((self.src_pts[idx, :], np.ones((len(idx), 1))), axis=1).T).T
         # Compute error in transformation
-        err_per_point = np.sqrt(np.sum((self.trg_pts[idx, :] - trg_fit[:, :2])**2, axis=1))  # sum squared error per row
+        err_per_point = np.sqrt(
+            np.sum((self.trg_pts[idx, :] - trg_fit[:, :2]) ** 2, axis=1)
+        )  # sum squared error per row
         return err_per_point

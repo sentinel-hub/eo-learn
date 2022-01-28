@@ -16,8 +16,7 @@ import numpy as np
 
 
 class Mask2Label:
-    """ Transforms mask (shape n x m) into a single label.
-    """
+    """Transforms mask (shape n x m) into a single label."""
 
     def __init__(self, mode, target_value=1, target_threshold=0.5):
         """
@@ -37,8 +36,8 @@ class Mask2Label:
         :type target_threshold: float
         """
         self.mode_ = mode
-        if self.mode_ not in ['majority', 'target']:
-            print('Invalid mode! Set mode to majority or target.')
+        if self.mode_ not in ["majority", "target"]:
+            print("Invalid mode! Set mode to majority or target.")
 
         self.target_ = target_value
         self.threshold_ = target_threshold
@@ -47,8 +46,11 @@ class Mask2Label:
         unique, counts = np.unique(mask, return_counts=True)
         value_count = dict(zip(unique, counts))
 
-        return 1 if self.target_ in value_count.keys() and \
-                    value_count[self.target_] / np.ma.size(mask) >= self.threshold_ else 0
+        return (
+            1
+            if self.target_ in value_count.keys() and value_count[self.target_] / np.ma.size(mask) >= self.threshold_
+            else 0
+        )
 
     @staticmethod
     def _majority(mask):
@@ -61,13 +63,13 @@ class Mask2Label:
         :param X: An array in form of (n, m)
         :type X: np.ndarray
         """
-        if self.mode_ == 'target':
+        if self.mode_ == "target":
             return np.apply_along_axis(self._target, 1, np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2])))
 
-        if self.mode_ == 'majority':
+        if self.mode_ == "majority":
             return np.apply_along_axis(self._majority, 1, np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2])))
 
-        print('Invalid mode! Set mode to majority or target. Returning input.')
+        print("Invalid mode! Set mode to majority or target. Returning input.")
         return X
 
 

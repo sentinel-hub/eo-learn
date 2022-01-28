@@ -27,7 +27,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class CloudMaskTask(EOTask):
-    """ Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
+    """Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
 
     Its intended output is a cloud mask that is based on the outputs of both
     individual classifiers (a dilated intersection of individual binary masks).
@@ -63,25 +63,27 @@ class CloudMaskTask(EOTask):
                                       dilation_size=8)
     """
 
-    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), 'models')
-    MONO_CLASSIFIER_NAME = 'pixel_s2_cloud_detector_lightGBM_v0.2.txt'
-    MULTI_CLASSIFIER_NAME = 'ssim_s2_cloud_detector_lightGBM_v0.2.txt'
+    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
+    MONO_CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
+    MULTI_CLASSIFIER_NAME = "ssim_s2_cloud_detector_lightGBM_v0.2.txt"
 
-    def __init__(self,
-                 data_feature=(FeatureType.DATA, 'BANDS-S2-L1C'),
-                 is_data_feature=(FeatureType.MASK, 'IS_DATA'),
-                 all_bands=True,
-                 processing_resolution=None,
-                 max_proc_frames=11,
-                 mono_features=None,
-                 multi_features=None,
-                 mask_feature=(FeatureType.MASK, 'CLM_INTERSSIM'),
-                 mono_threshold=0.4,
-                 multi_threshold=0.5,
-                 average_over=4,
-                 dilation_size=2,
-                 mono_classifier=None,
-                 multi_classifier=None):
+    def __init__(
+        self,
+        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature=(FeatureType.MASK, "IS_DATA"),
+        all_bands=True,
+        processing_resolution=None,
+        max_proc_frames=11,
+        mono_features=None,
+        multi_features=None,
+        mask_feature=(FeatureType.MASK, "CLM_INTERSSIM"),
+        mono_threshold=0.4,
+        multi_threshold=0.5,
+        average_over=4,
+        dilation_size=2,
+        mono_classifier=None,
+        multi_classifier=None,
+    ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
             Default value: `'BANDS-S2-L1C'`.
@@ -176,12 +178,11 @@ class CloudMaskTask(EOTask):
             self.dil_kernel = None
 
         # Because the real sigma is calculated only later in execute method this task is not thread safe!
-        self.sigma = 1.
+        self.sigma = 1.0
 
     @staticmethod
     def _parse_resolution_arg(res):
-        """ Parses initialization resolution argument
-        """
+        """Parses initialization resolution argument"""
         if res is None:
             return None
 
@@ -189,14 +190,13 @@ class CloudMaskTask(EOTask):
             res = res, res
 
         if isinstance(res, tuple) and len(res) == 2:
-            return tuple(float(rs.strip('m')) if isinstance(rs, str) else rs for rs in res)
+            return tuple(float(rs.strip("m")) if isinstance(rs, str) else rs for rs in res)
 
         raise ValueError("Wrong resolution parameter passed as an argument.")
 
     @property
     def mono_classifier(self):
-        """ An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required.
-        """
+        """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
         if self._mono_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
             self._mono_classifier = Booster(model_file=path)
@@ -205,8 +205,7 @@ class CloudMaskTask(EOTask):
 
     @property
     def multi_classifier(self):
-        """ An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required.
-        """
+        """An instance of pre-trained multi-temporal cloud classifier. Loaded only the first time it is required."""
         if self._multi_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
             self._multi_classifier = Booster(model_file=path)
@@ -215,8 +214,7 @@ class CloudMaskTask(EOTask):
 
     @staticmethod
     def _run_prediction(classifier, features):
-        """ Uses classifier object on given data
-        """
+        """Uses classifier object on given data"""
         is_booster = isinstance(classifier, Booster)
 
         if is_booster:
@@ -232,7 +230,7 @@ class CloudMaskTask(EOTask):
         return prediction[..., 1]
 
     def _scale_factors(self, reference_shape, bbox):
-        """ Compute the resampling factors for height and width of the input array and sigma
+        """Compute the resampling factors for height and width of the input array and sigma
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
         :type reference_shape: (int, int)
@@ -254,8 +252,7 @@ class CloudMaskTask(EOTask):
         return rescale, sigma
 
     def _frame_indices(self, num_of_frames, target_idx):
-        """ Returns frame indices within a given time window, with the target index relative to it
-        """
+        """Returns frame indices within a given time window, with the target index relative to it"""
         # Get reach
         nt_min = target_idx - self.max_proc_frames // 2
         nt_max = target_idx + self.max_proc_frames - self.max_proc_frames // 2
@@ -273,8 +270,7 @@ class CloudMaskTask(EOTask):
         return nt_min, nt_max, nt_rel
 
     def _red_ssim(self, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5):
-        """ Slightly reduced (pre-computed) SSIM computation
-        """
+        """Slightly reduced (pre-computed) SSIM computation"""
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
         data_x = data_x.astype(np.float64) * valid_mask
@@ -286,12 +282,13 @@ class CloudMaskTask(EOTask):
         mu1_mu2 = mu1 * mu2
 
         sigma12 = cv2.GaussianBlur(
-            (data_x * data_y).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
+            (data_x * data_y).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT
+        )
         sigma12 -= mu1_mu2
 
         # Formula
-        tmp1 = 2. * mu1_mu2 + const1
-        tmp2 = 2. * sigma12 + const2
+        tmp1 = 2.0 * mu1_mu2 + const1
+        tmp2 = 2.0 * sigma12 + const2
         num = tmp1 * tmp2
 
         tmp1 = mu1_2 + mu2_2 + const1
@@ -301,13 +298,11 @@ class CloudMaskTask(EOTask):
         return np.divide(num, den)
 
     def _win_avg(self, data):
-        """ Spatial window average
-        """
+        """Spatial window average"""
         return cv2.GaussianBlur(data.astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
     def _win_prevar(self, data):
-        """ Incomplete spatial window variance
-        """
+        """Incomplete spatial window variance"""
         return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
 
     def _average(self, data):
@@ -318,7 +313,7 @@ class CloudMaskTask(EOTask):
 
     @staticmethod
     def _map_sequence(data, func2d):
-        """ Iterate over time and band dimensions and apply a function to each slice.
+        """Iterate over time and band dimensions and apply a function to each slice.
         Returns a new array with the combined results.
 
         :param data: input array
@@ -339,24 +334,21 @@ class CloudMaskTask(EOTask):
         return output
 
     def _average_all(self, data):
-        """ Average over each spatial slice of data
-        """
+        """Average over each spatial slice of data"""
         if self.avg_kernel is not None:
             return self._map_sequence(data, self._average)
 
         return data
 
     def _dilate_all(self, data):
-        """ Dilate over each spatial slice of data
-        """
+        """Dilate over each spatial slice of data"""
         if self.dil_kernel is not None:
             return self._map_sequence(data, self._dilate)
 
         return data
 
     def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel):
-        """ Calculate SSIM stats
-        """
+        """Calculate SSIM stats"""
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
         ssim_std = np.empty_like(ssim_max)
@@ -368,21 +360,21 @@ class CloudMaskTask(EOTask):
         n_frames = bands_r.shape[0]
         n_bands = bands_r.shape[-1]
 
-        valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel, ..., 0].reshape(
-            1, *is_data.shape[1:-1], 1)
+        valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel, ..., 0].reshape(1, *is_data.shape[1:-1], 1)
 
         for b_i in range(n_bands):
             local_ssim = []
 
             for t_j in range(n_frames):
-                ssim_ij = self._red_ssim(bands[nt_rel, ..., b_i],
-                                         bands_r[t_j, ..., b_i],
-                                         valid_mask[t_j, ..., 0],
-                                         win_avg[nt_rel, ..., b_i],
-                                         win_avg_r[t_j, ..., b_i],
-                                         var[nt_rel, ..., b_i],
-                                         var_r[t_j, ..., b_i]
-                                         )
+                ssim_ij = self._red_ssim(
+                    bands[nt_rel, ..., b_i],
+                    bands_r[t_j, ..., b_i],
+                    valid_mask[t_j, ..., 0],
+                    win_avg[nt_rel, ..., b_i],
+                    win_avg_r[t_j, ..., b_i],
+                    var[nt_rel, ..., b_i],
+                    var_r[t_j, ..., b_i],
+                )
 
                 local_ssim.append(ssim_ij)
 
@@ -395,8 +387,7 @@ class CloudMaskTask(EOTask):
         return ssim_max, ssim_mean, ssim_std
 
     def _do_single_temporal_cloud_detection(self, bands):
-        """ Performs a cloud detection process on each scene separately
-        """
+        """Performs a cloud detection process on each scene separately"""
         mono_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
@@ -411,16 +402,14 @@ class CloudMaskTask(EOTask):
 
             mono_features = bands_t.reshape(np.prod(bands_t.shape[:-1]), bands_t.shape[-1])
 
-            mono_proba[nt_min * img_size:nt_max * img_size] = self._run_prediction(
-                self.mono_classifier,
-                mono_features
+            mono_proba[nt_min * img_size : nt_max * img_size] = self._run_prediction(
+                self.mono_classifier, mono_features
             )
 
         return mono_proba[..., np.newaxis]
 
     def _do_multi_temporal_cloud_detection(self, bands, is_data):
-        """ Performs a cloud detection process on multiple scenes at once
-        """
+        """Performs a cloud detection process on multiple scenes at once"""
         multi_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
@@ -448,9 +437,8 @@ class CloudMaskTask(EOTask):
             # Interweave and concatenate
             multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
 
-            multi_proba[t_i * img_size:(t_i + 1) * img_size] = self._run_prediction(
-                self.multi_classifier,
-                multi_features
+            multi_proba[t_i * img_size : (t_i + 1) * img_size] = self._run_prediction(
+                self.multi_classifier, multi_features
             )
 
             prev_nt_min = nt_min
@@ -459,14 +447,13 @@ class CloudMaskTask(EOTask):
         return multi_proba[..., np.newaxis]
 
     def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t):
-        """ Updates window variance and mean values for a batch
-        """
+        """Updates window variance and mean values for a batch"""
         # Add window averages and variances to local data
         if loc_mu is None:
             win_avg_bands = self._map_sequence(bands_t, self._win_avg)
             win_avg_is_data = self._map_sequence(is_data_t, self._win_avg)
 
-            win_avg_is_data[win_avg_is_data == 0.] = 1.
+            win_avg_is_data[win_avg_is_data == 0.0] = 1.0
 
             loc_mu = win_avg_bands / win_avg_is_data
 
@@ -476,18 +463,15 @@ class CloudMaskTask(EOTask):
             loc_var = win_prevars
 
         else:
-            win_avg_bands = self._map_sequence(
-                bands_t[-1][None, ...], self._win_avg)
-            win_avg_is_data = self._map_sequence(
-                is_data_t[-1][None, ...], self._win_avg)
+            win_avg_bands = self._map_sequence(bands_t[-1][None, ...], self._win_avg)
+            win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], self._win_avg)
 
-            win_avg_is_data[win_avg_is_data == 0.] = 1.
+            win_avg_is_data[win_avg_is_data == 0.0] = 1.0
 
             loc_mu[:-1] = loc_mu[1:]
             loc_mu[-1] = (win_avg_bands / win_avg_is_data)[0]
 
-            win_prevars = self._map_sequence(
-                bands_t[-1][None, ...], self._win_prevar)
+            win_prevars = self._map_sequence(bands_t[-1][None, ...], self._win_prevar)
             win_prevars[0] -= loc_mu[-1] * loc_mu[-1]
 
             loc_var[:-1] = loc_var[1:]
@@ -496,8 +480,7 @@ class CloudMaskTask(EOTask):
         return loc_mu, loc_var
 
     def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands):
-        """ Extracts features for a batch
-        """
+        """Extracts features for a batch"""
         # Compute SSIM stats
         ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
 
@@ -509,7 +492,7 @@ class CloudMaskTask(EOTask):
         t_all = len(bands_t)
 
         diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
-        diff_mean = (masked_bands[nt_rel][None, ...] * (1. + 1. / (t_all - 1)) - t_all * temp_mean / (t_all - 1)).data
+        diff_mean = (masked_bands[nt_rel][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)).data
 
         # Interweave
         ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3 * ssim_max.shape[-1]))
@@ -527,9 +510,14 @@ class CloudMaskTask(EOTask):
 
         # Put it all together
         multi_features = np.concatenate(
-            (bands_t[nt_rel][None, ...], loc_mu[nt_rel][None, ...],
-             ssim_interweaved, temp_interweaved, diff_interweaved),
-            axis=3
+            (
+                bands_t[nt_rel][None, ...],
+                loc_mu[nt_rel][None, ...],
+                ssim_interweaved,
+                temp_interweaved,
+                diff_interweaved,
+            ),
+            axis=3,
         )
 
         multi_features = multi_features.reshape(np.prod(multi_features.shape[:-1]), multi_features.shape[-1])
@@ -537,7 +525,7 @@ class CloudMaskTask(EOTask):
         return multi_features
 
     def execute(self, eopatch):
-        """ Add selected features (cloud probabilities and masks) to an EOPatch instance.
+        """Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
@@ -546,7 +534,7 @@ class CloudMaskTask(EOTask):
 
         is_data = eopatch[self.is_data_feature].astype(bool)
 
-        original_shape = bands.shape[1: -1]
+        original_shape = bands.shape[1:-1]
         scale_factors, self.sigma = self._scale_factors(original_shape, eopatch.bbox)
 
         is_data_sm = is_data

@@ -30,8 +30,8 @@ def string_to_variable(string, extension=None):
     :rtype: str
     """
 
-    string = re.sub('[^0-9a-zA-Z_]', '', string)
-    string = re.sub('^[^a-zA-Z_]+', '', string)
+    string = re.sub("[^0-9a-zA-Z_]", "", string)
+    string = re.sub("^[^a-zA-Z_]+", "", string)
     if extension:
         string += extension
 
@@ -39,7 +39,7 @@ def string_to_variable(string, extension=None):
 
 
 def _get_spatial_coordinates(bbox, data, feature_type):
-    """ Returns spatial coordinates (dictionary) for creating xarray DataArray/Dataset
+    """Returns spatial coordinates (dictionary) for creating xarray DataArray/Dataset
         Makes sense for data
 
     :param bbox: eopatch bbox
@@ -52,30 +52,32 @@ def _get_spatial_coordinates(bbox, data, feature_type):
     :rtype: dict {'x':, 'y':}
     """
     if not (feature_type.is_spatial() and feature_type.is_raster()):
-        raise ValueError('Data should be raster and have spatial dimension')
+        raise ValueError("Data should be raster and have spatial dimension")
     index_x, index_y = 2, 1
     if feature_type.is_timeless():
         index_x, index_y = 1, 0
-    pixel_width = (bbox.max_x - bbox.min_x)/data.shape[index_x]
-    pixel_height = (bbox.max_y - bbox.min_y)/data.shape[index_y]
+    pixel_width = (bbox.max_x - bbox.min_x) / data.shape[index_x]
+    pixel_height = (bbox.max_y - bbox.min_y) / data.shape[index_y]
 
-    return {'x': np.linspace(bbox.min_x+pixel_width/2, bbox.max_x-pixel_width/2, data.shape[index_x]),
-            'y': np.linspace(bbox.max_y-pixel_height/2, bbox.min_y+pixel_height/2, data.shape[index_y])}
+    return {
+        "x": np.linspace(bbox.min_x + pixel_width / 2, bbox.max_x - pixel_width / 2, data.shape[index_x]),
+        "y": np.linspace(bbox.max_y - pixel_height / 2, bbox.min_y + pixel_height / 2, data.shape[index_y]),
+    }
 
 
 def _get_temporal_coordinates(timestamps):
-    """ Returns temporal coordinates dictionary for creating xarray DataArray/Dataset
+    """Returns temporal coordinates dictionary for creating xarray DataArray/Dataset
 
     :param timestamps: timestamps
     :type timestamps: EOpatch.timestamp
     :return: temporal coordinates
     :rtype: dict {'time': }
     """
-    return {'time': timestamps}
+    return {"time": timestamps}
 
 
 def _get_depth_coordinates(feature_name, data, names_of_channels=None):
-    """ Returns band/channel/dept coordinates for xarray DataArray/Dataset
+    """Returns band/channel/dept coordinates for xarray DataArray/Dataset
 
     :param feature_name: name of feature of EOPatch
     :type feature_name: FeatureType
@@ -87,7 +89,7 @@ def _get_depth_coordinates(feature_name, data, names_of_channels=None):
     :rtype: dict
     """
     coordinates = {}
-    depth = string_to_variable(feature_name, '_dim')
+    depth = string_to_variable(feature_name, "_dim")
     if names_of_channels:
         coordinates[depth] = names_of_channels
     elif isinstance(data, np.ndarray):
@@ -97,7 +99,7 @@ def _get_depth_coordinates(feature_name, data, names_of_channels=None):
 
 
 def get_coordinates(eopatch, feature, crs):
-    """ Creates coordinates for xarray DataArray
+    """Creates coordinates for xarray DataArray
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
@@ -120,20 +122,23 @@ def get_coordinates(eopatch, feature, crs):
     timestamps = eopatch.timestamp
 
     if feature_type in FeatureTypeSet.RASTER_TYPES_4D:
-        return {**_get_temporal_coordinates(timestamps),
-                **_get_spatial_coordinates(bbox, data, feature_type),
-                **_get_depth_coordinates(data=data, feature_name=feature_name)}
+        return {
+            **_get_temporal_coordinates(timestamps),
+            **_get_spatial_coordinates(bbox, data, feature_type),
+            **_get_depth_coordinates(data=data, feature_name=feature_name),
+        }
     if feature_type in FeatureTypeSet.RASTER_TYPES_2D:
-        return {**_get_temporal_coordinates(timestamps),
-                **_get_depth_coordinates(data=data, feature_name=feature_name)}
+        return {**_get_temporal_coordinates(timestamps), **_get_depth_coordinates(data=data, feature_name=feature_name)}
     if feature_type in FeatureTypeSet.RASTER_TYPES_3D:
-        return {**_get_spatial_coordinates(bbox, data, feature_type),
-                **_get_depth_coordinates(data=data, feature_name=feature_name)}
+        return {
+            **_get_spatial_coordinates(bbox, data, feature_type),
+            **_get_depth_coordinates(data=data, feature_name=feature_name),
+        }
     return _get_depth_coordinates(data=data, feature_name=feature_name)
 
 
 def get_dimensions(feature):
-    """ Returns list of dimensions for xarray DataArray/Dataset
+    """Returns list of dimensions for xarray DataArray/Dataset
 
     :param feature: eopatch feature
     :type feature: (FeatureType, str)
@@ -142,18 +147,18 @@ def get_dimensions(feature):
     """
     features = list(FeatureParser(feature))
     feature_type, feature_name = features[0]
-    depth = string_to_variable(feature_name, '_dim')
+    depth = string_to_variable(feature_name, "_dim")
     if feature_type in FeatureTypeSet.RASTER_TYPES_4D:
-        return ['time', 'y', 'x', depth]
+        return ["time", "y", "x", depth]
     if feature_type in FeatureTypeSet.RASTER_TYPES_2D:
-        return ['time', depth]
+        return ["time", depth]
     if feature_type in FeatureTypeSet.RASTER_TYPES_3D:
-        return ['y', 'x', depth]
+        return ["y", "x", depth]
     return [depth]
 
 
 def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None, convert_bool=True):
-    """ Converts one feature of eopatch to xarray DataArray
+    """Converts one feature of eopatch to xarray DataArray
 
     :param eopatch: eopatch
     :type eopatch: EOPatch
@@ -176,17 +181,17 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None, convert_bo
         data = data.values
     dimensions = get_dimensions(feature)
     coordinates = get_coordinates(eopatch, feature, crs=crs)
-    dataframe = xr.DataArray(data=data,
-                             coords=coordinates,
-                             dims=dimensions,
-                             attrs={'crs': str(bbox.crs),
-                                    'feature_type': feature_type,
-                                    'feature_name': feature_name},
-                             name=string_to_variable(feature_name))
+    dataframe = xr.DataArray(
+        data=data,
+        coords=coordinates,
+        dims=dimensions,
+        attrs={"crs": str(bbox.crs), "feature_type": feature_type, "feature_name": feature_name},
+        name=string_to_variable(feature_name),
+    )
 
     if remove_depth and dataframe.values.shape[-1] == 1:
         dataframe = dataframe.squeeze()
-        dataframe = dataframe.drop(feature_name + '_dim')
+        dataframe = dataframe.drop(feature_name + "_dim")
 
     if convert_bool and dataframe.dtype == bool:
         dataframe = dataframe.astype(np.uint8)
@@ -219,7 +224,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
 
 
 def new_coordinates(data, crs, new_crs):
-    """ Returns coordinates for xarray DataArray/Dataset in new crs.
+    """Returns coordinates for xarray DataArray/Dataset in new crs.
 
     :param data: data for converting coordinates for
     :type data: xarray.DataArray or xarray.Dataset
@@ -230,8 +235,8 @@ def new_coordinates(data, crs, new_crs):
     :return: new x and y coordinates
     :rtype: (float, float)
     """
-    x_values = data.coords['x'].values
-    y_values = data.coords['y'].values
+    x_values = data.coords["x"].values
+    y_values = data.coords["y"].values
     bbox = BBox((x_values[0], y_values[0], x_values[-1], y_values[-1]), crs=crs)
     bbox = bbox.transform(new_crs)
     xmin, ymin = bbox.lower_left

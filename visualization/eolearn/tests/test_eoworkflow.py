@@ -18,7 +18,7 @@ class FooTask(EOTask):
         return eopatch
 
 
-@pytest.fixture(name='workflow')
+@pytest.fixture(name="workflow")
 def workflow_fixture():
     node1, node2 = EONode(FooTask()), EONode(FooTask())
     node3 = EONode(FooTask(), [node1, node2])

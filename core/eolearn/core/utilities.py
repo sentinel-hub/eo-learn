@@ -34,8 +34,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class LogFileFilter(Filter):
-    """ Filters log messages passed to log file
-    """
+    """Filters log messages passed to log file"""
+
     def __init__(self, thread_name: Optional[str], *args, **kwargs):
         """
         :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
@@ -44,13 +44,12 @@ class LogFileFilter(Filter):
         super().__init__(*args, **kwargs)
 
     def filter(self, record: LogRecord):
-        """ Shows everything from the thread that it was initialized in.
-        """
+        """Shows everything from the thread that it was initialized in."""
         return record.threadName == self.thread_name
 
 
 class FeatureParser:
-    """ Class for parsing a variety of feature specifications into a streamlined format.
+    """Class for parsing a variety of feature specifications into a streamlined format.
 
     This class takes care of parsing multiple inputs that specify features and includes some additional options:
 
@@ -107,9 +106,8 @@ class FeatureParser:
     - For `get_features` a list of pairs `(feature_type, feature_name)`.
     - For `get_renamed_features` a list of triples `(feature_type, old_name, new_name)`.
     """
-    def __init__(
-        self, features: Union[dict, Sequence], allowed_feature_types: Optional[Iterable[FeatureType]] = None
-    ):
+
+    def __init__(self, features: Union[dict, Sequence], allowed_feature_types: Optional[Iterable[FeatureType]] = None):
         """
         :param features: A collection of features in one of the supported formats
         :param allowed_feature_types: Makes sure that only features of these feature types will be returned, otherwise
@@ -122,7 +120,7 @@ class FeatureParser:
     def _parse_features(
         self, features: Union[dict, Sequence]
     ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
-        """ This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
+        """This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
 
         Due to typing issues the all-features requests are transformed from `(ftype, ...)` to `(ftype, None, None)`.
         This is a correct schema for BBOX and TIMESTAMP while for other features this is corrected when outputting,
@@ -141,17 +139,16 @@ class FeatureParser:
             return [(features, None, None)]
 
         raise ValueError(
-            f'Unable to parse features {features}. Please see specifications of FeatureParser on viable inputs.'
+            f"Unable to parse features {features}. Please see specifications of FeatureParser on viable inputs."
         )
 
     def _parse_dict(self, features: dict) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
-        """ Implements parsing and validation in case the input is a dictionary.
-        """
+        """Implements parsing and validation in case the input is a dictionary."""
 
         feature_specs: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
 
         for feature_type, feature_names in features.items():
-            feature_type = self._parse_feature_type(feature_type, message_about_position='keys of the dictionary')
+            feature_type = self._parse_feature_type(feature_type, message_about_position="keys of the dictionary")
 
             if feature_names in (..., None):
                 feature_specs.append((feature_type, None, None))
@@ -160,7 +157,7 @@ class FeatureParser:
             self._fail_for_noname_features(feature_type, feature_names)
 
             if not isinstance(feature_names, Sequence):
-                raise ValueError('Values of dictionary must be `...` or sequences with feature names.')
+                raise ValueError("Values of dictionary must be `...` or sequences with feature names.")
 
             parsed_names = [(feature_type, *self._parse_feature_name(feature_type, name)) for name in feature_names]
             feature_specs.extend(parsed_names)
@@ -170,8 +167,7 @@ class FeatureParser:
     def _parse_sequence(
         self, features: Sequence
     ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
-        """ Implements parsing and validation in case the input is a sequence.
-        """
+        """Implements parsing and validation in case the input is a sequence."""
 
         feature_specs: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
 
@@ -187,13 +183,13 @@ class FeatureParser:
                 feature_specs.append(self._parse_singelton(feature))
 
             elif isinstance(feature, FeatureType):
-                feature_type = self._parse_feature_type(feature, message_about_position='singleton elements')
+                feature_type = self._parse_feature_type(feature, message_about_position="singleton elements")
                 feature_specs.append((feature_type, None, None))
 
             else:
                 raise ValueError(
                     f"Failed to parse {feature}, expected a tuple of form `(feature_type, feature_name)` or "
-                    f"`(feature_type, old_name, new_name)`."
+                    "`(feature_type, old_name, new_name)`."
                 )
 
         return feature_specs
@@ -201,9 +197,9 @@ class FeatureParser:
     def _parse_singelton(
         self, feature: Sequence
     ) -> Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]:
-        """ Parses a pair or triple specifying a single feature or a get-all request """
+        """Parses a pair or triple specifying a single feature or a get-all request"""
         feature_type, *feature_name = feature
-        feature_type = self._parse_feature_type(feature_type, message_about_position='first elements of tuples')
+        feature_type = self._parse_feature_type(feature_type, message_about_position="first elements of tuples")
 
         if len(feature_name) == 1 and feature_name[0] in (..., None):
             return (feature_type, None, None)
@@ -215,7 +211,7 @@ class FeatureParser:
         return (feature_type, *parsed_name)
 
     def _parse_feature_type(self, feature_type, *, message_about_position: str) -> FeatureType:
-        """ Tries to extract a feature type if possible, fails otherwise.
+        """Tries to extract a feature type if possible, fails otherwise.
 
         The parameter `message_about_position` is used for more informative error messages.
         """
@@ -223,48 +219,47 @@ class FeatureParser:
             feature_type = FeatureType(feature_type)
         except ValueError as exception:
             raise ValueError(
-                f'Failed to parse {feature_type}, {message_about_position} must be {FeatureType.__name__}'
+                f"Failed to parse {feature_type}, {message_about_position} must be {FeatureType.__name__}"
             ) from exception
 
         if feature_type not in self.allowed_feature_types:
             raise ValueError(
-                f'Allowed feature types were set to be {self.allowed_feature_types} but found {feature_type}'
+                f"Allowed feature types were set to be {self.allowed_feature_types} but found {feature_type}"
             )
         return feature_type
 
     @staticmethod
     def _parse_feature_name(feature_type: FeatureType, name: object) -> Tuple[str, str]:
-        """ Parses input in places where a feature name is expected, handling the cases of a name and renaming pair.
-        """
+        """Parses input in places where a feature name is expected, handling the cases of a name and renaming pair."""
         if isinstance(name, str):
             return name, name
         if isinstance(name, (tuple, list)):
             if len(name) != 2 or not all(isinstance(n, str) for n in name):
                 raise ValueError(
-                    'When specifying a re-name for a feature it must be a pair of strings `(old_name, new_name)`, '
-                    f'got {name}.'
+                    "When specifying a re-name for a feature it must be a pair of strings `(old_name, new_name)`, "
+                    f"got {name}."
                 )
             return cast(Tuple[str, str], tuple(name))
         raise ValueError(
-            f'For {feature_type} found invalid feature name {name}. The sequence of feature names can contain only'
-            ' strings or pairs of form `(old_name, new_name)`'
+            f"For {feature_type} found invalid feature name {name}. The sequence of feature names can contain only"
+            " strings or pairs of form `(old_name, new_name)`"
         )
 
     @staticmethod
     def _fail_for_noname_features(feature_type: FeatureType, specification: object):
-        """ Fails if the feature type does not support names
+        """Fails if the feature type does not support names
 
         Should only be used after the viable names `...` and `None` have already been handled.
         """
         if not feature_type.has_dict():
             raise ValueError(
-                f'For features of type {feature_type} the only acceptable specification is `...` or `None`, got'
-                f' {specification} instead.'
+                f"For features of type {feature_type} the only acceptable specification is `...` or `None`, got"
+                f" {specification} instead."
             )
 
     @staticmethod
     def _validate_parsing_request(feature_type: FeatureType, name: Optional[str], eopatch: Optional[EOPatch]):
-        """ Checks if the parsing request is viable with current arguments
+        """Checks if the parsing request is viable with current arguments
 
         This means checking that `eopatch` is provided if the request is an all-features request and in the case
         where an EOPatch is provided, that the feature exists in the EOPatch.
@@ -274,22 +269,22 @@ class FeatureParser:
 
         if name is None and eopatch is None:
             raise ValueError(
-                f'Input specifies that for feature type {feature_type} all existing features are parsed, but the '
-                '`eopatch` parameter was not provided.'
+                f"Input specifies that for feature type {feature_type} all existing features are parsed, but the "
+                "`eopatch` parameter was not provided."
             )
 
         if eopatch is not None and name is not None and (feature_type, name) not in eopatch:
-            raise ValueError(f'Requested feature {(feature_type, name)} not part of eopatch.')
+            raise ValueError(f"Requested feature {(feature_type, name)} not part of eopatch.")
 
     def get_feature_specifications(self) -> List[Tuple[FeatureType, object]]:
-        """ Returns the feature specifications in a more streamlined fashion.
+        """Returns the feature specifications in a more streamlined fashion.
 
         Requests for all features, e.g. `(FeatureType.DATA, ...)`, are returned directly.
         """
         return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
 
     def get_features(self, eopatch: Optional[EOPatch] = None) -> List[Tuple[FeatureType, Optional[str]]]:
-        """ Returns a list of `(feature_type, feature_name)` pairs.
+        """Returns a list of `(feature_type, feature_name)` pairs.
 
         For features that specify renaming, the new name of the feature is ignored.
 
@@ -308,9 +303,10 @@ class FeatureParser:
         return feature_names
 
     def get_renamed_features(
-        self, eopatch: Optional[EOPatch] = None,
+        self,
+        eopatch: Optional[EOPatch] = None,
     ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
-        """ Returns a list of `(feature_type, old_name, new_name)` triples.
+        """Returns a list of `(feature_type, old_name, new_name)` triples.
 
         For features without a specified renaming the new name is equal to the old one.
 
@@ -335,7 +331,7 @@ class FeatureParser:
 def parse_feature(
     feature, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> Tuple[FeatureType, Optional[str]]:
-    """ Parses input describing a single feature into a `(feature_type, feature_name)` pair.
+    """Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
     """
@@ -349,7 +345,7 @@ def parse_feature(
 def parse_renamed_feature(
     feature, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]:
-    """ Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
+    """Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
     """
@@ -363,7 +359,7 @@ def parse_renamed_feature(
 def parse_features(
     features, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> List[Tuple[FeatureType, Optional[str]]]:
-    """ Parses input describing features into a list of `(feature_type, feature_name)` pairs.
+    """Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
     """
@@ -373,7 +369,7 @@ def parse_features(
 def parse_renamed_features(
     features, eopatch: Optional[EOPatch] = None, allowed_feature_types: Optional[Iterable[FeatureType]] = None
 ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
-    """ Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
+    """Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
     """
@@ -420,8 +416,9 @@ def deep_eq(fst_obj, snd_obj):
             return False
         fst_nan_mask = np.isnan(fst_obj)
         snd_nan_mask = np.isnan(snd_obj)
-        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and \
-            np.array_equal(fst_nan_mask, snd_nan_mask)
+        return np.array_equal(fst_obj[~fst_nan_mask], snd_obj[~snd_nan_mask]) and np.array_equal(
+            fst_nan_mask, snd_nan_mask
+        )
 
     if isinstance(fst_obj, gpd.GeoDataFrame):
         try:
@@ -468,7 +465,7 @@ def negate_mask(mask):
     return res
 
 
-def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pad_value=0):
+def constant_pad(X, multiple_of, up_down_rule="even", left_right_rule="even", pad_value=0):
     """Function pads an image of shape (rows, columns, channels) with zeros.
 
     It pads an image so that the shape becomes (rows + padded_rows, columns + padded_columns, channels), where
@@ -500,29 +497,33 @@ def constant_pad(X, multiple_of, up_down_rule='even', left_right_rule='even', pa
     row_padding_up, row_padding_down, col_padding_left, col_padding_right = 0, 0, 0, 0
 
     if row_padding > 0:
-        if up_down_rule == 'up':
+        if up_down_rule == "up":
             row_padding_up = row_padding
-        elif up_down_rule == 'down':
+        elif up_down_rule == "down":
             row_padding_down = row_padding
-        elif up_down_rule == 'even':
+        elif up_down_rule == "even":
             row_padding_up = int(row_padding / 2)
             row_padding_down = row_padding_up + (row_padding % 2)
         else:
-            raise ValueError('Padding rule for rows not supported. Choose beteen even, down or up!')
+            raise ValueError("Padding rule for rows not supported. Choose beteen even, down or up!")
 
     if col_padding > 0:
-        if left_right_rule == 'left':
+        if left_right_rule == "left":
             col_padding_left = col_padding
-        elif left_right_rule == 'right':
+        elif left_right_rule == "right":
             col_padding_right = col_padding
-        elif left_right_rule == 'even':
+        elif left_right_rule == "even":
             col_padding_left = int(col_padding / 2)
             col_padding_right = col_padding_left + (col_padding % 2)
         else:
-            raise ValueError('Padding rule for columns not supported. Choose beteen even, left or right!')
+            raise ValueError("Padding rule for columns not supported. Choose beteen even, left or right!")
 
-    return np.lib.pad(X, ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
-                      'constant', constant_values=((pad_value, pad_value), (pad_value, pad_value)))
+    return np.lib.pad(
+        X,
+        ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
+        "constant",
+        constant_values=((pad_value, pad_value), (pad_value, pad_value)),
+    )
 
 
 def bgr_to_rgb(bgr):
@@ -531,35 +532,35 @@ def bgr_to_rgb(bgr):
 
 
 def generate_uid(prefix: str):
-    """ Generates a (sufficiently) unique ID starting with the `prefix`
+    """Generates a (sufficiently) unique ID starting with the `prefix`
 
     The ID is composed from the prefix, a hexadecimal string obtained from the current time and a random hexadecimal
     string. This makes the uid sufficiently unique.
     """
     time_uid = uuid.uuid1(node=0).hex[:-12]
     random_uid = uuid.uuid4().hex[:12]
-    return f'{prefix}-{time_uid}-{random_uid}'
+    return f"{prefix}-{time_uid}-{random_uid}"
 
 
 def renamed_and_deprecated(deprecated_class):
-    """ A class decorator that signals that the class has been renamed when initialized
+    """A class decorator that signals that the class has been renamed when initialized
 
-        Example of use:
+    Example of use:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            @renamed_and_deprecated
-            class OldNameForClass(NewNameForClass):
-                ''' Deprecated version of `NewNameForClass`
-                '''
+        @renamed_and_deprecated
+        class OldNameForClass(NewNameForClass):
+            ''' Deprecated version of `NewNameForClass`
+            '''
 
     """
 
     def warn_and_init(self, *args, **kwargs):
         warnings.warn(
-            f'The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. '
-            'The old name is deprecated and will be removed in version 1.0',
-            EODeprecationWarning
+            f"The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. "
+            "The old name is deprecated and will be removed in version 1.0",
+            EODeprecationWarning,
         )
         super(deprecated_class, self).__init__(*args, **kwargs)
 

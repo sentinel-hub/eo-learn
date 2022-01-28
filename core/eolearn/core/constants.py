@@ -37,20 +37,21 @@ class FeatureType(Enum):
      - BBOX: bounding box of the patch which is an instance of sentinelhub.BBox
      - TIMESTAMP: list of dates which are instances of datetime.datetime
     """
+
     # IMPORTANT: these feature names must exactly match those in EOPatch constructor
-    DATA = 'data'
-    MASK = 'mask'
-    SCALAR = 'scalar'
-    LABEL = 'label'
-    VECTOR = 'vector'
-    DATA_TIMELESS = 'data_timeless'
-    MASK_TIMELESS = 'mask_timeless'
-    SCALAR_TIMELESS = 'scalar_timeless'
-    LABEL_TIMELESS = 'label_timeless'
-    VECTOR_TIMELESS = 'vector_timeless'
-    META_INFO = 'meta_info'
-    BBOX = 'bbox'
-    TIMESTAMP = 'timestamp'
+    DATA = "data"
+    MASK = "mask"
+    SCALAR = "scalar"
+    LABEL = "label"
+    VECTOR = "vector"
+    DATA_TIMELESS = "data_timeless"
+    MASK_TIMELESS = "mask_timeless"
+    SCALAR_TIMELESS = "scalar_timeless"
+    LABEL_TIMELESS = "label_timeless"
+    VECTOR_TIMELESS = "vector_timeless"
+    META_INFO = "meta_info"
+    BBOX = "bbox"
+    TIMESTAMP = "timestamp"
 
     @classmethod
     def has_value(cls, value):
@@ -74,11 +75,11 @@ class FeatureType(Enum):
         return self in FeatureTypeSet.DISCRETE_TYPES
 
     def is_meta(self):
-        """ True if FeatureType is for storing metadata info and False otherwise. """
+        """True if FeatureType is for storing metadata info and False otherwise."""
         return self in FeatureTypeSet.META_TYPES
 
     def is_vector(self):
-        """True if FeatureType is vector feature type. False otherwise. """
+        """True if FeatureType is vector feature type. False otherwise."""
         return self in FeatureTypeSet.VECTOR_TYPES
 
     def has_dict(self):
@@ -104,7 +105,7 @@ class FeatureType(Enum):
                 FeatureType.DATA_TIMELESS: 3,
                 FeatureType.MASK_TIMELESS: 3,
                 FeatureType.SCALAR_TIMELESS: 1,
-                FeatureType.LABEL_TIMELESS: 1
+                FeatureType.LABEL_TIMELESS: 1,
             }[self]
         return None
 
@@ -128,25 +129,69 @@ class FeatureType(Enum):
 
 
 class FeatureTypeSet:
-    """ A collection of immutable sets of feature types, grouped together by certain properties.
-    """
-    SPATIAL_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.VECTOR, FeatureType.DATA_TIMELESS,
-                               FeatureType.MASK_TIMELESS, FeatureType.VECTOR_TIMELESS])
-    TIME_DEPENDENT_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                                      FeatureType.VECTOR, FeatureType.TIMESTAMP])
-    TIMELESS_TYPES = frozenset([FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
-                                FeatureType.LABEL_TIMELESS, FeatureType.VECTOR_TIMELESS])
-    DISCRETE_TYPES = frozenset([FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL,
-                                FeatureType.LABEL_TIMELESS])
+    """A collection of immutable sets of feature types, grouped together by certain properties."""
+
+    SPATIAL_TYPES = frozenset(
+        [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.VECTOR,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+        ]
+    )
+    TIME_DEPENDENT_TYPES = frozenset(
+        [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.VECTOR,
+            FeatureType.TIMESTAMP,
+        ]
+    )
+    TIMELESS_TYPES = frozenset(
+        [
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+        ]
+    )
+    DISCRETE_TYPES = frozenset(
+        [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
+    )
     META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
     VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
-    RASTER_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                              FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS, FeatureType.SCALAR_TIMELESS,
-                              FeatureType.LABEL_TIMELESS])
-    DICT_TYPES = frozenset([FeatureType.DATA, FeatureType.MASK, FeatureType.SCALAR, FeatureType.LABEL,
-                            FeatureType.VECTOR, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS,
-                            FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS, FeatureType.VECTOR_TIMELESS,
-                            FeatureType.META_INFO])
+    RASTER_TYPES = frozenset(
+        [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+        ]
+    )
+    DICT_TYPES = frozenset(
+        [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.VECTOR,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+            FeatureType.META_INFO,
+        ]
+    )
     RASTER_TYPES_4D = frozenset([FeatureType.DATA, FeatureType.MASK])
     RASTER_TYPES_3D = frozenset([FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS])
     RASTER_TYPES_2D = frozenset([FeatureType.SCALAR, FeatureType.LABEL])
@@ -154,7 +199,7 @@ class FeatureTypeSet:
 
 
 class OverwritePermission(Enum):
-    """ Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
+    """Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
 
     Permissions are in the following hierarchy:
 
@@ -163,6 +208,7 @@ class OverwritePermission(Enum):
       EOPatch will stay unchanged.
     - `OVERWRITE_PATCH` - Overwrite entire content of saved EOPatch and replace it with the new content.
     """
+
     ADD_ONLY = 0
     OVERWRITE_FEATURES = 1
     OVERWRITE_PATCH = 2

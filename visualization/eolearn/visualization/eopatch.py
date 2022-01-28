@@ -17,7 +17,7 @@ import xarray as xr
 import holoviews as hv
 import geoviews as gv
 
-import hvplot         # pylint: disable=unused-import
+import hvplot  # pylint: disable=unused-import
 import hvplot.xarray  # pylint: disable=unused-import
 import hvplot.pandas  # pylint: disable=unused-import
 
@@ -59,8 +59,19 @@ class EOPatchVisualization:
     :type mask: str
 
     """
-    def __init__(self, eopatch, feature, rgb=None, rgb_factor=3.5, vdims=None,
-                 timestamp_column='TIMESTAMP', geometry_column='geometry', pixel=False, mask=None):
+
+    def __init__(
+        self,
+        eopatch,
+        feature,
+        rgb=None,
+        rgb_factor=3.5,
+        vdims=None,
+        timestamp_column="TIMESTAMP",
+        geometry_column="geometry",
+        pixel=False,
+        mask=None,
+    ):
         self.eopatch = eopatch
         self.feature = feature
         self.rgb = list(rgb) if isinstance(rgb, tuple) else rgb
@@ -72,7 +83,7 @@ class EOPatchVisualization:
         self.mask = mask
 
     def plot(self):
-        """ Plots eopatch
+        """Plots eopatch
 
         :return: plot
         :rtype: holovies/bokeh
@@ -90,13 +101,13 @@ class EOPatchVisualization:
             vis = self.plot_vector(feature_name)
         elif feature_type is FeatureType.VECTOR_TIMELESS:
             vis = self.plot_vector_timeless(feature_name)
-        else:      # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
+        else:  # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
             vis = self.plot_scalar_label(feature_type, feature_name)
 
         return vis.opts(plot=dict(width=PLOT_WIDTH, height=PLOT_HEIGHT))
 
     def plot_data(self, feature_name):
-        """ Plots the FeatureType.DATA of eopatch.
+        """Plots the FeatureType.DATA of eopatch.
 
         :param feature_name: name of the eopatch feature
         :type feature_name: str
@@ -111,15 +122,15 @@ class EOPatchVisualization:
         timestamps = self.eopatch.timestamp
         crs = self.eopatch.bbox.crs
         if not self.rgb:
-            return data_da.hvplot(x='x', y='y', crs=ccrs.epsg(crs.epsg))
+            return data_da.hvplot(x="x", y="y", crs=ccrs.epsg(crs.epsg))
         data_rgb = self.eopatch_da_to_rgb(data_da, feature_name, crs)
         rgb_dict = {timestamp_: self.plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
 
-        return hv.HoloMap(rgb_dict, kdims=['time'])
+        return hv.HoloMap(rgb_dict, kdims=["time"])
 
     @staticmethod
     def plot_rgb_one(eopatch_da, timestamp):  # OK
-        """ Returns visualization for one timestamp for FeatureType.DATA
+        """Returns visualization for one timestamp for FeatureType.DATA
         :param eopatch_da: eopatch converted to xarray DataArray
         :type eopatch_da: xarray DataArray
         :param timestamp: timestamp to make plot for
@@ -127,10 +138,10 @@ class EOPatchVisualization:
         :return: visualization
         :rtype:  holoviews/geoviews/bokeh
         """
-        return eopatch_da.sel(time=timestamp).drop('time').hvplot(x='x', y='y')
+        return eopatch_da.sel(time=timestamp).drop("time").hvplot(x="x", y="y")
 
     def plot_raster(self, feature_type, feature_name):
-        """ Makes visualization for raster data (except for FeatureType.DATA)
+        """Makes visualization for raster data (except for FeatureType.DATA)
 
         :param feature_type: type of eopatch feature
         :type feature_type: FeatureType
@@ -147,14 +158,13 @@ class EOPatchVisualization:
         data_levels = len(np.unique(data_da))
         data_levels = 11 if data_levels > 11 else data_levels
         data_da = data_da.where(data_da > 0).fillna(-1)
-        vis = data_da.hvplot(x='x', y='y',
-                             crs=ccrs.epsg(crs.epsg)).opts(clim=(data_min, data_max),
-                                                           clipping_colors={'min': 'transparent'},
-                                                           color_levels=data_levels)
+        vis = data_da.hvplot(x="x", y="y", crs=ccrs.epsg(crs.epsg)).opts(
+            clim=(data_min, data_max), clipping_colors={"min": "transparent"}, color_levels=data_levels
+        )
         return vis
 
     def plot_vector(self, feature_name):
-        """ Visualizaton for vector (FeatureType.VECTOR) data
+        """Visualizaton for vector (FeatureType.VECTOR) data
 
         :param feature_name: name of eopatch feature
         :type feature_name: str
@@ -168,12 +178,11 @@ class EOPatchVisualization:
         if crs is CRS.WGS84:
             crs = CRS.POP_WEB
             data_gpd = data_gpd.to_crs(crs.pyproj_crs())
-        shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs)
-                       for timestamp_ in timestamps}
-        return hv.HoloMap(shapes_dict, kdims=['time'])
+        shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs) for timestamp_ in timestamps}
+        return hv.HoloMap(shapes_dict, kdims=["time"])
 
     def fill_vector(self, feature_type, feature_name):
-        """ Adds timestamps from eopatch to GeoDataFrame.
+        """Adds timestamps from eopatch to GeoDataFrame.
 
         :param feature_type: type of eopatch feature
         :type feature_type: FeatureType
@@ -183,23 +192,19 @@ class EOPatchVisualization:
         :rtype: geopandas.GeoDataFrame
         """
         vector = self.eopatch[feature_type][feature_name].copy()
-        vector['valid'] = True
+        vector["valid"] = True
         eopatch_timestamps = self.eopatch.timestamp
         vector_timestamps = set(vector[self.timestamp_column])
         blank_timestamps = [timestamp for timestamp in eopatch_timestamps if timestamp not in vector_timestamps]
         dummy_geometry = self.create_dummy_polygon(0.0000001)
 
-        temp_df = self.create_dummy_dataframe(vector,
-                                              blank_timestamps=blank_timestamps,
-                                              dummy_geometry=dummy_geometry)
+        temp_df = self.create_dummy_dataframe(vector, blank_timestamps=blank_timestamps, dummy_geometry=dummy_geometry)
 
-        final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True),
-                                        crs=vector.crs)
+        final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True), crs=vector.crs)
         return final_vector
 
-    def create_dummy_dataframe(self, geodataframe, blank_timestamps, dummy_geometry,
-                               fill_str='', fill_numeric=1):
-        """ Creates geopadnas GeoDataFrame to fill with dummy data (for visualization)
+    def create_dummy_dataframe(self, geodataframe, blank_timestamps, dummy_geometry, fill_str="", fill_numeric=1):
+        """Creates geopadnas GeoDataFrame to fill with dummy data (for visualization)
 
         :param geodataframe: dataframe to append rows to
         :type geodataframe: geopandas.GeoDataFrame
@@ -222,7 +227,7 @@ class EOPatchVisualization:
 
             if column == self.geometry_column:
                 dataframe[column] = dummy_geometry
-            elif column == 'valid':
+            elif column == "valid":
                 dataframe[column] = False
             elif geodataframe[column].dtype in (int, float):
                 dataframe[column] = fill_numeric
@@ -232,7 +237,7 @@ class EOPatchVisualization:
         return dataframe
 
     def create_dummy_polygon(self, addition_factor):
-        """ Creates geometry/polygon to plot if there is no data (at timestamp)
+        """Creates geometry/polygon to plot if there is no data (at timestamp)
 
         :param addition_factor: size of the 'blank polygon'
         :type addition_factor: float
@@ -240,15 +245,19 @@ class EOPatchVisualization:
         :rtype: shapely.geometry.Polygon
         """
         x_blank, y_blank = self.eopatch.bbox.lower_left
-        dummy_geometry = Polygon([[x_blank, y_blank],
-                                  [x_blank + addition_factor, y_blank],
-                                  [x_blank + addition_factor, y_blank + addition_factor],
-                                  [x_blank, y_blank + addition_factor]])
+        dummy_geometry = Polygon(
+            [
+                [x_blank, y_blank],
+                [x_blank + addition_factor, y_blank],
+                [x_blank + addition_factor, y_blank + addition_factor],
+                [x_blank, y_blank + addition_factor],
+            ]
+        )
 
         return dummy_geometry
 
     def plot_scalar_label(self, feature_type, feature_name):
-        """ Line plot for FeatureType.SCALAR, FeatureType.LABEL
+        """Line plot for FeatureType.SCALAR, FeatureType.LABEL
 
         :param feature_type: type of eopatch feature
         :type feature_type: FeatureType
@@ -261,7 +270,7 @@ class EOPatchVisualization:
         return data_da.hvplot()
 
     def plot_shapes_one(self, data_gpd, timestamp, crs):
-        """ Plots shapes for one timestamp from geopandas GeoDataFrame
+        """Plots shapes for one timestamp from geopandas GeoDataFrame
 
         :param data_gpd: data to plot
         :type data_gpd: geopandas.GeoDataFrame
@@ -276,7 +285,7 @@ class EOPatchVisualization:
         return gv.Polygons(out, crs=ccrs.epsg(int(crs.value)))
 
     def plot_vector_timeless(self, feature_name):
-        """ Plot FeatureType.VECTOR_TIMELESS data
+        """Plot FeatureType.VECTOR_TIMELESS data
 
         :param feature_name: name of the eopatch featrue
         :type feature_name: str
@@ -292,7 +301,7 @@ class EOPatchVisualization:
         return gv.Polygons(data_gpd, crs=ccrs.epsg(crs.epsg), vdims=self.vdims)
 
     def eopatch_da_to_rgb(self, eopatch_da, feature_name, crs):
-        """ Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
+        """Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
 
         :param eopatch_da: eopatch DataArray
         :type eopatch_da: DataArray
@@ -303,16 +312,15 @@ class EOPatchVisualization:
         :return: eopatch DataArray with proper coordinates, dimensions, crs
         :rtype: xarray.DataArray
         """
-        timestamps = eopatch_da.coords['time'].values
+        timestamps = eopatch_da.coords["time"].values
         bands = eopatch_da[..., self.rgb] * self.rgb_factor
-        bands = bands.rename({string_to_variable(feature_name, '_dim'): 'band'}).transpose('time', 'band', 'y', 'x')
+        bands = bands.rename({string_to_variable(feature_name, "_dim"): "band"}).transpose("time", "band", "y", "x")
         x_values, y_values = new_coordinates(eopatch_da, crs, CRS.POP_WEB)
-        eopatch_rgb = xr.DataArray(data=np.clip(bands.data, 0, 1),
-                                   coords={'time': timestamps,
-                                           'band': self.rgb,
-                                           'y': np.flip(y_values),
-                                           'x': x_values},
-                                   dims=('time', 'band', 'y', 'x'))
+        eopatch_rgb = xr.DataArray(
+            data=np.clip(bands.data, 0, 1),
+            coords={"time": timestamps, "band": self.rgb, "y": np.flip(y_values), "x": x_values},
+            dims=("time", "band", "y", "x"),
+        )
         return eopatch_rgb
 
     def plot_pixel(self, feature_type, feature_name):
@@ -324,7 +332,7 @@ class EOPatchVisualization:
         data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
         if self.mask:
             data_da = self.mask_data(data_da)
-        return data_da.hvplot(x='time')
+        return data_da.hvplot(x="time")
 
     def mask_data(self, data_da):
         """

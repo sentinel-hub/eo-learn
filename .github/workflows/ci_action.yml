@@ -6,6 +6,20 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
+
+  check-code-formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current branch
+        if: github.event_name == 'push'
+        uses: actions/checkout@v2
+
+      - name: Check code is compliant with black formatter
+        if: github.event_name == 'push'
+        uses: rickstaa/action-black@v1
+        with:
+          black_args: ". --line-length 120 --check --experimental-string-processing"
+
   test-on-github:
     runs-on: ubuntu-latest
     strategy:

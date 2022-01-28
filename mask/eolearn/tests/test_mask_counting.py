@@ -14,13 +14,11 @@ import numpy as np
 from eolearn.mask import ClassFrequencyTask
 from eolearn.core import EOPatch, FeatureType
 
-IN_FEATURE = (FeatureType.MASK, 'TEST')
-OUT_FEATURE = (FeatureType.DATA_TIMELESS, 'FREQ')
+IN_FEATURE = (FeatureType.MASK, "TEST")
+OUT_FEATURE = (FeatureType.DATA_TIMELESS, "FREQ")
 
 
-@pytest.mark.parametrize('classes, no_data_value', (
-    (['a', 'b'], 0), (4, 0), (None, 0), ([1, 2, 3], 2)
-))
+@pytest.mark.parametrize("classes, no_data_value", ((["a", "b"], 0), (4, 0), (None, 0), ([1, 2, 3], 2)))
 def test_value_error(classes, no_data_value):
     with pytest.raises(ValueError):
         ClassFrequencyTask(IN_FEATURE, OUT_FEATURE, classes=classes, no_data_value=no_data_value)

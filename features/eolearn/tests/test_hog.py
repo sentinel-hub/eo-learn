@@ -18,18 +18,22 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import HOGTask
 
 
-@pytest.fixture(name='eopatch')
+@pytest.fixture(name="eopatch")
 def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data['ndvi'][:10]
+    ndvi = test_eopatch.data["ndvi"][:10]
     ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data['ndvi'] = ndvi
+    test_eopatch.data["ndvi"] = ndvi
     return test_eopatch
 
 
 def test_hog(eopatch):
     task = HOGTask(
-        (FeatureType.DATA, 'ndvi', 'hog'), orientations=9, pixels_per_cell=(2, 2), cells_per_block=(2, 2),
-        visualize=True, visualize_feature_name='hog_visu'
+        (FeatureType.DATA, "ndvi", "hog"),
+        orientations=9,
+        pixels_per_cell=(2, 2),
+        cells_per_block=(2, 2),
+        visualize=True,
+        visualize_feature_name="hog_visu",
     )
 
     initial_patch = copy.deepcopy(eopatch)
@@ -43,8 +47,8 @@ def test_hog(eopatch):
 
     delta = 1e-4
     for feature, expected_min, expected_max, expected_mean, expected_median in [
-        ('hog', 0.0, 0.4427, 0.0564, 0.0),
-        ('hog_visu', 0.0, 0.1386, 0.0052, 0.0),
+        ("hog", 0.0, 0.4427, 0.0564, 0.0),
+        ("hog_visu", 0.0, 0.1386, 0.0052, 0.0),
     ]:
         hog = eopatch.data[feature]
         assert np.min(hog) == approx(expected_min, abs=delta)

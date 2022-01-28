@@ -26,18 +26,25 @@ try:
     import meteoblue_dataset_sdk
     from meteoblue_dataset_sdk.caching import FileCache
 except ImportError as exception:
-    raise ImportError('This module requires an installation of meteoblue_dataset_sdk package') from exception
+    raise ImportError("This module requires an installation of meteoblue_dataset_sdk package") from exception
 
 from sentinelhub import parse_time_interval, serialize_time, Geometry, CRS
 from eolearn.core import EOTask, EOPatch
 
 
 class BaseMeteoblueTask(EOTask):
-    """ A base task implementing the logic that is common for all Meteoblue tasks
-    """
-    def __init__(self, feature, apikey: str, query: dict, units: dict = None,
-                 time_difference: dt.timedelta = dt.timedelta(minutes=30),
-                 cache_folder: Optional[str] = None, cache_max_age: int = 604800):
+    """A base task implementing the logic that is common for all Meteoblue tasks"""
+
+    def __init__(
+        self,
+        feature,
+        apikey: str,
+        query: dict,
+        units: dict = None,
+        time_difference: dt.timedelta = dt.timedelta(minutes=30),
+        cache_folder: Optional[str] = None,
+        cache_max_age: int = 604800,
+    ):
         """
         :param feature: A feature in which Meteoblue data will be stored
         :type feature: (FeatureType, str)
@@ -67,24 +74,22 @@ class BaseMeteoblueTask(EOTask):
 
     @staticmethod
     def _prepare_bbox(eopatch, bbox):
-        """ Prepares a bbox from input parameters
-        """
+        """Prepares a bbox from input parameters"""
         if not eopatch.bbox and not bbox:
-            raise ValueError('Bounding box is not provided')
+            raise ValueError("Bounding box is not provided")
         if eopatch.bbox and bbox and eopatch.bbox != bbox:
-            raise ValueError('Provided eopatch.bbox and bbox are not the same')
+            raise ValueError("Provided eopatch.bbox and bbox are not the same")
 
         return bbox or eopatch.bbox
 
     def _prepare_time_intervals(self, eopatch, time_interval):
-        """ Prepare a list of time intervals for which data will be collected from Meteoblue services
-        """
+        """Prepare a list of time intervals for which data will be collected from Meteoblue services"""
         if not eopatch.timestamp and not time_interval:
-            raise ValueError('Time interval should either be defined with eopatch.timestamp of time_interval parameter')
+            raise ValueError("Time interval should either be defined with eopatch.timestamp of time_interval parameter")
 
         if time_interval:
             start_time, end_time = serialize_time(parse_time_interval(time_interval))
-            return [f'{start_time}/{end_time}']
+            return [f"{start_time}/{end_time}"]
 
         timestamps = eopatch.timestamp
         time_intervals = []
@@ -93,19 +98,18 @@ class BaseMeteoblueTask(EOTask):
             end_time = timestamp + self.time_difference
 
             start_time, end_time = serialize_time((start_time, end_time))
-            time_interval = f'{start_time}/{end_time}'
+            time_interval = f"{start_time}/{end_time}"
 
             time_intervals.append(time_interval)
 
         return time_intervals
 
     def _get_data(self, query):
-        """ It should return an output feature object and a list of timestamps
-        """
+        """It should return an output feature object and a list of timestamps"""
         raise NotImplementedError
 
     def execute(self, eopatch=None, *, bbox=None, time_interval=None):
-        """ Execute method that adds new Meteoblue data into an EOPatch
+        """Execute method that adds new Meteoblue data into an EOPatch
 
         :param eopatch: An EOPatch in which data will be added. If not provided a new EOPatch will be created.
         :type eopatch: EOPatch or None
@@ -123,11 +127,11 @@ class BaseMeteoblueTask(EOTask):
         geometry = Geometry(bbox.geometry, bbox.crs).transform(CRS.WGS84)
         geojson = shapely.geometry.mapping(geometry.geometry)
         query = {
-            'units': self.units,
-            'geometry': geojson,
-            'format': 'protobuf',
-            'timeIntervals': time_intervals,
-            'queries': [self.query],
+            "units": self.units,
+            "geometry": geojson,
+            "format": "protobuf",
+            "timeIntervals": time_intervals,
+            "queries": [self.query],
         }
         result_data, result_timestamp = self._get_data(query)
 
@@ -139,7 +143,7 @@ class BaseMeteoblueTask(EOTask):
 
 
 class MeteoblueVectorTask(BaseMeteoblueTask):
-    """ Obtains weather data from Meteoblue services as a vector feature
+    """Obtains weather data from Meteoblue services as a vector feature
 
     The data is obtained as a VECTOR feature in a ``geopandas.GeoDataFrame`` where columns include latitude, longitude,
     timestamp and a columns for each weather variable. All data is downloaded from the
@@ -147,9 +151,9 @@ class MeteoblueVectorTask(BaseMeteoblueTask):
 
     A Meteoblue API key is required to retrieve data.
     """
+
     def _get_data(self, query):
-        """ Provides a GeoDataFrame with information about weather control points and an empty list of timestamps
-        """
+        """Provides a GeoDataFrame with information about weather control points and an empty list of timestamps"""
         result = self.client.querySync(query)
         dataframe = meteoblue_to_dataframe(result)
         geometry = gpd.points_from_xy(dataframe.Longitude, dataframe.Latitude)
@@ -159,7 +163,7 @@ class MeteoblueVectorTask(BaseMeteoblueTask):
 
 
 class MeteoblueRasterTask(BaseMeteoblueTask):
-    """ Obtains weather data from Meteoblue services as a raster feature
+    """Obtains weather data from Meteoblue services as a raster feature
 
     It returns a 4D numpy array with dimensions (time, height, width, weather variables) which should be stored as a
     DATA feature. Data is resampled to WGS84 plate carrée to a specified resolution using the
@@ -167,8 +171,9 @@ class MeteoblueRasterTask(BaseMeteoblueTask):
 
     A Meteoblue API key is required to retrieve data.
     """
+
     def _get_data(self, query):
-        """ Return a 4-dimensional numpy array of shape (time, height, width, weather variables) and a list of
+        """Return a 4-dimensional numpy array of shape (time, height, width, weather variables) and a list of
         timestamps
         """
         result = self.client.querySync(query)
@@ -179,17 +184,17 @@ class MeteoblueRasterTask(BaseMeteoblueTask):
 
 
 def meteoblue_to_dataframe(result) -> pd.DataFrame:
-    """ Transform a Meteoblue dataset API result to a dataframe
+    """Transform a Meteoblue dataset API result to a dataframe
 
     :param result: A response of Meteoblue API
     :type result: Dataset_pb2.DatasetApiProtobuf
     :returns: A dataframe with columns TIMESTAMP, Longitude, Latitude and aggregation columns
     """
     geometry = result.geometries[0]
-    code_names = [f'{code.code}_{code.level}_{code.aggregation}' for code in geometry.codes]
+    code_names = [f"{code.code}_{code.level}_{code.aggregation}" for code in geometry.codes]
 
     if not geometry.timeIntervals:
-        return pd.DataFrame(columns=['TIMESTAMP', 'Longitude', 'Latitude'] + code_names)
+        return pd.DataFrame(columns=["TIMESTAMP", "Longitude", "Latitude"] + code_names)
 
     dataframes = []
     for index, time_interval in enumerate(geometry.timeIntervals):
@@ -198,11 +203,13 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
         n_locations = len(geometry.lats)
         n_timesteps = len(timestamps)
 
-        dataframe = pd.DataFrame({
-            'TIMESTAMP': np.tile(timestamps, n_locations),
-            'Longitude': np.repeat(geometry.lons, n_timesteps),
-            'Latitude': np.repeat(geometry.lats, n_timesteps)
-        })
+        dataframe = pd.DataFrame(
+            {
+                "TIMESTAMP": np.tile(timestamps, n_locations),
+                "Longitude": np.repeat(geometry.lons, n_timesteps),
+                "Latitude": np.repeat(geometry.lats, n_timesteps),
+            }
+        )
 
         for code, code_name in zip(geometry.codes, code_names):
             dataframe[code_name] = np.array(code.timeIntervals[index].data)
@@ -213,7 +220,7 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
 
 
 def meteoblue_to_numpy(result) -> np.ndarray:
-    """ Transform a Meteoblue dataset API result to a dataframe
+    """Transform a Meteoblue dataset API result to a dataframe
 
     :param result: A response of Meteoblue API
     :type result: Dataset_pb2.DatasetApiProtobuf
@@ -231,8 +238,7 @@ def meteoblue_to_numpy(result) -> np.ndarray:
     # Individual time intervals may have different number of timesteps (not a dimension)
     # Therefore we have to first transpose each code individually and then transpose everything again
     def map_code(code):
-        """ Transpose a single code
-        """
+        """Transpose a single code"""
         code_data = np.array(list(map(lambda t: t.data, code.timeIntervals)))
 
         code_n_timesteps = code_data.size // n_locations // n_time_intervals
@@ -249,14 +255,12 @@ def meteoblue_to_numpy(result) -> np.ndarray:
 
 
 def _meteoblue_timestamps_from_geometry(geometry_pb):
-    """ Transforms a protobuf geometry object into a list of datetime objects
-    """
+    """Transforms a protobuf geometry object into a list of datetime objects"""
     return list(pd.core.common.flatten(map(_meteoblue_timestamps_from_time_interval, geometry_pb.timeIntervals)))
 
 
 def _meteoblue_timestamps_from_time_interval(timestamp_pb):
-    """ Transforms a protobuf timestamp object into a list of datetime objects
-    """
+    """Transforms a protobuf timestamp object into a list of datetime objects"""
     if timestamp_pb.timestrings:
         # Time intervals like weekly data, return an `array of strings` as timestamps
         # For time indications like `20200801T0000-20200802T235959` we only return the first date as datetime
@@ -269,8 +273,7 @@ def _meteoblue_timestamps_from_time_interval(timestamp_pb):
 
 
 def _parse_timestring(timestring):
-    """ A helper method to parse specific timestrings obtained from Meteoblue service
-    """
-    if '-' in timestring:
-        timestring = timestring.split('-')[0]
+    """A helper method to parse specific timestrings obtained from Meteoblue service"""
+    if "-" in timestring:
+        timestring = timestring.split("-")[0]
     return dateutil.parser.parse(timestring)

@@ -21,17 +21,17 @@ from eolearn.core import EOTask
 
 
 class MorphologicalOperations(Enum):
-    """ Enum class of morphological operations
-    """
-    OPENING = 'opening'
-    CLOSING = 'closing'
-    DILATION = 'dilation'
-    EROSION = 'erosion'
-    MEDIAN = 'median'
+    """Enum class of morphological operations"""
+
+    OPENING = "opening"
+    CLOSING = "closing"
+    DILATION = "dilation"
+    EROSION = "erosion"
+    MEDIAN = "median"
 
     @classmethod
     def get_operation(cls, morph_type):
-        """ Maps morphological operation type to function
+        """Maps morphological operation type to function
 
         :param morph_type: Morphological operation type
         :type morph_type: MorphologicalOperations
@@ -42,7 +42,7 @@ class MorphologicalOperations(Enum):
             cls.CLOSING: skimage.morphology.closing,
             cls.DILATION: skimage.morphology.dilation,
             cls.EROSION: skimage.morphology.erosion,
-            cls.MEDIAN: skimage.filters.rank.median
+            cls.MEDIAN: skimage.filters.rank.median,
         }[morph_type]
 
 
@@ -50,6 +50,7 @@ class MorphologicalStructFactory:
     """
     Factory methods for generating morphological structuring elements
     """
+
     @staticmethod
     def get_disk(radius):
         """
@@ -94,30 +95,29 @@ class MorphologicalStructFactory:
 
 
 class PostprocessingTask(EOTask):
-    """ Base class for all post-processing tasks
+    """Base class for all post-processing tasks
 
     :param feature: A feature to be processed
     :type feature: (FeatureType, str)
     """
+
     def __init__(self, feature):
         self.feature = self.parse_feature(feature)
 
     @abstractmethod
     def process(self, raster):
-        """ Abstract method for processing the raster
-        """
+        """Abstract method for processing the raster"""
         raise NotImplementedError
 
     def execute(self, eopatch):
-        """ Execute method takes EOPatch and changes the specified feature
-        """
+        """Execute method takes EOPatch and changes the specified feature"""
         eopatch[self.feature] = self.process(eopatch[self.feature])
 
         return eopatch
 
 
 class MorphologicalFilterTask(PostprocessingTask):
-    """ EOTask that performs morphological operations on masks.
+    """EOTask that performs morphological operations on masks.
 
     :param feature: A feature to be processed
     :type feature: (FeatureType, str)
@@ -127,6 +127,7 @@ class MorphologicalFilterTask(PostprocessingTask):
                         factory method from MorphologicalStructElements
     :type struct_elem: numpy.ndarray
     """
+
     def __init__(self, feature, morph_operation, struct_elem=None):
         super().__init__(feature)
 
@@ -137,8 +138,7 @@ class MorphologicalFilterTask(PostprocessingTask):
         self.struct_elem = struct_elem
 
     def process(self, raster):
-        """ Applies the morphological operation to the mask object
-        """
+        """Applies the morphological operation to the mask object"""
         dim = len(raster.shape)
         if dim == 3:
             for dim in range(raster.shape[2]):
@@ -147,6 +147,6 @@ class MorphologicalFilterTask(PostprocessingTask):
             for time, dim in it.product(range(raster.shape[0]), range(raster.shape[3])):
                 raster[time, :, :, dim] = self.morph_operation(raster[time, :, :, dim], self.struct_elem)
         else:
-            raise ValueError(f'Invalid number of dimensions: {dim}')
+            raise ValueError(f"Invalid number of dimensions: {dim}")
 
         return raster

@@ -1,0 +1,8 @@
+[tool.black]
+line-length = 120
+experimental-string-processing = true
+
+[tool.pytest.ini_options]
+markers = [
+    "sh_integration: marks integration tests with Sentinel Hub service"
+]

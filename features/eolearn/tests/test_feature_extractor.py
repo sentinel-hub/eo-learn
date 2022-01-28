@@ -18,7 +18,7 @@ def test_simple():
     x = [1.0] * 13
     fee = fe.FeatureExtendedExtractor(
         "B8A ; B09 ; B08 ; I(B02, B03) ; S(B05, B03) ; R(B01, B02) ; D(B01, B02, B03) ; I(B8A, B04)"
-        )
+    )
     assert fee(x) == [1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 2.0, 0.0]
 
 
@@ -31,13 +31,13 @@ def test_nested():
 def test_add_ndvi():
     array = np.arange(2 * 3 * 3 * 13).reshape(2, 3, 3, 13)
     eopatch = EOPatch()
-    eopatch[FeatureType.DATA]['bands'] = array
+    eopatch[FeatureType.DATA]["bands"] = array
 
-    eotask_ndvi = FeatureExtractionTask((FeatureType.DATA, 'bands', 'ndvi'), 'I(B4, B8A)')
+    eotask_ndvi = FeatureExtractionTask((FeatureType.DATA, "bands", "ndvi"), "I(B4, B8A)")
 
     eopatch_ndvi = eotask_ndvi(eopatch)
 
-    in_shape = eopatch.data['bands'].shape
+    in_shape = eopatch.data["bands"].shape
     out_shape = in_shape[:-1] + (1,)
 
-    assert eopatch_ndvi.data['ndvi'].shape == out_shape
+    assert eopatch_ndvi.data["ndvi"].shape == out_shape

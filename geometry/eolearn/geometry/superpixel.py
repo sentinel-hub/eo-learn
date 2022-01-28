@@ -24,13 +24,20 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SuperpixelSegmentationTask(EOTask):
-    """ Super-pixel segmentation task
+    """Super-pixel segmentation task
 
     Given a raster feature it will segment data into super-pixels. Representation of super-pixels will be returned as
     a mask timeless feature where all pixels with the same value belong to one super-pixel
     """
-    def __init__(self, feature, superpixel_feature, *, segmentation_object=skimage.segmentation.felzenszwalb,
-                 **segmentation_params):
+
+    def __init__(
+        self,
+        feature,
+        superpixel_feature,
+        *,
+        segmentation_object=skimage.segmentation.felzenszwalb,
+        **segmentation_params
+    ):
         """
         :param feature: Raster feature which will be used in segmentation
         :param superpixel_feature: A new mask timeless feature to hold super-pixel mask
@@ -46,20 +53,20 @@ class SuperpixelSegmentationTask(EOTask):
         self.segmentation_params = segmentation_params
 
     def _create_superpixel_mask(self, data):
-        """ Method which performs the segmentation
-        """
+        """Method which performs the segmentation"""
         with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=RuntimeWarning)
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
             return self.segmentation_object(data, **self.segmentation_params)
 
     def execute(self, eopatch):
-        """ Main execute method
-        """
+        """Main execute method"""
         data = eopatch[self.feature]
 
         if np.isnan(data).any():
-            warnings.warn('There are NaN values in given data, super-pixel segmentation might produce bad results',
-                          EORuntimeWarning)
+            warnings.warn(
+                "There are NaN values in given data, super-pixel segmentation might produce bad results",
+                EORuntimeWarning,
+            )
 
         if self.feature[0].is_time_dependent():
             data = np.moveaxis(data, 0, 2)
@@ -73,46 +80,46 @@ class SuperpixelSegmentationTask(EOTask):
 
 
 class FelzenszwalbSegmentationTask(SuperpixelSegmentationTask):
-    """ Super-pixel segmentation which uses Felzenszwalb's method of segmentation
+    """Super-pixel segmentation which uses Felzenszwalb's method of segmentation
 
     Uses segmentation function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb
     """
+
     def __init__(self, feature, superpixel_feature, **kwargs):
-        """ Arguments are passed to `SuperpixelSegmentationTask` task
-        """
+        """Arguments are passed to `SuperpixelSegmentationTask` task"""
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.felzenszwalb, **kwargs)
 
 
 class SlicSegmentationTask(SuperpixelSegmentationTask):
-    """ Super-pixel segmentation which uses SLIC method of segmentation
+    """Super-pixel segmentation which uses SLIC method of segmentation
 
     Uses segmentation function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.slic
     """
+
     def __init__(self, feature, superpixel_feature, **kwargs):
-        """ Arguments are passed to `SuperpixelSegmentationTask` task
-        """
+        """Arguments are passed to `SuperpixelSegmentationTask` task"""
         super().__init__(
             feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, start_label=0, **kwargs
         )
 
     def _create_superpixel_mask(self, data):
-        """ Method which performs the segmentation
-        """
+        """Method which performs the segmentation"""
         if np.issubdtype(data.dtype, np.floating) and data.dtype != np.float64:
             data = data.astype(np.float64)
         return super()._create_superpixel_mask(data)
 
 
 class MarkSegmentationBoundariesTask(EOTask):
-    """ Takes super-pixel segmentation mask and creates a new mask where boundaries of super-pixels are marked
+    """Takes super-pixel segmentation mask and creates a new mask where boundaries of super-pixels are marked
 
     The result is a binary mask with values 0 and 1 and dtype `numpy.uint8`
 
     Uses `mark_boundaries` function documented at:
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.mark_boundaries
     """
+
     def __init__(self, feature, new_feature, **params):
         """
         :param feature: Input feature - super-pixel mask
@@ -128,12 +135,12 @@ class MarkSegmentationBoundariesTask(EOTask):
         self.params = params
 
     def execute(self, eopatch):
-        """ Execute method
-        """
+        """Execute method"""
         segmentation_mask = eopatch[self.feature][..., 0]
 
         bounds_mask = skimage.segmentation.mark_boundaries(
-            np.zeros(segmentation_mask.shape[:2], dtype=np.uint8), segmentation_mask, **self.params)
+            np.zeros(segmentation_mask.shape[:2], dtype=np.uint8), segmentation_mask, **self.params
+        )
 
         bounds_mask = bounds_mask[..., :1].astype(np.uint8)
         eopatch[self.new_feature[0]][self.new_feature[1]] = bounds_mask
@@ -142,23 +149,19 @@ class MarkSegmentationBoundariesTask(EOTask):
 
 @renamed_and_deprecated
 class SuperpixelSegmentation(SuperpixelSegmentationTask):
-    """ A deprecated version of SuperpixelSegmentationTask
-    """
+    """A deprecated version of SuperpixelSegmentationTask"""
 
 
 @renamed_and_deprecated
 class FelzenszwalbSegmentation(FelzenszwalbSegmentationTask):
-    """ A deprecated version of FelzenszwalbSegmentationTask
-    """
+    """A deprecated version of FelzenszwalbSegmentationTask"""
 
 
 @renamed_and_deprecated
 class SlicSegmentation(SlicSegmentationTask):
-    """ A deprecated version of SlicSegmentationTask
-    """
+    """A deprecated version of SlicSegmentationTask"""
 
 
 @renamed_and_deprecated
 class MarkSegmentationBoundaries(MarkSegmentationBoundariesTask):
-    """ A deprecated version of MarkSegmentationBoundariesTask
-    """
+    """A deprecated version of MarkSegmentationBoundariesTask"""

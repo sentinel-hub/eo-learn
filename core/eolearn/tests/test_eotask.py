@@ -22,7 +22,7 @@ class PlusConstSquaredTask(EOTask):
         self.const = const
 
     def execute(self, x):
-        return (x + self.const)**2
+        return (x + self.const) ** 2
 
 
 class SelfRecursiveTask(EOTask):
@@ -38,6 +38,6 @@ class SelfRecursiveTask(EOTask):
 
 def test_call_equals_execute():
     task = PlusOneTask()
-    assert task(1) == task.execute(1), 't(x) should given the same result as t.execute(x)'
+    assert task(1) == task.execute(1), "t(x) should given the same result as t.execute(x)"
     task = PlusConstSquaredTask(20)
-    assert task(14) == task.execute(14), 't(x) should given the same result as t.execute(x)'
+    assert task(14) == task.execute(14), "t(x) should given the same result as t.execute(x)"
