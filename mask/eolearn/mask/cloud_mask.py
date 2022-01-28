@@ -196,7 +196,7 @@ class CloudMaskTask(EOTask):
 
     @property
     def mono_classifier(self):
-        """An instance of pre-trained mono-temporal cloud classifier. It is loaded only the first time it is required."""
+        """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
         if self._mono_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
             self._mono_classifier = Booster(model_file=path)
@@ -205,7 +205,7 @@ class CloudMaskTask(EOTask):
 
     @property
     def multi_classifier(self):
-        """An instance of pre-trained multi-temporal cloud classifier. It is loaded only the first time it is required."""
+        """An instance of pre-trained multi-temporal cloud classifier. Loaded only the first time it is required."""
         if self._multi_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
             self._multi_classifier = Booster(model_file=path)

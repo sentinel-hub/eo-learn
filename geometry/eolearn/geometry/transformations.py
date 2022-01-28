@@ -119,7 +119,7 @@ class VectorToRasterTask(EOTask):
         self._rasterize_per_timestamp = self.raster_feature[0].is_time_dependent()
 
     def _parse_main_params(self, vector_input, raster_feature):
-        """Parsing first 2 task parameters - what vector data will be used and in which raster feature it will be saved"""
+        """Parsing first 2 parameters - what vector data will be used and in which raster feature it will be saved"""
         if not _is_geopandas_object(vector_input):
             vector_input = self.parse_feature(vector_input, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)
 

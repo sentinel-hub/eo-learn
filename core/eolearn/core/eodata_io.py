@@ -207,7 +207,7 @@ def _check_add_only_permission(eopatch_features, filesystem_features):
 
 
 def _check_letter_case_collisions(eopatch_features, filesystem_features):
-    """Check that EOPatch features have no name clashes (ignoring case) with other EOPatch features and saved features"""
+    """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features"""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     if len(lowercase_features) != len(eopatch_features):
