@@ -198,9 +198,11 @@ class EOPatch:
         return self.merge(other)
 
     def __repr__(self):
-        feature_repr_list = [f'{self.__class__.__name__}(']
+        feature_repr_list = []
         for feature_type in FeatureType:
             content = self[feature_type]
+            if not content:
+                continue
 
             if isinstance(content, dict) and content:
                 content_str = (
@@ -210,9 +212,12 @@ class EOPatch:
                 )
             else:
                 content_str = self._repr_value(content)
-            feature_repr_list.append(f'{feature_type.value}: {content_str}')
+            feature_repr_list.append(f'{feature_type.value}={content_str}')
 
-        return '\n  '.join(feature_repr_list) + '\n)'
+        feature_repr = '\n  '.join(feature_repr_list)
+        if feature_repr:
+            feature_repr = f'\n  {feature_repr}\n'
+        return f'{self.__class__.__name__}({feature_repr})'
 
     @staticmethod
     def _repr_value(value):

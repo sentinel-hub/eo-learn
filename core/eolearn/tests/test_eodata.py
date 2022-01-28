@@ -19,13 +19,6 @@ from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
 
 
-def test_loading_valid(test_eopatch_path):
-    eop = EOPatch.load(test_eopatch_path)
-
-    repr_str = eop.__repr__()
-    assert isinstance(repr_str, str) and len(repr_str) > 0, 'EOPatch __repr__ must return non-empty string'
-
-
 def test_numpy_feature_types():
     eop = EOPatch()
 
@@ -112,10 +105,26 @@ def test_invalid_characters():
         eop.data_timeless['mask.npy'] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
 
 
+def test_repr(test_eopatch_path):
+    test_eopatch = EOPatch.load(test_eopatch_path)
+
+    for eopatch in [test_eopatch, EOPatch()]:
+        repr_str = repr(eopatch)
+
+        assert isinstance(repr_str, str)
+        assert repr_str == eopatch.__repr__()
+
+    repr_str = repr(test_eopatch)
+    assert repr_str.startswith('EOPatch(') and repr_str.endswith(')')
+    assert len(repr_str) > 100
+
+    assert repr(EOPatch()) == 'EOPatch()'
+
+
 def test_repr_no_crs(test_eopatch):
     test_eopatch.vector_timeless['LULC'].crs = None
     repr_str = test_eopatch.__repr__()
-    assert isinstance(repr_str, str) and len(repr_str) > 0, \
+    assert isinstance(repr_str, str) and len(repr_str) > 100, \
         'EOPatch __repr__ must return non-empty string even in case of missing crs'
 
 
