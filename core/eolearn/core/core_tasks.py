@@ -18,7 +18,6 @@ import numpy as np
 from .eodata import EOPatch
 from .eotask import EOTask
 from .fs_utils import get_filesystem
-from .utilities import renamed_and_deprecated
 
 
 class CopyTask(EOTask):
@@ -580,43 +579,3 @@ class MergeEOPatchesTask(EOTask):
             raise ValueError("At least one EOPatch should be given")
 
         return eopatches[0].merge(*eopatches[1:], **self.merge_kwargs)
-
-
-@renamed_and_deprecated
-class SaveToDisk(SaveTask):
-    """A deprecated version of SaveTask"""
-
-
-@renamed_and_deprecated
-class LoadFromDisk(LoadTask):
-    """A deprecated version of LoadTask"""
-
-
-@renamed_and_deprecated
-class AddFeature(AddFeatureTask):
-    """A deprecated version of AddFeatureTask"""
-
-
-@renamed_and_deprecated
-class RemoveFeature(RemoveFeatureTask):
-    """A deprecated version of RemoveFeatureTask"""
-
-
-@renamed_and_deprecated
-class RenameFeature(RenameFeatureTask):
-    """A deprecated version of RenameFeatureTask"""
-
-
-@renamed_and_deprecated
-class DuplicateFeature(DuplicateFeatureTask):
-    """A deprecated version of DuplicateFeatureTask"""
-
-
-@renamed_and_deprecated
-class InitializeFeature(InitializeFeatureTask):
-    """A deprecated version of InitializeFeatureTask"""
-
-
-@renamed_and_deprecated
-class MoveFeature(MoveFeatureTask):
-    """A deprecated version of MoveFeatureTask"""

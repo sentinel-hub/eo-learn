@@ -21,7 +21,6 @@ import numpy as np
 import registration
 from eolearn.core import EOTask
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utilities import renamed_and_deprecated
 
 from .coregistration_utilities import EstimateEulerTransformModel, ransac
 
@@ -432,18 +431,3 @@ def get_gradient(src):
     # Combine the two gradients
     grad = cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)
     return grad
-
-
-@renamed_and_deprecated
-class ThunderRegistration(ThunderRegistrationTask):
-    """A deprecated version of ThunderRegistrationTask"""
-
-
-@renamed_and_deprecated
-class ECCRegistration(ECCRegistrationTask):
-    """A deprecated version of ECCRegistrationTask"""
-
-
-@renamed_and_deprecated
-class PointBasedRegistration(PointBasedRegistrationTask):
-    """A deprecated version of PointBasedRegistrationTask"""

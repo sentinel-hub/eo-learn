@@ -17,7 +17,6 @@ import numpy as np
 from skimage.morphology import disk, binary_dilation
 
 from eolearn.core import EOTask, FeatureType
-from eolearn.core.utilities import renamed_and_deprecated
 from .utilities import resize_images
 
 
@@ -305,13 +304,3 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(bool)
 
         return eopatch
-
-
-@renamed_and_deprecated
-class SnowMask(SnowMaskTask):
-    """A deprecated version of SnowMaskTask"""
-
-
-@renamed_and_deprecated
-class TheiaSnowMask(TheiaSnowMaskTask):
-    """A deprecated version of TheiaSnowMaskTask"""

@@ -27,7 +27,6 @@ from geopandas import GeoSeries, GeoDataFrame
 from sentinelhub import CRS, bbox_to_dimensions
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
@@ -463,13 +462,3 @@ def _vector_is_timeless(vector_input):
 
     vector_type, _ = vector_input
     return vector_type.is_timeless()
-
-
-@renamed_and_deprecated
-class VectorToRaster(VectorToRasterTask):
-    """A deprecated version of VectorToRasterTask"""
-
-
-@renamed_and_deprecated
-class RasterToVector(RasterToVectorTask):
-    """A deprecated version of RasterToVectorTask"""
