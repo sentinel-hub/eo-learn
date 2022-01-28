@@ -31,6 +31,7 @@ class SimpleFilterTask(EOTask):
 
     A filter_func is a callable which takes an numpy array and returns a bool.
     """
+
     def __init__(self, feature, filter_func, filter_features=...):
         """
         :param feature: Feature in the EOPatch , e.g. feature=(FeatureType.DATA, 'bands')
@@ -59,14 +60,15 @@ class SimpleFilterTask(EOTask):
         """
         good_idxs = self._get_filtered_indices(eopatch[self.feature])
         if not good_idxs:
-            raise RuntimeError('EOPatch has no good indices after filtering with given filter function')
+            raise RuntimeError("EOPatch has no good indices after filtering with given filter function")
 
         for feature_type, feature_name in self.filter_features_parser.get_features(eopatch):
             if feature_type.is_time_dependent():
                 if feature_type.has_dict():
                     if feature_type.contains_ndarrays():
-                        eopatch[feature_type][feature_name] = np.asarray([eopatch[feature_type][feature_name][idx] for
-                                                                          idx in good_idxs])
+                        eopatch[feature_type][feature_name] = np.asarray(
+                            [eopatch[feature_type][feature_name][idx] for idx in good_idxs]
+                        )
                     # else:
                     #     NotImplemented
                 else:
@@ -81,6 +83,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
     """
     Removes all frames in the time-series with dates outside the user specified time interval.
     """
+
     def __init__(self, start_date, end_date, filter_features=...):
         """
         :param start_date: Start date. All frames within the time-series taken after this date will be kept.
@@ -94,16 +97,16 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         self.end_date = end_date
 
         if not isinstance(start_date, dt.datetime):
-            raise ValueError('Start date is not of correct type. Please provide the start_date as datetime.datetime.')
+            raise ValueError("Start date is not of correct type. Please provide the start_date as datetime.datetime.")
 
         if not isinstance(end_date, dt.datetime):
-            raise ValueError('End date is not of correct type. Please provide the end_date as datetime.datetime.')
+            raise ValueError("End date is not of correct type. Please provide the end_date as datetime.datetime.")
 
         super().__init__(FeatureType.TIMESTAMP, lambda date: start_date <= date <= end_date, filter_features)
 
 
 class ValueFilloutTask(EOTask):
-    """ Overwrites occurrences of a desired value with their neighbor values in either forward, backward direction or
+    """Overwrites occurrences of a desired value with their neighbor values in either forward, backward direction or
     both, along an axis.
 
     Possible fillout operations are 'f' (forward), 'b' (backward) or both, 'fb' or 'bf':
@@ -117,7 +120,7 @@ class ValueFilloutTask(EOTask):
         'bf': nan, nan, nan, 8, 5, nan, 1, 0, nan, nan -> 8, 8, 8, 8, 5, 1, 1, 0, 0, 0
     """
 
-    def __init__(self, feature, operations='fb', value=np.nan, axis=0):
+    def __init__(self, feature, operations="fb", value=np.nan, axis=0):
         """
         :param feature: A feature that must be value-filled.
         :type feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
@@ -128,7 +131,7 @@ class ValueFilloutTask(EOTask):
         :param axis: An axis along which to fill values.
         :type axis: int
         """
-        if operations not in ['f', 'b', 'fb', 'bf']:
+        if operations not in ["f", "b", "fb", "bf"]:
             raise ValueError("'operations' parameter should be one of the following options: f, b, fb, bf.")
 
         self.feature = self.parse_feature(feature)
@@ -137,8 +140,8 @@ class ValueFilloutTask(EOTask):
         self.axis = axis
 
     @staticmethod
-    def fill(data, value=np.nan, operation='f'):
-        """ Fills occurrences of a desired value in a 2d array with their neighbors in either forward or backward
+    def fill(data, value=np.nan, operation="f"):
+        """Fills occurrences of a desired value in a 2d array with their neighbors in either forward or backward
         direction.
 
         :param data: A 2d numpy array.
@@ -151,19 +154,19 @@ class ValueFilloutTask(EOTask):
         :rtype: numpy.ndarray
         """
         if not isinstance(data, np.ndarray) or data.ndim != 2:
-            raise ValueError('Wrong data input')
+            raise ValueError("Wrong data input")
 
-        if operation not in ['f', 'b']:
+        if operation not in ["f", "b"]:
             raise ValueError("'operation' parameter should either be 'f' (forward) or 'b' (backward)!")
 
         n_rows, n_frames = data.shape
 
         value_mask = np.isnan(data) if np.isnan(value) else (data == value)
-        init_index = 0 if operation == 'f' else (n_frames - 1)
+        init_index = 0 if operation == "f" else (n_frames - 1)
 
         idx = np.where(value_mask, init_index, np.arange(n_frames))
 
-        if operation == 'f':
+        if operation == "f":
             idx = np.maximum.accumulate(idx, axis=1)
         else:
             idx = idx[:, ::-1]
@@ -231,5 +234,4 @@ class LinearFunctionTask(MapFeatureTask):
 
 @renamed_and_deprecated
 class FilterTimeSeries(FilterTimeSeriesTask):
-    """ A deprecated version of FilterTimeSeriesTask
-    """
+    """A deprecated version of FilterTimeSeriesTask"""

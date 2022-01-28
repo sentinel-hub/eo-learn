@@ -22,22 +22,23 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import BlobTask, DoGBlobTask, LoGBlobTask, DoHBlobTask
 
 
-FEATURE = (FeatureType.DATA, 'ndvi', 'blob')
+FEATURE = (FeatureType.DATA, "ndvi", "blob")
 
 
-@pytest.fixture(name='eopatch')
+@pytest.fixture(name="eopatch")
 def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data['ndvi'][:10]
+    ndvi = test_eopatch.data["ndvi"][:10]
     ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data['ndvi'] = ndvi
+    test_eopatch.data["ndvi"] = ndvi
     return test_eopatch
 
 
 def test_blob_feature(eopatch):
     BlobTask(FEATURE, blob_dog, sigma_ratio=1.6, min_sigma=1, max_sigma=30, overlap=0.5, threshold=0)(eopatch)
-    DoGBlobTask((FeatureType.DATA, 'ndvi', 'blob_dog'), threshold=0)(eopatch)
-    assert eopatch.data['blob'] == approx(eopatch.data['blob_dog']), \
-        'DoG derived class result not equal to base class result'
+    DoGBlobTask((FeatureType.DATA, "ndvi", "blob_dog"), threshold=0)(eopatch)
+    assert eopatch.data["blob"] == approx(
+        eopatch.data["blob_dog"]
+    ), "DoG derived class result not equal to base class result"
 
 
 BLOB_TESTS = [
@@ -48,7 +49,7 @@ if sys.version_info >= (3, 8):  # For Python 3.7 scikit-image returns less accur
     BLOB_TESTS.append([LoGBlobTask(FEATURE, log_scale=True, threshold=0), 0, 13.65408, 0.05768, 0.0])
 
 
-@pytest.mark.parametrize('task, expected_min, expected_max, expected_mean, expected_median', BLOB_TESTS)
+@pytest.mark.parametrize("task, expected_min, expected_max, expected_mean, expected_median", BLOB_TESTS)
 def test_blob(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
     initial_patch = copy.deepcopy(eopatch)
     task.execute(eopatch)

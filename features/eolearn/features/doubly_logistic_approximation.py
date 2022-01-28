@@ -12,9 +12,11 @@ def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5):
     """
     Function that is passed to scipy.optimize
     """
-    return initial_value + scale * np.piecewise(middle, [middle < a1, middle >= a1],
-                                                [lambda y: np.exp(-((a1 - y) / a4) ** a5),
-                                                 lambda y: np.exp(-((y - a1) / a2) ** a3)])
+    return initial_value + scale * np.piecewise(
+        middle,
+        [middle < a1, middle >= a1],
+        [lambda y: np.exp(-(((a1 - y) / a4) ** a5)), lambda y: np.exp(-(((y - a1) / a2) ** a3))],
+    )
 
 
 class DoublyLogisticApproximationTask(EOTask):
@@ -31,7 +33,7 @@ class DoublyLogisticApproximationTask(EOTask):
     :type valid_mask: (FeatureType, str) or None
     """
 
-    def __init__(self, feature, new_feature='DOUBLY_LOGISTIC_PARAM', initial_parameters=None, valid_mask=None):
+    def __init__(self, feature, new_feature="DOUBLY_LOGISTIC_PARAM", initial_parameters=None, valid_mask=None):
         self.initial_parameters = initial_parameters
         self.feature = self.parse_feature(feature)
         self.new_feature = self.parse_feature(new_feature)
@@ -47,13 +49,35 @@ class DoublyLogisticApproximationTask(EOTask):
         :type y_axis: List of floats
         :return: List of optimized parameters [c1, c2, a1, a2, a3, a4, a5]
         """
-        bounds_lower = [np.min(y_axis), -np.inf, x_axis[0], 0.15, 1, 0.15, 1, ]
-        bounds_upper = [np.max(y_axis), np.inf, x_axis[-1], np.inf, np.inf, np.inf, np.inf, ]
+        bounds_lower = [
+            np.min(y_axis),
+            -np.inf,
+            x_axis[0],
+            0.15,
+            1,
+            0.15,
+            1,
+        ]
+        bounds_upper = [
+            np.max(y_axis),
+            np.inf,
+            x_axis[-1],
+            np.inf,
+            np.inf,
+            np.inf,
+            np.inf,
+        ]
         if self.initial_parameters is None:
             self.initial_parameters = [np.mean(y_axis), 0.2, (x_axis[-1] - x_axis[0]) / 2, 0.15, 10, 0.15, 10]
-        optimal_values = curve_fit(doubly_logistic, x_axis, y_axis, self.initial_parameters,
-                                   bounds=(bounds_lower, bounds_upper), maxfev=1000000,
-                                   absolute_sigma=True)
+        optimal_values = curve_fit(
+            doubly_logistic,
+            x_axis,
+            y_axis,
+            self.initial_parameters,
+            bounds=(bounds_lower, bounds_upper),
+            maxfev=1000000,
+            absolute_sigma=True,
+        )
         return optimal_values[0]
 
     def execute(self, eopatch):

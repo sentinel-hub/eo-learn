@@ -15,7 +15,7 @@ import cv2
 
 
 def map_over_axis(data, func, axis=0):
-    """ Map function func over each slice along axis.
+    """Map function func over each slice along axis.
     If func changes the number of dimensions, mapping axis is moved to the front.
 
     Returns a new array with the combined results of mapping.
@@ -48,7 +48,7 @@ def map_over_axis(data, func, axis=0):
     return res
 
 
-def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, interpolation='linear'):
+def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, interpolation="linear"):
     """Resizes the image(s) acording to given size or scale factors.
 
     To specify the new scale use one of `new_size` or `scale_factors` parameters.
@@ -66,11 +66,7 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
                           One of 'nearest', 'linear', 'cubic'. Default is 'linear'.
     :type interpolation: string
     """
-    inter_methods = {
-        'nearest': cv2.INTER_NEAREST,
-        'linear': cv2.INTER_LINEAR,
-        'cubic': cv2.INTER_CUBIC
-    }
+    inter_methods = {"nearest": cv2.INTER_NEAREST, "linear": cv2.INTER_LINEAR, "cubic": cv2.INTER_CUBIC}
 
     # Number of dimensions of input data
     ndims = data.ndim
@@ -83,15 +79,15 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
 
     if new_size is not None and scale_factors is None:
         if len(new_size) != 2 or any(not isinstance(value, int) for value in new_size):
-            raise ValueError('new_size must be a pair of integers (height, width).')
-        scale_factors = [new/old for old, new in zip(old_size, new_size)]
+            raise ValueError("new_size must be a pair of integers (height, width).")
+        scale_factors = [new / old for old, new in zip(old_size, new_size)]
     elif scale_factors is not None and new_size is None:
         new_size = [int(size * factor) for size, factor in zip(old_size, scale_factors)]
     else:
-        raise ValueError('Exactly one of the arguments new_size, scale_factors must be given.')
+        raise ValueError("Exactly one of the arguments new_size, scale_factors must be given.")
 
     if interpolation not in inter_methods:
-        raise ValueError(f'Invalid interpolation method: {interpolation}')
+        raise ValueError(f"Invalid interpolation method: {interpolation}")
 
     interpolation_method = inter_methods[interpolation]
     downscaling = scale_factors[0] < 1 or scale_factors[1] < 1
@@ -100,14 +96,11 @@ def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, inte
         # Perform anti-alias smoothing if downscaling
         if downscaling and anti_alias:
             # Sigma computation based on skimage resize implementation
-            sigmas = [((1/s) - 1)/2 for s in scale_factors]
+            sigmas = [((1 / s) - 1) / 2 for s in scale_factors]
 
             # Limit sigma values above 0
             sigma_y, sigma_x = [max(1e-8, sigma) for sigma in sigmas]
-            image = cv2.GaussianBlur(image, (0, 0),
-                                     sigmaX=sigma_x,
-                                     sigmaY=sigma_y,
-                                     borderType=cv2.BORDER_REFLECT)
+            image = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma_x, sigmaY=sigma_y, borderType=cv2.BORDER_REFLECT)
 
         height, width = new_size
         resized = cv2.resize(image, (width, height), interpolation=interpolation_method)

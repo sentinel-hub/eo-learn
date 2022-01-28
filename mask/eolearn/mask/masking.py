@@ -19,13 +19,14 @@ from eolearn.core.utilities import renamed_and_deprecated
 
 
 class AddValidDataMaskTask(EOTask):
-    """ EOTask for adding custom mask array used to filter reflectances data
+    """EOTask for adding custom mask array used to filter reflectances data
 
-        This task allows the user to specify the criteria used to generate a valid data mask, which can be used to
-        filter the data stored in the `FeatureType.DATA`
+    This task allows the user to specify the criteria used to generate a valid data mask, which can be used to
+    filter the data stored in the `FeatureType.DATA`
     """
-    def __init__(self, predicate, valid_data_feature=(FeatureType.MASK, 'VALID_DATA')):
-        """ Constructor of the class requires a predicate defining the function used to generate the valid data mask. A
+
+    def __init__(self, predicate, valid_data_feature=(FeatureType.MASK, "VALID_DATA")):
+        """Constructor of the class requires a predicate defining the function used to generate the valid data mask. A
         predicate is a function that returns the truth value of some condition.
 
         An example predicate could be an `and` operator between a cloud mask and a snow mask.
@@ -39,7 +40,7 @@ class AddValidDataMaskTask(EOTask):
         self.valid_data_feature = self.parse_feature(valid_data_feature)
 
     def execute(self, eopatch):
-        """ Execute predicate on input eopatch
+        """Execute predicate on input eopatch
 
         :param eopatch: Input `eopatch` instance
         :return: The same `eopatch` instance with a `mask.valid_data` array computed according to the predicate
@@ -52,7 +53,7 @@ class AddValidDataMaskTask(EOTask):
 class JoinMasksTask(ZipFeatureTask):
     """Joins together masks with the provided logical operation."""
 
-    def __init__(self, input_features, output_feature, join_operation: Union[str, Callable] = 'and'):
+    def __init__(self, input_features, output_feature, join_operation: Union[str, Callable] = "and"):
         """
         :param input_features: Mask features to be joined together.
         :param output_feature: Feature to which to save the joined mask.
@@ -62,7 +63,7 @@ class JoinMasksTask(ZipFeatureTask):
         output_feature = self.parse_feature(output_feature)
 
         if isinstance(join_operation, str):
-            methods = {'and': np.logical_and, 'or': np.logical_or, 'xor': np.logical_xor}
+            methods = {"and": np.logical_and, "or": np.logical_or, "xor": np.logical_xor}
             if join_operation not in methods:
                 raise ValueError(
                     f"Join operation {join_operation} is not a viable choice. For operations other than {list(methods)}"
@@ -83,13 +84,14 @@ class JoinMasksTask(ZipFeatureTask):
 
 
 class MaskFeatureTask(EOTask):
-    """ Masks out values of a feature using defined values of a given mask feature.
+    """Masks out values of a feature using defined values of a given mask feature.
 
     As an example, it can be used to mask the data feature using values from the Sen2cor Scene Classification
     Layer (SCL).
 
     Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
     """
+
     def __init__(self, feature, mask_feature, mask_values, no_data_value=np.nan):
         """
         :param feature: A feature to be masked with optional new feature name
@@ -111,7 +113,7 @@ class MaskFeatureTask(EOTask):
             raise ValueError("Incorrect format or values of argument 'mask_values'")
 
     def execute(self, eopatch):
-        """ Mask values of `feature` according to the `mask_values` in `mask_feature`
+        """Mask values of `feature` according to the `mask_values` in `mask_feature`
 
         :param eopatch: `eopatch` to be processed
         :return: Same `eopatch` instance with masked `feature`
@@ -130,7 +132,7 @@ class MaskFeatureTask(EOTask):
 
 
 def apply_mask(data, mask, old_value, new_value, data_type, mask_type):
-    """ A general masking function
+    """A general masking function
 
     :param data: A data feature
     :type data: numpy.ndarray
@@ -146,27 +148,27 @@ def apply_mask(data, mask, old_value, new_value, data_type, mask_type):
     :type mask_type: FeatureType
     """
     if not (data_type.is_spatial() and mask_type.is_spatial()):
-        raise ValueError('Masking with non-spatial data types is not yet supported')
+        raise ValueError("Masking with non-spatial data types is not yet supported")
 
     if data_type.is_timeless() and mask_type.is_time_dependent():
-        raise ValueError('Cannot mask timeless data feature with time dependent mask feature')
+        raise ValueError("Cannot mask timeless data feature with time dependent mask feature")
 
     if data.shape[-3:-1] != mask.shape[-3:-1]:
-        raise ValueError('Data feature and mask feature have different spatial dimensions')
+        raise ValueError("Data feature and mask feature have different spatial dimensions")
     if mask_type.is_time_dependent() and data.shape[0] != mask.shape[0]:
-        raise ValueError('Data feature and mask feature have different temporal dimensions')
+        raise ValueError("Data feature and mask feature have different temporal dimensions")
 
     if mask.shape[-1] == data.shape[-1]:
         data[..., mask == old_value] = new_value
     elif mask.shape[-1] == 1:
         data[..., mask[..., 0] == old_value, :] = new_value
     else:
-        raise ValueError(f'Mask feature has {mask.shape[-1]} number of bands while data feature has '
-                         f'{data.shape[-1]} number of bands')
+        raise ValueError(
+            f"Mask feature has {mask.shape[-1]} number of bands while data feature has {data.shape[-1]} number of bands"
+        )
     return data
 
 
 @renamed_and_deprecated
 class MaskFeature(MaskFeatureTask):
-    """ A deprecated version of MaskFeatureTask
-    """
+    """A deprecated version of MaskFeatureTask"""

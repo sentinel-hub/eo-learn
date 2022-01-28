@@ -17,8 +17,8 @@ from eolearn.core import EONode
 
 
 class EOWorkflowVisualization:
-    """ Class handling EOWorkflow visualization
-    """
+    """Class handling EOWorkflow visualization"""
+
     def __init__(self, nodes: Sequence[EONode]):
         """
         :param nodes: A sequence of topologically ordered workflow nodes
@@ -26,17 +26,17 @@ class EOWorkflowVisualization:
         self.nodes = nodes
 
     def dependency_graph(self, filename: Optional[str] = None) -> Digraph:
-        """ Visualize the computational graph.
+        """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
             `pdf`, ... . Check `graphviz` Python package for more options
         :return: The DOT representation of the computational graph, with some more formatting
         """
         dot = self.get_dot()
-        dot.attr(rankdir='LR')  # Show graph from left to right
+        dot.attr(rankdir="LR")  # Show graph from left to right
 
         if filename is not None:
-            file_name, file_format = filename.rsplit('.', 1)
+            file_name, file_format = filename.rsplit(".", 1)
 
             dot.render(filename=file_name, format=file_format, cleanup=True)
 
@@ -47,7 +47,7 @@ class EOWorkflowVisualization:
 
         :return: The DOT representation of the computational graph
         """
-        dot = Digraph(format='png')
+        dot = Digraph(format="png")
 
         node_uid_to_dot_name = self._get_node_uid_to_dot_name_mapping(self.nodes)
 
@@ -58,8 +58,7 @@ class EOWorkflowVisualization:
 
     @staticmethod
     def _get_node_uid_to_dot_name_mapping(nodes: Sequence[EONode]) -> Dict[str, str]:
-        """ Creates mapping between EONode classes and names used in DOT graph
-        """
+        """Creates mapping between EONode classes and names used in DOT graph"""
         # Collect nodes with identical names
         dot_name_to_nodes: Dict[str, EONode] = {}
         for node in nodes:

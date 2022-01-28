@@ -36,8 +36,17 @@ class AddGeopediaFeatureTask(EOTask):
     * rasterize back and add raster to EOPatch
     """
 
-    def __init__(self, feature, layer, theme, raster_value, raster_dtype=np.uint8, no_data_val=0,
-                 image_format=MimeType.PNG, mean_abs_difference=2):
+    def __init__(
+        self,
+        feature,
+        layer,
+        theme,
+        raster_value,
+        raster_dtype=np.uint8,
+        no_data_val=0,
+        image_format=MimeType.PNG,
+        mean_abs_difference=2,
+    ):
 
         self.feature_type, self.feature_name = self.parse_feature(feature)
 
@@ -57,12 +66,14 @@ class AddGeopediaFeatureTask(EOTask):
         """
         bbox_3857 = bbox.transform(CRS.POP_WEB)
 
-        return GeopediaWmsRequest(layer=self.layer,
-                                  theme=self.theme,
-                                  bbox=bbox_3857,
-                                  width=size_x,
-                                  height=size_y,
-                                  image_format=self.image_format)
+        return GeopediaWmsRequest(
+            layer=self.layer,
+            theme=self.theme,
+            bbox=bbox_3857,
+            width=size_x,
+            height=size_y,
+            image_format=self.image_format,
+        )
 
     def _reproject(self, eopatch, src_raster):
         """
@@ -78,11 +89,16 @@ class AddGeopediaFeatureTask(EOTask):
         dst_bbox = eopatch.bbox
         dst_transform = rasterio.transform.from_bounds(*dst_bbox, width=width, height=height)
 
-        rasterio.warp.reproject(src_raster, dst_raster,
-                                src_transform=src_transform, src_crs=CRS.POP_WEB.ogc_string(),
-                                src_nodata=0,
-                                dst_transform=dst_transform, dst_crs=eopatch.bbox.crs.ogc_string(),
-                                dst_nodata=self.no_data_val)
+        rasterio.warp.reproject(
+            src_raster,
+            dst_raster,
+            src_transform=src_transform,
+            src_crs=CRS.POP_WEB.ogc_string(),
+            src_nodata=0,
+            dst_transform=dst_transform,
+            dst_crs=eopatch.bbox.crs.ogc_string(),
+            dst_nodata=self.no_data_val,
+        )
 
         return dst_raster
 
@@ -138,12 +154,12 @@ class AddGeopediaFeatureTask(EOTask):
         """
         Add requested feature to this existing EOPatch.
         """
-        data_arr = eopatch[FeatureType.MASK]['IS_DATA']
+        data_arr = eopatch[FeatureType.MASK]["IS_DATA"]
         _, height, width, _ = data_arr.shape
 
         request = self._get_wms_request(eopatch.bbox, width, height)
 
-        request_data, = np.asarray(request.get_data())
+        (request_data,) = np.asarray(request.get_data())
 
         if isinstance(self.raster_value, dict):
             raster = self._map_from_multiclass(eopatch, (height, width), request_data)
@@ -162,5 +178,4 @@ class AddGeopediaFeatureTask(EOTask):
 
 @renamed_and_deprecated
 class AddGeopediaFeature(AddGeopediaFeatureTask):
-    """ A deprecated version of AddGeopediaFeatureTask
-    """
+    """A deprecated version of AddGeopediaFeatureTask"""

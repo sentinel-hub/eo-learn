@@ -64,12 +64,12 @@ class DummyPatchClassifier:
     def predict(self, data):
         if data.shape[1:3] == self.receptive_field:
             return np.asarray([self._predict(example) for example in data], dtype=int)
-        raise ValueError('Dummy Classifier: input of incorrect shape')
+        raise ValueError("Dummy Classifier: input of incorrect shape")
 
     def predict_proba(self, data):
         if data.shape[1:3] == self.receptive_field:
             return np.asarray([self._predict_proba(example) for example in data], dtype=float)
-        raise ValueError('Dummy Classifier: input of incorrect shape')
+        raise ValueError("Dummy Classifier: input of incorrect shape")
 
 
 RECEPTIVE_FIELD = (2, 2)
@@ -78,11 +78,14 @@ PIXEL_CLASSIFIER = DummyPixelClassifier()
 PATCH_CLASSIFIER = DummyPatchClassifier(receptive_field=RECEPTIVE_FIELD)
 
 
-@pytest.mark.parametrize('classifier_class, faulty_params', [
-    (ImagePatchClassifier, (BAD_CLASSIFIER, RECEPTIVE_FIELD)),
-    (ImagePixelClassifier, (BAD_CLASSIFIER,)),
-    (ImagePixel2PatchClassifier, (BAD_CLASSIFIER, (4, 4))),
-])
+@pytest.mark.parametrize(
+    "classifier_class, faulty_params",
+    [
+        (ImagePatchClassifier, (BAD_CLASSIFIER, RECEPTIVE_FIELD)),
+        (ImagePixelClassifier, (BAD_CLASSIFIER,)),
+        (ImagePixel2PatchClassifier, (BAD_CLASSIFIER, (4, 4))),
+    ],
+)
 def test_initialisation(classifier_class, faulty_params):
     # Test class raises exceptions if classifier does not implement image_predict and image_predict_proba
     with pytest.raises(ValueError):
@@ -99,7 +102,7 @@ def test_pixel_classifier():
     data_predicted = image_classifier.image_predict(data)
     data_prob_predicted = image_classifier.image_predict_proba(data)
 
-    assert_array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_predicted, np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
     assert_array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
     assert_array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))
 
@@ -114,6 +117,6 @@ def test_patch_classifier():
     data_predicted = image_classifier.image_predict(data)
     data_prob_predicted = image_classifier.image_predict_proba(data)
 
-    assert_array_equal(data_predicted, np.max(values)*np.ones((20, 40, 40), dtype=np.uint8))
+    assert_array_equal(data_predicted, np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
     assert_array_equal(data_prob_predicted[..., 0], np.max(values) * np.ones((20, 40, 40), dtype=np.uint8))
     assert_array_equal(data_prob_predicted[..., 1], np.min(values) * np.ones((20, 40, 40), dtype=np.uint8))

@@ -65,27 +65,23 @@ class FeatureExtendedExtractor:
         vals = [self.parse_T(lexer)]
 
         while lexer:
-            FeatureExtendedExtractor.ensure_follows(lexer, ';')
+            FeatureExtendedExtractor.ensure_follows(lexer, ";")
             vals.append(self.parse_T(lexer))
 
         return vals
 
     def parse_T(self, lexer):
         ch = lexer.next()
-        return {
-            'I': self.parse_I,
-            'S': self.parse_S,
-            'R': self.parse_R,
-            'D': self.parse_D,
-            'B': self.parse_B
-        }[ch](lexer)
+        return {"I": self.parse_I, "S": self.parse_S, "R": self.parse_R, "D": self.parse_D, "B": self.parse_B}[ch](
+            lexer
+        )
 
     def parse_I(self, lexer):
-        FeatureExtendedExtractor.ensure_follows(lexer, '(')
+        FeatureExtendedExtractor.ensure_follows(lexer, "(")
         val_fst = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ',')
+        FeatureExtendedExtractor.ensure_follows(lexer, ",")
         val_snd = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ')')
+        FeatureExtendedExtractor.ensure_follows(lexer, ")")
 
         def _index_fun(x):
             v1 = val_fst(x)
@@ -95,31 +91,31 @@ class FeatureExtendedExtractor:
         return _index_fun
 
     def parse_S(self, lexer):
-        FeatureExtendedExtractor.ensure_follows(lexer, '(')
+        FeatureExtendedExtractor.ensure_follows(lexer, "(")
         val_fst = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ',')
+        FeatureExtendedExtractor.ensure_follows(lexer, ",")
         val_snd = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ')')
+        FeatureExtendedExtractor.ensure_follows(lexer, ")")
 
         return lambda x: val_fst(x) - val_snd(x)
 
     def parse_R(self, lexer):
-        FeatureExtendedExtractor.ensure_follows(lexer, '(')
+        FeatureExtendedExtractor.ensure_follows(lexer, "(")
         val_fst = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ',')
+        FeatureExtendedExtractor.ensure_follows(lexer, ",")
         val_snd = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ')')
+        FeatureExtendedExtractor.ensure_follows(lexer, ")")
 
         return lambda x: val_fst(x) / val_snd(x)
 
     def parse_D(self, lexer):
-        FeatureExtendedExtractor.ensure_follows(lexer, '(')
+        FeatureExtendedExtractor.ensure_follows(lexer, "(")
         val_fst = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ',')
+        FeatureExtendedExtractor.ensure_follows(lexer, ",")
         val_snd = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ',')
+        FeatureExtendedExtractor.ensure_follows(lexer, ",")
         val_thd = self.parse_T(lexer)
-        FeatureExtendedExtractor.ensure_follows(lexer, ')')
+        FeatureExtendedExtractor.ensure_follows(lexer, ")")
 
         return lambda x: (val_fst(x) + val_snd(x)) / val_thd(x)
 
@@ -130,7 +126,7 @@ class FeatureExtendedExtractor:
         if nxt.isdigit():
             lexer.popleft()
             return lambda x: x[10 * int(num) + int(nxt)]
-        if nxt.lower() == 'a':
+        if nxt.lower() == "a":
             lexer.popleft()
             return lambda x: x[8]
         nr = int(num) - 1
@@ -138,8 +134,8 @@ class FeatureExtendedExtractor:
 
 
 class FeatureExtractionTask(EOTask):
-    """ Task that applies an algebraic expression on each value of the feature
-    """
+    """Task that applies an algebraic expression on each value of the feature"""
+
     def __init__(self, feature, expression):
         """
         :param feature: A feature which will be transformed. If specified it will be saved under new feature name
@@ -160,8 +156,9 @@ class FeatureExtractionTask(EOTask):
 
             LOGGER.debug("Input array shape: %s", shp)
 
-            value = np.apply_along_axis(lambda x: np.asarray(self.fee(x)), arr=eopatch[feature_type][feature_name],
-                                        axis=len(shp) - 1)
+            value = np.apply_along_axis(
+                lambda x: np.asarray(self.fee(x)), arr=eopatch[feature_type][feature_name], axis=len(shp) - 1
+            )
 
             LOGGER.debug("Feature array shape: %s", value.shape)
 

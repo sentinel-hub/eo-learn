@@ -19,20 +19,18 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import LocalBinaryPatternTask
 
 
-@pytest.fixture(name='eopatch')
+@pytest.fixture(name="eopatch")
 def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data['ndvi'][:10]
+    ndvi = test_eopatch.data["ndvi"][:10]
     ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data['ndvi'] = ndvi
+    test_eopatch.data["ndvi"] = ndvi
     return test_eopatch
 
 
-@pytest.mark.parametrize('task, expected_min, expected_max, expected_mean, expected_median', (
-    [
-        LocalBinaryPatternTask((FeatureType.DATA, 'ndvi', 'lbp'), nb_points=24, radius=3),
-        0.0, 25.0, 22.3147, 24.0
-    ],
-))
+@pytest.mark.parametrize(
+    "task, expected_min, expected_max, expected_mean, expected_median",
+    ([LocalBinaryPatternTask((FeatureType.DATA, "ndvi", "lbp"), nb_points=24, radius=3), 0.0, 25.0, 22.3147, 24.0],),
+)
 def test_local_binary_pattern(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
     initial_patch = copy.deepcopy(eopatch)
     task.execute(eopatch)
@@ -45,7 +43,7 @@ def test_local_binary_pattern(eopatch, task, expected_min, expected_max, expecte
 
     delta = 1e-4
 
-    haralick = eopatch.data['lbp']
+    haralick = eopatch.data["lbp"]
     assert np.min(haralick) == approx(expected_min, abs=delta)
     assert np.max(haralick) == approx(expected_max, abs=delta)
     assert np.mean(haralick) == approx(expected_mean, abs=delta)

@@ -17,9 +17,19 @@ class ClusteringTask(EOTask):
     by depending on the 'remove_small' threshold.
     """
 
-    def __init__(self, features, new_feature_name, distance_threshold=None, n_clusters=None, affinity="cosine",
-                 linkage="single", remove_small=0, connectivity=None, mask_name=None):
-        """ Class constructor
+    def __init__(
+        self,
+        features,
+        new_feature_name,
+        distance_threshold=None,
+        n_clusters=None,
+        affinity="cosine",
+        linkage="single",
+        remove_small=0,
+        connectivity=None,
+        mask_name=None,
+    ):
+        """Class constructor
 
         :param features: A collection of features used for clustering. The features need to be of type DATA_TIMELESS
         :type features: dict(FeatureType.DATA_TIMELESS: set(str))
@@ -56,11 +66,11 @@ class ClusteringTask(EOTask):
         self.linkage = linkage
         self.new_feature_name = new_feature_name
         self.n_clusters = n_clusters
-        self.compute_full_tree = 'auto'
+        self.compute_full_tree = "auto"
         if distance_threshold is not None:
             self.compute_full_tree = True
         if remove_small < 0:
-            raise ValueError('remove_small argument should be non-negative')
+            raise ValueError("remove_small argument should be non-negative")
         self.remove_small = remove_small
         self.connectivity = connectivity
         self.mask_name = mask_name
@@ -94,13 +104,13 @@ class ClusteringTask(EOTask):
         data = np.reshape(data, (-1, org_shape[-1]))
         org_length = len(data)
 
-        graph_args = {'n_x': org_shape[0], 'n_y': org_shape[1]}
+        graph_args = {"n_x": org_shape[0], "n_y": org_shape[1]}
         locations = None
 
         # All connections to masked pixels are removed
         if self.mask_name is not None:
             mask = eopatch.mask_timeless[self.mask_name].squeeze()
-            graph_args['mask'] = mask
+            graph_args["mask"] = mask
             locations = [i for i, elem in enumerate(np.ravel(mask)) if elem == 0]
             data = np.delete(data, locations, axis=0)
 
@@ -108,11 +118,14 @@ class ClusteringTask(EOTask):
         if not self.connectivity:
             self.connectivity = grid_to_graph(**graph_args)
 
-        model = AgglomerativeClustering(distance_threshold=self.distance_threshold, affinity=self.affinity,
-                                        linkage=self.linkage,
-                                        connectivity=self.connectivity,
-                                        n_clusters=self.n_clusters,
-                                        compute_full_tree=self.compute_full_tree)
+        model = AgglomerativeClustering(
+            distance_threshold=self.distance_threshold,
+            affinity=self.affinity,
+            linkage=self.linkage,
+            connectivity=self.connectivity,
+            n_clusters=self.n_clusters,
+            compute_full_tree=self.compute_full_tree,
+        )
 
         model.fit(data)
         trimmed_labels = model.labels_

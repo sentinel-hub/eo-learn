@@ -27,22 +27,21 @@ LOGGER = logging.getLogger(__name__)
 
 
 class EOTask(metaclass=ABCMeta):
-    """ Base class for EOTask
-    """
+    """Base class for EOTask"""
+
     parse_feature = staticmethod(parse_feature)
     parse_renamed_feature = staticmethod(parse_renamed_feature)
     parse_features = staticmethod(parse_features)
     parse_renamed_features = staticmethod(parse_renamed_features)
 
     def __new__(cls, *args, **kwargs):
-        """ Stores initialization parameters and the order to the instance attribute `init_args`.
-        """
+        """Stores initialization parameters and the order to the instance attribute `init_args`."""
         self = super().__new__(cls)
 
         init_args = {}
-        for arg, value in zip(inspect.getfullargspec(self.__init__).args[1: len(args) + 1], args):
+        for arg, value in zip(inspect.getfullargspec(self.__init__).args[1 : len(args) + 1], args):
             init_args[arg] = repr(value)
-        for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1:]:
+        for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1 :]:
             if arg in kwargs:
                 init_args[arg] = repr(kwargs[arg])
 
@@ -52,7 +51,7 @@ class EOTask(metaclass=ABCMeta):
 
     @property
     def private_task_config(self):
-        """ Keeps track of the arguments for which the task was initialized for better logging.
+        """Keeps track of the arguments for which the task was initialized for better logging.
 
         :return: The initial configuration arguments of the task
         :rtype: _PrivateTaskConfig
@@ -60,26 +59,24 @@ class EOTask(metaclass=ABCMeta):
         return self._private_task_config
 
     def __call__(self, *eopatches, **kwargs):
-        """ Syntactic sugar for task execution
-        """
+        """Syntactic sugar for task execution"""
         return self.execute(*eopatches, **kwargs)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
-        """ Override to specify action performed by task
-        """
+        """Override to specify action performed by task"""
 
     @staticmethod
     def get_feature_parser(features, allowed_feature_types: Optional[Iterable[FeatureType]] = None) -> FeatureParser:
-        """ See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        """
+        """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`"""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
 
 
 @dataclass(frozen=True)
 class _PrivateTaskConfig:
-    """ A container for configuration parameters about an EOTask itself
+    """A container for configuration parameters about an EOTask itself
 
     :param init_args: A dictionary of parameters and values used for EOTask initialization
     """
+
     init_args: Dict[str, object]

@@ -18,11 +18,11 @@ from eolearn.ml_tools import MorphologicalOperations, MorphologicalStructFactory
 
 logging.basicConfig(level=logging.DEBUG)
 
-MASK_FEATURE = FeatureType.MASK, 'mask'
-MASK_TIMELESS_FEATURE = FeatureType.MASK_TIMELESS, 'timeless_mask'
+MASK_FEATURE = FeatureType.MASK, "mask"
+MASK_TIMELESS_FEATURE = FeatureType.MASK_TIMELESS, "timeless_mask"
 
 
-@pytest.fixture(name='test_eopatch', scope='module')
+@pytest.fixture(name="test_eopatch", scope="module")
 def test_eopatch_fixture():
     patch = EOPatch()
 
@@ -34,11 +34,11 @@ def test_eopatch_fixture():
     return patch
 
 
-@pytest.mark.parametrize('morph_operation', MorphologicalOperations)
-@pytest.mark.parametrize('feature', [MASK_FEATURE, MASK_TIMELESS_FEATURE])
-@pytest.mark.parametrize('struct_element', [
-    None, MorphologicalStructFactory.get_disk(5), MorphologicalStructFactory.get_rectangle(5, 6)
-])
+@pytest.mark.parametrize("morph_operation", MorphologicalOperations)
+@pytest.mark.parametrize("feature", [MASK_FEATURE, MASK_TIMELESS_FEATURE])
+@pytest.mark.parametrize(
+    "struct_element", [None, MorphologicalStructFactory.get_disk(5), MorphologicalStructFactory.get_rectangle(5, 6)]
+)
 def test_postprocessing(test_eopatch, feature, morph_operation, struct_element):
     task = MorphologicalFilterTask(feature, morph_operation, struct_element)
     task.execute(test_eopatch)

@@ -22,7 +22,7 @@ from .utilities import rolling_window
 
 
 class ImageBaseClassifier(ABC):
-    """ Abstract class for image classifiers
+    """Abstract class for image classifiers
 
     Image Classifier extends the receptive field of trained classifier with smaller
     receptive field over entire image. The classifier's receptive field is
@@ -68,11 +68,11 @@ class ImageBaseClassifier(ABC):
         """
         predict = getattr(classifier, "predict", None)
         if not callable(predict):
-            raise ValueError('Classifier does not have predict method!')
+            raise ValueError("Classifier does not have predict method!")
 
         predict_proba = getattr(classifier, "predict_proba", None)
         if not callable(predict_proba):
-            raise ValueError('Classifier does not have predict_proba method!')
+            raise ValueError("Classifier does not have predict_proba method!")
 
     def _check_image(self, X):
         """
@@ -83,16 +83,20 @@ class ImageBaseClassifier(ABC):
         """
 
         if (len(X.shape) < 3) or (len(X.shape) > 4):
-            raise ValueError('Input has to have shape [n_samples, n_pixels_y, n_pixels_x] '
-                             'or [n_samples, n_pixels_y, n_pixels_x, n_bands].')
+            raise ValueError(
+                "Input has to have shape [n_samples, n_pixels_y, n_pixels_x] "
+                "or [n_samples, n_pixels_y, n_pixels_x, n_bands]."
+            )
 
         self._samples = X.shape[0]
         self._image_size = X.shape[1:3]
 
         if (self._image_size[0] % self.receptive_field[0]) or (self._image_size[0] % self.receptive_field[0]):
-            raise ValueError(f'Image {(self._image_size[0], self._image_size[0])} and receptive fields '
-                             f'{(self.receptive_field[0], self.receptive_field[1])} mismatch.\n'
-                             'Resize your image to be divisible with receptive field.')
+            raise ValueError(
+                f"Image {(self._image_size[0], self._image_size[0])} and receptive fields "
+                f"{(self.receptive_field[0], self.receptive_field[1])} mismatch.\n"
+                "Resize your image to be divisible with receptive field."
+            )
 
     @staticmethod
     def _transform_input(X):
@@ -103,7 +107,7 @@ class ImageBaseClassifier(ABC):
 
     @abstractmethod
     def image_predict(self, X):
-        """ Predicts class label for the entire image.
+        """Predicts class label for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -114,7 +118,7 @@ class ImageBaseClassifier(ABC):
 
     @abstractmethod
     def image_predict_proba(self, X):
-        """ Predicts class probabilities for the entire image.
+        """Predicts class probabilities for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -125,7 +129,7 @@ class ImageBaseClassifier(ABC):
 
 
 class ImagePixelClassifier(ImageBaseClassifier):
-    """ Performs a per-pixel classification
+    """Performs a per-pixel classification
 
     It divides the image into individual pixels, runs classifier and collects the result in the shape of the input
     image.
@@ -139,7 +143,7 @@ class ImagePixelClassifier(ImageBaseClassifier):
         ImageBaseClassifier.__init__(self, classifier, (1, 1))
 
     def image_predict(self, X):
-        """ Predicts class label for the entire image.
+        """Predicts class label for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -160,7 +164,7 @@ class ImagePixelClassifier(ImageBaseClassifier):
         return predictions.reshape(X.shape[0], X.shape[1], X.shape[2])
 
     def image_predict_proba(self, X):
-        """ Predicts class probabilities for the entire image.
+        """Predicts class probabilities for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -178,19 +182,18 @@ class ImagePixelClassifier(ImageBaseClassifier):
 
         probabilities = self.classifier.predict_proba(self._transform_input(pixels))
 
-        return probabilities.reshape(X.shape[0], X.shape[1], X.shape[2],
-                                     probabilities.shape[1])
+        return probabilities.reshape(X.shape[0], X.shape[1], X.shape[2], probabilities.shape[1])
 
 
 class ImagePatchClassifier(ImageBaseClassifier):
-    """ Performs a per-patch classification
+    """Performs a per-patch classification
 
     It divides the image into non-overlapping patches of same size as trained classifier's receptieve field and
     runs classifier over them thus producing a classification mask of the same size as image.
     """
 
     def _to_patches(self, X):
-        """ Reshapes input to patches of the size of classifier's receptive field.
+        """Reshapes input to patches of the size of classifier's receptive field.
 
         For example:
 
@@ -220,7 +223,7 @@ class ImagePatchClassifier(ImageBaseClassifier):
         return image_view, new_shape
 
     def image_predict(self, X):
-        """ Predicts class label for the entire image.
+        """Predicts class label for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -243,12 +246,12 @@ class ImagePatchClassifier(ImageBaseClassifier):
 
         # how can this be optimised?
         for i, j, k in itertools.product(range(row_steps), range(col_steps), range(self._samples)):
-            image_results[k, nx * i:nx * (i + 1), ny * j:ny * (j + 1)] = image_predictions[k, i, j]
+            image_results[k, nx * i : nx * (i + 1), ny * j : ny * (j + 1)] = image_predictions[k, i, j]
 
         return image_results
 
     def image_predict_proba(self, X):
-        """ Predicts class probabilities for the entire image.
+        """Predicts class probabilities for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -271,20 +274,20 @@ class ImagePatchClassifier(ImageBaseClassifier):
 
         # how can this be optimised?
         for i, j, k in itertools.product(range(row_steps), range(col_steps), range(self._samples)):
-            image_results[k, nx * i:nx * (i + 1), ny * j:ny * (j + 1), :] = image_probabilities[k, i, j, :]
+            image_results[k, nx * i : nx * (i + 1), ny * j : ny * (j + 1), :] = image_probabilities[k, i, j, :]
 
         return image_results
 
 
 class ImagePixel2PatchClassifier(ImageBaseClassifier):
-    """ Pixel to patch classifier first performs classification on pixel level
+    """Pixel to patch classifier first performs classification on pixel level
     and then combines the results in user defined patches. In case of combining
     probabilities the weighted sum is taken over all pixels in a patch. In case
     of predictions the user defines what fraction of pixels within the patch
     has to belong to signal class ot be considered as signal.
     """
 
-    def __init__(self, classifier, patch_size, mode='mean_prob', target=None, target_threshold=None):
+    def __init__(self, classifier, patch_size, mode="mean_prob", target=None, target_threshold=None):
         """
         :param classifier: The actual trained classifier that will be executed over entire image
         :type classifier: object
@@ -308,7 +311,7 @@ class ImagePixel2PatchClassifier(ImageBaseClassifier):
         ImageBaseClassifier.__init__(self, classifier, (1, 1))
 
     def _to_patches(self, X):
-        """ Reshapes input to patches of the size of classifier's receptive field.
+        """Reshapes input to patches of the size of classifier's receptive field.
 
         For example:
 
@@ -334,11 +337,14 @@ class ImagePixel2PatchClassifier(ImageBaseClassifier):
         unique, counts = np.unique(array, return_counts=True)
         valuecount = dict(zip(unique, counts))
 
-        return 1 if self.target in valuecount.keys() and \
-                    valuecount[self.target] / np.ma.size(array) >= self.target_threshold else 0
+        return (
+            1
+            if self.target in valuecount.keys() and valuecount[self.target] / np.ma.size(array) >= self.target_threshold
+            else 0
+        )
 
     def image_predict(self, X):
-        """ Predicts class label for the entire image.
+        """Predicts class label for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -347,10 +353,10 @@ class ImagePixel2PatchClassifier(ImageBaseClassifier):
         """
         self._check_image(X)
 
-        if self.mode == 'majority_class':
+        if self.mode == "majority_class":
             predictions = self.pixel_classifier.image_predict(X)
 
-        elif self.mode == 'mean_prob':
+        elif self.mode == "mean_prob":
             probabilities = self.image_predict_proba(X)
             predictions = (probabilities[..., self.target] > self.target_threshold).astype(int)
 
@@ -366,7 +372,7 @@ class ImagePixel2PatchClassifier(ImageBaseClassifier):
         return predictions
 
     def image_predict_proba(self, X):
-        """ Predicts class probabilities for the entire image.
+        """Predicts class probabilities for the entire image.
 
         :param X: Data for prediction of shape `(n_samples, n_pixels_y, n_pixels_x, n_bands)`
         :type X: np.ndarray
@@ -393,11 +399,12 @@ class ImagePixel2PatchClassifier(ImageBaseClassifier):
 
 
 class ImageClassificationMaskTask(EOTask):
-    """ This task applies pixel-based uni-temporal classifier to each image in the patch and appends to each image
+    """This task applies pixel-based uni-temporal classifier to each image in the patch and appends to each image
     the classification mask.
     """
+
     def __init__(self, input_feature, output_feature, classifier):
-        """ Run a classification task on a EOPatch feature
+        """Run a classification task on a EOPatch feature
 
         Classifier is an instance of the ImageBaseClassifier that maps [w, h, d] numpy arrays (d-channel images)
         into [w, h, 1] numpy arrays (classification masks).
@@ -414,7 +421,7 @@ class ImageClassificationMaskTask(EOTask):
         self.classifier = classifier
 
     def execute(self, eopatch):
-        """ Transforms [n, w, h, d] eopatch into a [n, w, h, 1] eopatch, adding it the classification mask.
+        """Transforms [n, w, h, d] eopatch into a [n, w, h, 1] eopatch, adding it the classification mask.
 
         :param eopatch: An input EOPatch
         :type eopatch: EOPatch

@@ -15,11 +15,11 @@ from ..geometry_io import _BaseVectorImportTask
 
 
 class GeoDBVectorImportTask(_BaseVectorImportTask):
-    """ A task for importing vector data from `geoDB <https://eurodatacube.com/marketplace/services/edc_geodb>`__
+    """A task for importing vector data from `geoDB <https://eurodatacube.com/marketplace/services/edc_geodb>`__
     into EOPatch
     """
-    def __init__(self, feature, geodb_client, geodb_collection, geodb_db,
-                 reproject=True, clip=False, **kwargs):
+
+    def __init__(self, feature, geodb_client, geodb_collection, geodb_db, reproject=True, clip=False, **kwargs):
         """
         :param feature: A vector feature into which to import data
         :type feature: (FeatureType, str)
@@ -46,32 +46,28 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
 
     @property
     def dataset_crs(self):
-        """ Provides a "crs" of dataset, loads it lazily (i.e. the first time it is needed)
+        """Provides a "crs" of dataset, loads it lazily (i.e. the first time it is needed)
 
         :return: Dataset's CRS
         :rtype: CRS
         """
         if self._dataset_crs is None:
-            srid = self.geodb_client.get_collection_srid(
-                collection=self.geodb_collection,
-                database=self.geodb_db
-            )
-            self._dataset_crs = CRS(f'epsg:{srid}')
+            srid = self.geodb_client.get_collection_srid(collection=self.geodb_collection, database=self.geodb_db)
+            self._dataset_crs = CRS(f"epsg:{srid}")
 
         return self._dataset_crs
 
     def _load_vector_data(self, bbox):
-        """ Loads vector data from geoDB table
-        """
+        """Loads vector data from geoDB table"""
         prepared_bbox = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
-        if 'comparison_mode' not in self.geodb_kwargs:
-            self.geodb_kwargs['comparison_mode'] = 'intersects'
+        if "comparison_mode" not in self.geodb_kwargs:
+            self.geodb_kwargs["comparison_mode"] = "intersects"
 
         return self.geodb_client.get_collection_by_bbox(
             collection=self.geodb_collection,
             database=self.geodb_db,
             bbox=prepared_bbox,
             bbox_crs=self.dataset_crs.epsg,
-            **self.geodb_kwargs
+            **self.geodb_kwargs,
         )

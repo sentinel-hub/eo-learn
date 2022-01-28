@@ -26,7 +26,7 @@ def test_get_local_filesystem(tmp_path):
     filesystem = get_filesystem(tmp_path)
     assert isinstance(filesystem, OSFS)
 
-    subfolder_path = os.path.join(tmp_path, 'subfolder')
+    subfolder_path = os.path.join(tmp_path, "subfolder")
 
     with pytest.raises(CreateFailed):
         assert get_filesystem(subfolder_path, create=False)
@@ -43,16 +43,16 @@ def test_pathlib_support(tmp_path):
 
 @mock_s3
 def test_s3_filesystem():
-    folder_name = 'my_folder'
-    s3_url = f's3://test-eo-bucket/{folder_name}'
+    folder_name = "my_folder"
+    s3_url = f"s3://test-eo-bucket/{folder_name}"
 
     filesystem = get_filesystem(s3_url)
     assert isinstance(filesystem, S3FS)
     assert filesystem.dir_path == folder_name
 
     custom_config = SHConfig()
-    custom_config.aws_access_key_id = 'fake-key'
-    custom_config.aws_secret_access_key = 'fake-secret'
+    custom_config.aws_access_key_id = "fake-key"
+    custom_config.aws_secret_access_key = "fake-secret"
     filesystem1 = load_s3_filesystem(s3_url, strict=False, config=custom_config)
     filesystem2 = get_filesystem(s3_url, config=custom_config)
 
@@ -62,21 +62,18 @@ def test_s3_filesystem():
         assert filesystem.aws_secret_access_key == custom_config.aws_secret_access_key
 
 
-@mock.patch('eolearn.core.fs_utils.Session')
+@mock.patch("eolearn.core.fs_utils.Session")
 def test_get_aws_credentials(mocked_copy):
-    fake_credentials = Credentials(
-        access_key='my-aws-access-key',
-        secret_key='my-aws-secret-key'
-    )
+    fake_credentials = Credentials(access_key="my-aws-access-key", secret_key="my-aws-secret-key")
 
     mocked_copy.return_value.get_credentials.return_value = fake_credentials
 
-    config = get_aws_credentials('xyz')
+    config = get_aws_credentials("xyz")
     assert config.aws_access_key_id == fake_credentials.access_key
     assert config.aws_secret_access_key == fake_credentials.secret_key
 
     default_config = SHConfig()
-    config = get_aws_credentials('default', config=default_config)
+    config = get_aws_credentials("default", config=default_config)
     assert config.aws_access_key_id != default_config.aws_access_key_id
     assert config.aws_secret_access_key != default_config.aws_secret_access_key
 

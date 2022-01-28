@@ -32,7 +32,7 @@ class ErosionTask(EOTask):
 
     def __init__(self, mask_feature, disk_radius=1, erode_labels=None, no_data_label=0):
         if not isinstance(disk_radius, int) or disk_radius is None or disk_radius < 1:
-            raise ValueError('Disk radius should be an integer larger than 0!')
+            raise ValueError("Disk radius should be an integer larger than 0!")
 
         self.mask_type, self.mask_name, self.new_mask_name = self.parse_renamed_feature(mask_feature)
         self.disk = skimage.morphology.disk(disk_radius)

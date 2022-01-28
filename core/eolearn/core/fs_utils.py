@@ -20,7 +20,7 @@ from sentinelhub import SHConfig
 
 
 def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> fs.base.FS:
-    """ A utility function for initializing any type of filesystem object with PyFilesystem2 package
+    """A utility function for initializing any type of filesystem object with PyFilesystem2 package
 
     :param path: A filesystem path
     :type path: str
@@ -42,7 +42,7 @@ def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] =
 
 
 def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS, str]:
-    """ Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
+    """Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
     on the filesystem
 
     :param path_parts: One or more strings defining a filesystem path
@@ -52,24 +52,25 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS
     path_parts = tuple(str(part) for part in path_parts if part is not None)
     base_path = path_parts[0]
 
-    if '://' in base_path:
-        base_path_parts = base_path.split('/', 3)
-        filesystem_path = '/'.join(base_path_parts[:-1])
-        relative_path = '/'.join([base_path_parts[-1], *path_parts[1:]])
+    if "://" in base_path:
+        base_path_parts = base_path.split("/", 3)
+        filesystem_path = "/".join(base_path_parts[:-1])
+        relative_path = "/".join([base_path_parts[-1], *path_parts[1:]])
 
         return get_filesystem(filesystem_path, **kwargs), relative_path
 
     entire_path = os.path.abspath(os.path.join(*path_parts))
     pure_path = PurePath(entire_path)
     posix_path = pure_path.relative_to(pure_path.anchor).as_posix()
-    filesystem_path = base_path.split('\\')[0] if '\\' in base_path else '/'
+    filesystem_path = base_path.split("\\")[0] if "\\" in base_path else "/"
 
     return get_filesystem(filesystem_path, **kwargs), posix_path
 
 
-def load_s3_filesystem(path: str, strict: bool = False, config: Optional[SHConfig] = None,
-                       aws_profile: Optional[str] = None) -> S3FS:
-    """ Loads AWS s3 filesystem from a path
+def load_s3_filesystem(
+    path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None
+) -> S3FS:
+    """Loads AWS s3 filesystem from a path
 
     :param path: A path to a folder on s3 bucket that will be the base folder in this filesystem
     :type path: str
@@ -89,16 +90,16 @@ def load_s3_filesystem(path: str, strict: bool = False, config: Optional[SHConfi
     if aws_profile:
         config = get_aws_credentials(aws_profile, config=config)
 
-    path_chunks = path.split('/', 3)[2:]
+    path_chunks = path.split("/", 3)[2:]
     bucket_name = path_chunks[0]
-    dir_path = path_chunks[1] if len(path_chunks) > 1 else '/'
+    dir_path = path_chunks[1] if len(path_chunks) > 1 else "/"
 
     return S3FS(
         bucket_name=bucket_name,
         dir_path=dir_path,
         aws_access_key_id=config.aws_access_key_id if config.aws_access_key_id else None,
         aws_secret_access_key=config.aws_secret_access_key if config.aws_secret_access_key else None,
-        strict=strict
+        strict=strict,
     )
 
 

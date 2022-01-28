@@ -13,14 +13,14 @@ from eolearn.core import FeatureType, EOPatch
 from eolearn.mask import MaskFeatureTask, JoinMasksTask
 
 
-BANDS_FEATURE = FeatureType.DATA, 'BANDS-S2-L1C'
-NDVI_FEATURE = FeatureType.DATA, 'NDVI'
-CLOUD_MASK_FEATURE = FeatureType.MASK, 'CLM'
-LULC_FEATURE = FeatureType.MASK_TIMELESS, 'LULC'
+BANDS_FEATURE = FeatureType.DATA, "BANDS-S2-L1C"
+NDVI_FEATURE = FeatureType.DATA, "NDVI"
+CLOUD_MASK_FEATURE = FeatureType.MASK, "CLM"
+LULC_FEATURE = FeatureType.MASK_TIMELESS, "LULC"
 
 
 def test_bands_with_clm(test_eopatch):
-    ftype, old_name, new_name = FeatureType.DATA, 'BANDS-S2-L1C', 'BANDS-S2-L1C_MASKED'
+    ftype, old_name, new_name = FeatureType.DATA, "BANDS-S2-L1C", "BANDS-S2-L1C_MASKED"
 
     mask_task = MaskFeatureTask([ftype, old_name, new_name], CLOUD_MASK_FEATURE, mask_values=[True], no_data_value=-1)
     eop = mask_task(test_eopatch)
@@ -32,7 +32,7 @@ def test_bands_with_clm(test_eopatch):
 
 
 def test_ndvi_with_clm(test_eopatch):
-    ftype, old_name, new_name = FeatureType.DATA, 'NDVI', 'NDVI_MASKED'
+    ftype, old_name, new_name = FeatureType.DATA, "NDVI", "NDVI_MASKED"
 
     mask_task = MaskFeatureTask([ftype, old_name, new_name], CLOUD_MASK_FEATURE, mask_values=[True])
     eop = mask_task(test_eopatch)
@@ -43,7 +43,7 @@ def test_ndvi_with_clm(test_eopatch):
 
 
 def test_clm_with_lulc(test_eopatch):
-    ftype, old_name, new_name = FeatureType.MASK, 'CLM', 'CLM_MASKED'
+    ftype, old_name, new_name = FeatureType.MASK, "CLM", "CLM_MASKED"
 
     mask_task = MaskFeatureTask([ftype, old_name, new_name], LULC_FEATURE, mask_values=[2], no_data_value=255)
     eop = mask_task(test_eopatch)
@@ -56,7 +56,7 @@ def test_clm_with_lulc(test_eopatch):
 
 
 def test_lulc_with_lulc(test_eopatch):
-    ftype, old_name, new_name = FeatureType.MASK_TIMELESS, 'LULC', 'LULC_MASKED'
+    ftype, old_name, new_name = FeatureType.MASK_TIMELESS, "LULC", "LULC_MASKED"
 
     mask_task = MaskFeatureTask([ftype, old_name, new_name], LULC_FEATURE, mask_values=[1], no_data_value=100)
     eop = mask_task(test_eopatch)
@@ -91,13 +91,13 @@ def test_join_masks():
 
     input_features = [mask1, mask2, mask3]
     output_feature = (FeatureType.MASK_TIMELESS, "Output")
-    
+
     task1 = JoinMasksTask(input_features, output_feature)
     expected_result = mask_data1 & mask_data2 & mask_data3
     task1(eopatch)
     assert np.array_equal(eopatch[output_feature], expected_result)
 
-    task2 = JoinMasksTask(input_features, output_feature, 'or')
+    task2 = JoinMasksTask(input_features, output_feature, "or")
     expected_result = mask_data1 | mask_data2 | mask_data3
     task2(eopatch)
     assert np.array_equal(eopatch[output_feature], expected_result)

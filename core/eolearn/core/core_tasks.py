@@ -27,6 +27,7 @@ class CopyTask(EOTask):
     It copies feature type dictionaries but not the data itself.
 
     """
+
     def __init__(self, features=...):
         """
         :param features: A collection of features or feature types that will be copied into a new EOPatch.
@@ -39,15 +40,15 @@ class CopyTask(EOTask):
 
 
 class DeepCopyTask(CopyTask):
-    """ Makes a deep copy of the given EOPatch.
-    """
+    """Makes a deep copy of the given EOPatch."""
+
     def execute(self, eopatch):
         return eopatch.__deepcopy__(features=self.features)
 
 
 class IOTask(EOTask):
-    """ An abstract Input/Output task that can handle a path and a filesystem object
-    """
+    """An abstract Input/Output task that can handle a path and a filesystem object"""
+
     def __init__(self, path, filesystem=None, create=False, config=None):
         """
         :param path: root path where all EOPatches are saved
@@ -66,12 +67,11 @@ class IOTask(EOTask):
         self._create = create
         self.config = config
 
-        self.filesystem_path = '/' if self._filesystem is None else self.path
+        self.filesystem_path = "/" if self._filesystem is None else self.path
 
     @property
     def filesystem(self):
-        """ A filesystem property that either initializes a new object or returns an existing one
-        """
+        """A filesystem property that either initializes a new object or returns an existing one"""
         if self._filesystem is None:
             return get_filesystem(self.path, create=self._create, config=self.config)
 
@@ -79,14 +79,13 @@ class IOTask(EOTask):
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
-        """ Implement execute function
-        """
+        """Implement execute function"""
         raise NotImplementedError
 
 
 class SaveTask(IOTask):
-    """ Saves the given EOPatch to a filesystem
-    """
+    """Saves the given EOPatch to a filesystem"""
+
     def __init__(self, path, filesystem=None, config=None, **kwargs):
         """
         :param path: root path where all EOPatches are saved
@@ -109,7 +108,7 @@ class SaveTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
-    def execute(self, eopatch, *, eopatch_folder=''):
+    def execute(self, eopatch, *, eopatch_folder=""):
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
@@ -126,8 +125,8 @@ class SaveTask(IOTask):
 
 
 class LoadTask(IOTask):
-    """ Loads an EOPatch from a filesystem
-    """
+    """Loads an EOPatch from a filesystem"""
+
     def __init__(self, path, filesystem=None, config=None, **kwargs):
         """
         :param path: root directory where all EOPatches are saved
@@ -146,7 +145,7 @@ class LoadTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, *, eopatch_folder=''):
+    def execute(self, *, eopatch_folder=""):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch_folder: name of EOPatch folder containing data
@@ -160,8 +159,8 @@ class LoadTask(IOTask):
 
 
 class AddFeatureTask(EOTask):
-    """Adds a feature to the given EOPatch.
-    """
+    """Adds a feature to the given EOPatch."""
+
     def __init__(self, feature):
         """
         :param feature: Feature to be added
@@ -188,8 +187,8 @@ class AddFeatureTask(EOTask):
 
 
 class RemoveFeatureTask(EOTask):
-    """Removes one or multiple features from the given EOPatch.
-    """
+    """Removes one or multiple features from the given EOPatch."""
+
     def __init__(self, features):
         """
         :param features: A collection of features to be removed.
@@ -215,8 +214,8 @@ class RemoveFeatureTask(EOTask):
 
 
 class RenameFeatureTask(EOTask):
-    """Renames one or multiple features from the given EOPatch.
-    """
+    """Renames one or multiple features from the given EOPatch."""
+
     def __init__(self, features):
         """
         :param features: A collection of features to be renamed.
@@ -240,8 +239,7 @@ class RenameFeatureTask(EOTask):
 
 
 class DuplicateFeatureTask(EOTask):
-    """Duplicates one or multiple features in an EOPatch.
-    """
+    """Duplicates one or multiple features in an EOPatch."""
 
     def __init__(self, features, deep_copy=False):
         """
@@ -277,7 +275,7 @@ class DuplicateFeatureTask(EOTask):
 
 
 class InitializeFeatureTask(EOTask):
-    """ Initializes the values of a feature.
+    """Initializes the values of a feature.
 
     Example:
 
@@ -288,6 +286,7 @@ class InitializeFeatureTask(EOTask):
         # Initialize data of the same shape as (FeatureType.DATA, 'data1')
         InitializeFeature((FeatureType.MASK, 'mask1'), shape=(FeatureType.DATA, 'data1'), init_value=1)
     """
+
     def __init__(self, features, shape, init_value=0, dtype=np.uint8):
         """
         :param features: A collection of features to initialize.
@@ -336,8 +335,8 @@ class InitializeFeatureTask(EOTask):
 
 
 class MoveFeatureTask(EOTask):
-    """ Task to copy/deepcopy fields from one EOPatch to another.
-    """
+    """Task to copy/deepcopy fields from one EOPatch to another."""
+
     def __init__(self, features, deep_copy=False):
         """
         :param features: A collection of features to be moved.
@@ -368,43 +367,44 @@ class MoveFeatureTask(EOTask):
 
 
 class MapFeatureTask(EOTask):
-    """ Applies a function to each feature in input_features of a patch and stores the results in a set of
-        output_features.
+    """Applies a function to each feature in input_features of a patch and stores the results in a set of
+    output_features.
 
-        Example using inheritance:
+    Example using inheritance:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            class MultiplyFeatures(MapFeatureTask):
-                def map_method(self, f):
-                    return f * 2
+        class MultiplyFeatures(MapFeatureTask):
+            def map_method(self, f):
+                return f * 2
 
-            multiply = MultiplyFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
-                                        {FeatureType.MASK: ['m1', 'm2', 'm3']})  # output features
+        multiply = MultiplyFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
+                                    {FeatureType.MASK: ['m1', 'm2', 'm3']})  # output features
 
-            result = multiply(patch)
+        result = multiply(patch)
 
-        Example using lambda:
+    Example using lambda:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
-                                      {FeatureType.MASK: ['m1', 'm2', 'm3']},  # output features
-                                      lambda f: f*2)                           # a function to apply to each feature
+        multiply = MapFeatureTask({FeatureType.DATA: ['f1', 'f2', 'f3']},  # input features
+                                  {FeatureType.MASK: ['m1', 'm2', 'm3']},  # output features
+                                  lambda f: f*2)                           # a function to apply to each feature
 
-            result = multiply(patch)
+        result = multiply(patch)
 
-        Example using a np.max and it's kwargs passed as arguments to the MapFeatureTask:
+    Example using a np.max and it's kwargs passed as arguments to the MapFeatureTask:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            maximum = MapFeatureTask((FeatureType.DATA: 'f1'),  # input features
-                                     (FeatureType.MASK, 'm1'),  # output feature
-                                     np.max,                    # a function to apply to each feature
-                                     axis=0)                    # function's kwargs
+        maximum = MapFeatureTask((FeatureType.DATA: 'f1'),  # input features
+                                 (FeatureType.MASK, 'm1'),  # output feature
+                                 np.max,                    # a function to apply to each feature
+                                 axis=0)                    # function's kwargs
 
-            result = maximum(patch)
+        result = maximum(patch)
     """
+
     def __init__(self, input_features, output_features, map_function=None, **kwargs):
         """
         :param input_features: A collection of the input features to be mapped.
@@ -420,7 +420,7 @@ class MapFeatureTask(EOTask):
         self.kwargs = kwargs
 
         if len(self.input_features) != len(self.output_feature):
-            raise ValueError('The number of input and output features must match.')
+            raise ValueError("The number of input and output features must match.")
 
         self.function = map_function if map_function else self.map_method
 
@@ -440,11 +440,11 @@ class MapFeatureTask(EOTask):
         """
         A function that will be applied to the input features.
         """
-        raise NotImplementedError('map_method should be overridden.')
+        raise NotImplementedError("map_method should be overridden.")
 
 
 class ZipFeatureTask(EOTask):
-    """ Passes a set of input_features to a function, which returns a single features as a result and stores it in
+    """Passes a set of input_features to a function, which returns a single features as a result and stores it in
     the given EOPatch.
 
         Example using inheritance:
@@ -481,6 +481,7 @@ class ZipFeatureTask(EOTask):
 
             result = maximum(patch)
     """
+
     def __init__(self, input_features, output_feature, zip_function=None, **kwargs):
         """
         :param input_features: A collection of the input features to be mapped.
@@ -509,23 +510,21 @@ class ZipFeatureTask(EOTask):
         return eopatch
 
     def zip_method(self, *f):
-        """ A function that will be applied to the input features if overridden.
-        """
-        raise NotImplementedError('zip_method should be overridden.')
+        """A function that will be applied to the input features if overridden."""
+        raise NotImplementedError("zip_method should be overridden.")
 
 
 class MergeFeatureTask(ZipFeatureTask):
-    """ Merges multiple features together by concatenating their data along the last axis.
-    """
+    """Merges multiple features together by concatenating their data along the last axis."""
+
     def zip_method(self, *f):
-        """Concatenates the data of features along the last axis.
-        """
+        """Concatenates the data of features along the last axis."""
         return np.concatenate(f, axis=-1)
 
 
 class ExtractBandsTask(MapFeatureTask):
-    """ Moves a subset of bands from one feature to a new one.
-    """
+    """Moves a subset of bands from one feature to a new one."""
+
     def __init__(self, input_feature, output_feature, bands):
         """
         :param input_feature: A source feature from which to take the subset of bands.
@@ -546,8 +545,8 @@ class ExtractBandsTask(MapFeatureTask):
 
 
 class CreateEOPatchTask(EOTask):
-    """Creates an EOPatch
-    """
+    """Creates an EOPatch"""
+
     def execute(self, **kwargs):
         """Returns a newly created EOPatch with the given kwargs.
 
@@ -559,10 +558,11 @@ class CreateEOPatchTask(EOTask):
 
 
 class MergeEOPatchesTask(EOTask):
-    """ Merge content from multiple EOPatches into a single EOPatch
+    """Merge content from multiple EOPatches into a single EOPatch
 
     Check :func:`EOPatch.merge<eolearn.core.eodata.EOPatch.merge>` for more information about the merging process.
     """
+
     def __init__(self, **merge_kwargs):
         """
         :param merge_kwargs: Keyword arguments defined for `EOPatch.merge` method.
@@ -577,54 +577,46 @@ class MergeEOPatchesTask(EOTask):
         :rtype: EOPatch
         """
         if not eopatches:
-            raise ValueError('At least one EOPatch should be given')
+            raise ValueError("At least one EOPatch should be given")
 
         return eopatches[0].merge(*eopatches[1:], **self.merge_kwargs)
 
 
 @renamed_and_deprecated
 class SaveToDisk(SaveTask):
-    """ A deprecated version of SaveTask
-    """
+    """A deprecated version of SaveTask"""
 
 
 @renamed_and_deprecated
 class LoadFromDisk(LoadTask):
-    """ A deprecated version of LoadTask
-    """
+    """A deprecated version of LoadTask"""
 
 
 @renamed_and_deprecated
 class AddFeature(AddFeatureTask):
-    """ A deprecated version of AddFeatureTask
-    """
+    """A deprecated version of AddFeatureTask"""
 
 
 @renamed_and_deprecated
 class RemoveFeature(RemoveFeatureTask):
-    """ A deprecated version of RemoveFeatureTask
-    """
+    """A deprecated version of RemoveFeatureTask"""
 
 
 @renamed_and_deprecated
 class RenameFeature(RenameFeatureTask):
-    """ A deprecated version of RenameFeatureTask
-    """
+    """A deprecated version of RenameFeatureTask"""
 
 
 @renamed_and_deprecated
 class DuplicateFeature(DuplicateFeatureTask):
-    """ A deprecated version of DuplicateFeatureTask
-    """
+    """A deprecated version of DuplicateFeatureTask"""
 
 
 @renamed_and_deprecated
 class InitializeFeature(InitializeFeatureTask):
-    """ A deprecated version of InitializeFeatureTask
-    """
+    """A deprecated version of InitializeFeatureTask"""
 
 
 @renamed_and_deprecated
 class MoveFeature(MoveFeatureTask):
-    """ A deprecated version of MoveFeatureTask
-    """
+    """A deprecated version of MoveFeatureTask"""

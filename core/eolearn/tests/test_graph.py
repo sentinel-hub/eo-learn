@@ -15,7 +15,7 @@ from hypothesis import given, strategies as st
 from eolearn.core.graph import DirectedGraph, CyclicDependencyError
 
 
-@pytest.fixture(name='test_graph')
+@pytest.fixture(name="test_graph")
 def test_graph_fixture():
     return DirectedGraph({1: [2, 3], 2: [4], 3: [4]})
 
@@ -116,11 +116,11 @@ def test_del_vertex():
 
 @given(
     st.lists(
-        st.tuples(
-            st.integers(min_value=0, max_value=10),
-            st.integers(min_value=0, max_value=10)
-        ).filter(lambda p: p[0] != p[1]),
-        min_size=1, max_size=110
+        st.tuples(st.integers(min_value=0, max_value=10), st.integers(min_value=0, max_value=10)).filter(
+            lambda p: p[0] != p[1]
+        ),
+        min_size=1,
+        max_size=110,
     )
 )
 def test_resolve_dependencies(edges):

@@ -31,8 +31,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
-    """ Base abstract class for local IO tasks
-    """
+    """Base abstract class for local IO tasks"""
+
     def __init__(self, feature, folder=None, *, image_dtype=None, no_data_value=0, config=None):
         """
         :param feature: Feature which will be exported or imported
@@ -53,7 +53,7 @@ class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
         self.config = config
 
     def _get_filesystem_and_paths(self, filename, timestamps, create_paths=False):
-        """ It takes location parameters from init and execute methods, joins them together, and creates a filesystem
+        """It takes location parameters from init and execute methods, joins them together, and creates a filesystem
         object and file paths relative to the filesystem object.
         """
 
@@ -69,8 +69,9 @@ class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
                 elif not timestamps:
                     filename_paths.append(*self._generate_paths(relative_path, timestamps))
                 else:
-                    raise ValueError('The number of provided timestamps does not match '
-                                     'the number of provided filenames.')
+                    raise ValueError(
+                        "The number of provided timestamps does not match the number of provided filenames."
+                    )
         else:
             raise TypeError(f"The 'filename' parameter must either be a list or a string, but {filename} found")
 
@@ -83,16 +84,15 @@ class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
 
     @staticmethod
     def _generate_paths(path_template, timestamps):
-        """ Uses a filename path template to create a list of actual filename paths
-        """
-        if not (path_template.lower().endswith('.tif') or path_template.lower().endswith('.tiff')):
-            path_template = f'{path_template}.tif'
+        """Uses a filename path template to create a list of actual filename paths"""
+        if not (path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")):
+            path_template = f"{path_template}.tif"
 
         if not timestamps:
             return [path_template]
 
-        if '*' in path_template:
-            path_template = path_template.replace('*', '%Y%m%dT%H%M%S')
+        if "*" in path_template:
+            path_template = path_template.replace("*", "%Y%m%dT%H%M%S")
 
         if timestamps[0].strftime(path_template) == path_template:
             return [path_template]
@@ -101,7 +101,7 @@ class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
 
 
 class ExportToTiffTask(BaseLocalIoTask):
-    """ Task exports specified feature to Geo-Tiff.
+    """Task exports specified feature to Geo-Tiff.
 
     When exporting multiple times OR bands, the Geo-Tiff `band` counts are in the expected order.
     However, when exporting multiple times AND bands, the order obeys the following pattern:
@@ -111,8 +111,19 @@ class ExportToTiffTask(BaseLocalIoTask):
     where T and B are the time and band indices of the array,
     and M and N are the lengths of these indices, respectively
     """
-    def __init__(self, feature, folder=None, *, band_indices=None, date_indices=None, crs=None, fail_on_missing=True,
-                 compress=None, **kwargs):
+
+    def __init__(
+        self,
+        feature,
+        folder=None,
+        *,
+        band_indices=None,
+        date_indices=None,
+        crs=None,
+        fail_on_missing=True,
+        compress=None,
+        **kwargs,
+    ):
         """
         :param feature: Feature which will be exported
         :type feature: (FeatureType, str)
@@ -151,7 +162,7 @@ class ExportToTiffTask(BaseLocalIoTask):
         self.compress = compress
 
     def _prepare_image_array(self, eopatch, feature):
-        """ Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
+        """Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
         array has shape (channels, height, width) and is of correct dtype.
         """
         data_array = self._get_bands_subset(eopatch[feature])
@@ -172,29 +183,27 @@ class ExportToTiffTask(BaseLocalIoTask):
         return self._reshape_to_image_array(data_array)
 
     def _get_bands_subset(self, array):
-        """ Reduce array by selecting a subset of bands
-        """
+        """Reduce array by selecting a subset of bands"""
         if self.band_indices is None:
             return array
         if isinstance(self.band_indices, list):
             if [band for band in self.band_indices if not isinstance(band, int)]:
-                raise ValueError(f'Invalid format in {self.band_indices} list, expected integers')
+                raise ValueError(f"Invalid format in {self.band_indices} list, expected integers")
             return array[..., self.band_indices]
         if isinstance(self.band_indices, tuple):
             if tuple(map(type, self.band_indices)) != (int, int):
-                raise ValueError(f'Invalid format in {self.band_indices} tuple, expected integers')
-            return array[..., self.band_indices[0]: self.band_indices[1] + 1]
+                raise ValueError(f"Invalid format in {self.band_indices} tuple, expected integers")
+            return array[..., self.band_indices[0] : self.band_indices[1] + 1]
 
-        raise ValueError(f'Invalid format in {self.band_indices}, expected tuple or list')
+        raise ValueError(f"Invalid format in {self.band_indices}, expected tuple or list")
 
     def _get_dates_subset(self, array, dates):
-        """ Reduce array by selecting a subset of times
-        """
+        """Reduce array by selecting a subset of times"""
         if self.date_indices is None:
             return array
         if isinstance(self.date_indices, list):
             if [date for date in self.date_indices if not isinstance(date, int)]:
-                raise ValueError(f'Invalid format in {self.date_indices} list, expected integers')
+                raise ValueError(f"Invalid format in {self.date_indices} list, expected integers")
             return array[np.array(self.date_indices), ...]
         if isinstance(self.date_indices, tuple):
             dates = np.array(dates)
@@ -208,20 +217,22 @@ class ExportToTiffTask(BaseLocalIoTask):
                 start_date = self.date_indices[0]
                 end_date = self.date_indices[1]
             else:
-                raise ValueError(f'Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes')
+                raise ValueError(f"Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes")
             return array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
 
-        raise ValueError(f'Invalid format in {self.date_indices}, expected tuple or list')
+        raise ValueError(f"Invalid format in {self.date_indices}, expected tuple or list")
 
     def _set_export_dtype(self, data_array, feature):
-        """ To a given array it sets a dtype in which data will be exported
-        """
+        """To a given array it sets a dtype in which data will be exported"""
         image_dtype = data_array.dtype if self.image_dtype is None else self.image_dtype
 
         if image_dtype == np.int64:
             image_dtype = np.int32
-            warnings.warn(f'Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export '
-                          'as numpy.int32 instead', EORuntimeWarning)
+            warnings.warn(
+                f"Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export "
+                "as numpy.int32 instead",
+                EORuntimeWarning,
+            )
 
         if image_dtype == data_array.dtype:
             return data_array
@@ -229,23 +240,39 @@ class ExportToTiffTask(BaseLocalIoTask):
 
     @staticmethod
     def _reshape_to_image_array(data_array):
-        """ Reshapes an array in form of (times, height, width, bands) into array in form of (channels, height, width)
-        """
+        """Reshapes an array in form of (times, height, width, bands) into array in form of (channels, height, width)"""
         time_dim, height, width, band_dim = data_array.shape
 
         return np.moveaxis(data_array, -1, 1).reshape(time_dim * band_dim, height, width)
 
-    def _export_tiff(self, image_array, filesystem, path, channel_count,
-                     dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform):
-        """ Export an EOPatch feature to tiff based on input channel range.
-        """
-        with filesystem.openbin(path, 'w') as file_handle:
-            with rasterio.open(file_handle, 'w', driver='GTiff',
-                               width=dst_width, height=dst_height,
-                               count=channel_count,
-                               dtype=image_array.dtype, nodata=self.no_data_value,
-                               transform=dst_transform, crs=dst_crs,
-                               compress=self.compress) as dst:
+    def _export_tiff(
+        self,
+        image_array,
+        filesystem,
+        path,
+        channel_count,
+        dst_crs,
+        dst_height,
+        dst_transform,
+        dst_width,
+        src_crs,
+        src_transform,
+    ):
+        """Export an EOPatch feature to tiff based on input channel range."""
+        with filesystem.openbin(path, "w") as file_handle:
+            with rasterio.open(
+                file_handle,
+                "w",
+                driver="GTiff",
+                width=dst_width,
+                height=dst_height,
+                count=channel_count,
+                dtype=image_array.dtype,
+                nodata=self.no_data_value,
+                transform=dst_transform,
+                crs=dst_crs,
+                compress=self.compress,
+            ) as dst:
 
                 if dst_crs == src_crs:
                     dst.write(image_array)
@@ -258,11 +285,11 @@ class ExportToTiffTask(BaseLocalIoTask):
                             src_crs=src_crs,
                             dst_transform=dst_transform,
                             dst_crs=dst_crs,
-                            resampling=rasterio.warp.Resampling.nearest
+                            resampling=rasterio.warp.Resampling.nearest,
                         )
 
     def execute(self, eopatch, *, filename=None):
-        """ Execute method
+        """Execute method
 
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
@@ -306,20 +333,41 @@ class ExportToTiffTask(BaseLocalIoTask):
             if len(filename_paths) > 1:
                 channel_count = channel_count // len(eopatch.timestamp)
                 for timestamp_index, path in enumerate(filename_paths):
-                    time_slice_array = image_array[timestamp_index * channel_count:
-                                                   (timestamp_index + 1) * channel_count, ...]
+                    time_slice_array = image_array[
+                        timestamp_index * channel_count : (timestamp_index + 1) * channel_count, ...
+                    ]
 
-                    self._export_tiff(time_slice_array, filesystem, path, channel_count,
-                                      dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
+                    self._export_tiff(
+                        time_slice_array,
+                        filesystem,
+                        path,
+                        channel_count,
+                        dst_crs,
+                        dst_height,
+                        dst_transform,
+                        dst_width,
+                        src_crs,
+                        src_transform,
+                    )
             else:
-                self._export_tiff(image_array, filesystem, filename_paths[0], channel_count,
-                                  dst_crs, dst_height, dst_transform, dst_width, src_crs, src_transform)
+                self._export_tiff(
+                    image_array,
+                    filesystem,
+                    filename_paths[0],
+                    channel_count,
+                    dst_crs,
+                    dst_height,
+                    dst_transform,
+                    dst_width,
+                    src_crs,
+                    src_transform,
+                )
 
         return eopatch
 
 
 class ImportFromTiffTask(BaseLocalIoTask):
-    """ Task for importing data from a Geo-Tiff file into an EOPatch
+    """Task for importing data from a Geo-Tiff file into an EOPatch
 
     The task can take an existing EOPatch and read the part of Geo-Tiff image, which intersects with its bounding
     box, into a new feature. But if no EOPatch is given it will create a new EOPatch, read entire Geo-Tiff image into a
@@ -328,6 +376,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
     Note that if Geo-Tiff file is not completely spatially aligned with location of given EOPatch it will try to fit it
     as best as possible. However it will not do any spatial resampling or interpolation on Geo-TIFF data.
     """
+
     def __init__(self, feature, folder=None, *, timestamp_size=None, **kwargs):
         """
         :param feature: EOPatch feature into which data will be imported
@@ -354,8 +403,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
 
     @staticmethod
     def _get_reading_window(width, height, data_bbox, eopatch_bbox):
-        """ Calculates a window in pixel coordinates for which data will be read from an image
-        """
+        """Calculates a window in pixel coordinates for which data will be read from an image"""
         if eopatch_bbox.crs is not data_bbox.crs:
             eopatch_bbox = eopatch_bbox.transform(data_bbox.crs)
 
@@ -379,7 +427,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
         return (top, bottom), (left, right)
 
     def execute(self, eopatch=None, *, filename=None):
-        """ Execute method which adds a new feature to the EOPatch
+        """Execute method which adds a new feature to the EOPatch
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created
         :type eopatch: EOPatch or None
@@ -398,7 +446,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
         with filesystem:
             data = []
             for path in filename_paths:
-                with filesystem.openbin(path, 'r') as file_handle:
+                with filesystem.openbin(path, "r") as file_handle:
                     with rasterio.open(file_handle) as src:
 
                         data_bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
@@ -427,8 +475,10 @@ class ImportFromTiffTask(BaseLocalIoTask):
                 times = len(eopatch.timestamp) if eopatch.timestamp else 1
 
             if channels % times != 0:
-                raise ValueError('Cannot import as a time-dependant feature because the number of tiff image channels '
-                                 'is not divisible by the number of timestamps')
+                raise ValueError(
+                    "Cannot import as a time-dependant feature because the number of tiff image channels "
+                    "is not divisible by the number of timestamps"
+                )
 
             data = data.reshape((times, channels // times) + data.shape[1:])
             data = np.moveaxis(data, 1, -1)
@@ -440,17 +490,14 @@ class ImportFromTiffTask(BaseLocalIoTask):
 
 @renamed_and_deprecated
 class BaseLocalIo(BaseLocalIoTask, metaclass=ABCMeta):
-    """ A deprecated version of BaseLocalIoTask
-    """
+    """A deprecated version of BaseLocalIoTask"""
 
 
 @renamed_and_deprecated
 class ExportToTiff(ExportToTiffTask):
-    """ A deprecated version of ExportToTiffTask
-    """
+    """A deprecated version of ExportToTiffTask"""
 
 
 @renamed_and_deprecated
 class ImportFromTiff(ImportFromTiffTask):
-    """ A deprecated version of ImportFromTiffTask
-    """
+    """A deprecated version of ImportFromTiffTask"""

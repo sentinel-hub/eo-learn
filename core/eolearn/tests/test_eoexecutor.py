@@ -18,103 +18,102 @@ import time
 
 import pytest
 
-from eolearn.core import (
-    EOTask, EOWorkflow, EONode, EOExecutor, WorkflowResults, execute_with_mp_lock, OutputTask
-)
+from eolearn.core import EOTask, EOWorkflow, EONode, EOExecutor, WorkflowResults, execute_with_mp_lock, OutputTask
 
 
 class ExampleTask(EOTask):
-
     def execute(self, *_, **kwargs):
         my_logger = logging.getLogger(__file__)
-        my_logger.debug('Debug statement of Example task with kwargs: %s', kwargs)
-        my_logger.info('Info statement of Example task with kwargs: %s', kwargs)
-        my_logger.warning('Warning statement of Example task with kwargs: %s', kwargs)
-        my_logger.critical('Super important log')
+        my_logger.debug("Debug statement of Example task with kwargs: %s", kwargs)
+        my_logger.info("Info statement of Example task with kwargs: %s", kwargs)
+        my_logger.warning("Warning statement of Example task with kwargs: %s", kwargs)
+        my_logger.critical("Super important log")
 
-        if 'arg1' in kwargs and kwargs['arg1'] is None:
+        if "arg1" in kwargs and kwargs["arg1"] is None:
             raise Exception
 
 
 class FooTask(EOTask):
-
     @staticmethod
     def execute(*_, **__):
         return 42
 
 
 class KeyboardExceptionTask(EOTask):
-
     @staticmethod
     def execute(*_, **__):
         raise KeyboardInterrupt
 
 
 class CustomLogFilter(logging.Filter):
-    """ A custom filter that keeps only logs with level warning or critical
-    """
+    """A custom filter that keeps only logs with level warning or critical"""
+
     def filter(self, record):
         return record.levelno >= logging.WARNING
 
 
 def logging_function(_=None):
-    """ Logs start, sleeps for 0.5s, logs end
-    """
+    """Logs start, sleeps for 0.5s, logs end"""
     logging.info(multiprocessing.current_process().name)
     time.sleep(0.5)
     logging.info(multiprocessing.current_process().name)
 
 
-@pytest.fixture(scope='session', name='num_workers')
+@pytest.fixture(scope="session", name="num_workers")
 def num_workers_fixture():
     return 5
 
 
-@pytest.fixture(scope='session', name='test_nodes')
+@pytest.fixture(scope="session", name="test_nodes")
 def test_nodes_fixture():
     example = EONode(ExampleTask())
     foo = EONode(FooTask(), inputs=[example, example])
-    output = EONode(OutputTask('output'), inputs=[foo])
-    nodes = {'example': example, 'foo': foo, 'output': output}
+    output = EONode(OutputTask("output"), inputs=[foo])
+    nodes = {"example": example, "foo": foo, "output": output}
     return nodes
 
 
-@pytest.fixture(name='workflow')
+@pytest.fixture(name="workflow")
 def workflow_fixture(test_nodes):
     workflow = EOWorkflow(list(test_nodes.values()))
     return workflow
 
 
-@pytest.fixture(name='execution_kwargs')
+@pytest.fixture(name="execution_kwargs")
 def execution_kwargs_fixture(test_nodes):
-    example_node = test_nodes['example']
+    example_node = test_nodes["example"]
 
     execution_kwargs = [
-        {example_node: {'arg1': 1}},
+        {example_node: {"arg1": 1}},
         {},
-        {example_node: {'arg1': 3, 'arg3': 10}},
-        {example_node: {'arg1': None}}
+        {example_node: {"arg1": 3, "arg3": 10}},
+        {example_node: {"arg1": None}},
     ]
     return execution_kwargs
 
 
 @pytest.mark.parametrize(
-    'test_args',
+    "test_args",
     [
-        (1, True, False), (1, False, True),   # singleprocess
-        (5, True, False), (3, True, True),    # multiprocess
-        (3, False, False), (2, False, True),  # multithread
-    ]
+        (1, True, False),
+        (1, False, True),  # singleprocess
+        (5, True, False),
+        (3, True, True),  # multiprocess
+        (3, False, False),
+        (2, False, True),  # multithread
+    ],
 )
-@pytest.mark.parametrize('execution_names', [None, [4, 'x', 'y', 'z']])
+@pytest.mark.parametrize("execution_names", [None, [4, "x", "y", "z"]])
 def test_read_logs(test_args, execution_names, workflow, execution_kwargs):
     workers, multiprocess, filter_logs = test_args
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
-            workflow, execution_kwargs, save_logs=True,
+            workflow,
+            execution_kwargs,
+            save_logs=True,
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
-            execution_names=execution_names
+            execution_names=execution_names,
         )
         executor.run(workers=workers, multiprocess=multiprocess)
 
@@ -128,10 +127,10 @@ def test_read_logs(test_args, execution_names, workflow, execution_kwargs):
 
         if execution_names:
             for name, log_filename in zip(execution_names, log_filenames):
-                assert log_filename == f'eoexecution-{name}.log'
+                assert log_filename == f"eoexecution-{name}.log"
 
         log_path = os.path.join(executor.report_folder, log_filenames[0])
-        with executor.filesystem.open(log_path, 'r') as fp:
+        with executor.filesystem.open(log_path, "r") as fp:
             line_count = len(fp.readlines())
             expected_line_count = 2 if filter_logs else 12
             assert line_count == expected_line_count
@@ -148,7 +147,7 @@ def test_execution_results(workflow, execution_kwargs):
                 assert isinstance(time_stat, datetime.datetime)
 
 
-@pytest.mark.parametrize('multiprocess', [True, False])
+@pytest.mark.parametrize("multiprocess", [True, False])
 def test_execution_errors(multiprocess, workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
@@ -173,7 +172,7 @@ def test_execution_results(workflow, execution_kwargs):
     for idx, workflow_results in enumerate(results):
         assert isinstance(workflow_results, WorkflowResults)
         if idx != 3:
-            assert workflow_results.outputs['output'] == 42
+            assert workflow_results.outputs["output"] == 42
 
 
 def test_exceptions(workflow, execution_kwargs):
@@ -182,7 +181,7 @@ def test_exceptions(workflow, execution_kwargs):
     with pytest.raises(ValueError):
         EOExecutor(workflow, execution_kwargs, execution_names={1, 2, 3, 4})
     with pytest.raises(ValueError):
-        EOExecutor(workflow, execution_kwargs, execution_names=['a', 'b'])
+        EOExecutor(workflow, execution_kwargs, execution_names=["a", "b"])
 
 
 def test_keyboard_interrupt():
@@ -190,11 +189,9 @@ def test_keyboard_interrupt():
     workflow = EOWorkflow([exception_node])
     execution_kwargs = []
     for _ in range(10):
-        execution_kwargs.append({exception_node: {'arg1': 1}})
+        execution_kwargs.append({exception_node: {"arg1": 1}})
 
-    run_kwargs = [{'workers': 1},
-                {'workers': 3, 'multiprocess': True},
-                {'workers': 3, 'multiprocess': False}]
+    run_kwargs = [{"workers": 1}, {"workers": 3, "multiprocess": True}, {"workers": 3, "multiprocess": False}]
     for kwarg in run_kwargs:
         with pytest.raises(KeyboardInterrupt):
             EOExecutor(workflow, execution_kwargs).run(**kwarg)
@@ -204,7 +201,7 @@ def test_with_lock(num_workers):
     with tempfile.NamedTemporaryFile() as fp:
         logger = logging.getLogger()
         handler = logging.FileHandler(fp.name)
-        handler.setFormatter(logging.Formatter('%(message)s'))
+        handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
@@ -213,10 +210,10 @@ def test_with_lock(num_workers):
         handler.close()
         logger.removeHandler(handler)
 
-        with open(fp.name, 'r') as log_file:
-            lines = log_file.read().strip('\n ').split('\n')
+        with open(fp.name, "r") as log_file:
+            lines = log_file.read().strip("\n ").split("\n")
 
-        assert (len(lines) == 2 * num_workers)
+        assert len(lines) == 2 * num_workers
         for idx in range(num_workers):
             assert lines[2 * idx], lines[2 * idx + 1]
         for idx in range(1, num_workers):
@@ -227,7 +224,7 @@ def test_without_lock(num_workers):
     with tempfile.NamedTemporaryFile() as fp:
         logger = logging.getLogger()
         handler = logging.FileHandler(fp.name)
-        handler.setFormatter(logging.Formatter('%(message)s'))
+        handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
 
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as pool:
@@ -236,9 +233,9 @@ def test_without_lock(num_workers):
         handler.close()
         logger.removeHandler(handler)
 
-        with open(fp.name, 'r') as log_file:
-            lines = log_file.read().strip('\n ').split('\n')
+        with open(fp.name, "r") as log_file:
+            lines = log_file.read().strip("\n ").split("\n")
 
         assert len(lines) == 2 * num_workers
-        assert len(set(lines[: num_workers])) == num_workers, 'All processes should start'
-        assert len(set(lines[num_workers:])) == num_workers, 'All processes should finish'
+        assert len(set(lines[:num_workers])) == num_workers, "All processes should start"
+        assert len(set(lines[num_workers:])) == num_workers, "All processes should finish"

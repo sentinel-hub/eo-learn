@@ -3,24 +3,56 @@ A collection of EOTasks for feature manipulation
 """
 
 from .temporal_features import (
-    AddSpatioTemporalFeaturesTask, AddMaxMinTemporalIndicesTask, AddMaxMinNDVISlopeIndicesTask
+    AddSpatioTemporalFeaturesTask,
+    AddMaxMinTemporalIndicesTask,
+    AddMaxMinNDVISlopeIndicesTask,
 )
 from .interpolation import (
-    InterpolationTask, LinearInterpolation, CubicInterpolation, SplineInterpolation, BSplineInterpolation,
-    AkimaInterpolation, ResamplingTask, NearestResampling, LinearResampling, CubicResampling, KrigingInterpolation,
-    LinearInterpolationTask, CubicInterpolationTask, SplineInterpolationTask,
-    BSplineInterpolationTask, AkimaInterpolationTask, NearestResamplingTask, LinearResamplingTask, CubicResamplingTask,
-    KrigingInterpolationTask
+    InterpolationTask,
+    LinearInterpolation,
+    CubicInterpolation,
+    SplineInterpolation,
+    BSplineInterpolation,
+    AkimaInterpolation,
+    ResamplingTask,
+    NearestResampling,
+    LinearResampling,
+    CubicResampling,
+    KrigingInterpolation,
+    LinearInterpolationTask,
+    CubicInterpolationTask,
+    SplineInterpolationTask,
+    BSplineInterpolationTask,
+    AkimaInterpolationTask,
+    NearestResamplingTask,
+    LinearResamplingTask,
+    CubicResamplingTask,
+    KrigingInterpolationTask,
 )
 from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import (
-    SimpleFilterTask, FilterTimeSeriesTask, FilterTimeSeries, ValueFilloutTask, LinearFunctionTask
+    SimpleFilterTask,
+    FilterTimeSeriesTask,
+    FilterTimeSeries,
+    ValueFilloutTask,
+    LinearFunctionTask,
 )
 from .haralick import HaralickTask
 from .radiometric_normalization import (
-    ReferenceScenes, HistogramMatching, BlueCompositing, HOTCompositing, MaxNDVICompositing, MaxNDWICompositing,
-    MaxRatioCompositing, ReferenceScenesTask, HistogramMatchingTask, BlueCompositingTask, HOTCompositingTask,
-    MaxNDVICompositingTask, MaxNDWICompositingTask, MaxRatioCompositingTask
+    ReferenceScenes,
+    HistogramMatching,
+    BlueCompositing,
+    HOTCompositing,
+    MaxNDVICompositing,
+    MaxNDWICompositing,
+    MaxRatioCompositing,
+    ReferenceScenesTask,
+    HistogramMatchingTask,
+    BlueCompositingTask,
+    HOTCompositingTask,
+    MaxNDVICompositingTask,
+    MaxNDWICompositingTask,
+    MaxRatioCompositingTask,
 )
 from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
 from .hog import HOGTask
@@ -30,4 +62,4 @@ from .clustering import ClusteringTask
 from .doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"

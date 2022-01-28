@@ -24,7 +24,7 @@ from .utilities import FeatureParser
 
 
 def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_op=None):
-    """ Merge features of given EOPatches into a new EOPatch
+    """Merge features of given EOPatches into a new EOPatch
 
     :param eopatches: Any number of EOPatches to be merged together
     :type eopatches: EOPatch
@@ -52,7 +52,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
     :return: A dictionary with EOPatch features and values
     :rtype: Dict[(FeatureType, str), object]
     """
-    reduce_timestamps = time_dependent_op != 'concatenate'
+    reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_op = _parse_operation(time_dependent_op, is_timeless=False)
     timeless_op = _parse_operation(timeless_op, is_timeless=True)
 
@@ -71,8 +71,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
                     eopatches, feature, time_dependent_op, order_mask_per_eopatch
                 )
             else:
-                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature,
-                                                                          timeless_op)
+                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_op)
 
         if feature_type.is_vector():
             eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
@@ -90,7 +89,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
 
 
 def _parse_operation(operation_input, is_timeless):
-    """ Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
+    """Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
     arrays. If the input already is a function it returns it.
     """
     if isinstance(operation_input, Callable):
@@ -99,26 +98,25 @@ def _parse_operation(operation_input, is_timeless):
     try:
         return {
             None: _return_if_equal_operation,
-            'concatenate': functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
-            'mean': functools.partial(np.nanmean, axis=0),
-            'median': functools.partial(np.nanmedian, axis=0),
-            'min': functools.partial(np.nanmin, axis=0),
-            'max': functools.partial(np.nanmax, axis=0)
+            "concatenate": functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
+            "mean": functools.partial(np.nanmean, axis=0),
+            "median": functools.partial(np.nanmedian, axis=0),
+            "min": functools.partial(np.nanmin, axis=0),
+            "max": functools.partial(np.nanmax, axis=0),
         }[operation_input]
     except KeyError as exception:
-        raise ValueError(f'Merge operation {operation_input} is not supported') from exception
+        raise ValueError(f"Merge operation {operation_input} is not supported") from exception
 
 
 def _return_if_equal_operation(arrays):
-    """ Checks if arrays are all equal and returns first one of them. If they are not equal it raises an error.
-    """
+    """Checks if arrays are all equal and returns first one of them. If they are not equal it raises an error."""
     if _all_equal(arrays):
         return arrays[0]
-    raise ValueError('Cannot merge given arrays because their values are not the same')
+    raise ValueError("Cannot merge given arrays because their values are not the same")
 
 
 def _merge_timestamps(eopatches, reduce_timestamps):
-    """ Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
+    """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
     timestamps_per_eopatch = [eopatch.timestamp for eopatch in eopatches]
@@ -137,18 +135,21 @@ def _merge_timestamps(eopatches, reduce_timestamps):
     order_mask = order_mask.tolist()
 
     order_mask_iter = iter(order_mask)
-    order_mask_per_eopatch = [np.array(list(it.islice(order_mask_iter, len(eopatch_timestamps))), dtype=np.int32)
-                              for eopatch_timestamps in timestamps_per_eopatch]
+    order_mask_per_eopatch = [
+        np.array(list(it.islice(order_mask_iter, len(eopatch_timestamps))), dtype=np.int32)
+        for eopatch_timestamps in timestamps_per_eopatch
+    ]
 
     return all_timestamps, order_mask_per_eopatch
 
 
 def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_mask_per_eopatch):
-    """ Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to order and join
+    """Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to order and join
     time raster's time slices.
     """
-    merged_array, merged_order_mask = _extract_and_join_time_dependent_feature_values(eopatches, feature,
-                                                                                      order_mask_per_eopatch)
+    merged_array, merged_order_mask = _extract_and_join_time_dependent_feature_values(
+        eopatches, feature, order_mask_per_eopatch
+    )
 
     # Case where feature array is already in the correct order and doesn't need splitting, which includes a case
     # where array has a size 0
@@ -170,14 +171,16 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_ma
     try:
         split_arrays = [operation(array_chunk) for array_chunk in split_arrays]
     except ValueError as exception:
-        raise ValueError(f'Failed to merge {feature} with {operation}, try setting a different value for merging '
-                         f'parameter time_dependent_op') from exception
+        raise ValueError(
+            f"Failed to merge {feature} with {operation}, try setting a different value for merging "
+            "parameter time_dependent_op"
+        ) from exception
 
     return np.array(split_arrays)
 
 
 def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_mask_per_eopatch):
-    """ Collects feature arrays from EOPatches that have them and joins them together. It also joins together
+    """Collects feature arrays from EOPatches that have them and joins them together. It also joins together
     corresponding order masks.
     """
     arrays = []
@@ -188,8 +191,10 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
         if feature_name in eopatch[feature_type]:
             array = eopatch[feature_type, feature_name]
             if order_mask.size != array.shape[0]:
-                raise ValueError(f'Cannot merge a time-dependent feature {feature} because time dimension of an array '
-                                 f'in one EOPatch is {array.shape[0]} but EOPatch has {order_mask.size} timestamps')
+                raise ValueError(
+                    f"Cannot merge a time-dependent feature {feature} because time dimension of an array "
+                    f"in one EOPatch is {array.shape[0]} but EOPatch has {order_mask.size} timestamps"
+                )
 
             arrays.append(array)
             order_masks.append(order_mask)
@@ -200,14 +205,12 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
 
 
 def _is_strictly_increasing(array):
-    """ Checks if a 1D array of values is strictly increasing
-    """
+    """Checks if a 1D array of values is strictly increasing"""
     return (np.diff(array) > 0).all()
 
 
 def _merge_timeless_raster_feature(eopatches, feature, operation):
-    """ Merges numpy arrays of a timeless raster feature with a given operation.
-    """
+    """Merges numpy arrays of a timeless raster feature with a given operation."""
     arrays = _extract_feature_values(eopatches, feature)
 
     if len(arrays) == 1:
@@ -216,13 +219,14 @@ def _merge_timeless_raster_feature(eopatches, feature, operation):
     try:
         return operation(arrays)
     except ValueError as exception:
-        raise ValueError(f'Failed to merge {feature} with {operation}, try setting a different value for merging '
-                         f'parameter timeless_op') from exception
+        raise ValueError(
+            f"Failed to merge {feature} with {operation}, try setting a different value for merging "
+            "parameter timeless_op"
+        ) from exception
 
 
 def _merge_vector_feature(eopatches, feature):
-    """ Merges GeoDataFrames of a vector feature.
-    """
+    """Merges GeoDataFrames of a vector feature."""
     dataframes = _extract_feature_values(eopatches, feature)
 
     if len(dataframes) == 1:
@@ -232,8 +236,7 @@ def _merge_vector_feature(eopatches, feature):
     if not crs_list:
         crs_list = [None]
     if not _all_equal(crs_list):
-        raise ValueError(f'Cannot merge feature {feature} because dataframes are defined for '
-                         f'different CRS')
+        raise ValueError(f"Cannot merge feature {feature} because dataframes are defined for different CRS")
 
     merged_dataframe = GeoDataFrame(pd.concat(dataframes, ignore_index=True), crs=crs_list[0])
     merged_dataframe = merged_dataframe.drop_duplicates(ignore_index=True)
@@ -243,21 +246,21 @@ def _merge_vector_feature(eopatches, feature):
 
 
 def _select_meta_info_feature(eopatches, feature_name):
-    """ Selects a value for a meta info feature of a merged EOPatch. By default the value is the first one.
-    """
+    """Selects a value for a meta info feature of a merged EOPatch. By default the value is the first one."""
     values = _extract_feature_values(eopatches, (FeatureType.META_INFO, feature_name))
 
     if not _all_equal(values):
-        message = f'EOPatches have different values of meta info feature {feature_name}. The first value will be ' \
-                  f'used in a merged EOPatch'
+        message = (
+            f"EOPatches have different values of meta info feature {feature_name}. The first value will be "
+            "used in a merged EOPatch"
+        )
         warnings.warn(message, category=EORuntimeWarning)
 
     return values[0]
 
 
 def _get_common_bbox(eopatches):
-    """ Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones.
-    """
+    """Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones."""
     bboxes = [eopatch.bbox for eopatch in eopatches if eopatch.bbox is not None]
 
     if not bboxes:
@@ -265,19 +268,17 @@ def _get_common_bbox(eopatches):
 
     if _all_equal(bboxes):
         return bboxes[0]
-    raise ValueError('Cannot merge EOPatches because they are defined for different bounding boxes')
+    raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes")
 
 
 def _extract_feature_values(eopatches, feature):
-    """ A helper function that extracts a feature values from those EOPatches where a feature exists.
-    """
+    """A helper function that extracts a feature values from those EOPatches where a feature exists."""
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
 
 
 def _all_equal(values):
-    """ A helper function that checks if all values in a given list are equal to each other.
-    """
+    """A helper function that checks if all values in a given list are equal to each other."""
     first_value = values[0]
 
     if isinstance(first_value, np.ndarray):
