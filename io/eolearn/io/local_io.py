@@ -25,7 +25,6 @@ from sentinelhub import CRS, BBox
 from eolearn.core import EOTask, EOPatch
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.fs_utils import get_base_filesystem_and_path
-from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
@@ -486,18 +485,3 @@ class ImportFromTiffTask(BaseLocalIoTask):
         eopatch[feature_type][feature_name] = data
 
         return eopatch
-
-
-@renamed_and_deprecated
-class BaseLocalIo(BaseLocalIoTask, metaclass=ABCMeta):
-    """A deprecated version of BaseLocalIoTask"""
-
-
-@renamed_and_deprecated
-class ExportToTiff(ExportToTiffTask):
-    """A deprecated version of ExportToTiffTask"""
-
-
-@renamed_and_deprecated
-class ImportFromTiff(ImportFromTiffTask):
-    """A deprecated version of ImportFromTiffTask"""

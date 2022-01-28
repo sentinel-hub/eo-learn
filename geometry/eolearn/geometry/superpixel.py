@@ -18,7 +18,6 @@ import numpy as np
 
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utilities import renamed_and_deprecated
 
 LOGGER = logging.getLogger(__name__)
 
@@ -145,23 +144,3 @@ class MarkSegmentationBoundariesTask(EOTask):
         bounds_mask = bounds_mask[..., :1].astype(np.uint8)
         eopatch[self.new_feature[0]][self.new_feature[1]] = bounds_mask
         return eopatch
-
-
-@renamed_and_deprecated
-class SuperpixelSegmentation(SuperpixelSegmentationTask):
-    """A deprecated version of SuperpixelSegmentationTask"""
-
-
-@renamed_and_deprecated
-class FelzenszwalbSegmentation(FelzenszwalbSegmentationTask):
-    """A deprecated version of FelzenszwalbSegmentationTask"""
-
-
-@renamed_and_deprecated
-class SlicSegmentation(SlicSegmentationTask):
-    """A deprecated version of SlicSegmentationTask"""
-
-
-@renamed_and_deprecated
-class MarkSegmentationBoundaries(MarkSegmentationBoundariesTask):
-    """A deprecated version of MarkSegmentationBoundariesTask"""

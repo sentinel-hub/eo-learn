@@ -9,16 +9,7 @@ from .temporal_features import (
 )
 from .interpolation import (
     InterpolationTask,
-    LinearInterpolation,
-    CubicInterpolation,
-    SplineInterpolation,
-    BSplineInterpolation,
-    AkimaInterpolation,
     ResamplingTask,
-    NearestResampling,
-    LinearResampling,
-    CubicResampling,
-    KrigingInterpolation,
     LinearInterpolationTask,
     CubicInterpolationTask,
     SplineInterpolationTask,
@@ -33,19 +24,11 @@ from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import (
     SimpleFilterTask,
     FilterTimeSeriesTask,
-    FilterTimeSeries,
     ValueFilloutTask,
     LinearFunctionTask,
 )
 from .haralick import HaralickTask
 from .radiometric_normalization import (
-    ReferenceScenes,
-    HistogramMatching,
-    BlueCompositing,
-    HOTCompositing,
-    MaxNDVICompositing,
-    MaxNDWICompositing,
-    MaxRatioCompositing,
     ReferenceScenesTask,
     HistogramMatchingTask,
     BlueCompositingTask,

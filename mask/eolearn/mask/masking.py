@@ -15,7 +15,6 @@ from typing import Union, Callable
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType, ZipFeatureTask
-from eolearn.core.utilities import renamed_and_deprecated
 
 
 class AddValidDataMaskTask(EOTask):
@@ -167,8 +166,3 @@ def apply_mask(data, mask, old_value, new_value, data_type, mask_type):
             f"Mask feature has {mask.shape[-1]} number of bands while data feature has {data.shape[-1]} number of bands"
         )
     return data
-
-
-@renamed_and_deprecated
-class MaskFeature(MaskFeatureTask):
-    """A deprecated version of MaskFeatureTask"""

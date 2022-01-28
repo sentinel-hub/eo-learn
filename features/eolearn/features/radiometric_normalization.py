@@ -13,7 +13,6 @@ from abc import ABCMeta
 import numpy as np
 
 from eolearn.core import EOTask
-from eolearn.core.utilities import renamed_and_deprecated
 
 
 class ReferenceScenesTask(EOTask):
@@ -384,43 +383,3 @@ class HistogramMatchingTask(EOTask):
             )
 
         return eopatch
-
-
-@renamed_and_deprecated
-class ReferenceScenes(ReferenceScenesTask):
-    """A deprecated version of ReferenceScenesTask"""
-
-
-@renamed_and_deprecated
-class BaseCompositing(BaseCompositingTask, metaclass=ABCMeta):
-    """A deprecated version of BaseCompositingTask"""
-
-
-@renamed_and_deprecated
-class BlueCompositing(BlueCompositingTask):
-    """A deprecated version of BlueCompositingTask"""
-
-
-@renamed_and_deprecated
-class MaxNDVICompositing(MaxNDVICompositingTask):
-    """A deprecated version of MaxNDVICompositingTask"""
-
-
-@renamed_and_deprecated
-class MaxNDWICompositing(MaxNDWICompositingTask):
-    """A deprecated version of MaxNDWICompositingTask"""
-
-
-@renamed_and_deprecated
-class HOTCompositing(HOTCompositingTask):
-    """A deprecated version of HOTCompositingTask"""
-
-
-@renamed_and_deprecated
-class MaxRatioCompositing(MaxRatioCompositingTask):
-    """A deprecated version of MaxRatioCompositingTask"""
-
-
-@renamed_and_deprecated
-class HistogramMatching(HistogramMatchingTask):
-    """A deprecated version of HistogramMatchingTask"""

@@ -24,7 +24,6 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EOUserWarning
-from eolearn.core.utilities import renamed_and_deprecated
 
 try:
     import numba
@@ -674,48 +673,3 @@ class CubicResamplingTask(ResamplingTask):
 
     def __init__(self, feature, resample_range, **kwargs):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="cubic", **kwargs)
-
-
-@renamed_and_deprecated
-class LinearInterpolation(LinearInterpolationTask):
-    """A deprecated version of LinearInterpolationTask"""
-
-
-@renamed_and_deprecated
-class CubicInterpolation(CubicInterpolationTask):
-    """A deprecated version of CubicInterpolationTask"""
-
-
-@renamed_and_deprecated
-class SplineInterpolation(SplineInterpolationTask):
-    """A deprecated version of SplineInterpolationTask"""
-
-
-@renamed_and_deprecated
-class BSplineInterpolation(BSplineInterpolationTask):
-    """A deprecated version of BSplineInterpolationTask"""
-
-
-@renamed_and_deprecated
-class AkimaInterpolation(AkimaInterpolationTask):
-    """A deprecated version of AkimaInterpolationTask"""
-
-
-@renamed_and_deprecated
-class KrigingInterpolation(KrigingInterpolationTask):
-    """A deprecated version of KrigingInterpolationTask"""
-
-
-@renamed_and_deprecated
-class NearestResampling(NearestResamplingTask):
-    """A deprecated version of NearestResamplingTask"""
-
-
-@renamed_and_deprecated
-class LinearResampling(LinearResamplingTask):
-    """A deprecated version of LinearResamplingTask"""
-
-
-@renamed_and_deprecated
-class CubicResampling(CubicResamplingTask):
-    """A deprecated version of CubicResamplingTask"""

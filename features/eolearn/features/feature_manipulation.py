@@ -18,7 +18,6 @@ from typing import Optional
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType, MapFeatureTask
-from eolearn.core.utilities import renamed_and_deprecated
 
 
 LOGGER = logging.getLogger(__name__)
@@ -230,8 +229,3 @@ class LinearFunctionTask(MapFeatureTask):
         """A method where feature is multiplied by a slope"""
         rescaled_feature = feature * slope + intercept
         return rescaled_feature if dtype is None else rescaled_feature.astype(dtype)
-
-
-@renamed_and_deprecated
-class FilterTimeSeries(FilterTimeSeriesTask):
-    """A deprecated version of FilterTimeSeriesTask"""
