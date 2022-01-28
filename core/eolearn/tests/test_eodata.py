@@ -107,13 +107,6 @@ def test_invalid_characters():
 
 def test_repr(test_eopatch_path):
     test_eopatch = EOPatch.load(test_eopatch_path)
-
-    for eopatch in [test_eopatch, EOPatch()]:
-        repr_str = repr(eopatch)
-
-        assert isinstance(repr_str, str)
-        assert repr_str == eopatch.__repr__()
-
     repr_str = repr(test_eopatch)
     assert repr_str.startswith('EOPatch(') and repr_str.endswith(')')
     assert len(repr_str) > 100
