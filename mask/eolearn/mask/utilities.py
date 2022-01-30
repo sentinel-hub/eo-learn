@@ -2,9 +2,10 @@
 Utilities for cloud masking
 
 Credits:
-Copyright (c) 2017-2019 Matej Aleksandrov, Matej Batič, Andrej Burja(Sinergise)
-Copyright (c) 2017-2019 Grega Milčinski, Matic Lubej, Devis Peresutti, Jernej Puc, Tomislav Slijepčević (Sinergise)
-Copyright (c) 2017-2019 Jovan Višnjić, Anže Zupanc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
+Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
+Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.

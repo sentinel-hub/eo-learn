@@ -1,4 +1,11 @@
-""" Testing SentinelHubInputTask
+"""
+Credits:
+Copyright (c) 2019-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
+Copyright (c) 2019-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2019-2021 Beno Šircelj
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 import datetime as dt
 import os

@@ -8,7 +8,7 @@ To use tasks from this module you have to install METEOBLUE package extension:
     pip install eo-learn-io[METEOBLUE]
 
 Credits:
-Copyright (c) 2021 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sinergise)
+Copyright (c) 2021-2022 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.

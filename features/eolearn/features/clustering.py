@@ -1,5 +1,12 @@
 """
 Module for computing clusters in EOPatch
+
+Credits:
+Copyright (c) 2020 Beno Šircelj (Josef Stefan Institute)
+Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import numpy as np

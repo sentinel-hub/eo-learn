@@ -1,5 +1,11 @@
 """
 This module implements the EONode class, which specifies the local dependencies of an EOWorkflow
+
+Credits:
+Copyright (c) 2021-2022 Matej Aleksandrov, Matej Batič, Miha Kadunc, Žiga Lukšič (Sinergise)
+
+This source code is licensed under the MIT license found in the LICENSE
+file in the root directory of this source tree.
 """
 
 import datetime as dt
