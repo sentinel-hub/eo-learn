@@ -41,7 +41,7 @@ class EuclideanNormTask(MapFeatureTask):
         :type feature: numpy.array
         """
         array = feature if not self.bands else feature[..., self.bands]
-        return np.sqrt(np.sum(array ** 2, axis=-1))[..., np.newaxis]
+        return np.sqrt(np.sum(array**2, axis=-1))[..., np.newaxis]
 
 
 class NormalizedDifferenceIndexTask(MapFeatureTask):
