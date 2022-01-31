@@ -23,7 +23,7 @@ import registration
 from eolearn.core import EOTask
 from eolearn.core.exceptions import EORuntimeWarning
 
-from .coregistration_utilities import EstimateEulerTransformModel, ransac
+from .utils import EstimateEulerTransformModel, ransac
 
 LOGGER = logging.getLogger(__name__)
 

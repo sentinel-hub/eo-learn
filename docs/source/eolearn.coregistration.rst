@@ -11,4 +11,4 @@ Submodules:
 .. toctree::
 
    eolearn.coregistration.coregistration
-   eolearn.coregistration.coregistration_utilities
+   eolearn.coregistration.utils
