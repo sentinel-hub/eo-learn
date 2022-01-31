@@ -59,9 +59,9 @@ def calculate_stats(array):
     time, height, width, _ = array.shape
 
     slices = [
-        array[int(time / 2):, 0, 0, :],
+        array[int(time / 2) :, 0, 0, :],
         array[: max(int(time / 2), 1), -1, -1, :],
-        array[:, int(height / 2), int(width / 2), :]
+        array[:, int(height / 2), int(width / 2), :],
     ]
     values = [(np.nanmean(slice) if not np.isnan(slice).all() else np.nan) for slice in slices]
     return np.round(np.array(values), 4)
@@ -432,7 +432,7 @@ class TestProcessingIO:
             data_collection=DataCollection.SENTINEL2_L1C,
             features=[(FeatureType.DATA, "bands"), (FeatureType.MASK, "mask")],
             size=self.size,
-            maxcc=0.0
+            maxcc=0.0,
         )
 
         eopatch = task.execute(bbox=self.bbox, time_interval=("2021-01-01", "2021-01-20"))

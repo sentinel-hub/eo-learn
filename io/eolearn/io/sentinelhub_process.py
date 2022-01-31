@@ -675,13 +675,13 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
 
 
 def get_available_timestamps(
-        bbox: BBox,
-        data_collection: DataCollection,
-        *,
-        time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
-        time_difference: dt.timedelta = dt.timedelta(seconds=-1),
-        maxcc: Optional[float] = None,
-        config: Optional[SHConfig] = None,
+    bbox: BBox,
+    data_collection: DataCollection,
+    *,
+    time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
+    time_difference: dt.timedelta = dt.timedelta(seconds=-1),
+    maxcc: Optional[float] = None,
+    config: Optional[SHConfig] = None,
 ) -> List[dt.datetime]:
     """Helper function to search for all available timestamps, based on query parameters.
 
@@ -707,7 +707,7 @@ def get_available_timestamps(
 
     catalog = SentinelHubCatalog(config=config)
     search_iterator = catalog.search(
-        collection=data_collection, bbox=bbox, time=time_interval, query=query, #fields=fields
+        collection=data_collection, bbox=bbox, time=time_interval, query=query, fields=fields
     )
 
     all_timestamps = search_iterator.get_timestamps()
