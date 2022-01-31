@@ -14,6 +14,4 @@ Submodules:
    eolearn.ml_tools.sampling
    eolearn.ml_tools.postprocessing
    eolearn.ml_tools.train_test_split
-   eolearn.ml_tools.truth_transformations
    eolearn.ml_tools.utilities
-   eolearn.ml_tools.validator
