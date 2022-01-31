@@ -18,7 +18,7 @@ import numpy as np
 from skimage.morphology import disk, binary_dilation
 
 from eolearn.core import EOTask, FeatureType
-from .utilities import resize_images
+from .utils import resize_images
 
 
 LOGGER = logging.getLogger(__name__)

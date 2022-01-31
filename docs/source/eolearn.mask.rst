@@ -14,4 +14,4 @@ Submodules:
    eolearn.mask.mask_counting
    eolearn.mask.masking
    eolearn.mask.snow_mask
-   eolearn.mask.utilities
+   eolearn.mask.utils
