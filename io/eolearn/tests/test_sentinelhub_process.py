@@ -57,13 +57,14 @@ class IoTestCase:
 
 def calculate_stats(array):
     time, height, width, _ = array.shape
-    edge1 = np.nanmean(array[int(time / 2) :, 0, 0, :])
-    edge2 = np.nanmean(array[: max(int(time / 2), 1), -1, -1, :])
-    edge3 = np.nanmean(array[:, int(height / 2), int(width / 2), :])
 
-    stats = np.round(np.array([edge1, edge2, edge3]), 4)
-
-    return stats
+    slices = [
+        array[int(time / 2):, 0, 0, :],
+        array[: max(int(time / 2), 1), -1, -1, :],
+        array[:, int(height / 2), int(width / 2), :]
+    ]
+    values = [(np.nanmean(slice) if not np.isnan(slice).all() else np.nan) for slice in slices]
+    return np.round(np.array(values), 4)
 
 
 @pytest.mark.sh_integration
