@@ -9,9 +9,10 @@ Copyright (c) 2019-2021 Beno Šircelj
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import copy
+
 import datetime as dt
 import logging
+from typing import Optional, Tuple, List
 
 import numpy as np
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
@@ -20,6 +21,7 @@ from sentinelhub import (
     DataCollection,
     MimeType,
     SHConfig,
+    BBox,
     SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
@@ -32,48 +34,6 @@ from sentinelhub import (
 )
 
 LOGGER = logging.getLogger(__name__)
-
-
-def get_available_timestamps(bbox, config, data_collection, time_difference, time_interval=None, maxcc=None):
-    """Helper function to search for all available timestamps, based on query parameters
-
-    :param bbox: Bounding box
-    :type bbox: BBox
-    :param time_interval: Time interval to query available satellite data from
-    :type time_interval: different input formats available (e.g. (str, str), or (datetime, datetime)
-    :param data_collection: Source of requested satellite data.
-    :type data_collection: DataCollection
-    :param maxcc: Maximum cloud coverage, in ratio [0, 1], default is None
-    :type maxcc: float
-    :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
-    :type time_difference: datetime.timedelta
-    :param config: Sentinel Hub Config
-    :type config: SHConfig
-    :return: list of datetimes with available observations
-    """
-    query = None
-    if maxcc and data_collection.has_cloud_coverage:
-        if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
-            raise ValueError('Maximum cloud coverage "maxcc" parameter should be a float on an interval [0, 1]')
-        query = {"eo:cloud_cover": {"lte": int(maxcc * 100)}}
-
-    fields = {"include": ["properties.datetime"], "exclude": []}
-
-    if data_collection.service_url:
-        config = copy.copy(config)
-        config.sh_base_url = data_collection.service_url
-    catalog = SentinelHubCatalog(config=config)
-    search_iterator = catalog.search(
-        collection=data_collection, bbox=bbox, time=time_interval, query=query, fields=fields
-    )
-
-    all_timestamps = search_iterator.get_timestamps()
-    filtered_timestamps = filter_times(all_timestamps, time_difference)
-
-    if len(filtered_timestamps) == 0:
-        raise ValueError(f"No available images for requested time range: {time_interval}")
-
-    return filtered_timestamps
 
 
 class SentinelHubInputBaseTask(EOTask):
@@ -116,15 +76,17 @@ class SentinelHubInputBaseTask(EOTask):
         if time_interval:
             time_interval = parse_time_interval(time_interval)
             timestamp = self._get_timestamp(time_interval, eopatch.bbox)
+        elif self.data_collection.is_timeless:
+            timestamp = None
         else:
             timestamp = eopatch.timestamp
 
-        eop_timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
-
-        if eopatch.timestamp and eop_timestamp:
-            self.check_timestamp_difference(timestamp, eopatch.timestamp)
-        elif timestamp:
-            eopatch.timestamp = eop_timestamp
+        if timestamp is not None:
+            eop_timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
+            if eopatch.timestamp:
+                self.check_timestamp_difference(eop_timestamp, eopatch.timestamp)
+            else:
+                eopatch.timestamp = eop_timestamp
 
         requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
         requests = [request.download_list[0] for request in requests]
@@ -134,13 +96,13 @@ class SentinelHubInputBaseTask(EOTask):
         responses = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug("Downloads complete")
 
-        temporal_dim = len(timestamp) if timestamp else 1
+        temporal_dim = 1 if timestamp is None else len(timestamp)
         shape = temporal_dim, size_y, size_x
         self._extract_data(eopatch, responses, shape)
 
         eopatch.meta_info["size_x"] = size_x
         eopatch.meta_info["size_y"] = size_y
-        if timestamp:  # do not overwrite time interval in case of timeless features
+        if timestamp is not None:  # do not overwrite time interval in case of timeless features
             eopatch.meta_info["time_interval"] = serialize_time(time_interval)
 
         self._add_meta_info(eopatch)
@@ -182,7 +144,7 @@ class SentinelHubInputBaseTask(EOTask):
     @staticmethod
     def check_timestamp_difference(timestamp1, timestamp2):
         """Raises an error if the two timestamps are not the same"""
-        error_msg = "Trying to write data to an existing eopatch with a different timestamp."
+        error_msg = "Trying to write data to an existing EOPatch with a different timestamp."
         if len(timestamp1) != len(timestamp2):
             raise ValueError(error_msg)
 
@@ -314,11 +276,14 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         )
 
     def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
-        """Build requests"""
+        """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
+        still has to create at least one request in order to obtain back number of bands of responses."""
         if timestamp:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+        elif timestamp is None:
+            dates = [None]
         else:
-            dates = [parse_time_interval(time_interval, allow_undefined=True)] if time_interval else [None]
+            dates = [parse_time_interval(time_interval, allow_undefined=True)]
 
         return [self._create_sh_request(date, bbox, size_x, size_y) for date in dates]
 
@@ -357,6 +322,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             elif ftype.is_time_dependent():
                 data = np.asarray([data[f"{fname}.tif"] for data in data_responses])
                 data = data[..., np.newaxis] if data.ndim == 3 else data
+                time_dim = shape[0]
+                data = data[:time_dim] if time_dim != data.shape[0] else data
 
             else:
                 data = np.asarray(data_responses[0][f"{fname}.tif"])[..., np.newaxis]
@@ -546,7 +513,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
     def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
         """Build requests"""
-        if self.single_scene:
+        if timestamp is None:
+            dates = [None]
+        elif self.single_scene:
             dates = [parse_time_interval(time_interval)]
         else:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
@@ -610,9 +579,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         eopatch[self.bands_feature] = np.concatenate(processed_bands, axis=-1)
 
     @staticmethod
-    def _extract_array(tifs, idx, shape, dtype):
-        """Extract a numpy array from the received tifs"""
-        feature_arrays = (np.atleast_3d(img)[..., idx] for img in tifs)
+    def _extract_array(tiffs, idx, shape, dtype):
+        """Extract a numpy array from the received tiffs"""
+        feature_arrays = (np.atleast_3d(img)[..., idx] for img in tiffs)
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
 
 
@@ -703,3 +672,43 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
 
         features = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
         super().__init__(additional_data=features, data_collection=data_collection, **kwargs)
+
+
+def get_available_timestamps(
+        bbox: BBox,
+        data_collection: DataCollection,
+        *,
+        time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
+        time_difference: dt.timedelta = dt.timedelta(seconds=-1),
+        maxcc: Optional[float] = None,
+        config: Optional[SHConfig] = None,
+) -> List[dt.datetime]:
+    """Helper function to search for all available timestamps, based on query parameters.
+
+    :param bbox: A bounding box of the search area.
+    :param data_collection: A data collection for which to find available timestamps.
+    :param time_interval: A time interval from which to provide the timestamps.
+    :param time_difference: Minimum allowed time difference, used when filtering dates.
+    :param maxcc: Maximum cloud coverage filter from interval [0, 1], default is None.
+    :param config: A configuration object.
+    :return: A list of timestamps of available observations.
+    """
+    query = None
+    if maxcc is not None and data_collection.has_cloud_coverage:
+        if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
+            raise ValueError('Maximum cloud coverage "maxcc" parameter should be a float on an interval [0, 1]')
+        query = {"eo:cloud_cover": {"lte": int(maxcc * 100)}}
+
+    fields = {"include": ["properties.datetime"], "exclude": []}
+
+    if data_collection.service_url:
+        config = config.copy() if config else SHConfig()
+        config.sh_base_url = data_collection.service_url
+
+    catalog = SentinelHubCatalog(config=config)
+    search_iterator = catalog.search(
+        collection=data_collection, bbox=bbox, time=time_interval, query=query, #fields=fields
+    )
+
+    all_timestamps = search_iterator.get_timestamps()
+    return filter_times(all_timestamps, time_difference)
