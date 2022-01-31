@@ -12,6 +12,5 @@ Submodules:
 
    eolearn.ml_tools.classifier
    eolearn.ml_tools.sampling
-   eolearn.ml_tools.postprocessing
    eolearn.ml_tools.train_test_split
    eolearn.ml_tools.utilities

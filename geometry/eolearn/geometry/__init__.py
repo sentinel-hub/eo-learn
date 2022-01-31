@@ -2,7 +2,12 @@
 Subpackage containing EOTasks for geometrical transformations
 """
 
-from .morphology import ErosionTask
+from .morphology import (
+    ErosionTask,
+    MorphologicalFilterTask,
+    MorphologicalOperations,
+    MorphologicalStructFactory,
+)
 from .superpixel import (
     SuperpixelSegmentationTask,
     FelzenszwalbSegmentationTask,

@@ -10,11 +10,15 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import itertools as it
+from enum import Enum
+from typing import Optional, Callable, Union
 
 import skimage.morphology
+import skimage.filters.rank
 import numpy as np
 
-from eolearn.core import EOTask
+from eolearn.core import EOTask, MapFeatureTask
 
 
 class ErosionTask(EOTask):
@@ -58,3 +62,120 @@ class ErosionTask(EOTask):
         eopatch[(self.mask_type, self.new_mask_name)] = np.expand_dims(feature_array, axis=-1)
 
         return eopatch
+
+
+class MorphologicalOperations(Enum):
+    """Enum class of morphological operations"""
+
+    OPENING = "opening"
+    CLOSING = "closing"
+    DILATION = "dilation"
+    EROSION = "erosion"
+    MEDIAN = "median"
+
+    @classmethod
+    def get_operation(cls, morph_type):
+        """Maps morphological operation type to function
+
+        :param morph_type: Morphological operation type
+        :type morph_type: MorphologicalOperations
+        :return: function
+        """
+        return {
+            cls.OPENING: skimage.morphology.opening,
+            cls.CLOSING: skimage.morphology.closing,
+            cls.DILATION: skimage.morphology.dilation,
+            cls.EROSION: skimage.morphology.erosion,
+            cls.MEDIAN: skimage.filters.rank.median,
+        }[morph_type]
+
+
+class MorphologicalStructFactory:
+    """
+    Factory methods for generating morphological structuring elements
+    """
+
+    @staticmethod
+    def get_disk(radius):
+        """
+        :param radius: Radius of disk
+        :type radius: int
+        :return: The structuring element where elements of the neighborhood are 1 and 0 otherwise.
+        :rtype: numpy.ndarray
+        """
+        return skimage.morphology.disk(radius)
+
+    @staticmethod
+    def get_diamond(radius):
+        """
+        :param radius: Radius of diamond
+        :type radius: int
+        :return: The structuring element where elements of the neighborhood are 1 and 0 otherwise.
+        :rtype: numpy.ndarray
+        """
+        return skimage.morphology.diamond(radius)
+
+    @staticmethod
+    def get_rectangle(width, height):
+        """
+        :param width: Width of rectangle
+        :type width: int
+        :param height: Height of rectangle
+        :type height: int
+        :return: A structuring element consisting only of ones, i.e. every pixel belongs to the neighborhood.
+        :rtype: numpy.ndarray
+        """
+        return skimage.morphology.rectangle(width, height)
+
+    @staticmethod
+    def get_square(width):
+        """
+        :param width: Size of square
+        :type width: int
+        :return: A structuring element consisting only of ones, i.e. every pixel belongs to the neighborhood.
+        :rtype: numpy.ndarray
+        """
+        return skimage.morphology.square(width)
+
+
+class MorphologicalFilterTask(MapFeatureTask):
+    """Performs morphological operations on masks."""
+
+    def __init__(
+        self,
+        input_features,
+        output_features=None,
+        *,
+        morph_operation: Union[MorphologicalOperations, Callable],
+        struct_elem: Optional[np.ndarray] = None,
+    ):
+        """
+        :param input_features: Input features to be processed.
+        :param output_features: Outputs of input features. If not provided the `input_features` are overwritten.
+        :param morph_operation: A morphological operation.
+        :param struct_elem: A structuring element to be used with the morphological operation. Usually it is generated
+            with a factory method from MorphologicalStructElements
+        """
+        if output_features is None:
+            output_features = input_features
+        super().__init__(input_features, output_features)
+
+        if isinstance(morph_operation, MorphologicalOperations):
+            self.morph_operation = MorphologicalOperations.get_operation(morph_operation)
+        else:
+            self.morph_operation = morph_operation
+        self.struct_elem = struct_elem
+
+    def map_method(self, feature):
+        """Applies the morphological operation to a raster feature."""
+        feature = feature.copy()
+        if feature.ndim == 3:
+            for channel in range(feature.shape[2]):
+                feature[..., channel] = self.morph_operation(feature[..., channel], self.struct_elem)
+        elif feature.ndim == 4:
+            for time, channel in it.product(range(feature.shape[0]), range(feature.shape[3])):
+                feature[time, ..., channel] = self.morph_operation(feature[time, ..., channel], self.struct_elem)
+        else:
+            raise ValueError(f"Invalid number of dimensions: {feature.ndim}")
+
+        return feature
