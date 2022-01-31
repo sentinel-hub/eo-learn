@@ -57,13 +57,14 @@ class IoTestCase:
 
 def calculate_stats(array):
     time, height, width, _ = array.shape
-    edge1 = np.nanmean(array[int(time / 2) :, 0, 0, :])
-    edge2 = np.nanmean(array[: max(int(time / 2), 1), -1, -1, :])
-    edge3 = np.nanmean(array[:, int(height / 2), int(width / 2), :])
 
-    stats = np.round(np.array([edge1, edge2, edge3]), 4)
-
-    return stats
+    slices = [
+        array[int(time / 2) :, 0, 0, :],
+        array[: max(int(time / 2), 1), -1, -1, :],
+        array[:, int(height / 2), int(width / 2), :],
+    ]
+    values = [(np.nanmean(slice) if not np.isnan(slice).all() else np.nan) for slice in slices]
+    return np.round(np.array(values), 4)
 
 
 @pytest.mark.sh_integration
@@ -378,6 +379,68 @@ class TestProcessingIO:
 
         assert len(timestamps) == 4
         assert all(timestamp.tzinfo is not None for timestamp in timestamps)
+
+    def test_no_data_input_task_request(self):
+        task = SentinelHubInputTask(
+            bands_feature=(FeatureType.DATA, "BANDS"),
+            additional_data=[(FeatureType.MASK, "dataMask")],
+            size=self.size,
+            maxcc=0.0,
+            data_collection=DataCollection.SENTINEL2_L1C,
+        )
+        eopatch = task.execute(bbox=self.bbox, time_interval=("2021-01-01", "2021-01-20"))
+
+        bands = eopatch[FeatureType.DATA, "BANDS"]
+        assert bands.shape == (0, 101, 99, 13)
+        masks = eopatch[FeatureType.MASK, "dataMask"]
+        assert masks.shape == (0, 101, 99, 1)
+
+    def test_no_data_evalscript_task_request(self):
+        evalscript = """
+        //VERSION=3
+
+        function setup() {
+            return {
+                input: [{
+                    bands:["B02", "dataMask"],
+                    units: "DN"
+                }],
+                output:[
+                  {
+                    id:'bands',
+                    bands: 2,
+                    sampleType: SampleType.UINT16
+                  },
+                  {
+                    id:'mask',
+                    bands: 1,
+                    sampleType: SampleType.UINT8
+                  }
+                ]
+            }
+        }
+
+        function evaluatePixel(sample) {
+            return {
+                'bands': [sample.B02, sample.B02],
+                'mask': [sample.dataMask]
+            };
+        }
+    """
+        task = SentinelHubEvalscriptTask(
+            evalscript=evalscript,
+            data_collection=DataCollection.SENTINEL2_L1C,
+            features=[(FeatureType.DATA, "bands"), (FeatureType.MASK, "mask")],
+            size=self.size,
+            maxcc=0.0,
+        )
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=("2021-01-01", "2021-01-20"))
+
+        bands = eopatch[FeatureType.DATA, "bands"]
+        assert bands.shape == (0, 101, 99, 2)
+        masks = eopatch[FeatureType.MASK, "mask"]
+        assert masks.shape == (0, 101, 99, 1)
 
 
 @pytest.mark.sh_integration
