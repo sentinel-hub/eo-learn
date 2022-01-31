@@ -11,15 +11,15 @@ import warnings
 
 
 class EODeprecationWarning(DeprecationWarning):
-    """A custom deprecation warning for eo-learn package"""
+    """A custom deprecation warning for eo-learn package."""
 
 
 class EOUserWarning(UserWarning):
-    """A custom user warning for eo-learn package"""
+    """A custom user warning for eo-learn package."""
 
 
 class EORuntimeWarning(RuntimeWarning):
-    """A custom runtime warning for eo-learn package"""
+    """A custom runtime warning for eo-learn package."""
 
 
 warnings.simplefilter("default", EODeprecationWarning)

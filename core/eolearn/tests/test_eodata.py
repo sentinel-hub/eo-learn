@@ -140,28 +140,6 @@ def test_simplified_feature_operations():
     assert np.array_equal(eop[feature], bands), "Data numpy array not stored"
 
 
-def test_rename_feature():
-    bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-
-    eop = EOPatch()
-    eop.data["bands"] = bands
-
-    eop.rename_feature(FeatureType.DATA, "bands", "new_bands")
-
-    assert "new_bands" in eop.data
-
-
-def test_rename_feature_missing():
-    bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-
-    eop = EOPatch()
-    eop.data["bands"] = bands
-
-    with pytest.raises(BaseException):
-        # Should fail because there is no `missing_bands` feature in the EOPatch.
-        eop.rename_feature(FeatureType.DATA, "missing_bands", "new_bands")
-
-
 def test_delete_feature():
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     zeros = np.zeros_like(bands, dtype=float)
@@ -192,17 +170,6 @@ def test_delete_feature():
 
     with pytest.raises(KeyError):
         del eop[(FeatureType.DATA, "not_here")]
-
-
-def test_get_feature():
-    bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-
-    eop = EOPatch()
-    eop.data["bands"] = bands
-
-    eop_bands = eop.get_feature(FeatureType.DATA, "bands")
-
-    assert np.array_equal(eop_bands, bands), "Data numpy array not returned properly"
 
 
 def test_shallow_copy(test_eopatch):
@@ -266,41 +233,21 @@ def test_copy_features(test_eopatch):
     assert eopatch_copy.timestamp == []
 
 
-def test_remove_feature():
-    bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    names = ["bands1", "bands2", "bands3"]
-
-    eop = EOPatch()
-    eop.add_feature(FeatureType.DATA, names[0], bands)
-    eop.data[names[1]] = bands
-    eop[FeatureType.DATA][names[2]] = bands
-
-    for feature_name in names:
-        assert feature_name in eop.data, f"Feature {feature_name} was not added to EOPatch"
-        assert np.array_equal(eop.data[feature_name], bands), f"Data of feature {feature_name} is incorrect"
-
-    eop.remove_feature(FeatureType.DATA, names[0])
-    del eop.data[names[1]]
-    del eop[FeatureType.DATA][names[2]]
-    for feature_name in names:
-        assert not (feature_name in eop.data), f"Feature {feature_name} should be deleted from EOPatch"
-
-
 @pytest.mark.parametrize(
     "ftype, fname",
     [
-        [FeatureType.DATA, "bands"],
-        [FeatureType.MASK, "mask"],
+        [FeatureType.DATA, "BANDS-S2-L1C"],
+        [FeatureType.MASK, "CLM"],
         [FeatureType.BBOX, ...],
         [FeatureType.TIMESTAMP, None],
     ],
 )
 def test_contains(ftype, fname, test_eopatch):
     assert ftype in test_eopatch
-    assert ftype, fname in test_eopatch
+    assert (ftype, fname) in test_eopatch
 
     if ftype.has_dict():
-        test_eopatch.remove_feature(ftype, fname)
+        del test_eopatch[ftype, fname]
     else:
         test_eopatch[ftype] = None if ftype is FeatureType.BBOX else []
 

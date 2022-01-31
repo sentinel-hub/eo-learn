@@ -150,12 +150,12 @@ def apply_mask(data, mask, old_value, new_value, data_type, mask_type):
     if not (data_type.is_spatial() and mask_type.is_spatial()):
         raise ValueError("Masking with non-spatial data types is not yet supported")
 
-    if data_type.is_timeless() and mask_type.is_time_dependent():
+    if data_type.is_timeless() and mask_type.is_temporal():
         raise ValueError("Cannot mask timeless data feature with time dependent mask feature")
 
     if data.shape[-3:-1] != mask.shape[-3:-1]:
         raise ValueError("Data feature and mask feature have different spatial dimensions")
-    if mask_type.is_time_dependent() and data.shape[0] != mask.shape[0]:
+    if mask_type.is_temporal() and data.shape[0] != mask.shape[0]:
         raise ValueError("Data feature and mask feature have different temporal dimensions")
 
     if mask.shape[-1] == data.shape[-1]:

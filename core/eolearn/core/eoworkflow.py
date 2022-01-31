@@ -70,7 +70,7 @@ class EOWorkflow:
 
     @staticmethod
     def _parse_and_validate_nodes(nodes: Sequence[EONode]) -> Sequence[EONode]:
-        """Parses and verifies workflow nodes
+        """Parses and verifies workflow nodes.
 
         :param nodes: Sequence of nodes forming a workflow
         :return: Sequence of verified nodes
@@ -86,7 +86,7 @@ class EOWorkflow:
 
     @staticmethod
     def _make_uid_dict(nodes: Sequence[EONode]) -> Dict[str, EONode]:
-        """Creates a dictionary mapping node IDs to nodes while checking uniqueness of tasks
+        """Creates a dictionary mapping node IDs to nodes while checking uniqueness of tasks.
 
         :param nodes: The sequence of workflow nodes defining the computational graph
         :return: A dictionary mapping IDs to nodes
@@ -102,7 +102,7 @@ class EOWorkflow:
         return uid_dict
 
     def _create_dag(self, nodes: Sequence[EONode]) -> DirectedGraph:
-        """Creates a directed graph from workflow nodes that is used for scheduling purposes
+        """Creates a directed graph from workflow nodes that is used for scheduling purposes.
 
         :param nodes: A sequence of `EONode` objects
         :return: A directed graph of the workflow, with graph nodes containing `EONode` uids
@@ -121,7 +121,7 @@ class EOWorkflow:
 
     @classmethod
     def from_endnodes(cls, *endnodes: EONode) -> "EOWorkflow":
-        """Constructs the EOWorkflow from the end-nodes by recursively extracting all nodes in the workflow structure"""
+        """Constructs the EOWorkflow from the end-nodes by recursively extracting nodes in the workflow structure."""
         all_nodes: Set[EONode] = set()
         memo: Dict[EONode, Set[EONode]] = {}
         for endnode in endnodes:
@@ -131,7 +131,7 @@ class EOWorkflow:
     def execute(
         self, input_kwargs: Optional[Dict[EONode, Dict[str, object]]] = None, raise_errors: bool = True
     ) -> "WorkflowResults":
-        """Executes the workflow
+        """Executes the workflow.
 
         :param input_kwargs: External input arguments to the workflow. They have to be in a form of a dictionary where
             each key is an `EONode` used in the workflow and each value is a dictionary or a tuple of arguments.
@@ -179,19 +179,19 @@ class EOWorkflow:
             if not isinstance(kwargs, dict):
                 raise ValueError(
                     "Execution arguments of each node should be a dictionary, for node "
-                    f"{node.get_name()} got arguments of type {type(kwargs)}"
+                    f"{node.get_name()} got arguments of type {type(kwargs)}."
                 )
 
             if not all(isinstance(key, str) for key in kwargs):
                 raise ValueError(
                     "Keys of input argument dictionaries should names of variables, in arguments for node "
-                    f"{node.get_name()} one of the keys is not a string"
+                    f"{node.get_name()} one of the keys is not a string."
                 )
 
     def _execute_nodes(
         self, *, uid_input_kwargs: Dict[str, Dict[str, object]], out_degrees: Dict[str, int], raise_errors: bool
     ) -> Tuple[dict, dict]:
-        """Executes workflow nodes in the predetermined order
+        """Executes workflow nodes in the predetermined order.
 
         :param uid_input_kwargs: External input arguments to the workflow.
         :param out_degrees: Dictionary mapping node IDs to their out-degrees. (The out-degree equals the number
@@ -225,7 +225,7 @@ class EOWorkflow:
     def _execute_node(
         self, *, node: EONode, node_input_values: List[object], node_input_kwargs: Dict[str, object], raise_errors: bool
     ) -> Tuple[object, NodeStats]:
-        """Executes a node in the workflow by running its task and returning the results
+        """Executes a node in the workflow by running its task and returning the results.
 
         :param node: A node of the workflow.
         :param node_input_values: Values obtained from input nodes in the workflow.
@@ -263,7 +263,7 @@ class EOWorkflow:
     def _execute_task(
         task: EOTask, task_args: List[object], task_kwargs: Dict[str, object], raise_errors: bool
     ) -> Tuple[object, bool]:
-        """Executes an EOTask and handles any potential exceptions"""
+        """Executes an EOTask and handles any potential exceptions."""
         if raise_errors:
             return task.execute(*task_args, **task_kwargs), True
 
@@ -298,7 +298,7 @@ class EOWorkflow:
                 del intermediate_results[relevant_node.uid]
 
     def get_nodes(self) -> List[EONode]:
-        """Returns an ordered list of all nodes within this workflow, ordered in the execution order
+        """Returns an ordered list of all nodes within this workflow, ordered in the execution order.
 
         :return: List of all nodes withing workflow. The order of nodes is the same as the order of execution.
         """
@@ -313,7 +313,7 @@ class EOWorkflow:
         return None
 
     def get_dot(self):
-        """Generates the DOT description of the underlying computational graph
+        """Generates the DOT description of the underlying computational graph.
 
         :return: The DOT representation of the computational graph
         :rtype: Digraph
@@ -322,7 +322,7 @@ class EOWorkflow:
         return visualization.get_dot()
 
     def dependency_graph(self, filename: Optional[str] = None):
-        """Visualize the computational graph
+        """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
             `pdf`, ... . Check `graphviz` Python package for more options
@@ -333,7 +333,7 @@ class EOWorkflow:
         return visualization.dependency_graph(filename=filename)
 
     def _get_visualization(self):
-        """Helper method which provides EOWorkflowVisualization object"""
+        """Helper method which provides EOWorkflowVisualization object."""
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
             from eolearn.visualization.eoworkflow import EOWorkflowVisualization
@@ -346,7 +346,7 @@ class EOWorkflow:
 
 @dataclass(frozen=True)
 class WorkflowResults:
-    """An object containing results of an EOWorkflow execution"""
+    """An object containing results of an EOWorkflow execution."""
 
     outputs: Dict[str, object]
     start_time: dt.datetime
@@ -355,18 +355,18 @@ class WorkflowResults:
     error_node_uid: Optional[str] = field(init=False, default=None)
 
     def __post_init__(self):
-        """Checks if there is any node that failed during the workflow execution"""
+        """Checks if there is any node that failed during the workflow execution."""
         for node_uid, node_stats in self.stats.items():
             if node_stats.exception is not None:
                 super().__setattr__("error_node_uid", node_uid)
                 break
 
     def workflow_failed(self) -> bool:
-        """Informs if the EOWorkflow execution failed"""
+        """Informs if the EOWorkflow execution failed."""
         return self.error_node_uid is not None
 
     def drop_outputs(self) -> "WorkflowResults":
-        """Creates a new WorkflowResults object without outputs which can take a lot of memory"""
+        """Creates a new WorkflowResults object without outputs which can take a lot of memory."""
         new_params = {
             param.name: {} if param.name == "outputs" else getattr(self, param.name)
             for param in fields(self)

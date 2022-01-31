@@ -20,7 +20,7 @@ from sentinelhub import SHConfig
 
 
 def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> fs.base.FS:
-    """A utility function for initializing any type of filesystem object with PyFilesystem2 package
+    """A utility function for initializing any type of filesystem object with PyFilesystem2 package.
 
     :param path: A filesystem path
     :type path: str
@@ -43,7 +43,7 @@ def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] =
 
 def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS, str]:
     """Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
-    on the filesystem
+    on the filesystem.
 
     :param path_parts: One or more strings defining a filesystem path
     :param kwargs: Parameters passed to get_filesystem function
@@ -70,7 +70,7 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS
 def load_s3_filesystem(
     path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None
 ) -> S3FS:
-    """Loads AWS s3 filesystem from a path
+    """Loads AWS s3 filesystem from a path.
 
     :param path: A path to a folder on s3 bucket that will be the base folder in this filesystem
     :type path: str
@@ -84,7 +84,7 @@ def load_s3_filesystem(
     :rtype: fs_s3fs.S3FS
     """
     if not is_s3_path(path):
-        raise ValueError(f"AWS path has to start with s3:// but found '{path}'")
+        raise ValueError(f"AWS path has to start with s3:// but found '{path}'.")
 
     config = config or SHConfig()
     if aws_profile:
@@ -104,7 +104,7 @@ def load_s3_filesystem(
 
 
 def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> SHConfig:
-    """Collects credentials from AWS profile and adds them to an instance of SHConfig
+    """Collects credentials from AWS profile and adds them to an instance of SHConfig.
 
     :param aws_profile: A name of AWS profile
     :param config: If existing config object is given credentials will be added to its copy, otherwise a new config

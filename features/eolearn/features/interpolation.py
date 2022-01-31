@@ -193,7 +193,7 @@ class InterpolationTask(EOTask):
                 f"Spatial dimensions of interpolation and mask feature do not match: {feature_data.shape} {mask.shape}"
             )
 
-        if mask_type.is_time_dependent() and feature_data.shape[0] != mask.shape[0]:
+        if mask_type.is_temporal() and feature_data.shape[0] != mask.shape[0]:
             raise ValueError(
                 f"Time dimension of interpolation and mask feature do not match: {feature_data.shape} {mask.shape}"
             )
@@ -446,10 +446,10 @@ class InterpolationTask(EOTask):
         new_eopatch = EOPatch() if self.resample_range else eopatch
 
         # Resample times
-        times = eopatch.time_series(scale_time=self.scale_time)
+        times = eopatch.get_time_series(scale_time=self.scale_time)
         new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
         total_diff = int((new_eopatch.timestamp[0].date() - eopatch.timestamp[0].date()).total_seconds())
-        resampled_times = new_eopatch.time_series(scale_time=self.scale_time) + total_diff // self.scale_time
+        resampled_times = new_eopatch.get_time_series(scale_time=self.scale_time) + total_diff // self.scale_time
 
         # Add BBox to eopatch if it was created anew
         if new_eopatch.bbox is None:

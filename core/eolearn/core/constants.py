@@ -10,7 +10,7 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
+from typing import Optional
 from enum import Enum
 
 from sentinelhub import BBox, MimeType
@@ -55,47 +55,47 @@ class FeatureType(Enum):
     TIMESTAMP = "timestamp"
 
     @classmethod
-    def has_value(cls, value):
+    def has_value(cls, value: str) -> bool:
         """True if value is in FeatureType values. False otherwise."""
         return value in cls._value2member_map_
 
-    def is_spatial(self):
+    def is_spatial(self) -> bool:
         """True if FeatureType has a spatial component. False otherwise."""
         return self in FeatureTypeSet.SPATIAL_TYPES
 
-    def is_time_dependent(self):
+    def is_temporal(self) -> bool:
         """True if FeatureType has a time component. False otherwise."""
-        return self in FeatureTypeSet.TIME_DEPENDENT_TYPES
+        return self in FeatureTypeSet.TEMPORAL_TYPES
 
-    def is_timeless(self):
+    def is_timeless(self) -> bool:
         """True if FeatureType doesn't have a time component and is not a meta feature. False otherwise."""
         return self in FeatureTypeSet.TIMELESS_TYPES
 
-    def is_discrete(self):
+    def is_discrete(self) -> bool:
         """True if FeatureType should have discrete (integer) values. False otherwise."""
         return self in FeatureTypeSet.DISCRETE_TYPES
 
-    def is_meta(self):
+    def is_meta(self) -> bool:
         """True if FeatureType is for storing metadata info and False otherwise."""
         return self in FeatureTypeSet.META_TYPES
 
-    def is_vector(self):
+    def is_vector(self) -> bool:
         """True if FeatureType is vector feature type. False otherwise."""
         return self in FeatureTypeSet.VECTOR_TYPES
 
-    def has_dict(self):
+    def has_dict(self) -> bool:
         """True if FeatureType stores a dictionary. False otherwise."""
         return self in FeatureTypeSet.DICT_TYPES
 
-    def is_raster(self):
+    def is_raster(self) -> bool:
         """True if FeatureType stores a dictionary with raster data. False otherwise."""
         return self in FeatureTypeSet.RASTER_TYPES
 
-    def contains_ndarrays(self):
+    def contains_ndarrays(self) -> bool:
         """True if FeatureType stores a dictionary of numpy.ndarrays. False otherwise."""
         return self in FeatureTypeSet.RASTER_TYPES
 
-    def ndim(self):
+    def ndim(self) -> Optional[int]:
         """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays."""
         if self.is_raster():
             return {
@@ -110,7 +110,7 @@ class FeatureType(Enum):
             }[self]
         return None
 
-    def type(self):
+    def type(self) -> type:
         """Returns type of the data for the given FeatureType."""
         if self is FeatureType.TIMESTAMP:
             return list
@@ -142,7 +142,7 @@ class FeatureTypeSet:
             FeatureType.VECTOR_TIMELESS,
         ]
     )
-    TIME_DEPENDENT_TYPES = frozenset(
+    TEMPORAL_TYPES = frozenset(
         [
             FeatureType.DATA,
             FeatureType.MASK,

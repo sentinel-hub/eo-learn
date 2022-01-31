@@ -291,7 +291,7 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
 
         lazy_eopatch = EOPatch.load(folder_name, filesystem=temp_fs, lazy_loading=True)
         lazy_eopatch.data["whatever"] = np.empty((2, 3, 3, 2))
-        lazy_eopatch.remove_feature(FeatureType.DATA_TIMELESS, "mask")
+        del lazy_eopatch[FeatureType.DATA_TIMELESS, "mask"]
 
         lazy_eopatch.save(folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
         assert temp_fs.exists(fs.path.join(folder_name, "data", "whatever.npy"))

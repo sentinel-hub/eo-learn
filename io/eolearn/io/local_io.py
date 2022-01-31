@@ -23,7 +23,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.fs_utils import get_base_filesystem_and_path
+from eolearn.core.utilities.filesystem import get_base_filesystem_and_path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -166,7 +166,7 @@ class ExportToTiffTask(BaseLocalIoTask):
         data_array = self._get_bands_subset(eopatch[feature])
 
         feature_type = feature[0]
-        if feature_type.is_time_dependent():
+        if feature_type.is_temporal():
             data_array = self._get_dates_subset(data_array, eopatch.timestamp)
         else:
             # add temporal dimension

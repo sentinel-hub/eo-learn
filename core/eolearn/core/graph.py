@@ -168,7 +168,7 @@ class DirectedGraph:
 
     @staticmethod
     def from_edges(edges: Sequence[Tuple[object, object]]) -> "DirectedGraph":
-        """Return DirectedGraph created from edges
+        """Return DirectedGraph created from edges.
         :param edges: Pairs of objects that describe all the edges of the graph
         :return: DirectedGraph
         """
@@ -219,6 +219,6 @@ class DirectedGraph:
                     independent_vertices.append(u_vertex)
 
         if len(topological_order) != len(self):
-            raise CyclicDependencyError("Nodes form a cyclic graph, cannot produce a topologically ordered list")
+            raise CyclicDependencyError("Nodes form a cyclic graph, cannot produce a topologically ordered list.")
 
         return topological_order

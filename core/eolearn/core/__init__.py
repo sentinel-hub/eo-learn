@@ -28,8 +28,8 @@ from .core_tasks import (
     MergeEOPatchesTask,
 )
 
-from .fs_utils import get_filesystem, load_s3_filesystem
-from .utilities import deep_eq, negate_mask, constant_pad, get_common_timestamps, bgr_to_rgb, FeatureParser
-
+from .utilities.filesystem import get_filesystem, load_s3_filesystem
+from .utilities.feature_parser import FeatureParser
+from .utilities.other import deep_eq, constant_pad
 
 __version__ = "1.0.0"

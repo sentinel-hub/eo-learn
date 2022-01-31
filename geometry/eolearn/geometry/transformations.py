@@ -115,7 +115,7 @@ class VectorToRasterTask(EOTask):
         self.overlap_value = overlap_value
         self.buffer = buffer
 
-        self._rasterize_per_timestamp = self.raster_feature[0].is_time_dependent()
+        self._rasterize_per_timestamp = self.raster_feature[0].is_temporal()
 
     def _parse_main_params(self, vector_input, raster_feature):
         """Parsing first 2 parameters - what vector data will be used and in which raster feature it will be saved"""

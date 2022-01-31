@@ -62,7 +62,7 @@ def test_workflow_arguments():
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
         k2future = {
-            k: executor.submit(workflow.execute, {input_node1: {"val": k**3}, input_node2: {"val": k**2}})
+            k: executor.submit(workflow.execute, {input_node1: {"val": k ** 3}, input_node2: {"val": k ** 2}})
             for k in range(2, 100)
         }
         executor.shutdown()
@@ -251,11 +251,11 @@ def test_workflow_from_endnodes():
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
         regular_results = [
-            executor.submit(regular_workflow.execute, {input_node1: {"val": k**3}, input_node2: {"val": k**2}})
+            executor.submit(regular_workflow.execute, {input_node1: {"val": k ** 3}, input_node2: {"val": k ** 2}})
             for k in range(2, 100)
         ]
         endnode_results = [
-            executor.submit(endnode_workflow.execute, {input_node1: {"val": k**3}, input_node2: {"val": k**2}})
+            executor.submit(endnode_workflow.execute, {input_node1: {"val": k ** 3}, input_node2: {"val": k ** 2}})
             for k in range(2, 100)
         ]
         executor.shutdown()

@@ -63,7 +63,7 @@ class SimpleFilterTask(EOTask):
             raise RuntimeError("EOPatch has no good indices after filtering with given filter function")
 
         for feature_type, feature_name in self.filter_features_parser.get_features(eopatch):
-            if feature_type.is_time_dependent():
+            if feature_type.is_temporal():
                 if feature_type.has_dict():
                     if feature_type.contains_ndarrays():
                         eopatch[feature_type][feature_name] = np.asarray(

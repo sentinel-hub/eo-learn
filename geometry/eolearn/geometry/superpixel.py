@@ -66,7 +66,7 @@ class SuperpixelSegmentationTask(EOTask):
                 EORuntimeWarning,
             )
 
-        if self.feature[0].is_time_dependent():
+        if self.feature[0].is_temporal():
             data = np.moveaxis(data, 0, 2)
             data = data.reshape((data.shape[0], data.shape[1], data.shape[2] * data.shape[3]))
 

@@ -21,13 +21,19 @@ from typing import Dict, Iterable, Optional
 from dataclasses import dataclass
 
 from .constants import FeatureType
-from .utilities import FeatureParser, parse_feature, parse_renamed_feature, parse_features, parse_renamed_features
+from .utilities.feature_parser import (
+    FeatureParser,
+    parse_feature,
+    parse_renamed_feature,
+    parse_features,
+    parse_renamed_features,
+)
 
 LOGGER = logging.getLogger(__name__)
 
 
 class EOTask(metaclass=ABCMeta):
-    """Base class for EOTask"""
+    """Base class for EOTask."""
 
     parse_feature = staticmethod(parse_feature)
     parse_renamed_feature = staticmethod(parse_renamed_feature)
@@ -64,17 +70,17 @@ class EOTask(metaclass=ABCMeta):
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
-        """Override to specify action performed by task"""
+        """Override to specify action performed by task."""
 
     @staticmethod
     def get_feature_parser(features, allowed_feature_types: Optional[Iterable[FeatureType]] = None) -> FeatureParser:
-        """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`"""
+        """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
 
 
 @dataclass(frozen=True)
 class _PrivateTaskConfig:
-    """A container for configuration parameters about an EOTask itself
+    """A container for configuration parameters about an EOTask itself.
 
     :param init_args: A dictionary of parameters and values used for EOTask initialization
     """

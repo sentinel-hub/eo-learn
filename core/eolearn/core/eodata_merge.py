@@ -20,11 +20,11 @@ from geopandas import GeoDataFrame
 
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
-from .utilities import FeatureParser
+from .utilities.feature_parser import FeatureParser
 
 
 def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_op=None):
-    """Merge features of given EOPatches into a new EOPatch
+    """Merge features of given EOPatches into a new EOPatch.
 
     :param eopatches: Any number of EOPatches to be merged together
     :type eopatches: EOPatch
@@ -66,7 +66,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
         feature_type, feature_name = feature
 
         if feature_type.is_raster():
-            if feature_type.is_time_dependent():
+            if feature_type.is_temporal():
                 eopatch_content[feature] = _merge_time_dependent_raster_feature(
                     eopatches, feature, time_dependent_op, order_mask_per_eopatch
                 )
@@ -112,7 +112,7 @@ def _return_if_equal_operation(arrays):
     """Checks if arrays are all equal and returns first one of them. If they are not equal it raises an error."""
     if _all_equal(arrays):
         return arrays[0]
-    raise ValueError("Cannot merge given arrays because their values are not the same")
+    raise ValueError("Cannot merge given arrays because their values are not the same.")
 
 
 def _merge_timestamps(eopatches, reduce_timestamps):
@@ -205,7 +205,7 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
 
 
 def _is_strictly_increasing(array):
-    """Checks if a 1D array of values is strictly increasing"""
+    """Checks if a 1D array of values is strictly increasing."""
     return (np.diff(array) > 0).all()
 
 
@@ -221,7 +221,7 @@ def _merge_timeless_raster_feature(eopatches, feature, operation):
     except ValueError as exception:
         raise ValueError(
             f"Failed to merge {feature} with {operation}, try setting a different value for merging "
-            "parameter timeless_op"
+            "parameter timeless_op."
         ) from exception
 
 
@@ -252,7 +252,7 @@ def _select_meta_info_feature(eopatches, feature_name):
     if not _all_equal(values):
         message = (
             f"EOPatches have different values of meta info feature {feature_name}. The first value will be "
-            "used in a merged EOPatch"
+            "used in a merged EOPatch."
         )
         warnings.warn(message, category=EORuntimeWarning)
 
@@ -268,7 +268,7 @@ def _get_common_bbox(eopatches):
 
     if _all_equal(bboxes):
         return bboxes[0]
-    raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes")
+    raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes.")
 
 
 def _extract_feature_values(eopatches, feature):

@@ -12,21 +12,20 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import copy
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 
 import fs
 import numpy as np
 
 from .eodata import EOPatch
 from .eotask import EOTask
-from .fs_utils import get_filesystem
+from .utilities.filesystem import get_filesystem
 
 
 class CopyTask(EOTask):
     """Makes a shallow copy of the given EOPatch.
 
     It copies feature type dictionaries but not the data itself.
-
     """
 
     def __init__(self, features=...):
@@ -47,8 +46,8 @@ class DeepCopyTask(CopyTask):
         return eopatch.__deepcopy__(features=self.features)
 
 
-class IOTask(EOTask):
-    """An abstract Input/Output task that can handle a path and a filesystem object"""
+class IOTask(EOTask, metaclass=ABCMeta):
+    """An abstract Input/Output task that can handle a path and a filesystem object."""
 
     def __init__(self, path, filesystem=None, create=False, config=None):
         """
@@ -72,7 +71,7 @@ class IOTask(EOTask):
 
     @property
     def filesystem(self):
-        """A filesystem property that either initializes a new object or returns an existing one"""
+        """A filesystem property that either initializes a new object or returns an existing one."""
         if self._filesystem is None:
             return get_filesystem(self.path, create=self._create, config=self.config)
 
@@ -81,11 +80,10 @@ class IOTask(EOTask):
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
         """Implement execute function"""
-        raise NotImplementedError
 
 
 class SaveTask(IOTask):
-    """Saves the given EOPatch to a filesystem"""
+    """Saves the given EOPatch to a filesystem."""
 
     def __init__(self, path, filesystem=None, config=None, **kwargs):
         """
@@ -126,7 +124,7 @@ class SaveTask(IOTask):
 
 
 class LoadTask(IOTask):
-    """Loads an EOPatch from a filesystem"""
+    """Loads an EOPatch from a filesystem."""
 
     def __init__(self, path, filesystem=None, config=None, **kwargs):
         """
@@ -546,7 +544,7 @@ class ExtractBandsTask(MapFeatureTask):
 
 
 class CreateEOPatchTask(EOTask):
-    """Creates an EOPatch"""
+    """Creates an EOPatch."""
 
     def execute(self, **kwargs):
         """Returns a newly created EOPatch with the given kwargs.
@@ -559,7 +557,7 @@ class CreateEOPatchTask(EOTask):
 
 
 class MergeEOPatchesTask(EOTask):
-    """Merge content from multiple EOPatches into a single EOPatch
+    """Merge content from multiple EOPatches into a single EOPatch.
 
     Check :func:`EOPatch.merge<eolearn.core.eodata.EOPatch.merge>` for more information about the merging process.
     """
