@@ -1,4 +1,4 @@
-Sphinx
+Sphinx~=4.0
 sphinx-rtd-theme
 nbsphinx
 jupyter

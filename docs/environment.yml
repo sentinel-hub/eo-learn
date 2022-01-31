@@ -4,7 +4,7 @@ channels:
 dependencies:
 - cartopy=0.17.0
 - pip:
-  - Sphinx
+  - Sphinx~=4.0
   - sphinx-rtd-theme
   - nbsphinx
   - jupyter
