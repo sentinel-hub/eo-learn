@@ -18,17 +18,9 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import HOGTask
 
 
-@pytest.fixture(name="eopatch")
-def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data["ndvi"][:10]
-    ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data["ndvi"] = ndvi
-    return test_eopatch
-
-
-def test_hog(eopatch):
+def test_hog(small_ndvi_eopatch):
     task = HOGTask(
-        (FeatureType.DATA, "ndvi", "hog"),
+        (FeatureType.DATA, "NDVI", "hog"),
         orientations=9,
         pixels_per_cell=(2, 2),
         cells_per_block=(2, 2),
@@ -36,19 +28,19 @@ def test_hog(eopatch):
         visualize_feature_name="hog_visu",
     )
 
-    initial_patch = copy.deepcopy(eopatch)
+    eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
     # Test that no other features were modified
-    for feature, value in initial_patch.data.items():
+    for feature, value in small_ndvi_eopatch.data.items():
         if isinstance(value, FeatureIO):
             value = value.load()
         assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
 
     delta = 1e-4
     for feature, expected_min, expected_max, expected_mean, expected_median in [
-        ("hog", 0.0, 0.4427, 0.0564, 0.0),
-        ("hog_visu", 0.0, 0.1386, 0.0052, 0.0),
+        ("hog", 0.0, 0.5567, 0.0931, 0.0),
+        ("hog_visu", 0.0, 0.3241, 0.0105, 0.0),
     ]:
         hog = eopatch.data[feature]
         assert np.min(hog) == approx(expected_min, abs=delta)

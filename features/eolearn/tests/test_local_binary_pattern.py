@@ -19,24 +19,16 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import LocalBinaryPatternTask
 
 
-@pytest.fixture(name="eopatch")
-def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data["ndvi"][:10]
-    ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data["ndvi"] = ndvi
-    return test_eopatch
-
-
 @pytest.mark.parametrize(
     "task, expected_min, expected_max, expected_mean, expected_median",
-    ([LocalBinaryPatternTask((FeatureType.DATA, "ndvi", "lbp"), nb_points=24, radius=3), 0.0, 25.0, 22.3147, 24.0],),
+    ([LocalBinaryPatternTask((FeatureType.DATA, "NDVI", "lbp"), nb_points=24, radius=3), 0.0, 25.0, 15.8313, 21.0],),
 )
-def test_local_binary_pattern(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
-    initial_patch = copy.deepcopy(eopatch)
+def test_local_binary_pattern(small_ndvi_eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+    eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
     # Test that no other features were modified
-    for feature, value in initial_patch.data.items():
+    for feature, value in small_ndvi_eopatch.data.items():
         if isinstance(value, FeatureIO):
             value = value.load()
         assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
