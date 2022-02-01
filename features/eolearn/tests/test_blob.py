@@ -36,7 +36,7 @@ def test_blob_feature(small_ndvi_eopatch):
 
 BLOB_TESTS = [
     [DoGBlobTask(FEATURE, threshold=0), 0.0, 37.9625, 0.0854, 0.0],
-    [DoHBlobTask(FEATURE, num_sigma=5, threshold=0), 0.0, 21.9203, 0.05807, 0.0],
+    [DoHBlobTask(FEATURE, num_sigma=5, threshold=0), 0.0, 21.9203, 0.058007, 0.0],
 ]
 if sys.version_info >= (3, 8):  # For Python 3.7 scikit-image returns less accurate result for this test
     BLOB_TESTS.append([LoGBlobTask(FEATURE, log_scale=True, threshold=0), 0, 42.4264, 0.0977, 0.0])
