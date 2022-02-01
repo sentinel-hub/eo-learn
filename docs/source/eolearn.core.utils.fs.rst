@@ -1,5 +1,5 @@
 eolearn.core.utils.fs
-======================
+=====================
 
 .. automodule:: eolearn.core.utils.fs
     :members:
