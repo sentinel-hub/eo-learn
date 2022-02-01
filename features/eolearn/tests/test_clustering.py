@@ -18,8 +18,11 @@ from eolearn.features import ClusteringTask
 logging.basicConfig(level=logging.DEBUG)
 
 
-def test_clustering(test_eopatch):
-    test_features = {FeatureType.DATA_TIMELESS: ["feature1", "feature2"]}
+def test_clustering(example_eopatch):
+    test_features = {FeatureType.DATA_TIMELESS: ["DEM", "MAX_NDVI"]}
+    mask = np.zeros_like(example_eopatch.mask_timeless["LULC"], dtype=np.uint8)
+    mask[:90, :90] = 1
+    example_eopatch.mask_timeless["mask"] = mask
 
     ClusteringTask(
         features=test_features,
@@ -28,28 +31,26 @@ def test_clustering(test_eopatch):
         affinity="cosine",
         linkage="single",
         remove_small=3,
-    ).execute(test_eopatch)
+    ).execute(example_eopatch)
 
     ClusteringTask(
         features=test_features,
         new_feature_name="clusters_mask",
-        distance_threshold=0.1,
+        distance_threshold=0.00000001,
         affinity="cosine",
         linkage="average",
         mask_name="mask",
-    ).execute(test_eopatch)
+    ).execute(example_eopatch)
 
-    clusters = test_eopatch.data_timeless["clusters_small"].squeeze()
-    delta = 1e-3
+    clusters = example_eopatch.data_timeless["clusters_small"].squeeze()
 
-    assert len(np.unique(clusters)) == 26, "Wrong number of clusters."
-    assert np.median(clusters) == 92
-    assert np.mean(clusters) == approx(68.665, abs=delta)
+    assert len(np.unique(clusters)) == 22, "Wrong number of clusters."
+    assert np.median(clusters) == 2
+    assert np.mean(clusters) == approx(2.19109)
 
-    clusters = test_eopatch.data_timeless["clusters_mask"].squeeze()
-    delta = 1e-4
+    clusters = example_eopatch.data_timeless["clusters_mask"].squeeze()
 
-    assert len(np.unique(clusters)) == 45, "Wrong number of clusters."
-    assert np.median(clusters) == -0.5
-    assert np.mean(clusters) == approx(3.7075, abs=delta)
-    assert np.all(clusters[0:5, 0:20] == -1), "Wrong area"
+    assert len(np.unique(clusters)) == 20, "Wrong number of clusters."
+    assert np.median(clusters) == 0
+    assert np.mean(clusters) == approx(-0.0948515)
+    assert np.all(clusters[90:, 90:] == -1), "Wrong area"

@@ -22,40 +22,33 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import BlobTask, DoGBlobTask, LoGBlobTask, DoHBlobTask
 
 
-FEATURE = (FeatureType.DATA, "ndvi", "blob")
+FEATURE = (FeatureType.DATA, "NDVI", "blob")
 
 
-@pytest.fixture(name="eopatch")
-def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data["ndvi"][:10]
-    ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data["ndvi"] = ndvi
-    return test_eopatch
-
-
-def test_blob_feature(eopatch):
+def test_blob_feature(small_ndvi_eopatch):
+    eopatch = small_ndvi_eopatch
     BlobTask(FEATURE, blob_dog, sigma_ratio=1.6, min_sigma=1, max_sigma=30, overlap=0.5, threshold=0)(eopatch)
-    DoGBlobTask((FeatureType.DATA, "ndvi", "blob_dog"), threshold=0)(eopatch)
+    DoGBlobTask((FeatureType.DATA, "NDVI", "blob_dog"), threshold=0)(eopatch)
     assert eopatch.data["blob"] == approx(
         eopatch.data["blob_dog"]
     ), "DoG derived class result not equal to base class result"
 
 
 BLOB_TESTS = [
-    [DoGBlobTask(FEATURE, threshold=0), 0.0, 37.9625, 0.0566, 0.0],
-    [DoHBlobTask(FEATURE, num_sigma=5, threshold=0), 0.0, 1.4142, 0.0007, 0.0],
+    [DoGBlobTask(FEATURE, threshold=0), 0.0, 37.9625, 0.0854, 0.0],
 ]
 if sys.version_info >= (3, 8):  # For Python 3.7 scikit-image returns less accurate result for this test
-    BLOB_TESTS.append([LoGBlobTask(FEATURE, log_scale=True, threshold=0), 0, 13.65408, 0.05768, 0.0])
+    BLOB_TESTS.append([DoHBlobTask(FEATURE, num_sigma=5, threshold=0), 0.0, 21.9203, 0.05807, 0.0])
+    BLOB_TESTS.append([LoGBlobTask(FEATURE, log_scale=True, threshold=0), 0, 42.4264, 0.0977, 0.0])
 
 
 @pytest.mark.parametrize("task, expected_min, expected_max, expected_mean, expected_median", BLOB_TESTS)
-def test_blob(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
-    initial_patch = copy.deepcopy(eopatch)
+def test_blob(small_ndvi_eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+    eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
     # Test that no other features were modified
-    for feature, value in initial_patch.data.items():
+    for feature, value in small_ndvi_eopatch.data.items():
         if isinstance(value, FeatureIO):
             value = value.load()
         assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")

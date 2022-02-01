@@ -9,7 +9,6 @@ Copyright (c) 2018-2019 William Ouellette
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 from datetime import datetime
 import dataclasses
 from typing import Optional
@@ -179,13 +178,13 @@ INTERPOLATION_TEST_CASES = [
     InterpolationTestCase(
         "kriging interpolation",
         KrigingInterpolationTask(
-            (FeatureType.DATA, "NDVI"), result_interval=(-10, 10), resample_range=("2016-01-01", "2018-01-01", 5)
+            (FeatureType.DATA, "NDVI"), result_interval=(-10, 10), resample_range=("2017-01-01", "2018-01-01", 10)
         ),
-        result_len=147,
-        img_min=-0.252500534,
-        img_max=0.659086704,
-        img_mean=0.3825493,
-        img_median=0.39931053,
+        result_len=37,
+        img_min=-0.19972801,
+        img_max=0.6591711,
+        img_mean=0.3773447,
+        img_median=0.3993981,
     ),
     InterpolationTestCase(
         "nearest resample",
