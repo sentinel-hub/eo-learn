@@ -18,7 +18,7 @@ import numpy as np
 
 from eolearn.core import EOTask
 
-from .utilities import rolling_window
+from .utils import rolling_window
 
 
 class ImageBaseClassifier(ABC):

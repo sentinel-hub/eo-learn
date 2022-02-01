@@ -20,7 +20,6 @@ from .interpolation import (
     CubicResamplingTask,
     KrigingInterpolationTask,
 )
-from .feature_extractor import FeatureExtractionTask, FeatureExtendedExtractor
 from .feature_manipulation import (
     SimpleFilterTask,
     FilterTimeSeriesTask,

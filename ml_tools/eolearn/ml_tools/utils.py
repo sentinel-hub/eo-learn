@@ -10,8 +10,6 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
-import logging
 import itertools
 
 import numpy as np
@@ -23,9 +21,6 @@ except ImportError:
 
     matplotlib.use("agg")
     import matplotlib.pyplot as plt
-
-
-LOGGER = logging.getLogger(__name__)
 
 
 # This code was copied from https://gist.github.com/seberg/3866040
@@ -217,7 +212,7 @@ def plot_confusion_matrix(matrix, classes, normalize=False, title="Confusion mat
     fmt = ".2f" if normalize else "d"
     if normalize:
         matrix = matrix.astype("float") / matrix.sum(axis=1)[:, np.newaxis]
-    print(matrix)
+
     thresh = matrix.max() / 2.0
     for i, j in itertools.product(range(matrix.shape[0]), range(matrix.shape[1])):
         plt.text(

@@ -1,5 +1,5 @@
 eo-learn-core
+numpy
+shapely
 seaborn
-scikit-image
-pandas
 matplotlib
