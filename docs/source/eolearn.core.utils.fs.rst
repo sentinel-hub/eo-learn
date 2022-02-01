@@ -1,4 +1,4 @@
-eolearn.core.utilities
+eolearn.core.utils.fs
 ======================
 
 .. automodule:: eolearn.core.utils.fs

@@ -1,4 +1,4 @@
-eolearn.core.utilities
+eolearn.core.utils.logging
 ======================
 
 .. automodule:: eolearn.core.utils.logging

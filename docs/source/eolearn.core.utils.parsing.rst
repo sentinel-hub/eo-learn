@@ -1,4 +1,4 @@
-eolearn.core.utilities
+eolearn.core.utils.parsing
 ======================
 
 .. automodule:: eolearn.core.utils.parsing

@@ -1,4 +1,4 @@
-eolearn.core.utilities
+eolearn.core.utils.common
 ======================
 
 .. automodule:: eolearn.core.utils.common
