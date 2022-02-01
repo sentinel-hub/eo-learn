@@ -26,9 +26,9 @@ from sentinelhub import BBox, CRS
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
 from .eodata_merge import merge_eopatches
-from .utilities.filesystem import get_filesystem
-from .utilities.other import deep_eq
-from .utilities.feature_parser import parse_features
+from .utils.fs import get_filesystem
+from .utils.common import deep_eq
+from .utils.parsing import parse_features
 
 
 LOGGER = logging.getLogger(__name__)

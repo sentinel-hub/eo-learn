@@ -13,35 +13,10 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import logging
-import warnings
-from logging import Filter, LogRecord
-from typing import Optional
-
 import uuid
 import numpy as np
 import geopandas as gpd
 from geopandas.testing import assert_geodataframe_equal
-
-from ..exceptions import EODeprecationWarning
-
-
-LOGGER = logging.getLogger(__name__)
-
-
-class LogFileFilter(Filter):
-    """Filters log messages passed to log file."""
-
-    def __init__(self, thread_name: Optional[str], *args, **kwargs):
-        """
-        :param thread_name: Name of the thread by which to filter logs. By default it won't filter by any name.
-        """
-        self.thread_name = thread_name
-        super().__init__(*args, **kwargs)
-
-    def filter(self, record: LogRecord):
-        """Shows everything from the thread that it was initialized in."""
-        return record.threadName == self.thread_name
 
 
 def deep_eq(fst_obj, snd_obj):
@@ -101,7 +76,7 @@ def deep_eq(fst_obj, snd_obj):
     return fst_obj == snd_obj
 
 
-def constant_pad(X, multiple_of, up_down_rule="even", left_right_rule="even", pad_value=0):
+def constant_pad(array, multiple_of, up_down_rule="even", left_right_rule="even", pad_value=0):
     """Function pads an image of shape (rows, columns, channels) with zeros.
 
     It pads an image so that the shape becomes (rows + padded_rows, columns + padded_columns, channels), where
@@ -109,8 +84,8 @@ def constant_pad(X, multiple_of, up_down_rule="even", left_right_rule="even", pa
 
     Same rule is applied to columns.
 
-    :type X: array of shape (rows, columns, channels) or (rows, columns)
-    :param multiple_of: make X' rows and columns multiple of this tuple
+    :type array: array of shape (rows, columns, channels) or (rows, columns)
+    :param multiple_of: make array' rows and columns multiple of this tuple
     :type multiple_of: tuple (rows, columns)
     :param up_down_rule: Add padded rows evenly to the top/bottom of the image, or up (top) / down (bottom) only
     :type up_down_rule: up_down_rule: string, (even, up, down)
@@ -119,8 +94,7 @@ def constant_pad(X, multiple_of, up_down_rule="even", left_right_rule="even", pa
     :param pad_value: Value to be assigned to padded rows and columns
     :type pad_value: int
     """
-    # pylint: disable=invalid-name
-    shape = X.shape
+    shape = array.shape
 
     row_padding, col_padding = 0, 0
 
@@ -155,7 +129,7 @@ def constant_pad(X, multiple_of, up_down_rule="even", left_right_rule="even", pa
             raise ValueError("Padding rule for columns not supported. Choose beteen even, left or right!")
 
     return np.lib.pad(
-        X,
+        array,
         ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
         "constant",
         constant_values=((pad_value, pad_value), (pad_value, pad_value)),
@@ -171,29 +145,3 @@ def generate_uid(prefix: str):
     time_uid = uuid.uuid1(node=0).hex[:-12]
     random_uid = uuid.uuid4().hex[:12]
     return f"{prefix}-{time_uid}-{random_uid}"
-
-
-def renamed_and_deprecated(deprecated_class):
-    """A class decorator that signals that the class has been renamed when initialized.
-
-    Example of use:
-
-    .. code-block:: python
-
-        @renamed_and_deprecated
-        class OldNameForClass(NewNameForClass):
-            ''' Deprecated version of `NewNameForClass`
-            '''
-
-    """
-
-    def warn_and_init(self, *args, **kwargs):
-        warnings.warn(
-            f"The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. "
-            "The old name is deprecated and will be removed in version 1.0",
-            EODeprecationWarning,
-        )
-        super(deprecated_class, self).__init__(*args, **kwargs)
-
-    deprecated_class.__init__ = warn_and_init
-    return deprecated_class

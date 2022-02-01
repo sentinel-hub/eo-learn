@@ -23,7 +23,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOTask, EOPatch
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utilities.filesystem import get_base_filesystem_and_path
+from eolearn.core.utils.fs import get_base_filesystem_and_path
 
 LOGGER = logging.getLogger(__name__)
 

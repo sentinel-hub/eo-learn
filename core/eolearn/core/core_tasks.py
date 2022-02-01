@@ -19,7 +19,7 @@ import numpy as np
 
 from .eodata import EOPatch
 from .eotask import EOTask
-from .utilities.filesystem import get_filesystem
+from .utils.fs import get_filesystem
 
 
 class CopyTask(EOTask):

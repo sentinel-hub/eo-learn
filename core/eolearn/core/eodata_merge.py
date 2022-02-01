@@ -20,7 +20,7 @@ from geopandas import GeoDataFrame
 
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
-from .utilities.feature_parser import FeatureParser
+from .utils.parsing import FeatureParser
 
 
 def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_op=None):

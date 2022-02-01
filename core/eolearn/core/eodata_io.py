@@ -29,7 +29,7 @@ from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .utilities.feature_parser import FeatureParser
+from .utils.parsing import FeatureParser
 
 
 def save_eopatch(

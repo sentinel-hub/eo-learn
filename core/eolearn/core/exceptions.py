@@ -25,3 +25,29 @@ class EORuntimeWarning(RuntimeWarning):
 warnings.simplefilter("default", EODeprecationWarning)
 warnings.simplefilter("default", EOUserWarning)
 warnings.simplefilter("always", EORuntimeWarning)
+
+
+def renamed_and_deprecated(deprecated_class):
+    """A class decorator that signals that the class has been renamed when initialized.
+
+    Example of use:
+
+    .. code-block:: python
+
+        @renamed_and_deprecated
+        class OldNameForClass(NewNameForClass):
+            ''' Deprecated version of `NewNameForClass`
+            '''
+
+    """
+
+    def warn_and_init(self, *args, **kwargs):
+        warnings.warn(
+            f"The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. "
+            "The old name is deprecated and will be removed in version 1.0",
+            EODeprecationWarning,
+        )
+        super(deprecated_class, self).__init__(*args, **kwargs)
+
+    deprecated_class.__init__ = warn_and_init
+    return deprecated_class

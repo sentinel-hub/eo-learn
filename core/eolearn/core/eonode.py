@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Sequence, Optional, List, Tuple, Union, Set, Dict, cast
 
 from .eotask import EOTask
-from .utilities.other import generate_uid
+from .utils.common import generate_uid
 
 
 @dataclass(frozen=True)

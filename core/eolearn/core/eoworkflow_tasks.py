@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 from typing import Optional
 from .eotask import EOTask
 from .eodata import EOPatch
-from .utilities.other import generate_uid
+from .utils.common import generate_uid
 
 
 class InputTask(EOTask):

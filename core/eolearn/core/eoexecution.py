@@ -31,8 +31,8 @@ from tqdm.auto import tqdm
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
 from .exceptions import EORuntimeWarning
-from .utilities.filesystem import get_base_filesystem_and_path, get_full_path
-from .utilities.other import LogFileFilter
+from .utils.fs import get_base_filesystem_and_path, get_full_path
+from .utils.logging import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
 MULTIPROCESSING_LOCK = None

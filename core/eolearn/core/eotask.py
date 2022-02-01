@@ -21,7 +21,7 @@ from typing import Dict, Iterable, Optional
 from dataclasses import dataclass
 
 from .constants import FeatureType
-from .utilities.feature_parser import (
+from .utils.parsing import (
     FeatureParser,
     parse_feature,
     parse_renamed_feature,
