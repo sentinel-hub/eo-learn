@@ -19,7 +19,7 @@ from moto import mock_s3
 
 from sentinelhub import SHConfig
 from eolearn.core import get_filesystem, load_s3_filesystem
-from eolearn.core.fs_utils import get_aws_credentials, get_full_path, join_path
+from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path
 
 
 def test_get_local_filesystem(tmp_path):
@@ -62,7 +62,7 @@ def test_s3_filesystem():
         assert filesystem.aws_secret_access_key == custom_config.aws_secret_access_key
 
 
-@mock.patch("eolearn.core.fs_utils.Session")
+@mock.patch("eolearn.core.utils.fs.Session")
 def test_get_aws_credentials(mocked_copy):
     fake_credentials = Credentials(access_key="my-aws-access-key", secret_key="my-aws-secret-key")
 

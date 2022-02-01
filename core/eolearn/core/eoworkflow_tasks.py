@@ -10,11 +10,11 @@ file in the root directory of this source tree.
 from typing import Optional
 from .eotask import EOTask
 from .eodata import EOPatch
-from .utilities import generate_uid
+from .utils.common import generate_uid
 
 
 class InputTask(EOTask):
-    """Introduces data into an EOWorkflow, where the data can be specified at initialization or at execution"""
+    """Introduces data into an EOWorkflow, where the data can be specified at initialization or at execution."""
 
     def __init__(self, value: Optional[object] = None):
         """
@@ -31,7 +31,7 @@ class InputTask(EOTask):
 
 
 class OutputTask(EOTask):
-    """Stores data as an output of `EOWorkflow` results"""
+    """Stores data as an output of `EOWorkflow` results."""
 
     def __init__(self, name: Optional[str] = None, features=...):
         """
@@ -44,7 +44,7 @@ class OutputTask(EOTask):
 
     @property
     def name(self) -> str:
-        """Provides a name under which data will be saved in `WorkflowResults`
+        """Provides a name under which data will be saved in `WorkflowResults`.
 
         :return: A name
         """

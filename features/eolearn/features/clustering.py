@@ -157,6 +157,6 @@ class ClusteringTask(EOTask):
 
         trimmed_labels = np.reshape(trimmed_labels, org_shape[:-1])
 
-        eopatch.add_feature(FeatureType.DATA_TIMELESS, self.new_feature_name, trimmed_labels[..., np.newaxis])
+        eopatch[FeatureType.DATA_TIMELESS, self.new_feature_name] = trimmed_labels[..., np.newaxis]
 
         return eopatch

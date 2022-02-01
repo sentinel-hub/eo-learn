@@ -1,7 +1,7 @@
-eolearn.core.fs_utils
+eolearn.core.utils.fs
 =====================
 
-.. automodule:: eolearn.core.fs_utils
+.. automodule:: eolearn.core.utils.fs
     :members:
     :undoc-members:
     :show-inheritance:

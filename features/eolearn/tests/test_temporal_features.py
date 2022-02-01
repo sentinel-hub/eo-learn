@@ -42,7 +42,7 @@ def test_temporal_indices():
     assert_array_equal(new_eopatch.data_timeless["ARGMAX_NDVI"], (t - 2) * np.ones((h, w, 1)))
 
     bands_shape = (t, h, w, c)
-    eopatch.add_feature(FeatureType.DATA, "BANDS", np.arange(np.prod(bands_shape)).reshape(bands_shape))
+    eopatch[FeatureType.DATA, "BANDS"] = np.arange(np.prod(bands_shape)).reshape(bands_shape)
     add_bands = AddMaxMinTemporalIndicesTask(
         data_feature="BANDS",
         data_index=1,

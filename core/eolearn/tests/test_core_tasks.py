@@ -153,12 +153,11 @@ def test_duplicate_feature(patch):
     # Duplicating MASK1 three times into D3, D4, D5 doesn't work, because EOTask.feature_gen
     # returns a dict containing only ('MASK1', 'D5') duplication
 
-    # duplicate_names = {'D3', 'D4', 'D5'}
-    # feature_list = [(FeatureType.MASK, 'MASK1', new) for new in duplicate_names]
-    # patch = DuplicateFeature(feature_list).execute(patch)
+    duplicate_names = {"D3", "D4", "D5"}
+    feature_list = [(FeatureType.MASK, "MASK1", new) for new in duplicate_names]
+    patch = DuplicateFeatureTask(feature_list).execute(patch)
 
-    # self.assertTrue(duplicate_names.issubset(patch.mask),
-    #                 'Duplicating single feature multiple times failed.')
+    assert duplicate_names.issubset(patch.mask), "Duplicating single feature multiple times failed."
 
 
 def test_initialize_feature(patch):
@@ -251,8 +250,8 @@ def test_move_feature():
     assert FeatureType.MASK_TIMELESS in patch_dst.get_features()
     assert FeatureType.DATA not in patch_dst.get_features()
 
-    assert "MTless1" in patch_dst.get_feature(FeatureType.MASK_TIMELESS)
-    assert "MTless2" in patch_dst.get_feature(FeatureType.MASK_TIMELESS)
+    assert "MTless1" in patch_dst[FeatureType.MASK_TIMELESS]
+    assert "MTless2" in patch_dst[FeatureType.MASK_TIMELESS]
 
 
 def test_merge_features():

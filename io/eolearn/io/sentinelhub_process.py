@@ -242,7 +242,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
 
         ftr_data_types = set(ft for ft, _, _ in _features if not ft.is_meta())
-        if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_time_dependent() for ft in ftr_data_types):
+        if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_temporal() for ft in ftr_data_types):
             return _features
 
         raise ValueError("Cannot mix time dependent and timeless requests!")
@@ -319,7 +319,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             if ftype.is_meta():
                 data = [data["userdata.json"] for data in data_responses]
 
-            elif ftype.is_time_dependent():
+            elif ftype.is_temporal():
                 data = np.asarray([data[f"{fname}.tif"] for data in data_responses])
                 data = data[..., np.newaxis] if data.ndim == 3 else data
                 time_dim = shape[0]
@@ -598,7 +598,7 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
             feature = (FeatureType.DATA_TIMELESS, feature)
 
         feature_type, feature_name = feature
-        if feature_type.is_time_dependent():
+        if feature_type.is_temporal():
             raise ValueError("DEM feature should be timeless!")
 
         band = data_collection.bands[0]

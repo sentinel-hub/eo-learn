@@ -29,7 +29,7 @@ from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .utilities import FeatureParser
+from .utils.parsing import FeatureParser
 
 
 def save_eopatch(
@@ -40,7 +40,7 @@ def save_eopatch(
     overwrite_permission=OverwritePermission.ADD_ONLY,
     compress_level=0,
 ):
-    """A utility function used by EOPatch.save method"""
+    """A utility function used by EOPatch.save method."""
     patch_exists = filesystem.exists(patch_location)
 
     if not patch_exists:
@@ -86,7 +86,7 @@ def save_eopatch(
 
 
 def remove_redundant_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
-    """Removes files that should have been overwriten but were not due to different compression levels"""
+    """Removes files that should have been overwriten but were not due to different compression levels."""
     files_to_remove = []
     saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
     for ftype, fname, path in filesystem_features:
@@ -100,7 +100,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
 
 
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
-    """A utility function used by EOPatch.load method"""
+    """A utility function used by EOPatch.load method."""
     features = list(walk_filesystem(filesystem, patch_location, features))
     loading_data = [FeatureIO(ftype, path, filesystem) for ftype, _, path in features]
 
@@ -115,7 +115,7 @@ def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading
 
 
 def walk_filesystem(filesystem, patch_location, features=...):
-    """Recursively reads a patch_location and yields tuples of (feature_type, feature_name, file_path)"""
+    """Recursively reads a patch_location and yields tuples of (feature_type, feature_name, file_path)."""
     existing_features = defaultdict(dict)
     for ftype, fname, path in walk_main_folder(filesystem, patch_location):
         existing_features[ftype][fname] = path
@@ -155,7 +155,7 @@ def walk_filesystem(filesystem, patch_location, features=...):
 
 
 def walk_main_folder(filesystem, folder_path):
-    """Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem)
+    """Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem).
 
     The results depend on the implementation of `filesystem.listdir`. For each folder that coincides with a feature
     type it returns (feature type, ..., path). If files in subfolders are also listed by `listdir` it returns the
@@ -183,7 +183,7 @@ def walk_feature_type_folder(filesystem, folder_path):
 
 
 def walk_eopatch(eopatch, patch_location, features):
-    """Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path"""
+    """Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path."""
     returned_meta_features = set()
     for ftype, fname in FeatureParser(features).get_features(eopatch):
         name_basis = fs.path.combine(patch_location, ftype.value)
@@ -198,7 +198,7 @@ def walk_eopatch(eopatch, patch_location, features):
 
 
 def _check_add_only_permission(eopatch_features, filesystem_features):
-    """Checks that no existing feature will be overwritten"""
+    """Checks that no existing feature will be overwritten."""
     filesystem_features = {_to_lowercase(*feature) for feature in filesystem_features}
     eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -208,7 +208,7 @@ def _check_add_only_permission(eopatch_features, filesystem_features):
 
 
 def _check_letter_case_collisions(eopatch_features, filesystem_features):
-    """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features"""
+    """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     if len(lowercase_features) != len(eopatch_features):
@@ -220,17 +220,17 @@ def _check_letter_case_collisions(eopatch_features, filesystem_features):
         if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
             raise IOError(
                 f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
-                "casing from a feature that should be saved"
+                "casing from a feature that should be saved."
             )
 
 
 def _to_lowercase(ftype, fname, *_):
-    """Transforms a feature to it's lowercase representation"""
+    """Transforms a feature to it's lowercase representation."""
     return ftype, fname if fname is ... else fname.lower()
 
 
 class FeatureIO:
-    """A class that handles the saving and loading process of a single feature at a given location"""
+    """A class that handles the saving and loading process of a single feature at a given location."""
 
     def __init__(self, feature_type: FeatureType, path: str, filesystem: fs.base.FS):
         """
@@ -245,7 +245,6 @@ class FeatureIO:
         self.loaded_value = None
 
     def __repr__(self):
-        """A representation method"""
         return f"{self.__class__.__name__}({self.path})"
 
     def load(self):
@@ -266,7 +265,7 @@ class FeatureIO:
         return self.loaded_value
 
     def save(self, data, file_format, compress_level=0):
-        """Method for saving a feature"""
+        """Method for saving a feature."""
         gz_extension = ("." + MimeType.GZIP.extension) if compress_level else ""
         path = f"{self.path}.{file_format.extension}{gz_extension}"
 
@@ -278,7 +277,7 @@ class FeatureIO:
         self._save(self.filesystem, data, path, file_format, compress_level)
 
     def _save(self, filesystem, data, path, file_format, compress_level=0):
-        """Given a filesystem it saves and compresses the data"""
+        """Given a filesystem it saves and compresses the data."""
         with filesystem.openbin(path, "w") as file_handle:
             if compress_level == 0:
                 self._write_to_file(data, file_handle, file_format)
@@ -288,7 +287,7 @@ class FeatureIO:
                 self._write_to_file(data, gzip_file_handle, file_format)
 
     def _write_to_file(self, data, file, file_format):
-        """Writes to a file"""
+        """Writes data to a file in the appropriate way."""
         if file_format is MimeType.NPY:
             return np.save(file, data)
 
@@ -315,7 +314,7 @@ class FeatureIO:
         raise ValueError(f"Unsupported file format {file_format} for feature type {self.feature_type}.")
 
     def _decode(self, file, path):
-        """Loads from a file and decodes content"""
+        """Loads from a file and decodes content."""
         file_format = MimeType(fs.path.splitext(path)[1].strip("."))
 
         if file_format is MimeType.NPY:

@@ -31,10 +31,10 @@ def eopatch_fixture():
     dem = np.ones((20, 20, 1))
 
     eop = EOPatch()
-    eop.add_feature(FeatureType.DATA, "bands", value=bands)
-    eop.add_feature(FeatureType.DATA, "ndvi", value=ndvi)
-    eop.add_feature(FeatureType.MASK, "cm", value=mask)
-    eop.add_feature(FeatureType.DATA_TIMELESS, "dem", value=dem)
+    eop[FeatureType.DATA, "bands"] = bands
+    eop[FeatureType.DATA, "ndvi"] = ndvi
+    eop[FeatureType.MASK, "cm"] = mask
+    eop[FeatureType.DATA_TIMELESS, "dem"] = dem
     return eop
 
 

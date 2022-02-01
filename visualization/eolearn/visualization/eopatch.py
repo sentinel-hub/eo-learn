@@ -28,7 +28,7 @@ from shapely.geometry import Polygon
 from sentinelhub import CRS
 
 from eolearn.core import FeatureType, FeatureTypeSet
-from eolearn.core.utilities import parse_feature
+from eolearn.core.utils.parsing import parse_feature
 
 from .xarray_utils import array_to_dataframe, new_coordinates, string_to_variable
 

@@ -31,8 +31,8 @@ from tqdm.auto import tqdm
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
 from .exceptions import EORuntimeWarning
-from .fs_utils import get_base_filesystem_and_path, get_full_path
-from .utilities import LogFileFilter
+from .utils.fs import get_base_filesystem_and_path, get_full_path
+from .utils.logging import LogFileFilter
 
 LOGGER = logging.getLogger(__name__)
 MULTIPROCESSING_LOCK = None
@@ -118,9 +118,9 @@ class EOExecutor:
     def _parse_and_validate_execution_kwargs(
         execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]]
     ) -> List[Dict[EONode, Dict[str, object]]]:
-        """Parses and validates execution arguments provided by user and raises an error if something is wrong"""
+        """Parses and validates execution arguments provided by user and raises an error if something is wrong."""
         if not isinstance(execution_kwargs, (list, tuple)):
-            raise ValueError("Parameter 'execution_kwargs' should be a list")
+            raise ValueError("Parameter 'execution_kwargs' should be a list.")
 
         for input_kwargs in execution_kwargs:
             EOWorkflow.validate_input_kwargs(input_kwargs)
@@ -129,13 +129,13 @@ class EOExecutor:
 
     @staticmethod
     def _parse_execution_names(execution_names: Optional[List[str]], execution_kwargs: Sequence) -> List[str]:
-        """Parses a list of execution names"""
+        """Parses a list of execution names."""
         if execution_names is None:
             return [str(num) for num in range(1, len(execution_kwargs) + 1)]
 
         if not isinstance(execution_names, (list, tuple)) or len(execution_names) != len(execution_kwargs):
             raise ValueError(
-                "Parameter 'execution_names' has to be a list of the same size as the list of execution arguments"
+                "Parameter 'execution_names' has to be a list of the same size as the list of execution arguments."
             )
         return execution_names
 
@@ -193,7 +193,7 @@ class EOExecutor:
 
     @staticmethod
     def _get_processing_type(workers: int, multiprocess: bool) -> _ProcessingType:
-        """Decides processing type according to parameters"""
+        """Decides processing type according to parameters."""
         if workers == 1:
             return _ProcessingType.SINGLE_PROCESS
         if multiprocess:
@@ -203,7 +203,7 @@ class EOExecutor:
     def _run_execution(
         self, processing_args: List[_ProcessingData], workers: int, processing_type: _ProcessingType
     ) -> List[WorkflowResults]:
-        """Runs the execution an each item of processing_args list"""
+        """Runs the execution an each item of processing_args list."""
         if processing_type is _ProcessingType.SINGLE_PROCESS:
             return list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
 
@@ -253,7 +253,7 @@ class EOExecutor:
 
     @classmethod
     def _execute_workflow(cls, data: _ProcessingData) -> WorkflowResults:
-        """Handles a single execution of a workflow"""
+        """Handles a single execution of a workflow."""
         logger, handler = cls._try_add_logging(
             data.log_path, data.filter_logs_by_thread, data.logs_filter, data.logs_handler_factory
         )
@@ -270,7 +270,7 @@ class EOExecutor:
         logs_filter: Optional[Filter],
         logs_handler_factory: _HandlerFactoryType,
     ) -> Handler:
-        """Provides object which handles logs"""
+        """Provides object which handles logs."""
         handler = logs_handler_factory(log_path)
 
         if not handler.formatter:
@@ -286,7 +286,7 @@ class EOExecutor:
         return handler
 
     def _prepare_general_stats(self, workers: int, processing_type: _ProcessingType) -> Dict[str, object]:
-        """Prepares a dictionary with a general statistics about executions"""
+        """Prepares a dictionary with a general statistics about executions."""
         failed_count = sum(results.workflow_failed() for results in self.execution_results)
         return {
             self.STATS_START_TIME: self.start_time,
@@ -314,7 +314,7 @@ class EOExecutor:
         return [idx for idx, results in enumerate(self.execution_results) if results.workflow_failed()]
 
     def get_report_path(self, full_path: bool = True) -> str:
-        """Returns the filename and file path of the report
+        """Returns the filename and file path of the report.
 
         :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
             filesystem object.
@@ -339,13 +339,13 @@ class EOExecutor:
             from eolearn.visualization.eoexecutor import EOExecutorVisualization
         except ImportError:
             raise RuntimeError(
-                "Subpackage eo-learn-visualization has to be installed in order to create EOExecutor reports"
+                "Subpackage eo-learn-visualization has to be installed in order to create EOExecutor reports."
             )
 
         return EOExecutorVisualization(self).make_report(include_logs=include_logs)
 
     def get_log_paths(self, full_path: bool = True) -> List[str]:
-        """Returns a list of file paths containing logs
+        """Returns a list of file paths containing logs.
 
         :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
             filesystem object.
@@ -359,7 +359,7 @@ class EOExecutor:
         return log_paths
 
     def read_logs(self) -> List[Optional[str]]:
-        """Loads the content of log files if logs have been saved"""
+        """Loads the content of log files if logs have been saved."""
         if not self.save_logs:
             return [None] * len(self.execution_kwargs)
 
@@ -368,7 +368,7 @@ class EOExecutor:
             return list(executor.map(self._read_log_file, log_paths))
 
     def _read_log_file(self, log_path: str) -> str:
-        """Read a content of a log file"""
+        """Read a content of a log file."""
         try:
             with self.filesystem.open(log_path, "r") as file_handle:
                 return file_handle.read()
@@ -403,7 +403,7 @@ def submit_and_monitor_execution(
 
 def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:
     """A helper utility function that executes a given function with multiprocessing lock if the process is being
-    executed in a multi-processing mode
+    executed in a multi-processing mode.
 
     :param execution_function: A function
     :param args: Function's positional arguments
