@@ -27,10 +27,10 @@ class TrainTestSplitType(Enum):
 class TrainTestSplitTask(EOTask):
     """Randomly assign each pixel or groups of pixels to multiple subsets (e.g., test/train/validate).
 
-    When sampling PER_PIXEL the input feature defines the shape of the output feature. For PER_CLASS and PER_VALUE the
-    input MASK_TIMELESS feature should group together pixels with similar properties, e.g. polygon ids, connected
-    component ids, etc. The task then ensures that such groups are kept together (so the whole polygon is either in
-    train or test).
+    When sampling PER_PIXEL the input feature only specifies the shape of the output feature. For PER_CLASS and
+    PER_VALUE the input MASK_TIMELESS feature should group together pixels with similar properties, e.g. polygon ids,
+    connected component ids, etc. The task then ensures that such groups are kept together (so the whole polygon is
+    either in train or test).
 
     There are three modes of split operation:
 
@@ -99,7 +99,7 @@ class TrainTestSplitTask(EOTask):
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param seed: An argument to be passed to numpy.random.seed function.
-        :type seed: numpy.int64 or None
+        :type seed: int or None
         :return: Input EOPatch with the train set mask.
         :rtype: EOPatch
         """
