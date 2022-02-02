@@ -10,17 +10,8 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import itertools
 
 import numpy as np
-
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    import matplotlib
-
-    matplotlib.use("agg")
-    import matplotlib.pyplot as plt
 
 
 # This code was copied from https://gist.github.com/seberg/3866040
@@ -193,36 +184,3 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     new_shape = new_shape[new_shape != 0]
 
     return np.lib.stride_tricks.as_strided(array, shape=new_shape, strides=new_strides)
-
-
-def plot_confusion_matrix(matrix, classes, normalize=False, title="Confusion matrix", cmap=plt.cm.Blues):
-    """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
-    (This function is copied from the scikit docs.)
-    """
-    plt.figure()
-    plt.imshow(matrix, interpolation="nearest", cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=45)
-    plt.yticks(tick_marks, classes)
-
-    fmt = ".2f" if normalize else "d"
-    if normalize:
-        matrix = matrix.astype("float") / matrix.sum(axis=1)[:, np.newaxis]
-
-    thresh = matrix.max() / 2.0
-    for i, j in itertools.product(range(matrix.shape[0]), range(matrix.shape[1])):
-        plt.text(
-            j,
-            i,
-            format(matrix[i, j], fmt),
-            horizontalalignment="center",
-            color="white" if matrix[i, j] > thresh else "black",
-        )
-
-    plt.tight_layout()
-    plt.ylabel("True label")
-    plt.xlabel("Predicted label")
