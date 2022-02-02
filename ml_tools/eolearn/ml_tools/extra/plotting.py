@@ -1,5 +1,5 @@
 """
-The module provides some utility functions for ML specific plotting 
+The module provides some utility functions for ML specific plotting
 
 Credits:
 Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
