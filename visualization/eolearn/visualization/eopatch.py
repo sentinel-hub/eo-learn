@@ -8,13 +8,15 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import datetime as dt
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Union, Dict
+from typing import Optional, Union, Dict, List, cast
 
+import matplotlib.pyplot as plt
 import numpy as np
 from geopandas import GeoDataFrame
-import matplotlib.pyplot as plt
+from pyproj import CRS
 
 from eolearn.core import FeatureType, EOPatch
 
@@ -28,7 +30,7 @@ class PlotBackend(Enum):
     HVPLOT = "hvplot"
 
 
-def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs):
+def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs) -> np.ndarray:
     """The main `EOPatch` plotting function. It pr
 
     :param args: Positional arguments to be propagated to a plotting backend.
@@ -67,7 +69,8 @@ class PlotConfig(_BasePlotConfig):
 class MatplotlibVisualization(_BaseEOPatchVisualization):
     """EOPatch visualization using `matplotlib` framework."""
 
-    def __init__(self, eopatch: EOPatch, feature, *, axes=None, config: Optional[PlotConfig] = None, **kwargs):
+    def __init__(self, eopatch: EOPatch, feature, *, axes: Optional[np.ndarray] = None,
+                 config: Optional[PlotConfig] = None, **kwargs):
         """
         :param eopatch: An EOPatch with a feature to plot.
         :param feature: A feature from the given EOPatch to plot.
@@ -77,10 +80,11 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
         """
         config = config or PlotConfig()
         super().__init__(eopatch, feature, config=config, **kwargs)
+        self.config = cast(PlotConfig, self.config)
 
         self.axes = axes
 
-    def plot(self):
+    def plot(self) -> np.ndarray:
         """Plots the given feature"""
         feature_type, feature_name = self.feature
         data = self.collect_and_prepare_feature()
@@ -103,11 +107,11 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
                 return self._plot_raster_grid(data[np.newaxis, ...], title=feature_name)
             return self._plot_raster_grid(data, timestamps=self.eopatch.timestamp, title=feature_name)
 
-        if feature_type.is_temporal():
-            return self._plot_time_series(data, self.eopatch.timestamp, title=feature_name)
-        return self._plot_series(data, title=feature_name)
+        if feature_type.is_timeless():
+            return self._plot_series(data, title=feature_name)
+        return self._plot_time_series(data, timestamps=self.eopatch.timestamp, title=feature_name)
 
-    def _plot_raster_grid(self, raster, timestamps=None, title=None):
+    def _plot_raster_grid(self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None) -> np.ndarray:
         """Plots a grid of raster images"""
         rows, _, _, columns = raster.shape
         if self.rgb:
@@ -134,31 +138,32 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
 
         return axes
 
-    def _plot_time_series(self, series, timestamps, title=None):
+    def _plot_time_series(self, series: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None) -> np.ndarray:
         """Plots time series feature."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
         axis = axes[0][0]
 
-        timestamp_array = np.array(timestamps)
+        xlabels = np.array(timestamps) if timestamps else np.arange(series.shape[0])
         channel_num = series.shape[-1]
         for idx in range(channel_num):
             channel_label = self.channel_names[idx] if self.channel_names else None
-            axis.plot(timestamp_array, series[..., idx], label=channel_label)
+            axis.plot(xlabels, series[..., idx], label=channel_label)
 
         if self.channel_names:
             axis.legend()
         return axes
 
-    def _plot_series(self, series, title=None):
+    def _plot_series(self, series: np.ndarray, title: Optional[str] = None) -> np.ndarray:
         """Plot a series of values."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
         axis = axes[0][0]
 
-        axis.plot(np.arange(series.size), series)
+        xlabels = np.array(self.channel_names) if self.channel_names else np.arange(series.size)
+        axis.plot(xlabels, series)
 
         return axes
 
-    def _plot_vector_feature(self, dataframe, timestamp_column=None, title=None):
+    def _plot_vector_feature(self, dataframe: GeoDataFrame, timestamp_column: Optional[str] = None, title: Optional[str] = None) -> np.ndarray:
         """Plots a GeoDataFrame vector feature"""
         rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
         axes = self._provide_axes(nrows=rows, ncols=1, title=title)
@@ -178,7 +183,7 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
 
         return axes
 
-    def _plot_bbox(self, axes=None, target_crs=None):
+    def _plot_bbox(self, axes: Optional[np.ndarray] = None, target_crs: Optional[CRS] = None) -> np.ndarray:
         """Plot a bounding box"""
         bbox = self.eopatch.bbox
         if bbox is None:
@@ -196,7 +201,7 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
 
         return axes
 
-    def _provide_axes(self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs):
+    def _provide_axes(self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs) -> np.ndarray:
         """Either provides an existing grid of axes or creates new one"""
         if self.axes is not None:
             return self.axes

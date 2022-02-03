@@ -11,7 +11,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import dataclasses
-from typing import Optional
+from typing import Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -69,6 +69,7 @@ class HvPlotVisualization(_BaseEOPatchVisualization):
         """
         config = config or HvPlotConfig()
         super().__init__(eopatch, feature, config=config, **kwargs)
+        self.config = cast(HvPlotConfig, self.config)
 
         self.mask_feature = parse_feature(mask_feature)
 
