@@ -37,16 +37,16 @@ from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.utils.parsing import parse_feature
 
 from .xarray import array_to_dataframe, get_new_coordinates, string_to_variable
-from ..eopatch_base import _BasePlotConfig, _BaseEOPatchVisualization
+from ..eopatch_base import BasePlotConfig, BaseEOPatchVisualization
 
 
 @dataclasses.dataclass
-class HvPlotConfig(_BasePlotConfig):
+class HvPlotConfig(BasePlotConfig):
     """Additional advanced configurations for `hvplot` visualization.
 
-    :param plot_width: A width of the plot.
-    :param plot_height: A height of the plot.
-    :param plot_per_pixel: Whether plot data for each pixel (line), for `FeatureType.DATA` and `FeatureType.MASK`.
+    :param plot_width: Width of the plot.
+    :param plot_height: Height of the plot.
+    :param plot_per_pixel: Whether to plot data for each pixel (line), for `FeatureType.DATA` and `FeatureType.MASK`.
     :param vdims: Value dimensions for plotting a `GeoDataFrame`.
     """
 
@@ -56,7 +56,7 @@ class HvPlotConfig(_BasePlotConfig):
     vdims: Optional[str] = None
 
 
-class HvPlotVisualization(_BaseEOPatchVisualization):
+class HvPlotVisualization(BaseEOPatchVisualization):
     """EOPatch visualization using `HvPlot` framework."""
 
     def __init__(

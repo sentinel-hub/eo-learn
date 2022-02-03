@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 """
 import abc
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import numpy as np
 
@@ -20,7 +20,7 @@ from eolearn.core.utils.parsing import parse_feature
 
 
 @dataclass
-class _BasePlotConfig:
+class BasePlotConfig:
     """A base class for advanced plotting configuration parameters.
 
     :param rgb_factor: A factor by which to scale RGB images to make them look better.
@@ -34,7 +34,7 @@ class _BasePlotConfig:
     geometry_column: str = "geometry"
 
 
-class _BaseEOPatchVisualization(metaclass=abc.ABCMeta):
+class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
     """A base class for EOPatch visualization"""
 
     def __init__(
@@ -42,9 +42,9 @@ class _BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         eopatch: EOPatch,
         feature,
         *,
-        config: _BasePlotConfig,
+        config: BasePlotConfig,
         channel_names: Optional[List[str]] = None,
-        rgb: Optional[List[int]] = None,
+        rgb: Optional[Tuple[int, int, int]] = None,
     ):
         """
         :param eopatch: An EOPatch with a feature to plot.
@@ -80,11 +80,11 @@ class _BaseEOPatchVisualization(metaclass=abc.ABCMeta):
             if feature_type.is_spatial() and self.rgb:
                 data = self._prepare_rgb_data(data)
 
-            plot_channel_num = 1 if self.rgb else data.shape[-1]
-            if self.channel_names and len(self.channel_names) != plot_channel_num:
+            number_of_plot_columns = 1 if self.rgb else data.shape[-1]
+            if self.channel_names and len(self.channel_names) != number_of_plot_columns:
                 raise ValueError(
-                    f"Provided {len(self.channel_names)} channel names but attempting to plot feature with "
-                    f"{plot_channel_num} channels."
+                    f"Provided {len(self.channel_names)} channel names but attempting to make plots with "
+                    f"{number_of_plot_columns} columns for the given feature channels."
                 )
 
         return data

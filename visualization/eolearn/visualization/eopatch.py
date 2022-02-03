@@ -21,7 +21,7 @@ from pyproj import CRS
 
 from eolearn.core import FeatureType, EOPatch
 
-from .eopatch_base import _BasePlotConfig, _BaseEOPatchVisualization
+from .eopatch_base import BasePlotConfig, BaseEOPatchVisualization
 
 
 class PlotBackend(Enum):
@@ -54,7 +54,7 @@ def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLI
 
 
 @dataclass
-class PlotConfig(_BasePlotConfig):
+class PlotConfig(BasePlotConfig):
     """Advanced plotting configurations
 
     :param subplot_width: A width of each subplot in a grid
@@ -76,7 +76,7 @@ class PlotConfig(_BasePlotConfig):
     bbox_kwargs: Dict[str, object] = field(default_factory=dict)
 
 
-class MatplotlibVisualization(_BaseEOPatchVisualization):
+class MatplotlibVisualization(BaseEOPatchVisualization):
     """EOPatch visualization using `matplotlib` framework."""
 
     def __init__(

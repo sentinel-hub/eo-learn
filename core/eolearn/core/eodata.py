@@ -14,7 +14,7 @@ file in the root directory of this source tree.
 import logging
 import copy
 import datetime
-from typing import Tuple, Union, List, Optional
+from typing import Tuple, Union, List, Optional, TYPE_CHECKING
 
 import attr
 import dateutil.parser
@@ -34,6 +34,14 @@ from .utils.parsing import parse_features
 LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
+
+if TYPE_CHECKING:
+    try:
+        from eolearn.visualization import PlotBackend
+        from eolearn.visualization.eopatch import BasePlotConfig
+    except ImportError:
+        PlotBackend = object
+        BasePlotConfig = object
 
 
 @attr.s(repr=False, eq=False, kw_only=True)
@@ -539,9 +547,9 @@ class EOPatch:
         feature,
         *,
         channel_names: Optional[List[str]] = None,
-        rgb: Optional[List[int]] = None,
-        backend: Union[str, "eolearn.visualization.PlotBackend"] = "matplotlib",
-        config: Optional["eolearn.visualization.eopatch._BasePlotConfig"] = None,
+        rgb: Optional[Tuple[int, int, int]] = None,
+        backend: Union[str, PlotBackend] = "matplotlib",
+        config: Optional[BasePlotConfig] = None,
         **kwargs,
     ) -> object:
         """Plots an `EOPatch` feature.
