@@ -9,6 +9,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import datetime as dt
+import itertools as it
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional, Union, Dict, List, cast
@@ -59,18 +60,34 @@ class PlotConfig(_BasePlotConfig):
     :param subplot_width: A width of each subplot in a grid
     :param subplot_height: A height of each subplot in a grid
     :param subplot_kwargs: A dictionary of parameters that will be passed to `matplotlib.pyplot.subplots` function.
+    :param show_title: A flag to specify if plot title should be shown.
+    :param title_kwargs: A dictionary of parameters that will be passed to `matplotlib.figure.Figure.suptitle`.
+    :param label_kwargs: A dictionary of parameters that will be passed to `matplotlib` methods for setting axes labels.
+    :param bbox_kwargs: A dictionary of parameters that will be passed to `GeoDataFrame.plot` when plotting a bounding
+        box.
     """
 
     subplot_width: Union[float, int] = 10
     subplot_height: Union[float, int] = 10
     subplot_kwargs: Dict[str, object] = field(default_factory=dict)
+    show_title: bool = True
+    title_kwargs: Dict[str, object] = field(default_factory=dict)
+    label_kwargs: Dict[str, object] = field(default_factory=dict)
+    bbox_kwargs: Dict[str, object] = field(default_factory=dict)
 
 
 class MatplotlibVisualization(_BaseEOPatchVisualization):
     """EOPatch visualization using `matplotlib` framework."""
 
-    def __init__(self, eopatch: EOPatch, feature, *, axes: Optional[np.ndarray] = None,
-                 config: Optional[PlotConfig] = None, **kwargs):
+    def __init__(
+        self,
+        eopatch: EOPatch,
+        feature,
+        *,
+        axes: Optional[np.ndarray] = None,
+        config: Optional[PlotConfig] = None,
+        **kwargs,
+    ):
         """
         :param eopatch: An EOPatch with a feature to plot.
         :param feature: A feature from the given EOPatch to plot.
@@ -82,6 +99,8 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
         super().__init__(eopatch, feature, config=config, **kwargs)
         self.config = cast(PlotConfig, self.config)
 
+        if axes is not None and not isinstance(axes, np.ndarray):
+            axes = np.array([np.array([axes])])
         self.axes = axes
 
     def plot(self) -> np.ndarray:
@@ -111,7 +130,9 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
             return self._plot_series(data, title=feature_name)
         return self._plot_time_series(data, timestamps=self.eopatch.timestamp, title=feature_name)
 
-    def _plot_raster_grid(self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None) -> np.ndarray:
+    def _plot_raster_grid(
+        self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
+    ) -> np.ndarray:
         """Plots a grid of raster images"""
         rows, _, _, columns = raster.shape
         if self.rgb:
@@ -125,23 +146,24 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
             subplot_kw={"xticks": [], "yticks": [], "frame_on": False},
         )
 
-        for row_idx in range(rows):
-            for column_idx in range(columns):
-                axis = axes[row_idx][column_idx]
-                raster_slice = raster[row_idx, ...] if self.rgb else raster[row_idx, ..., column_idx]
-                axis.imshow(raster_slice)
+        label_kwargs = self._get_label_kwargs()
+        for (row_idx, column_idx), axis in zip(it.product(range(rows), range(columns)), axes.flatten()):
+            raster_slice = raster[row_idx, ...] if self.rgb else raster[row_idx, ..., column_idx]
+            axis.imshow(raster_slice)
 
-                if timestamps and column_idx == 0:
-                    axis.set_ylabel(timestamps[row_idx].isoformat(), fontsize=12)
-                if self.channel_names:
-                    axis.set_xlabel(self.channel_names[column_idx], fontsize=12)
+            if timestamps and column_idx == 0:
+                axis.set_ylabel(timestamps[row_idx].isoformat(), **label_kwargs)
+            if self.channel_names:
+                axis.set_xlabel(self.channel_names[column_idx], **label_kwargs)
 
         return axes
 
-    def _plot_time_series(self, series: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None) -> np.ndarray:
+    def _plot_time_series(
+        self, series: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
+    ) -> np.ndarray:
         """Plots time series feature."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
-        axis = axes[0][0]
+        axis = axes.flatten()[0]
 
         xlabels = np.array(timestamps) if timestamps else np.arange(series.shape[0])
         channel_num = series.shape[-1]
@@ -156,14 +178,16 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
     def _plot_series(self, series: np.ndarray, title: Optional[str] = None) -> np.ndarray:
         """Plot a series of values."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
-        axis = axes[0][0]
+        axis = axes.flatten()[0]
 
         xlabels = np.array(self.channel_names) if self.channel_names else np.arange(series.size)
         axis.plot(xlabels, series)
 
         return axes
 
-    def _plot_vector_feature(self, dataframe: GeoDataFrame, timestamp_column: Optional[str] = None, title: Optional[str] = None) -> np.ndarray:
+    def _plot_vector_feature(
+        self, dataframe: GeoDataFrame, timestamp_column: Optional[str] = None, title: Optional[str] = None
+    ) -> np.ndarray:
         """Plots a GeoDataFrame vector feature"""
         rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
         axes = self._provide_axes(nrows=rows, ncols=1, title=title)
@@ -177,9 +201,10 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
         timestamp_groups = dataframe.groupby(timestamp_column)
         timestamps = sorted(timestamp_groups.groups)
 
+        label_kwargs = self._get_label_kwargs()
         for timestamp, axis in zip(timestamps, axes.flatten()):
             timestamp_groups.get_group(timestamp).plot(ax=axis)
-            axis.set_ylabel(timestamp.isoformat(), fontsize=12)
+            axis.set_ylabel(timestamp.isoformat(), **label_kwargs)
 
         return axes
 
@@ -196,8 +221,16 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
         if target_crs is not None:
             bbox_gdf = bbox_gdf.to_crs(target_crs)
 
+        bbox_kwargs = {
+            "color": "#00000000",
+            "edgecolor": "red",
+            "linestyle": "--",
+            "zorder": 10**6,
+            **self.config.bbox_kwargs,
+        }
+
         for axis in axes.flatten():
-            bbox_gdf.plot(ax=axis, color="#00000000", edgecolor="red", linestyle="--", zorder=10**6)
+            bbox_gdf.plot(ax=axis, **bbox_kwargs)
 
         return axes
 
@@ -218,9 +251,13 @@ class MatplotlibVisualization(_BaseEOPatchVisualization):
             figsize=(self.config.subplot_width * ncols, self.config.subplot_height * nrows),
             **subplot_kwargs,
         )
-        if title:
-            fig.suptitle(title, fontsize=16, y=1.0)
+        if title and self.config.show_title:
+            title_kwargs = {"t": title, "fontsize": 16, "y": 1.0, **self.config.title_kwargs}
+            fig.suptitle(**title_kwargs)
 
         fig.subplots_adjust(wspace=0.06, hspace=0.06)
 
         return axes
+
+    def _get_label_kwargs(self) -> Dict[str, object]:
+        return {"fontsize": 12, **self.config.label_kwargs}
