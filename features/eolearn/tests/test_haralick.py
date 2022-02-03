@@ -18,15 +18,7 @@ from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import HaralickTask
 
 
-@pytest.fixture(name="eopatch")
-def eopatch_fixture(test_eopatch):
-    ndvi = test_eopatch.data["ndvi"][:10]
-    ndvi[np.isnan(ndvi)] = 0
-    test_eopatch.data["ndvi"] = ndvi
-    return test_eopatch
-
-
-FEATURE = (FeatureType.DATA, "ndvi", "haralick")
+FEATURE = (FeatureType.DATA, "NDVI", "haralick")
 
 
 @pytest.mark.parametrize(
@@ -34,33 +26,33 @@ FEATURE = (FeatureType.DATA, "ndvi", "haralick")
     (
         [
             HaralickTask(FEATURE, texture_feature="contrast", angle=0, levels=255, window_size=3),
-            0.0,
-            15620.8333,
-            1585.0905,
-            1004.9167,
+            3.5,
+            9079.0,
+            965.8295,
+            628.5833,
         ],
         [
             HaralickTask(FEATURE, texture_feature="sum_of_square_variance", angle=np.pi / 2, levels=8, window_size=5),
-            7.7174,
-            48.7814,
-            31.9490,
-            25.0357,
+            0.96899,
+            48.7815,
+            23.0229,
+            23.8987,
         ],
         [
             HaralickTask(FEATURE, texture_feature="sum_entropy", angle=-np.pi / 2, levels=8, window_size=7),
             0,
-            1.2971,
-            0.3898,
-            0.4019,
+            1.7463,
+            0.5657,
+            0.5055,
         ],
     ),
 )
-def test_haralick(eopatch, task, expected_min, expected_max, expected_mean, expected_median):
-    initial_patch = copy.deepcopy(eopatch)
+def test_haralick(small_ndvi_eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+    eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
     # Test that no other features were modified
-    for feature, value in initial_patch.data.items():
+    for feature, value in small_ndvi_eopatch.data.items():
         if isinstance(value, FeatureIO):
             value = value.load()
         assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")

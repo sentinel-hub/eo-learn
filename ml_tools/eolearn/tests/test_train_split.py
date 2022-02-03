@@ -15,9 +15,8 @@ from numpy.testing import assert_array_equal
 from eolearn.core import FeatureType, EOPatch
 from eolearn.ml_tools import TrainTestSplitTask
 
-NEW_FEATURE_NAME = "TEST_TRAIN_MASK"
-INPUT_MASK_FEATURE = (FeatureType.MASK_TIMELESS, "TEST")
-NEW_MASK_FEATURE = (FeatureType.MASK_TIMELESS, NEW_FEATURE_NAME)
+INPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST")
+OUTPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST_TRAIN_MASK")
 
 
 @pytest.mark.parametrize(
@@ -32,7 +31,7 @@ NEW_MASK_FEATURE = (FeatureType.MASK_TIMELESS, NEW_FEATURE_NAME)
 )
 def test_bad_args(bad_arg, bad_kwargs):
     with pytest.raises(ValueError):
-        TrainTestSplitTask(INPUT_MASK_FEATURE, bad_arg, **bad_kwargs)
+        TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 
 
 def test_train_split():
@@ -44,15 +43,15 @@ def test_train_split():
         data[i_1:i_2, j_1:j_2, :] = index * 11
 
     patch = EOPatch()
-    patch[INPUT_MASK_FEATURE] = data
+    patch[INPUT_FEATURE] = data
 
     bins = [0.2, 0.5, 0.8]
     expected_unique = set(range(1, len(bins) + 2))
 
-    patch = TrainTestSplitTask((*INPUT_MASK_FEATURE, NEW_FEATURE_NAME), bins, split_type="per_class")(patch, seed=1)
-    assert set(np.unique(patch[NEW_MASK_FEATURE])) <= expected_unique
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type="per_class")(patch, seed=1)
+    assert set(np.unique(patch[OUTPUT_FEATURE])) <= expected_unique
 
-    result_seed1 = np.copy(patch[NEW_MASK_FEATURE])
+    result_seed1 = np.copy(patch[OUTPUT_FEATURE])
     unique = (np.unique(result_seed1[i_1:i_2, j_1:j_2, :], return_counts=True) for i_1, i_2, j_1, j_2 in indices)
     expected = [(i_2 - i_1) * (j_2 - j_1) * shape[-1] for i_1, i_2, j_1, j_2 in indices]
 
@@ -62,14 +61,14 @@ def test_train_split():
         assert unique_counts[0] == expected_count
 
     # seed=2 should produce different result than seed=1
-    patch = TrainTestSplitTask((*INPUT_MASK_FEATURE, NEW_FEATURE_NAME), bins, split_type="per_class")(patch, seed=2)
-    result_seed2 = np.copy(patch[NEW_MASK_FEATURE])
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type="per_class")(patch, seed=2)
+    result_seed2 = np.copy(patch[OUTPUT_FEATURE])
     assert set(np.unique(result_seed2)) <= expected_unique
     assert not np.array_equal(result_seed1, result_seed2)
 
     # test with seed 1 should produce the same result as before
-    patch = TrainTestSplitTask((*INPUT_MASK_FEATURE, NEW_FEATURE_NAME), bins, split_type="per_class")(patch, seed=1)
-    result_seed_equal = patch[NEW_MASK_FEATURE]
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type="per_class")(patch, seed=1)
+    result_seed_equal = patch[OUTPUT_FEATURE]
     assert set(np.unique(result_seed2)) <= expected_unique
     assert_array_equal(result_seed1, result_seed_equal)
 
@@ -79,10 +78,14 @@ def test_train_split():
     expected_unique = set(range(0, len(bins) + 2))
 
     data = np.random.randint(10, size=shape)
-    patch[INPUT_MASK_FEATURE] = data
+    patch[INPUT_FEATURE] = data
 
     split_task = TrainTestSplitTask(
-        (FeatureType.MASK_TIMELESS, "TEST", "BINS"), bins, split_type="per_class", ignore_values=[2]
+        (FeatureType.MASK_TIMELESS, "TEST"),
+        (FeatureType.MASK_TIMELESS, "BINS"),
+        bins,
+        split_type="per_class",
+        ignore_values=[2],
     )
 
     patch = split_task(patch, seed=542)
@@ -96,12 +99,12 @@ def test_train_split_per_pixel():
 
     input_data = np.random.randint(10, size=shape, dtype=int)
     patch = EOPatch()
-    patch[INPUT_MASK_FEATURE] = input_data
+    patch[INPUT_FEATURE] = input_data
 
     bins = [0.2, 0.6]
-    patch = TrainTestSplitTask((*INPUT_MASK_FEATURE, NEW_FEATURE_NAME), bins, split_type="per_pixel")(patch, seed=1)
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type="per_pixel")(patch, seed=1)
 
-    output_data = patch[NEW_MASK_FEATURE]
+    output_data = patch[OUTPUT_FEATURE]
     unique, counts = np.unique(output_data, return_counts=True)
     class_percentages = np.round(counts / input_data.size, 1)
     expected_unique = list(range(1, len(bins) + 2))
@@ -118,21 +121,21 @@ def test_train_split_per_value():
     input2 = np.random.randint(10, size=shape, dtype=int)
 
     patch1 = EOPatch()
-    patch1[INPUT_MASK_FEATURE] = input1
+    patch1[INPUT_FEATURE] = input1
 
     patch2 = EOPatch()
-    patch2[INPUT_MASK_FEATURE] = input2
+    patch2[INPUT_FEATURE] = input2
 
     bins = [0.2, 0.6]
 
-    split_task = TrainTestSplitTask((*INPUT_MASK_FEATURE, NEW_FEATURE_NAME), bins, split_type="per_value")
+    split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type="per_value")
 
     # seeds should get ignored when splitting 'per_value'
     patch1 = split_task(patch1, seed=1)
     patch2 = split_task(patch2, seed=1)
 
-    otuput1 = patch1[NEW_MASK_FEATURE]
-    otuput2 = patch2[NEW_MASK_FEATURE]
+    otuput1 = patch1[OUTPUT_FEATURE]
+    otuput2 = patch2[OUTPUT_FEATURE]
 
     unique = set(np.unique(input1)) | set(np.unique(input2))
 

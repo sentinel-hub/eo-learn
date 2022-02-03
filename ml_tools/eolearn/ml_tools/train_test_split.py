@@ -27,8 +27,10 @@ class TrainTestSplitType(Enum):
 class TrainTestSplitTask(EOTask):
     """Randomly assign each pixel or groups of pixels to multiple subsets (e.g., test/train/validate).
 
-    Input pixels are defined by an input feature (e.g., MASK_TIMELESS with polygon ids, connected component ids, or
-    similar), that groups together pixels with similar properties.
+    When sampling PER_PIXEL the input feature only specifies the shape of the output feature. For PER_CLASS and
+    PER_VALUE the input MASK_TIMELESS feature should group together pixels with similar properties, e.g. polygon ids,
+    connected component ids, etc. The task then ensures that such groups are kept together (so the whole polygon is
+    either in train or test).
 
     There are three modes of split operation:
 
@@ -40,12 +42,12 @@ class TrainTestSplitTask(EOTask):
 
     - :attr:`PER_VALUE<eolearn.ml_tools.train_test_split.TrainTestSplitType.PER_VALUE>`, where pixels of the same value
       are assigned to a the same subset consistently across eopatches. In other words, if a group of pixels of the same
-      value lies on multiple eopatches, they are assigned to the same subset in all eopatches. In this case, the *seed*
-      argument of the *execute* method is ignored.
+      value lies on multiple eopatches, they are assigned to the same subset in all eopatches. In this case, the `seed`
+      argument of the `execute` method is ignored.
 
-    Classes are defined by a list of cumulative probabilities, passed as the *bins* argument, the same way as the *bins*
+    Classes are defined by a list of cumulative probabilities, passed as the `bins` argument, the same way as the `bins`
     argument in `numpy.digitize <https://docs.scipy.org/doc/numpy/reference/generated/numpy.digitize.html>`_. Valid
-    classes are enumerated from 1 onward and if no_data_value is provided, all values equal to it get assigned to class
+    classes are enumerated from 1 onward and if ignore_values is provided, all values equal to it get assigned to class
     0.
 
     To get a train/test split as 80/20, bins argument should be provided as `bins=[0.8]`.
@@ -54,22 +56,27 @@ class TrainTestSplitTask(EOTask):
 
     Splits can also be made into as many subsets as desired, e.g., `bins=[0.1, 0.2, 0.3, 0.7, 0.9]`.
 
-    After the execution of this task an EOPatch will have a new (FeatureType, new_name) feature where each pixel will
-    have a value representing the train, test and/or validation set.
+    After execution each pixel will have a value representing the train, test and/or validation set stored in the
+    output feature.
     """
 
-    def __init__(self, feature, bins, split_type=TrainTestSplitType.PER_PIXEL, ignore_values=None):
+    def __init__(
+        self, input_feature, output_feature, bins, split_type=TrainTestSplitType.PER_PIXEL, ignore_values=None
+    ):
         """
-        :param feature: The input feature out of which to generate the train mask.
-        :type feature: (FeatureType, feature_name, new_name)
+        :param input_feature: The input feature to guide the split.
+        :type input_feature: (FeatureType, feature_name)
+        :param input_feature: The output feature where to save the mask.
+        :type input_feature: (FeatureType, feature_name)
         :param bins: Cumulative probabilities of all value classes or a single float, representing a fraction.
         :type bins: a float or list of floats
-        :param split_type: Value split type, either 'per_pixel', 'per_class' or 'per_value'.
-        :type split_type: str
-        :param ignore_values: A list of values to ignore and not assign them to any subsets.
+        :param split_type: Value split type, either 'PER_PIXEL', 'PER_CLASS' or 'PER_VALUE'.
+        :type split_type: TrainTestSplitType
+        :param ignore_values: A list of values in input_feature to ignore and not assign them to any subsets.
         :type ignore_values: a list of integers
         """
-        self.feature = self.parse_renamed_feature(feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
+        self.input_feature = self.parse_feature(input_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
+        self.output_feature = self.parse_feature(output_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
 
         if np.isscalar(bins):
             bins = [bins]
@@ -92,30 +99,29 @@ class TrainTestSplitTask(EOTask):
         :param eopatch: input EOPatch
         :type eopatch: EOPatch
         :param seed: An argument to be passed to numpy.random.seed function.
-        :type seed: numpy.int64
+        :type seed: int or None
         :return: Input EOPatch with the train set mask.
         :rtype: EOPatch
         """
         if self.split_type in [TrainTestSplitType.PER_CLASS, TrainTestSplitType.PER_PIXEL]:
             np.random.seed(seed)
 
-        ftype, fname, new_name = self.feature
-        data = eopatch[(ftype, fname)]
+        data = eopatch[self.input_feature]
 
         if self.split_type == TrainTestSplitType.PER_PIXEL:
             rands = np.random.rand(*data.shape)
-            output_mask = np.digitize(rands, self.bins) + 1
-        else:
-            classes = set(np.unique(data)) - self.ignore_values
-            output_mask = np.zeros_like(data)
+            eopatch[self.output_feature] = np.digitize(rands, self.bins) + 1
+            return eopatch
 
-            for class_id in classes:
-                if self.split_type == TrainTestSplitType.PER_VALUE:
-                    np.random.seed(class_id)
+        classes = set(np.unique(data)) - self.ignore_values
+        output_mask = np.zeros_like(data)
 
-                fold = np.digitize(np.random.rand(), self.bins) + 1
-                output_mask[data == class_id] = fold
+        for class_id in classes:
+            if self.split_type == TrainTestSplitType.PER_VALUE:
+                np.random.seed(class_id)
 
-        eopatch[ftype][new_name] = output_mask
+            fold = np.digitize(np.random.rand(), self.bins) + 1
+            output_mask[data == class_id] = fold
 
+        eopatch[self.output_feature] = output_mask
         return eopatch
