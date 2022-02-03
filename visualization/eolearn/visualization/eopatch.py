@@ -1,355 +1,221 @@
 """
-This module implements visualizations for EOPatch
+This module implements visualizations for `EOPatch`
 
 Credits:
 Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Optional, Union, Dict
 
 import numpy as np
-import pandas as pd
-import geopandas as gpd
-import xarray as xr
-import holoviews as hv
-import geoviews as gv
+from geopandas import GeoDataFrame
+import matplotlib.pyplot as plt
 
-import hvplot  # pylint: disable=unused-import
-import hvplot.xarray  # pylint: disable=unused-import
-import hvplot.pandas  # pylint: disable=unused-import
+from eolearn.core import FeatureType, EOPatch
 
-from cartopy import crs as ccrs
-from shapely.geometry import Polygon
-
-from sentinelhub import CRS
-
-from eolearn.core import FeatureType, FeatureTypeSet
-from eolearn.core.utils.parsing import parse_feature
-
-from .xarray_utils import array_to_dataframe, new_coordinates, string_to_variable
-
-PLOT_WIDTH = 800
-PLOT_HEIGHT = 500
+from .eopatch_base import _BasePlotConfig, _BaseEOPatchVisualization
 
 
-class EOPatchVisualization:
+class PlotBackend(Enum):
+    """Types of backend for plotting"""
+
+    MATPLOTLIB = "matplotlib"
+    HVPLOT = "hvplot"
+
+
+def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs):
+    """The main `EOPatch` plotting function. It pr
+
+    :param args: Positional arguments to be propagated to a plotting backend.
+    :param backend: Which plotting backend to use.
+    :param kwargs: Keyword arguments to be propagated to a plotting backend.
+    :return: A grid of axes
     """
-    Plot class for making visualizations.
+    backend = PlotBackend(backend)
 
-    :param eopatch: eopatch
-    :type eopatch: EOPatch
-    :param feature: feature of eopatch
-    :type feature: (FeatureType, str)
-    :param rgb: bands for creating RGB image
-    :type rgb: [int, int, int]
-    :param rgb_factor: multiplication factor for constructing rgb image
-    :type rgb_factor: float
-    :param vdims: value dimensions for plotting geopandas.GeoDataFrame
-    :type vdims: str
-    :param timestamp_column: geopandas.GeoDataFrame columns with timestamps
-    :type timestamp_column: str
-    :param geometry_column: geopandas.GeoDataFrame columns with geometry
-    :type geometry_column: geometry
-    :param pixel: wheather plot data for each pixel (line), for FeatureType.DATA and FeatureType.MASK
-    :type pixel: bool
-    :param mask: name of the FeatureType.MASK to apply to data
-    :type mask: str
+    if backend is PlotBackend.MATPLOTLIB:
+        return MatplotlibVisualization(*args, **kwargs).plot()
 
+    if backend is PlotBackend.HVPLOT:
+        # pylint: disable=import-outside-toplevel
+        from .extra.hvplot import HvPlotVisualization
+
+        return HvPlotVisualization(*args, **kwargs).plot()
+
+    raise ValueError(f"EOPatch plotting backend {backend} is not supported")
+
+
+@dataclass
+class PlotConfig(_BasePlotConfig):
+    """Advanced plotting configurations
+
+    :param subplot_width: A width of each subplot in a grid
+    :param subplot_height: A height of each subplot in a grid
+    :param subplot_kwargs: A dictionary of parameters that will be passed to `matplotlib.pyplot.subplots` function.
     """
 
-    def __init__(
-        self,
-        eopatch,
-        feature,
-        rgb=None,
-        rgb_factor=3.5,
-        vdims=None,
-        timestamp_column="TIMESTAMP",
-        geometry_column="geometry",
-        pixel=False,
-        mask=None,
-    ):
-        self.eopatch = eopatch
-        self.feature = feature
-        self.rgb = list(rgb) if isinstance(rgb, tuple) else rgb
-        self.rgb_factor = rgb_factor
-        self.vdims = vdims
-        self.timestamp_column = timestamp_column
-        self.geometry_column = geometry_column
-        self.pixel = pixel
-        self.mask = mask
+    subplot_width: Union[float, int] = 10
+    subplot_height: Union[float, int] = 10
+    subplot_kwargs: Dict[str, object] = field(default_factory=dict)
+
+
+class MatplotlibVisualization(_BaseEOPatchVisualization):
+    """EOPatch visualization using `matplotlib` framework."""
+
+    def __init__(self, eopatch: EOPatch, feature, *, axes=None, config: Optional[PlotConfig] = None, **kwargs):
+        """
+        :param eopatch: An EOPatch with a feature to plot.
+        :param feature: A feature from the given EOPatch to plot.
+        :param axes: A grid of axes on which to write plots. If not provided it will create a new grid.
+        :param config: A configuration object with advanced plotting parameters.
+        :param kwargs: Parameters to be passed to the base class.
+        """
+        config = config or PlotConfig()
+        super().__init__(eopatch, feature, config=config, **kwargs)
+
+        self.axes = axes
 
     def plot(self):
-        """Plots eopatch
+        """Plots the given feature"""
+        feature_type, feature_name = self.feature
+        data = self.collect_and_prepare_feature()
 
-        :return: plot
-        :rtype: holovies/bokeh
-        """
+        if feature_type is FeatureType.BBOX:
+            return self._plot_bbox()
 
-        feature = parse_feature(self.feature)
-        feature_type, feature_name = feature
-        if self.pixel and feature_type in FeatureTypeSet.RASTER_TYPES_4D:
-            vis = self.plot_pixel(feature_type, feature_name)
-        elif feature_type in (FeatureType.MASK, *FeatureTypeSet.RASTER_TYPES_3D):
-            vis = self.plot_raster(feature_type, feature_name)
-        elif feature_type is FeatureType.DATA:
-            vis = self.plot_data(feature_name)
-        elif feature_type is FeatureType.VECTOR:
-            vis = self.plot_vector(feature_name)
-        elif feature_type is FeatureType.VECTOR_TIMELESS:
-            vis = self.plot_vector_timeless(feature_name)
-        else:  # elif feature_type in (FeatureType.SCALAR, FeatureType.LABEL):
-            vis = self.plot_scalar_label(feature_type, feature_name)
+        if feature_type.is_vector():
+            return self._plot_vector_feature(
+                data,
+                timestamp_column=self.config.timestamp_column if feature_type.is_temporal() else None,
+                title=feature_name,
+            )
 
-        return vis.opts(plot=dict(width=PLOT_WIDTH, height=PLOT_HEIGHT))
+        if not feature_type.is_raster():
+            raise ValueError(f"Plotting of {feature_type} is not supported")
 
-    def plot_data(self, feature_name):
-        """Plots the FeatureType.DATA of eopatch.
+        if feature_type.is_spatial():
+            if feature_type.is_timeless():
+                return self._plot_raster_grid(data[np.newaxis, ...], title=feature_name)
+            return self._plot_raster_grid(data, timestamps=self.eopatch.timestamp, title=feature_name)
 
-        :param feature_name: name of the eopatch feature
-        :type feature_name: str
-        :return: visualization
-        :rtype: holoview/geoviews/bokeh
-        """
-        crs = self.eopatch.bbox.crs
-        crs = CRS.POP_WEB if crs is CRS.WGS84 else crs
-        data_da = array_to_dataframe(self.eopatch, (FeatureType.DATA, feature_name), crs=crs)
-        if self.mask:
-            data_da = self.mask_data(data_da)
-        timestamps = self.eopatch.timestamp
-        crs = self.eopatch.bbox.crs
-        if not self.rgb:
-            return data_da.hvplot(x="x", y="y", crs=ccrs.epsg(crs.epsg))
-        data_rgb = self.eopatch_da_to_rgb(data_da, feature_name, crs)
-        rgb_dict = {timestamp_: self.plot_rgb_one(data_rgb, timestamp_) for timestamp_ in timestamps}
+        if feature_type.is_temporal():
+            return self._plot_time_series(data, self.eopatch.timestamp, title=feature_name)
+        return self._plot_series(data, title=feature_name)
 
-        return hv.HoloMap(rgb_dict, kdims=["time"])
+    def _plot_raster_grid(self, raster, timestamps=None, title=None):
+        """Plots a grid of raster images"""
+        rows, _, _, columns = raster.shape
+        if self.rgb:
+            columns = 1
 
-    @staticmethod
-    def plot_rgb_one(eopatch_da, timestamp):  # OK
-        """Returns visualization for one timestamp for FeatureType.DATA
-        :param eopatch_da: eopatch converted to xarray DataArray
-        :type eopatch_da: xarray DataArray
-        :param timestamp: timestamp to make plot for
-        :type timestamp: datetime
-        :return: visualization
-        :rtype:  holoviews/geoviews/bokeh
-        """
-        return eopatch_da.sel(time=timestamp).drop("time").hvplot(x="x", y="y")
-
-    def plot_raster(self, feature_type, feature_name):
-        """Makes visualization for raster data (except for FeatureType.DATA)
-
-        :param feature_type: type of eopatch feature
-        :type feature_type: FeatureType
-        :param feature_name: name of eopatch feature
-        :type feature_name: str
-        :return: visualization
-        :rtype: holoviews/geoviews/bokeh
-        """
-        crs = self.eopatch.bbox.crs
-        crs = CRS.POP_WEB if crs is CRS.WGS84 else crs
-        data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name), crs=crs)
-        data_min = data_da.values.min()
-        data_max = data_da.values.max()
-        data_levels = len(np.unique(data_da))
-        data_levels = 11 if data_levels > 11 else data_levels
-        data_da = data_da.where(data_da > 0).fillna(-1)
-        vis = data_da.hvplot(x="x", y="y", crs=ccrs.epsg(crs.epsg)).opts(
-            clim=(data_min, data_max), clipping_colors={"min": "transparent"}, color_levels=data_levels
-        )
-        return vis
-
-    def plot_vector(self, feature_name):
-        """Visualizaton for vector (FeatureType.VECTOR) data
-
-        :param feature_name: name of eopatch feature
-        :type feature_name: str
-        :return: visualization
-        :rtype: holoviews/geoviews/bokeh
-
-        """
-        crs = self.eopatch.bbox.crs
-        timestamps = self.eopatch.timestamp
-        data_gpd = self.fill_vector(FeatureType.VECTOR, feature_name)
-        if crs is CRS.WGS84:
-            crs = CRS.POP_WEB
-            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
-        shapes_dict = {timestamp_: self.plot_shapes_one(data_gpd, timestamp_, crs) for timestamp_ in timestamps}
-        return hv.HoloMap(shapes_dict, kdims=["time"])
-
-    def fill_vector(self, feature_type, feature_name):
-        """Adds timestamps from eopatch to GeoDataFrame.
-
-        :param feature_type: type of eopatch feature
-        :type feature_type: FeatureType
-        :param feature_name: name of eopatch feature
-        :type feature_name: str
-        :return: GeoDataFrame with added data
-        :rtype: geopandas.GeoDataFrame
-        """
-        vector = self.eopatch[feature_type][feature_name].copy()
-        vector["valid"] = True
-        eopatch_timestamps = self.eopatch.timestamp
-        vector_timestamps = set(vector[self.timestamp_column])
-        blank_timestamps = [timestamp for timestamp in eopatch_timestamps if timestamp not in vector_timestamps]
-        dummy_geometry = self.create_dummy_polygon(0.0000001)
-
-        temp_df = self.create_dummy_dataframe(vector, blank_timestamps=blank_timestamps, dummy_geometry=dummy_geometry)
-
-        final_vector = gpd.GeoDataFrame(pd.concat((vector, temp_df), ignore_index=True), crs=vector.crs)
-        return final_vector
-
-    def create_dummy_dataframe(self, geodataframe, blank_timestamps, dummy_geometry, fill_str="", fill_numeric=1):
-        """Creates geopadnas GeoDataFrame to fill with dummy data (for visualization)
-
-        :param geodataframe: dataframe to append rows to
-        :type geodataframe: geopandas.GeoDataFrame
-        :param blank_timestamps: timestamps for constructing dataframe
-        :type blank_timestamps: list of timestamps
-        :param dummy_geometry: geometry to plot when there is no data
-        :type dummy_geometry: shapely.geometry.Polygon
-        :param fill_str: insert when there is no value in str column
-        :type fill_str: str
-        :param fill_numeric: insert when
-        :type fill_numeric: float
-        :return: dataframe with dummy data
-        :rtype: geopandas.GeoDataFrame
-        """
-        dataframe = pd.DataFrame(data=blank_timestamps, columns=[self.timestamp_column])
-
-        for column in geodataframe.columns:
-            if column == self.timestamp_column:
-                continue
-
-            if column == self.geometry_column:
-                dataframe[column] = dummy_geometry
-            elif column == "valid":
-                dataframe[column] = False
-            elif geodataframe[column].dtype in (int, float):
-                dataframe[column] = fill_numeric
-            else:
-                dataframe[column] = fill_str
-
-        return dataframe
-
-    def create_dummy_polygon(self, addition_factor):
-        """Creates geometry/polygon to plot if there is no data (at timestamp)
-
-        :param addition_factor: size of the 'blank polygon'
-        :type addition_factor: float
-        :return: polygon
-        :rtype: shapely.geometry.Polygon
-        """
-        x_blank, y_blank = self.eopatch.bbox.lower_left
-        dummy_geometry = Polygon(
-            [
-                [x_blank, y_blank],
-                [x_blank + addition_factor, y_blank],
-                [x_blank + addition_factor, y_blank + addition_factor],
-                [x_blank, y_blank + addition_factor],
-            ]
+        axes = self._provide_axes(
+            nrows=rows,
+            ncols=columns,
+            title=title,
+            sharey=True,
+            subplot_kw={"xticks": [], "yticks": [], "frame_on": False},
         )
 
-        return dummy_geometry
+        for row_idx in range(rows):
+            for column_idx in range(columns):
+                axis = axes[row_idx][column_idx]
+                raster_slice = raster[row_idx, ...] if self.rgb else raster[row_idx, ..., column_idx]
+                axis.imshow(raster_slice)
 
-    def plot_scalar_label(self, feature_type, feature_name):
-        """Line plot for FeatureType.SCALAR, FeatureType.LABEL
+                if timestamps and column_idx == 0:
+                    axis.set_ylabel(timestamps[row_idx].isoformat(), fontsize=12)
+                if self.channel_names:
+                    axis.set_xlabel(self.channel_names[column_idx], fontsize=12)
 
-        :param feature_type: type of eopatch feature
-        :type feature_type: FeatureType
-        :param feature_name: name of eopatch feature
-        :type feature_name: str
-        :return: visualization
-        :rtype: holoviews/geoviews/bokeh
-        """
-        data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
-        return data_da.hvplot()
+        return axes
 
-    def plot_shapes_one(self, data_gpd, timestamp, crs):
-        """Plots shapes for one timestamp from geopandas GeoDataFrame
+    def _plot_time_series(self, series, timestamps, title=None):
+        """Plots time series feature."""
+        axes = self._provide_axes(nrows=1, ncols=1, title=title)
+        axis = axes[0][0]
 
-        :param data_gpd: data to plot
-        :type data_gpd: geopandas.GeoDataFrame
-        :param timestamp: timestamp to plot data for
-        :type timestamp: datetime
-        :param crs: in which crs is the data to plot
-        :type crs: sentinelhub.crs
-        :return: visualization
-        :rtype: geoviews
-        """
-        out = data_gpd.loc[data_gpd[self.timestamp_column] == timestamp]
-        return gv.Polygons(out, crs=ccrs.epsg(int(crs.value)))
+        timestamp_array = np.array(timestamps)
+        channel_num = series.shape[-1]
+        for idx in range(channel_num):
+            channel_label = self.channel_names[idx] if self.channel_names else None
+            axis.plot(timestamp_array, series[..., idx], label=channel_label)
 
-    def plot_vector_timeless(self, feature_name):
-        """Plot FeatureType.VECTOR_TIMELESS data
+        if self.channel_names:
+            axis.legend()
+        return axes
 
-        :param feature_name: name of the eopatch featrue
-        :type feature_name: str
-        :return: visalization
-        :rtype: geoviews
-        """
-        crs = self.eopatch.bbox.crs
-        data_gpd = self.eopatch[FeatureType.VECTOR_TIMELESS][feature_name]
-        if crs is CRS.WGS84:
-            crs = CRS.POP_WEB
-            data_gpd = data_gpd.to_crs(crs.pyproj_crs())
+    def _plot_series(self, series, title=None):
+        """Plot a series of values."""
+        axes = self._provide_axes(nrows=1, ncols=1, title=title)
+        axis = axes[0][0]
 
-        return gv.Polygons(data_gpd, crs=ccrs.epsg(crs.epsg), vdims=self.vdims)
+        axis.plot(np.arange(series.size), series)
 
-    def eopatch_da_to_rgb(self, eopatch_da, feature_name, crs):
-        """Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
+        return axes
 
-        :param eopatch_da: eopatch DataArray
-        :type eopatch_da: DataArray
-        :param feature_name: name of the feature to plot
-        :type feature_name:  str
-        :param crs: in which crs are the data
-        :type crs: sentinelhub.constants.crs
-        :return: eopatch DataArray with proper coordinates, dimensions, crs
-        :rtype: xarray.DataArray
-        """
-        timestamps = eopatch_da.coords["time"].values
-        bands = eopatch_da[..., self.rgb] * self.rgb_factor
-        bands = bands.rename({string_to_variable(feature_name, "_dim"): "band"}).transpose("time", "band", "y", "x")
-        x_values, y_values = new_coordinates(eopatch_da, crs, CRS.POP_WEB)
-        eopatch_rgb = xr.DataArray(
-            data=np.clip(bands.data, 0, 1),
-            coords={"time": timestamps, "band": self.rgb, "y": np.flip(y_values), "x": x_values},
-            dims=("time", "band", "y", "x"),
+    def _plot_vector_feature(self, dataframe, timestamp_column=None, title=None):
+        """Plots a GeoDataFrame vector feature"""
+        rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
+        axes = self._provide_axes(nrows=rows, ncols=1, title=title)
+
+        self._plot_bbox(axes=axes, target_crs=dataframe.crs)
+
+        if timestamp_column is None:
+            dataframe.plot(ax=axes.flatten()[0])
+            return axes
+
+        timestamp_groups = dataframe.groupby(timestamp_column)
+        timestamps = sorted(timestamp_groups.groups)
+
+        for timestamp, axis in zip(timestamps, axes.flatten()):
+            timestamp_groups.get_group(timestamp).plot(ax=axis)
+            axis.set_ylabel(timestamp.isoformat(), fontsize=12)
+
+        return axes
+
+    def _plot_bbox(self, axes=None, target_crs=None):
+        """Plot a bounding box"""
+        bbox = self.eopatch.bbox
+        if bbox is None:
+            raise ValueError("EOPatch doesn't have a bounding box")
+
+        if axes is None:
+            axes = self._provide_axes(nrows=1, ncols=1, title="Bounding box")
+
+        bbox_gdf = GeoDataFrame(geometry=[bbox.geometry], crs=bbox.crs.pyproj_crs())
+        if target_crs is not None:
+            bbox_gdf = bbox_gdf.to_crs(target_crs)
+
+        for axis in axes.flatten():
+            bbox_gdf.plot(ax=axis, color="#00000000", edgecolor="red", linestyle="--", zorder=10**6)
+
+        return axes
+
+    def _provide_axes(self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs):
+        """Either provides an existing grid of axes or creates new one"""
+        if self.axes is not None:
+            return self.axes
+
+        subplot_kwargs = {
+            "squeeze": False,
+            "tight_layout": True,
+            **subplot_kwargs,
+            **self.config.subplot_kwargs,  # Config kwargs override the ones above
+        }
+        fig, axes = plt.subplots(
+            nrows=nrows,
+            ncols=ncols,
+            figsize=(self.config.subplot_width * ncols, self.config.subplot_height * nrows),
+            **subplot_kwargs,
         )
-        return eopatch_rgb
+        if title:
+            fig.suptitle(title, fontsize=16, y=1.0)
 
-    def plot_pixel(self, feature_type, feature_name):
-        """
-        Plots one pixel through time
-        :return: visualization
-        :rtype: holoviews
-        """
-        data_da = array_to_dataframe(self.eopatch, (feature_type, feature_name))
-        if self.mask:
-            data_da = self.mask_data(data_da)
-        return data_da.hvplot(x="time")
+        fig.subplots_adjust(wspace=0.06, hspace=0.06)
 
-    def mask_data(self, data_da):
-        """
-        Creates a copy of array and insert 0 where data is masked.
-        :param data_da: dataarray
-        :type data_da: xarray.DataArray
-        :return: dataaray
-        :rtype: xarray.DataArray
-        """
-        mask = self.eopatch[FeatureType.MASK][self.mask]
-        if len(data_da.values.shape) == 4:
-            mask = np.repeat(mask, data_da.values.shape[-1], -1)
-        else:
-            mask = np.squeeze(mask, axis=-1)
-        data_da = data_da.copy()
-        # pylint: disable=invalid-unary-operand-type
-        data_da.values[~mask] = 0
-
-        return data_da
+        return axes

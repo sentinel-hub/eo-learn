@@ -145,3 +145,8 @@ def generate_uid(prefix: str):
     time_uid = uuid.uuid1(node=0).hex[:-12]
     random_uid = uuid.uuid4().hex[:12]
     return f"{prefix}-{time_uid}-{random_uid}"
+
+
+def is_discrete_type(number_dtype: np.dtype) -> bool:
+    """Checks if the given `numpy` number dtype is discrete"""
+    return issubclass(number_dtype.type, (np.integer, bool, np.bool_, np.bool8))

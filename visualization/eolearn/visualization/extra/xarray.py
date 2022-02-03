@@ -10,18 +10,22 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import re
+
 import numpy as np
-import xarray as xr
+
+try:
+    import xarray as xr
+except ImportError as exception:
+    raise ImportError("This module requires an installation of xarray package") from exception
 
 from sentinelhub import BBox
-
-from eolearn.core import FeatureTypeSet, FeatureParser
+from eolearn.core import FeatureTypeSet
+from eolearn.core.utils.parsing import parse_feature
 
 
 def string_to_variable(string, extension=None):
-    """
+    """Replaces problematic string characters so that it can be used as xarray variable.
 
     :param string: string to be used as python variable name
     :type string: str
@@ -111,9 +115,7 @@ def get_coordinates(eopatch, feature, crs):
     :return: coordinates for xarry DataArray/Dataset
     :rtype: dict
     """
-
-    features = list(FeatureParser(feature))
-    feature_type, feature_name = features[0]
+    feature_type, feature_name = parse_feature(feature)
     original_crs = eopatch.bbox.crs
     if crs and original_crs != crs:
         bbox = eopatch.bbox.transform(crs)
@@ -146,8 +148,7 @@ def get_dimensions(feature):
     :return: dimensions for xarray DataArray/Dataset
     :rtype: list(str)
     """
-    features = list(FeatureParser(feature))
-    feature_type, feature_name = features[0]
+    feature_type, feature_name = parse_feature(feature)
     depth = string_to_variable(feature_name, "_dim")
     if feature_type in FeatureTypeSet.RASTER_TYPES_4D:
         return ["time", "y", "x", depth]
@@ -174,8 +175,7 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None, convert_bo
     :return: dataarray
     :rtype: xarray DataArray
     """
-    features = list(FeatureParser(feature))
-    feature_type, feature_name = features[0]
+    feature_type, feature_name = parse_feature(feature)
     bbox = eopatch.bbox
     data = eopatch[feature_type][feature_name]
     if isinstance(data, xr.DataArray):
@@ -224,7 +224,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
     return dataset
 
 
-def new_coordinates(data, crs, new_crs):
+def get_new_coordinates(data, crs, new_crs):
     """Returns coordinates for xarray DataArray/Dataset in new crs.
 
     :param data: data for converting coordinates for
