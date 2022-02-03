@@ -67,8 +67,8 @@ class PlotConfig(BasePlotConfig):
         box.
     """
 
-    subplot_width: Union[float, int] = 10
-    subplot_height: Union[float, int] = 10
+    subplot_width: Union[float, int] = 8
+    subplot_height: Union[float, int] = 8
     subplot_kwargs: Dict[str, object] = field(default_factory=dict)
     show_title: bool = True
     title_kwargs: Dict[str, object] = field(default_factory=dict)

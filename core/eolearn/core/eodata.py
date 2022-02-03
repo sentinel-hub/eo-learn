@@ -35,13 +35,14 @@ LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
 
+PlotBackend = object
+BasePlotConfig = object
 if TYPE_CHECKING:
     try:
         from eolearn.visualization import PlotBackend
-        from eolearn.visualization.eopatch import BasePlotConfig
+        from eolearn.visualization.eopatch_base import BasePlotConfig
     except ImportError:
-        PlotBackend = object
-        BasePlotConfig = object
+        pass
 
 
 @attr.s(repr=False, eq=False, kw_only=True)
