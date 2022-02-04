@@ -547,6 +547,8 @@ class EOPatch:
         self,
         feature,
         *,
+        times: Union[List[int], slice, None] = None,
+        channels: Union[List[int], slice, None] = None,
         channel_names: Optional[List[str]] = None,
         rgb: Optional[Tuple[int, int, int]] = None,
         backend: Union[str, PlotBackend] = "matplotlib",
@@ -556,6 +558,10 @@ class EOPatch:
         """Plots an `EOPatch` feature.
 
         :param feature: A feature in the `EOPatch`.
+        :param times: A list or a slice of indices on temporal axis to be used for plotting. If not provided all
+            indices will be used.
+        :param channels: A list or a slice of indices on channels axis to be used for plotting. If not provided all
+            indices will be used.
         :param channel_names: Names of channels of the last dimension in the given raster feature.
         :param rgb: If provided, it should be a list of 3 indices of RGB channels to be plotted. It will plot only RGB
             images with these channels. This only works for raster features with spatial dimension.
@@ -573,7 +579,15 @@ class EOPatch:
             )
 
         return plot_eopatch(
-            self, feature=feature, channel_names=channel_names, rgb=rgb, backend=backend, config=config, **kwargs
+            self,
+            feature=feature,
+            times=times,
+            channels=channels,
+            channel_names=channel_names,
+            rgb=rgb,
+            backend=backend,
+            config=config,
+            **kwargs,
         )
 
 

@@ -10,9 +10,10 @@ file in the root directory of this source tree.
 """
 import abc
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 import numpy as np
+from geopandas import GeoDataFrame
 
 from eolearn.core import EOPatch
 from eolearn.core.utils.common import is_discrete_type
@@ -43,6 +44,8 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         feature,
         *,
         config: BasePlotConfig,
+        times: Union[List[int], slice, None] = None,
+        channels: Union[List[int], slice, None] = None,
         channel_names: Optional[List[str]] = None,
         rgb: Optional[Tuple[int, int, int]] = None,
     ):
@@ -50,33 +53,50 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         :param eopatch: An EOPatch with a feature to plot.
         :param feature: A feature from the given EOPatch to plot.
         :param config: A configuration object with advanced plotting parameters.
+        :param times: A list or a slice of indices on temporal axis to be used for plotting. If not provided all
+            indices will be used.
+        :param channels: A list or a slice of indices on channels axis to be used for plotting. If not provided all
+            indices will be used.
         :param channel_names: Names of channels of the last dimension in the given raster feature.
         :param rgb: If provided, it should be a list of 3 indices of RGB channels to be plotted. It will plot only RGB
             images with these channels. This only works for raster features with spatial dimension.
         """
         self.eopatch = eopatch
         self.feature = parse_feature(feature)
+        feature_type, _ = self.feature
         self.config = config
 
+        if times is not None and not feature_type.is_temporal():
+            raise ValueError("Parameter times can only be provided for temporal features.")
+        self.times = times
+
+        self.channels = channels
         self.channel_names = None if channel_names is None else [str(name) for name in channel_names]
 
         if rgb and len(rgb) != 3:
             raise ValueError(f"Parameter rgb should be a list of 3 indices but got {rgb}")
-        feature_type, _ = self.feature
         if rgb and not (feature_type.is_spatial() and feature_type.is_raster()):
             raise ValueError("Parameter rgb can only be provided for plotting spatial raster features.")
         self.rgb = rgb
+
+        if self.channels and self.rgb:
+            raise ValueError("Only one of parameters channels and rgb can be provided.")
 
     @abc.abstractmethod
     def plot(self) -> object:
         """Plots the given feature"""
 
-    def collect_and_prepare_feature(self):
+    def collect_and_prepare_feature(self) -> object:
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = self.eopatch[self.feature]
 
         if feature_type.is_raster():
+            if self.times is not None:
+                data = data[self.times, ...]
+            if self.channels is not None:
+                data = data[..., self.channels]
+
             if feature_type.is_spatial() and self.rgb:
                 data = self._prepare_rgb_data(data)
 
@@ -87,9 +107,12 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
                     f"{number_of_plot_columns} columns for the given feature channels."
                 )
 
+        if feature_type.is_vector() and self.times is not None:
+            data = self._filter_temporal_dataframe(data)
+
         return data
 
-    def _prepare_rgb_data(self, data):
+    def _prepare_rgb_data(self, data: np.ndarray) -> np.ndarray:
         """Prepares data array for RGB plotting"""
         data = data[..., self.rgb]
 
@@ -102,3 +125,11 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
             data = np.clip(data, 0.0, 1.0)
 
         return data
+
+    def _filter_temporal_dataframe(self, dataframe: GeoDataFrame) -> GeoDataFrame:
+        """Prepares a list of unique timestamps from the dataframe, applies filter on them and returns a new
+        dataframe with rows that only contain filtered timestamps."""
+        unique_timestamps = dataframe[self.config.timestamp_column].unique()
+        filtered_timestamps = np.sort(unique_timestamps)[self.times]
+        filtered_rows = dataframe[self.config.timestamp_column].isin(filtered_timestamps)
+        return dataframe[filtered_rows]
