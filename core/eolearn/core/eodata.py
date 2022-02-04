@@ -11,6 +11,8 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import logging
 import copy
 import datetime
@@ -35,8 +37,6 @@ LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
 
-PlotBackend = object
-BasePlotConfig = object
 if TYPE_CHECKING:
     try:
         from eolearn.visualization import PlotBackend
