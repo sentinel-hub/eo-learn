@@ -11,11 +11,11 @@ dependencies:
   - m2r2
   - ray
 
-  - ./../core
+  - ./../core[RAY]
   - ./../coregistration
   - ./../features
   - ./../geometry
-  - ./../io
+  - ./../io[METEOBLUE]
   - ./../mask
   - ./../ml_tools
   - ./../visualization[HVPLOT]

@@ -39,5 +39,6 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
+    extras_require={"RAY": parse_requirements("requirements-ray.txt")},
     zip_safe=False,
 )
