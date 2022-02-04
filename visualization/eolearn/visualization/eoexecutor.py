@@ -19,16 +19,9 @@ import datetime as dt
 from collections import defaultdict
 from typing import DefaultDict, List, Tuple
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    import matplotlib
-
-    matplotlib.use("agg")
-    import matplotlib.pyplot as plt
-
 import fs
 import graphviz
+import matplotlib.pyplot as plt
 import pygments
 import pygments.lexers
 from pygments.formatters.html import HtmlFormatter

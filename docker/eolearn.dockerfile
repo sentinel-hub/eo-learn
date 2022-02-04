@@ -41,7 +41,7 @@ RUN pip3 install --no-cache-dir \
     -r ./io/requirements-geodb.txt \
     ./mask \
     ./ml_tools \
-    ./visualization[FULL]
+    ./visualization[HVPLOT]
 
 RUN pip3 install --no-cache-dir \
     . \

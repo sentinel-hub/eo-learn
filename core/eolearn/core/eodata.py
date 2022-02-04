@@ -11,10 +11,12 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import logging
 import copy
 import datetime
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Optional, TYPE_CHECKING
 
 import attr
 import dateutil.parser
@@ -27,13 +29,20 @@ from .constants import FeatureType, OverwritePermission
 from .eodata_io import save_eopatch, load_eopatch, FeatureIO
 from .eodata_merge import merge_eopatches
 from .utils.fs import get_filesystem
-from .utils.common import deep_eq
+from .utils.common import deep_eq, is_discrete_type
 from .utils.parsing import parse_features
 
 
 LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
+
+if TYPE_CHECKING:
+    try:
+        from eolearn.visualization import PlotBackend
+        from eolearn.visualization.eopatch_base import BasePlotConfig
+    except ImportError:
+        pass
 
 
 @attr.s(repr=False, eq=False, kw_only=True)
@@ -537,56 +546,49 @@ class EOPatch:
     def plot(
         self,
         feature,
-        rgb=None,
-        rgb_factor=3.5,
-        vdims=None,
-        timestamp_column="TIMESTAMP",
-        geometry_column="geometry",
-        pixel=False,
-        mask=None,
-    ):
-        """Plots EOPatch features.
+        *,
+        times: Union[List[int], slice, None] = None,
+        channels: Union[List[int], slice, None] = None,
+        channel_names: Optional[List[str]] = None,
+        rgb: Optional[Tuple[int, int, int]] = None,
+        backend: Union[str, PlotBackend] = "matplotlib",
+        config: Optional[BasePlotConfig] = None,
+        **kwargs,
+    ) -> object:
+        """Plots an `EOPatch` feature.
 
-        :param feature: feature of eopatch
-        :type feature: (FeatureType, str)
-        :param rgb: indexes of bands to create rgb image from
-        :type rgb: [int, int, int]
-        :param rgb_factor: factor for rgb bands multiplication
-        :type rgb_factor: float
-        :param vdims: value dimension for vector data
-        :type vdims: str
-        :param timestamp_column: name of the timestamp column, valid for vector data
-        :type timestamp_column: str
-        :param geometry_column: name of the geometry column, valid for vector data
-        :type geometry_column: str
-        :param pixel: plot values through time for one pixel
-        :type pixel: bool
-        :param mask: where eopatch[FeatureType.MASK] == False, value = 0
-        :type mask: str
-        :return: plot
-        :rtype: holovies/bokeh
+        :param feature: A feature in the `EOPatch`.
+        :param times: A list or a slice of indices on temporal axis to be used for plotting. If not provided all
+            indices will be used.
+        :param channels: A list or a slice of indices on channels axis to be used for plotting. If not provided all
+            indices will be used.
+        :param channel_names: Names of channels of the last dimension in the given raster feature.
+        :param rgb: If provided, it should be a list of 3 indices of RGB channels to be plotted. It will plot only RGB
+            images with these channels. This only works for raster features with spatial dimension.
+        :param backend: A type of plotting backend.
+        :param config: A configuration object with advanced plotting parameters.
+        :param kwargs: Parameters that are specific to a specified plotting backend.
+        :return: A plot object that depends on the backend used.
         """
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
-            from eolearn.visualization.eopatch import EOPatchVisualization
+            from eolearn.visualization.eopatch import plot_eopatch
         except ImportError:
             raise RuntimeError(
-                "Subpackage eo-learn-visualization has to be installed with an option [FULL] in order "
-                "to use plot method"
+                "Subpackage eo-learn-visualization has to be installed in order to use EOPatch visualization method"
             )
 
-        vis = EOPatchVisualization(
+        return plot_eopatch(
             self,
             feature=feature,
+            times=times,
+            channels=channels,
+            channel_names=channel_names,
             rgb=rgb,
-            rgb_factor=rgb_factor,
-            vdims=vdims,
-            timestamp_column=timestamp_column,
-            geometry_column=geometry_column,
-            pixel=pixel,
-            mask=mask,
+            backend=backend,
+            config=config,
+            **kwargs,
         )
-        return vis.plot()
 
 
 class _FeatureDict(dict):
@@ -676,9 +678,7 @@ class _FeatureDict(dict):
                     f"dimension{'s' if self.ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
                 )
 
-            if self.feature_type.is_discrete() and not issubclass(
-                value.dtype.type, (np.integer, bool, np.bool_, np.bool8)
-            ):
+            if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
                 raise ValueError(
                     f"{self.feature_type} is a discrete feature type therefore dtype of data array "
                     f"has to be either integer or boolean type but feature {feature_name} has dtype {value.dtype.type}."

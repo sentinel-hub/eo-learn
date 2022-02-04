@@ -76,16 +76,11 @@ gdal
 rasterio
 shapely
 fiona
-cartopy (required by eo-learn-visualization[FULL])
 ```
 
-One of dependecies of `eo-learn-mask` subpackage is `lightgbm` package. On windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+One of dependencies of `eo-learn-mask` subpackage is `lightgbm` package. On Windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
 
-A part of subpackage `eo-learn-visualization` requires additional dependencies which don't get installed by default. Those can be installed with
-
-```bash
-pip install eo-learn-visualization[FULL]
-```
+Some subpackages contain extension modules under `extra` subfolder. Those modules typically require additional package dependencies which don't get installed by default.
 
 ### Conda Forge distribution
 
