@@ -568,7 +568,7 @@ class EOPatch:
         :param backend: A type of plotting backend.
         :param config: A configuration object with advanced plotting parameters.
         :param kwargs: Parameters that are specific to a specified plotting backend.
-        :return: A plot object
+        :return: A plot object that depends on the backend used.
         """
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:

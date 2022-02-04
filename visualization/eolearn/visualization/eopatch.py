@@ -31,13 +31,13 @@ class PlotBackend(Enum):
     HVPLOT = "hvplot"
 
 
-def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs) -> np.ndarray:
+def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs) -> object:
     """The main `EOPatch` plotting function. It pr
 
     :param args: Positional arguments to be propagated to a plotting backend.
     :param backend: Which plotting backend to use.
     :param kwargs: Keyword arguments to be propagated to a plotting backend.
-    :return: A grid of axes
+    :return: A plot object that depends on the backend used.
     """
     backend = PlotBackend(backend)
 
