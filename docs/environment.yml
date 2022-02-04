@@ -18,4 +18,4 @@ dependencies:
   - ./../io
   - ./../mask
   - ./../ml_tools
-  - ./../visualization[FULL]
+  - ./../visualization[HVPLOT]

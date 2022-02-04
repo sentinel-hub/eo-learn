@@ -14,7 +14,7 @@ SUBPACKAGE_LIST = [
     "io[METEOBLUE]",
     "mask",
     "ml_tools",
-    "visualization[FULL]",
+    "visualization[HVPLOT]",
 ]
 
 
