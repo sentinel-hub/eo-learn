@@ -29,7 +29,7 @@ class BasePlotConfig:
     :param geometry_column: A name of a column containing geometries in a `GeoDataFrame` feature.
     """
 
-    rgb_factor: Optional[float] = 3.0
+    rgb_factor: Optional[float] = 3.5
     timestamp_column: Optional[str] = "TIMESTAMP"
     geometry_column: str = "geometry"
 

@@ -71,7 +71,7 @@ class HvPlotVisualization(BaseEOPatchVisualization):
         super().__init__(eopatch, feature, config=config, **kwargs)
         self.config = cast(HvPlotConfig, self.config)
 
-        self.mask_feature = parse_feature(mask_feature)
+        self.mask_feature = parse_feature(mask_feature) if mask_feature else None
 
     def plot(self):
         """Creates a `hvplot` of the feature from the given `EOPatch`."""

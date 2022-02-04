@@ -127,7 +127,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
             return self._plot_raster_grid(data, timestamps=self.eopatch.timestamp, title=feature_name)
 
         if feature_type.is_timeless():
-            return self._plot_series(data, title=feature_name)
+            return self._plot_bar(data, title=feature_name)
         return self._plot_time_series(data, timestamps=self.eopatch.timestamp, title=feature_name)
 
     def _plot_raster_grid(
@@ -175,13 +175,13 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
             axis.legend()
         return axes
 
-    def _plot_series(self, series: np.ndarray, title: Optional[str] = None) -> np.ndarray:
-        """Plot a series of values."""
+    def _plot_bar(self, values: np.ndarray, title: Optional[str] = None) -> np.ndarray:
+        """Make a bar plot from values."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
         axis = axes.flatten()[0]
 
-        xlabels = np.array(self.channel_names) if self.channel_names else np.arange(series.size)
-        axis.plot(xlabels, series)
+        xlabels = np.array(self.channel_names) if self.channel_names else np.arange(values.size)
+        axis.bar(xlabels, values)
 
         return axes
 
