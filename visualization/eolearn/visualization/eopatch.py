@@ -106,7 +106,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
     def plot(self) -> np.ndarray:
         """Plots the given feature"""
         feature_type, feature_name = self.feature
-        data = self.collect_and_prepare_feature()
+        data, timestamps = self.collect_and_prepare_feature()
 
         if feature_type is FeatureType.BBOX:
             return self._plot_bbox()
@@ -124,11 +124,11 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         if feature_type.is_spatial():
             if feature_type.is_timeless():
                 return self._plot_raster_grid(data[np.newaxis, ...], title=feature_name)
-            return self._plot_raster_grid(data, timestamps=self.eopatch.timestamp, title=feature_name)
+            return self._plot_raster_grid(data, timestamps=timestamps, title=feature_name)
 
         if feature_type.is_timeless():
             return self._plot_bar(data, title=feature_name)
-        return self._plot_time_series(data, timestamps=self.eopatch.timestamp, title=feature_name)
+        return self._plot_time_series(data, timestamps=timestamps, title=feature_name)
 
     def _plot_raster_grid(
         self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
