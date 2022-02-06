@@ -260,4 +260,5 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         return axes
 
     def _get_label_kwargs(self) -> Dict[str, object]:
+        """Provides `matplotlib` arguments for writing labels in plots."""
         return {"fontsize": 12, **self.config.label_kwargs}
