@@ -324,9 +324,13 @@ class FeatureIO:
             dataframe = gpd.read_file(file)
 
             if dataframe.crs is not None:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=SHUserWarning)
-                    dataframe.crs = CRS(dataframe.crs).pyproj_crs()
+                # Trying to preserve a standard CRS and passing otherwise
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", category=SHUserWarning)
+                        dataframe.crs = CRS(dataframe.crs).pyproj_crs()
+                except ValueError:
+                    pass
 
             if "TIMESTAMP" in dataframe:
                 dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
