@@ -2,20 +2,19 @@ name: eo-learn-docs
 channels:
 - conda-forge
 dependencies:
-- cartopy=0.17.0
+- rasterio
 - pip:
   - Sphinx~=4.0
   - sphinx-rtd-theme
   - nbsphinx
   - jupyter
   - m2r2
-  - ray
 
-  - ./../core[RAY]
+  - ./../core
   - ./../coregistration
   - ./../features
   - ./../geometry
   - ./../io[METEOBLUE]
   - ./../mask
   - ./../ml_tools
-  - ./../visualization[HVPLOT]
+  - ./../visualization

@@ -17,7 +17,6 @@ ENV C_INCLUDE_PATH=/usr/include/gdal
 
 RUN pip3 install --no-cache-dir pip --upgrade
 RUN pip3 install --no-cache-dir shapely --no-binary :all:
-RUN FORCE_CYTHON=1 pip install cartopy
 
 WORKDIR /tmp
 
@@ -41,7 +40,7 @@ RUN pip3 install --no-cache-dir \
     -r ./io/requirements-geodb.txt \
     ./mask \
     ./ml_tools \
-    ./visualization[HVPLOT]
+    ./visualization
 
 RUN pip3 install --no-cache-dir \
     . \
