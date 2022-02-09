@@ -4,7 +4,7 @@
 
 - `EOPatch` changes:
   * IO for vectors and meta-info switched from `pickle` to Geopackage, GeoJSON, and JSON files. Objects saved with `pickle` can be loaded but the format is deprecated.
-  * Now supports the `in` keyword for checking whether an `EOPatch` contains given feature.
+  * Now supports the `in` keyword for checking whether an `EOPatch` contains a given feature.
   * Major update to `EOPatch` plotting functionality, which now features a simpler `matplotlib` back-end. See [example notebook](https://github.com/sentinel-hub/eo-learn/blob/develop-v1.0/examples/visualization/EOPatchVisualization.ipynb) for more details.
   * Removed some outdated `EOPatch` methods such as `get_feature`, `rename_feature`, etc.
   * Representation (`EOPatch.__repr__` method) skips empty features.
@@ -13,28 +13,28 @@
   * `EOTask` method `_parse_features` replaced with `get_feature_parser` and additional helper methods (`parse_feature`, `parse_renamed_feature`, `parse_features`, `parse_renamed_features`).
   * Removed `EOTask.__mul__` as task concatenation as it was unsound.
 
-- `EONode` is a newly introduced object for specifying computational graphs. It replaces raw `EOTask` objects when the building an `EOWorkflow`.
+- `EONode` is a newly introduced object for specifying computational graphs. It replaces raw `EOTask` objects when building an `EOWorkflow`.
 
 - `EOWorkflow` changes:
   * `LinearWorkflow` is replaced with `linearly_connect_tasks` function that prepares nodes for a linear workflow.
-  * No longer accepts tuples in execution arguments. In cases where this is required passing arguments to a task can be done with the new `InputTask`.
+  * No longer accepts tuples in execution arguments. In cases where this is required, passing arguments to a task can be done with the new `InputTask`.
   * `EONodes` form a tree-like structure of dependencies, hence the end-nodes of a workflow contain all information. An `EOWorkflow` object can be constructed from end-nodes via `from_endnodes` method.
 
 - `EOExecutor` changes:
   * Added `RayExecutor` as an extension of `EOExecutor` for working with the `ray` library.
-  * Execution arguments of are now given w.r.t. `EONode` objects instead of `EOTasks`.
+  * Execution arguments are now given w.r.t. `EONode` objects instead of `EOTasks`.
   * Now always returns results, which by default only contain statistics. Other data (for instance the final EOPatch) can be added to results with the new `OutputTask`.
-  * Additionally supports a `filesystem` argument for saving logs and reports.
-  * Reports now have the option to only link to logs, greatly reducing size in case of large amount of EOPatches. Logs files are now also more informative.
+  * Additionally, supports a `filesystem` argument for saving logs and reports.
+  * Reports now have the option to only link to logs, greatly reducing size in case of large numbers of EOPatches. Logs files are now also more informative.
 
-- `FeatureParser` now supports less input formats but handles those better. It now returns lists instead of generators. See documentation for more information.
+- `FeatureParser` now supports fewer input formats but handles those better. It now returns lists instead of generators. See documentation for more information.
 - `WorkflowResults` are re-done. They now contain execution stats of nodes (start and end times) and the outputs of `OutputTask`s in the workflow.
 - `FeatureType` method `is_time_dependant` renamed to `is_temporal`.
 
 ### Tasks
 - Added `LinearFunctionTask` which applies a linear function to features.
-- `MorphologicalFilterTask` moved to `features` module.
-- Sampling tasks moved to `ml_tools` module. Sampling tasks have also been greatly upgraded, with the main being:
+- `MorphologicalFilterTask` moved from `ml_tools` to `features` module.
+- Sampling tasks moved `geometry` to `ml_tools` module. Sampling tasks have also been greatly upgraded, with the main being:
     - `FractionSamplingTask` for sampling random points in a class-balanced way
     - `BlockSamplingTask` for randomly sampling larger blocks of data (can also be 1 pixel blocks)
     - `GridSamplingTask` for deterministically sampling according to a grid.
