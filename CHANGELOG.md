@@ -3,15 +3,15 @@
 ### Core Changes
 
 - `EOPatch` changes:
-  * IO for vectors and meta-info switched from `pickle` to geo-package, geojson and json files. Objects saved with `pickle` can be loaded but the format is deprecated.
+  * IO for vectors and meta-info switched from `pickle` to Geopackage, GeoJSON, and JSON files. Objects saved with `pickle` can be loaded but the format is deprecated.
   * Now supports the `in` keyword for checking whether an `EOPatch` contains given feature.
   * Major update to `EOPatch` plotting functionality, which now features a simpler `matplotlib` back-end. See [example notebook](https://github.com/sentinel-hub/eo-learn/blob/develop-v1.0/examples/visualization/EOPatchVisualization.ipynb) for more details.
   * Removed some outdated `EOPatch` methods such as `get_feature`, `rename_feature`, etc.
-  * Representation (`__repr__` method) skips empty features.
+  * Representation (`EOPatch.__repr__` method) skips empty features.
 
 - `EOTask` changes:
   * `EOTask` method `_parse_features` replaced with `get_feature_parser` and additional helper methods (`parse_feature`, `parse_renamed_feature`, `parse_features`, `parse_renamed_features`).
-  * Removed `__mul__` as task concatenation as it was unsound.
+  * Removed `EOTask.__mul__` as task concatenation as it was unsound.
 
 - `EONode` is a newly introduced object for specifying computational graphs. It replaces raw `EOTask` objects when the building an `EOWorkflow`.
 
@@ -23,7 +23,7 @@
 - `EOExecutor` changes:
   * Added `RayExecutor` as an extension of `EOExecutor` for working with the `ray` library.
   * Execution arguments of are now given w.r.t. `EONode` objects instead of `EOTasks`.
-  * Now always returns results, but only those marked via the new `OutputTask`.
+  * Now always returns results, which by default only contain statistics. Other data (for instance the final EOPatch) can be added to results with the new `OutputTask`.
   * Additionally supports a `filesystem` argument for saving logs and reports.
   * Reports now have the option to only link to logs, greatly reducing size in case of large amount of EOPatches. Logs files are now also more informative.
 
