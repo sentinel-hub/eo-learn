@@ -1,5 +1,5 @@
 eolearn.visualization.eopatch\_base
-=================================
+===================================
 
 .. automodule:: eolearn.visualization.eopatch_base
     :members:
