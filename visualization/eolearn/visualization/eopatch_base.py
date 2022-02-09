@@ -9,6 +9,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import abc
+import datetime as dt
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Union
 
@@ -86,14 +87,18 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
     def plot(self) -> object:
         """Plots the given feature"""
 
-    def collect_and_prepare_feature(self) -> object:
+    def collect_and_prepare_feature(self) -> Tuple[object, List[dt.datetime]]:
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = self.eopatch[self.feature]
+        timestamps = self.eopatch.timestamp
 
         if feature_type.is_raster():
             if self.times is not None:
                 data = data[self.times, ...]
+                if timestamps:
+                    timestamps = list(np.array(timestamps)[self.times])
+
             if self.channels is not None:
                 data = data[..., self.channels]
 
@@ -110,7 +115,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         if feature_type.is_vector() and self.times is not None:
             data = self._filter_temporal_dataframe(data)
 
-        return data
+        return data, timestamps
 
     def _prepare_rgb_data(self, data: np.ndarray) -> np.ndarray:
         """Prepares data array for RGB plotting"""

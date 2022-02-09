@@ -12,5 +12,7 @@ Submodules:
 
    eolearn.visualization.eoexecutor
    eolearn.visualization.eopatch
+   eolearn.visualization.eopatch_base
    eolearn.visualization.eoworkflow
-   eolearn.visualization.xarray_utils
+   eolearn.visualization.extra.hvplot
+   eolearn.visualization.extra.xarray

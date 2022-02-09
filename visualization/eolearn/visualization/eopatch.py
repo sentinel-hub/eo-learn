@@ -106,7 +106,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
     def plot(self) -> np.ndarray:
         """Plots the given feature"""
         feature_type, feature_name = self.feature
-        data = self.collect_and_prepare_feature()
+        data, timestamps = self.collect_and_prepare_feature()
 
         if feature_type is FeatureType.BBOX:
             return self._plot_bbox()
@@ -124,11 +124,11 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         if feature_type.is_spatial():
             if feature_type.is_timeless():
                 return self._plot_raster_grid(data[np.newaxis, ...], title=feature_name)
-            return self._plot_raster_grid(data, timestamps=self.eopatch.timestamp, title=feature_name)
+            return self._plot_raster_grid(data, timestamps=timestamps, title=feature_name)
 
         if feature_type.is_timeless():
             return self._plot_bar(data, title=feature_name)
-        return self._plot_time_series(data, timestamps=self.eopatch.timestamp, title=feature_name)
+        return self._plot_time_series(data, timestamps=timestamps, title=feature_name)
 
     def _plot_raster_grid(
         self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
@@ -192,7 +192,8 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
         axes = self._provide_axes(nrows=rows, ncols=1, title=title)
 
-        self._plot_bbox(axes=axes, target_crs=dataframe.crs)
+        if self.eopatch.bbox:
+            self._plot_bbox(axes=axes, target_crs=dataframe.crs)
 
         if timestamp_column is None:
             dataframe.plot(ax=axes.flatten()[0])
@@ -260,4 +261,5 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         return axes
 
     def _get_label_kwargs(self) -> Dict[str, object]:
+        """Provides `matplotlib` arguments for writing labels in plots."""
         return {"fontsize": 12, **self.config.label_kwargs}

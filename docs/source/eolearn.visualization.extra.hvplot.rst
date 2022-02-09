@@ -1,7 +1,7 @@
-eolearn.visualization.xarray_utils
+eolearn.visualization.extra.hvplot
 ==================================
 
-.. automodule:: eolearn.visualization.xarray_utils
+.. automodule:: eolearn.visualization.extra.hvplot
     :members:
     :undoc-members:
     :show-inheritance:
