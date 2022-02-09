@@ -192,7 +192,8 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
         axes = self._provide_axes(nrows=rows, ncols=1, title=title)
 
-        self._plot_bbox(axes=axes, target_crs=dataframe.crs)
+        if self.eopatch.bbox:
+            self._plot_bbox(axes=axes, target_crs=dataframe.crs)
 
         if timestamp_column is None:
             dataframe.plot(ax=axes.flatten()[0])
