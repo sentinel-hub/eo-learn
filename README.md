@@ -136,6 +136,10 @@ docker build -f docker/eolearn-examples.dockerfile . --tag=sentinelhub/eolearn:l
 
 For more information on the package content, visit [readthedocs](https://eo-learn.readthedocs.io/).
 
+## More Examples
+
+Examples and introductions to the package can be found [here](https://github.com/sentinel-hub/eo-learn/tree/master/examples). A large collection of examples is available at the [`eo-learn-examples`](https://github.com/sentinel-hub/eo-learn-examples) repository. While the examples there are not always up-to-date they can be a great source of ideas.
+
 ## Contributions
 
 If you would like to contribute to `eo-learn`, check out our [contribution guidelines](./CONTRIBUTING.md).
