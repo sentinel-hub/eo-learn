@@ -99,6 +99,7 @@ def load_s3_filesystem(
         dir_path=dir_path,
         aws_access_key_id=config.aws_access_key_id if config.aws_access_key_id else None,
         aws_secret_access_key=config.aws_secret_access_key if config.aws_secret_access_key else None,
+        aws_session_token=config.aws_session_token if config.aws_session_token else None,
         strict=strict,
     )
 
@@ -118,6 +119,7 @@ def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> 
 
     config.aws_access_key_id = aws_credentials.access_key
     config.aws_secret_access_key = aws_credentials.secret_key
+    config.aws_session_token = aws_credentials.token
     return config
 
 
