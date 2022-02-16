@@ -62,6 +62,7 @@ def test_s3_filesystem():
         assert filesystem.aws_secret_access_key == custom_config.aws_secret_access_key
         assert filesystem.aws_session_token is None
 
+
 @mock_s3
 def test_s3_filesystem_with_session_token():
     folder_name = "my_folder"
