@@ -2,7 +2,7 @@ attrs>=19.2.0
 python-dateutil
 numpy>=1.20.0
 geopandas>=0.8.1
-sentinelhub>=3.4.3
+sentinelhub>=3.4.4
 tqdm>=4.27
 boto3
 fs
