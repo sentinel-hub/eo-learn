@@ -1,5 +1,7 @@
+black>=22.1.0
 codecov
 hypothesis
+isort
 moto
 nbval
 pylint>=2.12.2
