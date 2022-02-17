@@ -4,9 +4,9 @@ preview = true
 
 [tool.isort]
 profile = "black"
-known_local_folder = "eolearn"
-known_first_party = ["sentinelhub"]
-sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","LOCALFOLDER"]
+known_first_party = "sentinelhub"
+known_absolute = "eolearn"
+sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","ABSOLUTE","LOCALFOLDER"]
 line_length = 120
 
 [tool.pytest.ini_options]
