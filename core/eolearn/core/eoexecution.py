@@ -23,17 +23,7 @@ import warnings
 from dataclasses import dataclass
 from enum import Enum
 from logging import Filter, Handler, Logger
-from typing import (
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    cast,
-)
+from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
 
 import fs
 from tqdm.auto import tqdm

@@ -19,15 +19,7 @@ import time
 
 import pytest
 
-from eolearn.core import (
-    EOExecutor,
-    EONode,
-    EOTask,
-    EOWorkflow,
-    OutputTask,
-    WorkflowResults,
-    execute_with_mp_lock,
-)
+from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, OutputTask, WorkflowResults, execute_with_mp_lock
 
 
 class ExampleTask(EOTask):

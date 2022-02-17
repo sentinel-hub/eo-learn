@@ -13,12 +13,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.geometry import (
-    ErosionTask,
-    MorphologicalFilterTask,
-    MorphologicalOperations,
-    MorphologicalStructFactory,
-)
+from eolearn.geometry import ErosionTask, MorphologicalFilterTask, MorphologicalOperations, MorphologicalStructFactory
 
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 MASK_FEATURE = FeatureType.MASK, "mask"

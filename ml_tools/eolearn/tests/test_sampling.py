@@ -16,12 +16,7 @@ from numpy.testing import assert_array_equal
 from pytest import approx
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.ml_tools import (
-    BlockSamplingTask,
-    FractionSamplingTask,
-    GridSamplingTask,
-    sample_by_values,
-)
+from eolearn.ml_tools import BlockSamplingTask, FractionSamplingTask, GridSamplingTask, sample_by_values
 from eolearn.ml_tools.sampling import expand_to_grids
 
 

@@ -6,12 +6,7 @@ from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
 from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
 from .clustering import ClusteringTask
 from .doubly_logistic_approximation import DoublyLogisticApproximationTask
-from .feature_manipulation import (
-    FilterTimeSeriesTask,
-    LinearFunctionTask,
-    SimpleFilterTask,
-    ValueFilloutTask,
-)
+from .feature_manipulation import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from .haralick import HaralickTask
 from .hog import HOGTask
 from .interpolation import (

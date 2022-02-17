@@ -10,11 +10,7 @@ import numpy as np
 import pytest
 
 from eolearn.core import FeatureType
-from eolearn.geometry import (
-    FelzenszwalbSegmentationTask,
-    SlicSegmentationTask,
-    SuperpixelSegmentationTask,
-)
+from eolearn.geometry import FelzenszwalbSegmentationTask, SlicSegmentationTask, SuperpixelSegmentationTask
 
 SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, "SP_FEATURE"
 
