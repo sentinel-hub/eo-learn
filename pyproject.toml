@@ -7,6 +7,7 @@ profile = "black"
 known_local_folder = "eolearn"
 known_first_party = ["sentinelhub"]
 sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","LOCALFOLDER"]
+line_length = 120
 
 [tool.pytest.ini_options]
 markers = [
