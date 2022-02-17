@@ -19,8 +19,9 @@ import numpy as np
 from geopandas import GeoDataFrame
 from pyproj import CRS
 
-from .eopatch_base import BaseEOPatchVisualization, BasePlotConfig
 from eolearn.core import EOPatch, FeatureType
+
+from .eopatch_base import BaseEOPatchVisualization, BasePlotConfig
 
 
 class PlotBackend(Enum):

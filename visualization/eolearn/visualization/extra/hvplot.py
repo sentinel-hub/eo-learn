@@ -35,10 +35,11 @@ except ImportError as exception:
 
 from sentinelhub import CRS, BBox
 
-from ..eopatch_base import BaseEOPatchVisualization, BasePlotConfig
-from .xarray import array_to_dataframe, get_new_coordinates, string_to_variable
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.utils.parsing import parse_feature
+
+from ..eopatch_base import BaseEOPatchVisualization, BasePlotConfig
+from .xarray import array_to_dataframe, get_new_coordinates, string_to_variable
 
 
 @dataclasses.dataclass

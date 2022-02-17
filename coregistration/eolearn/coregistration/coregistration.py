@@ -21,9 +21,10 @@ import cv2
 import numpy as np
 import registration
 
-from .utils import EstimateEulerTransformModel, ransac
 from eolearn.core import EOTask
 from eolearn.core.exceptions import EORuntimeWarning
+
+from .utils import EstimateEulerTransformModel, ransac
 
 LOGGER = logging.getLogger(__name__)
 
