@@ -14,16 +14,26 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import logging
-import threading
 import concurrent.futures
 import datetime as dt
+import logging
 import multiprocessing
+import threading
 import warnings
-from enum import Enum
-from logging import Logger, Handler, Filter
 from dataclasses import dataclass
-from typing import Sequence, List, Tuple, Dict, Optional, Callable, Iterable, TypeVar, cast
+from enum import Enum
+from logging import Filter, Handler, Logger
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    cast,
+)
 
 import fs
 from tqdm.auto import tqdm

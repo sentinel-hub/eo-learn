@@ -10,18 +10,19 @@ import datetime
 import os
 import tempfile
 
-import pytest
-import numpy as np
+import boto3
 import fs
+import numpy as np
+import pytest
 from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 from geopandas import GeoDataFrame
 from moto import mock_s3
-import boto3
 
-from sentinelhub import BBox, CRS
-from eolearn.core import EOPatch, FeatureType, OverwritePermission, SaveTask, LoadTask
+from sentinelhub import CRS, BBox
+
+from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
 
 
 @mock_s3

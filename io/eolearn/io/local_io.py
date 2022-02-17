@@ -17,11 +17,12 @@ from abc import ABCMeta
 
 import dateutil
 import fs
-import rasterio
 import numpy as np
+import rasterio
+
 from sentinelhub import CRS, BBox
 
-from eolearn.core import EOTask, EOPatch
+from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utils.fs import get_base_filesystem_and_path
 

@@ -9,10 +9,10 @@ file in the root directory of this source tree.
 
 import copy
 
-import pytest
-from pytest import approx
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
+from pytest import approx
 
 from eolearn.core import FeatureType
 from eolearn.core.eodata_io import FeatureIO

@@ -5,7 +5,7 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Matej Batič, Miha Kadunc, Žiga Luk�
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from eolearn.core import EOTask, EONode, linearly_connect_tasks, OutputTask
+from eolearn.core import EONode, EOTask, OutputTask, linearly_connect_tasks
 
 
 class InputTask(EOTask):

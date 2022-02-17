@@ -11,8 +11,9 @@ file in the root directory of this source tree.
 
 import logging
 
-import pytest
 import numpy as np
+import pytest
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.coregistration import ECCRegistrationTask, InterpolationType
 

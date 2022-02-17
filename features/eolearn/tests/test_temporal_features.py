@@ -15,7 +15,11 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask, AddSpatioTemporalFeaturesTask
+from eolearn.features import (
+    AddMaxMinNDVISlopeIndicesTask,
+    AddMaxMinTemporalIndicesTask,
+    AddSpatioTemporalFeaturesTask,
+)
 
 
 def test_temporal_indices():

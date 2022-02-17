@@ -20,9 +20,9 @@ from lightgbm import Booster
 from skimage.morphology import disk
 
 from sentinelhub import bbox_to_resolution
-from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 
 from .utils import map_over_axis, resize_images
+from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 
 LOGGER = logging.getLogger(__name__)
 

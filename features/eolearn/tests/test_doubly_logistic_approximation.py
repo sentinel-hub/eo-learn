@@ -7,11 +7,13 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-from pytest import approx
 import numpy as np
+from pytest import approx
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
+from eolearn.features.doubly_logistic_approximation import (
+    DoublyLogisticApproximationTask,
+)
 
 
 def test_double_logistic_approximation(example_eopatch):

@@ -10,8 +10,8 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 from sentinelhub import BBox, MimeType
 

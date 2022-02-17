@@ -10,8 +10,8 @@ file in the root directory of this source tree.
 """
 import os
 
-import pytest
 import numpy as np
+import pytest
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.visualization import PlotConfig

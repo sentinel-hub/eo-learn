@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 
 import collections
 import copy
-from typing import List, Dict, Optional, Any, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
 class CyclicDependencyError(ValueError):

@@ -20,10 +20,10 @@ from enum import Enum
 import cv2
 import numpy as np
 import registration
-from eolearn.core import EOTask
-from eolearn.core.exceptions import EORuntimeWarning
 
 from .utils import EstimateEulerTransformModel, ransac
+from eolearn.core import EOTask
+from eolearn.core.exceptions import EORuntimeWarning
 
 LOGGER = logging.getLogger(__name__)
 

@@ -8,13 +8,17 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import pytest
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.geometry import ErosionTask, MorphologicalFilterTask, MorphologicalOperations, MorphologicalStructFactory
-
+from eolearn.geometry import (
+    ErosionTask,
+    MorphologicalFilterTask,
+    MorphologicalOperations,
+    MorphologicalStructFactory,
+)
 
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 MASK_FEATURE = FeatureType.MASK, "mask"

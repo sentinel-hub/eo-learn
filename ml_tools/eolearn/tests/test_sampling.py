@@ -11,12 +11,17 @@ import copy
 from typing import Tuple
 
 import numpy as np
-from numpy.testing import assert_array_equal
 import pytest
+from numpy.testing import assert_array_equal
 from pytest import approx
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.ml_tools import sample_by_values, BlockSamplingTask, FractionSamplingTask, GridSamplingTask
+from eolearn.ml_tools import (
+    BlockSamplingTask,
+    FractionSamplingTask,
+    GridSamplingTask,
+    sample_by_values,
+)
 from eolearn.ml_tools.sampling import expand_to_grids
 
 

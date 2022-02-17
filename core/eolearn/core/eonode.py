@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 
 import datetime as dt
 from dataclasses import dataclass, field
-from typing import Sequence, Optional, List, Tuple, Union, Set, Dict, cast
+from typing import Dict, List, Optional, Sequence, Set, Tuple, Union, cast
 
 from .eotask import EOTask
 from .utils.common import generate_uid

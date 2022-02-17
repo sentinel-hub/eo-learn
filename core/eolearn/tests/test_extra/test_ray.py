@@ -6,15 +6,15 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import os
-import logging
-import tempfile
 import datetime
+import logging
+import os
+import tempfile
 
 import pytest
 import ray
 
-from eolearn.core import EOTask, EOWorkflow, EOExecutor, EONode, WorkflowResults
+from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
 from eolearn.core.extra.ray import RayExecutor
 

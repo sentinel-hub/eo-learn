@@ -12,12 +12,12 @@ file in the root directory of this source tree.
 from abc import ABCMeta
 from math import sqrt
 from numbers import Number
-from typing import Dict, Tuple, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point, Polygon
 
-from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
 _FractionType = Union[Number, Dict[int, Number]]
 

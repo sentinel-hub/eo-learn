@@ -28,8 +28,9 @@ try:
 except ImportError as exception:
     raise ImportError("This module requires an installation of meteoblue_dataset_sdk package") from exception
 
-from sentinelhub import parse_time_interval, serialize_time, Geometry, CRS
-from eolearn.core import EOTask, EOPatch
+from sentinelhub import CRS, Geometry, parse_time_interval, serialize_time
+
+from eolearn.core import EOPatch, EOTask
 
 
 class BaseMeteoblueTask(EOTask):

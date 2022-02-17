@@ -10,14 +10,13 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import os
 import logging
+import os
 import tempfile
 
 import pytest
 
-from eolearn.core import EOTask, EOWorkflow, EONode, EOExecutor
-
+from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow
 
 logging.basicConfig(level=logging.DEBUG)
 

@@ -9,11 +9,11 @@ from .morphology import (
     MorphologicalStructFactory,
 )
 from .superpixel import (
-    SuperpixelSegmentationTask,
     FelzenszwalbSegmentationTask,
-    SlicSegmentationTask,
     MarkSegmentationBoundariesTask,
+    SlicSegmentationTask,
+    SuperpixelSegmentationTask,
 )
-from .transformations import VectorToRasterTask, RasterToVectorTask
+from .transformations import RasterToVectorTask, VectorToRasterTask
 
 __version__ = "1.0.0"

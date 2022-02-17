@@ -7,7 +7,6 @@ import pytest
 
 from eolearn.core import EOPatch
 
-
 EXAMPLE_DATA_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data")
 TEST_EOPATCH_PATH = os.path.join(EXAMPLE_DATA_PATH, "TestEOPatch")
 
