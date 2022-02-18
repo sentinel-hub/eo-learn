@@ -411,9 +411,11 @@ class ImportFromTiffTask(BaseLocalIoTask):
         eopatch_lower_right = np.array([eopatch_bbox.max_x, eopatch_bbox.min_y])
         res = np.array(tiff_source.res)
 
-        axis_flip = [1, -1]
-        col_off, row_off = np.round(axis_flip * (eopatch_upper_left - tiff_upper_left) / res).astype(int)
-        width, heigth = np.round(abs(eopatch_lower_right - eopatch_upper_left) / res).astype(int)
+        axis_flip = [1, -1]  # rasterio origin is upper left, eopatch origin is lower left
+
+        # clip to whole pixels
+        col_off, row_off = (np.floor(axis_flip * (eopatch_upper_left - tiff_upper_left) / res**2) * res).astype(int)
+        width, heigth = (np.floor(abs(eopatch_lower_right - eopatch_upper_left) / res**2) * res).astype(int)
 
         return Window(col_off, row_off, width, heigth)
 
