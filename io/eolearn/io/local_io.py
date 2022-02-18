@@ -17,13 +17,13 @@ from abc import ABCMeta
 
 import dateutil
 import fs
-import rasterio
 import numpy as np
-from sentinelhub import CRS, BBox
-
-from eolearn.core import EOTask, EOPatch
+import rasterio
+from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utils.fs import get_base_filesystem_and_path
+from rasterio.windows import Window
+from sentinelhub import CRS, BBox
 
 LOGGER = logging.getLogger(__name__)
 
@@ -400,29 +400,21 @@ class ImportFromTiffTask(BaseLocalIoTask):
         self.timestamp_size = timestamp_size
 
     @staticmethod
-    def _get_reading_window(width, height, data_bbox, eopatch_bbox):
+    def _get_reading_window(src, eopatch_bbox):
         """Calculates a window in pixel coordinates for which data will be read from an image"""
-        if eopatch_bbox.crs is not data_bbox.crs:
-            eopatch_bbox = eopatch_bbox.transform(data_bbox.crs)
 
-        # The following will be in the future moved to sentinelhub-py
-        data_ul_x, data_lr_y = data_bbox.lower_left
-        data_lr_x, data_ul_y = data_bbox.upper_right
+        if eopatch_bbox.crs.epsg is not src.crs.to_epsg():
+            eopatch_bbox = eopatch_bbox.transform(src.crs.to_epsg())
 
-        res_x = abs(data_ul_x - data_lr_x) / width
-        res_y = abs(data_ul_y - data_lr_y) / height
+        tiff_ul = np.array([src.bounds.left, src.bounds.top])
+        eop_ul = np.array([eopatch_bbox.min_x, eopatch_bbox.max_y])
+        eop_lr = np.array([eopatch_bbox.max_x, eopatch_bbox.min_y])
 
-        ul_x, lr_y = eopatch_bbox.lower_left
-        lr_x, ul_y = eopatch_bbox.upper_right
+        axis_flip = [1, -1]
+        col_off, row_off = np.round(axis_flip * (eop_ul - tiff_ul) / src.res).astype(int)
+        width, heigth = np.abs(np.round((np.array(eop_lr) - np.array(eop_ul)) / src.res)).astype(int)
 
-        # If these coordinates wouldn't be rounded here, rasterio.io.DatasetReader.read would round
-        # them in the same way
-        top = round((data_ul_y - ul_y) / res_y)
-        left = round((ul_x - data_ul_x) / res_x)
-        bottom = round((data_ul_y - lr_y) / res_y)
-        right = round((lr_x - data_ul_x) / res_x)
-
-        return (top, bottom), (left, right)
+        return Window(col_off, row_off, width, heigth)
 
     def execute(self, eopatch=None, *, filename=None):
         """Execute method which adds a new feature to the EOPatch
@@ -447,12 +439,10 @@ class ImportFromTiffTask(BaseLocalIoTask):
                 with filesystem.openbin(path, "r") as file_handle:
                     with rasterio.open(file_handle) as src:
 
-                        data_bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
                         if eopatch.bbox is None:
-                            eopatch.bbox = data_bbox
+                            eopatch.bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
 
-                        read_window = self._get_reading_window(src.width, src.height, data_bbox, eopatch.bbox)
-
+                        read_window = self._get_reading_window(src, eopatch.bbox)
                         data.append(src.read(window=read_window, boundless=True, fill_value=self.no_data_value))
 
         data = np.concatenate(data, axis=0)
