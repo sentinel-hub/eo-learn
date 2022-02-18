@@ -400,19 +400,20 @@ class ImportFromTiffTask(BaseLocalIoTask):
         self.timestamp_size = timestamp_size
 
     @staticmethod
-    def _get_reading_window(src, eopatch_bbox):
+    def _get_reading_window(tiff_source, eopatch_bbox):
         """Calculates a window in pixel coordinates for which data will be read from an image"""
 
-        if eopatch_bbox.crs.epsg is not src.crs.to_epsg():
-            eopatch_bbox = eopatch_bbox.transform(src.crs.to_epsg())
+        if eopatch_bbox.crs.epsg is not tiff_source.crs.to_epsg():
+            eopatch_bbox = eopatch_bbox.transform(tiff_source.crs.to_epsg())
 
-        tiff_ul = np.array([src.bounds.left, src.bounds.top])
-        eop_ul = np.array([eopatch_bbox.min_x, eopatch_bbox.max_y])
-        eop_lr = np.array([eopatch_bbox.max_x, eopatch_bbox.min_y])
+        tiff_upper_left = np.array([tiff_source.bounds.left, tiff_source.bounds.top])
+        eopatch_upper_left = np.array([eopatch_bbox.min_x, eopatch_bbox.max_y])
+        eopatch_lower_right = np.array([eopatch_bbox.max_x, eopatch_bbox.min_y])
+        res = np.array(tiff_source.res)
 
         axis_flip = [1, -1]
-        col_off, row_off = np.round(axis_flip * (eop_ul - tiff_ul) / src.res).astype(int)
-        width, heigth = np.abs(np.round((np.array(eop_lr) - np.array(eop_ul)) / src.res)).astype(int)
+        col_off, row_off = np.round(axis_flip * (eopatch_upper_left - tiff_upper_left) / res).astype(int)
+        width, heigth = np.round(abs(eopatch_lower_right - eopatch_upper_left) / res).astype(int)
 
         return Window(col_off, row_off, width, heigth)
 
