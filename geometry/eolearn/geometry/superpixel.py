@@ -12,8 +12,8 @@ file in the root directory of this source tree.
 import logging
 import warnings
 
-import skimage.segmentation
 import numpy as np
+import skimage.segmentation
 
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning

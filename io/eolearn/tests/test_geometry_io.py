@@ -7,7 +7,8 @@ file in the root directory of this source tree.
 """
 import pytest
 
-from sentinelhub import BBox, CRS
+from sentinelhub import CRS, BBox
+
 from eolearn.core import FeatureType
 from eolearn.io import GeopediaVectorImportTask, VectorImportTask
 

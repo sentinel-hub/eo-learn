@@ -7,12 +7,11 @@ Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import pytest
 import numpy as np
+import pytest
 
-from eolearn.core import FeatureType, EOPatch
-from eolearn.mask import MaskFeatureTask, JoinMasksTask
-
+from eolearn.core import EOPatch, FeatureType
+from eolearn.mask import JoinMasksTask, MaskFeatureTask
 
 BANDS_FEATURE = FeatureType.DATA, "BANDS-S2-L1C"
 NDVI_FEATURE = FeatureType.DATA, "NDVI"

@@ -9,21 +9,21 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import concurrent.futures
+import gzip
 import json
 import pickle
-import gzip
 import warnings
-import concurrent.futures
 from collections import defaultdict
 
 import fs
-from fs.tempfs import TempFS
+import geopandas as gpd
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+from fs.tempfs import TempFS
 from geopandas import GeoDataFrame, GeoSeries
 
-from sentinelhub import Geometry, CRS, MimeType
+from sentinelhub import CRS, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 from sentinelhub.os_utils import sys_is_windows
 

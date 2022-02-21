@@ -13,25 +13,24 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
-import logging
 import copy
 import datetime
-from typing import Tuple, Union, List, Optional, TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import attr
 import dateutil.parser
-import numpy as np
 import geopandas as gpd
+import numpy as np
 
-from sentinelhub import BBox, CRS
+from sentinelhub import CRS, BBox
 
 from .constants import FeatureType, OverwritePermission
-from .eodata_io import save_eopatch, load_eopatch, FeatureIO
+from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
-from .utils.fs import get_filesystem
 from .utils.common import deep_eq, is_discrete_type
+from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
-
 
 LOGGER = logging.getLogger(__name__)
 

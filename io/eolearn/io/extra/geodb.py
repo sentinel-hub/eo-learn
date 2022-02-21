@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 """
 
 from sentinelhub import CRS
+
 from ..geometry_io import _BaseVectorImportTask
 
 

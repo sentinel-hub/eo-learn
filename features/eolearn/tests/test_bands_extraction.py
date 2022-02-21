@@ -9,12 +9,11 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import pytest
 import numpy as np
+import pytest
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import EuclideanNormTask, NormalizedDifferenceIndexTask
-
 
 INPUT_FEATURE = (FeatureType.DATA, "TEST")
 

@@ -7,20 +7,19 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from functools import partial
 import dataclasses
+from functools import partial
 from typing import Any
 
+import numpy as np
 import pytest
 import shapely
-import numpy as np
+from conftest import TEST_EOPATCH_PATH
 from numpy.testing import assert_array_equal
-
-from eolearn.core import EOTask, EOPatch, FeatureType
-from eolearn.geometry import VectorToRasterTask, RasterToVectorTask
 from shapely.geometry import Polygon
 
-from conftest import TEST_EOPATCH_PATH
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.geometry import RasterToVectorTask, VectorToRasterTask
 
 VECTOR_FEATURE = FeatureType.VECTOR_TIMELESS, "LULC"
 RASTER_FEATURE = FeatureType.MASK_TIMELESS, "RASTERIZED_LULC"

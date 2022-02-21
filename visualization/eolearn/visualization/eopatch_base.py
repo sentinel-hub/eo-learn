@@ -11,7 +11,7 @@ file in the root directory of this source tree.
 import abc
 import datetime as dt
 from dataclasses import dataclass
-from typing import Optional, List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from geopandas import GeoDataFrame

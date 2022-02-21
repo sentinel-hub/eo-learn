@@ -1,9 +1,9 @@
-Sphinx~=4.0
-sphinx-rtd-theme
-nbsphinx
 jupyter
 m2r2
+nbsphinx
 ray
+sphinx-rtd-theme
+Sphinx~=4.0
 
 -e ./core
 -e ./coregistration

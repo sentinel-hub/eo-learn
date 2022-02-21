@@ -9,11 +9,11 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import warnings
 import itertools as it
+import warnings
 
-import skimage.feature
 import numpy as np
+import skimage.feature
 
 from eolearn.core import EOTask
 from eolearn.core.exceptions import EOUserWarning

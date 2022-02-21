@@ -17,7 +17,6 @@ import logging
 from logging import Filter, LogRecord
 from typing import Optional
 
-
 LOGGER = logging.getLogger(__name__)
 
 

@@ -14,8 +14,7 @@ file in the root directory of this source tree.
 from __future__ import annotations
 
 from itertools import repeat
-from typing import Optional, Union, Tuple, Sequence, Iterable, List, cast, TYPE_CHECKING
-
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
 

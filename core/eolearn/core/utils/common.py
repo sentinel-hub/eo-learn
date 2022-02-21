@@ -14,8 +14,9 @@ file in the root directory of this source tree.
 """
 
 import uuid
-import numpy as np
+
 import geopandas as gpd
+import numpy as np
 from geopandas.testing import assert_geodataframe_equal
 
 
