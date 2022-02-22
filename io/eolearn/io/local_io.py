@@ -442,11 +442,13 @@ class ImportFromTiffTask(BaseLocalIoTask):
                 with filesystem.openbin(path, "r") as file_handle:
                     with rasterio.open(file_handle) as src:
 
+                        boundless = True
                         if eopatch.bbox is None:
+                            boundless = False
                             eopatch.bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
 
                         read_window = self._get_reading_window(src, eopatch.bbox)
-                        data.append(src.read(window=read_window, boundless=True, fill_value=self.no_data_value))
+                        data.append(src.read(window=read_window, boundless=boundless, fill_value=self.no_data_value))
 
         data = np.concatenate(data, axis=0)
 
