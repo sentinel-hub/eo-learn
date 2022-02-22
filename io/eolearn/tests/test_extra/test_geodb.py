@@ -8,6 +8,7 @@ file in the root directory of this source tree.
 import pytest
 
 from sentinelhub import BBox
+
 from eolearn.core import FeatureType
 from eolearn.io.extra.geodb import GeoDBVectorImportTask
 

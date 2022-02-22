@@ -12,16 +12,16 @@ import datetime as dt
 import itertools as it
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Union, Dict, List, cast
+from typing import Dict, List, Optional, Union, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
 from geopandas import GeoDataFrame
 from pyproj import CRS
 
-from eolearn.core import FeatureType, EOPatch
+from eolearn.core import EOPatch, FeatureType
 
-from .eopatch_base import BasePlotConfig, BaseEOPatchVisualization
+from .eopatch_base import BaseEOPatchVisualization, BasePlotConfig
 
 
 class PlotBackend(Enum):

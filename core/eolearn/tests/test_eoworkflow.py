@@ -10,20 +10,20 @@ file in the root directory of this source tree.
 import concurrent.futures
 import datetime as dt
 
-import pytest
 import numpy as np
+import pytest
 
 from eolearn.core import (
+    CreateEOPatchTask,
+    EONode,
     EOPatch,
     EOTask,
-    EONode,
     EOWorkflow,
-    OutputTask,
-    WorkflowResults,
     FeatureType,
     InitializeFeatureTask,
+    OutputTask,
     RemoveFeatureTask,
-    CreateEOPatchTask,
+    WorkflowResults,
 )
 from eolearn.core.eoworkflow import NodeStats
 

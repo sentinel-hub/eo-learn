@@ -10,9 +10,10 @@ file in the root directory of this source tree.
 import functools
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
-from eolearn.core.graph import DirectedGraph, CyclicDependencyError
+from eolearn.core.graph import CyclicDependencyError, DirectedGraph
 
 
 @pytest.fixture(name="test_graph")

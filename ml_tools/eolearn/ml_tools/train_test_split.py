@@ -11,6 +11,7 @@ file in the root directory of this source tree.
 """
 
 from enum import Enum
+
 import numpy as np
 
 from eolearn.core import EOTask, FeatureType

@@ -22,9 +22,10 @@ import rasterio.transform
 import shapely.geometry
 import shapely.ops
 import shapely.wkt
-from geopandas import GeoSeries, GeoDataFrame
+from geopandas import GeoDataFrame, GeoSeries
 
 from sentinelhub import CRS, bbox_to_dimensions
+
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
 

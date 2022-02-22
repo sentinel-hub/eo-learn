@@ -12,11 +12,11 @@ file in the root directory of this source tree.
 """
 import itertools as it
 from enum import Enum
-from typing import Optional, Callable, Union
+from typing import Callable, Optional, Union
 
-import skimage.morphology
-import skimage.filters.rank
 import numpy as np
+import skimage.filters.rank
+import skimage.morphology
 
 from eolearn.core import EOTask, MapFeatureTask
 

@@ -20,6 +20,7 @@ except ImportError as exception:
     raise ImportError("This module requires an installation of xarray package") from exception
 
 from sentinelhub import BBox
+
 from eolearn.core import FeatureTypeSet
 from eolearn.core.utils.parsing import parse_feature
 

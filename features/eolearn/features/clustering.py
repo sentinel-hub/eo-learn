@@ -12,6 +12,7 @@ file in the root directory of this source tree.
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.image import grid_to_graph
+
 from eolearn.core import EOTask, FeatureType
 
 

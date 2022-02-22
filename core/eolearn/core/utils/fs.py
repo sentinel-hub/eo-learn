@@ -13,8 +13,8 @@ from pathlib import Path, PurePath
 from typing import Optional, Tuple
 
 import fs
-from fs_s3fs import S3FS
 from boto3 import Session
+from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
 
