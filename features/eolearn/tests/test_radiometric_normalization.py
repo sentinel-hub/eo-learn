@@ -6,26 +6,26 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Matic Lubej, Devis Peressutti, Žiga 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from datetime import datetime
 import copy
+from datetime import datetime
 
 import numpy as np
-from numpy.testing import assert_array_equal
 import pytest
+from numpy.testing import assert_array_equal
 from pytest import approx
 
 from eolearn.core import FeatureType
 from eolearn.core.eodata_io import FeatureIO
-from eolearn.mask import MaskFeatureTask
 from eolearn.features import (
-    ReferenceScenesTask,
     BlueCompositingTask,
+    HistogramMatchingTask,
     HOTCompositingTask,
     MaxNDVICompositingTask,
     MaxNDWICompositingTask,
     MaxRatioCompositingTask,
-    HistogramMatchingTask,
+    ReferenceScenesTask,
 )
+from eolearn.mask import MaskFeatureTask
 
 
 @pytest.fixture(name="eopatch")

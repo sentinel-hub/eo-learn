@@ -20,18 +20,17 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import datetime as dt
 import logging
 import traceback
-import datetime as dt
-from typing import Dict, List, Optional, Sequence, Tuple, Set, cast
 from dataclasses import dataclass, field, fields
+from typing import Dict, List, Optional, Sequence, Set, Tuple, cast
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
 from .eotask import EOTask
 from .eoworkflow_tasks import OutputTask
 from .graph import DirectedGraph
-
 
 LOGGER = logging.getLogger(__name__)
 

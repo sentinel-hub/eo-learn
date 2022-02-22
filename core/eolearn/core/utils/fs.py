@@ -12,11 +12,11 @@ import os
 from pathlib import Path, PurePath
 from typing import Optional, Tuple
 
+import fs
 from boto3 import Session
 from fs_s3fs import S3FS
-from sentinelhub import SHConfig
 
-import fs
+from sentinelhub import SHConfig
 
 
 def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> fs.base.FS:

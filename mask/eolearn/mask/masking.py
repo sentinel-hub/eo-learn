@@ -11,7 +11,7 @@ Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Union, Callable
+from typing import Callable, Union
 
 import numpy as np
 

@@ -11,8 +11,8 @@ file in the root directory of this source tree.
 
 from math import sqrt
 
-import skimage.feature
 import numpy as np
+import skimage.feature
 
 from eolearn.core import EOTask
 

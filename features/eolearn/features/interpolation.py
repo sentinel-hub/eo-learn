@@ -12,17 +12,17 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import warnings
 import datetime as dt
 import inspect
+import warnings
 from functools import partial
 
 import dateutil
-import scipy.interpolate
 import numpy as np
+import scipy.interpolate
 from sklearn.gaussian_process import GaussianProcessRegressor
 
-from eolearn.core import EOTask, EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EOUserWarning
 
 try:

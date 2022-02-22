@@ -20,6 +20,7 @@ from lightgbm import Booster
 from skimage.morphology import disk
 
 from sentinelhub import bbox_to_resolution
+
 from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 
 from .utils import map_over_axis, resize_images
@@ -51,17 +52,17 @@ class CloudMaskTask(EOTask):
     .. code-block:: python
 
         # Only output the combined mask
-        task1 = AddMultiCloudMaskTask(processing_resolution='120m',
-                                      mask_feature='CLM_INTERSSIM',
-                                      average_over=16,
-                                      dilation_size=8)
+        task1 = CloudMaskTask(processing_resolution='120m',
+                              mask_feature='CLM_INTERSSIM',
+                              average_over=16,
+                              dilation_size=8)
 
         # Only output monotemporal masks. Only monotemporal processing is done.
-        task2 = AddMultiCloudMaskTask(processing_resolution='120m',
-                                      mono_features=(None, 'CLM_S2C'),
-                                      mask_feature=None,
-                                      average_over=16,
-                                      dilation_size=8)
+        task2 = CloudMaskTask(processing_resolution='120m',
+                              mono_features=(None, 'CLM_S2C'),
+                              mask_feature=None,
+                              average_over=16,
+                              dilation_size=8)
     """
 
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")

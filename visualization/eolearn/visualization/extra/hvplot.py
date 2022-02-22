@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 """
 import dataclasses
 import datetime as dt
-from typing import Optional, List, cast
+from typing import List, Optional, cast
 
 import numpy as np
 import pandas as pd
@@ -20,12 +20,12 @@ from geopandas import GeoDataFrame
 from shapely.geometry import Polygon
 
 try:
-    import xarray as xr
-    import holoviews as hv
     import geoviews as gv
+    import holoviews as hv
     import hvplot  # pylint: disable=unused-import
-    import hvplot.xarray  # pylint: disable=unused-import
     import hvplot.pandas  # pylint: disable=unused-import
+    import hvplot.xarray  # pylint: disable=unused-import
+    import xarray as xr
     from cartopy import crs as ccrs
 except ImportError as exception:
     raise ImportError(
@@ -33,12 +33,13 @@ except ImportError as exception:
         "pip install eo-learn-visualization[HVPLOT]"
     ) from exception
 
-from sentinelhub import BBox, CRS
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.utils.parsing import parse_feature
 
+from ..eopatch_base import BaseEOPatchVisualization, BasePlotConfig
 from .xarray import array_to_dataframe, get_new_coordinates, string_to_variable
-from ..eopatch_base import BasePlotConfig, BaseEOPatchVisualization
 
 
 @dataclasses.dataclass

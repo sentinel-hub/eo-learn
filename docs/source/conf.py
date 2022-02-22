@@ -27,7 +27,6 @@ import eolearn.ml_tools
 import eolearn.visualization
 from eolearn.core import EOTask
 
-
 # -- Project information -----------------------------------------------------
 
 # General information about the project.

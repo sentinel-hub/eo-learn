@@ -9,11 +9,12 @@ file in the root directory of this source tree.
 """
 import datetime as dt
 
-import pytest
 import numpy as np
+import pytest
 from geopandas import GeoDataFrame
 
-from sentinelhub import BBox, CRS
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EORuntimeWarning

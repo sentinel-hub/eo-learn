@@ -2,46 +2,40 @@
 A collection of EOTasks for feature manipulation
 """
 
-from .temporal_features import (
-    AddSpatioTemporalFeaturesTask,
-    AddMaxMinTemporalIndicesTask,
-    AddMaxMinNDVISlopeIndicesTask,
-)
-from .interpolation import (
-    InterpolationTask,
-    ResamplingTask,
-    LinearInterpolationTask,
-    CubicInterpolationTask,
-    SplineInterpolationTask,
-    BSplineInterpolationTask,
-    AkimaInterpolationTask,
-    NearestResamplingTask,
-    LinearResamplingTask,
-    CubicResamplingTask,
-    KrigingInterpolationTask,
-)
-from .feature_manipulation import (
-    SimpleFilterTask,
-    FilterTimeSeriesTask,
-    ValueFilloutTask,
-    LinearFunctionTask,
-)
+from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
+from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
+from .clustering import ClusteringTask
+from .doubly_logistic_approximation import DoublyLogisticApproximationTask
+from .feature_manipulation import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from .haralick import HaralickTask
+from .hog import HOGTask
+from .interpolation import (
+    AkimaInterpolationTask,
+    BSplineInterpolationTask,
+    CubicInterpolationTask,
+    CubicResamplingTask,
+    InterpolationTask,
+    KrigingInterpolationTask,
+    LinearInterpolationTask,
+    LinearResamplingTask,
+    NearestResamplingTask,
+    ResamplingTask,
+    SplineInterpolationTask,
+)
+from .local_binary_pattern import LocalBinaryPatternTask
 from .radiometric_normalization import (
-    ReferenceScenesTask,
-    HistogramMatchingTask,
     BlueCompositingTask,
+    HistogramMatchingTask,
     HOTCompositingTask,
     MaxNDVICompositingTask,
     MaxNDWICompositingTask,
     MaxRatioCompositingTask,
+    ReferenceScenesTask,
 )
-from .blob import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
-from .hog import HOGTask
-from .local_binary_pattern import LocalBinaryPatternTask
-from .bands_extraction import EuclideanNormTask, NormalizedDifferenceIndexTask
-from .clustering import ClusteringTask
-from .doubly_logistic_approximation import DoublyLogisticApproximationTask
-
+from .temporal_features import (
+    AddMaxMinNDVISlopeIndicesTask,
+    AddMaxMinTemporalIndicesTask,
+    AddSpatioTemporalFeaturesTask,
+)
 
 __version__ = "1.0.0"

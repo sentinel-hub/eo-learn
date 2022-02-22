@@ -19,11 +19,13 @@ import dateutil
 import fs
 import numpy as np
 import rasterio
+from rasterio.windows import Window
+
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utils.fs import get_base_filesystem_and_path
-from rasterio.windows import Window
-from sentinelhub import CRS, BBox
 
 LOGGER = logging.getLogger(__name__)
 

@@ -17,7 +17,7 @@ except ImportError as exception:
     raise ImportError("This module requires an installation of Ray Python package") from exception
 from tqdm.auto import tqdm
 
-from ..eoexecution import EOExecutor, _ProcessingType, _ProcessingData
+from ..eoexecution import EOExecutor, _ProcessingData, _ProcessingType
 from ..eoworkflow import WorkflowResults
 
 

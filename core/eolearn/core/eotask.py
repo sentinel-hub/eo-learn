@@ -17,17 +17,11 @@ file in the root directory of this source tree.
 import inspect
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Iterable, Optional
 from dataclasses import dataclass
+from typing import Dict, Iterable, Optional
 
 from .constants import FeatureType
-from .utils.parsing import (
-    FeatureParser,
-    parse_feature,
-    parse_renamed_feature,
-    parse_features,
-    parse_renamed_features,
-)
+from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import copy
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 
 import fs
 import numpy as np

@@ -4,10 +4,11 @@ Module with global fixtures
 import os
 
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
 import pytest
+from botocore.exceptions import ClientError, NoCredentialsError
 
 from sentinelhub import SHConfig
+
 from eolearn.core import EOPatch
 
 EXAMPLE_DATA_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data")

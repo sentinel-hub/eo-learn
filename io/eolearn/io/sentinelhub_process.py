@@ -12,26 +12,27 @@ file in the root directory of this source tree.
 
 import datetime as dt
 import logging
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 import numpy as np
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
 from sentinelhub import (
+    Band,
+    BBox,
     DataCollection,
     MimeType,
-    SHConfig,
-    BBox,
     SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
+    SHConfig,
+    Unit,
     bbox_to_dimensions,
     filter_times,
     parse_time_interval,
     serialize_time,
-    Band,
-    Unit,
 )
+
+from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)
 

@@ -9,26 +9,26 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import copy
+import dataclasses
 import datetime
 import logging
 import os
 import tempfile
-import dataclasses
 from typing import Optional, Union
 
 import boto3
 import numpy as np
-from numpy.testing import assert_array_equal
+import pytest
+from conftest import TEST_EOPATCH_PATH
 from fs.errors import ResourceNotFound
 from moto import mock_s3
-import pytest
+from numpy.testing import assert_array_equal
 
-from eolearn.core import EOPatch, FeatureType
-from eolearn.io import ExportToTiffTask, ImportFromTiffTask
 from sentinelhub import read_data
 from sentinelhub.time_utils import serialize_time
 
-from conftest import TEST_EOPATCH_PATH
+from eolearn.core import EOPatch, FeatureType
+from eolearn.io import ExportToTiffTask, ImportFromTiffTask
 
 logging.basicConfig(level=logging.DEBUG)
 

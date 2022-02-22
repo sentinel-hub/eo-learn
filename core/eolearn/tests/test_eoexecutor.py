@@ -9,17 +9,17 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import os
-import logging
-import tempfile
-import datetime
 import concurrent.futures
+import datetime
+import logging
 import multiprocessing
+import os
+import tempfile
 import time
 
 import pytest
 
-from eolearn.core import EOTask, EOWorkflow, EONode, EOExecutor, WorkflowResults, execute_with_mp_lock, OutputTask
+from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, OutputTask, WorkflowResults, execute_with_mp_lock
 
 
 class ExampleTask(EOTask):

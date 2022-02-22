@@ -11,12 +11,13 @@ file in the root directory of this source tree.
 """
 import datetime
 
-import pytest
 import numpy as np
+import pytest
+from geopandas import GeoDataFrame, GeoSeries
 from numpy.testing import assert_array_equal
-from geopandas import GeoSeries, GeoDataFrame
 
-from sentinelhub import BBox, CRS
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
 
