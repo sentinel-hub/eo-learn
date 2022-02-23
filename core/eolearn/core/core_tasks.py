@@ -451,7 +451,7 @@ class ZipFeatureTask(EOTask):
         .. code-block:: python
 
             class CalculateFeatures(ZipFeatureTask):
-                def map_function(self, *f):
+                def zip_method(self, *f):
                     return f[0] / (f[1] + f[2])
 
             calc = CalculateFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features
