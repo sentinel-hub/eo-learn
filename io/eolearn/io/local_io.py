@@ -415,8 +415,8 @@ class ImportFromTiffTask(BaseLocalIoTask):
 
         axis_flip = [1, -1]  # image origin is upper left, geographic origin is lower left
 
-        col_off, row_off = np.round(axis_flip * (eopatch_upper_left - tiff_upper_left) / res).astype(int)
-        width, height = np.round(abs(eopatch_lower_right - eopatch_upper_left) / res).astype(int)
+        col_off, row_off = axis_flip * (eopatch_upper_left - tiff_upper_left) / res
+        width, height = abs(eopatch_lower_right - eopatch_upper_left) / res
 
         return Window(col_off, row_off, width, height)
 
