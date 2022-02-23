@@ -416,9 +416,9 @@ class ImportFromTiffTask(BaseLocalIoTask):
         axis_flip = [1, -1]  # rasterio origin is upper left, eopatch origin is lower left
 
         col_off, row_off = np.round(axis_flip * (eopatch_upper_left - tiff_upper_left) / res).astype(int)
-        width, heigth = np.round(abs(eopatch_lower_right - eopatch_upper_left) / res).astype(int)
+        width, height = np.round(abs(eopatch_lower_right - eopatch_upper_left) / res).astype(int)
 
-        return Window(col_off, row_off, width, heigth)
+        return Window(col_off, row_off, width, height)
 
     def execute(self, eopatch=None, *, filename=None):
         """Execute method which adds a new feature to the EOPatch
