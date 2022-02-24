@@ -97,8 +97,9 @@ def load_s3_filesystem(
     return S3FS(
         bucket_name=bucket_name,
         dir_path=dir_path,
-        aws_access_key_id=config.aws_access_key_id if config.aws_access_key_id else None,
-        aws_secret_access_key=config.aws_secret_access_key if config.aws_secret_access_key else None,
+        aws_access_key_id=config.aws_access_key_id or None,
+        aws_secret_access_key=config.aws_secret_access_key or None,
+        aws_session_token=config.aws_session_token or None,
         strict=strict,
     )
 
@@ -116,8 +117,9 @@ def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> 
     aws_session = Session(profile_name=aws_profile)
     aws_credentials = aws_session.get_credentials()
 
-    config.aws_access_key_id = aws_credentials.access_key
-    config.aws_secret_access_key = aws_credentials.secret_key
+    config.aws_access_key_id = aws_credentials.access_key or ""
+    config.aws_secret_access_key = aws_credentials.secret_key or ""
+    config.aws_session_token = aws_credentials.token or ""
     return config
 
 

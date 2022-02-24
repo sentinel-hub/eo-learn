@@ -43,7 +43,8 @@ def test_pathlib_support(tmp_path):
 
 
 @mock_s3
-def test_s3_filesystem():
+@pytest.mark.parametrize("aws_session_token", [None, "fake-session-token"])
+def test_s3_filesystem(aws_session_token):
     folder_name = "my_folder"
     s3_url = f"s3://test-eo-bucket/{folder_name}"
 
@@ -54,6 +55,7 @@ def test_s3_filesystem():
     custom_config = SHConfig()
     custom_config.aws_access_key_id = "fake-key"
     custom_config.aws_secret_access_key = "fake-secret"
+    custom_config.aws_session_token = aws_session_token
     filesystem1 = load_s3_filesystem(s3_url, strict=False, config=custom_config)
     filesystem2 = get_filesystem(s3_url, config=custom_config)
 
@@ -61,6 +63,7 @@ def test_s3_filesystem():
         assert isinstance(filesystem, S3FS)
         assert filesystem.aws_access_key_id == custom_config.aws_access_key_id
         assert filesystem.aws_secret_access_key == custom_config.aws_secret_access_key
+        assert filesystem.aws_session_token == aws_session_token
 
 
 @mock.patch("eolearn.core.utils.fs.Session")
