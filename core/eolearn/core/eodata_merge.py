@@ -53,8 +53,8 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
     :rtype: Dict[(FeatureType, str), object]
     """
     reduce_timestamps = time_dependent_op != "concatenate"
-    time_dependent_op = _parse_operation(time_dependent_op, is_timeless=False)
-    timeless_op = _parse_operation(timeless_op, is_timeless=True)
+    time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
+    timeless_operation = _parse_operation(timeless_op, is_timeless=True)
 
     feature_parser = FeatureParser(features)
     all_features = {feature for eopatch in eopatches for feature in feature_parser.get_features(eopatch)}
@@ -67,11 +67,12 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
 
         if feature_type.is_raster():
             if feature_type.is_temporal():
+                optimize = _check_if_optimize(eopatches, time_dependent_op)
                 eopatch_content[feature] = _merge_time_dependent_raster_feature(
-                    eopatches, feature, time_dependent_op, order_mask_per_eopatch
+                    eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize
                 )
             else:
-                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_op)
+                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_operation)
 
         if feature_type.is_vector():
             eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
@@ -143,10 +144,23 @@ def _merge_timestamps(eopatches, reduce_timestamps):
     return all_timestamps, order_mask_per_eopatch
 
 
-def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_mask_per_eopatch):
+def _check_if_optimize(eopatches, operation_input):
+    """Checks whether optimisation of `_merge_time_dependent_raster_feature` is possible"""
+    if operation_input not in [None, "mean", "median", "min", "max"]:
+        return False
+    timestamp_list = [eopatch.timestamp for eopatch in eopatches]
+    return _all_equal(timestamp_list)
+
+
+def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_mask_per_eopatch, optimize):
     """Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to order and join
     time raster's time slices.
     """
+    if optimize:
+        relevant_features = [eopatch[feature] for eopatch in eopatches if feature in eopatch]
+        if _all_equal(relevant_features):
+            return relevant_features[0]
+
     merged_array, merged_order_mask = _extract_and_join_time_dependent_feature_values(
         eopatches, feature, order_mask_per_eopatch
     )
