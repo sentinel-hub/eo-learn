@@ -7,17 +7,18 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import os
+import unittest.mock as mock
 from pathlib import Path
 
 import pytest
-import unittest.mock as mock
 from botocore.credentials import Credentials
-from fs.osfs import OSFS
 from fs.errors import CreateFailed
+from fs.osfs import OSFS
 from fs_s3fs import S3FS
 from moto import mock_s3
 
 from sentinelhub import SHConfig
+
 from eolearn.core import get_filesystem, load_s3_filesystem
 from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path
 

@@ -8,11 +8,11 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import pytest
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
-from eolearn.core import FeatureType, EOPatch
+from eolearn.core import EOPatch, FeatureType
 from eolearn.ml_tools import TrainTestSplitTask
 
 INPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST")

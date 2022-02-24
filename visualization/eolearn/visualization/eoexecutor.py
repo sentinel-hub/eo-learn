@@ -10,12 +10,12 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import os
-import importlib
-import inspect
-import warnings
 import base64
 import datetime as dt
+import importlib
+import inspect
+import os
+import warnings
 from collections import defaultdict
 from typing import DefaultDict, List, Tuple
 
@@ -24,8 +24,8 @@ import graphviz
 import matplotlib.pyplot as plt
 import pygments
 import pygments.lexers
-from pygments.formatters.html import HtmlFormatter
 from jinja2 import Environment, FileSystemLoader
+from pygments.formatters.html import HtmlFormatter
 
 from eolearn.core import EOExecutor
 from eolearn.core.exceptions import EOUserWarning

@@ -2,9 +2,8 @@
 A script for installing all subpackages at once
 """
 
-import sys
 import subprocess
-
+import sys
 
 SUBPACKAGE_LIST = [
     "core",

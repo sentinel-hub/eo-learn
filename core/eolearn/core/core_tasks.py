@@ -12,7 +12,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import copy
-from abc import abstractmethod, ABCMeta
+from abc import ABCMeta, abstractmethod
 
 import fs
 import numpy as np
@@ -451,7 +451,7 @@ class ZipFeatureTask(EOTask):
         .. code-block:: python
 
             class CalculateFeatures(ZipFeatureTask):
-                def map_function(self, *f):
+                def zip_method(self, *f):
                     return f[0] / (f[1] + f[2])
 
             calc = CalculateFeatures({FeatureType.DATA: ['f1', 'f2', 'f3']}, # input features

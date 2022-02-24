@@ -7,16 +7,16 @@ Copyright (c) 2021-2022 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sine
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import os
 import datetime as dt
+import os
 
 import numpy as np
-from sentinelhub import BBox, CRS
 from meteoblue_dataset_sdk.protobuf.dataset_pb2 import DatasetApiProtobuf
 
-from eolearn.core import FeatureType, EOPatch
-from eolearn.io.extra.meteoblue import MeteoblueVectorTask, MeteoblueRasterTask
+from sentinelhub import CRS, BBox
 
+from eolearn.core import EOPatch, FeatureType
+from eolearn.io.extra.meteoblue import MeteoblueRasterTask, MeteoblueVectorTask
 
 RASTER_QUERY = {
     "domain": "NEMS4",

@@ -11,15 +11,15 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import logging
 import itertools
+import logging
 
 import numpy as np
-from skimage.morphology import disk, binary_dilation
+from skimage.morphology import binary_dilation, disk
 
 from eolearn.core import EOTask, FeatureType
-from .utils import resize_images
 
+from .utils import resize_images
 
 LOGGER = logging.getLogger(__name__)
 

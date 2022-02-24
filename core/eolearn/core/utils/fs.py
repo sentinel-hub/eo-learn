@@ -13,8 +13,8 @@ from pathlib import Path, PurePath
 from typing import Optional, Tuple
 
 import fs
-from fs_s3fs import S3FS
 from boto3 import Session
+from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
 
@@ -49,7 +49,7 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS
     :param kwargs: Parameters passed to get_filesystem function
     :return: A filesystem object and a relative path
     """
-    path_parts = tuple(str(part) for part in path_parts if part is not None)
+    path_parts = tuple(str(part).rstrip("/") for part in path_parts if part is not None)
     base_path = path_parts[0]
 
     if "://" in base_path:

@@ -1,6 +1,13 @@
 [tool.black]
 line-length = 120
-experimental-string-processing = true
+preview = true
+
+[tool.isort]
+profile = "black"
+known_first_party = "sentinelhub"
+known_absolute = "eolearn"
+sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","ABSOLUTE","LOCALFOLDER"]
+line_length = 120
 
 [tool.pytest.ini_options]
 markers = [

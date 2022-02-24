@@ -9,8 +9,8 @@ Copyright (c) 2018-2019 William Ouellette
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from datetime import datetime
 import dataclasses
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -19,15 +19,15 @@ from pytest import approx
 
 from eolearn.core import EOTask, FeatureType
 from eolearn.features import (
-    LinearInterpolationTask,
-    CubicInterpolationTask,
-    SplineInterpolationTask,
-    BSplineInterpolationTask,
     AkimaInterpolationTask,
-    LinearResamplingTask,
+    BSplineInterpolationTask,
+    CubicInterpolationTask,
     CubicResamplingTask,
-    NearestResamplingTask,
     KrigingInterpolationTask,
+    LinearInterpolationTask,
+    LinearResamplingTask,
+    NearestResamplingTask,
+    SplineInterpolationTask,
 )
 
 

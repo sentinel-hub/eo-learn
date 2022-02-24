@@ -2,18 +2,13 @@
 Subpackage containing EOTasks for geometrical transformations
 """
 
-from .morphology import (
-    ErosionTask,
-    MorphologicalFilterTask,
-    MorphologicalOperations,
-    MorphologicalStructFactory,
-)
+from .morphology import ErosionTask, MorphologicalFilterTask, MorphologicalOperations, MorphologicalStructFactory
 from .superpixel import (
-    SuperpixelSegmentationTask,
     FelzenszwalbSegmentationTask,
-    SlicSegmentationTask,
     MarkSegmentationBoundariesTask,
+    SlicSegmentationTask,
+    SuperpixelSegmentationTask,
 )
-from .transformations import VectorToRasterTask, RasterToVectorTask
+from .transformations import RasterToVectorTask, VectorToRasterTask
 
 __version__ = "1.0.0"

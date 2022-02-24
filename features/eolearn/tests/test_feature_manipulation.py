@@ -11,12 +11,12 @@ file in the root directory of this source tree.
 
 import datetime
 
-import pytest
 import numpy as np
+import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
-from eolearn.features import FilterTimeSeriesTask, ValueFilloutTask, LinearFunctionTask
 from eolearn.core import EOPatch, FeatureType
+from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, ValueFilloutTask
 
 
 def test_content_after_timefilter():

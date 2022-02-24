@@ -7,19 +7,20 @@ Copyright (c) 2019-2021 Beno Šircelj
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import dataclasses
 import datetime as dt
 import os
 import shutil
-import dataclasses
 from concurrent import futures
-from typing import Optional, Any
+from typing import Any, Optional
 
+import numpy as np
 import pytest
 from pytest import approx
-import numpy as np
 
-from sentinelhub import BBox, CRS, DataCollection, SHConfig, Band, Unit
-from eolearn.core import EOPatch, FeatureType, EOTask
+from sentinelhub import CRS, Band, BBox, DataCollection, SHConfig, Unit
+
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.io import (
     SentinelHubDemTask,
     SentinelHubEvalscriptTask,

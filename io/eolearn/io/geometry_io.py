@@ -17,6 +17,7 @@ import geopandas as gpd
 from fiona.session import AWSSession
 
 from sentinelhub import CRS, GeopediaFeatureIterator, SHConfig
+
 from eolearn.core import EOPatch, EOTask, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)

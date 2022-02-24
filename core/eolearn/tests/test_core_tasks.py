@@ -10,30 +10,31 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-import datetime
 import copy
+import datetime
 
-import pytest
 import numpy as np
+import pytest
 
 from sentinelhub import CRS
+
 from eolearn.core import (
-    EOPatch,
-    FeatureType,
-    CopyTask,
-    DeepCopyTask,
     AddFeatureTask,
+    CopyTask,
+    CreateEOPatchTask,
+    DeepCopyTask,
+    DuplicateFeatureTask,
+    EOPatch,
+    ExtractBandsTask,
+    FeatureType,
+    InitializeFeatureTask,
+    MapFeatureTask,
+    MergeEOPatchesTask,
+    MergeFeatureTask,
+    MoveFeatureTask,
     RemoveFeatureTask,
     RenameFeatureTask,
-    DuplicateFeatureTask,
-    InitializeFeatureTask,
-    MoveFeatureTask,
-    MergeFeatureTask,
-    MapFeatureTask,
     ZipFeatureTask,
-    ExtractBandsTask,
-    CreateEOPatchTask,
-    MergeEOPatchesTask,
 )
 
 

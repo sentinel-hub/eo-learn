@@ -2,9 +2,9 @@
 A collection of input and output EOTasks
 """
 
+from .geometry_io import GeopediaVectorImportTask, VectorImportTask
 from .geopedia import AddGeopediaFeatureTask
 from .local_io import ExportToTiffTask, ImportFromTiffTask
-from .geometry_io import VectorImportTask, GeopediaVectorImportTask
 from .sentinelhub_process import (
     SentinelHubDemTask,
     SentinelHubEvalscriptTask,
