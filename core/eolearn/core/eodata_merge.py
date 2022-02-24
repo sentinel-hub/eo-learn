@@ -61,15 +61,15 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
     eopatch_content = {}
 
     timestamps, order_mask_per_eopatch = _merge_timestamps(eopatches, reduce_timestamps)
+    optimize_raster_temporal = _check_if_optimize(eopatches, time_dependent_op)
 
     for feature in all_features:
         feature_type, feature_name = feature
 
         if feature_type.is_raster():
             if feature_type.is_temporal():
-                optimize = _check_if_optimize(eopatches, time_dependent_op)
                 eopatch_content[feature] = _merge_time_dependent_raster_feature(
-                    eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize
+                    eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize_raster_temporal
                 )
             else:
                 eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_operation)
