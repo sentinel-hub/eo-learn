@@ -77,6 +77,8 @@ def test_time_dependent_merge_with_missing_features():
 
 def test_failed_time_dependent_merge():
     eop1 = EOPatch(data={"bands": np.ones((6, 4, 5, 2))})
+    with pytest.raises(ValueError):
+        eop1.merge()
     eop2 = EOPatch(data={"bands": np.ones((1, 4, 5, 2))}, timestamp=[dt.datetime(2020, 1, 1)])
     with pytest.raises(ValueError):
         eop2.merge(eop1)

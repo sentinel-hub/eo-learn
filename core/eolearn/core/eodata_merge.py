@@ -156,13 +156,9 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_ma
     """Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to order and join
     time raster's time slices.
     """
-    if optimize:
-        relevant_features = [eopatch[feature] for eopatch in eopatches if feature in eopatch]
-        if _all_equal(relevant_features):
-            return relevant_features[0]
 
     merged_array, merged_order_mask = _extract_and_join_time_dependent_feature_values(
-        eopatches, feature, order_mask_per_eopatch
+        eopatches, feature, order_mask_per_eopatch, optimize
     )
 
     # Case where feature array is already in the correct order and doesn't need splitting, which includes a case
@@ -193,7 +189,7 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_ma
     return np.array(split_arrays)
 
 
-def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_mask_per_eopatch):
+def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_mask_per_eopatch, optimize):
     """Collects feature arrays from EOPatches that have them and joins them together. It also joins together
     corresponding order masks.
     """
@@ -213,7 +209,7 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
             arrays.append(array)
             order_masks.append(order_mask)
 
-    if len(arrays) == 1:
+    if len(arrays) == 1 or (optimize and _all_equal(arrays)):
         return arrays[0], order_masks[0]
     return np.concatenate(arrays, axis=0), np.concatenate(order_masks)
 
