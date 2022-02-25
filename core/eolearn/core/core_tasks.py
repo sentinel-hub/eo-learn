@@ -516,9 +516,9 @@ class ZipFeatureTask(EOTask):
 class MergeFeatureTask(ZipFeatureTask):
     """Merges multiple features together by concatenating their data along the last axis."""
 
-    def zip_method(self, *f):
+    def zip_method(self, *f, dtype=None):
         """Concatenates the data of features along the last axis."""
-        return np.concatenate(f, axis=-1)
+        return np.concatenate(f, axis=-1, dtype=dtype)
 
 
 class ExtractBandsTask(MapFeatureTask):
