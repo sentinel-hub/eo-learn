@@ -518,7 +518,7 @@ class MergeFeatureTask(ZipFeatureTask):
 
     def zip_method(self, *f, dtype=None):
         """Concatenates the data of features along the last axis."""
-        return np.concatenate(f, axis=-1, dtype=dtype)
+        return np.concatenate(f, axis=-1, dtype=dtype)  # pylint: disable=unexpected-keyword-arg
 
 
 class ExtractBandsTask(MapFeatureTask):
