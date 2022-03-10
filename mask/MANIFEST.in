@@ -1,3 +1,4 @@
-include requirements.txt
+include requirements*.txt
 include eolearn/mask/models/*
 include LICENSE
+include README.md
