@@ -1,7 +1,6 @@
 jupyter
 m2r2
 nbsphinx
-ray
 sphinx-rtd-theme
 Sphinx~=4.0
 
