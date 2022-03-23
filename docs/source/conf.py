@@ -101,8 +101,14 @@ pygments_style = "sphinx"
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
 
-# Mock modules
-# autodoc_mock_imports = ["eolearn"]
+# Mock imports that won't and don't have to be installed in ReadTheDocs environment
+autodoc_mock_imports = [
+    "ray",
+    "geoviews",
+    "hvplot",
+    "pyepsg",
+    "xarray",
+]
 
 # -- Options for HTML output -------------------------------------------------
 
