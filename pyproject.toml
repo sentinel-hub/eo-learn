@@ -13,3 +13,22 @@ line_length = 120
 markers = [
     "sh_integration: marks integration tests with Sentinel Hub service"
 ]
+
+[tool.coverage.run]
+source = [
+    "core",
+    "coregistration",
+    "features",
+    "geometry",
+    "io",
+    "mask",
+    "ml_tools",
+    "visualization"
+]
+
+[tool.coverage.report]
+omit = [
+    "*/setup.py",
+    "*/tests/*",
+    "*/__init__.py"
+]
