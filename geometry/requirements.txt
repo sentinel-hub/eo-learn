@@ -1,4 +1,3 @@
-descartes
 eo-learn-core
 geopandas>=0.8.1
 rasterio>=1.2.7
