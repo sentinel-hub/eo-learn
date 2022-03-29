@@ -4,7 +4,7 @@ hypothesis
 isort
 moto
 nbval
-pylint>=2.12.2
+pylint>=2.12.2, <2.13.3
 pytest-cov
 pytest-mock
 pytest>=6.0.0
