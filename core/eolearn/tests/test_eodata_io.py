@@ -67,6 +67,9 @@ def eopatch_fixture():
         },
         crs=eopatch.bbox.crs.pyproj_crs(),
     )
+    eopatch.vector_timeless["empty-vector"] = GeoDataFrame(
+        {"values": [], "geometry": []}, crs=eopatch.bbox.crs.pyproj_crs()
+    )
 
     return eopatch
 

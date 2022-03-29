@@ -30,6 +30,7 @@ from sentinelhub.os_utils import sys_is_windows
 from .constants import FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .utils.parsing import FeatureParser
+from .utils.vector_io import infer_schema
 
 
 def save_eopatch(
@@ -292,7 +293,15 @@ class FeatureIO:
             return np.save(file, data)
 
         if file_format is MimeType.GPKG:
-            return data.to_file(file, driver="GPKG", encoding="utf-8", layer=fs.path.basename(self.path))
+            # Temporary workaround until GeoPandas 0.11 is released
+            layer = fs.path.basename(self.path)
+            try:
+                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer)
+            except ValueError as err:
+                if data.empty:
+                    schema = infer_schema(data)
+                    return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, schema=schema)
+                raise err
 
         if file_format in [MimeType.JSON, MimeType.GEOJSON]:
             if self.feature_type is FeatureType.BBOX:
