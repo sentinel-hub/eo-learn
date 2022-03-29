@@ -37,7 +37,7 @@ setup(
     author="Sinergise EO research team",
     author_email="eoresearch@sinergise.com",
     license="MIT",
-    packages=find_packages(),
+    packages=find_packages(exclude=["eolearn.tests*"]),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     extras_require={"RAY": parse_requirements("requirements-ray.txt")},
