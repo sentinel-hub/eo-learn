@@ -1,3 +1,14 @@
+## [Version 1.0.1] - 2022-03-29
+
+- Fixed an issue where vector features with empty dataframes couldn't be saved to a Geopackage.
+- Memory improvement in `EOPatch` merging procedure.
+- Added support for `aws_session_token`, contributed by @theirix.
+- Fixed an issue in `ImportFromTiffTask`.
+- Fixed a packaging issue where some new subpackage extensions didn't work in the version `1.0.0` that was released to PyPI.
+- `eo-learn` abstract package from now on requires fixed versions of `eo-learn` subpackages.
+- Applied `isort` formatting on the entire package.
+- Minor improvements in code and documentation.
+
 ## [Version 1.0.0] - 2022-02-09
 
 ### Core Changes
