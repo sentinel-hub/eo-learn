@@ -37,6 +37,7 @@ from .utils.logging import LogFileFilter
 LOGGER = logging.getLogger(__name__)
 MULTIPROCESSING_LOCK = None
 
+# pylint: disable=invalid-name
 _InputType = TypeVar("_InputType")
 _OutputType = TypeVar("_OutputType")
 _HandlerFactoryType = Callable[[str], Handler]

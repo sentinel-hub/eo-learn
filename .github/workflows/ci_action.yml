@@ -71,7 +71,7 @@ jobs:
           sentinelhub.config \
             --sh_client_id "${{ secrets.SH_CLIENT_ID }}" \
             --sh_client_secret "${{ secrets.SH_CLIENT_SECRET }}"
-          pytest --cov -c=.coveragerc --cov-report=term --cov-report=xml
+          pytest --cov --cov-report=term --cov-report=xml
 
       - name: Run pylint and reduced tests
         if: matrix.python-version != '3.8'
