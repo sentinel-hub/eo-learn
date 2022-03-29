@@ -51,7 +51,8 @@ def deep_eq(fst_obj, snd_obj):
 
     if isinstance(fst_obj, gpd.GeoDataFrame):
         try:
-            assert_geodataframe_equal(fst_obj, snd_obj)
+            # We allow differences in index types and in dtypes of columns
+            assert_geodataframe_equal(fst_obj, snd_obj, check_index_type=False, check_dtype=False)
             return True
         except AssertionError:
             return False
