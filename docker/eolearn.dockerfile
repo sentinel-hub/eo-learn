@@ -31,13 +31,11 @@ COPY visualization visualization
 COPY setup.py README.md requirements-dev.txt ./
 
 RUN pip3 install --no-cache-dir \
-    ./core \
-    -r ./core/requirements-ray.txt \
+    ./core[RAY] \
     ./coregistration \
     ./features \
     ./geometry \
     ./io[METEOBLUE] \
-    -r ./io/requirements-geodb.txt \
     ./mask \
     ./ml_tools \
     ./visualization
