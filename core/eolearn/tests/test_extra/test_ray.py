@@ -151,7 +151,7 @@ def test_execution_errors(workflow, execution_kwargs, simple_cluster):
         assert executor.get_failed_executions() == [3]
 
 
-def test_execution_results(workflow, execution_kwargs, simple_cluster):
+def test_execution_results2(workflow, execution_kwargs, simple_cluster):
     executor = RayExecutor(workflow, execution_kwargs)
     results = executor.run()
 

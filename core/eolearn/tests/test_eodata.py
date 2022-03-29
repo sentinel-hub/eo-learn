@@ -96,7 +96,7 @@ def test_timestamp_valid_feature_type(valid_entry):
 )
 def test_timestamp_invalid_feature_type(invalid_entry):
     eop = EOPatch()
-    with pytest.raises((ValueError, TypeError)) as e:
+    with pytest.raises((ValueError, TypeError)):
         eop.timestamp = invalid_entry
 
 

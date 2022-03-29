@@ -36,7 +36,6 @@ def test_content_after_timefilter():
 
     new_start, new_end = 4, -3
 
-    old_interval = (timestamps[0], timestamps[-1])
     new_interval = (timestamps[new_start], timestamps[new_end])
 
     new_timestamps = timestamps[new_start : new_end + 1]

@@ -164,7 +164,7 @@ def test_execution_errors(multiprocess, workflow, execution_kwargs):
         assert executor.get_failed_executions() == [3]
 
 
-def test_execution_results(workflow, execution_kwargs):
+def test_execution_results2(workflow, execution_kwargs):
     executor = EOExecutor(workflow, execution_kwargs)
     results = executor.run(workers=2, multiprocess=True)
 
