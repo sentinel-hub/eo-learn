@@ -9,7 +9,7 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import List
+from typing import Generator, List
 
 try:
     import ray
@@ -60,11 +60,15 @@ def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
     return RayExecutor._execute_workflow(workflow_args)
 
 
-def _progress_bar_iterator(futures: object):
+def _progress_bar_iterator(futures: list, update_interval: float = 1) -> Generator:
     """A utility to help tracking finished ray processes
 
     Note that using tqdm(futures) directly would cause memory problems and is not accurate
+
+    :param futures: List of `ray` futures.
+    :param update_interval: How many seconds to wait before updating progress bar.
+    :return: A `None` value generator that accurately shows progress of futures.
     """
     while futures:
-        _, futures = ray.wait(futures, num_returns=1)
-        yield
+        done, futures = ray.wait(futures, num_returns=len(futures), timeout=float(update_interval))
+        yield from (None for _ in done)
