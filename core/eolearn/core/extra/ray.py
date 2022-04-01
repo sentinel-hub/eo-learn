@@ -60,7 +60,7 @@ def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
     return RayExecutor._execute_workflow(workflow_args)
 
 
-def _progress_bar_iterator(futures: list, update_interval: float = 1) -> Generator:
+def _progress_bar_iterator(futures: list, update_interval: float = 0.5) -> Generator:
     """A utility to help tracking finished ray processes
 
     Note that using tqdm(futures) directly would cause memory problems and is not accurate
