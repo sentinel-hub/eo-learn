@@ -15,6 +15,7 @@ import datetime
 
 import numpy as np
 import pytest
+from fs.tempfs import TempFS
 
 from sentinelhub import CRS
 
@@ -28,12 +29,14 @@ from eolearn.core import (
     ExtractBandsTask,
     FeatureType,
     InitializeFeatureTask,
+    LoadTask,
     MapFeatureTask,
     MergeEOPatchesTask,
     MergeFeatureTask,
     MoveFeatureTask,
     RemoveFeatureTask,
     RenameFeatureTask,
+    SaveTask,
     ZipFeatureTask,
 )
 
@@ -93,6 +96,23 @@ def test_partial_copy(patch):
     partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
     expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp)
     assert partial_deepcopy == expected_patch, "Partial deep copying was not successful"
+
+
+def test_load_nothing():
+    load = LoadTask("./some/fake/path")
+    eopatch = load.execute(eopatch_folder=None)
+
+    assert eopatch == EOPatch()
+
+
+def test_save_nothing(patch):
+    temp_path = "/some/fake/path"
+    with TempFS() as temp_fs:
+        save = SaveTask(temp_path, filesystem=temp_fs)
+        output = save.execute(patch, eopatch_folder=None)
+
+        assert not temp_fs.exists(temp_path)
+        assert output == patch
 
 
 def test_add_rename_remove_feature(patch):

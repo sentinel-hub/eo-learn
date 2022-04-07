@@ -112,13 +112,15 @@ class SaveTask(IOTask):
 
         :param eopatch: EOPatch which will be saved
         :type eopatch: EOPatch
-        :param eopatch_folder: name of EOPatch folder containing data
-        :type eopatch_folder: str
+        :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it won't save anything.
+        :type eopatch_folder: str or None
         :return: The same EOPatch
         :rtype: EOPatch
         """
-        path = fs.path.combine(self.filesystem_path, eopatch_folder)
+        if eopatch_folder is None:
+            return eopatch
 
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
         eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
 
@@ -147,13 +149,16 @@ class LoadTask(IOTask):
     def execute(self, *, eopatch_folder=""):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
-        :param eopatch_folder: name of EOPatch folder containing data
-        :type eopatch_folder: str
+        :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it will return an empty
+            `EOPatch`.
+        :type eopatch_folder: str or None
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
-        path = fs.path.combine(self.filesystem_path, eopatch_folder)
+        if eopatch_folder is None:
+            return EOPatch()
 
+        path = fs.path.combine(self.filesystem_path, eopatch_folder)
         return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
 
 
