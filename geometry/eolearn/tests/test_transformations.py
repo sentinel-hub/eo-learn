@@ -9,7 +9,7 @@ file in the root directory of this source tree.
 """
 import dataclasses
 from functools import partial
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import pytest
@@ -39,10 +39,10 @@ class VectorToRasterTestCase:
     name: str
     task: EOTask
     img_shape: tuple
-    img_mean: float
-    img_median: int
     img_max: int
     img_min: int = 0
+    img_mean: Optional[float] = None
+    img_median: Optional[int] = None
     img_dtype: type = np.uint8
 
 
@@ -191,18 +191,37 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_shape=(101, 100, 1),
     ),
     VectorToRasterTestCase(
-        name="3D polygons",
+        name="3D polygons, np.int8",
         task=VectorToRasterTask(
             vector_input=CUSTOM_DATAFRAME_3D,
             raster_feature=RASTER_FEATURE,
             values_column="LULC_ID",
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
-            no_data_value=0,
+            no_data_value=-1,
+            raster_dtype=np.dtype("int8"),
         ),
+        img_min=-1,
         img_max=8,
-        img_mean=0.042079,
-        img_median=0,
+        img_mean=-0.9461386,
+        img_median=-1,
         img_shape=(101, 100, 1),
+        img_dtype=np.int8,
+    ),
+    VectorToRasterTestCase(
+        name="bool dtype",
+        task=VectorToRasterTask(
+            VECTOR_FEATURE,
+            RASTER_FEATURE,
+            values=[1],
+            values_column="LULC_ID",
+            raster_shape=(100, 150),
+            no_data_value=0,
+            raster_dtype=bool,
+        ),
+        img_min=False,
+        img_max=True,
+        img_dtype=bool,
+        img_shape=(100, 150, 1),
     ),
 )
 
@@ -214,8 +233,10 @@ def test_vector_to_raster_result(test_case, test_eopatch):
 
     assert np.amin(result) == pytest.approx(test_case.img_min, abs=delta), "Minimum values do not match."
     assert np.amax(result) == pytest.approx(test_case.img_max, abs=delta), "Maximum values do not match."
-    assert np.mean(result) == pytest.approx(test_case.img_mean, abs=delta), "Mean values do not match."
-    assert np.median(result) == pytest.approx(test_case.img_median, abs=delta), "Median values do not match."
+    if test_case.img_mean is not None:
+        assert np.mean(result) == pytest.approx(test_case.img_mean, abs=delta), "Mean values do not match."
+    if test_case.img_median is not None:
+        assert np.median(result) == pytest.approx(test_case.img_median, abs=delta), "Median values do not match."
     assert result.dtype == test_case.img_dtype, "Wrong dtype of result."
     assert result.shape == test_case.img_shape, "Result is of wrong shape."
 

@@ -41,6 +41,19 @@ class VectorToRasterTask(EOTask):
     <https://rasterio.readthedocs.io/en/stable/api/rasterio.features.html#rasterio.features.rasterize>`__.
     """
 
+    # A mapping between types that are not supported by rasterio into types that are. After rasterization the task
+    # will cast results back into the original dtype.
+    _RASTERIO_BASIC_DTYPES_MAP = {
+        bool: np.uint8,
+        np.int8: np.int16,
+        float: np.float64,
+    }
+    _RASTERIO_DTYPES_MAP = {
+        dtype: rasterio_type
+        for basic_type, rasterio_type in _RASTERIO_BASIC_DTYPES_MAP.items()
+        for dtype in [basic_type, np.dtype(basic_type)]
+    }
+
     def __init__(
         self,
         vector_input,
@@ -267,7 +280,7 @@ class VectorToRasterTask(EOTask):
     def _get_rasterization_function(self, bbox, height, width):
         """Provides a function that rasterizes shapes into output raster and already contains all optional parameters"""
         affine_transform = rasterio.transform.from_bounds(*bbox, width=width, height=height)
-        rasterize_params = dict(self.rasterio_params, transform=affine_transform, dtype=self.raster_dtype)
+        rasterize_params = dict(self.rasterio_params, transform=affine_transform)
 
         base_rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
 
@@ -310,7 +323,12 @@ class VectorToRasterTask(EOTask):
 
         rasterize_func = self._get_rasterization_function(eopatch.bbox, height=height, width=width)
         vector_data_iterator = self._get_vector_data_iterator(eopatch, join_per_value=self.overlap_value is not None)
+
         raster = self._get_raster(eopatch, height, width)
+        original_dtype = raster.dtype
+        if original_dtype in self._RASTERIO_DTYPES_MAP:
+            rasterio_dtype = self._RASTERIO_DTYPES_MAP[original_dtype]
+            raster = raster.astype(rasterio_dtype)
 
         timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamp)}
 
@@ -323,6 +341,9 @@ class VectorToRasterTask(EOTask):
             else:
                 time_index = timestamp_to_index[timestamp]
                 rasterize_func(shape_iterator, out=raster[time_index, ...])
+
+        if original_dtype is not raster.dtype:
+            raster = raster.astype(original_dtype)
 
         eopatch[self.raster_feature] = raster[..., np.newaxis]
         return eopatch
