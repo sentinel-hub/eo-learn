@@ -374,7 +374,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
     feature and set a bounding box of the new EOPatch.
 
     Note that if Geo-Tiff file is not completely spatially aligned with location of given EOPatch it will try to fit it
-    as best as possible. However it will not do any spatial resampling or interpolation on Geo-TIFF data.
+    as good as possible. However, it will not do any spatial resampling or interpolation on Geo-TIFF data.
     """
 
     def __init__(self, feature, folder=None, *, timestamp_size=None, **kwargs):
@@ -384,8 +384,8 @@ class ImportFromTiffTask(BaseLocalIoTask):
         :param folder: A directory containing image files or a path of an image file
         :type folder: str
         :param timestamp_size: In case data will be imported into time-dependant feature this parameter can be used to
-            specify time dimension. If not specified, time dimension will be the same as size of FeatureType.TIMESTAMP
-            feature. If FeatureType.TIMESTAMP does not exist it will be set to 1.
+            specify time dimension. If not specified, time dimension will be the same as size of `FeatureType.TIMESTAMP`
+            feature. If `FeatureType.TIMESTAMP` does not exist it will be set to 1.
             When converting data into a feature channels of given tiff image should be in order
             T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
             where T and B are the time and band indices.

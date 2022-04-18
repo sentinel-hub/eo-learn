@@ -22,7 +22,7 @@ class HOGTask(EOTask):
     directions or edge orientations for the pixels within the cell.
 
     The algorithm stores the result in images where each band is the value of the histogram for a specific angular
-    bin. If the visualize is True, it also output the images representing the gradients for each orientation.
+    bin. If `visualize` is `True`, it also outputs the images representing the gradients for each orientation.
     """
 
     def __init__(

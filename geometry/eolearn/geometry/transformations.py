@@ -75,13 +75,13 @@ class VectorToRasterTask(EOTask):
             as a geopandas `GeoDataFrame`.
         :type vector_input: (FeatureType, str) or GeoDataFrame
         :param raster_feature: New or existing raster feature into which data will be written. If existing raster
-            raster feature is given it will by default take existing values and write over them.
+            feature is given it will by default take existing values and write over them.
         :type raster_feature: (FeatureType, str)
         :param values: If `values_column` parameter is specified then only polygons which have one of these specified
             values in `values_column` will be rasterized. It can be also left to `None`. If `values_column` parameter
             is not specified `values` parameter has to be a single number into which everything will be rasterized.
         :type values: list(int or float) or int or float or None
-        :param values_column: A column in gived dataframe where values, into which polygons will be rasterized,
+        :param values_column: A column in given dataframe where values, into which polygons will be rasterized,
             are stored. If it is left to `None` then `values` parameter should be a single number into which
             everything will be rasterized.
         :type values_column: str or None
@@ -104,7 +104,7 @@ class VectorToRasterTask(EOTask):
         :type write_to_existing: bool
         :param buffer: Buffer value passed to vector_data.buffer() before rasterization. If 0, no buffering is done.
         :type buffer: float
-        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently
+        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently,
             available parameters are `all_touched` and `merge_alg`
         """
         self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
@@ -372,17 +372,17 @@ class RasterToVectorTask(EOTask):
             - `features=(FeatureType.MASK, 'CLOUD_MASK', 'VECTOR_CLOUD_MASK')`
             - `features=[(FeatureType.MASK_TIMELESS, 'CLASSIFICATION'), (FeatureType.MASK, 'TEMPORAL_CLASSIFICATION')]`
         :type features: object supported by eolearn.core.utilities.FeatureParser class
-        :param values: List of values which will be vectorized. By default is set to ``None`` and all values will be
+        :param values: List of values which will be vectorized. By default, is set to ``None`` and all values will be
             vectorized
         :type values: list(int) or None
         :param values_column: Name of the column in vector feature where raster values will be written
         :type values_column: str
         :param raster_dtype: If raster feature mask is of type which is not supported by ``rasterio.features.shapes``
             (e.g. ``numpy.int64``) this parameter is used to cast the mask into a different type
-            (``numpy.int16``, ``numpy.int32``, ``numpy.uint8``, ``numpy.uint16`` or ``numpy.float32``). By default
+            (``numpy.int16``, ``numpy.int32``, ``numpy.uint8``, ``numpy.uint16`` or ``numpy.float32``). By default,
             value of the parameter is ``None`` and no casting is done.
         :type raster_dtype: numpy.dtype or None
-        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently
+        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently,
             available is parameter `connectivity`.
         """
         self.feature_parser = self.get_feature_parser(features, allowed_feature_types=FeatureTypeSet.DISCRETE_TYPES)

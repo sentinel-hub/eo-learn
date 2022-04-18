@@ -41,7 +41,7 @@ def save_eopatch(
     overwrite_permission=OverwritePermission.ADD_ONLY,
     compress_level=0,
 ):
-    """A utility function used by EOPatch.save method."""
+    """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
     if not patch_exists:
@@ -87,7 +87,7 @@ def save_eopatch(
 
 
 def remove_redundant_files(filesystem, eopatch_features, filesystem_features, current_compress_level):
-    """Removes files that should have been overwriten but were not due to different compression levels."""
+    """Removes files that should have been overwritten but were not due to different compression levels."""
     files_to_remove = []
     saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
     for ftype, fname, path in filesystem_features:
@@ -101,7 +101,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
 
 
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
-    """A utility function used by EOPatch.load method."""
+    """A utility function used by `EOPatch.load` method."""
     features = list(walk_filesystem(filesystem, patch_location, features))
     loading_data = [FeatureIO(ftype, path, filesystem) for ftype, _, path in features]
 
@@ -159,7 +159,7 @@ def walk_main_folder(filesystem, folder_path):
     """Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem).
 
     The results depend on the implementation of `filesystem.listdir`. For each folder that coincides with a feature
-    type it returns (feature type, ..., path). If files in subfolders are also listed by `listdir` it returns the
+    type it returns (feature type, ..., path). If files in subfolders are also listed by `listdir` it returns
     them as well, which allows `walk_filesystem` to skip such subfolders from further searches.
     """
     for path in filesystem.listdir(folder_path):

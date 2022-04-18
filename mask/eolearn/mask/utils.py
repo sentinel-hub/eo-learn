@@ -50,7 +50,7 @@ def map_over_axis(data, func, axis=0):
 
 
 def resize_images(data, new_size=None, scale_factors=None, anti_alias=True, interpolation="linear"):
-    """Resizes the image(s) acording to given size or scale factors.
+    """Resizes the image(s) according to given size or scale factors.
 
     To specify the new scale use one of `new_size` or `scale_factors` parameters.
 

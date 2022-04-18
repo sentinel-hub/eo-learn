@@ -316,7 +316,6 @@ class RasterToVectorTestCase:
 
 
 RASTER_TO_VECTOR_TEST_CASES = (
-    # feature2 = FeatureType.MASK, 'CLM'
     RasterToVectorTestCase(
         name="reverse test",
         task=RasterToVectorTask((FeatureType.MASK_TIMELESS, "LULC", "NEW_LULC")),

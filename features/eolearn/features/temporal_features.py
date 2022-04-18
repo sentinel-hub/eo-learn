@@ -181,12 +181,12 @@ class AddMaxMinTemporalIndicesTask(EOTask):
 
 
 class AddMaxMinNDVISlopeIndicesTask(EOTask):
-    """Task to compute the argmax and armgin of the NDVI slope
+    """Task to compute the argmax and argmin of the NDVI slope
 
     This task computes the slope of the NDVI feature using central differences. The NDVI feature can be masked using the
     `'VALID_DATA'` mask. Current implementation loops through every location of eopatch, and is therefore slow.
 
-    The NDVI slope at date t is comuted as $(NDVI_{t+1}-NDVI_{t-1})/(date_{t+1}-date_{t-1})$.
+    The NDVI slope at date t is computed as $(NDVI_{t+1}-NDVI_{t-1})/(date_{t+1}-date_{t-1})$.
     """
 
     def __init__(
@@ -217,7 +217,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         This implementation loops through every spatial location, considers the valid NDVI values and approximates their
         first order derivative using central differences. The argument of min and max is added to the eopatch.
 
-        The NDVI slope at date t is comuted as $(NDVI_{t+1}-NDVI_{t-1})/(date_{t+1}-date_{t-1})$.
+        The NDVI slope at date t is computed as $(NDVI_{t+1}-NDVI_{t-1})/(date_{t+1}-date_{t-1})$.
 
         :param eopatch: Input eopatch
         :return: eopatch with NDVI slope argmin/argmax features

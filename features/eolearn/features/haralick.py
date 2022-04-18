@@ -25,7 +25,7 @@ class HaralickTask(EOTask):
     The task compute the grey-level co-occurrence matrix (GLCM) on a sliding window over the input image and extract the
     texture properties.
 
-    The task uses skimage.feature.greycomatrix and skimage.feature.greycoprops to extract the texture features.
+    The task uses `skimage.feature.greycomatrix` and `skimage.feature.greycoprops` to extract the texture features.
     """
 
     AVAILABLE_TEXTURES_SKIMAGE = {"contrast", "dissimilarity", "homogeneity", "ASM", "energy", "correlation"}

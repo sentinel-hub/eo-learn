@@ -51,13 +51,13 @@ class DirectedGraph:
         return iter(self._vertices)
 
     def _make_indegrees_dict(self):
-        in_degs = collections.defaultdict(int)
+        indegrees = collections.defaultdict(int)
 
         for u_vertex in self._adj_dict:
             for v_vertex in self._adj_dict[u_vertex]:
-                in_degs[v_vertex] += 1
+                indegrees[v_vertex] += 1
 
-        return in_degs
+        return indegrees
 
     def get_indegrees(self) -> Dict[Any, int]:
         """Returns a dictionary containing in-degrees of vertices of the graph."""
@@ -199,7 +199,7 @@ class DirectedGraph:
                         stack.append(v)
         return False
 
-    def toplogically_ordered_vertices(self) -> list:
+    def topologically_ordered_vertices(self) -> list:
         """Computes an ordering `<` of vertices so that for any two vertices `v` and `v'` we have that if `v˙ depends
         on `v'` then `v' < v`. In words, all dependencies of a vertex precede the vertex in this ordering.
 

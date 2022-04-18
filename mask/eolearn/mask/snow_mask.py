@@ -120,7 +120,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
     ATBD https://gitlab.orfeo-toolbox.org/remote_modules/let-it-snow/blob/master/doc/atbd/ATBD_CES-Neige.pdf
 
     This task computes a snow mask for the input EOPatch. The `data_feature` to be used as input to the
-    classifier is a mandatory argument. If all of the needed features exist already, the classifier is run.
+    classifier is a mandatory argument. If all required features exist already, the classifier is run.
     `linear` interpolation is used for resampling of the `data_feature` and cloud probability map, while `nearest`
     interpolation is used to upsample the binary cloud mask.
     """

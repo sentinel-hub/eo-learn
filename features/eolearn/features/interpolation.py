@@ -99,7 +99,7 @@ class InterpolationTask(EOTask):
     :param interpolation_object: Interpolation class which is initialized with
     :type interpolation_object: object
     :param resample_range: If None the data will be only interpolated over existing timestamps and NaN values will be
-        replaced with interpolated values (if possible) in the existing EOPatch. Otherwise ``resample_range`` can be
+        replaced with interpolated values (if possible) in the existing EOPatch. Otherwise, ``resample_range`` can be
         set to tuple in a form of (start_date, end_date, step_days), e.g. ('2018-01-01', '2018-06-01', 16). This will
         create a new EOPatch with resampled values for times start_date, start_date + step_days,
         start_date + 2 * step_days, ... . End date is excluded from timestamps. Additionally, ``resample_range`` can
@@ -240,7 +240,7 @@ class InterpolationTask(EOTask):
 
     @staticmethod
     def _get_unique_times(data, times):
-        """Replace duplicate acquisitions which have same values on the chosen time scale with their average.
+        """Replace duplicate acquisitions which have same values on the chosen timescale with their average.
         The average is calculated with numpy.nanmean, meaning that NaN values are ignored when calculating the average.
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
@@ -455,7 +455,7 @@ class InterpolationTask(EOTask):
         if new_eopatch.bbox is None:
             new_eopatch.bbox = eopatch.bbox
 
-        # Replace duplicate acquisitions which have same values on the chosen time scale with their average
+        # Replace duplicate acquisitions which have same values on the chosen timescale with their average
         feature_data, times = self._get_unique_times(feature_data, times)
 
         # Interpolate
@@ -557,7 +557,7 @@ class KrigingObject:
     def __init__(self, times, series, **kwargs):
         self.regressor = GaussianProcessRegressor(**kwargs)
 
-        # Since most of data is close to zero (relatively to time points), first get time data in [0,1] range
+        # Since most of the data is close to zero (relatively to time points), first get time data in [0,1] range
         # to ensure nonzero results
 
         # Should normalize by max in resample time to be totally consistent,

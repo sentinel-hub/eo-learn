@@ -76,7 +76,7 @@ def load_s3_filesystem(
     :type path: str
     :param strict: If `True` the filesystem will be making additional checks to the s3. Default is `False`.
     :type strict: bool
-    :param config: A configuration object with AWS credentials. By default is set to None and in this case the default
+    :param config: A configuration object with AWS credentials. By default, is set to None and in this case the default
         configuration will be taken.
     :type config: SHConfig or None
     :param aws_profile: A name of AWS profile. If given, AWS credentials will be taken from there.

@@ -117,7 +117,7 @@ def constant_pad(array, multiple_of, up_down_rule="even", left_right_rule="even"
             row_padding_up = int(row_padding / 2)
             row_padding_down = row_padding_up + (row_padding % 2)
         else:
-            raise ValueError("Padding rule for rows not supported. Choose beteen even, down or up!")
+            raise ValueError("Padding rule for rows not supported. Choose between even, down or up!")
 
     if col_padding > 0:
         if left_right_rule == "left":
@@ -128,7 +128,7 @@ def constant_pad(array, multiple_of, up_down_rule="even", left_right_rule="even"
             col_padding_left = int(col_padding / 2)
             col_padding_right = col_padding_left + (col_padding % 2)
         else:
-            raise ValueError("Padding rule for columns not supported. Choose beteen even, left or right!")
+            raise ValueError("Padding rule for columns not supported. Choose between even, left or right!")
 
     return np.lib.pad(
         array,
@@ -141,7 +141,7 @@ def constant_pad(array, multiple_of, up_down_rule="even", left_right_rule="even"
 def generate_uid(prefix: str):
     """Generates a (sufficiently) unique ID starting with the `prefix`.
 
-    The ID is composed from the prefix, a hexadecimal string obtained from the current time and a random hexadecimal
+    The ID is composed of the prefix, a hexadecimal string obtained from the current time and a random hexadecimal
     string. This makes the uid sufficiently unique.
     """
     time_uid = uuid.uuid1(node=0).hex[:-12]

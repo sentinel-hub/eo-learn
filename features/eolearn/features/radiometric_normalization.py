@@ -72,7 +72,7 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
                             implementation, while the other methods use the numpy `percentile` function. Default is
                             'lower'
     :type interpolation: str
-    :param no_data_value: Value in the composite assigned to non valid data points. Default is NaN
+    :param no_data_value: Value in the composite assigned to non-valid data points. Default is NaN
     :type no_data_value: float or NaN
     """
 

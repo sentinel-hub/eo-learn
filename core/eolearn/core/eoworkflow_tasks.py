@@ -25,7 +25,7 @@ class InputTask(EOTask):
 
     def execute(self, *, value: Optional[object] = None) -> object:  # type: ignore[override]
         """
-        :param value: A value that the task should provide as it's result. If not set uses the value from initialization
+        :param value: A value that the task should provide as its result. If not set uses the value from initialization
         :return: Directly returns `value`
         """
         return value or self.value

@@ -28,7 +28,7 @@ class SimpleFilterTask(EOTask):
     Transforms an eopatch of shape [n, w, h, d] into [m, w, h, d] for m <= n. It removes all slices which don't
     conform to the filter_func.
 
-    A filter_func is a callable which takes an numpy array and returns a bool.
+    A filter_func is a callable which takes a numpy array and returns a bool.
     """
 
     def __init__(self, feature, filter_func, filter_features=...):
@@ -125,7 +125,7 @@ class ValueFilloutTask(EOTask):
         :type feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param operations: Fill directions, which should be one of ['f', 'b', 'fb', 'bf'].
         :type operations: str
-        :param value: Which value to fill by it's neighbors.
+        :param value: Which value to fill by its neighbors.
         :type value: any numpy dtype
         :param axis: An axis along which to fill values.
         :type axis: int
@@ -145,7 +145,7 @@ class ValueFilloutTask(EOTask):
 
         :param data: A 2d numpy array.
         :type data: numpy.ndarray
-        :param value: Which value to fill by it's neighbors.
+        :param value: Which value to fill by its neighbors.
         :type value: any numpy dtype
         :param operation: Fill directions, which should be either 'f' or 'b'.
         :type operation: str

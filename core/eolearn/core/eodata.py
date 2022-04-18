@@ -61,7 +61,7 @@ class EOPatch:
     In addition to that other auxiliary information is also needed and can be stored in additional attributes of the
     EOPatch (thus extending the functionality of numpy ndarray). These attributes are listed in the FeatureType enum.
 
-    Currently the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
+    Currently, the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
     arrays in other attributes.
     """
 
@@ -123,7 +123,7 @@ class EOPatch:
         )
 
     def __getattribute__(self, key, load=True, feature_name=None):
-        """Handles lazy loading and it can even provide a single feature from _FeatureDict."""
+        """Handles lazy loading and can even provide a single feature from _FeatureDict."""
         value = super().__getattribute__(key)
 
         if isinstance(value, FeatureIO) and load:
@@ -321,9 +321,9 @@ class EOPatch:
     def copy(self, features=..., deep=False):
         """Get a copy of the current `EOPatch`.
 
-        :param features: Features to be copied into a new `EOPatch`. By default all features will be copied.
+        :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied.
         :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise only a shallow copy
+        :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
             of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMP` will be copied even with a shallow copy.
         :type deep: bool
         :return: An EOPatch copy.
@@ -336,7 +336,7 @@ class EOPatch:
     def reset_feature_type(self, feature_type):
         """Resets the values of the given feature type.
 
-        :param feature_type: Type of a feature
+        :param feature_type: Type of feature
         :type feature_type: FeatureType
         """
         feature_type = FeatureType(feature_type)
@@ -405,7 +405,7 @@ class EOPatch:
 
         :param path: A location where to save EOPatch. It can be either a local path or a remote URL path.
         :type path: str
-        :param features: A collection of features types specifying features of which type will be saved. By default
+        :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :type features: list(FeatureType) or list((FeatureType, str)) or ...
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
@@ -436,7 +436,7 @@ class EOPatch:
 
         :param path: A location from where to load EOPatch. It can be either a local path or a remote URL path.
         :type path: str
-        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :param features: A collection of features to be loaded. By default, all features will be loaded.
         :type features: object
         :param lazy_loading: If `True` features will be lazy loaded.
         :type lazy_loading: bool
@@ -457,7 +457,7 @@ class EOPatch:
 
         :param eopatches: Any number of EOPatches to be merged together with the current EOPatch
         :type eopatches: EOPatch
-        :param features: A collection of features to be merged together. By default all features will be merged.
+        :param features: A collection of features to be merged together. By default, all features will be merged.
         :type features: object
         :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
             joining time slices of all arrays will be sorted. Supported options are:

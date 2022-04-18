@@ -156,7 +156,7 @@ class EOExecutor:
         :param multiprocess: If `True` it will use `concurrent.futures.ProcessPoolExecutor` which will distribute
             workflow executions among multiple processors. If `False` it will use
             `concurrent.futures.ThreadPoolExecutor` which will distribute workflow among multiple threads.
-            However even when `multiprocess=False`, tasks from workflow could still be using multiple processors.
+            However, even when `multiprocess=False`, tasks from workflow could still be using multiple processors.
             This parameter is used especially because certain task cannot run with
             `concurrent.futures.ProcessPoolExecutor`.
             In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
@@ -204,7 +204,7 @@ class EOExecutor:
     def _run_execution(
         self, processing_args: List[_ProcessingData], workers: int, processing_type: _ProcessingType
     ) -> List[WorkflowResults]:
-        """Runs the execution an each item of processing_args list."""
+        """Runs the execution for each item of processing_args list."""
         if processing_type is _ProcessingType.SINGLE_PROCESS:
             return list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
 
@@ -404,7 +404,7 @@ def submit_and_monitor_execution(
 
 def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:
     """A helper utility function that executes a given function with multiprocessing lock if the process is being
-    executed in a multi-processing mode.
+    executed in a multiprocessing mode.
 
     :param execution_function: A function
     :param args: Function's positional arguments

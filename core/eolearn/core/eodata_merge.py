@@ -28,7 +28,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
 
     :param eopatches: Any number of EOPatches to be merged together
     :type eopatches: EOPatch
-    :param features: A collection of features to be merged together. By default all features will be merged.
+    :param features: A collection of features to be merged together. By default, all features will be merged.
     :type features: object
     :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
         joining time slices of all arrays will be sorted. Supported options are:
@@ -256,7 +256,7 @@ def _merge_vector_feature(eopatches, feature):
 
 
 def _select_meta_info_feature(eopatches, feature_name):
-    """Selects a value for a meta info feature of a merged EOPatch. By default the value is the first one."""
+    """Selects a value for a meta info feature of a merged EOPatch. By default, the value is the first one."""
     values = _extract_feature_values(eopatches, (FeatureType.META_INFO, feature_name))
 
     if not _all_equal(values):

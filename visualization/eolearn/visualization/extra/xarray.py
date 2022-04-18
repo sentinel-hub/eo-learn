@@ -72,10 +72,10 @@ def _get_spatial_coordinates(bbox, data, feature_type):
 
 
 def _get_temporal_coordinates(timestamps):
-    """Returns temporal coordinates dictionary for creating xarray DataArray/Dataset
+    """Returns temporal-coordinates dictionary for creating xarray DataArray/Dataset
 
     :param timestamps: timestamps
-    :type timestamps: EOpatch.timestamp
+    :type timestamps: EOPatch.timestamp
     :return: temporal coordinates
     :rtype: dict {'time': }
     """
@@ -113,7 +113,7 @@ def get_coordinates(eopatch, feature, crs):
     :type feature: (FeatureType, str)
     :param crs: convert spatial coordinates to crs
     :type crs: sentinelhub.crs
-    :return: coordinates for xarry DataArray/Dataset
+    :return: coordinates for xarray DataArray/Dataset
     :rtype: dict
     """
     feature_type, feature_name = parse_feature(feature)
@@ -170,7 +170,7 @@ def array_to_dataframe(eopatch, feature, remove_depth=True, crs=None, convert_bo
     :param remove_depth: removes last dimension if it is one
     :type remove_depth: bool
     :param crs: converts dimensions to crs
-    :type crs: sentinelhub.crs
+    :type crs: sentinelhub.CRS
     :param convert_bool: If True it will convert boolean dtype into uint8 dtype
     :type convert_bool: bool
     :return: dataarray
@@ -205,7 +205,7 @@ def eopatch_to_dataset(eopatch, remove_depth=True):
     """
     Converts eopatch to xarray Dataset
 
-    :param eopatch: eopathc
+    :param eopatch: An EOPatch
     :type eopatch: EOPatch
     :param remove_depth: removes last dimension if it is one
     :type remove_depth: bool

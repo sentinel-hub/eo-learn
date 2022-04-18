@@ -56,17 +56,17 @@ class RegistrationTask(EOTask, ABC):
     Parameters:
 
     :param registration_feature: A feature which will be used for co-registration,
-                                    e.g. feature=(FeatureType.DATA, 'bands'). By default this feature is of type
-                                    FeatureType.DATA therefore also only feature name can be given e.g.
+                                    e.g. feature=(FeatureType.DATA, 'bands'). By default, this feature is of type
+                                    `FeatureType.DATA` therefore also only feature name can be given e.g.
                                     feature='bands'
     :type registration_feature: (FeatureType, str) or str
     :param channel: Index of `feature`'s channel to be used in co-registration
     :type channel: int
-    :param valid_mask_feature: Feature containing a mask of valid pixels for `registration_feature`. By default no
+    :param valid_mask_feature: Feature containing a mask of valid pixels for `registration_feature`. By default, no
                                 mask is set. It can be set to e.g. valid_mask_feature=(FeatureType.MASK, 'IS_DATA')
-                                or valid_mask_feature='IS_DATA' if the feature is of type FeatureType.MASK
+                                or valid_mask_feature='IS_DATA' if the feature is of type `FeatureType.MASK`
     :type valid_mask_feature: str or (FeatureType, str) or None
-    :param apply_to_features: A collection of features to which co-registration will be applied to. By default this
+    :param apply_to_features: A collection of features to which co-registration will be applied to. By default, this
                                 is only `registration_feature` and `valid_mask_feature` if given. Note that each
                                 feature must have same temporal dimension as `registration_feature`.
     :type apply_to_features: dict(FeatureType: set(str) or dict(str: str))
@@ -174,7 +174,7 @@ class RegistrationTask(EOTask, ABC):
                 )
                 warp_matrix = np.eye(2, 3)
 
-            # Apply tranformation to every given feature
+            # Apply transformation to every given feature
             for feature_type, feature_name in self.apply_features_parser.get_features(eopatch):
                 new_eopatch[feature_type][feature_name][idx - 1] = self.warp(
                     warp_matrix, new_eopatch[feature_type][feature_name][idx - 1], iflag
@@ -220,7 +220,7 @@ class RegistrationTask(EOTask, ABC):
 
     @staticmethod
     def is_registration_suspicious(warp_matrix):
-        """Static method that check if estimated linear transformation could be unplausible
+        """Static method that checks if estimated linear transformation could be implausible.
 
         This function checks whether the norm of the estimated translation or the rotation angle exceed predefined
         values. For the translation, a maximum translation radius of 20 pixels is flagged, while larger rotations than
@@ -248,7 +248,7 @@ class ThunderRegistrationTask(RegistrationTask):
         For more information on the model estimation, refer to https://github.com/thunder-project/thunder-registration
         This function takes two 2D single channel images and estimates a 2D translation that best aligns the pair. The
         estimation is done by maximising the correlation of the Fourier transforms of the images. Once, the translation
-        is estimated, it is applied to the (multi-channel) image to warp and, possibly, ot hte ground-truth. Different
+        is estimated, it is applied to the (multichannel) image to warp and, possibly, ot hte ground-truth. Different
         interpolations schemes could be more suitable for images and ground-truth values (or masks).
 
         :param src: 2D single channel source moving image
@@ -260,7 +260,7 @@ class ThunderRegistrationTask(RegistrationTask):
         # Initialise instance of CrossCorr object
         ccreg = registration.CrossCorr()
         # padding_value = 0
-        # Compute translation between pair of images
+        # Compute translation between a pair of images
         model = ccreg.fit(src, reference=trg)
         # Get translation as an array
         translation = [-x for x in model.toarray().tolist()[0]]
@@ -297,7 +297,7 @@ class ECCRegistrationTask(RegistrationTask):
     def register(self, src, trg, trg_mask=None, src_mask=None):
         """Implementation of pair-wise registration and warping using Enhanced Correlation Coefficient
 
-        This function estimates an Euclidean transformation (x,y translation + rotation) using the intensities of the
+        This function estimates Euclidean transformation (x,y translation + rotation) using the intensities of the
         pair of images to be registered. The similarity metric is a modification of the cross-correlation metric, which
         is invariant to distortions in contrast and brightness.
 
@@ -359,7 +359,7 @@ class PointBasedRegistrationTask(RegistrationTask):
         This function estimates a number of transforms (Euler, PartialAffine and Homography) using point-based matching.
         Features descriptor are first extracted from the pair of images using either SIFT or SURF descriptors. A
         brute-force point-matching algorithm estimates matching points and a transformation is computed. All
-        transformations use RANSAC to robustly fit a tranform to the matching points. However, the feature extraction
+        transformations use RANSAC to robustly fit a transform to the matching points. However, the feature extraction
         and point matching estimation can be very poor and unstable. In those cases, an identity transform is used
         to warp the images instead.
 
@@ -375,7 +375,7 @@ class PointBasedRegistrationTask(RegistrationTask):
         ptdt = cv2.xfeatures2d.SIFT_create() if self.params["Descriptor"] == "SIFT" else cv2.xfeatures2d.SURF_create()
         # create BFMatcher object
         bf_matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
-        # find the keypoints and descriptors with SIFT
+        # find the key points and descriptors with SIFT
         kp1, des1 = ptdt.detectAndCompute(self.rescale_image(src), None)
         kp2, des2 = ptdt.detectAndCompute(self.rescale_image(trg), None)
         # Match descriptors if any are found
