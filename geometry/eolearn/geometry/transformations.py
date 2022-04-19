@@ -41,6 +41,19 @@ class VectorToRasterTask(EOTask):
     <https://rasterio.readthedocs.io/en/stable/api/rasterio.features.html#rasterio.features.rasterize>`__.
     """
 
+    # A mapping between types that are not supported by rasterio into types that are. After rasterization the task
+    # will cast results back into the original dtype.
+    _RASTERIO_BASIC_DTYPES_MAP = {
+        bool: np.uint8,
+        np.int8: np.int16,
+        float: np.float64,
+    }
+    _RASTERIO_DTYPES_MAP = {
+        dtype: rasterio_type
+        for basic_type, rasterio_type in _RASTERIO_BASIC_DTYPES_MAP.items()
+        for dtype in [basic_type, np.dtype(basic_type)]
+    }
+
     def __init__(
         self,
         vector_input,
@@ -62,13 +75,13 @@ class VectorToRasterTask(EOTask):
             as a geopandas `GeoDataFrame`.
         :type vector_input: (FeatureType, str) or GeoDataFrame
         :param raster_feature: New or existing raster feature into which data will be written. If existing raster
-            raster feature is given it will by default take existing values and write over them.
+            feature is given it will by default take existing values and write over them.
         :type raster_feature: (FeatureType, str)
         :param values: If `values_column` parameter is specified then only polygons which have one of these specified
             values in `values_column` will be rasterized. It can be also left to `None`. If `values_column` parameter
             is not specified `values` parameter has to be a single number into which everything will be rasterized.
         :type values: list(int or float) or int or float or None
-        :param values_column: A column in gived dataframe where values, into which polygons will be rasterized,
+        :param values_column: A column in given dataframe where values, into which polygons will be rasterized,
             are stored. If it is left to `None` then `values` parameter should be a single number into which
             everything will be rasterized.
         :type values_column: str or None
@@ -91,7 +104,7 @@ class VectorToRasterTask(EOTask):
         :type write_to_existing: bool
         :param buffer: Buffer value passed to vector_data.buffer() before rasterization. If 0, no buffering is done.
         :type buffer: float
-        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently
+        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently,
             available parameters are `all_touched` and `merge_alg`
         """
         self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
@@ -267,7 +280,7 @@ class VectorToRasterTask(EOTask):
     def _get_rasterization_function(self, bbox, height, width):
         """Provides a function that rasterizes shapes into output raster and already contains all optional parameters"""
         affine_transform = rasterio.transform.from_bounds(*bbox, width=width, height=height)
-        rasterize_params = dict(self.rasterio_params, transform=affine_transform, dtype=self.raster_dtype)
+        rasterize_params = dict(self.rasterio_params, transform=affine_transform)
 
         base_rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
 
@@ -310,7 +323,12 @@ class VectorToRasterTask(EOTask):
 
         rasterize_func = self._get_rasterization_function(eopatch.bbox, height=height, width=width)
         vector_data_iterator = self._get_vector_data_iterator(eopatch, join_per_value=self.overlap_value is not None)
+
         raster = self._get_raster(eopatch, height, width)
+        original_dtype = raster.dtype
+        if original_dtype in self._RASTERIO_DTYPES_MAP:
+            rasterio_dtype = self._RASTERIO_DTYPES_MAP[original_dtype]
+            raster = raster.astype(rasterio_dtype)
 
         timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamp)}
 
@@ -323,6 +341,9 @@ class VectorToRasterTask(EOTask):
             else:
                 time_index = timestamp_to_index[timestamp]
                 rasterize_func(shape_iterator, out=raster[time_index, ...])
+
+        if original_dtype is not raster.dtype:
+            raster = raster.astype(original_dtype)
 
         eopatch[self.raster_feature] = raster[..., np.newaxis]
         return eopatch
@@ -351,17 +372,17 @@ class RasterToVectorTask(EOTask):
             - `features=(FeatureType.MASK, 'CLOUD_MASK', 'VECTOR_CLOUD_MASK')`
             - `features=[(FeatureType.MASK_TIMELESS, 'CLASSIFICATION'), (FeatureType.MASK, 'TEMPORAL_CLASSIFICATION')]`
         :type features: object supported by eolearn.core.utilities.FeatureParser class
-        :param values: List of values which will be vectorized. By default is set to ``None`` and all values will be
+        :param values: List of values which will be vectorized. By default, is set to ``None`` and all values will be
             vectorized
         :type values: list(int) or None
         :param values_column: Name of the column in vector feature where raster values will be written
         :type values_column: str
         :param raster_dtype: If raster feature mask is of type which is not supported by ``rasterio.features.shapes``
             (e.g. ``numpy.int64``) this parameter is used to cast the mask into a different type
-            (``numpy.int16``, ``numpy.int32``, ``numpy.uint8``, ``numpy.uint16`` or ``numpy.float32``). By default
+            (``numpy.int16``, ``numpy.int32``, ``numpy.uint8``, ``numpy.uint16`` or ``numpy.float32``). By default,
             value of the parameter is ``None`` and no casting is done.
         :type raster_dtype: numpy.dtype or None
-        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently
+        :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently,
             available is parameter `connectivity`.
         """
         self.feature_parser = self.get_feature_parser(features, allowed_feature_types=FeatureTypeSet.DISCRETE_TYPES)

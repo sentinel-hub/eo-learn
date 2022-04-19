@@ -99,7 +99,7 @@ class HvPlotVisualization(BaseEOPatchVisualization):
         return vis.opts(plot=dict(width=self.config.plot_width, height=self.config.plot_height))
 
     def _plot_data(self, eopatch: EOPatch):
-        """Plots the FeatureType.DATA of eopatch."""
+        """Plots the `FeatureType.DATA` of EOPatch."""
         crs = eopatch.bbox.crs
         crs = CRS.POP_WEB if crs is CRS.WGS84 else crs
         data_da = array_to_dataframe(eopatch, self.feature, crs=crs)
@@ -118,11 +118,11 @@ class HvPlotVisualization(BaseEOPatchVisualization):
 
     @staticmethod
     def _plot_rgb_one(eopatch_da: xr.DataArray, timestamp: dt.datetime):
-        """Returns visualization for one timestamp for FeatureType.DATA"""
+        """Returns visualization for one timestamp for `FeatureType.DATA`"""
         return eopatch_da.sel(time=timestamp).drop("time").hvplot(x="x", y="y")
 
     def _plot_raster(self, eopatch: EOPatch):
-        """Makes visualization for raster data (except for FeatureType.DATA)"""
+        """Makes visualization for raster data (except for `FeatureType.DATA`)"""
         crs = eopatch.bbox.crs
         crs = CRS.POP_WEB if crs is CRS.WGS84 else crs
         data_da = array_to_dataframe(eopatch, self.feature, crs=crs)
@@ -208,7 +208,7 @@ class HvPlotVisualization(BaseEOPatchVisualization):
         )
 
     def _plot_scalar_label(self, eopatch: EOPatch):
-        """Line plot for FeatureType.SCALAR, FeatureType.LABEL"""
+        """A line plot for `FeatureType.SCALAR` and `FeatureType.LABEL`"""
         data_da = array_to_dataframe(eopatch, self.feature)
         return data_da.hvplot()
 
@@ -233,7 +233,7 @@ class HvPlotVisualization(BaseEOPatchVisualization):
         return gv.Polygons(data_gpd, crs=ccrs.epsg(crs.epsg), vdims=self.config.vdims)
 
     def _eopatch_da_to_rgb(self, eopatch_da: xr.DataArray, feature_name: str, crs: CRS) -> xr.DataArray:
-        """Creates new xarray DataArray (from old one) to plot rgb image with hv.Holomap
+        """Creates new xarray DataArray (from old one) to plot rgb image with `hv.Holomap`.
 
         :param eopatch_da: eopatch DataArray
         :param feature_name: name of the feature to plot

@@ -27,7 +27,7 @@ class BlobTask(EOTask):
     3 methods are implemented: The Laplacian of Gaussian (LoG), the difference of Gaussian approach (DoG) and the
     determinant of the Hessian (DoH).
 
-    The output is a FeatureType.DATA where the radius of each blob is stored in his center.
+    The output is a `FeatureType.DATA` where the radius of each blob is stored in his center.
     ie : If blob[date, i, j, 0] = 5 then a blob of radius 5 is present at the coordinate (i, j)
 
     The task uses skimage.feature.blob_log or skimage.feature.blob_dog or skimage.feature.blob_doh to extract the blobs.
@@ -43,7 +43,7 @@ class BlobTask(EOTask):
     :param blob_object: Name of the blob method to use
     :type blob_object: skimage.feature.blob_*
     :param blob_parameters: List of parameters to be passed to the blob function. Below a list of such parameters.
-    :type blob_paramters: dict
+    :type blob_parameters: dict
     :param min_sigma: The minimum standard deviation for Gaussian Kernel. Keep this low to detect smaller blobs
     :type min_sigma: float
     :param max_sigma: The maximum standard deviation for Gaussian Kernel. Keep this high to detect larger blobs

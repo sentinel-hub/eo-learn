@@ -58,7 +58,7 @@ class IOTask(EOTask, metaclass=ABCMeta):
         :type filesystem: fs.base.FS or None
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
         :type create: bool
-        :param config: A configuration object with AWS credentials. By default is set to None and in this case the
+        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         :type config: SHConfig or None
         """
@@ -92,7 +92,7 @@ class SaveTask(IOTask):
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :type filesystem: fs.base.FS or None
-        :param features: A collection of features types specifying features of which type will be saved. By default
+        :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
@@ -100,7 +100,7 @@ class SaveTask(IOTask):
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :type compress_level: int
-        :param config: A configuration object with AWS credentials. By default is set to None and in this case the
+        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         :type config: SHConfig or None
         """
@@ -135,11 +135,11 @@ class LoadTask(IOTask):
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :type filesystem: fs.base.FS or None
-        :param features: A collection of features to be loaded. By default all features will be loaded.
+        :param features: A collection of features to be loaded. By default, all features will be loaded.
         :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
-        :param config: A configuration object with AWS credentials. By default is set to None and in this case the
+        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         :type config: SHConfig or None
         """
@@ -397,7 +397,7 @@ class MapFeatureTask(EOTask):
 
         result = multiply(patch)
 
-    Example using a np.max and it's kwargs passed as arguments to the MapFeatureTask:
+    Example using a `np.max` and it's kwargs passed as arguments to the `MapFeatureTask`:
 
     .. code-block:: python
 
@@ -474,7 +474,7 @@ class ZipFeatureTask(EOTask):
 
             result = calc(patch)
 
-        Example using a np.maximum and it's kwargs passed as arguments to the ZipFeatureTask:
+        Example using a `np.maximum` and it's kwargs passed as arguments to the `ZipFeatureTask`:
 
         .. code-block:: python
 
@@ -490,7 +490,7 @@ class ZipFeatureTask(EOTask):
         """
         :param input_features: A collection of the input features to be mapped.
         :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
-        :param output_feature: An output feature object to which to assign the the data.
+        :param output_feature: An output feature object to which to assign the data.
         :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param zip_function: A function or lambda to be applied to the input data.
         :param kwargs: kwargs to be passed to the zip function.

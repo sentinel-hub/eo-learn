@@ -19,7 +19,7 @@ from eolearn.core import EOTask, FeatureType
 def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5):
     # pylint: disable=invalid-name,locally-disabled
     """
-    Function that is passed to scipy.optimize
+    Function that is passed to `scipy.optimize`
     """
     return initial_value + scale * np.piecewise(
         middle,

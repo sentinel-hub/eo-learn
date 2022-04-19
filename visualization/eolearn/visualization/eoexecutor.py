@@ -1,5 +1,5 @@
 """
-Module with utilities for vizualizing EOExecutor
+Module with utilities for visualizing EOExecutor
 
 Credits:
 Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
@@ -118,7 +118,7 @@ class EOExecutorVisualization:
         self, exception_stats: DefaultDict[str, DefaultDict[str, int]]
     ) -> List[Tuple[str, str, List[Tuple[str, int]]]]:
         """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
-        for the the same node get ordered by number of occurrences in a decreasing order.
+        for the same node get ordered by number of occurrences in a decreasing order.
         """
         ordered_exception_stats = []
         for node in self.eoexecutor.workflow.get_nodes():

@@ -74,9 +74,9 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
     :param array: Array to which the rolling window is applied
     :type array: np.ndarray
     :param window: Either a single integer to create a window of only the last axis or a tuple to create it for
-        the last len(window) axes. 0 can be used as a to ignore a dimension in the window.
+        the last len(window) axes. 0 can be used to ignore a dimension in the window.
     :type window: int or (int, int)
-    :param asteps: Aligned at the last axis, new steps for the original array, ie. for creation of non-overlapping
+    :param asteps: Aligned at the last axis, new steps for the original array, i.e. for creation of non-overlapping
         windows. (Equivalent to slicing result)
     :type asteps: tuple
     :param wsteps: Steps for the added window dimensions. These can be 0 to repeat values along the axis.
@@ -89,7 +89,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
         toend=False will give a more intuitive result if you view the whole array.
     :type toend: bool
     :returns: A view on `array` which is smaller to fit the windows and has windows added dimensions (0s not counting),
-        ie. every point of `array` is an array of size window.
+        i.e. every point of `array` is an array of size window.
     :rtype: np.ndarray
     """
     # pylint: disable=too-many-branches
@@ -140,7 +140,7 @@ def rolling_window(array, window=(0,), asteps=None, wsteps=None, axes=None, toen
         _wsteps[window == 0] = 1  # make sure that steps are 1 for non-existing dims.
     wsteps = _wsteps
 
-    # Check that the window would not be larger then the original:
+    # Check that the window would not be larger than the original:
     if np.any(orig_shape[-len(window) :] < window * wsteps):
         raise ValueError("`window` * `wsteps` larger then `array` in at least one dimension.")
 

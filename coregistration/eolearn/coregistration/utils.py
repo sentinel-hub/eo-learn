@@ -115,7 +115,7 @@ class EstimateEulerTransformModel:
         return warp_matrix
 
     def fit(self, idx):
-        """Estimate Euler transform on points listed in `idx`
+        """Estimate Euler transformation on points listed in `idx`
 
         :param idx: Indices used to estimate transformation
         :return: Transformation matrix
@@ -127,7 +127,7 @@ class EstimateEulerTransformModel:
         """Estimate the registration error of estimated transformation matrix
 
         :param idx: List of points used to estimate the transformation
-        :param warp_matrix: Matrix estimating Euler trasnformation
+        :param warp_matrix: Matrix estimating Euler transformation
         :return: Square root of Target Registration Error
         """
         # Transform source points with estimated transformation

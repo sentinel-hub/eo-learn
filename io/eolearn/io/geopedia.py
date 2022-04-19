@@ -31,7 +31,7 @@ class AddGeopediaFeatureTask(EOTask):
     * transform BBOX from EOPatch's CRS to EPSG:3857
     * get raster from Geopedia Request in EPSG:3857
     * vectorize the returned raster using rasterio
-    * project vectorised raster back to EOPatch's CRS
+    * project vectorized raster back to EOPatch's CRS
     * rasterize back and add raster to EOPatch
     """
 
@@ -76,7 +76,7 @@ class AddGeopediaFeatureTask(EOTask):
 
     def _reproject(self, eopatch, src_raster):
         """
-        Reprojects the raster data from Geopedia's CRS (POP_WEB) to EOPatch's CRS.
+        Re-projects the raster data from Geopedia's CRS (POP_WEB) to EOPatch's CRS.
         """
         height, width = src_raster.shape
 

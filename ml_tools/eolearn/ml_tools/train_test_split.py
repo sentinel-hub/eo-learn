@@ -42,8 +42,8 @@ class TrainTestSplitTask(EOTask):
       are assigned to the same subset,
 
     - :attr:`PER_VALUE<eolearn.ml_tools.train_test_split.TrainTestSplitType.PER_VALUE>`, where pixels of the same value
-      are assigned to a the same subset consistently across eopatches. In other words, if a group of pixels of the same
-      value lies on multiple eopatches, they are assigned to the same subset in all eopatches. In this case, the `seed`
+      are assigned to the same subset consistently across EOPatches. In other words, if a group of pixels of the same
+      value lies on multiple EOPatches, they are assigned to the same subset in all EOPatches. In this case, the `seed`
       argument of the `execute` method is ignored.
 
     Classes are defined by a list of cumulative probabilities, passed as the `bins` argument, the same way as the `bins`

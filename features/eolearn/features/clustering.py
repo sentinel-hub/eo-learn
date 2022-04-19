@@ -18,7 +18,7 @@ from eolearn.core import EOTask, FeatureType
 
 class ClusteringTask(EOTask):
     """
-    Tasks computes clusters on selected features using sklearn.cluster.AgglomerativeClustering.
+    Tasks computes clusters on selected features using `sklearn.cluster.AgglomerativeClustering`.
 
     The algorithm produces a timeless data feature where each cell has a natural number which corresponds to specific
     group. The cells marked with -1 are not marking clusters. They are either being excluded by a mask or later removed
@@ -58,11 +58,11 @@ class ClusteringTask(EOTask):
             - complete or maximum linkage uses the maximum distances between all observations of the two sets.
             - single uses the minimum of the distances between all observations of the two sets.
         :type linkage: {“ward”, “complete”, “average”, “single”}
-        :param remove_small: If greater than 0, removes all clusters that have less points as "remove_small"
+        :param remove_small: If greater than 0, removes all clusters that have fewer points as "remove_small"
         :type remove_small: int
         :param connectivity: Connectivity matrix. Defines for each sample the neighboring samples following a given
             structure of the data. This can be a connectivity matrix itself or a callable that transforms the data into
-            a connectivity matrix, such as derived from kneighbors_graph. If set to None it uses the graph that has
+            a connectivity matrix, such as derived from neighbors_graph. If set to None it uses the graph that has
             adjacent pixels connected.
         :type connectivity: array-like, callable or None
         :param mask_name: An optional mask feature used for exclusion of the area from clustering

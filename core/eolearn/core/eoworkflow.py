@@ -63,7 +63,7 @@ class EOWorkflow:
         self._uid_dict = self._make_uid_dict(workflow_nodes)
         self.uid_dag = self._create_dag(workflow_nodes)
 
-        topologically_ordered_nodes = self.uid_dag.toplogically_ordered_vertices()
+        topologically_ordered_nodes = self.uid_dag.topologically_ordered_vertices()
 
         self._nodes = [self._uid_dict[uid] for uid in topologically_ordered_nodes]
 

@@ -148,13 +148,13 @@ class FeatureParser:
         # Check for possible singleton
         if 2 <= len(features) <= 3:
             try:
-                return [(self._parse_singelton(features))]
+                return [(self._parse_singleton(features))]
             except ValueError:
                 pass
 
         for feature in features:
             if isinstance(feature, (tuple, list)) and 2 <= len(feature) <= 3:
-                feature_specs.append(self._parse_singelton(feature))
+                feature_specs.append(self._parse_singleton(feature))
 
             elif isinstance(feature, FeatureType):
                 feature_type = self._parse_feature_type(feature, message_about_position="singleton elements")
@@ -168,7 +168,7 @@ class FeatureParser:
 
         return feature_specs
 
-    def _parse_singelton(
+    def _parse_singleton(
         self, feature: Sequence
     ) -> Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]:
         """Parses a pair or triple specifying a single feature or a get-all request."""
