@@ -26,6 +26,7 @@ from logging import Filter, Handler, Logger
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
 
 import fs
+from fs.base import FS
 from tqdm.auto import tqdm
 
 from .eonode import EONode
@@ -82,7 +83,7 @@ class EOExecutor:
         execution_names: Optional[List[str]] = None,
         save_logs: bool = False,
         logs_folder: str = ".",
-        filesystem: Optional[fs.base.FS] = None,
+        filesystem: Optional[FS] = None,
         logs_filter: Optional[Filter] = None,
         logs_handler_factory: _HandlerFactoryType = logging.FileHandler,
     ):
@@ -141,7 +142,7 @@ class EOExecutor:
         return execution_names
 
     @staticmethod
-    def _parse_logs_filesystem(filesystem: Optional[fs.base.FS], logs_folder: str) -> Tuple[fs.base.FS, str]:
+    def _parse_logs_filesystem(filesystem: Optional[FS], logs_folder: str) -> Tuple[FS, str]:
         """Ensures a filesystem and a file path relative to it."""
         if filesystem is None:
             return get_base_filesystem_and_path(logs_folder)

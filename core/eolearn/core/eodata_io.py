@@ -17,9 +17,12 @@ import warnings
 from collections import defaultdict
 
 import fs
+import fs.move
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from fs.base import FS
+from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from geopandas import GeoDataFrame, GeoSeries
 
@@ -233,7 +236,7 @@ def _to_lowercase(ftype, fname, *_):
 class FeatureIO:
     """A class that handles the saving and loading process of a single feature at a given location."""
 
-    def __init__(self, feature_type: FeatureType, path: str, filesystem: fs.base.FS):
+    def __init__(self, feature_type: FeatureType, path: str, filesystem: FS):
         """
         :param feature_type: A feature type
         :param path: A path in the filesystem
@@ -270,7 +273,7 @@ class FeatureIO:
         gz_extension = ("." + MimeType.GZIP.extension) if compress_level else ""
         path = f"{self.path}.{file_format.extension}{gz_extension}"
 
-        if isinstance(self.filesystem, (fs.osfs.OSFS, TempFS)):
+        if isinstance(self.filesystem, (OSFS, TempFS)):
             with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
                 self._save(tempfs, data, "tmp_feature", file_format, compress_level)
                 fs.move.move_file(tempfs, "tmp_feature", self.filesystem, path)
