@@ -30,4 +30,4 @@ from .utils.common import constant_pad, deep_eq
 from .utils.fs import get_filesystem, load_s3_filesystem
 from .utils.parsing import FeatureParser
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"

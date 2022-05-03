@@ -1,3 +1,10 @@
+## [Version 1.0.2] - 2022-05-03
+
+- Added workaround for an issue introduced by `fs==2.4.16`.
+- Executor progress bar improved for use-cases with many EOPatches.
+- `LoadTask` and `SaveTask` can now handle *empty* queries (by setting `eopatch_folder=None`).
+- Minor improvements in code and documentation.
+
 ## [Version 1.0.1] - 2022-03-29
 
 - Fixed an issue where vector features with empty dataframes couldn't be saved to a Geopackage.
