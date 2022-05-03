@@ -14,6 +14,7 @@ file in the root directory of this source tree.
 """
 
 import uuid
+from typing import Union
 
 import geopandas as gpd
 import numpy as np
@@ -149,6 +150,7 @@ def generate_uid(prefix: str):
     return f"{prefix}-{time_uid}-{random_uid}"
 
 
-def is_discrete_type(number_dtype: np.dtype) -> bool:
-    """Checks if the given `numpy` number dtype is discrete"""
-    return issubclass(number_dtype.type, (np.integer, bool, np.bool_, np.bool8))
+def is_discrete_type(number_type: Union[np.dtype, type]) -> bool:
+    """Checks if a given `numpy` type is a discrete numerical type."""
+    number_dtype = np.dtype(number_type)
+    return issubclass(number_dtype.type, (np.integer, np.bool_))

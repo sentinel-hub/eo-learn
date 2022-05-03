@@ -14,12 +14,13 @@ from typing import Optional, Tuple
 
 import fs
 from boto3 import Session
+from fs.base import FS
 from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
 
 
-def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> fs.base.FS:
+def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> FS:
     """A utility function for initializing any type of filesystem object with PyFilesystem2 package.
 
     :param path: A filesystem path
@@ -41,7 +42,7 @@ def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] =
     return fs.open_fs(path, create=create, **kwargs)
 
 
-def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[fs.base.FS, str]:
+def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[FS, str]:
     """Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
     on the filesystem.
 
@@ -123,7 +124,7 @@ def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> 
     return config
 
 
-def get_full_path(filesystem: fs.base.FS, relative_path: str) -> str:
+def get_full_path(filesystem: FS, relative_path: str) -> str:
     """Given a filesystem object and a path, relative to the filesystem it provides a full path."""
     if isinstance(filesystem, S3FS):
         # pylint: disable=protected-access
