@@ -276,6 +276,8 @@ class FeatureIO:
         if isinstance(self.filesystem, (OSFS, TempFS)):
             with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
                 self._save(tempfs, data, "tmp_feature", file_format, compress_level)
+                if fs.__version__ == "2.4.16" and self.filesystem.exists(path):  # An issue in the fs version
+                    self.filesystem.remove(path)
                 fs.move.move_file(tempfs, "tmp_feature", self.filesystem, path)
             return
         self._save(self.filesystem, data, path, file_format, compress_level)
