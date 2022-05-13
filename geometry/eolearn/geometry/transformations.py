@@ -24,7 +24,7 @@ import shapely.ops
 import shapely.wkt
 from geopandas import GeoDataFrame, GeoSeries
 
-from sentinelhub import CRS, bbox_to_dimensions
+from sentinelhub import CRS, bbox_to_dimensions, parse_time
 
 from eolearn.core import EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
@@ -178,6 +178,7 @@ class VectorToRasterTask(EOTask):
         vector_data = vector_data[columns_to_keep]
 
         if self._rasterize_per_timestamp:
+            vector_data['TIMESTAMP'] = vector_data.TIMESTAMP.apply(parse_time)
             vector_data = vector_data[vector_data.TIMESTAMP.isin(timestamps)]
 
         if self.values_column is not None and self.values is not None:
