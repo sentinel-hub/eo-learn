@@ -7,6 +7,7 @@ file in the root directory of this source tree.
 """
 
 import datetime
+import itertools as it
 import logging
 import os
 import tempfile
@@ -16,7 +17,7 @@ import ray
 
 from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
-from eolearn.core.extra.ray import RayExecutor
+from eolearn.core.extra.ray import RayExecutor, join_ray_futures, join_ray_futures_iter, parallelize_with_ray
 
 
 class ExampleTask(EOTask):
@@ -212,3 +213,38 @@ def test_mix_with_eoexecutor(workflow, execution_kwargs, simple_cluster):
         eo_outputs = [results.outputs for results in eo_results]
 
         assert ray_outputs == eo_outputs
+
+
+def test_parallelize_with_ray():
+    def add(value1, value2):
+        return value1 + value2
+
+    results = parallelize_with_ray(add, range(3), range(1, 4), desc="Test progress")
+    assert results == list(range(1, 7, 2))
+
+    results = parallelize_with_ray(add, [0, 1, 2], it.repeat(0))
+    assert results == [0, 1, 2]
+
+
+@ray.remote
+def plus_one(value):
+    return value + 1
+
+
+def test_join_ray_futures(simple_cluster):
+    futures = [plus_one.remote(value) for value in range(5)]
+    results = join_ray_futures(futures)
+
+    assert results == list(range(1, 6))
+    assert futures == []
+
+
+def test_join_ray_futures_iter(simple_cluster):
+    futures = [plus_one.remote(value) for value in range(5)]
+
+    results = []
+    for value in join_ray_futures_iter(futures):
+        assert futures == []
+        results.append(value)
+
+    assert sorted(results) == [(num, num + 1) for num in range(5)]
