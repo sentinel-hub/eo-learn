@@ -14,6 +14,7 @@ import tempfile
 
 import pytest
 import ray
+from ray.exceptions import TaskCancelledError, RayTaskError
 
 from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
@@ -170,7 +171,7 @@ def test_keyboard_interrupt(simple_cluster):
     for _ in range(10):
         execution_kwargs.append({exception_node: {"arg1": 1}})
 
-    with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
+    with pytest.raises((TaskCancelledError, RayTaskError)):
         RayExecutor(workflow, execution_kwargs).run()
 
 
@@ -194,12 +195,12 @@ def test_run_after_interrupt(workflow, execution_kwargs, simple_cluster):
     exception_executor = RayExecutor(exception_workflow, [{}])
     executor = RayExecutor(workflow, execution_kwargs[:-1])  # removes args for exception
 
-    result_preexception = executor.run()
-    with pytest.raises((ray.exceptions.TaskCancelledError, ray.exceptions.RayTaskError)):
+    result_before_exception = executor.run()
+    with pytest.raises((TaskCancelledError, RayTaskError)):
         exception_executor.run()
-    result_postexception = executor.run()
+    result_after_exception = executor.run()
 
-    assert [res.outputs for res in result_preexception] == [res.outputs for res in result_postexception]
+    assert [res.outputs for res in result_before_exception] == [res.outputs for res in result_after_exception]
 
 
 def test_mix_with_eoexecutor(workflow, execution_kwargs, simple_cluster):

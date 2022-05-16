@@ -66,6 +66,9 @@ def parallelize_with_ray(
 ) -> List[_OutputType]:
     """Parallelizes function execution with Ray.
 
+    Note that this function will automatically connect to a Ray cluster, if a connection wouldn't exist yet. But it
+    won't automatically shut down the connection.
+
     :param function: A normal function that is not yet decorated by `ray.remote`.
     :param params: Iterables of parameters that will be used with given function.
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
@@ -79,7 +82,7 @@ def parallelize_with_ray(
 
 
 def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[Any]:
-    """Resolves futures and returns a list of results.
+    """Resolves futures, monitors progress, and returns a list of results.
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
         effect of this function. This way Ray future objects will get cleared from memory already during the execution
@@ -98,7 +101,7 @@ def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[A
 def join_ray_futures_iter(
     futures: List[ray.ObjectRef], update_interval: float = 0.5, **tqdm_kwargs: Any
 ) -> Generator[Tuple[int, Any], None, None]:
-    """Resolves futures and iterates over results of futures.
+    """Resolves futures, monitors progress, and serves as an iterator over results.
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
         effect of this function. This way Ray future objects will get cleared from memory already during the execution
@@ -109,7 +112,10 @@ def join_ray_futures_iter(
     :return: A generator that will be returning pairs `(index, result)` where `index` will define the position of future
         in the original list to which `result` belongs to.
     """
+    if not isinstance(futures, list):
+        raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
     futures = _make_copy_and_empty_given(futures)
+
     id_to_position_map = {future.hex(): index for index, future in enumerate(futures)}
 
     with tqdm(total=len(futures), **tqdm_kwargs) as pbar:
@@ -120,12 +126,9 @@ def join_ray_futures_iter(
                 yield id_to_position_map[future.hex()], result
 
 
-def _make_copy_and_empty_given(futures: List[_T]) -> List[_T]:
+def _make_copy_and_empty_given(items: List[_T]) -> List[_T]:
     """Removes items from the given list and returns its copy. The side effect of removing items is intentional."""
-    if not isinstance(futures, list):
-        raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
-
-    futures_copy = futures[:]
-    while futures:
-        futures.pop()
-    return futures_copy
+    items_copy = items[:]
+    while items:
+        items.pop()
+    return items_copy
