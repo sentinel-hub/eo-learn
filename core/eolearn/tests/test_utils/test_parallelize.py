@@ -57,7 +57,7 @@ def test_parallelize(workers, multiprocess):
 @pytest.mark.parametrize("executor_class", [ThreadPoolExecutor, ProcessPoolExecutor])
 def test_submit_and_monitor_execution(executor_class):
     with executor_class(max_workers=2) as executor:
-        results = submit_and_monitor_execution(executor, max, range(10), it.repeat(5))
+        results = submit_and_monitor_execution(executor, max, range(10), it.repeat(5), disable=True)
 
     assert results == [5] * 5 + list(range(5, 10))
 
