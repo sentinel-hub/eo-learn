@@ -10,22 +10,9 @@ file in the root directory of this source tree.
 """
 import concurrent.futures
 import multiprocessing
-from concurrent.futures import Future
+from concurrent.futures import FIRST_COMPLETED, Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
 
 from tqdm.auto import tqdm
 
@@ -37,6 +24,7 @@ else:
     MULTIPROCESSING_LOCK = None
 
 # pylint: disable=invalid-name
+_T = TypeVar("_T")
 _InputType = TypeVar("_InputType")
 _OutputType = TypeVar("_OutputType")
 
@@ -50,7 +38,7 @@ class _ProcessingType(Enum):
     RAY = "ray"
 
 
-def decide_processing_type(workers: int, multiprocess: bool) -> _ProcessingType:  # TODO: private or public??
+def _decide_processing_type(workers: Optional[int], multiprocess: bool) -> _ProcessingType:
     """Decides processing type according to given parameters.
 
     :param workers: A number of workers to be used (either threads or processes). If a single worker is given it will
@@ -65,36 +53,70 @@ def decide_processing_type(workers: int, multiprocess: bool) -> _ProcessingType:
     return _ProcessingType.MULTITHREADING
 
 
-def parallelize(function: Callable, *params: Any, workers: int, multiprocess: bool = False, **tqdm_kwargs: Any) -> list:
-    """TODO"""
+def parallelize(
+    function: Callable[[_InputType], _OutputType],
+    *params: Sequence[_InputType],
+    workers: Optional[int],
+    multiprocess: bool = True,
+    **tqdm_kwargs: Any,
+) -> List[_OutputType]:
+    """Parallelizes the function on given parameters using the specified number of workers.
+
+    :param function: A function to be parallelized.
+    :param params: Sequences of parameters to be given to the function. It uses the same logic as Python `map` function.
+    :param workers: Maximum number of time the function will be executed in parallel.
+    :param multiprocess: If `True` it will use `concurrent.futures.ProcessPoolExecutor` which will distribute
+        workflow executions among multiple processors. If `False` it will use
+        `concurrent.futures.ThreadPoolExecutor` which will distribute workflow among multiple threads. In case of
+        `workers=1` this parameter is ignored and workflows will be executed consecutively.
+    :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
+    :return: A list of function results.
+    """
     if not params:
         raise ValueError(
             "At least 1 list of parameters should be given. Otherwise it is not clear how many times the"
             "function has to be executed."
         )
-    processing_type = decide_processing_type(workers=workers, multiprocess=multiprocess)
+    processing_type = _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
     if processing_type is _ProcessingType.SINGLE_PROCESS:
-        return list(tqdm(map(function, *params), total=len(params[0])))
+        return list(tqdm(map(function, *params), total=len(params[0]), **tqdm_kwargs))
 
     if processing_type is _ProcessingType.MULTITHREADING:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as thread_executor:
+        with ThreadPoolExecutor(max_workers=workers) as thread_executor:
             return submit_and_monitor_execution(thread_executor, function, *params, **tqdm_kwargs)
 
     # pylint: disable=global-statement
     global MULTIPROCESSING_LOCK
     try:
         MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
-        with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as process_executor:
+        with ProcessPoolExecutor(max_workers=workers) as process_executor:
             return submit_and_monitor_execution(process_executor, function, *params, **tqdm_kwargs)
     finally:
         MULTIPROCESSING_LOCK = None
 
 
+def execute_with_mp_lock(function: Callable[..., _OutputType], *args: Any, **kwargs: Any) -> _OutputType:
+    """A helper utility function that executes a given function with multiprocessing lock if the process is being
+    executed in a multiprocessing mode.
+
+    :param function: A function
+    :param args: Function's positional arguments
+    :param kwargs: Function's keyword arguments
+    :return: Function's results
+    """
+    if multiprocessing.current_process().name == "MainProcess" or MULTIPROCESSING_LOCK is None:
+        return function(*args, **kwargs)
+
+    # pylint: disable=not-context-manager
+    with MULTIPROCESSING_LOCK:
+        return function(*args, **kwargs)
+
+
 def submit_and_monitor_execution(
-    executor: concurrent.futures.Executor,
+    executor: Executor,
     function: Callable[[_InputType], _OutputType],
-    *params: Iterable[_InputType],  # TODO
+    *params: Iterable[_InputType],
     **tqdm_kwargs: Any,
 ) -> List[_OutputType]:
     """Performs the execution parallelization and monitors the process using a progress bar.
@@ -109,6 +131,15 @@ def submit_and_monitor_execution(
 
 
 def join_futures(futures: List[Future], **tqdm_kwargs: Any) -> List[Any]:
+    """Resolves futures, monitors progress, and returns a list of results.
+
+    :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
+        effect of this function. This way future objects will get cleared from memory already during the execution
+        which will free some extra memory. But this can be achieved only if future objects aren't kept in memory
+        outside `futures` list.
+    :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
+    :return: A list of results in the order that corresponds with the order of the given input `futures`.
+    """
     results: List[Optional[Any]] = [None] * len(futures)
     for position, result in join_futures_iter(futures, **tqdm_kwargs):
         results[position] = result
@@ -116,29 +147,41 @@ def join_futures(futures: List[Future], **tqdm_kwargs: Any) -> List[Any]:
     return cast(List[Any], results)
 
 
-def join_futures_iter(futures: List[Future], **tqdm_kwargs: Any) -> Generator[Tuple[int, Any], None, None]:
+def join_futures_iter(
+    futures: List[Future], update_interval: float = 0.5, **tqdm_kwargs: Any
+) -> Generator[Tuple[int, Any], None, None]:
+    """Resolves futures, monitors progress, and serves as an iterator over results.
+
+    :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
+        effect of this function. This way future objects will get cleared from memory already during the execution
+        which will free some extra memory. But this can be achieved only if future objects aren't kept in memory
+        outside `futures` list.
+    :param update_interval: A number of seconds to wait between consecutive updates of a progress bar.
+    :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
+    :return: A generator that will be returning pairs `(index, result)` where `index` will define the position of future
+        in the original list to which `result` belongs to.
+    """
+    if not isinstance(futures, list):
+        raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
+    futures = _make_copy_and_empty_given(futures)
+
     id_to_position_map = {id(future): index for index, future in enumerate(futures)}
 
     with tqdm(total=len(futures), **tqdm_kwargs) as pbar:
-        for future in concurrent.futures.as_completed(futures):  # TODO
-            result = future.result()
-            result_position = id_to_position_map[id(future)]
-            pbar.update(1)
-            yield result_position, result
+        while futures:
+            done, futures = concurrent.futures.wait(
+                futures, timeout=float(update_interval), return_when=FIRST_COMPLETED
+            )
+            for future in done:
+                result = future.result()
+                result_position = id_to_position_map[id(future)]
+                pbar.update(1)
+                yield result_position, result
 
 
-def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:
-    """A helper utility function that executes a given function with multiprocessing lock if the process is being
-    executed in a multiprocessing mode.
-
-    :param execution_function: A function
-    :param args: Function's positional arguments
-    :param kwargs: Function's keyword arguments
-    :return: Function's results
-    """
-    if multiprocessing.current_process().name == "MainProcess" or MULTIPROCESSING_LOCK is None:
-        return execution_function(*args, **kwargs)
-
-    # pylint: disable=not-context-manager
-    with MULTIPROCESSING_LOCK:
-        return execution_function(*args, **kwargs)
+def _make_copy_and_empty_given(items: List[_T]) -> List[_T]:
+    """Removes items from the given list and returns its copy. The side effect of removing items is intentional."""
+    items_copy = items[:]
+    while items:
+        items.pop()
+    return items_copy

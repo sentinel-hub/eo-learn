@@ -31,7 +31,7 @@ from .eoworkflow import EOWorkflow, WorkflowResults
 from .exceptions import EORuntimeWarning
 from .utils.fs import get_base_filesystem_and_path, get_full_path
 from .utils.logging import LogFileFilter
-from .utils.parallelize import _ProcessingType, decide_processing_type, parallelize
+from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
 
 # pylint: disable=invalid-name
 _HandlerFactoryType = Callable[[str], Handler]
@@ -132,7 +132,7 @@ class EOExecutor:
             return get_base_filesystem_and_path(logs_folder)
         return filesystem, logs_folder
 
-    def run(self, workers: int = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> List[WorkflowResults]:
+    def run(self, workers: Optional[int] = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> List[WorkflowResults]:
         """Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -157,7 +157,7 @@ class EOExecutor:
 
         log_paths = self.get_log_paths(full_path=True) if self.save_logs else [None] * len(self.execution_kwargs)
 
-        filter_logs_by_thread = not multiprocess and workers > 1
+        filter_logs_by_thread = not multiprocess and workers is not None and workers > 1
         processing_args = [
             _ProcessingData(
                 workflow=self.workflow,
@@ -250,9 +250,9 @@ class EOExecutor:
         return handler
 
     @staticmethod
-    def _get_processing_type(workers: int, multiprocess: bool) -> _ProcessingType:
+    def _get_processing_type(workers: Optional[int], multiprocess: bool) -> _ProcessingType:
         """Provides a type of processing according to given parameters."""
-        return decide_processing_type(workers=workers, multiprocess=multiprocess)
+        return _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
     def _prepare_general_stats(self, workers: int, processing_type: _ProcessingType) -> Dict[str, object]:
         """Prepares a dictionary with a general statistics about executions."""

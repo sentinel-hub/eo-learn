@@ -19,10 +19,9 @@ from tqdm.auto import tqdm
 
 from ..eoexecution import EOExecutor, _ProcessingData
 from ..eoworkflow import WorkflowResults
-from ..utils.parallelize import _ProcessingType
+from ..utils.parallelize import _make_copy_and_empty_given, _ProcessingType
 
 # pylint: disable=invalid-name
-_T = TypeVar("_T")
 _InputType = TypeVar("_InputType")
 _OutputType = TypeVar("_OutputType")
 
@@ -87,8 +86,8 @@ def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[A
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
         effect of this function. This way Ray future objects will get cleared from memory already during the execution
-        and this will free memory from Ray Plasma store. But this can be achieved only if user doesn't keep future
-        objects in memory outside `futures` list.
+        and this will free memory from Ray Plasma store. But this can be achieved only if future objects aren't kept in
+        memory outside `futures` list.
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `futures`.
     """
@@ -106,8 +105,8 @@ def join_ray_futures_iter(
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
         effect of this function. This way Ray future objects will get cleared from memory already during the execution
-        and this will free memory from Ray Plasma store. But this can be achieved only if user doesn't keep future
-        objects in memory outside `futures` list.
+        and this will free memory from Ray Plasma store. But this can be achieved only if future objects aren't kept in
+        memory outside `futures` list.
     :param update_interval: A number of seconds to wait between consecutive updates of a progress bar.
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A generator that will be returning pairs `(index, result)` where `index` will define the position of future
@@ -117,19 +116,11 @@ def join_ray_futures_iter(
         raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
     futures = _make_copy_and_empty_given(futures)
 
-    id_to_position_map = {future.hex(): index for index, future in enumerate(futures)}
+    id_to_position_map = {id(future): index for index, future in enumerate(futures)}
 
     with tqdm(total=len(futures), **tqdm_kwargs) as pbar:
         while futures:
             done, futures = ray.wait(futures, num_returns=len(futures), timeout=float(update_interval))
             for future, result in zip(done, ray.get(done)):
                 pbar.update(1)
-                yield id_to_position_map[future.hex()], result
-
-
-def _make_copy_and_empty_given(items: List[_T]) -> List[_T]:
-    """Removes items from the given list and returns its copy. The side effect of removing items is intentional."""
-    items_copy = items[:]
-    while items:
-        items.pop()
-    return items_copy
+                yield id_to_position_map[id(future)], result
