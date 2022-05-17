@@ -9,14 +9,14 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Any, Callable, Generator, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Callable, Collection, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
 
 try:
     import ray
 except ImportError as exception:
     raise ImportError("This module requires an installation of Ray Python package") from exception
 
-from ..eoexecution import EOExecutor, _ProcessingData
+from ..eoexecution import EOExecutor, _ExecutionRunParams, _ProcessingData
 from ..eoworkflow import WorkflowResults
 from ..utils.parallelize import _base_join_futures_iter, _ProcessingType
 
@@ -28,24 +28,27 @@ _OutputType = TypeVar("_OutputType")
 class RayExecutor(EOExecutor):
     """A special type of `EOExecutor` that works with Ray framework"""
 
-    def run(self) -> List[WorkflowResults]:
+    def run(self, **tqdm_kwargs: Any) -> List[WorkflowResults]:  # type: ignore
         """Runs the executor using a Ray cluster
 
         Before calling this method make sure to initialize a Ray cluster using `ray.init`.
 
+        :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
         :return: A list of EOWorkflow results
         """
         if not ray.is_initialized():
             raise RuntimeError("Please initialize a Ray cluster before calling this method")
 
         workers = ray.available_resources().get("CPU")
-        return super().run(workers=workers, multiprocess=True)
+        return super().run(workers=workers, multiprocess=True, **tqdm_kwargs)
 
     @classmethod
-    def _run_execution(cls, processing_args: List[_ProcessingData], *_, **__) -> List[WorkflowResults]:
+    def _run_execution(
+        cls, processing_args: List[_ProcessingData], run_params: _ExecutionRunParams
+    ) -> List[WorkflowResults]:
         """Runs ray execution"""
         futures = [_ray_workflow_executor.remote(workflow_args) for workflow_args in processing_args]
-        return join_ray_futures(futures)
+        return join_ray_futures(futures, **run_params.tqdm_kwargs)
 
     @staticmethod
     def _get_processing_type(*_, **__) -> _ProcessingType:
@@ -113,8 +116,8 @@ def join_ray_futures_iter(
     """
 
     def _ray_wait_function(
-        remaining_futures: Sequence[ray.ObjectRef], timeout: float
-    ) -> Tuple[Sequence[ray.ObjectRef], Sequence[ray.ObjectRef]]:
+        remaining_futures: Collection[ray.ObjectRef], timeout: float
+    ) -> Tuple[Collection[ray.ObjectRef], Collection[ray.ObjectRef]]:
         return ray.wait(remaining_futures, num_returns=len(remaining_futures), timeout=timeout)
 
     return _base_join_futures_iter(_ray_wait_function, ray.get, futures, update_interval, **tqdm_kwargs)

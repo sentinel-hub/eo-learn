@@ -12,7 +12,7 @@ import concurrent.futures
 import multiprocessing
 from concurrent.futures import FIRST_COMPLETED, Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
 
 from tqdm.auto import tqdm
 
@@ -25,6 +25,7 @@ else:
 
 # pylint: disable=invalid-name
 _T = TypeVar("_T")
+_FutureType = TypeVar("_FutureType")
 _InputType = TypeVar("_InputType")
 _OutputType = TypeVar("_OutputType")
 
@@ -80,7 +81,7 @@ def parallelize(
     processing_type = _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
     if processing_type is _ProcessingType.SINGLE_PROCESS:
-        size = len(params[0] if isinstance(params[0], Sequence) else list(params[0]))
+        size = len(params[0] if isinstance(params[0], Collection) else list(params[0]))
         return list(tqdm(map(function, *params), total=size, **tqdm_kwargs))
 
     if processing_type is _ProcessingType.MULTITHREADING:
@@ -164,8 +165,8 @@ def join_futures_iter(
     """
 
     def _wait_function(
-        remaining_futures: Iterable[Future], timeout: float
-    ) -> Tuple[Iterable[Future], Iterable[Future]]:
+        remaining_futures: Collection[Future], timeout: float
+    ) -> Tuple[Collection[Future], Collection[Future]]:
         done, not_done = concurrent.futures.wait(remaining_futures, timeout=timeout, return_when=FIRST_COMPLETED)
         return done, not_done
 
@@ -176,23 +177,23 @@ def join_futures_iter(
 
 
 def _base_join_futures_iter(
-    wait_function: Callable[[Iterable[_InputType], float], Tuple[Iterable[_InputType], Iterable[_InputType]]],
-    get_result_function: Callable[[_InputType], _OutputType],
-    futures: List[_InputType],
-    update_interval: float = 0.5,
+    wait_function: Callable[[Collection[_FutureType], float], Tuple[Collection[_FutureType], Collection[_FutureType]]],
+    get_result_function: Callable[[_FutureType], _OutputType],
+    futures: List[_FutureType],
+    update_interval: float,
     **tqdm_kwargs: Any,
 ) -> Generator[Tuple[int, _OutputType], None, None]:
     """A generalized utility function that resolves futures, monitors progress, and serves as an iterator over
     results."""
     if not isinstance(futures, list):
         raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
-    futures = _make_copy_and_empty_given(futures)
+    remaining_futures: Collection[_FutureType] = _make_copy_and_empty_given(futures)
 
-    id_to_position_map = {id(future): index for index, future in enumerate(futures)}
+    id_to_position_map = {id(future): index for index, future in enumerate(remaining_futures)}
 
-    with tqdm(total=len(futures), **tqdm_kwargs) as pbar:
-        while futures:
-            done, futures = wait_function(futures, float(update_interval))
+    with tqdm(total=len(remaining_futures), **tqdm_kwargs) as pbar:
+        while remaining_futures:
+            done, remaining_futures = wait_function(remaining_futures, float(update_interval))
             for future in done:
                 result = get_result_function(future)
                 result_position = id_to_position_map[id(future)]

@@ -130,7 +130,7 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, sim
 def test_execution_results(workflow, execution_kwargs, simple_cluster):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
-        executor.run()
+        executor.run(desc="Test Ray")
 
         assert len(executor.execution_results) == 4
         for results in executor.execution_results:

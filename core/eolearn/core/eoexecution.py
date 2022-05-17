@@ -50,6 +50,15 @@ class _ProcessingData:
     logs_handler_factory: _HandlerFactoryType
 
 
+@dataclass(frozen=True)
+class _ExecutionRunParams:
+    """Parameters that are used during execution run."""
+
+    workers: Optional[int]
+    multiprocess: bool
+    tqdm_kwargs: Dict[str, Any]
+
+
 class EOExecutor:
     """Simultaneously executes a workflow with different input arguments. In the process it monitors execution and
     handles errors. It can also save logs and create a html report about each execution.
@@ -169,9 +178,8 @@ class EOExecutor:
             )
             for workflow_kwargs, log_path in zip(self.execution_kwargs, log_paths)
         ]
-        full_execution_results = self._run_execution(
-            processing_args, workers=workers, multiprocess=multiprocess, **tqdm_kwargs
-        )
+        run_params = _ExecutionRunParams(workers=workers, multiprocess=multiprocess, tqdm_kwargs=tqdm_kwargs)
+        full_execution_results = self._run_execution(processing_args, run_params)
 
         self.execution_results = [results.drop_outputs() for results in full_execution_results]
         processing_type = self._get_processing_type(workers=workers, multiprocess=multiprocess)
@@ -180,9 +188,17 @@ class EOExecutor:
         return full_execution_results
 
     @classmethod
-    def _run_execution(cls, processing_args: List[_ProcessingData], **kwargs: Any) -> List[WorkflowResults]:
+    def _run_execution(
+        cls, processing_args: List[_ProcessingData], run_params: _ExecutionRunParams
+    ) -> List[WorkflowResults]:
         """Parallelizes the execution for each item of processing_args list."""
-        return parallelize(cls._execute_workflow, processing_args, **kwargs)
+        return parallelize(
+            cls._execute_workflow,
+            processing_args,
+            workers=run_params.workers,
+            multiprocess=run_params.multiprocess,
+            **run_params.tqdm_kwargs,
+        )
 
     @classmethod
     def _try_add_logging(
