@@ -17,8 +17,9 @@ except ImportError as exception:
     raise ImportError("This module requires an installation of Ray Python package") from exception
 from tqdm.auto import tqdm
 
-from ..eoexecution import EOExecutor, _ProcessingData, _ProcessingType
+from ..eoexecution import EOExecutor, _ProcessingData
 from ..eoworkflow import WorkflowResults
+from ..utils.parallelize import _ProcessingType
 
 # pylint: disable=invalid-name
 _T = TypeVar("_T")
@@ -42,16 +43,16 @@ class RayExecutor(EOExecutor):
         workers = ray.available_resources().get("CPU")
         return super().run(workers=workers, multiprocess=True)
 
-    @staticmethod
-    def _get_processing_type(*_, **__) -> _ProcessingType:
-        """Provides a type of processing for later references"""
-        return _ProcessingType.RAY
-
     @classmethod
     def _run_execution(cls, processing_args: List[_ProcessingData], *_, **__) -> List[WorkflowResults]:
         """Runs ray execution"""
         futures = [_ray_workflow_executor.remote(workflow_args) for workflow_args in processing_args]
         return join_ray_futures(futures)
+
+    @staticmethod
+    def _get_processing_type(*_, **__) -> _ProcessingType:
+        """Provides a type of processing for later references."""
+        return _ProcessingType.RAY
 
 
 @ray.remote

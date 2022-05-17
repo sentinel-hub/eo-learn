@@ -14,7 +14,7 @@ import tempfile
 
 import pytest
 import ray
-from ray.exceptions import TaskCancelledError, RayTaskError
+from ray.exceptions import RayTaskError, TaskCancelledError
 
 from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
