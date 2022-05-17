@@ -117,8 +117,8 @@ def join_ray_futures_iter(
     """
 
     def _ray_wait_function(
-        remaining_futures: Collection[ray.ObjectRef], timeout: float
+        remaining_futures: Collection[ray.ObjectRef],
     ) -> Tuple[Collection[ray.ObjectRef], Collection[ray.ObjectRef]]:
-        return ray.wait(remaining_futures, num_returns=len(remaining_futures), timeout=timeout)
+        return ray.wait(remaining_futures, num_returns=len(remaining_futures), timeout=float(update_interval))
 
-    return _base_join_futures_iter(_ray_wait_function, ray.get, futures, update_interval, **tqdm_kwargs)
+    return _base_join_futures_iter(_ray_wait_function, ray.get, futures, **tqdm_kwargs)

@@ -164,23 +164,22 @@ def join_futures_iter(
         in the original list to which `result` belongs to.
     """
 
-    def _wait_function(
-        remaining_futures: Collection[Future], timeout: float
-    ) -> Tuple[Collection[Future], Collection[Future]]:
-        done, not_done = concurrent.futures.wait(remaining_futures, timeout=timeout, return_when=FIRST_COMPLETED)
+    def _wait_function(remaining_futures: Collection[Future]) -> Tuple[Collection[Future], Collection[Future]]:
+        done, not_done = concurrent.futures.wait(
+            remaining_futures, timeout=float(update_interval), return_when=FIRST_COMPLETED
+        )
         return done, not_done
 
     def _get_result(future: Future) -> Any:
         return future.result()
 
-    return _base_join_futures_iter(_wait_function, _get_result, futures, update_interval, **tqdm_kwargs)
+    return _base_join_futures_iter(_wait_function, _get_result, futures, **tqdm_kwargs)
 
 
 def _base_join_futures_iter(
-    wait_function: Callable[[Collection[_FutureType], float], Tuple[Collection[_FutureType], Collection[_FutureType]]],
+    wait_function: Callable[[Collection[_FutureType]], Tuple[Collection[_FutureType], Collection[_FutureType]]],
     get_result_function: Callable[[_FutureType], _OutputType],
     futures: List[_FutureType],
-    update_interval: float,
     **tqdm_kwargs: Any,
 ) -> Generator[Tuple[int, _OutputType], None, None]:
     """A generalized utility function that resolves futures, monitors progress, and serves as an iterator over
@@ -193,7 +192,7 @@ def _base_join_futures_iter(
 
     with tqdm(total=len(remaining_futures), **tqdm_kwargs) as pbar:
         while remaining_futures:
-            done, remaining_futures = wait_function(remaining_futures, float(update_interval))
+            done, remaining_futures = wait_function(remaining_futures)
             for future in done:
                 result = get_result_function(future)
                 result_position = id_to_position_map[id(future)]
