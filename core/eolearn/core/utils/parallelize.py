@@ -55,7 +55,7 @@ def _decide_processing_type(workers: Optional[int], multiprocess: bool) -> _Proc
 
 def parallelize(
     function: Callable[[_InputType], _OutputType],
-    *params: Sequence[_InputType],
+    *params: Iterable[_InputType],
     workers: Optional[int],
     multiprocess: bool = True,
     **tqdm_kwargs: Any,
@@ -80,7 +80,8 @@ def parallelize(
     processing_type = _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
     if processing_type is _ProcessingType.SINGLE_PROCESS:
-        return list(tqdm(map(function, *params), total=len(params[0]), **tqdm_kwargs))
+        size = len(params[0] if isinstance(params[0], Sequence) else list(params[0]))
+        return list(tqdm(map(function, *params), total=size, **tqdm_kwargs))
 
     if processing_type is _ProcessingType.MULTITHREADING:
         with ThreadPoolExecutor(max_workers=workers) as thread_executor:
@@ -161,6 +162,28 @@ def join_futures_iter(
     :return: A generator that will be returning pairs `(index, result)` where `index` will define the position of future
         in the original list to which `result` belongs to.
     """
+
+    def _wait_function(
+        remaining_futures: Iterable[Future], timeout: float
+    ) -> Tuple[Iterable[Future], Iterable[Future]]:
+        done, not_done = concurrent.futures.wait(remaining_futures, timeout=timeout, return_when=FIRST_COMPLETED)
+        return done, not_done
+
+    def _get_result(future: Future) -> Any:
+        return future.result()
+
+    return _base_join_futures_iter(_wait_function, _get_result, futures, update_interval, **tqdm_kwargs)
+
+
+def _base_join_futures_iter(
+    wait_function: Callable[[Iterable[_InputType], float], Tuple[Iterable[_InputType], Iterable[_InputType]]],
+    get_result_function: Callable[[_InputType], _OutputType],
+    futures: List[_InputType],
+    update_interval: float = 0.5,
+    **tqdm_kwargs: Any,
+) -> Generator[Tuple[int, _OutputType], None, None]:
+    """A generalized utility function that resolves futures, monitors progress, and serves as an iterator over
+    results."""
     if not isinstance(futures, list):
         raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
     futures = _make_copy_and_empty_given(futures)
@@ -169,11 +192,9 @@ def join_futures_iter(
 
     with tqdm(total=len(futures), **tqdm_kwargs) as pbar:
         while futures:
-            done, futures = concurrent.futures.wait(
-                futures, timeout=float(update_interval), return_when=FIRST_COMPLETED
-            )
+            done, futures = wait_function(futures, float(update_interval))
             for future in done:
-                result = future.result()
+                result = get_result_function(future)
                 result_position = id_to_position_map[id(future)]
                 pbar.update(1)
                 yield result_position, result

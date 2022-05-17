@@ -9,17 +9,16 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Any, Callable, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Generator, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
 
 try:
     import ray
 except ImportError as exception:
     raise ImportError("This module requires an installation of Ray Python package") from exception
-from tqdm.auto import tqdm
 
 from ..eoexecution import EOExecutor, _ProcessingData
 from ..eoworkflow import WorkflowResults
-from ..utils.parallelize import _make_copy_and_empty_given, _ProcessingType
+from ..utils.parallelize import _base_join_futures_iter, _ProcessingType
 
 # pylint: disable=invalid-name
 _InputType = TypeVar("_InputType")
@@ -112,15 +111,10 @@ def join_ray_futures_iter(
     :return: A generator that will be returning pairs `(index, result)` where `index` will define the position of future
         in the original list to which `result` belongs to.
     """
-    if not isinstance(futures, list):
-        raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
-    futures = _make_copy_and_empty_given(futures)
 
-    id_to_position_map = {id(future): index for index, future in enumerate(futures)}
+    def _ray_wait_function(
+        remaining_futures: Sequence[ray.ObjectRef], timeout: float
+    ) -> Tuple[Sequence[ray.ObjectRef], Sequence[ray.ObjectRef]]:
+        return ray.wait(remaining_futures, num_returns=len(remaining_futures), timeout=timeout)
 
-    with tqdm(total=len(futures), **tqdm_kwargs) as pbar:
-        while futures:
-            done, futures = ray.wait(futures, num_returns=len(futures), timeout=float(update_interval))
-            for future, result in zip(done, ray.get(done)):
-                pbar.update(1)
-                yield id_to_position_map[id(future)], result
+    return _base_join_futures_iter(_ray_wait_function, ray.get, futures, update_interval, **tqdm_kwargs)
