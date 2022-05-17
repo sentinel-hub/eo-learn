@@ -88,9 +88,13 @@ def execution_kwargs_fixture(test_nodes):
 
 
 def test_fail_without_ray(workflow, execution_kwargs):
+    """This test passes because it happens before other tests where a connection with Ray is established."""
     executor = RayExecutor(workflow, execution_kwargs)
     with pytest.raises(RuntimeError):
         executor.run()
+
+    with pytest.raises(RuntimeError):
+        parallelize_with_ray(max, range(3), range(3))
 
 
 @pytest.mark.parametrize("filter_logs", [True, False])

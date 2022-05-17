@@ -76,7 +76,8 @@ def parallelize_with_ray(
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `params`.
     """
-    ray.init(address="auto", ignore_reinit_error=True)
+    if not ray.is_initialized():
+        raise RuntimeError("Please initialize a Ray cluster before calling this method")
 
     ray_function = ray.remote(function)
     futures = [ray_function.remote(*function_params) for function_params in zip(*params)]
