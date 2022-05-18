@@ -17,40 +17,24 @@ file in the root directory of this source tree.
 import concurrent.futures
 import datetime as dt
 import logging
-import multiprocessing
 import threading
 import warnings
 from dataclasses import dataclass
-from enum import Enum
 from logging import Filter, Handler, Logger
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import fs
 from fs.base import FS
-from tqdm.auto import tqdm
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
 from .exceptions import EORuntimeWarning
 from .utils.fs import get_base_filesystem_and_path, get_full_path
 from .utils.logging import LogFileFilter
-
-LOGGER = logging.getLogger(__name__)
-MULTIPROCESSING_LOCK = None
+from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
 
 # pylint: disable=invalid-name
-_InputType = TypeVar("_InputType")
-_OutputType = TypeVar("_OutputType")
 _HandlerFactoryType = Callable[[str], Handler]
-
-
-class _ProcessingType(Enum):
-    """Type of EOExecutor processing"""
-
-    SINGLE_PROCESS = "single process"
-    MULTIPROCESSING = "multiprocessing"
-    MULTITHREADING = "multithreading"
-    RAY = "ray"
 
 
 @dataclass(frozen=True)
@@ -64,6 +48,15 @@ class _ProcessingData:
     filter_logs_by_thread: bool
     logs_filter: Optional[Filter]
     logs_handler_factory: _HandlerFactoryType
+
+
+@dataclass(frozen=True)
+class _ExecutionRunParams:
+    """Parameters that are used during execution run."""
+
+    workers: Optional[int]
+    multiprocess: bool
+    tqdm_kwargs: Dict[str, Any]
 
 
 class EOExecutor:
@@ -148,7 +141,7 @@ class EOExecutor:
             return get_base_filesystem_and_path(logs_folder)
         return filesystem, logs_folder
 
-    def run(self, workers: int = 1, multiprocess: bool = True) -> List[WorkflowResults]:
+    def run(self, workers: Optional[int] = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> List[WorkflowResults]:
         """Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -161,6 +154,7 @@ class EOExecutor:
             This parameter is used especially because certain task cannot run with
             `concurrent.futures.ProcessPoolExecutor`.
             In case of `workers=1` this parameter is ignored and workflows will be executed consecutively.
+        :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
         :return: A list of EOWorkflow results
         """
         self.start_time = dt.datetime.now()
@@ -172,8 +166,7 @@ class EOExecutor:
 
         log_paths = self.get_log_paths(full_path=True) if self.save_logs else [None] * len(self.execution_kwargs)
 
-        filter_logs_by_thread = not multiprocess and workers > 1
-        processing_type = self._get_processing_type(workers, multiprocess)
+        filter_logs_by_thread = not multiprocess and workers is not None and workers > 1
         processing_args = [
             _ProcessingData(
                 workflow=self.workflow,
@@ -185,42 +178,27 @@ class EOExecutor:
             )
             for workflow_kwargs, log_path in zip(self.execution_kwargs, log_paths)
         ]
-
-        full_execution_results = self._run_execution(processing_args, workers, processing_type)
+        run_params = _ExecutionRunParams(workers=workers, multiprocess=multiprocess, tqdm_kwargs=tqdm_kwargs)
+        full_execution_results = self._run_execution(processing_args, run_params)
 
         self.execution_results = [results.drop_outputs() for results in full_execution_results]
+        processing_type = self._get_processing_type(workers=workers, multiprocess=multiprocess)
         self.general_stats = self._prepare_general_stats(workers, processing_type)
 
         return full_execution_results
 
-    @staticmethod
-    def _get_processing_type(workers: int, multiprocess: bool) -> _ProcessingType:
-        """Decides processing type according to parameters."""
-        if workers == 1:
-            return _ProcessingType.SINGLE_PROCESS
-        if multiprocess:
-            return _ProcessingType.MULTIPROCESSING
-        return _ProcessingType.MULTITHREADING
-
+    @classmethod
     def _run_execution(
-        self, processing_args: List[_ProcessingData], workers: int, processing_type: _ProcessingType
+        cls, processing_args: List[_ProcessingData], run_params: _ExecutionRunParams
     ) -> List[WorkflowResults]:
-        """Runs the execution for each item of processing_args list."""
-        if processing_type is _ProcessingType.SINGLE_PROCESS:
-            return list(tqdm(map(self._execute_workflow, processing_args), total=len(processing_args)))
-
-        if processing_type is _ProcessingType.MULTITHREADING:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as thread_executor:
-                return submit_and_monitor_execution(thread_executor, self._execute_workflow, processing_args)
-
-        # pylint: disable=global-statement
-        global MULTIPROCESSING_LOCK
-        try:
-            MULTIPROCESSING_LOCK = multiprocessing.Manager().Lock()
-            with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as process_executor:
-                return submit_and_monitor_execution(process_executor, self._execute_workflow, processing_args)
-        finally:
-            MULTIPROCESSING_LOCK = None
+        """Parallelizes the execution for each item of processing_args list."""
+        return parallelize(
+            cls._execute_workflow,
+            processing_args,
+            workers=run_params.workers,
+            multiprocess=run_params.multiprocess,
+            **run_params.tqdm_kwargs,
+        )
 
     @classmethod
     def _try_add_logging(
@@ -286,6 +264,11 @@ class EOExecutor:
             handler.addFilter(logs_filter)
 
         return handler
+
+    @staticmethod
+    def _get_processing_type(workers: Optional[int], multiprocess: bool) -> _ProcessingType:
+        """Provides a type of processing according to given parameters."""
+        return _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
     def _prepare_general_stats(self, workers: int, processing_type: _ProcessingType) -> Dict[str, object]:
         """Prepares a dictionary with a general statistics about executions."""
@@ -377,44 +360,3 @@ class EOExecutor:
         except BaseException as exception:
             warnings.warn(f"Failed to load logs with exception: {repr(exception)}", category=EORuntimeWarning)
             return "Failed to load logs"
-
-
-def submit_and_monitor_execution(
-    executor: concurrent.futures.Executor,
-    function: Callable[[_InputType], _OutputType],
-    execution_params: Iterable[_InputType],
-) -> List[_OutputType]:
-    """Performs the execution parallelization and monitors the process using a progress bar.
-
-    :param executor: An object that performs parallelization.
-    :param function: A function to be parallelized.
-    :param execution_params: Each element in a sequence are parameters for a single call of `function`.
-    :return: A list of results in the same order as input parameters given by `executor_params`.
-    """
-    futures = [executor.submit(function, params) for params in execution_params]
-    future_order = {future: i for i, future in enumerate(futures)}
-
-    results: List[Optional[_OutputType]] = [None] * len(futures)
-    with tqdm(total=len(futures)) as pbar:
-        for future in concurrent.futures.as_completed(futures):
-            results[future_order[future]] = future.result()
-            pbar.update(1)
-
-    return cast(List[_OutputType], results)
-
-
-def execute_with_mp_lock(execution_function: Callable, *args, **kwargs) -> object:
-    """A helper utility function that executes a given function with multiprocessing lock if the process is being
-    executed in a multiprocessing mode.
-
-    :param execution_function: A function
-    :param args: Function's positional arguments
-    :param kwargs: Function's keyword arguments
-    :return: Function's results
-    """
-    if multiprocessing.current_process().name == "MainProcess" or MULTIPROCESSING_LOCK is None:
-        return execution_function(*args, **kwargs)
-
-    # pylint: disable=not-context-manager
-    with MULTIPROCESSING_LOCK:
-        return execution_function(*args, **kwargs)

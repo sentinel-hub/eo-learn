@@ -19,5 +19,6 @@ Submodules:
    eolearn.core.utils.common
    eolearn.core.utils.fs
    eolearn.core.utils.logging
+   eolearn.core.utils.parallelize
    eolearn.core.utils.parsing
    eolearn.core.extra.ray
