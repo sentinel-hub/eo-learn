@@ -360,7 +360,6 @@ modules = [
 ]
 os.makedirs(target_dir, exist_ok=True)
 
-APIDOC_EXCLUDE = []
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
 
 
@@ -369,7 +368,8 @@ def run_apidoc(_):
 
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     for module in modules:
-        main(["-e", "-o", target_dir, module, *APIDOC_EXCLUDE, *APIDOC_OPTIONS])
+        exclude = [os.path.join(module, "setup.py"), os.path.join(module, "eolearn", "tests")]
+        main(["-e", "-o", target_dir, module, *exclude, *APIDOC_OPTIONS])
 
 
 def setup(app):
