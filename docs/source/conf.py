@@ -13,8 +13,9 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
-import sys
 import shutil
+import sys
+from collections import defaultdict
 
 import sphinx.ext.autodoc
 
@@ -354,13 +355,12 @@ with open("eotasks.rst", "w") as f:
 # Auto-generate documentation pages
 current_dir = os.path.abspath(os.path.dirname(__file__))
 target_dir = os.path.join(current_dir, "reference")
-modules = [
-    os.path.join(current_dir, "..", "..", module)
-    for module in ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
-]
+modules = ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
+
 os.makedirs(target_dir, exist_ok=True)
 
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
+APIDOC_EXCLUDE = defaultdict(list, {"core": ["graph.py", "eodata_io.py", "eodata_merge.py"]})
 
 
 def run_apidoc(_):
@@ -368,8 +368,12 @@ def run_apidoc(_):
 
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
     for module in modules:
-        exclude = [os.path.join(module, "setup.py"), os.path.join(module, "eolearn", "tests")]
-        main(["-e", "-o", target_dir, module, *exclude, *APIDOC_OPTIONS])
+        module_dir = os.path.join(current_dir, "..", "..", module)
+
+        exclude = [os.path.join(module_dir, "eolearn", module, filename) for filename in APIDOC_EXCLUDE[module]]
+        exclude.extend([os.path.join(module_dir, "setup.py"), os.path.join(module_dir, "eolearn", "tests")])
+
+        main(["-e", "-o", target_dir, module_dir, *exclude, *APIDOC_OPTIONS])
 
 
 def setup(app):
