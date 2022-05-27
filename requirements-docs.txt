@@ -2,7 +2,8 @@ jupyter
 m2r2
 nbsphinx
 sphinx-rtd-theme
-Sphinx~=4.0
+sphinx
+jinja2<3.10
 
 -e ./core
 -e ./coregistration
