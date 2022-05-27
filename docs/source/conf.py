@@ -13,6 +13,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import sys
 import shutil
 
 import sphinx.ext.autodoc
@@ -64,6 +65,9 @@ extensions = [
     "IPython.sphinxext.ipython_console_highlighting",
     "m2r2",
 ]
+
+# Incude typehints in descriptions
+autodoc_typehints = "description"
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
 autoclass_content = "both"
@@ -312,9 +316,8 @@ def get_subclasses(cls):
 
 
 with open("eotasks.rst", "w") as f:
-    f.write("*******\n")
     f.write("EOTasks\n")
-    f.write("*******\n")
+    f.write("=======\n")
     f.write("\n")
 
     eopackage_tasks = {}
@@ -346,3 +349,28 @@ with open("eotasks.rst", "w") as f:
             f.write("\t~" + eotask + "\n")
 
         f.write("\n")
+
+
+# Auto-generate documentation pages
+current_dir = os.path.abspath(os.path.dirname(__file__))
+target_dir = os.path.join(current_dir, "reference")
+modules = [
+    os.path.join(current_dir, "..", "..", module)
+    for module in ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
+]
+os.makedirs(target_dir, exist_ok=True)
+
+APIDOC_EXCLUDE = []
+APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
+
+
+def run_apidoc(_):
+    from sphinx.ext.apidoc import main
+
+    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+    for module in modules:
+        main(["-e", "-o", target_dir, module, *APIDOC_EXCLUDE, *APIDOC_OPTIONS])
+
+
+def setup(app):
+    app.connect("builder-inited", run_apidoc)
