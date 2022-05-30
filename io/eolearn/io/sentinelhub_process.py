@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 
 import datetime as dt
 import logging
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
@@ -24,6 +24,7 @@ from sentinelhub import (
     SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
+    SentinelHubSession,
     SHConfig,
     Unit,
     bbox_to_dimensions,
@@ -40,7 +41,15 @@ LOGGER = logging.getLogger(__name__)
 class SentinelHubInputBaseTask(EOTask):
     """Base class for Processing API input tasks"""
 
-    def __init__(self, data_collection, size=None, resolution=None, cache_folder=None, config=None, max_threads=None):
+    def __init__(
+        self,
+        data_collection,
+        size=None,
+        resolution=None,
+        cache_folder=None,
+        config=None,
+        max_threads=None,
+    ):
         """
         :param data_collection: A collection of requested satellite data.
         :type data_collection: DataCollection
@@ -66,7 +75,13 @@ class SentinelHubInputBaseTask(EOTask):
         self.data_collection = DataCollection(data_collection)
         self.cache_folder = cache_folder
 
-    def execute(self, eopatch=None, bbox=None, time_interval=None):
+    def execute(
+        self,
+        eopatch=None,
+        bbox=None,
+        time_interval=None,
+        session_obtainer: Optional[Callable[[], SentinelHubSession]] = None,
+    ):
         """Main execute method for the Process API tasks"""
 
         eopatch = eopatch or EOPatch()
@@ -93,7 +108,8 @@ class SentinelHubInputBaseTask(EOTask):
         requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
-        client = SentinelHubDownloadClient(config=self.config)
+        session = None if session_obtainer is None else session_obtainer()
+        client = SentinelHubDownloadClient(config=self.config, session=session)
         responses = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug("Downloads complete")
 
