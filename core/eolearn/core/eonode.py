@@ -50,7 +50,7 @@ class EONode:
         super().__setattr__("uid", generate_uid(self.task.__class__.__name__))
 
     def __hash__(self) -> int:
-        return self.uid.encode("utf-8").__hash__()
+        return self.uid.__hash__()
 
     def get_name(self, suffix_number: int = 0) -> str:
         """Provides node name according to the class of the contained task and a given number."""
