@@ -1,6 +1,5 @@
-********
 Examples
-********
+========
 
 
 Land Use and Land Cover

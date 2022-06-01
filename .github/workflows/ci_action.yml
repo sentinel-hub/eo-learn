@@ -31,7 +31,7 @@ jobs:
         if: github.event_name == 'push'
         run: |
           pip install isort
-          isort **/*.py --check --diff
+          isort . --check --diff
 
   test-on-github:
     runs-on: ubuntu-latest
