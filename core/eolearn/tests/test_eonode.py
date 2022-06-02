@@ -5,6 +5,8 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Matej Batič, Miha Kadunc, Žiga Luk�
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import time
+
 from eolearn.core import EONode, EOTask, OutputTask, linearly_connect_tasks
 
 
@@ -30,6 +32,26 @@ def test_nodes_different_uids():
         uids.add(node.uid)
 
     assert len(uids) == 5000, "Different nodes should have different uids."
+
+
+def test_hashing():
+    {EONode(Inc()): "Can be hashed!"}
+
+    linear = EONode(Inc())
+    for _ in range(5000):
+        linear = EONode(Inc(), inputs=[linear])
+
+    branch_1, branch_2 = EONode(Inc()), EONode(Inc())
+    for _ in range(500):
+        branch_1 = EONode(DivideTask(), inputs=(branch_1, branch_2))
+        branch_2 = EONode(DivideTask(), inputs=(branch_2, EONode(Inc())))
+
+    t_start = time.time()
+    linear.__hash__()
+    branch_1.__hash__()
+    branch_2.__hash__()
+    t_end = time.time()
+    assert t_end - t_start < 5, "Assert hashing slows down for large workflows!"
 
 
 def test_get_dependencies():
