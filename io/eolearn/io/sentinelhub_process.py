@@ -49,6 +49,7 @@ class SentinelHubInputBaseTask(EOTask):
         cache_folder=None,
         config=None,
         max_threads=None,
+        session_loader: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """
         :param data_collection: A collection of requested satellite data.
@@ -64,6 +65,8 @@ class SentinelHubInputBaseTask(EOTask):
         :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
+        :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
+            Creates a new session if set to `None`, which should be avoided in large scale parallelization.
         """
         if (size is None) == (resolution is None):
             raise ValueError("Exactly one of the parameters 'size' and 'resolution' should be given.")
@@ -74,13 +77,13 @@ class SentinelHubInputBaseTask(EOTask):
         self.max_threads = max_threads
         self.data_collection = DataCollection(data_collection)
         self.cache_folder = cache_folder
+        self.session_loader = session_loader
 
     def execute(
         self,
         eopatch=None,
         bbox=None,
         time_interval=None,
-        session_obtainer: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """Main execute method for the Process API tasks"""
 
@@ -108,7 +111,7 @@ class SentinelHubInputBaseTask(EOTask):
         requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
-        session = None if session_obtainer is None else session_obtainer()
+        session = None if self.session_loader is None else self.session_loader()
         client = SentinelHubDownloadClient(config=self.config, session=session)
         responses = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug("Downloads complete")
@@ -199,6 +202,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         config=None,
         mosaicking_order=None,
         aux_request_args=None,
+        session_loader: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """
         :param features: Features to construct from the evalscript.
@@ -226,6 +230,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         :type mosaicking_order: str
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :type aux_request_args: dict
+        :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
+            Creates a new session if set to `None`, which should be avoided in large scale parallelization.
         """
         super().__init__(
             data_collection=data_collection,
@@ -234,6 +240,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             cache_folder=cache_folder,
             config=config,
             max_threads=max_threads,
+            session_loader=session_loader,
         )
 
         self.features = self._parse_and_validate_features(features)
@@ -379,6 +386,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         single_scene=False,
         mosaicking_order=None,
         aux_request_args=None,
+        session_loader: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """
         :param data_collection: Source of requested satellite data.
@@ -416,6 +424,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :type mosaicking_order: str
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :type aux_request_args: dict
+        :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
+            Creates a new session if set to `None`, which should be avoided in large scale parallelization.
         """
         super().__init__(
             data_collection=data_collection,
@@ -424,6 +434,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             cache_folder=cache_folder,
             config=config,
             max_threads=max_threads,
+            session_loader=session_loader,
         )
         self.evalscript = evalscript
         self.maxcc = maxcc
