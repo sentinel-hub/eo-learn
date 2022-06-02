@@ -48,7 +48,7 @@ def base_interpolation_function(data, times, resampled_times):
 
     _, height_width_depth = data.shape
     new_bands = np.empty((len(resampled_times), height_width_depth))
-    for n_feat in numba.prange(height_width_depth):
+    for n_feat in numba.prange(height_width_depth):  # pylint: disable=not-an-iterable
         mask1d = ~np.isnan(data[:, n_feat])
         if not mask1d.any():
             new_data = np.empty(len(resampled_times))
