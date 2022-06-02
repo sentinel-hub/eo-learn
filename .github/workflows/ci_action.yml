@@ -5,17 +5,22 @@ on:
   schedule:
     - cron: '0 0 * * *'
 
+env:
+  # The only way to simulate if-else statement
+  CHECKOUT_BRANCH: ${{ github.event_name == 'push' && github.ref || 'develop' }}
+
+
 jobs:
 
   check-code-black:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out current branch
-        if: github.event_name == 'push'
+      - name: Checkout branch
         uses: actions/checkout@v2
+        with:
+          ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Check code compliance with black
-        if: github.event_name == 'push'
         run: |
           pip install black[jupyter]
           black . --check --diff
@@ -23,12 +28,12 @@ jobs:
   check-code-isort:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out current branch
-        if: github.event_name == 'push'
+      - name: Checkout branch
         uses: actions/checkout@v2
+        with:
+          ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Check code compliance with isort
-        if: github.event_name == 'push'
         run: |
           pip install isort
           isort . --check --diff
@@ -42,15 +47,10 @@ jobs:
           - '3.8'
           - '3.9'
     steps:
-      - name: Check out current branch in case of a push event
-        if: github.event_name == 'push'
-        uses: actions/checkout@v2
-
-      - name: Check out develop branch in case of a scheduled event
-        if: github.event_name == 'schedule'
+      - name: Checkout branch
         uses: actions/checkout@v2
         with:
-          ref: develop
+          ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Setup Python
         uses: actions/setup-python@v2
