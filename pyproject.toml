@@ -9,6 +9,39 @@ known_absolute = "eolearn"
 sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","ABSOLUTE","LOCALFOLDER"]
 line_length = 120
 
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.messages_control]
+disable = [
+    "no-member",
+    "arguments-differ",
+    "assignment-from-no-return",
+    "unsubscriptable-object",
+    "invalid-unary-operand-type",
+    "unspecified-encoding",
+    "unnecessary-ellipsis"
+]
+
+[tool.pylint.design]
+max-args = 15
+max-branches = 15
+max-attributes = 20
+max-locals = 20
+min-public-methods = 0
+
+[tool.pylint.similarities]
+min-similarity-lines = 5
+
+[tool.pylint.classes]
+valid-metaclass-classmethod-first-arg = "mcs"
+
+[tool.pylint.exceptions]
+overgeneral-exceptions = "Exception"
+
+[tool.pylint.refactoring]
+max-nested-blocks = 7
+
 [tool.pytest.ini_options]
 markers = [
     "sh_integration: marks integration tests with Sentinel Hub service"

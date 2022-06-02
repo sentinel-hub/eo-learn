@@ -7,7 +7,6 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Matej Batič, Miha Kadunc, Žiga Luk�
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import datetime as dt
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union, cast
@@ -49,6 +48,9 @@ class EONode:
             super().__setattr__("name", self.task.__class__.__name__)
 
         super().__setattr__("uid", generate_uid(self.task.__class__.__name__))
+
+    def __hash__(self) -> int:
+        return self.uid.__hash__()
 
     def get_name(self, suffix_number: int = 0) -> str:
         """Provides node name according to the class of the contained task and a given number."""
