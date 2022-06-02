@@ -330,8 +330,8 @@ class EOPatch:
         :rtype: EOPatch
         """
         if deep:
-            return self.__deepcopy__(features=features)
-        return self.__copy__(features=features)
+            return self.__deepcopy__(features=features)  # pylint: disable=unnecessary-dunder-call
+        return self.__copy__(features=features)  # pylint: disable=unnecessary-dunder-call
 
     def reset_feature_type(self, feature_type):
         """Resets the values of the given feature type.

@@ -36,14 +36,14 @@ class CopyTask(EOTask):
         self.features = features
 
     def execute(self, eopatch):
-        return eopatch.__copy__(features=self.features)
+        return eopatch.copy(features=self.features)
 
 
 class DeepCopyTask(CopyTask):
     """Makes a deep copy of the given EOPatch."""
 
     def execute(self, eopatch):
-        return eopatch.__deepcopy__(features=self.features)
+        return eopatch.copy(features=self.features, deep=True)
 
 
 class IOTask(EOTask, metaclass=ABCMeta):
