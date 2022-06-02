@@ -13,5 +13,5 @@
    examples/core/CoreOverview.ipynb
    eotasks
    examples
-   eolearn
+   reference/eolearn
    contribute

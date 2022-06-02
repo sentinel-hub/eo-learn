@@ -113,6 +113,7 @@ Pipfile*
 /docs/source/examples
 /docs/source/markdowns
 /docs/source/eotasks.rst
+/docs/source/reference/*.rst
 
 # pytest
 .pytest_cache/
