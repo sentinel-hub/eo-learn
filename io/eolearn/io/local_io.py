@@ -14,18 +14,23 @@ import datetime
 import logging
 import warnings
 from abc import ABCMeta
+from typing import BinaryIO, Optional, Union
 
 import dateutil
 import fs
 import numpy as np
 import rasterio
-from rasterio.windows import Window
+from fs.base import FS
+from fs.osfs import OSFS
+from rasterio.io import DatasetReader
+from rasterio.session import AWSSession
+from rasterio.windows import Window, from_bounds
 
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utils.fs import get_base_filesystem_and_path
+from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
 
@@ -101,9 +106,9 @@ class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
 
 
 class ExportToTiffTask(BaseLocalIoTask):
-    """Task exports specified feature to Geo-Tiff.
+    """Task exports specified feature to GeoTIFF.
 
-    When exporting multiple times OR bands, the Geo-Tiff `band` counts are in the expected order.
+    When exporting multiple times OR bands, the GeoTIFF `band` counts are in the expected order.
     However, when exporting multiple times AND bands, the order obeys the following pattern:
 
     T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
@@ -130,7 +135,7 @@ class ExportToTiffTask(BaseLocalIoTask):
         :param folder: A directory containing image files or a path of an image file.
             If the file extension of the image file is not provided, it will default to ".tif".
             If a "*" wildcard or a datetime.strftime substring (e.g. "%Y%m%dT%H%M%S")  is provided in the image file,
-            an EOPatch feature will be split over multiple GeoTiffs each corresponding to a timestamp,
+            an EOPatch feature will be split over multiple GeoTIFFs each corresponding to a timestamp,
             and the stringified datetime will be appended to the image file name.
         :type folder: str
         :param band_indices: Bands to be added to tiff image. Bands are represented by their 0-based index as tuple
@@ -140,7 +145,7 @@ class ExportToTiffTask(BaseLocalIoTask):
         :param date_indices: Dates to be added to tiff image. Dates are represented by their 0-based index as tuple
             in the inclusive interval form `(start_date, end_date)` or a list in the form `[date_1, date_2,...,date_n]`.
         :type date_indices: tuple or list or None
-        :param crs: CRS in which to reproject the feature before writing it to GeoTiff
+        :param crs: CRS in which to reproject the feature before writing it to GeoTIFF
         :type crs: CRS or str or None
         :param fail_on_missing: should the pipeline fail if a feature is missing or just log warning and return
         :type fail_on_missing: bool
@@ -297,7 +302,7 @@ class ExportToTiffTask(BaseLocalIoTask):
             parameter of task initialization.
             If the file extension of the image file is not provided, it will default to ".tif".
             If a "*" wildcard or a datetime.strftime substring (e.g. "%Y%m%dT%H%M%S")  is provided in the image file,
-            an EOPatch feature will be split over multiple GeoTiffs each corresponding to a timestamp,
+            an EOPatch feature will be split over multiple GeoTIFFs each corresponding to a timestamp,
             and the stringified datetime will be appended to the image file name.
         :type filename: str or None
         :return: Unchanged input EOPatch
@@ -367,22 +372,28 @@ class ExportToTiffTask(BaseLocalIoTask):
 
 
 class ImportFromTiffTask(BaseLocalIoTask):
-    """Task for importing data from a Geo-Tiff file into an EOPatch
+    """Task for importing data from a GeoTIFF file into an EOPatch
 
-    The task can take an existing EOPatch and read the part of Geo-Tiff image, which intersects with its bounding
-    box, into a new feature. But if no EOPatch is given it will create a new EOPatch, read entire Geo-Tiff image into a
+    The task can take an existing EOPatch and read the part of GeoTIFF image, which intersects with its bounding
+    box, into a new feature. But if no EOPatch is given it will create a new EOPatch, read entire GeoTIFF image into a
     feature and set a bounding box of the new EOPatch.
 
-    Note that if Geo-Tiff file is not completely spatially aligned with location of given EOPatch it will try to fit it
-    as good as possible. However, it will not do any spatial resampling or interpolation on Geo-TIFF data.
+    Note that if GeoTIFF file is not completely spatially aligned with location of given EOPatch it will try to fit it
+    as good as possible. However, it will not do any spatial resampling or interpolation on GeoTIFF data.
     """
 
-    def __init__(self, feature, folder=None, *, timestamp_size=None, **kwargs):
+    def __init__(self, feature, folder=None, *, use_vsi=False, timestamp_size=None, **kwargs):
         """
         :param feature: EOPatch feature into which data will be imported
         :type feature: (FeatureType, str)
         :param folder: A directory containing image files or a path of an image file
         :type folder: str
+        :param use_vsi: A flag to define if reading should be done with GDAL/rasterio virtual system (VSI)
+            functionality. The flag only has an effect when the task is used to read an image from a remote storage
+            (i.e. AWS S3 bucket). For a performance improvement it is recommended to set this to `True` when reading a
+            smaller chunk of a larger image, especially if it is a Cloud-optimized GeoTIFF (COG). In other cases the
+            reading might be faster if the flag remains set to `False`.
+        :type use_vsi: bool
         :param timestamp_size: In case data will be imported into time-dependant feature this parameter can be used to
             specify time dimension. If not specified, time dimension will be the same as size of `FeatureType.TIMESTAMP`
             feature. If `FeatureType.TIMESTAMP` does not exist it will be set to 1.
@@ -392,33 +403,80 @@ class ImportFromTiffTask(BaseLocalIoTask):
         :type timestamp_size: int
         :param image_dtype: Type of data of new feature imported from tiff image
         :type image_dtype: numpy.dtype
-        :param no_data_value: Values where given Geo-Tiff image does not cover EOPatch
+        :param no_data_value: Values where given GeoTIFF image does not cover EOPatch
         :type no_data_value: int or float
         :param config: A configuration object containing AWS credentials
         :type config: SHConfig
         """
         super().__init__(feature, folder=folder, **kwargs)
 
+        self.use_vsi = use_vsi
         self.timestamp_size = timestamp_size
 
+    def _get_session(self) -> Optional[AWSSession]:
+        """According to the parameter it either creates a session object with credentials or not."""
+        if not self.use_vsi:
+            return None
+
+        return AWSSession(
+            aws_access_key_id=self.config.aws_access_key_id or None,
+            aws_secret_access_key=self.config.aws_secret_access_key or None,
+            aws_session_token=self.config.aws_session_token or None,
+        )
+
+    def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> np.ndarray:
+        """The method decides in what way data will be loaded the image.
+
+        The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
+        benchmarks show that without `filesystem.openbin` in some cases `rasterio` can read much faster. Otherwise,
+        reading depends on `use_vsi` flag. In some cases where a sub-image window is read and the image is in certain
+        format (e.g. COG), benchmarks show that reading with virtual system (VSI) is much faster. In other cases,
+        reading with `filesystem.openbin` is faster.
+        """
+        if isinstance(filesystem, OSFS):
+            full_path = filesystem.getsyspath(path)
+            with rasterio.Env():
+                return self._read_image(full_path, bbox)
+
+        session = self._get_session()
+        with rasterio.Env(session=session):
+            if self.use_vsi:
+                full_path = get_full_path(filesystem, path)
+                return self._read_image(full_path, bbox)
+
+            with filesystem.openbin(path, "r") as file_handle:
+                return self._read_image(file_handle, bbox)
+
+    def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> np.ndarray:
+        """Reads data from the image."""
+        with rasterio.open(file_object) as src:
+            src: DatasetReader
+
+            read_window = self._get_reading_window(src, bbox)
+            return src.read(window=read_window, boundless=read_window is not None, fill_value=self.no_data_value)
+
     @staticmethod
-    def _get_reading_window(tiff_source, eopatch_bbox):
-        """Calculates a window in pixel coordinates for which data will be read from an image"""
+    def _get_reading_window(reader: DatasetReader, bbox: Optional[BBox]) -> Optional[Window]:
+        """Provides a reading window for which data will be read from image. If it returns `None` this means that the
+        whole image should be read. Those cases are when bbox is not defined, image is not geo-referenced, or
+        bbox coordinates exactly match image coordinates."""
+        if bbox is None:
+            return None
 
-        if eopatch_bbox.crs.epsg is not tiff_source.crs.to_epsg():
-            eopatch_bbox = eopatch_bbox.transform(tiff_source.crs.to_epsg())
+        image_crs = reader.crs
+        image_transform = reader.transform
+        image_bounds = reader.bounds
+        if image_crs is None or image_transform is None or image_bounds is None:
+            return None
 
-        tiff_upper_left = np.array([tiff_source.bounds.left, tiff_source.bounds.top])
-        eopatch_upper_left = np.array([eopatch_bbox.min_x, eopatch_bbox.max_y])
-        eopatch_lower_right = np.array([eopatch_bbox.max_x, eopatch_bbox.min_y])
-        res = np.array(tiff_source.res)
+        if bbox.crs.epsg is not image_crs.to_epsg():
+            bbox = bbox.transform(image_crs.to_epsg())
 
-        axis_flip = [1, -1]  # image origin is upper left, geographic origin is lower left
+        bbox_coords = list(bbox)
+        if bbox_coords == list(image_bounds):
+            return None
 
-        col_off, row_off = axis_flip * (eopatch_upper_left - tiff_upper_left) / res
-        width, height = abs(eopatch_lower_right - eopatch_upper_left) / res
-
-        return Window(col_off, row_off, width, height)
+        return from_bounds(*bbox_coords, transform=image_transform)
 
     def execute(self, eopatch=None, *, filename=None):
         """Execute method which adds a new feature to the EOPatch
@@ -432,25 +490,11 @@ class ImportFromTiffTask(BaseLocalIoTask):
         :rtype: EOPatch
         """
         feature_type, feature_name = self.feature
-        if eopatch is None:
-            eopatch = EOPatch()
+        eopatch = eopatch or EOPatch()
 
         filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=False)
 
-        with filesystem:
-            data = []
-            for path in filename_paths:
-                with filesystem.openbin(path, "r") as file_handle:
-                    with rasterio.open(file_handle) as src:
-
-                        boundless = True
-                        if eopatch.bbox is None:
-                            boundless = False
-                            eopatch.bbox = BBox(src.bounds, CRS(src.crs.to_epsg()))
-
-                        read_window = self._get_reading_window(src, eopatch.bbox)
-                        data.append(src.read(window=read_window, boundless=boundless, fill_value=self.no_data_value))
-
+        data = [self._load_from_image(path, filesystem, eopatch.bbox) for path in filename_paths]
         data = np.concatenate(data, axis=0)
 
         if self.image_dtype is not None:
