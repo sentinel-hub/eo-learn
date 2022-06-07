@@ -413,11 +413,8 @@ class ImportFromTiffTask(BaseLocalIoTask):
         self.use_vsi = use_vsi
         self.timestamp_size = timestamp_size
 
-    def _get_session(self) -> Optional[AWSSession]:
-        """According to the parameter it either creates a session object with credentials or not."""
-        if not self.use_vsi:
-            return None
-
+    def _get_session(self) -> AWSSession:
+        """Creates a session object with credentials from a config object."""
         return AWSSession(
             aws_access_key_id=self.config.aws_access_key_id or None,
             aws_secret_access_key=self.config.aws_secret_access_key or None,
@@ -438,12 +435,13 @@ class ImportFromTiffTask(BaseLocalIoTask):
             with rasterio.Env():
                 return self._read_image(full_path, bbox)
 
-        session = self._get_session()
-        with rasterio.Env(session=session):
-            if self.use_vsi:
+        if self.use_vsi:
+            session = self._get_session()
+            with rasterio.Env(session=session):
                 full_path = get_full_path(filesystem, path)
                 return self._read_image(full_path, bbox)
 
+        with rasterio.Env():
             with filesystem.openbin(path, "r") as file_handle:
                 return self._read_image(file_handle, bbox)
 
@@ -453,7 +451,8 @@ class ImportFromTiffTask(BaseLocalIoTask):
             src: DatasetReader
 
             read_window = self._get_reading_window(src, bbox)
-            return src.read(window=read_window, boundless=read_window is not None, fill_value=self.no_data_value)
+            boundless_reading = read_window is not None
+            return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value)
 
     @staticmethod
     def _get_reading_window(reader: DatasetReader, bbox: Optional[BBox]) -> Optional[Window]:
