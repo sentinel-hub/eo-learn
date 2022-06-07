@@ -98,6 +98,22 @@ def test_partial_copy(patch):
     assert partial_deepcopy == expected_patch, "Partial deep copying was not successful"
 
 
+def test_load_task(test_eopatch_path):
+    full_load = LoadTask(test_eopatch_path)
+    full_patch = full_load.execute(eopatch_folder=".")
+    assert len(full_patch.get_feature_list()) == 30
+
+    partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
+    partial_patch = partial_load.execute(eopatch_folder=".")
+
+    assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMP not in partial_patch
+
+    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMP])
+    upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
+    assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMP in upgraded_partial_patch
+    assert FeatureType.DATA not in upgraded_partial_patch
+
+
 def test_load_nothing():
     load = LoadTask("./some/fake/path")
     eopatch = load.execute(eopatch_folder=None)
