@@ -8,17 +8,19 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import dataclasses
+import warnings
 from functools import partial
-from typing import Any, Optional
+from typing import Any, Optional, Type
 
 import numpy as np
 import pytest
-import shapely
+import shapely.ops
 from conftest import TEST_EOPATCH_PATH
 from numpy.testing import assert_array_equal
 from shapely.geometry import Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.geometry import RasterToVectorTask, VectorToRasterTask
 
 VECTOR_FEATURE = FeatureType.VECTOR_TIMELESS, "LULC"
@@ -44,6 +46,7 @@ class VectorToRasterTestCase:
     img_mean: Optional[float] = None
     img_median: Optional[int] = None
     img_dtype: type = np.uint8
+    warning: Optional[Type[Warning]] = None
 
 
 VECTOR_TO_RASTER_TEST_CASES = (
@@ -75,6 +78,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_mean=12.4854,
         img_median=20,
         img_shape=(68, 101, 100, 1),
+        warning=EORuntimeWarning,
     ),
     VectorToRasterTestCase(
         name="single value filter, fixed shape",
@@ -189,6 +193,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_mean=0.042079,
         img_median=0,
         img_shape=(101, 100, 1),
+        warning=EORuntimeWarning,
     ),
     VectorToRasterTestCase(
         name="3D polygons, np.int8",
@@ -206,6 +211,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_median=-1,
         img_shape=(101, 100, 1),
         img_dtype=np.int8,
+        warning=EORuntimeWarning,
     ),
     VectorToRasterTestCase(
         name="bool dtype",
@@ -226,9 +232,19 @@ VECTOR_TO_RASTER_TEST_CASES = (
 )
 
 
-@pytest.mark.parametrize("test_case", VECTOR_TO_RASTER_TEST_CASES)
+@pytest.mark.parametrize(
+    "test_case", VECTOR_TO_RASTER_TEST_CASES, ids=[test_case.name for test_case in VECTOR_TO_RASTER_TEST_CASES]
+)
 def test_vector_to_raster_result(test_case, test_eopatch):
-    result = test_case.task(test_eopatch)[test_case.task.raster_feature]
+    if test_case.warning:
+        with pytest.warns(test_case.warning):
+            eopatch = test_case.task(test_eopatch)
+    else:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=EORuntimeWarning)
+            eopatch = test_case.task(test_eopatch)
+
+    result = eopatch[test_case.task.raster_feature]
     delta = 1e-3
 
     assert np.amin(result) == pytest.approx(test_case.img_min, abs=delta), "Minimum values do not match."
@@ -336,7 +352,9 @@ RASTER_TO_VECTOR_TEST_CASES = (
 )
 
 
-@pytest.mark.parametrize("test_case", RASTER_TO_VECTOR_TEST_CASES)
+@pytest.mark.parametrize(
+    "test_case", RASTER_TO_VECTOR_TEST_CASES, ids=[test_case.name for test_case in RASTER_TO_VECTOR_TEST_CASES]
+)
 def test_raster_to_vector_result(test_case, test_eopatch):
     eop_vectorized = test_case.task(test_eopatch)
     assert test_case.data_len == len(eop_vectorized[test_case.vector_feature].index), "Got wrong number of shapes."

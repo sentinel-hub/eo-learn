@@ -57,7 +57,7 @@ def s3_gpkg_example_file_fixture(config):
     try:
         client.head_bucket(Bucket="eolearn-io")
     except (ClientError, NoCredentialsError):
-        return pytest.skip(msg="No access to the bucket.")
+        return pytest.skip(reason="No access to the bucket.")
 
     return "s3://eolearn-io/import-gpkg-test.gpkg"
 
