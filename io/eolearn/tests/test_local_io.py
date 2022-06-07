@@ -239,11 +239,14 @@ def test_export2tiff_separate_timestamps(test_eopatch):
             assert os.path.exists(expected_path), f"Path {expected_path} does not exist"
 
 
-def test_import_tiff_subset(test_eopatch, example_data_path):
+# The following is not a proper test of use_vsi parameter. A proper test would require loading from an S3 path however
+# moto is not able to mock that because GDAL VSIS is not using boto3.
+@pytest.mark.parametrize("use_vsi", [True, False])
+def test_import_tiff_subset(test_eopatch, example_data_path, use_vsi):
     path = os.path.join(example_data_path, "import-tiff-test1.tiff")
     mask_feature = FeatureType.MASK_TIMELESS, "TEST_TIF"
 
-    task = ImportFromTiffTask(mask_feature, path)
+    task = ImportFromTiffTask(mask_feature, path, use_vsi=use_vsi)
     task(test_eopatch)
 
     tiff_img = read_data(path)

@@ -26,7 +26,7 @@ from rasterio.io import DatasetReader
 from rasterio.session import AWSSession
 from rasterio.windows import Window, from_bounds
 
-from sentinelhub import CRS, BBox
+from sentinelhub import CRS, BBox, SHConfig
 
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EORuntimeWarning
@@ -55,7 +55,7 @@ class BaseLocalIoTask(EOTask, metaclass=ABCMeta):
         self.folder = folder
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
-        self.config = config
+        self.config = config or SHConfig()
 
     def _get_filesystem_and_paths(self, filename, timestamps, create_paths=False):
         """It takes location parameters from init and execute methods, joins them together, and creates a filesystem
