@@ -14,7 +14,8 @@ import datetime
 import logging
 import os
 import tempfile
-from typing import Optional, Union
+import warnings
+from typing import Any, Optional, Type, Union
 
 import boto3
 import numpy as np
@@ -28,6 +29,7 @@ from sentinelhub import read_data
 from sentinelhub.time_utils import serialize_time
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.io import ExportToTiffTask, ImportFromTiffTask
 
 logging.basicConfig(level=logging.DEBUG)
@@ -53,6 +55,7 @@ class TiffTestCase:
     bands: Optional[Union[tuple, list]] = None
     times: Optional[Union[tuple, list]] = None
     expected_times: Optional[Union[tuple, list]] = None
+    warning: Optional[Type[Warning]] = None
 
     def __post_init__(self):
         if self.expected_times is None:
@@ -91,15 +94,21 @@ DATA_ARRAY = np.arange(10 * 3 * 2 * 6, dtype=np.float32).reshape(10, 3, 2, 6)
 
 
 TIFF_TEST_CASES = [
-    TiffTestCase("scalar_timeless", FeatureType.SCALAR_TIMELESS, np.arange(3)),
-    TiffTestCase("scalar_timeless_list", FeatureType.SCALAR_TIMELESS, np.arange(5), bands=[3, 0, 2]),
-    TiffTestCase("scalar_timeless_tuple", FeatureType.SCALAR_TIMELESS, np.arange(6), bands=(1, 4)),
+    TiffTestCase("scalar_timeless", FeatureType.SCALAR_TIMELESS, np.arange(3), warning=EORuntimeWarning),
+    TiffTestCase(
+        "scalar_timeless_list", FeatureType.SCALAR_TIMELESS, np.arange(5), bands=[3, 0, 2], warning=EORuntimeWarning
+    ),
+    TiffTestCase(
+        "scalar_timeless_tuple", FeatureType.SCALAR_TIMELESS, np.arange(6), bands=(1, 4), warning=EORuntimeWarning
+    ),
     TiffTestCase("scalar_band_single_time_single", FeatureType.SCALAR, SCALAR_ARRAY, bands=[3], times=[7]),
     TiffTestCase(
         "scalar_band_list_time_list", FeatureType.SCALAR, SCALAR_ARRAY, bands=[2, 4, 1, 0], times=[1, 7, 0, 2, 3]
     ),
     TiffTestCase("scalar_band_tuple_time_tuple", FeatureType.SCALAR, SCALAR_ARRAY, bands=(1, 4), times=(2, 8)),
-    TiffTestCase("mask_timeless", FeatureType.MASK_TIMELESS, np.arange(3 * 3 * 1).reshape(3, 3, 1)),
+    TiffTestCase(
+        "mask_timeless", FeatureType.MASK_TIMELESS, np.arange(3 * 3 * 1).reshape(3, 3, 1), warning=EORuntimeWarning
+    ),
     TiffTestCase("mask_single", FeatureType.MASK, MASK_ARRAY, times=[4]),
     TiffTestCase("mask_list", FeatureType.MASK, MASK_ARRAY, times=[4, 2]),
     TiffTestCase("mask_tuple_int", FeatureType.MASK, MASK_ARRAY, times=(2, 4)),
@@ -121,7 +130,7 @@ TIFF_TEST_CASES = [
 ]
 
 
-@pytest.mark.parametrize("test_case", TIFF_TEST_CASES)
+@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=[test_case.name for test_case in TIFF_TEST_CASES])
 def test_export_import(test_case, test_eopatch):
 
     test_eopatch[test_case.feature_type][test_case.name] = test_case.data
@@ -134,7 +143,7 @@ def test_export_import(test_case, test_eopatch):
         export_task = ExportToTiffTask(
             feature, folder=tmp_dir_name, band_indices=test_case.bands, date_indices=test_case.times
         )
-        export_task(test_eopatch, filename=tmp_file_name)
+        _execute_with_warning_control(export_task, test_case.warning, test_eopatch, filename=tmp_file_name)
 
         export_task = ExportToTiffTask(
             feature,
@@ -144,7 +153,7 @@ def test_export_import(test_case, test_eopatch):
             crs="EPSG:4326",
             compress="lzw",
         )
-        export_task(test_eopatch, filename=tmp_file_name_reproject)
+        _execute_with_warning_control(export_task, test_case.warning, test_eopatch, filename=tmp_file_name_reproject)
 
         import_task = ImportFromTiffTask(
             feature, folder=tmp_dir_name, timestamp_size=test_case.get_expected_timestamp_size()
@@ -168,6 +177,19 @@ def test_export_import(test_case, test_eopatch):
         assert (
             expected_raster.dtype == new_eop[test_case.feature_type][test_case.name].dtype
         ), "Tiff imported into new EOPatch has different dtype as expected"
+
+
+def _execute_with_warning_control(
+    export_task: ExportToTiffTask, warning: Optional[Type[Warning]], *args: Any, **kwargs: Any
+) -> None:
+    """Makes sure that task either raises an expected warning or doesn't raise any EO runtime warning."""
+    if warning:
+        with pytest.warns(warning):
+            export_task(*args, **kwargs)
+    else:
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error", category=EORuntimeWarning)
+            export_task(*args, **kwargs)
 
 
 @pytest.mark.parametrize(

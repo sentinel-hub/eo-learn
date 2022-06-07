@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.coregistration import ECCRegistrationTask, InterpolationType
 
 logging.basicConfig(level=logging.DEBUG)
@@ -46,7 +47,8 @@ def test_registration(eopatch):
         interpolation_type=InterpolationType.NEAREST,
         apply_to_features={FeatureType.DATA: ["bands", "ndvi"], FeatureType.MASK: ["cm"]},
     )
-    reopatch = reg(eopatch)
+    with pytest.warns(EORuntimeWarning):
+        reopatch = reg(eopatch)
 
     assert eopatch.data["bands"].shape == reopatch.data["bands"].shape, "Shapes of .data['bands'] do not match"
     assert eopatch.data["ndvi"].shape == reopatch.data["ndvi"].shape, "Shapes of .data['ndvi'] do not match"
