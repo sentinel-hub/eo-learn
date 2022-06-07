@@ -146,20 +146,25 @@ class LoadTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, *, eopatch_folder=""):
+    def execute(self, eopatch=None, *, eopatch_folder=""):
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
+        :param eopatch: Optional input EOPatch. If given the loaded features are merged onto it, otherwise a new EOPatch
+            is created.
         :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it will return an empty
-            `EOPatch`.
+            or modified `EOPatch` (depending on the task input).
         :type eopatch_folder: str or None
         :return: EOPatch loaded from disk
         :rtype: EOPatch
         """
         if eopatch_folder is None:
-            return EOPatch()
+            return eopatch or EOPatch()
 
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
-        return EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
+        loaded_patch = EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
+        if eopatch is None:
+            return loaded_patch
+        return eopatch.merge(loaded_patch)
 
 
 class AddFeatureTask(EOTask):
