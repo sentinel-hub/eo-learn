@@ -61,6 +61,7 @@ class ResizeMethod(Enum):
 
 
 class ResizeLib(Enum):
+    """Backends available for spatial resizing of data."""
     PIL = "PIL"
     CV2 = "cv2"
 
@@ -192,7 +193,7 @@ def resize_images(
                           One of 'nearest', 'linear', 'cubic'. Default is 'linear'.
     """
     warnings.warn(
-        f"The function `resize_images` is deprecated and will be removed. Please switch to `spatially_resize_image`.",
+        "The function `resize_images` is deprecated and will be removed. Please switch to `spatially_resize_image`.",
         EODeprecationWarning,
     )
     inter_methods = {"nearest": cv2.INTER_NEAREST, "linear": cv2.INTER_LINEAR, "cubic": cv2.INTER_CUBIC}
