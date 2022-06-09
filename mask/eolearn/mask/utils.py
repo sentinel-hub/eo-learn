@@ -62,6 +62,7 @@ class ResizeMethod(Enum):
 
 class ResizeLib(Enum):
     """Backends available for spatial resizing of data."""
+
     PIL = "PIL"
     CV2 = "cv2"
 
