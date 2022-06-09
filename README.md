@@ -69,6 +69,12 @@ pip install eo-learn-ml-tools
 pip install eo-learn-visualization
 ```
 
+Before installing `eo-learn` on **Linux** it is recommended to install the following system libraries:
+
+```bash
+sudo apt-get install gcc libgdal-dev graphviz proj-bin libproj-dev libspatialindex-dev
+```
+
 Before installing `eo-learn` on **Windows** it is recommended to install the following packages from [Unofficial Windows wheels repository](https://www.lfd.uci.edu/~gohlke/pythonlibs/):
 
 ```bash
