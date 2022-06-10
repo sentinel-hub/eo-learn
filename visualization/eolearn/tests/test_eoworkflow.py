@@ -20,12 +20,18 @@ class FooTask(EOTask):
         return eopatch
 
 
+class BarTask(EOTask):
+    def execute(self, eopatch):
+        return eopatch
+
+
 @pytest.fixture(name="workflow")
 def workflow_fixture():
     node1, node2 = EONode(FooTask()), EONode(FooTask())
     node3 = EONode(FooTask(), [node1, node2])
+    node4 = EONode(BarTask(), [node3])
 
-    workflow = EOWorkflow([node1, node2, node3])
+    workflow = EOWorkflow.from_endnodes(node4)
     return workflow
 
 

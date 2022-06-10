@@ -10,7 +10,7 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Dict, Optional, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from graphviz import Digraph
 
@@ -59,16 +59,20 @@ class EOWorkflowVisualization:
 
     @staticmethod
     def _get_node_uid_to_dot_name_mapping(nodes: Sequence[EONode]) -> Dict[str, str]:
-        """Creates mapping between EONode classes and names used in DOT graph"""
-        # Collect nodes with identical names
-        dot_name_to_nodes: Dict[str, EONode] = {}
+        """Creates mapping between EONode classes and names used in DOT graph. To do that, it has to collect nodes with
+        the same name and assign them different indices."""
+        dot_name_to_nodes: Dict[str, List[EONode]] = {}
         for node in nodes:
             dot_name_to_nodes[node.get_name()] = dot_name_to_nodes.get(node.get_name(), [])
             dot_name_to_nodes[node.get_name()].append(node)
 
         node_to_dot_name = {}
         for _, same_name_nodes in dot_name_to_nodes.items():
-            for idx, node in enumerate(same_name_nodes):
-                node_to_dot_name[node.uid] = node.get_name(idx)
+            if len(same_name_nodes) == 1:
+                node = same_name_nodes[0]
+                node_to_dot_name[node.uid] = node.get_name()
+            else:
+                for idx, node in enumerate(same_name_nodes):
+                    node_to_dot_name[node.uid] = node.get_name(idx + 1)
 
         return node_to_dot_name
