@@ -87,7 +87,7 @@ def spatially_resize_image(
     :param spatial_axes: Which two axes of input data represent height and width. If left as `None` they are selected
         according to standards of eo-learn features.
     :param resize_method: Interpolation method used for resizing.
-    :param resize_library: Which Pyhon library to use for resizing. Default is PIL, as it supports all dtypes and
+    :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
         features anti-aliasing. For cases where execution speed is crucial one can use CV2.
     """
 

@@ -1,3 +1,5 @@
+from typing import Tuple, Union
+
 import numpy as np
 import pytest
 
@@ -22,10 +24,12 @@ def test_image_fixture():
 @pytest.mark.parametrize("library", ResizeLib)
 @pytest.mark.parametrize("dtype", (np.float32, np.int32, bool))
 @pytest.mark.parametrize("new_size", [(50, 50), (35, 39), (271, 271)])
-def test_spatially_resize_image_new_size(method, library, dtype, new_size):
+def test_spatially_resize_image_new_size(
+    method: ResizeMethod, library: ResizeLib, dtype: Union[np.dtype, type], new_size: Tuple[int, int]
+):
     """Test that all methods and backends are able to downscale and upscale images of various dtypes."""
     if library is ResizeLib.CV2:
-        if dtype == np.int32 and method is ResizeMethod.CUBIC or dtype == bool:
+        if dtype in (np.int32, np.uint16) and method is ResizeMethod.CUBIC or dtype == bool:
             return
 
     old_shape = (111, 111)
@@ -54,7 +58,9 @@ def test_spatially_resize_image_new_size(method, library, dtype, new_size):
 @pytest.mark.parametrize("method", ResizeMethod)
 @pytest.mark.parametrize("library", ResizeLib)
 @pytest.mark.parametrize("scale_factors", [(2, 2), (0.25, 0.25)])
-def test_spatially_resize_image_scale_factors(method, library, scale_factors):
+def test_spatially_resize_image_scale_factors(
+    method: ResizeMethod, library: ResizeLib, scale_factors: Tuple[float, float]
+):
     height, width = 120, 120
     old_shape = (height, width, 3)
     data_3d = np.arange(np.prod(old_shape)).astype(np.float32).reshape(old_shape)
@@ -67,7 +73,9 @@ def test_spatially_resize_image_scale_factors(method, library, scale_factors):
 @pytest.mark.parametrize("method", ResizeMethod)
 @pytest.mark.parametrize("library", ResizeLib)
 @pytest.mark.parametrize("new_size", [(50, 50), (217, 271)])
-def test_spatially_resize_image_correctness(method, library, new_size, test_image):
+def test_spatially_resize_image_correctness(
+    method: ResizeMethod, library: ResizeLib, new_size: Tuple[int, int], test_image: np.ndarray
+):
     """Test that resizing is correct on a very basic example. It tests midpoints of the 4 quadrants."""
     height, width = new_size
     x1, x2 = width // 4, 3 * width // 4
