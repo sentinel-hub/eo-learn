@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 import pytest
 from graphviz import Digraph
 
-from eolearn.core import EOTask, linearly_connect_tasks, EOWorkflow
+from eolearn.core import EOTask, EOWorkflow, linearly_connect_tasks
 
 
 class FooTask(EOTask):
