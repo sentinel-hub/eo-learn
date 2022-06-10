@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 import pytest
 from graphviz import Digraph
 
-from eolearn.core import EONode, EOTask, EOWorkflow
+from eolearn.core import EOTask, linearly_connect_tasks, EOWorkflow
 
 
 class FooTask(EOTask):
@@ -26,23 +26,18 @@ class BarTask(EOTask):
 
 
 @pytest.fixture(name="workflow")
-def workflow_fixture():
-    node1, node2 = EONode(FooTask()), EONode(FooTask())
-    node3 = EONode(FooTask(), [node1, node2])
-    node4 = EONode(BarTask(), [node3])
-
-    workflow = EOWorkflow.from_endnodes(node4)
-    return workflow
+def linear_workflow_fixture():
+    nodes = linearly_connect_tasks(FooTask(), FooTask(), BarTask())
+    return EOWorkflow(nodes)
 
 
 def test_graph_nodes_and_edges(workflow):
     dot = workflow.get_dot()
     assert isinstance(dot, Digraph)
-    assert str(dot) == "digraph {\n\tFooTask_1 -> FooTask_3\n\tFooTask_2 -> FooTask_3\n\tFooTask_3 -> BarTask\n}"
+    dot_repr = str(dot).strip("\n")
+    assert dot_repr == "digraph {\n\tFooTask_1 -> FooTask_2\n\tFooTask_2 -> BarTask\n}"
 
     digraph = workflow.dependency_graph()
     assert isinstance(digraph, Digraph)
-    assert (
-        str(digraph)
-        == "digraph {\n\tFooTask_1 -> FooTask_3\n\tFooTask_2 -> FooTask_3\n\tFooTask_3 -> BarTask\n\trankdir=LR\n}"
-    )
+    digraph_repr = str(digraph).strip("\n")
+    assert digraph_repr == "digraph {\n\tFooTask_1 -> FooTask_2\n\tFooTask_2 -> BarTask\n\trankdir=LR\n}"
