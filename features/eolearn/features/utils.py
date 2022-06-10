@@ -11,9 +11,12 @@ from enum import Enum
 from functools import partial
 from typing import Callable, Optional, Tuple, Union
 
-import cv2
 import numpy as np
 from PIL import Image
+
+_CV2_IMPORT_MESSAGE = (
+    "The CV2 backend is not installed by default. We suggest you install the `opencv-contrib-python-headless package."
+)
 
 
 class ResizeMethod(Enum):
@@ -25,6 +28,10 @@ class ResizeMethod(Enum):
 
     def get_cv2_method(self, dtype: Union[np.dtype, type]) -> int:
         """Obtain the constant specifying the interpolation method for the CV2 library."""
+        try:
+            import cv2  # pylint: disable=import-outside-toplevel
+        except ImportError as exception:
+            raise ImportError(_CV2_IMPORT_MESSAGE) from exception
         number_dtype = np.dtype(dtype)
         if np.issubdtype(number_dtype, np.floating):
             choices = {
@@ -106,6 +113,10 @@ def spatially_resize_image(
 
     size = (width, height)
     if resize_library is ResizeLib.CV2:
+        try:
+            import cv2  # pylint: disable=import-outside-toplevel
+        except ImportError as exception:
+            raise ImportError(_CV2_IMPORT_MESSAGE) from exception
         resize_function = partial(cv2.resize, dsize=size, interpolation=resize_method.get_cv2_method(data.dtype))
     else:
         resize_function = partial(_pil_resize_ndarray, size=size, method=resize_method.get_pil_method())
