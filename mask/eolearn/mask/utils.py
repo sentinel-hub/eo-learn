@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import warnings
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -135,7 +135,7 @@ def spatially_resize_image(
     elif scale_factors is not None and new_size is None:
         f_y, f_x = scale_factors
         old_height, old_width = data.shape[spatial_axes[0]], data.shape[spatial_axes[1]]
-        height, width = np.round(f_y * old_height), np.round(f_x * old_width)
+        height, width = round(f_y * old_height), round(f_x * old_width)
     else:
         raise ValueError("Exactly one of the arguments new_size or scale_factors must be given.")
 

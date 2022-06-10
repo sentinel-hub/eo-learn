@@ -63,8 +63,21 @@ def test_spatially_resize_image_new_size(method, library, dtype, new_size):
 
 @pytest.mark.parametrize("method", ResizeMethod)
 @pytest.mark.parametrize("library", ResizeLib)
+@pytest.mark.parametrize("scale_factors", [(2, 2), (0.25, 0.25)])
+def test_spatially_resize_image_scale_factors(method, library, scale_factors):
+    height, width = 120, 120
+    old_shape = (height, width, 3)
+    data_3d = np.arange(np.prod(old_shape)).astype(np.float32).reshape(old_shape)
+
+    result = spatially_resize_image(data_3d, scale_factors=scale_factors, resize_method=method, resize_library=library)
+
+    assert result.shape == (height * scale_factors[0], width * scale_factors[1], 3)
+
+
+@pytest.mark.parametrize("method", ResizeMethod)
+@pytest.mark.parametrize("library", ResizeLib)
 @pytest.mark.parametrize("new_size", [(50, 50), (217, 271)])
-def test_spatially_resize_image(method, library, new_size, test_image):
+def test_spatially_resize_image_correctness(method, library, new_size, test_image):
     """Test that resizing is correct on a very basic example. It tests midpoints of the 4 quadrants."""
     height, width = new_size
     x1, x2 = width // 4, 3 * width // 4
