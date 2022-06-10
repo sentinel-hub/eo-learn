@@ -38,6 +38,11 @@ def workflow_fixture():
 def test_graph_nodes_and_edges(workflow):
     dot = workflow.get_dot()
     assert isinstance(dot, Digraph)
+    assert str(dot) == "digraph {\n\tFooTask_1 -> FooTask_3\n\tFooTask_2 -> FooTask_3\n\tFooTask_3 -> BarTask\n}"
 
     digraph = workflow.dependency_graph()
     assert isinstance(digraph, Digraph)
+    assert (
+        str(digraph)
+        == "digraph {\n\tFooTask_1 -> FooTask_3\n\tFooTask_2 -> FooTask_3\n\tFooTask_3 -> BarTask\n\trankdir=LR\n}"
+    )
