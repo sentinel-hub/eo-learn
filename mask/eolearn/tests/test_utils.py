@@ -41,24 +41,24 @@ def test_spatially_resize_image_new_size(method, library, dtype, new_size):
     old_shape = (111, 111)
     data_2d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(data_2d, new_size, resize_method=method, resize_library=library)
-    assert result.shape == new_size
+    assert result.shape == new_size and result.dtype == dtype
 
     old_shape = (111, 111, 3)
     data_3d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(data_3d, new_size, resize_method=method, resize_library=library)
-    assert result.shape == (*new_size, 3)
+    assert result.shape == (*new_size, 3) and result.dtype == dtype
 
     old_shape = (5, 111, 111, 3)
     data_4d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(data_4d, new_size, resize_method=method, resize_library=library)
-    assert result.shape == (5, *new_size, 3)
+    assert result.shape == (5, *new_size, 3) and result.dtype == dtype
 
     old_shape = (2, 1, 111, 111, 3)
     data_5d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(
         data_5d, new_size, resize_method=method, spatial_axes=(2, 3), resize_library=library
     )
-    assert result.shape == (2, 1, *new_size, 3)
+    assert result.shape == (2, 1, *new_size, 3) and result.dtype == dtype
 
 
 @pytest.mark.parametrize("method", ResizeMethod)

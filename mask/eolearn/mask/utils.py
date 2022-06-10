@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import warnings
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -29,16 +29,17 @@ class ResizeMethod(Enum):
     LINEAR = "linear"
     CUBIC = "cubic"
 
-    def get_cv2_method(self, dtype: Any) -> int:
+    def get_cv2_method(self, dtype: Union[np.dtype, type]) -> int:
         """Obtain the constant specifying the interpolation method for the CV2 library."""
-        if np.issubdtype(dtype, np.floating):
+        number_dtype = np.dtype(dtype)
+        if np.issubdtype(number_dtype, np.floating):
             choices = {
                 ResizeMethod.NEAREST: cv2.INTER_NEAREST,
                 ResizeMethod.LINEAR: cv2.INTER_LINEAR,
                 ResizeMethod.CUBIC: cv2.INTER_CUBIC,
             }
             return choices[self]
-        if np.issubdtype(dtype, np.integer):
+        if np.issubdtype(number_dtype, np.integer):
             choices = {
                 ResizeMethod.NEAREST: cv2.INTER_NEAREST_EXACT,
                 ResizeMethod.LINEAR: cv2.INTER_LINEAR_EXACT,
