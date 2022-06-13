@@ -15,7 +15,7 @@ file in the root directory of this source tree.
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 
@@ -213,7 +213,12 @@ class LinearFunctionTask(MapFeatureTask):
     """
 
     def __init__(
-        self, input_features, output_features=None, slope: float = 1, intercept: float = 0, dtype: Optional[str] = None
+        self,
+        input_features,
+        output_features=None,
+        slope: float = 1,
+        intercept: float = 0,
+        dtype: Union[str, type, np.dtype, None] = None,
     ):
         """
         :param input_features: Feature or features on which the function is used.
@@ -226,12 +231,14 @@ class LinearFunctionTask(MapFeatureTask):
         """
         if output_features is None:
             output_features = input_features
-        super().__init__(input_features, output_features, slope=slope, intercept=intercept, dtype=dtype)
+        self.dtype = dtype if dtype is None else np.dtype(dtype)
 
-    def map_method(self, feature: np.ndarray, slope: float, intercept: float, dtype: Optional[str]) -> np.ndarray:
+        super().__init__(input_features, output_features, slope=slope, intercept=intercept)
+
+    def map_method(self, feature: np.ndarray, slope: float, intercept: float) -> np.ndarray:
         """A method where feature is multiplied by a slope"""
         rescaled_feature = feature * slope + intercept
-        return rescaled_feature if dtype is None else rescaled_feature.astype(dtype)
+        return rescaled_feature if self.dtype is None else rescaled_feature.astype(self.dtype)
 
 
 class SpatialResizeTask(EOTask):

@@ -1,7 +1,7 @@
 eo-learn-core
 numba>=0.53.0
 numpy
-pillow
+pillow>=9.0.0
 python-dateutil
 scikit-image>=0.19.0
 scikit-learn
