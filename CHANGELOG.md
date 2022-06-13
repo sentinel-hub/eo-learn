@@ -1,3 +1,14 @@
+## [Version 1.1.0] - 2022-06-13
+
+- Large improvements of parallelization in EOExecutor. Introduced the `eolearn.core.utils.parallelize` module, featuring tools for different parallelization modes.
+- Added support for session sharing in `SentinelHubInputTask`, `SentinelHubEvalscriptTask` and `SentinelHubDemTask` by adding a `session_loader` parameter. Session sharing of `sentinelhub-py` is explained [here](https://github.com/sentinel-hub/sentinelhub-py/blob/master/examples/session_sharing.ipynb).
+- Added `SpatialResizeTask` to `eolearn.features.feature_manipulation` for spatially resizing EOPatch features.
+- Improved how `ImportFromTiffTask` reads from remote filesystems. 
+- Switched to non-structural hashing of `EONode` class to avoid massive slowdowns in large workflows.
+- Improved procedure for building documentation and displaying of type annotations. 
+- Various minor improvements.
+
+
 ## [Version 1.0.2] - 2022-05-03
 
 - Added workaround for an issue introduced by `fs==2.4.16`.
