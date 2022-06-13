@@ -7,15 +7,15 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import warnings
 from enum import Enum
 from functools import partial
 from typing import Callable, Dict, Optional, Tuple, Union
-import warnings
-
-from eolearn.core.exceptions import EORuntimeWarning
 
 import numpy as np
 from PIL import Image
+
+from eolearn.core.exceptions import EORuntimeWarning
 
 _CV2_IMPORT_MESSAGE = (
     "The CV2 backend is not installed by default. We suggest you install the `opencv-contrib-python-headless package."
