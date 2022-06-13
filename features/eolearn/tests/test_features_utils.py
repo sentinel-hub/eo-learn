@@ -6,30 +6,16 @@ import pytest
 from eolearn.features.utils import ResizeLib, ResizeMethod, spatially_resize_image
 
 
-@pytest.fixture(name="test_image", scope="module")
-def test_image_fixture():
-    """Image with a distinct value in each of the quadrants. In the bottom right quadrant there is a special layer."""
-    example = np.zeros((3, 100, 100, 4))
-    example[:, 50:, :50, :] = 1
-    example[:, :50, 50:, :] = 2
-    example[:, 50:, 50:, :] = 3
-    example[0, 50:, 50:, 0] = 10
-    example[0, 50:, 50:, 1] = 20
-    example[0, 50:, 50:, 2] = 30
-    example[0, 50:, 50:, 3] = 40
-    return example.astype(np.float32)
-
-
 @pytest.mark.parametrize("method", ResizeMethod)
 @pytest.mark.parametrize("library", ResizeLib)
-@pytest.mark.parametrize("dtype", (np.float32, np.int32, bool))
+@pytest.mark.parametrize("dtype", (np.float32, np.int32, np.uint8, bool))
 @pytest.mark.parametrize("new_size", [(50, 50), (35, 39), (271, 271)])
 def test_spatially_resize_image_new_size(
     method: ResizeMethod, library: ResizeLib, dtype: Union[np.dtype, type], new_size: Tuple[int, int]
 ):
     """Test that all methods and backends are able to downscale and upscale images of various dtypes."""
     if library is ResizeLib.CV2:
-        if dtype in (np.int32, np.uint16) and method is ResizeMethod.CUBIC or dtype == bool:
+        if np.issubdtype(dtype, np.integer) and method is ResizeMethod.CUBIC or dtype == bool:
             return
 
     old_shape = (111, 111)
@@ -68,6 +54,49 @@ def test_spatially_resize_image_scale_factors(
     result = spatially_resize_image(data_3d, scale_factors=scale_factors, resize_method=method, resize_library=library)
 
     assert result.shape == (height * scale_factors[0], width * scale_factors[1], 3)
+
+
+@pytest.mark.parametrize("library", (ResizeLib.PIL,))
+@pytest.mark.parametrize(
+    "dtype",
+    (
+        bool,
+        np.int8,
+        np.uint8,
+        np.int16,
+        np.uint16,
+        np.int32,
+        np.uint32,
+        np.int64,
+        np.uint64,
+        int,
+        np.float16,
+        np.float32,
+        np.float64,
+        float,
+    ),
+)
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_spatially_resize_image_dtype(library: ResizeLib, dtype: Union[np.dtype, type]):
+    # Warnings occur due to lossy casting in the downsampling procedure
+    old_shape = (111, 111)
+    data_2d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
+    result = spatially_resize_image(data_2d, (50, 50), resize_library=library)
+    assert result.dtype == dtype
+
+
+@pytest.fixture(name="test_image", scope="module")
+def test_image_fixture():
+    """Image with a distinct value in each of the quadrants. In the bottom right quadrant there is a special layer."""
+    example = np.zeros((3, 100, 100, 4))
+    example[:, 50:, :50, :] = 1
+    example[:, :50, 50:, :] = 2
+    example[:, 50:, 50:, :] = 3
+    example[0, 50:, 50:, 0] = 10
+    example[0, 50:, 50:, 1] = 20
+    example[0, 50:, 50:, 2] = 30
+    example[0, 50:, 50:, 3] = 40
+    return example.astype(np.float32)
 
 
 @pytest.mark.parametrize("method", ResizeMethod)

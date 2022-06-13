@@ -9,7 +9,10 @@ file in the root directory of this source tree.
 """
 from enum import Enum
 from functools import partial
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Tuple, Union
+import warnings
+
+from eolearn.core.exceptions import EORuntimeWarning
 
 import numpy as np
 from PIL import Image
@@ -68,6 +71,34 @@ class ResizeLib(Enum):
     PIL = "PIL"
     CV2 = "cv2"
 
+    def get_compatible_dtype(self, dtype: Union[np.dtype, type]) -> np.dtype:
+        """Returns a suitable dtype with which the library can work. Warns if information loss could occur."""
+        if self is ResizeLib.CV2:
+            lossless = {bool: np.uint8, np.float16: np.float32}
+            infoloss = {x: np.int32 for x in (np.uint32, np.int64, np.uint64, int)}
+        if self is ResizeLib.PIL:
+            lossless = {np.float16: np.float32}
+            infoloss = {x: np.int32 for x in (np.uint16, np.uint32, np.int64, np.uint64, int)}
+
+        lossless_casts = {np.dtype(k): np.dtype(v) for k, v in lossless.items()}
+        infoloss_casts = {np.dtype(k): np.dtype(v) for k, v in infoloss.items()}
+        return self._extract_compatible_dtype(dtype, lossless_casts, infoloss_casts)
+
+    @staticmethod
+    def _extract_compatible_dtype(
+        dtype: Union[np.dtype, type], lossless_casts: Dict[np.dtype, np.dtype], infoloss_casts: Dict[np.dtype, np.dtype]
+    ) -> np.dtype:
+        """Searches the dictionaries and extract the appropriate dtype. Warns of data loss if it could occur."""
+        dtype = np.dtype(dtype)
+        if dtype in infoloss_casts:
+            cast_dtype = infoloss_casts[dtype]
+            warnings.warn(
+                f"Data of type {dtype} will be processed as {cast_dtype}, possible information loss during procedure.",
+                EORuntimeWarning,
+            )
+            return cast_dtype
+        return lossless_casts.get(dtype, dtype)
+
 
 def spatially_resize_image(
     data: np.ndarray,
@@ -112,6 +143,9 @@ def spatially_resize_image(
         raise ValueError("Exactly one of the arguments new_size or scale_factors must be given.")
 
     size = (width, height)
+    old_dtype, new_dtype = data.dtype, resize_library.get_compatible_dtype(data.dtype)
+    data = data.astype(new_dtype)
+
     if resize_library is ResizeLib.CV2:
         try:
             import cv2  # pylint: disable=import-outside-toplevel
@@ -121,7 +155,12 @@ def spatially_resize_image(
     else:
         resize_function = partial(_pil_resize_ndarray, size=size, method=resize_method.get_pil_method())
 
-    return _apply_to_spatial_axes(resize_function, data, spatial_axes)
+    resized_data = _apply_to_spatial_axes(resize_function, data, spatial_axes)
+
+    if np.issubdtype(old_dtype, np.unsignedinteger):
+        # remove negatives so that there are no underflows when casting back
+        resized_data = resized_data.clip(min=0)
+    return resized_data.astype(old_dtype)
 
 
 def _pil_resize_ndarray(image: np.ndarray, size: Tuple[int, int], method: Image.Resampling) -> np.ndarray:
