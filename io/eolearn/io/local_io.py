@@ -14,7 +14,7 @@ import datetime
 import logging
 import warnings
 from abc import ABCMeta
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO, List, Optional, Tuple, Union
 
 import dateutil
 import fs
@@ -421,7 +421,7 @@ class ImportFromTiffTask(BaseLocalIoTask):
             aws_session_token=self.config.aws_session_token or None,
         )
 
-    def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> np.ndarray:
+    def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
         """The method decides in what way data will be loaded the image.
 
         The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
@@ -445,39 +445,65 @@ class ImportFromTiffTask(BaseLocalIoTask):
             with filesystem.openbin(path, "r") as file_handle:
                 return self._read_image(file_handle, bbox)
 
-    def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> np.ndarray:
+    def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
         """Reads data from the image."""
         with rasterio.open(file_object) as src:
             src: DatasetReader
 
-            read_window = self._get_reading_window(src, bbox)
+            read_window, read_bbox = self._get_reading_window_and_bbox(src, bbox)
             boundless_reading = read_window is not None
-            return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value)
+            return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
 
     @staticmethod
-    def _get_reading_window(reader: DatasetReader, bbox: Optional[BBox]) -> Optional[Window]:
+    def _get_reading_window_and_bbox(
+        reader: DatasetReader, bbox: Optional[BBox]
+    ) -> Tuple[Optional[Window], Optional[BBox]]:
         """Provides a reading window for which data will be read from image. If it returns `None` this means that the
         whole image should be read. Those cases are when bbox is not defined, image is not geo-referenced, or
-        bbox coordinates exactly match image coordinates."""
-        if bbox is None:
-            return None
-
+        bbox coordinates exactly match image coordinates. Additionally, it provides a bounding box of reading window
+        if an image is geo-referenced."""
         image_crs = reader.crs
         image_transform = reader.transform
         image_bounds = reader.bounds
         if image_crs is None or image_transform is None or image_bounds is None:
-            return None
+            return None, bbox
 
-        if bbox.crs.epsg is not image_crs.to_epsg():
+        image_bbox = BBox(list(image_bounds), crs=image_crs.to_epsg())
+        if bbox is None:
+            return None, image_bbox
+
+        original_bbox = bbox
+        if bbox.crs is not image_bbox.crs:
             bbox = bbox.transform(image_crs.to_epsg())
 
-        bbox_coords = list(bbox)
-        if bbox_coords == list(image_bounds):
-            return None
+        if bbox == image_bbox:
+            return None, original_bbox
 
-        return from_bounds(*bbox_coords, transform=image_transform)
+        return from_bounds(*iter(bbox), transform=image_transform), original_bbox
 
-    def execute(self, eopatch=None, *, filename=None):
+    def _load_data(
+        self, filename_paths: List[str], filesystem: FS, initial_bbox: Optional[BBox]
+    ) -> Tuple[np.ndarray, Optional[BBox]]:
+        """Load data from images, join them, and provide their bounding box."""
+        data_per_path: List[np.ndarray] = []
+        final_bbox: Optional[BBox] = None
+
+        for path in filename_paths:
+            data, bbox = self._load_from_image(path, filesystem, initial_bbox)
+            data_per_path.append(data)
+
+            if bbox is None:
+                continue
+            if final_bbox and bbox != final_bbox:
+                raise RuntimeError(
+                    "Given images have different geo-references. They can't be imported into an EOPatch that"
+                    " doesn't have a bounding box."
+                )
+            final_bbox = bbox
+
+        return np.concatenate(data_per_path, axis=0), final_bbox
+
+    def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Optional[str] = None) -> EOPatch:
         """Execute method which adds a new feature to the EOPatch
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created
@@ -493,8 +519,10 @@ class ImportFromTiffTask(BaseLocalIoTask):
 
         filesystem, filename_paths = self._get_filesystem_and_paths(filename, eopatch.timestamp, create_paths=False)
 
-        data = [self._load_from_image(path, filesystem, eopatch.bbox) for path in filename_paths]
-        data = np.concatenate(data, axis=0)
+        data, bbox = self._load_data(filename_paths, filesystem, eopatch.bbox)
+
+        if eopatch.bbox is None:
+            eopatch.bbox = bbox
 
         if self.image_dtype is not None:
             data = data.astype(self.image_dtype)
