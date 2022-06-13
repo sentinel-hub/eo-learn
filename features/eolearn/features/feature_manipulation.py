@@ -252,7 +252,7 @@ class SpatialResizeTask(EOTask):
         :param new_size: New size of the data (height, width)
         :param scale_factors: Factors (f_height, f_width) by which to resize the image
         :param resize_method: Interpolation method used for resizing.
-        :param resize_library: Which Pyhon library to use for resizing. Default is PIL, as it supports all dtypes and
+        :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
             features anti-aliasing. For cases where execution speed is crucial one can use CV2.
         """
         self.features = features
