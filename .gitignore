@@ -108,6 +108,7 @@ Pipfile*
 
 # IDE config
 .idea/
+.vscode/
 
 # Files that Sphinx generates
 /docs/source/examples
