@@ -14,11 +14,14 @@ file in the root directory of this source tree.
 
 import datetime as dt
 import logging
-from typing import Optional
+from functools import partial
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType, MapFeatureTask
+from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
+
+from .utils import ResizeLib, ResizeMethod, spatially_resize_image
 
 LOGGER = logging.getLogger(__name__)
 
@@ -229,3 +232,40 @@ class LinearFunctionTask(MapFeatureTask):
         """A method where feature is multiplied by a slope"""
         rescaled_feature = feature * slope + intercept
         return rescaled_feature if dtype is None else rescaled_feature.astype(dtype)
+
+
+class SpatialResizeTask(EOTask):
+    """Resizes the specified spatial features of EOPatch."""
+
+    def __init__(
+        self,
+        features: Any = ...,
+        new_size: Optional[Tuple[int, int]] = None,
+        scale_factors: Optional[Tuple[float, float]] = None,
+        resize_method: ResizeMethod = ResizeMethod.LINEAR,
+        resize_library: ResizeLib = ResizeLib.PIL,
+    ):
+        """
+        :param features: The specification of feature for which to perform resizing. Must be supported by the
+            :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`. Features can be renamed, see `FeatureParser`
+            documentation.
+        :param new_size: New size of the data (height, width)
+        :param scale_factors: Factors (f_height, f_width) by which to resize the image
+        :param resize_method: Interpolation method used for resizing.
+        :param resize_library: Which Pyhon library to use for resizing. Default is PIL, as it supports all dtypes and
+            features anti-aliasing. For cases where execution speed is crucial one can use CV2.
+        """
+        self.features = features
+        self.resize_function = partial(
+            spatially_resize_image,
+            new_size=new_size,
+            scale_factors=scale_factors,
+            resize_method=resize_method,
+            resize_library=resize_library,
+        )
+
+    def execute(self, eopatch: EOPatch) -> EOPatch:
+        for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
+            if ftype.is_spatial() and ftype.is_raster():
+                eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname])
+        return eopatch

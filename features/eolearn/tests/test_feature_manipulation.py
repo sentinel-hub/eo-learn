@@ -17,6 +17,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, ValueFilloutTask
+from eolearn.features.feature_manipulation import SpatialResizeTask
 
 
 def test_content_after_timefilter():
@@ -200,3 +201,19 @@ def test_linear_function_task():
     )
     task_override(eopatch)
     assert np.array_equal(eopatch[mask_timeless_feature], np.ones(mask_shape) * 5)
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_spatial_resize_task(example_eopatch):
+    # Warnings occur due to lossy casting in the downsampling procedure
+    resize_clp = SpatialResizeTask(("data", "CLP"), (50, 70))
+    assert resize_clp(example_eopatch).data["CLP"].shape == (68, 50, 70, 1)
+    assert resize_clp(example_eopatch).mask["CLM"].shape == (68, 101, 100, 1)
+
+    resize_all = SpatialResizeTask(..., (50, 70))
+    assert resize_all(example_eopatch).data["CLP"].shape == (68, 50, 70, 1)
+    assert resize_all(example_eopatch).mask["CLM"].shape == (68, 50, 70, 1)
+
+    resize_rename = SpatialResizeTask(("data", "CLP", "CLP_small"), (50, 70))
+    assert resize_rename(example_eopatch).data["CLP_small"].shape == (68, 50, 70, 1)
+    assert resize_rename(example_eopatch).data["CLP"].shape == (68, 50, 70, 1)
