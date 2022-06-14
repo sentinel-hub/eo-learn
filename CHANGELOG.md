@@ -1,3 +1,9 @@
+## [Version 1.1.1] - 2022-06-14
+
+- Fixed a bug in `eolearn.io.ImportFromTiffTask` where a bounding box from the image wasn't added to the EOPatch.
+- Increased minimal version of `Pillow` dependency in `eolearn.features`.
+
+
 ## [Version 1.1.0] - 2022-06-13
 
 - Large improvements of parallelization in EOExecutor. Introduced the `eolearn.core.utils.parallelize` module, featuring tools for different parallelization modes.

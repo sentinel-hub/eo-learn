@@ -22,7 +22,7 @@ def parse_requirements(file):
 setup(
     name="eo-learn",
     python_requires=">=3.7",
-    version="1.1.0",
+    version="1.1.1",
     description="Earth observation processing framework for machine learning in Python",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
@@ -35,9 +35,9 @@ setup(
     install_requires=[
         "eo-learn-core==1.1.0",
         "eo-learn-coregistration==1.1.0",
-        "eo-learn-features==1.1.0",
+        "eo-learn-features==1.1.1",
         "eo-learn-geometry==1.1.0",
-        "eo-learn-io==1.1.0",
+        "eo-learn-io==1.1.1",
         "eo-learn-mask==1.1.0",
         "eo-learn-ml-tools==1.1.0",
         "eo-learn-visualization==1.1.0",
