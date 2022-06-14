@@ -1,6 +1,6 @@
 ## [Version 1.1.1] - 2022-06-14
 
-- Fixed a bug in `eolearn.io.ImportFromTiffTask` where a bounding box from an image wasn't written into an EOPatch.
+- Fixed a bug in `eolearn.io.ImportFromTiffTask` where a bounding box from the image wasn't added to the EOPatch.
 - Increased minimal version of `Pillow` dependency in `eolearn.features`.
 
 
