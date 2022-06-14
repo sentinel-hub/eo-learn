@@ -178,6 +178,9 @@ def test_export_import(test_case, test_eopatch):
             expected_raster.dtype == new_eop[test_case.feature_type][test_case.name].dtype
         ), "Tiff imported into new EOPatch has different dtype as expected"
 
+        assert new_eop.bbox == test_eopatch.bbox
+        assert old_eop.bbox == test_eopatch.bbox
+
 
 def _execute_with_warning_control(
     export_task: ExportToTiffTask, warning: Optional[Type[Warning]], *args: Any, **kwargs: Any
