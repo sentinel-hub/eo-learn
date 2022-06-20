@@ -103,8 +103,8 @@ def resize_images(
 
         return resized
 
-    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2)  # pylint: disable=unnecessary-lambda-assignment
-    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0)  # pylint: disable=unnecessary-lambda-assignment
+    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2)  # pylint: disable=unnecessary-lambda-assignment # noqa
+    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0)  # pylint: disable=unnecessary-lambda-assignment # noqa
 
     # Choose a resize method based on number of dimensions
     resize_methods = {2: _resize2d, 3: _resize3d, 4: _resize4d}
