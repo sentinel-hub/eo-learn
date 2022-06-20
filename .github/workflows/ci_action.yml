@@ -11,32 +11,36 @@ env:
 
 
 jobs:
-
-  check-code-black:
+  
+  check-code-black-isort-flake8:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v2
         with:
           ref: ${{ env.CHECKOUT_BRANCH }}
+    
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+          architecture: x64
+
+      - name: Prepare linters
+        run: pip install black[jupyter] isort flake8 nbqa
 
       - name: Check code compliance with black
-        run: |
-          pip install black[jupyter]
-          black . --check --diff
-
-  check-code-isort:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout branch
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ env.CHECKOUT_BRANCH }}
+        run: black . --check --diff
 
       - name: Check code compliance with isort
         run: |
-          pip install isort
           isort . --check --diff
+          nbqa isort . --nbqa-diff
+
+      - name: Check code compliance with flake8
+        run: |
+          flake8 .
+          nbqa flake8 . --ignore=E402
 
   test-on-github:
     runs-on: ubuntu-latest
