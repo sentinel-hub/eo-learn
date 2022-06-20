@@ -40,7 +40,7 @@ jobs:
       - name: Check code compliance with flake8
         run: |
           flake8 .
-          nbqa flake8 . --ignore=E402
+          nbqa flake8 . --nbqa-exclude=examples/core/CoreOverview.ipynb
 
   test-on-github:
     runs-on: ubuntu-latest

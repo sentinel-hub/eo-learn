@@ -24,7 +24,7 @@ try:
     import holoviews as hv
     import hvplot  # pylint: disable=unused-import
     import hvplot.pandas  # pylint: disable=unused-import
-    import hvplot.xarray  # pylint: disable=unused-import
+    import hvplot.xarray  # pylint: disable=unused-import # noqa
     import xarray as xr
     from cartopy import crs as ccrs
 except ImportError as exception:

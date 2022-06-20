@@ -26,7 +26,7 @@ import eolearn.geometry
 import eolearn.io
 import eolearn.mask
 import eolearn.ml_tools
-import eolearn.visualization
+import eolearn.visualization  # noqa
 from eolearn.core import EOTask
 
 # -- Project information -----------------------------------------------------
@@ -193,13 +193,6 @@ man_pages = [(master_doc, "eo-learn", doc_title, [author], 1)]
 texinfo_documents = [
     (master_doc, "eo-learn", doc_title, author, "eo-learn", "One line description of project.", "Miscellaneous"),
 ]
-
-# -- Options for Credits ----------------------------------------------
-
-
-def setup(app):
-    app.connect("autodoc-process-docstring", sphinx.ext.autodoc.between("Credits:", what=["module"], exclude=True))
-
 
 # -- Options for Epub output ----------------------------------------------
 
@@ -378,3 +371,4 @@ def run_apidoc(_):
 
 def setup(app):
     app.connect("builder-inited", run_apidoc)
+    app.connect("autodoc-process-docstring", sphinx.ext.autodoc.between("Credits:", what=["module"], exclude=True))
