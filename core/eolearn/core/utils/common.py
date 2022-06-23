@@ -152,5 +152,4 @@ def generate_uid(prefix: str):
 
 def is_discrete_type(number_type: Union[np.dtype, type]) -> bool:
     """Checks if a given `numpy` type is a discrete numerical type."""
-    number_dtype = np.dtype(number_type)
-    return issubclass(number_dtype.type, (np.integer, np.bool_))
+    return np.issubdtype(number_type, np.integer) or np.issubdtype(number_type, bool)
