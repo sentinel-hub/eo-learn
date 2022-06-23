@@ -298,11 +298,17 @@ class FeatureIO:
             return np.save(file, data)
 
         if file_format is MimeType.GPKG:
-            # Temporary workaround until GeoPandas 0.11 is released
             layer = fs.path.basename(self.path)
             try:
-                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="You are attempting to write an empty DataFrame to file*",
+                        category=UserWarning,
+                    )
+                    return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
             except ValueError as err:
+                # This workaround is only required for geopandas<0.11.0 and will be removed in the future.
                 if data.empty:
                     schema = infer_schema(data)
                     return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, schema=schema)
