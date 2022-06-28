@@ -165,7 +165,6 @@ class HaralickTask(EOTask):
         return result
 
     def execute(self, eopatch):
-
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = self._calculate_haralick(eopatch[feature_type][feature_name])
 

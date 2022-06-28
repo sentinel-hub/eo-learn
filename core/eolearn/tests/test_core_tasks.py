@@ -324,7 +324,6 @@ def test_merge_features():
 
 
 def test_zip_features(test_eopatch):
-
     merge = ZipFeatureTask(
         {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},  # input features
         (FeatureType.DATA, "MERGED"),  # output feature
@@ -342,7 +341,6 @@ def test_zip_features(test_eopatch):
 
 
 def test_map_features(test_eopatch):
-
     move = MapFeatureTask(
         {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},
         {FeatureType.DATA: ["CLP2", "NDVI2", "BANDS-S2-L1C2"]},
@@ -377,7 +375,6 @@ def test_map_features(test_eopatch):
 
 
 def test_extract_bands(test_eopatch):
-
     bands = [2, 4, 8]
     move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
     patch = move_bands(test_eopatch)

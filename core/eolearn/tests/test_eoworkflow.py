@@ -199,7 +199,6 @@ def test_workflow_copying_eopatches():
 
 
 def test_workflows_reusing_nodes():
-
     in_node = EONode(InputTask())
     node1 = EONode(IncTask(), inputs=[in_node])
     node2 = EONode(IncTask(), inputs=[node1])

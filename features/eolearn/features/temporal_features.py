@@ -240,7 +240,6 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         argmax_ndvi_slope, argmin_ndvi_slope = np.zeros((h, w, 1), dtype=np.uint8), np.zeros((h, w, 1), dtype=np.uint8)
 
         for ih, iw in it.product(range(h), range(w)):
-
             ndvi_curve = ndvi[:, ih, iw, :]
             valid_idx = np.where(~ndvi.mask[:, ih, iw])[0]
 

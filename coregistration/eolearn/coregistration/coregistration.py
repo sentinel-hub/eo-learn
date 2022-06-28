@@ -155,7 +155,6 @@ class RegistrationTask(EOTask, ABC):
 
         # Pair-wise registration starting from the most recent frame
         for idx in range(time_frames - 1, 0, -1):
-
             src_mask, trg_mask = None, None
             if self.valid_mask_feature is not None:
                 src_mask = new_eopatch[self.valid_mask_feature][idx]

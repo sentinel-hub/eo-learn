@@ -84,7 +84,6 @@ def test_saving_to_a_file(eopatch):
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_saving_in_empty_folder(eopatch, fs_loader):
     with fs_loader() as temp_fs:
-
         if isinstance(temp_fs, TempFS):
             eopatch.save(temp_fs.root_path)
         else:

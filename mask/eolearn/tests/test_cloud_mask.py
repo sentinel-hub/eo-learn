@@ -35,7 +35,6 @@ def test_mono_temporal_cloud_detection(test_eopatch):
 
 
 def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
-
     add_tcm = CloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
         processing_resolution=120,

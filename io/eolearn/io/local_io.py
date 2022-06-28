@@ -278,7 +278,6 @@ class ExportToTiffTask(BaseLocalIoTask):
                 crs=dst_crs,
                 compress=self.compress,
             ) as dst:
-
                 if dst_crs == src_crs:
                     dst.write(image_array)
                 else:

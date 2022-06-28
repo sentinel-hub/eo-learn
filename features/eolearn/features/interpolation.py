@@ -142,7 +142,6 @@ class InterpolationTask(EOTask):
         interpolate_pixel_wise=False,
         **interpolation_parameters,
     ):
-
         self.renamed_feature = self.parse_renamed_feature(feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
 
         self.interpolation_object = interpolation_object

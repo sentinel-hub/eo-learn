@@ -258,7 +258,6 @@ def test_vector_to_raster_result(test_case, test_eopatch):
 
 
 def test_polygon_overlap(test_eopatch):
-
     # create two test bboxes to overlap existing classes
     bounds = test_eopatch[VECTOR_FEATURE].total_bounds
     test_bounds1 = bounds[0] + 500, bounds[1] + 1000, bounds[2] - 1450, bounds[3] - 1650

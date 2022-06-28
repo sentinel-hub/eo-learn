@@ -116,7 +116,6 @@ def test_object_sampling_task(small_image, seed, amount):
 
 @pytest.mark.parametrize("seed", range(3))
 def test_object_sampling_reproducibility(test_eopatch, seed):
-
     task = BlockSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED")],
         amount=0.1,
@@ -160,7 +159,6 @@ def test_fraction_sampling_errors(fraction, replace):
     ],
 )
 def test_fraction_sampling(seed, fraction, exclude, test_eopatch):
-
     task = FractionSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED"), (FeatureType.MASK_TIMELESS, "LULC", "LULC_SAMPLED")],
         (FeatureType.MASK_TIMELESS, "LULC"),
@@ -203,7 +201,6 @@ def test_fraction_sampling(seed, fraction, exclude, test_eopatch):
 @pytest.mark.parametrize("seed", range(3))
 @pytest.mark.parametrize("fraction", [0.3, {1: 0.1, 4: 0.3}])
 def test_fraction_sampling_reproducibility(test_eopatch, fraction, seed):
-
     task = FractionSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED")],
         (FeatureType.MASK_TIMELESS, "LULC"),

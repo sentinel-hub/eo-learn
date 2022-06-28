@@ -46,7 +46,6 @@ class AddGeopediaFeatureTask(EOTask):
         image_format=MimeType.PNG,
         mean_abs_difference=2,
     ):
-
         self.feature_type, self.feature_name = self.parse_feature(feature)
 
         self.raster_value = raster_value

@@ -38,7 +38,6 @@ def test_bad_input(bad_input):
 
 
 def test_ndi():
-
     eopatch = EOPatch()
     eopatch[INPUT_FEATURE] = np.zeros((4, 3, 3, 9))
 

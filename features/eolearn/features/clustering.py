@@ -138,7 +138,6 @@ class ClusteringTask(EOTask):
         model.fit(data)
         trimmed_labels = model.labels_
         if self.remove_small > 0:
-
             # Counts how many pixels covers each cluster
             labels = np.zeros(model.n_clusters_)
             for i in trimmed_labels:

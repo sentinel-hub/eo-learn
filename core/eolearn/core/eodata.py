@@ -532,7 +532,6 @@ class EOPatch:
         for feature_type in [
             feature_type for feature_type in FeatureType if (feature_type.is_temporal() and feature_type.has_dict())
         ]:
-
             for feature_name, value in self[feature_type].items():
                 if isinstance(value, np.ndarray):
                     self[feature_type][feature_name] = value[good_timestamp_idxs, ...]
