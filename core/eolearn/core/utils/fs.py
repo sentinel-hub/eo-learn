@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 """
 import os
 from pathlib import Path, PurePath
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import fs
 from boto3 import Session
@@ -20,18 +20,16 @@ from fs_s3fs import S3FS
 from sentinelhub import SHConfig
 
 
-def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] = None, **kwargs) -> FS:
+def get_filesystem(
+    path: Union[str, Path], create: bool = False, config: Optional[SHConfig] = None, **kwargs: Any
+) -> FS:
     """A utility function for initializing any type of filesystem object with PyFilesystem2 package.
 
     :param path: A filesystem path
-    :type path: str
     :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
-    :type create: bool
     :param config: A configuration object with AWS credentials
-    :type config: SHConfig
     :param kwargs: Any keyword arguments to be passed forward
     :return: A filesystem object
-    :rtype: fs.FS
     """
     if isinstance(path, Path):
         path = str(path)
@@ -42,7 +40,7 @@ def get_filesystem(path: str, create: bool = False, config: Optional[SHConfig] =
     return fs.open_fs(path, create=create, **kwargs)
 
 
-def get_base_filesystem_and_path(*path_parts: str, **kwargs) -> Tuple[FS, str]:
+def get_base_filesystem_and_path(*path_parts: str, **kwargs: Any) -> Tuple[FS, str]:
     """Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
     on the filesystem.
 
@@ -74,15 +72,11 @@ def load_s3_filesystem(
     """Loads AWS s3 filesystem from a path.
 
     :param path: A path to a folder on s3 bucket that will be the base folder in this filesystem
-    :type path: str
     :param strict: If `True` the filesystem will be making additional checks to the s3. Default is `False`.
-    :type strict: bool
     :param config: A configuration object with AWS credentials. By default, is set to None and in this case the default
         configuration will be taken.
-    :type config: SHConfig or None
     :param aws_profile: A name of AWS profile. If given, AWS credentials will be taken from there.
     :return: A S3 filesystem object
-    :rtype: fs_s3fs.S3FS
     """
     if not is_s3_path(path):
         raise ValueError(f"AWS path has to start with s3:// but found '{path}'.")

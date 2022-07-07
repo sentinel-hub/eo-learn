@@ -15,7 +15,7 @@ file in the root directory of this source tree.
 
 import logging
 from logging import Filter, LogRecord
-from typing import Optional
+from typing import Any, Optional
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,13 +23,13 @@ LOGGER = logging.getLogger(__name__)
 class LogFileFilter(Filter):
     """Filters log messages passed to log file."""
 
-    def __init__(self, thread_name: Optional[str], *args, **kwargs):
+    def __init__(self, thread_name: Optional[str], *args: Any, **kwargs: Any):
         """
         :param thread_name: Name of the thread by which to filter logs. By default, it won't filter by any name.
         """
         self.thread_name = thread_name
         super().__init__(*args, **kwargs)
 
-    def filter(self, record: LogRecord):
+    def filter(self, record: LogRecord) -> bool:
         """Shows everything from the thread that it was initialized in."""
         return record.threadName == self.thread_name
