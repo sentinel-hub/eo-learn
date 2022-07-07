@@ -83,7 +83,7 @@ class SnowMaskTask(BaseSnowMaskTask):
 
     def execute(self, eopatch):
         bands = eopatch[self.bands_feature][..., self.band_indices]
-        with np.errstate(divide="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore"):
             # (B03 - B11) / (B03 + B11)
             ndsi = (bands[..., 0] - bands[..., 3]) / (bands[..., 0] + bands[..., 3])
             # (B08 - B04) / (B08 + B04)
@@ -287,7 +287,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         dem = eopatch[self.dem_feature][..., 0]
         clm = eopatch[self.clm_feature][..., 0]
 
-        with np.errstate(divide="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore"):
             # (B03 - B11) / (B03 + B11)
             ndsi = (bands[..., 0] - bands[..., 2]) / (bands[..., 0] + bands[..., 2])
 
