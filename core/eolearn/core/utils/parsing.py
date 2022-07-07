@@ -184,7 +184,7 @@ class FeatureParser:
         parsed_name = self._parse_feature_name(feature_type, feature_name)
         return (feature_type, *parsed_name)
 
-    def _parse_feature_type(self, feature_type, *, message_about_position: str) -> FeatureType:
+    def _parse_feature_type(self, feature_type: Union[str, FeatureType], *, message_about_position: str) -> FeatureType:
         """Tries to extract a feature type if possible, fails otherwise.
 
         The parameter `message_about_position` is used for more informative error messages.
@@ -220,7 +220,7 @@ class FeatureParser:
         )
 
     @staticmethod
-    def _fail_for_noname_features(feature_type: FeatureType, specification: object):
+    def _fail_for_noname_features(feature_type: FeatureType, specification: object) -> None:
         """Fails if the feature type does not support names.
 
         Should only be used after the viable names `...` and `None` have already been handled.
@@ -232,7 +232,7 @@ class FeatureParser:
             )
 
     @staticmethod
-    def _validate_parsing_request(feature_type: FeatureType, name: Optional[str], eopatch: Optional[EOPatch]):
+    def _validate_parsing_request(feature_type: FeatureType, name: Optional[str], eopatch: Optional[EOPatch]) -> None:
         """Checks if the parsing request is viable with current arguments.
 
         This means checking that `eopatch` is provided if the request is an all-features request and in the case
