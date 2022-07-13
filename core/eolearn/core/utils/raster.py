@@ -9,7 +9,15 @@ Copyright (c) 2017-2019 Blaž Sovdat (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import sys
+from typing import Tuple
+
 import numpy as np
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal  # pylint: disable=ungrouped-imports
 
 
 def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "linear") -> np.ndarray:
@@ -53,3 +61,64 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
         combined_data[mask] = result
 
     return combined_data
+
+
+def constant_pad(
+    array: np.ndarray,
+    multiple_of: Tuple[int, int],
+    up_down_rule: Literal["even", "up", "down"] = "even",
+    left_right_rule: Literal["even", "left", "right"] = "even",
+    pad_value: float = 0,
+) -> np.ndarray:
+    """Function pads an image of shape (rows, columns, channels) with zeros.
+
+    It pads an image so that the shape becomes (rows + padded_rows, columns + padded_columns, channels), where
+    padded_rows = (int(rows/multiple_of[0]) + 1) * multiple_of[0] - rows
+
+    Same rule is applied to columns.
+
+    :param array: Array with shape `(rows, columns, ...)` to be padded.
+    :param multiple_of: make array' rows and columns multiple of this tuple
+    :param up_down_rule: Add padded rows evenly to the top/bottom of the image, or up (top) / down (bottom) only
+    :param left_right_rule: Add padded columns evenly to the left/right of the image, or left / right only
+    :param pad_value: Value to be assigned to padded rows and columns
+    """
+    rows, columns = array.shape[:2]
+    row_padding, col_padding = 0, 0
+
+    if rows % multiple_of[0]:
+        row_padding = (int(rows / multiple_of[0]) + 1) * multiple_of[0] - rows
+
+    if columns % multiple_of[1]:
+        col_padding = (int(columns / multiple_of[1]) + 1) * multiple_of[1] - columns
+
+    row_padding_up, row_padding_down, col_padding_left, col_padding_right = 0, 0, 0, 0
+
+    if row_padding > 0:
+        if up_down_rule == "up":
+            row_padding_up = row_padding
+        elif up_down_rule == "down":
+            row_padding_down = row_padding
+        elif up_down_rule == "even":
+            row_padding_up = int(row_padding / 2)
+            row_padding_down = row_padding_up + (row_padding % 2)
+        else:
+            raise ValueError("Padding rule for rows not supported. Choose between even, down or up!")
+
+    if col_padding > 0:
+        if left_right_rule == "left":
+            col_padding_left = col_padding
+        elif left_right_rule == "right":
+            col_padding_right = col_padding
+        elif left_right_rule == "even":
+            col_padding_left = int(col_padding / 2)
+            col_padding_right = col_padding_left + (col_padding % 2)
+        else:
+            raise ValueError("Padding rule for columns not supported. Choose between even, left or right!")
+
+    return np.lib.pad(
+        array,
+        ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
+        "constant",
+        constant_values=((pad_value, pad_value), (pad_value, pad_value)),
+    )
