@@ -36,7 +36,7 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
       in many cases use `float64` as the output dtype.
 
     :param data: An array for which percentiles will be calculated along the first axis.
-    :param percentile: A percentile number.
+    :param percentile: A percentile to compute, which must be between `0` and `100` inclusive.
     :param method: A method for estimating the percentile. This parameter is propagated to `numpy.percentile`.
     :return: An array of percentiles and a shape equal to the shape of `data` array without the first dimension.
     """
