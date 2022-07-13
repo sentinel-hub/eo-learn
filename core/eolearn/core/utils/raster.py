@@ -28,12 +28,12 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
     NaN values are removed and `numpy.percentile` function is applied. If any series contains only NaN values also any
     percentile of that series will be NaN.
 
-    This function differs from `numpy` implementations in the following:
+    This function differs from `numpy` implementations only in the following:
 
-        - In case the size of the first dimension of `data` is `0` this method will still return an output array with
-        all NaN values. This matches with `numpy.nanpercentile` while `numpy.percentile` raises an error.
-        - The output dtype of this method will be always the same as the input dtype while `numpy` implementations
-        in many cases use `float64` as the output dtype.
+    - In case the size of the first dimension of `data` is `0` this method will still return an output array with
+      all NaN values. This matches with `numpy.nanpercentile` while `numpy.percentile` raises an error.
+    - The output dtype of this method will be always the same as the input dtype while `numpy` implementations
+      in many cases use `float64` as the output dtype.
 
     :param data: An array for which percentiles will be calculated along the first axis.
     :param percentile: A percentile number.
