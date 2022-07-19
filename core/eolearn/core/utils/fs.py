@@ -67,7 +67,7 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs: Any) -> Tuple[FS, s
 
 
 def load_s3_filesystem(
-    path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None
+    path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None, **kwargs: Any
 ) -> S3FS:
     """Loads AWS s3 filesystem from a path.
 
@@ -76,6 +76,8 @@ def load_s3_filesystem(
     :param config: A configuration object with AWS credentials. By default, is set to None and in this case the default
         configuration will be taken.
     :param aws_profile: A name of AWS profile. If given, AWS credentials will be taken from there.
+    :param kwargs: Additional keyword arguments that will be used to initialize `fs_s3fs.S3FS` object, e.g. `acl`,
+        `upload_args`, `download_args`, etc.
     :return: A S3 filesystem object
     """
     if not is_s3_path(path):
@@ -96,6 +98,7 @@ def load_s3_filesystem(
         aws_secret_access_key=config.aws_secret_access_key or None,
         aws_session_token=config.aws_session_token or None,
         strict=strict,
+        **kwargs,
     )
 
 

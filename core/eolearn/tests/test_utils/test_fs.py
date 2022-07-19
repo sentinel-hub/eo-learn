@@ -66,6 +66,20 @@ def test_s3_filesystem(aws_session_token):
         assert filesystem.aws_session_token == aws_session_token
 
 
+@pytest.mark.parametrize("s3fs_function", [get_filesystem, load_s3_filesystem])
+def test_s3fs_keyword_arguments(s3fs_function):
+    filesystem = s3fs_function("s3://dummy-bucket/", acl="bucket-owner-full-control")
+    assert isinstance(filesystem, S3FS)
+    assert filesystem.upload_args == {"ACL": "bucket-owner-full-control"}
+
+    upload_args = {"test": "upload"}
+    download_args = {"test": "download"}
+    filesystem = s3fs_function("s3://dummy-bucket/", upload_args=upload_args, download_args=download_args)
+    assert isinstance(filesystem, S3FS)
+    assert filesystem.upload_args == upload_args
+    assert filesystem.download_args == download_args
+
+
 @mock.patch("eolearn.core.utils.fs.Session")
 def test_get_aws_credentials(mocked_copy):
     fake_credentials = Credentials(access_key="my-aws-access-key", secret_key="my-aws-secret-key")
