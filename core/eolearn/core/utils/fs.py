@@ -19,6 +19,7 @@ import fs
 from boto3 import Session
 from fs.base import FS
 from fs.memoryfs import MemoryFS
+from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
@@ -143,6 +144,11 @@ def pickle_fs(filesystem: FS) -> bytes:
         filesystem._tlocal = None
     if isinstance(filesystem, MemoryFS):
         filesystem.root.lock = None
+    if isinstance(filesystem, TempFS):
+        # The filesystem object is a copy of the original and isn't referenced outside this function. If we don't
+        # deactivate auto-cleaning it will delete the temporary folder at the end of this function just before it
+        # gets deleted by the garbage collector.
+        filesystem._auto_clean = False
 
     try:
         return pickle.dumps(filesystem)

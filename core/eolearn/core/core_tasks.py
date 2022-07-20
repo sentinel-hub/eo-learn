@@ -66,14 +66,14 @@ class IOTask(EOTask, metaclass=ABCMeta):
         self.filesystem_path = "/" if filesystem is None else self.path
 
         self._pickled_filesystem = None if filesystem is None else pickle_fs(filesystem)
-        self._create = create
+        self._create_path = create
         self.config = config
 
     @property
     def filesystem(self):
         """A filesystem property that unpickles an existing filesystem definition or creates a new one."""
         if self._pickled_filesystem is None:
-            filesystem = get_filesystem(self.path, create=self._create, config=self.config)
+            filesystem = get_filesystem(self.path, create=self._create_path, config=self.config)
             self._pickled_filesystem = pickle_fs(filesystem)
 
         return unpickle_fs(self._pickled_filesystem)

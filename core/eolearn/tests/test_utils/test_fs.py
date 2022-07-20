@@ -105,7 +105,7 @@ def test_get_aws_credentials(mocked_copy):
     "filesystem, compare_params",
     [
         (OSFS("."), ["root_path"]),
-        (TempFS(identifier="test"), ["identifier", "_temp_dir", "_auto_clean"]),
+        (TempFS(identifier="test"), ["identifier", "_temp_dir"]),
         (MemoryFS(), []),
         (
             S3FS("s3://fake-bucket/", strict=False, acl="public-read"),
@@ -122,6 +122,17 @@ def test_filesystem_serialization(filesystem: FS, compare_params: List[str]):
     assert isinstance(unpickled_filesystem._lock, RLock)
     for param in compare_params:
         assert getattr(filesystem, param) == getattr(unpickled_filesystem, param)
+
+
+def test_tempfs_serialization():
+    with TempFS() as filesystem:
+        pickled_filesystem = pickle_fs(filesystem)
+        assert filesystem.exists("/")
+
+        unpickled_filesystem = unpickle_fs(pickled_filesystem)
+        assert filesystem.exists("/")
+
+    assert not unpickled_filesystem.exists("/")
 
 
 @pytest.mark.parametrize(
