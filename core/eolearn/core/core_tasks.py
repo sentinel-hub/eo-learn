@@ -19,7 +19,7 @@ import numpy as np
 
 from .eodata import EOPatch
 from .eotask import EOTask
-from .utils.fs import get_filesystem
+from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
 class CopyTask(EOTask):
@@ -54,7 +54,7 @@ class IOTask(EOTask, metaclass=ABCMeta):
         :param path: root path where all EOPatches are saved
         :type path: str
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+            path.
         :type filesystem: fs.base.FS or None
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
         :type create: bool
@@ -63,19 +63,20 @@ class IOTask(EOTask, metaclass=ABCMeta):
         :type config: SHConfig or None
         """
         self.path = path
-        self._filesystem = filesystem
+        self.filesystem_path = "/" if filesystem is None else self.path
+
+        self._pickled_filesystem = None if filesystem is None else pickle_fs(filesystem)
         self._create = create
         self.config = config
 
-        self.filesystem_path = "/" if self._filesystem is None else self.path
-
     @property
     def filesystem(self):
-        """A filesystem property that either initializes a new object or returns an existing one."""
-        if self._filesystem is None:
-            return get_filesystem(self.path, create=self._create, config=self.config)
+        """A filesystem property that unpickles an existing filesystem definition or creates a new one."""
+        if self._pickled_filesystem is None:
+            filesystem = get_filesystem(self.path, create=self._create, config=self.config)
+            self._pickled_filesystem = pickle_fs(filesystem)
 
-        return self._filesystem
+        return unpickle_fs(self._pickled_filesystem)
 
     @abstractmethod
     def execute(self, *eopatches, **kwargs):
@@ -90,7 +91,7 @@ class SaveTask(IOTask):
         :param path: root path where all EOPatches are saved
         :type path: str
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
+            path.
         :type filesystem: fs.base.FS or None
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
