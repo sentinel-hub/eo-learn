@@ -24,6 +24,8 @@ import rasterio.warp
 from affine import Affine
 from fs.base import FS
 from fs.osfs import OSFS
+from fs.tempfs import TempFS
+from fs_s3fs import S3FS
 from rasterio.io import DatasetReader
 from rasterio.session import AWSSession
 from rasterio.windows import Window, from_bounds
@@ -430,12 +432,17 @@ class ImportFromTiffTask(BaseRasterIoTask):
         self.use_vsi = use_vsi
         self.timestamp_size = timestamp_size
 
-    def _get_session(self) -> AWSSession:
+    def _get_session(self, filesystem: FS) -> AWSSession:
         """Creates a session object with credentials from a config object."""
+        if not isinstance(filesystem, S3FS):
+            raise NotImplementedError("A rasterio session for VSI reading for now only works for AWS S3 filesystems")
+
         return AWSSession(
-            aws_access_key_id=self.config.aws_access_key_id or None,
-            aws_secret_access_key=self.config.aws_secret_access_key or None,
-            aws_session_token=self.config.aws_session_token or None,
+            aws_access_key_id=filesystem.aws_access_key_id,
+            aws_secret_access_key=filesystem.aws_secret_access_key,
+            aws_session_token=filesystem.aws_session_token,
+            region_name=filesystem.region,
+            endpoint_url=filesystem.endpoint_url,
         )
 
     def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
@@ -447,13 +454,13 @@ class ImportFromTiffTask(BaseRasterIoTask):
         format (e.g. COG), benchmarks show that reading with virtual system (VSI) is much faster. In other cases,
         reading with `filesystem.openbin` is faster.
         """
-        if isinstance(filesystem, OSFS):
+        if isinstance(filesystem, (OSFS, TempFS)):
             full_path = filesystem.getsyspath(path)
             with rasterio.Env():
                 return self._read_image(full_path, bbox)
 
         if self.use_vsi:
-            session = self._get_session()
+            session = self._get_session(filesystem)
             with rasterio.Env(session=session):
                 full_path = get_full_path(filesystem, path)
                 return self._read_image(full_path, bbox)
