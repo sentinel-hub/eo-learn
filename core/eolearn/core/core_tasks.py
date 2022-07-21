@@ -75,6 +75,7 @@ class IOTask(EOTask, metaclass=ABCMeta):
         if self._pickled_filesystem is None:
             filesystem = get_filesystem(self.path, create=self._create_path, config=self.config)
             self._pickled_filesystem = pickle_fs(filesystem)
+            return filesystem
 
         return unpickle_fs(self._pickled_filesystem)
 

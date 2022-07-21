@@ -127,8 +127,8 @@ def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> 
 
 
 def pickle_fs(filesystem: FS) -> bytes:
-    """By default, filesystem objects cannot be pickled because they contain thread locks and similar unserializable
-    objects. This function removes the before pickling the filesystem object.
+    """By default, a filesystem object cannot be pickled because it contains a thread lock and optionally some other
+    unserializable objects. This function removes all unserializable objects before pickling the filesystem object.
 
     :param filesystem: A filesystem object to pickle.
     :return: A pickle of a filesystem object in bytes.
