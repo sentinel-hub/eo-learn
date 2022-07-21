@@ -239,9 +239,10 @@ def test_export2tiff_separate_timestamps(test_eopatch):
         tmp_file_name_reproject = "temp_file_4326_%Y%m%d.tif"
         feature = test_case.feature_type, test_case.name
 
-        export_task = ExportToTiffTask(feature, band_indices=test_case.bands, date_indices=test_case.times)
-        full_path = os.path.join(tmp_dir_name, tmp_file_name)
-        export_task(eopatch, filename=full_path)
+        export_task = ExportToTiffTask(
+            feature, tmp_dir_name, band_indices=test_case.bands, date_indices=test_case.times
+        )
+        export_task(eopatch, filename=tmp_file_name)
 
         for timestamp in eopatch.timestamp:
             expected_path = os.path.join(tmp_dir_name, timestamp.strftime("temp_file_%Y%m%dT%H%M%S.tif"))
