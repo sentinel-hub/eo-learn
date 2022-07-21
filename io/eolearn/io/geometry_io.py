@@ -15,10 +15,12 @@ import boto3
 import fiona
 import geopandas as gpd
 from fiona.session import AWSSession
+from fs_s3fs import S3FS
 
 from sentinelhub import CRS, GeopediaFeatureIterator, SHConfig
 
 from eolearn.core import EOPatch, EOTask, FeatureTypeSet
+from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, unpickle_fs
 
 LOGGER = logging.getLogger(__name__)
 
@@ -88,21 +90,30 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
 class VectorImportTask(_BaseVectorImportTask):
     """A task for importing (Fiona readable) vector data files into an EOPatch"""
 
-    def __init__(self, feature, path, reproject=True, clip=False, config=None, **kwargs):
+    def __init__(self, feature, path, reproject=True, clip=False, filesystem=None, config=None, **kwargs):
         """
         :param feature: A vector feature into which to import data
         :type feature: (FeatureType, str)
-        :param path: A path to a dataset containing vector data. It can be either a local path or a path to s3 bucket
+        :param path: A path to a dataset containing vector data. It can be either a local path or a path to s3 bucket.
+            If `filesystem` parameter is given the path should be relative to the filesystem, otherwise it should
+            be an absolute path.
         :type path: str
         :param reproject: Should the geometries be transformed to coordinate reference system of the requested bbox?
         :type reproject: bool, default = True
         :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
         :type clip: bool, default = False
+        :param filesystem: A filesystem object. If not given it will be created from the path and config credentials.
+        :type filesystem: fs.base.FS or None
         :param config: A configuration object with AWS credentials (if not provided, ~/.aws/credentials will be used)
         :type config: SHConfig
         :param kwargs: Additional args that will be passed to `fiona.open` or `geopandas.read` calls (e.g. layer name)
         """
+        if filesystem is None:
+            filesystem, path = get_base_filesystem_and_path(path, config=config)
         self.path = path
+        self.full_path = get_full_path(filesystem, path)
+        self._pickled_filesystem = pickle_fs(filesystem)
+
         self.fiona_kwargs = kwargs
         self._aws_session = None
         self._dataset_crs = None
@@ -118,10 +129,15 @@ class VectorImportTask(_BaseVectorImportTask):
         :rtype: AWSSession
         """
         if self._aws_session is None:
+            filesystem = unpickle_fs(self._pickled_filesystem)
+            if not isinstance(filesystem, S3FS):
+                raise ValueError(f"AWS session can only be obtained for S3 filesystem but found {filesystem}")
+
             boto_session = boto3.session.Session(
-                aws_access_key_id=self.config.aws_access_key_id or None,
-                aws_secret_access_key=self.config.aws_secret_access_key or None,
-                aws_session_token=self.config.aws_session_token or None,
+                aws_access_key_id=filesystem.aws_access_key_id,
+                aws_secret_access_key=filesystem.aws_secret_access_key,
+                aws_session_token=filesystem.aws_session_token,
+                region_name=filesystem.region,
             )
             self._aws_session = AWSSession(boto_session)
 
@@ -135,7 +151,7 @@ class VectorImportTask(_BaseVectorImportTask):
         :rtype: CRS
         """
         if self._dataset_crs is None:
-            if self.path.startswith("s3://"):
+            if self.full_path.startswith("s3://"):
                 with fiona.Env(session=self.aws_session):
                     self._read_crs()
             else:
@@ -145,16 +161,16 @@ class VectorImportTask(_BaseVectorImportTask):
 
     def _read_crs(self):
         """Reads information about CRS from a dataset"""
-        with fiona.open(self.path, **self.fiona_kwargs) as features:
+        with fiona.open(self.full_path, **self.fiona_kwargs) as features:
             self._dataset_crs = CRS(features.crs)
 
     def _load_vector_data(self, bbox):
         """Loads vector data either from S3 or local path"""
         bbox_bounds = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
-        if self.path.startswith("s3://"):
+        if self.full_path.startswith("s3://"):
             with fiona.Env(session=self.aws_session):
-                with fiona.open(self.path, **self.fiona_kwargs) as features:
+                with fiona.open(self.full_path, **self.fiona_kwargs) as features:
                     feature_iter = features if bbox_bounds is None else features.filter(bbox=bbox_bounds)
 
                     return gpd.GeoDataFrame.from_features(
@@ -163,7 +179,7 @@ class VectorImportTask(_BaseVectorImportTask):
                         crs=self.dataset_crs.pyproj_crs(),
                     )
 
-        return gpd.read_file(self.path, bbox=bbox_bounds, **self.fiona_kwargs)
+        return gpd.read_file(self.full_path, bbox=bbox_bounds, **self.fiona_kwargs)
 
 
 class GeopediaVectorImportTask(_BaseVectorImportTask):
