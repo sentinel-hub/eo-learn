@@ -12,10 +12,13 @@ file in the root directory of this source tree.
 
 import copy
 import datetime
+import pickle
 
 import numpy as np
 import pytest
+from fs.osfs import OSFS
 from fs.tempfs import TempFS
+from fs_s3fs import S3FS
 
 from sentinelhub import CRS
 
@@ -129,6 +132,16 @@ def test_save_nothing(patch):
 
         assert not temp_fs.exists(temp_path)
         assert output == patch
+
+
+@pytest.mark.parametrize("filesystem", [OSFS("."), S3FS("s3://fake-bucket/"), TempFS()])
+@pytest.mark.parametrize("task_class", [LoadTask, SaveTask])
+def test_io_task_pickling(filesystem, task_class):
+    task = task_class("/", filesystem=filesystem)
+
+    pickled_task = pickle.dumps(task)
+    unpickled_task = pickle.loads(pickled_task)
+    assert isinstance(unpickled_task, task_class)
 
 
 def test_add_rename_remove_feature(patch):

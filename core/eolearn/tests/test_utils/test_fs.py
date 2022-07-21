@@ -8,19 +8,24 @@ file in the root directory of this source tree.
 """
 import os
 import unittest.mock as mock
+from _thread import RLock
 from pathlib import Path
+from typing import List
 
 import pytest
 from botocore.credentials import Credentials
+from fs.base import FS
 from fs.errors import CreateFailed
+from fs.memoryfs import MemoryFS
 from fs.osfs import OSFS
+from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 from moto import mock_s3
 
 from sentinelhub import SHConfig
 
 from eolearn.core import get_filesystem, load_s3_filesystem
-from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path
+from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path, pickle_fs, unpickle_fs
 
 
 def test_get_local_filesystem(tmp_path):
@@ -66,6 +71,20 @@ def test_s3_filesystem(aws_session_token):
         assert filesystem.aws_session_token == aws_session_token
 
 
+@pytest.mark.parametrize("s3fs_function", [get_filesystem, load_s3_filesystem])
+def test_s3fs_keyword_arguments(s3fs_function):
+    filesystem = s3fs_function("s3://dummy-bucket/", acl="bucket-owner-full-control")
+    assert isinstance(filesystem, S3FS)
+    assert filesystem.upload_args == {"ACL": "bucket-owner-full-control"}
+
+    upload_args = {"test": "upload"}
+    download_args = {"test": "download"}
+    filesystem = s3fs_function("s3://dummy-bucket/", upload_args=upload_args, download_args=download_args)
+    assert isinstance(filesystem, S3FS)
+    assert filesystem.upload_args == upload_args
+    assert filesystem.download_args == download_args
+
+
 @mock.patch("eolearn.core.utils.fs.Session")
 def test_get_aws_credentials(mocked_copy):
     fake_credentials = Credentials(access_key="my-aws-access-key", secret_key="my-aws-secret-key")
@@ -80,6 +99,40 @@ def test_get_aws_credentials(mocked_copy):
     config = get_aws_credentials("default", config=default_config)
     assert config.aws_access_key_id != default_config.aws_access_key_id
     assert config.aws_secret_access_key != default_config.aws_secret_access_key
+
+
+@pytest.mark.parametrize(
+    "filesystem, compare_params",
+    [
+        (OSFS("."), ["root_path"]),
+        (TempFS(identifier="test"), ["identifier", "_temp_dir"]),
+        (MemoryFS(), []),
+        (
+            S3FS("s3://fake-bucket/", strict=False, acl="public-read"),
+            ["_bucket_name", "dir_path", "strict", "upload_args"],
+        ),
+    ],
+)
+def test_filesystem_serialization(filesystem: FS, compare_params: List[str]):
+    pickled_filesystem = pickle_fs(filesystem)
+    assert isinstance(pickled_filesystem, bytes)
+
+    unpickled_filesystem = unpickle_fs(pickled_filesystem)
+    assert filesystem is not unpickled_filesystem
+    assert isinstance(unpickled_filesystem._lock, RLock)
+    for param in compare_params:
+        assert getattr(filesystem, param) == getattr(unpickled_filesystem, param)
+
+
+def test_tempfs_serialization():
+    with TempFS() as filesystem:
+        pickled_filesystem = pickle_fs(filesystem)
+        assert filesystem.exists("/")
+
+        unpickled_filesystem = unpickle_fs(pickled_filesystem)
+        assert filesystem.exists("/")
+
+    assert not unpickled_filesystem.exists("/")
 
 
 @pytest.mark.parametrize(

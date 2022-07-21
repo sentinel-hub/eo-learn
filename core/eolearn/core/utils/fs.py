@@ -8,13 +8,18 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import copy
 import os
+import pickle
+import threading
 from pathlib import Path, PurePath
 from typing import Any, Optional, Tuple, Union
 
 import fs
 from boto3 import Session
 from fs.base import FS
+from fs.memoryfs import MemoryFS
+from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
@@ -67,7 +72,7 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs: Any) -> Tuple[FS, s
 
 
 def load_s3_filesystem(
-    path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None
+    path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None, **kwargs: Any
 ) -> S3FS:
     """Loads AWS s3 filesystem from a path.
 
@@ -76,6 +81,8 @@ def load_s3_filesystem(
     :param config: A configuration object with AWS credentials. By default, is set to None and in this case the default
         configuration will be taken.
     :param aws_profile: A name of AWS profile. If given, AWS credentials will be taken from there.
+    :param kwargs: Additional keyword arguments that will be used to initialize `fs_s3fs.S3FS` object, e.g. `acl`,
+        `upload_args`, `download_args`, etc.
     :return: A S3 filesystem object
     """
     if not is_s3_path(path):
@@ -96,6 +103,7 @@ def load_s3_filesystem(
         aws_secret_access_key=config.aws_secret_access_key or None,
         aws_session_token=config.aws_session_token or None,
         strict=strict,
+        **kwargs,
     )
 
 
@@ -116,6 +124,58 @@ def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> 
     config.aws_secret_access_key = aws_credentials.secret_key or ""
     config.aws_session_token = aws_credentials.token or ""
     return config
+
+
+def pickle_fs(filesystem: FS) -> bytes:
+    """By default, a filesystem object cannot be pickled because it contains a thread lock and optionally some other
+    unserializable objects. This function removes all unserializable objects before pickling the filesystem object.
+
+    :param filesystem: A filesystem object to pickle.
+    :return: A pickle of a filesystem object in bytes.
+    """
+    if not isinstance(filesystem, FS):
+        raise ValueError(f"Given filesystem object should be an instance of a class derived from {FS}")
+
+    filesystem = copy.copy(filesystem)
+
+    # pylint: disable=protected-access
+    filesystem._lock = None  # type: ignore[assignment]
+    if isinstance(filesystem, S3FS):
+        filesystem._tlocal = None
+    if isinstance(filesystem, MemoryFS):
+        filesystem.root.lock = None
+    if isinstance(filesystem, TempFS):
+        # The filesystem object is a copy of the original and isn't referenced outside this function. If we don't
+        # deactivate auto-cleaning it will delete the temporary folder at the end of this function just before it
+        # gets deleted by the garbage collector.
+        filesystem._auto_clean = False
+
+    try:
+        return pickle.dumps(filesystem)
+    except TypeError as exception:
+        raise NotImplementedError(f"Serialization of {type(filesystem)} is not yet supported") from exception
+
+
+def unpickle_fs(pickled_filesystem: bytes) -> FS:
+    """An inverse function of `pickle_fs` function. After unpickling a filesystem object it adds back all unserializable
+    objects that were previously removed by `pickle_fs`.
+
+    :param pickled_filesystem: Bytes that represent a pickled filesystem object.
+    :return: Unpickled filesystem object.
+    """
+    filesystem = pickle.loads(pickled_filesystem)
+
+    if not isinstance(filesystem, FS):
+        raise ValueError
+
+    # pylint: disable=protected-access
+    filesystem._lock = threading.RLock()
+    if isinstance(filesystem, S3FS):
+        filesystem._tlocal = threading.local()
+    if isinstance(filesystem, MemoryFS):
+        filesystem.root.lock = threading.RLock()
+
+    return filesystem
 
 
 def get_full_path(filesystem: FS, relative_path: str) -> str:
