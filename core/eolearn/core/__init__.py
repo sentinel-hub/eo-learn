@@ -26,7 +26,7 @@ from .eonode import EONode, linearly_connect_tasks
 from .eotask import EOTask
 from .eoworkflow import EOWorkflow, WorkflowResults
 from .eoworkflow_tasks import OutputTask
-from .utils.common import constant_pad, deep_eq
+from .utils.common import deep_eq
 from .utils.fs import get_filesystem, load_s3_filesystem
 from .utils.parallelize import execute_with_mp_lock, join_futures, join_futures_iter, parallelize
 from .utils.parsing import FeatureParser
