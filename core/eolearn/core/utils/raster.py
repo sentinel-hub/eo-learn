@@ -40,6 +40,8 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
     :param method: A method for estimating the percentile. This parameter is propagated to `numpy.percentile`.
     :return: An array of percentiles and a shape equal to the shape of `data` array without the first dimension.
     """
+    method_kwargs = {"method" if np.__version__ >= "1.22.0" else "interpolation": method}
+
     combined_data = np.zeros(data.shape[1:], dtype=data.dtype)
 
     no_data_counts = np.count_nonzero(np.isnan(data), axis=0)
@@ -56,7 +58,7 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
             chunk = chunk[~np.isnan(chunk)]
             chunk = chunk.reshape((time_size - no_data_num, sample_size), order="F")
 
-            result = np.percentile(chunk, q=percentile, axis=0, method=method)
+            result = np.percentile(chunk, q=percentile, axis=0, **method_kwargs)
 
         combined_data[mask] = result
 
