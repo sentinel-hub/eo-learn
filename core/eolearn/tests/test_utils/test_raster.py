@@ -29,9 +29,10 @@ def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtyp
         data *= 1000
     data = data.astype(dtype)
 
+    method_kwargs = {"method" if np.__version__ >= "1.22.0" else "interpolation": method}
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=RuntimeWarning)
-        expected_result = np.nanpercentile(data, q=percentile, axis=0, method=method).astype(data.dtype)
+        expected_result = np.nanpercentile(data, q=percentile, axis=0, **method_kwargs).astype(data.dtype)
 
     result = fast_nanpercentile(data, percentile, method=method)
 
