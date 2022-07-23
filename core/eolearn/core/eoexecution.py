@@ -258,7 +258,7 @@ class EOExecutor:
             handler.setFormatter(formatter)
 
         if filter_logs_by_thread:
-            handler.addFilter(LogFileFilter(threading.currentThread().getName()))
+            handler.addFilter(LogFileFilter(threading.current_thread().name))
 
         if logs_filter:
             handler.addFilter(logs_filter)
