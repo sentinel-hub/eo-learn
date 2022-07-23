@@ -19,7 +19,6 @@ from enum import Enum
 
 import cv2
 import numpy as np
-import registration
 
 from eolearn.core import EOTask
 from eolearn.core.exceptions import EORuntimeWarning
@@ -236,45 +235,6 @@ class RegistrationTask(EOTask, ABC):
         rot_angle = np.arccos(cos_theta)
         transl_norm = np.linalg.norm(warp_matrix[:, 2])
         return 1 if int((rot_angle > MAX_ROTATION) or (transl_norm > MAX_TRANSLATION)) else 0
-
-
-class ThunderRegistrationTask(RegistrationTask):
-    """Registration task implementing a translational registration using the thunder-registration package"""
-
-    def register(self, src, trg, trg_mask=None, src_mask=None):
-        """Implementation of pair-wise registration using thunder-registration
-
-        For more information on the model estimation, refer to https://github.com/thunder-project/thunder-registration
-        This function takes two 2D single channel images and estimates a 2D translation that best aligns the pair. The
-        estimation is done by maximising the correlation of the Fourier transforms of the images. Once, the translation
-        is estimated, it is applied to the (multichannel) image to warp and, possibly, ot hte ground-truth. Different
-        interpolations schemes could be more suitable for images and ground-truth values (or masks).
-
-        :param src: 2D single channel source moving image
-        :param trg: 2D single channel target reference image
-        :param src_mask: Mask of source image. Not used in this method.
-        :param trg_mask: Mask of target image. Not used in this method.
-        :return: Estimated 2D transformation matrix of shape 2x3
-        """
-        # Initialise instance of CrossCorr object
-        ccreg = registration.CrossCorr()
-        # padding_value = 0
-        # Compute translation between a pair of images
-        model = ccreg.fit(src, reference=trg)
-        # Get translation as an array
-        translation = [-x for x in model.toarray().tolist()[0]]
-        # Fill in transformation matrix
-        warp_matrix = np.eye(2, 3)
-        warp_matrix[0, 2] = translation[1]
-        warp_matrix[1, 2] = translation[0]
-        # Return transformation matrix
-        return warp_matrix
-
-    def get_params(self):
-        LOGGER.info("{self.__class__.__name__}:This registration does not require parameters")
-
-    def check_params(self):
-        pass
 
 
 class ECCRegistrationTask(RegistrationTask):
