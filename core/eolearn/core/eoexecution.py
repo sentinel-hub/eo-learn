@@ -18,11 +18,12 @@ import concurrent.futures
 import datetime as dt
 import inspect
 import logging
+import sys
 import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
@@ -34,8 +35,13 @@ from .utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, un
 from .utils.logging import LogFileFilter
 from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
 
+if sys.version_info < (3, 8):
+    from typing_extensions import Protocol
+else:
+    from typing import Protocol  # pylint: disable=ungrouped-imports
 
-class _FilesystemHandlerFactoryType(Protocol):
+
+class _HandlerWithFsFactoryType(Protocol):
     """Type definition for a callable that accepts a path and a filesystem object"""
 
     def __call__(self, path: str, filesystem: FS, **kwargs: Any) -> Handler:
@@ -43,7 +49,7 @@ class _FilesystemHandlerFactoryType(Protocol):
 
 
 # pylint: disable=invalid-name
-_HandlerFactoryType = Union[Callable[[str], Handler], _FilesystemHandlerFactoryType]
+_HandlerFactoryType = Union[Callable[[str], Handler], _HandlerWithFsFactoryType]
 
 
 @dataclass(frozen=True)
@@ -106,7 +112,7 @@ class EOExecutor:
         :param logs_handler_factory: A callable class or function that initializes an instance of a logging `Handler`
             object. Its signature should support one of the following options:
 
-            - A single parameter accepting a full path to the log file.
+            - A single parameter describing a full path to the log file.
             - Parameters `path` and `filesystem` where path to the log file is relative to the given `filesystem`
               object.
 
