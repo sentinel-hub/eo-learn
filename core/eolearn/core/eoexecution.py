@@ -16,12 +16,13 @@ file in the root directory of this source tree.
 """
 import concurrent.futures
 import datetime as dt
+import inspect
 import logging
 import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
@@ -33,8 +34,16 @@ from .utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, un
 from .utils.logging import LogFileFilter
 from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
 
+
+class _FilesystemHandlerFactoryType(Protocol):
+    """Type definition for a callable that accepts a path and a filesystem object"""
+
+    def __call__(self, path: str, filesystem: FS, **kwargs: Any) -> Handler:
+        ...
+
+
 # pylint: disable=invalid-name
-_HandlerFactoryType = Callable[[str, FS], Handler]
+_HandlerFactoryType = Union[Callable[[str], Handler], _FilesystemHandlerFactoryType]
 
 
 @dataclass(frozen=True)
@@ -48,7 +57,7 @@ class _ProcessingData:
     log_path: Optional[str]
     filter_logs_by_thread: bool
     logs_filter: Optional[Filter]
-    logs_handler_factory: Optional[_HandlerFactoryType]
+    logs_handler_factory: _HandlerFactoryType
 
 
 @dataclass(frozen=True)
@@ -79,7 +88,7 @@ class EOExecutor:
         logs_folder: str = ".",
         filesystem: Optional[FS] = None,
         logs_filter: Optional[Filter] = None,
-        logs_handler_factory: Optional[_HandlerFactoryType] = None,
+        logs_handler_factory: _HandlerFactoryType = FileHandler,
     ):
         """
         :param workflow: A prepared instance of EOWorkflow class
@@ -94,9 +103,14 @@ class EOExecutor:
         :param filesystem: A filesystem object for saving logs and a report.
         :param logs_filter: An instance of a custom filter object that will filter certain logs from being written into
             logs. It works only if save_logs parameter is set to True.
-        :param logs_handler_factory: A callable class or function that takes positional parameters `path` and
-            `filesystem` where `path` is a logging path relative to the filesystem object. It creates an instance of a
-            logging handler object.
+        :param logs_handler_factory: A callable class or function that initializes an instance of a logging `Handler`
+            object. Its signature should support one of the following options:
+
+            - A single parameter accepting a full path to the log file.
+            - Parameters `path` and `filesystem` where path to the log file is relative to the given `filesystem`
+              object.
+
+            The 2nd option is chosen only if `filesystem` parameter exists in the signature.
         """
         self.workflow = workflow
         self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
@@ -210,7 +224,7 @@ class EOExecutor:
         pickled_filesystem: bytes,
         filter_logs_by_thread: bool,
         logs_filter: Optional[Filter],
-        logs_handler_factory: Optional[_HandlerFactoryType],
+        logs_handler_factory: _HandlerFactoryType,
     ) -> Tuple[Optional[Logger], Optional[Handler]]:
         """Adds a handler to a logger and returns them both. In case this fails it shows a warning."""
         if log_path:
@@ -259,16 +273,17 @@ class EOExecutor:
         pickled_filesystem: bytes,
         filter_logs_by_thread: bool,
         logs_filter: Optional[Filter],
-        logs_handler_factory: Optional[_HandlerFactoryType],
+        logs_handler_factory: _HandlerFactoryType,
     ) -> Handler:
         """Provides object which handles logs."""
         filesystem = unpickle_fs(pickled_filesystem)
 
-        if logs_handler_factory is None:
-            full_path = get_full_path(filesystem, log_path)
-            handler = FileHandler(full_path)
+        factory_signature = inspect.signature(logs_handler_factory)
+        if "filesystem" in factory_signature.parameters:
+            handler = logs_handler_factory(log_path, filesystem=filesystem)
         else:
-            handler = logs_handler_factory(log_path, filesystem)
+            full_path = get_full_path(filesystem, log_path)
+            handler = logs_handler_factory(full_path)
 
         if not handler.formatter:
             formatter = logging.Formatter("%(asctime)s %(name)-12s %(levelname)-8s %(message)s")
