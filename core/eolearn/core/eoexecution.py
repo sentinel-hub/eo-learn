@@ -180,7 +180,11 @@ class EOExecutor:
         if self.save_logs:
             self.filesystem.makedirs(self.report_folder, recreate=True)
 
-        log_paths = self.get_log_paths(full_path=False) if self.save_logs else [None] * len(self.execution_kwargs)
+        log_paths: Sequence[Optional[str]]
+        if self.save_logs:
+            log_paths = self.get_log_paths(full_path=False)
+        else:
+            log_paths = [None] * len(self.execution_kwargs)
 
         filter_logs_by_thread = not multiprocess and workers is not None and workers > 1
         processing_args = [
@@ -280,10 +284,10 @@ class EOExecutor:
 
         factory_signature = inspect.signature(logs_handler_factory)
         if "filesystem" in factory_signature.parameters:
-            handler = logs_handler_factory(log_path, filesystem=filesystem)
+            handler = logs_handler_factory(log_path, filesystem=filesystem)  # type: ignore[call-arg]
         else:
             full_path = get_full_path(filesystem, log_path)
-            handler = logs_handler_factory(full_path)
+            handler = logs_handler_factory(full_path)  # type: ignore[call-arg]
 
         if not handler.formatter:
             formatter = logging.Formatter("%(asctime)s %(name)-12s %(levelname)-8s %(message)s")
@@ -302,7 +306,7 @@ class EOExecutor:
         """Provides a type of processing according to given parameters."""
         return _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
-    def _prepare_general_stats(self, workers: int, processing_type: _ProcessingType) -> Dict[str, object]:
+    def _prepare_general_stats(self, workers: Optional[int], processing_type: _ProcessingType) -> Dict[str, object]:
         """Prepares a dictionary with a general statistics about executions."""
         failed_count = sum(results.workflow_failed() for results in self.execution_results)
         return {
