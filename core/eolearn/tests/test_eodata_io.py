@@ -10,13 +10,11 @@ import datetime
 import os
 import tempfile
 
-import boto3
 import fs
 import numpy as np
 import pytest
 from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
-from fs_s3fs import S3FS
 from geopandas import GeoDataFrame
 from moto import mock_s3
 
@@ -24,26 +22,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
 
-
-@mock_s3
-def _create_new_s3_fs():
-    """Creates a new empty mocked s3 bucket. If one such bucket already exists it deletes it first."""
-    bucket_name = "mocked-test-bucket"
-    s3resource = boto3.resource("s3", region_name="eu-central-1")
-
-    bucket = s3resource.Bucket(bucket_name)
-
-    if bucket.creation_date:  # If bucket already exists
-        for key in bucket.objects.all():
-            key.delete()
-        bucket.delete()
-
-    s3resource.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
-
-    return S3FS(bucket_name=bucket_name)
-
-
-FS_LOADERS = [TempFS, _create_new_s3_fs]
+FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
 
 @pytest.fixture(name="eopatch")

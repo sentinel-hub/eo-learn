@@ -13,7 +13,6 @@ from _thread import RLock
 from pathlib import Path
 from typing import List
 
-import boto3
 import pytest
 from botocore.credentials import Credentials
 from fs.base import FS
@@ -28,24 +27,6 @@ from sentinelhub import SHConfig
 
 from eolearn.core import get_filesystem, load_s3_filesystem
 from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path, pickle_fs, unpickle_fs
-
-
-@mock_s3
-def _create_new_s3_fs() -> S3FS:
-    """Creates a new empty mocked s3 bucket. If one such bucket already exists it deletes it first."""
-    bucket_name = "mocked-test-bucket"
-    s3resource = boto3.resource("s3", region_name="eu-central-1")
-
-    bucket = s3resource.Bucket(bucket_name)
-
-    if bucket.creation_date:  # If bucket already exists
-        for key in bucket.objects.all():
-            key.delete()
-        bucket.delete()
-
-    s3resource.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
-
-    return S3FS(bucket_name=bucket_name)
 
 
 def test_get_local_filesystem(tmp_path):
@@ -156,10 +137,10 @@ def test_tempfs_serialization():
 
 
 @mock_s3
-def test_s3fs_serialization():
+def test_s3fs_serialization(create_mocked_s3fs):
     """Makes sure that after serialization and deserialization filesystem object can still be used for reading,
     writing, and listing objects."""
-    filesystem = _create_new_s3_fs()
+    filesystem = create_mocked_s3fs()
     filename = "file.json"
     file_content = {"test": 42}
 
