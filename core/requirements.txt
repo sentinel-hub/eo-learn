@@ -7,3 +7,4 @@ numpy>=1.20.0
 python-dateutil
 sentinelhub>=3.4.4
 tqdm>=4.27
+typing-extensions;python_version<"3.8"

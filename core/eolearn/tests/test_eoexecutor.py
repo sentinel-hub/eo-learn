@@ -16,10 +16,13 @@ import multiprocessing
 import os
 import tempfile
 import time
+from logging import FileHandler
 
 import pytest
+from fs.base import FS
 
 from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, OutputTask, WorkflowResults, execute_with_mp_lock
+from eolearn.core.utils.fs import get_full_path
 
 
 class ExampleTask(EOTask):
@@ -93,11 +96,19 @@ def execution_kwargs_fixture(test_nodes):
     return execution_kwargs
 
 
+class DummyFilesystemFileHandler(FileHandler):
+    """Just a dummy wrapper around `FileHandler` that has a support for `filesystem` parameter."""
+
+    def __init__(self, path: str, filesystem: FS):
+        full_path = get_full_path(filesystem, path)
+        super().__init__(full_path)
+
+
 @pytest.mark.parametrize(
     "test_args",
     [
         (1, True, False),
-        (1, False, True),  # singleprocess
+        (1, False, True),  # single process
         (5, True, False),
         (3, True, True),  # multiprocess
         (3, False, False),
@@ -105,7 +116,8 @@ def execution_kwargs_fixture(test_nodes):
     ],
 )
 @pytest.mark.parametrize("execution_names", [None, [4, "x", "y", "z"]])
-def test_read_logs(test_args, execution_names, workflow, execution_kwargs):
+@pytest.mark.parametrize("logs_handler_factory", [FileHandler, DummyFilesystemFileHandler])
+def test_read_logs(test_args, execution_names, workflow, execution_kwargs, logs_handler_factory):
     workers, multiprocess, filter_logs = test_args
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
@@ -115,6 +127,7 @@ def test_read_logs(test_args, execution_names, workflow, execution_kwargs):
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
             execution_names=execution_names,
+            logs_handler_factory=logs_handler_factory,
         )
         executor.run(workers=workers, multiprocess=multiprocess)
 
