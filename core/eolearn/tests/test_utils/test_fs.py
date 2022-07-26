@@ -6,6 +6,7 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import json
 import os
 import unittest.mock as mock
 from _thread import RLock
@@ -133,6 +134,30 @@ def test_tempfs_serialization():
         assert filesystem.exists("/")
 
     assert not unpickled_filesystem.exists("/")
+
+
+@mock_s3
+def test_s3fs_serialization(create_mocked_s3fs):
+    """Makes sure that after serialization and deserialization filesystem object can still be used for reading,
+    writing, and listing objects."""
+    filesystem = create_mocked_s3fs()
+    filename = "file.json"
+    file_content = {"test": 42}
+
+    with filesystem.open(filename, "w") as fp:
+        json.dump(file_content, fp)
+
+    filesystem = unpickle_fs(pickle_fs(filesystem))
+
+    assert filesystem.listdir("/") == [filename]
+    with filesystem.openbin(filename, "r") as fp:
+        read_content = json.load(fp)
+    assert read_content == file_content
+
+    filename2 = "file2.json"
+    with filesystem.open(filename2, "w") as fp:
+        json.dump({}, fp)
+    assert filesystem.listdir("/") == [filename, filename2]
 
 
 @pytest.mark.parametrize(

@@ -10,6 +10,7 @@ pylint>=2.14.0
 pytest>=7.0.0
 pytest-cov
 pytest-mock
+pytest-lazy-fixture
 ray[default]
 responses
 twine
