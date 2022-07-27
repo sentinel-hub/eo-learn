@@ -21,6 +21,7 @@ from sentinelhub import (
     BBox,
     DataCollection,
     MimeType,
+    MosaickingOrder,
     SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
@@ -227,7 +228,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         :param max_threads: Maximum threads to be used when downloading data.
         :type max_threads: int
         :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
-        :type mosaicking_order: str
+        :type mosaicking_order: str or MosaickingOrder or None
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :type aux_request_args: dict
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
@@ -255,7 +256,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
-        self.mosaicking_order = mosaicking_order
+        self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
     def _parse_and_validate_features(self, features):
@@ -421,7 +422,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             mosaicking.
         :type single_scene: bool
         :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
-        :type mosaicking_order: str
+        :type mosaicking_order: str or MosaickingOrder or None
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :type aux_request_args: dict
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
@@ -441,7 +442,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.time_difference = time_difference or dt.timedelta(seconds=1)
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
-        self.mosaicking_order = mosaicking_order
+        self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
         self.bands_feature = None

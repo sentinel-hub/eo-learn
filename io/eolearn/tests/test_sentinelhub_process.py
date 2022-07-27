@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from sentinelhub import CRS, Band, BBox, DataCollection, SHConfig, Unit
+from sentinelhub import CRS, Band, BBox, DataCollection, MosaickingOrder, SHConfig, Unit
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.io import (
@@ -496,6 +496,7 @@ class TestSentinelHubInputTaskDataCollections:
                 size=size,
                 time_difference=time_difference,
                 data_collection=DataCollection.SENTINEL2_L2A,
+                mosaicking_order="mostRecent",
             ),
             bbox=bbox,
             time_interval=time_interval,
@@ -514,6 +515,7 @@ class TestSentinelHubInputTaskDataCollections:
                 size=size,
                 time_difference=time_difference,
                 data_collection=DataCollection.SENTINEL2_L2A,
+                mosaicking_order=MosaickingOrder.MOST_RECENT,
             ),
             feature="NDVI-FEATURE",
             bbox=bbox,
