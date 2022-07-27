@@ -15,7 +15,7 @@ file in the root directory of this source tree.
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Generic, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 from geopandas import GeoDataFrame
@@ -26,10 +26,8 @@ from .utils import ResizeLib, ResizeMethod, spatially_resize_image
 
 LOGGER = logging.getLogger(__name__)
 
-_T = TypeVar("_T", np.ndarray, dt.datetime)
 
-
-class SimpleFilterTask(EOTask, Generic[_T]):
+class SimpleFilterTask(EOTask):
     """
     Transforms an eopatch of shape [n, w, h, d] into [m, w, h, d] for m <= n. It removes all slices which don't
     conform to the filter_func.
@@ -40,7 +38,7 @@ class SimpleFilterTask(EOTask, Generic[_T]):
     def __init__(
         self,
         feature: Union[Tuple[FeatureType, str], FeatureType],
-        filter_func: Callable[[_T], bool],
+        filter_func: Union[Callable[[np.ndarray], bool], Callable[[dt.datetime], bool]],
         filter_features: Any = ...,
     ):
         """
@@ -51,10 +49,10 @@ class SimpleFilterTask(EOTask, Generic[_T]):
         self.feature = self.parse_feature(
             feature, allowed_feature_types=FeatureTypeSet.TEMPORAL_TYPES.difference([FeatureType.VECTOR])
         )
-        self.filter_func: Callable[[_T], bool] = filter_func
+        self.filter_func = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
 
-    def _get_filtered_indices(self, feature_data: Iterable[_T]) -> List[int]:
+    def _get_filtered_indices(self, feature_data: Iterable) -> List[int]:
         """Get valid time indices from either a numpy array or a list of timestamps."""
         return [idx for idx, img in enumerate(feature_data) if self.filter_func(img)]
 
