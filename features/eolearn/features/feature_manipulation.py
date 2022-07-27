@@ -15,7 +15,7 @@ file in the root directory of this source tree.
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Generic, Iterable, List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 from geopandas import GeoDataFrame
@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 _T = TypeVar("_T", np.ndarray, dt.datetime)
 
 
-class SimpleFilterTask(EOTask):
+class SimpleFilterTask(EOTask, Generic[_T]):
     """
     Transforms an eopatch of shape [n, w, h, d] into [m, w, h, d] for m <= n. It removes all slices which don't
     conform to the filter_func.
@@ -37,19 +37,21 @@ class SimpleFilterTask(EOTask):
     A filter_func is a callable which takes a numpy array and returns a bool.
     """
 
-    def __init__(self, feature, filter_func: Callable[[_T], bool], filter_features=...):
+    def __init__(
+        self,
+        feature: Union[Tuple[FeatureType, str], FeatureType],
+        filter_func: Callable[[_T], bool],
+        filter_features: Any = ...,
+    ):
         """
         :param feature: Feature in the EOPatch , e.g. feature=(FeatureType.DATA, 'bands')
-        :type feature: (FeatureType, str) or FeatureType.TIMESTAMP
         :param filter_func: A callable that takes a numpy evaluates to bool.
-        :type filter_func: Callable
         :param filter_features: A collection of features which will be filtered into a new EOPatch
-        :type filter_features: dict(FeatureType: set(str))
         """
         self.feature = self.parse_feature(
             feature, allowed_feature_types=FeatureTypeSet.TEMPORAL_TYPES.difference([FeatureType.VECTOR])
         )
-        self.filter_func = filter_func
+        self.filter_func: Callable[[_T], bool] = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
 
     def _get_filtered_indices(self, feature_data: Iterable[_T]) -> List[int]:
@@ -79,7 +81,7 @@ class SimpleFilterTask(EOTask):
 
             elif feature_type.is_temporal():
                 if feature_type.is_raster():
-                    data = data[good_idxs, ...]
+                    data = data[good_idxs]
                 else:
                     data = self._filter_vector_feature(data, good_idxs, eopatch.timestamp)
 
