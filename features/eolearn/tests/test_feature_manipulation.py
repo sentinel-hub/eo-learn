@@ -16,11 +16,39 @@ import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, ValueFilloutTask
+from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from eolearn.features.feature_manipulation import SpatialResizeTask
 
 
-def test_content_after_timefilter():
+@pytest.mark.parametrize(
+    "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMP, (FeatureType.LABEL, "IS_CLOUDLESS")]
+)
+def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
+    filter_all_task = SimpleFilterTask(feature, filter_func=lambda _: False)
+    filtered_eopatch = filter_all_task.execute(example_eopatch)
+
+    assert filtered_eopatch is not example_eopatch
+    assert filtered_eopatch.data["CLP"].shape == (0, 101, 100, 1)
+    assert filtered_eopatch.scalar["CLOUD_COVERAGE"].shape == (0, 1)
+    assert len(filtered_eopatch.vector["CLM_VECTOR"]) == 0
+    assert np.array_equal(filtered_eopatch.mask_timeless["LULC"], example_eopatch.mask_timeless["LULC"])
+    assert filtered_eopatch.timestamp == []
+
+
+@pytest.mark.parametrize(
+    "feature", [(FeatureType.MASK, "CLM"), FeatureType.TIMESTAMP, (FeatureType.SCALAR, "CLOUD_COVERAGE")]
+)
+def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
+    del example_eopatch.data["REFERENCE_SCENES"]  # Wrong size of time dimension
+
+    filter_all_task = SimpleFilterTask(feature, filter_func=lambda _: True)
+    filtered_eopatch = filter_all_task.execute(example_eopatch)
+
+    assert filtered_eopatch is not example_eopatch
+    assert filtered_eopatch == example_eopatch
+
+
+def test_content_after_time_filter():
     timestamps = [
         datetime.datetime(2017, 1, 1, 10, 4, 7),
         datetime.datetime(2017, 1, 4, 10, 14, 5),
@@ -37,16 +65,14 @@ def test_content_after_timefilter():
 
     new_start, new_end = 4, -3
 
-    new_interval = (timestamps[new_start], timestamps[new_end])
-
-    new_timestamps = timestamps[new_start : new_end + 1]
-
     eop = EOPatch(timestamp=timestamps, data={"data": data})
 
-    filter_task = FilterTimeSeriesTask(start_date=new_interval[0], end_date=new_interval[1])
-    filter_task.execute(eop)
+    filter_task = FilterTimeSeriesTask(start_date=timestamps[new_start], end_date=timestamps[new_end])
+    filtered_eop = filter_task.execute(eop)
 
-    assert new_timestamps == eop.timestamp
+    assert filtered_eop is not eop
+    assert filtered_eop.timestamp == timestamps[new_start : new_end + 1]
+    assert np.array_equal(filtered_eop.data["data"], data[new_start : new_end + 1, ...])
 
 
 def test_fill():
