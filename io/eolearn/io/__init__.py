@@ -13,4 +13,4 @@ from .sentinelhub_process import (
     get_available_timestamps,
 )
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"

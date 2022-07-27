@@ -1,3 +1,19 @@
+## [Version 1.2.0] - 2022-07-27
+
+- Improved handling of filesystem objects:
+  * introduced utility functions `pickle_fs` and `unpickle_fs` into `eo-learn-core`,
+  * updated all IO tasks to fully support `filesystem` as an `__init__` parameter,
+  * updated `EOExecutor` to support `filesystem` propagation to worker processes.
+- Official support for Python `3.10`.
+- Moved `eolearn.coregistration.ThunderRegistrationTask` into an extension of `eo-learn-coregistration` package because it doesn't support Python `3.10`.
+- Updated functionality of `eolearn.features.SimpleFilterTask`. It now returns a new `EOPatch` and doesn't raise an error if all time slices would be filtered out.
+- Larger updates of `eolearn.io.ExportToTiffTask`. It doesn't allow undefined `folder` parameter anymore, but it has better support for `filesystem` objects.
+- Added `eolearn.core.utils.raster.fast_nanpercentile` utility function and moved `constant_pad` function into the same module.
+- Suppressed a warning when saving an `EOPatch` with empty vector features.
+- Updated code-style checkers by including `flake8` and checks for Jupyter notebooks.
+- Various style improvements in example notebooks, code, and tests.
+
+
 ## [Version 1.1.1] - 2022-06-14
 
 - Fixed a bug in `eolearn.io.ImportFromTiffTask` where a bounding box from the image wasn't added to the EOPatch.
