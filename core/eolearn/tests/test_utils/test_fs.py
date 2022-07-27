@@ -25,8 +25,8 @@ from moto import mock_s3
 
 from sentinelhub import SHConfig
 
-from eolearn.core import get_filesystem, load_s3_filesystem
-from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path, pickle_fs, unpickle_fs
+from eolearn.core import get_filesystem, load_s3_filesystem, pickle_fs, unpickle_fs
+from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path
 
 
 def test_get_local_filesystem(tmp_path):

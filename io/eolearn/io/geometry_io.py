@@ -19,8 +19,8 @@ from fs_s3fs import S3FS
 
 from sentinelhub import CRS, GeopediaFeatureIterator, SHConfig
 
-from eolearn.core import EOPatch, EOTask, FeatureTypeSet
-from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, unpickle_fs
+from eolearn.core import EOPatch, EOTask, FeatureTypeSet, pickle_fs, unpickle_fs
+from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
 
