@@ -70,7 +70,7 @@ def save_eopatch(
 
     features_to_save = []
     for ftype, fname, path in eopatch_features:
-        feature_io = create_feature_io(ftype, path, filesystem)
+        feature_io = _create_feature_io(ftype, path, filesystem)
         data = eopatch[(ftype, fname)]
 
         features_to_save.append((feature_io, data, compress_level))
@@ -111,7 +111,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
     """A utility function used by `EOPatch.load` method."""
     features = list(walk_filesystem(filesystem, patch_location, features))
-    loading_data: Iterable[Any] = [create_feature_io(ftype, path, filesystem) for ftype, _, path in features]
+    loading_data: Iterable[Any] = [_create_feature_io(ftype, path, filesystem) for ftype, _, path in features]
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -314,7 +314,7 @@ class FeatureIO(Generic[_T], metaclass=ABCMeta):
         """Writes data to a file in the appropriate way."""
 
 
-class FeatureIOnumpy(FeatureIO[np.ndarray]):
+class FeatureIONumpy(FeatureIO[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
     file_format = MimeType.NPY
@@ -389,7 +389,7 @@ class FeatureIOgeodf(FeatureIO[gpd.GeoDataFrame]):
             raise err
 
 
-class FeatureIOjson(FeatureIO[_T]):
+class FeatureIOJson(FeatureIO[_T]):
     """FeatureIO object specialized for JSON-like objects."""
 
     file_format = MimeType.JSON
@@ -399,7 +399,7 @@ class FeatureIOjson(FeatureIO[_T]):
 
     def _write_to_file(self, data: _T, file: Union[BinaryIO, gzip.GzipFile]) -> None:
         try:
-            json_data = json.dumps(data, indent=2, default=jsonify_timestamp)
+            json_data = json.dumps(data, indent=2, default=_jsonify_timestamp)
         except TypeError as exception:
             raise TypeError(
                 f"Failed to serialize when saving JSON file to {self.path}. Make sure that this feature type "
@@ -409,7 +409,7 @@ class FeatureIOjson(FeatureIO[_T]):
         file.write(json_data.encode())
 
 
-class FeatureIObbox(FeatureIO[BBox]):
+class FeatureIOBBox(FeatureIO[BBox]):
     """FeatureIO object specialized for BBox objects."""
 
     file_format = MimeType.GEOJSON
@@ -423,19 +423,19 @@ class FeatureIObbox(FeatureIO[BBox]):
         file.write(json_data.encode())
 
 
-def jsonify_timestamp(param: object) -> str:
+def _jsonify_timestamp(param: object) -> str:
     """Adds the option to serialize datetime.date objects via isoformat."""
     if isinstance(param, datetime.date):
         return param.isoformat()
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
-def create_feature_io(ftype: FeatureType, path: str, filesystem: FS) -> FeatureIO:
+def _create_feature_io(ftype: FeatureType, path: str, filesystem: FS) -> FeatureIO:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
-        return FeatureIObbox(path, filesystem)
+        return FeatureIOBBox(path, filesystem)
     if ftype in (FeatureType.TIMESTAMP, FeatureType.META_INFO):
-        return FeatureIOjson(path, filesystem)
+        return FeatureIOJson(path, filesystem)
     if ftype in FeatureTypeSet.VECTOR_TYPES:
         return FeatureIOgeodf(path, filesystem)
-    return FeatureIOnumpy(path, filesystem)
+    return FeatureIONumpy(path, filesystem)
