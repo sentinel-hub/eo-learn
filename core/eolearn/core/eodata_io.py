@@ -411,6 +411,7 @@ class FeatureIOjson(FeatureIO[_T]):
 
 class FeatureIObbox(FeatureIO[BBox]):
     """FeatureIO object specialized for BBox objects."""
+
     file_format = MimeType.GEOJSON
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> BBox:
