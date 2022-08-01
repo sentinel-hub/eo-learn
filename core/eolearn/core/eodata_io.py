@@ -10,11 +10,14 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import concurrent.futures
+import datetime
 import gzip
 import json
 import pickle
 import warnings
+from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from typing import Any, BinaryIO, Generic, Iterable, Optional, TypeVar, Union
 
 import fs
 import fs.move
@@ -26,14 +29,16 @@ from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from geopandas import GeoDataFrame, GeoSeries
 
-from sentinelhub import CRS, Geometry, MimeType
+from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 from sentinelhub.os_utils import sys_is_windows
 
-from .constants import FeatureType, OverwritePermission
+from .constants import FeatureType, FeatureTypeSet, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
+
+_T = TypeVar("_T")
 
 
 def save_eopatch(
@@ -65,10 +70,10 @@ def save_eopatch(
 
     features_to_save = []
     for ftype, fname, path in eopatch_features:
-        feature_io = FeatureIO(ftype, path, filesystem)
+        feature_io = create_feature_io(ftype, path, filesystem)
         data = eopatch[(ftype, fname)]
 
-        features_to_save.append((feature_io, data, ftype.file_format(), compress_level))
+        features_to_save.append((feature_io, data, compress_level))
 
     # Cannot be done before due to lazy loading (this would delete the files before the data is loaded)
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
@@ -106,7 +111,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
     """A utility function used by `EOPatch.load` method."""
     features = list(walk_filesystem(filesystem, patch_location, features))
-    loading_data = [FeatureIO(ftype, path, filesystem) for ftype, _, path in features]
+    loading_data: Iterable[Any] = [create_feature_io(ftype, path, filesystem) for ftype, _, path in features]
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -233,25 +238,28 @@ def _to_lowercase(ftype, fname, *_):
     return ftype, fname if fname is ... else fname.lower()
 
 
-class FeatureIO:
+class FeatureIO(Generic[_T], metaclass=ABCMeta):
     """A class that handles the saving and loading process of a single feature at a given location."""
 
-    def __init__(self, feature_type: FeatureType, path: str, filesystem: FS):
+    def __init__(self, path: str, filesystem: FS):
         """
-        :param feature_type: A feature type
         :param path: A path in the filesystem
         :param filesystem: A filesystem object
         """
-        self.feature_type = feature_type
         self.path = path
         self.filesystem = filesystem
 
-        self.loaded_value = None
+        self.loaded_value: Optional[_T] = None
 
-    def __repr__(self):
+    @property
+    @abstractmethod
+    def file_format(self) -> MimeType:
+        """The type of files handled by the FeatureIO."""
+
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.path})"
 
-    def load(self):
+    def load(self) -> _T:
         """Method for loading a feature. The loaded value is stored into an attribute in case a second load request is
         triggered inside a shallow-copied EOPatch.
         """
@@ -262,83 +270,69 @@ class FeatureIO:
             if MimeType.GZIP.matches_extension(self.path):
                 path = fs.path.splitext(self.path)[0]
                 with gzip.open(file_handle, "rb") as gzip_fp:
-                    self.loaded_value = self._decode(gzip_fp, path)
+                    self.loaded_value = self._read_from_file(gzip_fp, path)
             else:
-                self.loaded_value = self._decode(file_handle, self.path)
+                self.loaded_value = self._read_from_file(file_handle, self.path)
 
         return self.loaded_value
 
-    def save(self, data, file_format, compress_level=0):
-        """Method for saving a feature."""
+    @abstractmethod
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> _T:
+        """Loads from a file and decodes content."""
+
+    def save(self, data: _T, compress_level: int = 0) -> None:
+        """Method for saving a feature.
+
+        To minimize the chance of corrupted files (in case of OSFS and TempFS) the file is first written and then moved
+        to correct location. If any exceptions happen during the writing process the file is not moved (and old one not
+        overwritten).
+        """
         gz_extension = ("." + MimeType.GZIP.extension) if compress_level else ""
-        path = f"{self.path}.{file_format.extension}{gz_extension}"
+        path = f"{self.path}.{self.file_format.extension}{gz_extension}"
 
         if isinstance(self.filesystem, (OSFS, TempFS)):
             with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
-                self._save(tempfs, data, "tmp_feature", file_format, compress_level)
+                self._save(tempfs, data, "tmp_feature", compress_level)
                 if fs.__version__ == "2.4.16" and self.filesystem.exists(path):  # An issue in the fs version
                     self.filesystem.remove(path)
                 fs.move.move_file(tempfs, "tmp_feature", self.filesystem, path)
             return
-        self._save(self.filesystem, data, path, file_format, compress_level)
+        self._save(self.filesystem, data, path, compress_level)
 
-    def _save(self, filesystem, data, path, file_format, compress_level=0):
+    def _save(self, filesystem: FS, data: _T, path: str, compress_level: int = 0) -> None:
         """Given a filesystem it saves and compresses the data."""
         with filesystem.openbin(path, "w") as file_handle:
             if compress_level == 0:
-                self._write_to_file(data, file_handle, file_format)
-                return
+                self._write_to_file(data, file_handle)
 
-            with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level, mode="wb") as gzip_file_handle:
-                self._write_to_file(data, gzip_file_handle, file_format)
+            else:
+                with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level, mode="wb") as gzip_file_handle:
+                    self._write_to_file(data, gzip_file_handle)
 
-    def _write_to_file(self, data, file, file_format):
+    @abstractmethod
+    def _write_to_file(self, data: _T, file: Union[BinaryIO, gzip.GzipFile]) -> None:
         """Writes data to a file in the appropriate way."""
-        if file_format is MimeType.NPY:
-            return np.save(file, data)
 
-        if file_format is MimeType.GPKG:
-            layer = fs.path.basename(self.path)
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        message="You are attempting to write an empty DataFrame to file*",
-                        category=UserWarning,
-                    )
-                    return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
-            except ValueError as err:
-                # This workaround is only required for geopandas<0.11.0 and will be removed in the future.
-                if data.empty:
-                    schema = infer_schema(data)
-                    return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, schema=schema)
-                raise err
 
-        if file_format in [MimeType.JSON, MimeType.GEOJSON]:
-            if self.feature_type is FeatureType.BBOX:
-                data = data.geojson
+class FeatureIOnumpy(FeatureIO[np.ndarray]):
+    """FeatureIO object specialized for Numpy arrays."""
 
-            if self.feature_type is FeatureType.TIMESTAMP:
-                data = [timestamp.isoformat() for timestamp in data]
+    file_format = MimeType.NPY
 
-            try:
-                json_data = json.dumps(data, indent=2)
-            except TypeError as exception:
-                raise TypeError(
-                    f"Failed to serialize {self.feature_type} into a JSON file. Make sure that this feature type "
-                    "contains only JSON serializable Python types before attempting to serialize it."
-                ) from exception
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> np.ndarray:
+        return np.load(file)
 
-            return file.write(json_data.encode())
+    def _write_to_file(self, data: np.ndarray, file: Union[BinaryIO, gzip.GzipFile]) -> None:
+        return np.save(file, data)
 
-        raise ValueError(f"Unsupported file format {file_format} for feature type {self.feature_type}.")
 
-    def _decode(self, file, path):
-        """Loads from a file and decodes content."""
+class FeatureIOgeodf(FeatureIO[gpd.GeoDataFrame]):
+    """FeatureIO object specialized for GeoDataFrames."""
+
+    file_format = MimeType.GPKG
+
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> gpd.GeoDataFrame:
         file_format = MimeType(fs.path.splitext(path)[1].strip("."))
-
-        if file_format is MimeType.NPY:
-            return np.load(file)
 
         if file_format is MimeType.GPKG:
             dataframe = gpd.read_file(file)
@@ -357,19 +351,11 @@ class FeatureIO:
 
             return dataframe
 
-        if file_format in [MimeType.JSON, MimeType.GEOJSON]:
-            json_data = json.load(file)
-
-            if self.feature_type is FeatureType.BBOX:
-                return Geometry.from_geojson(json_data).bbox
-
-            return json_data
-
         if file_format is MimeType.PICKLE:
             warnings.warn(
-                f"File {self.path} with data of type {self.feature_type} is in pickle format which is deprecated "
-                "since eo-learn version 1.0. Please re-save this EOPatch with the new eo-learn version to "
-                "update the format. In newer versions this backward compatibility will be removed.",
+                f"File {self.path} is in pickle format which is deprecated since eo-learn version 1.0. Please re-save "
+                "this EOPatch with the new eo-learn version to update the format. In newer versions this backward "
+                "compatibility will be removed.",
                 EODeprecationWarning,
             )
 
@@ -382,4 +368,73 @@ class FeatureIO:
                 data = data.set_geometry("geometry")
 
             return data
-        raise ValueError(f"Unsupported data type for file {path}.")
+
+        raise ValueError(f"Path {self.path} leads to a non-GPKG file, which is not supported.")
+
+    def _write_to_file(self, data: gpd.GeoDataFrame, file: Union[BinaryIO, gzip.GzipFile]) -> None:
+        layer = fs.path.basename(self.path)
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="You are attempting to write an empty DataFrame to file*",
+                    category=UserWarning,
+                )
+                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
+        except ValueError as err:
+            # This workaround is only required for geopandas<0.11.0 and will be removed in the future.
+            if data.empty:
+                schema = infer_schema(data)
+                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, schema=schema)
+            raise err
+
+
+class FeatureIOjson(FeatureIO[_T]):
+    """FeatureIO object specialized for JSON-like objects."""
+
+    file_format = MimeType.JSON
+
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> _T:
+        return json.load(file)
+
+    def _write_to_file(self, data: _T, file: Union[BinaryIO, gzip.GzipFile]) -> None:
+        try:
+            json_data = json.dumps(data, indent=2, default=jsonify_timestamp)
+        except TypeError as exception:
+            raise TypeError(
+                f"Failed to serialize when saving JSON file to {self.path}. Make sure that this feature type "
+                "contains only JSON serializable Python types before attempting to serialize it."
+            ) from exception
+
+        file.write(json_data.encode())
+
+
+class FeatureIObbox(FeatureIO[BBox]):
+    """FeatureIO object specialized for BBox objects."""
+    file_format = MimeType.GEOJSON
+
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> BBox:
+        json_data = json.load(file)
+        return Geometry.from_geojson(json_data).bbox
+
+    def _write_to_file(self, data: BBox, file: Union[BinaryIO, gzip.GzipFile]) -> None:
+        json_data = json.dumps(data.geojson, indent=2)
+        file.write(json_data.encode())
+
+
+def jsonify_timestamp(param: object) -> str:
+    """Adds the option to serialize datetime.date objects via isoformat."""
+    if isinstance(param, datetime.date):
+        return param.isoformat()
+    raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
+
+
+def create_feature_io(ftype: FeatureType, path: str, filesystem: FS) -> FeatureIO:
+    """Creates the correct FeatureIO, corresponding to the FeatureType."""
+    if ftype is FeatureType.BBOX:
+        return FeatureIObbox(path, filesystem)
+    if ftype in (FeatureType.TIMESTAMP, FeatureType.META_INFO):
+        return FeatureIOjson(path, filesystem)
+    if ftype in FeatureTypeSet.VECTOR_TYPES:
+        return FeatureIOgeodf(path, filesystem)
+    return FeatureIOnumpy(path, filesystem)
