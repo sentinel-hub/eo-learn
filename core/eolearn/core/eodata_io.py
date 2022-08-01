@@ -326,7 +326,7 @@ class FeatureIONumpy(FeatureIO[np.ndarray]):
         return np.save(file, data)
 
 
-class FeatureIOgeodf(FeatureIO[gpd.GeoDataFrame]):
+class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
 
     file_format = MimeType.GPKG
@@ -437,5 +437,5 @@ def _create_feature_io(ftype: FeatureType, path: str, filesystem: FS) -> Feature
     if ftype in (FeatureType.TIMESTAMP, FeatureType.META_INFO):
         return FeatureIOJson(path, filesystem)
     if ftype in FeatureTypeSet.VECTOR_TYPES:
-        return FeatureIOgeodf(path, filesystem)
+        return FeatureIOGeoDf(path, filesystem)
     return FeatureIONumpy(path, filesystem)
