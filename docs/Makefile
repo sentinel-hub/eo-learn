@@ -19,3 +19,4 @@ help:
 %: Makefile
 	rm -rf ./build/
 	$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	rm -r source/examples source/markdowns source/reference source/eotasks.rst

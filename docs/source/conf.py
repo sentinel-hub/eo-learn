@@ -98,7 +98,7 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path .
-exclude_patterns = ["**.ipynb_checkpoints"]
+exclude_patterns = ["**.ipynb_checkpoints", "custom_reference*"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -347,13 +347,15 @@ with open("eotasks.rst", "w") as f:
 
 # Auto-generate documentation pages
 current_dir = os.path.abspath(os.path.dirname(__file__))
-target_dir = os.path.join(current_dir, "reference")
+reference_dir = os.path.join(current_dir, "reference")
+custom_reference_dir = os.path.join(current_dir, "custom_reference")
 modules = ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
-
-os.makedirs(target_dir, exist_ok=True)
 
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
 APIDOC_EXCLUDE = defaultdict(list, {"core": ["graph.py", "eodata_io.py", "eodata_merge.py"]})
+
+shutil.rmtree(reference_dir, ignore_errors=True)
+shutil.copytree(custom_reference_dir, reference_dir)
 
 
 def run_apidoc(_):
@@ -366,7 +368,7 @@ def run_apidoc(_):
         exclude = [os.path.join(module_dir, "eolearn", module, filename) for filename in APIDOC_EXCLUDE[module]]
         exclude.extend([os.path.join(module_dir, "setup.py"), os.path.join(module_dir, "eolearn", "tests")])
 
-        main(["-e", "-o", target_dir, module_dir, *exclude, *APIDOC_OPTIONS])
+        main(["-e", "-o", reference_dir, module_dir, *exclude, *APIDOC_OPTIONS])
 
 
 def setup(app):
