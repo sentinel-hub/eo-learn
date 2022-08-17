@@ -16,8 +16,9 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import logging
+import sys
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
 
 import attr
 import dateutil.parser
@@ -32,6 +33,11 @@ from .eodata_merge import merge_eopatches
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal  # pylint: disable=ungrouped-imports
 
 _T = TypeVar("_T")
 _Self = TypeVar("_Self")
