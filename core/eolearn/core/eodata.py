@@ -14,9 +14,10 @@ file in the root directory of this source tree.
 from __future__ import annotations
 
 import copy
-import datetime
+import datetime as dt
 import logging
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from abc import ABCMeta, abstractmethod
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Tuple, Type, TypeVar, Union, overload
 
 import attr
 import dateutil.parser
@@ -32,6 +33,9 @@ from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
 
+_T = TypeVar("_T")
+_Self = TypeVar("_Self")
+
 LOGGER = logging.getLogger(__name__)
 
 MAX_DATA_REPR_LEN = 100
@@ -42,6 +46,169 @@ if TYPE_CHECKING:
         from eolearn.visualization.eopatch_base import BasePlotConfig
     except ImportError:
         pass
+
+
+class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
+    """A dictionary structure that holds features of certain feature type.
+
+    It checks that features have a correct and dimension. It also supports lazy loading by accepting a function as a
+    feature value, which is then called when the feature is accessed.
+    """
+
+    FORBIDDEN_CHARS = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
+
+    def __init__(self, feature_dict: Dict[str, Union[_T, FeatureIO[_T]]], feature_type: FeatureType):
+        """
+        :param feature_dict: A dictionary of feature names and values
+        :param feature_type: Type of features
+        """
+        super().__init__()
+
+        self.feature_type = feature_type
+
+        for feature_name, value in feature_dict.items():
+            self[feature_name] = value
+
+    @classmethod
+    def empty_factory(cls: Type[_Self], feature_type: FeatureType) -> Callable[[], _Self]:
+        """Returns a factory function for creating empty feature dictionaries with an appropriate feature type."""
+
+        def factory() -> _Self:
+            return cls(feature_dict={}, feature_type=feature_type)  # type: ignore[call-arg]
+
+        return factory
+
+    def __setitem__(self, feature_name: str, value: Union[_T, FeatureIO[_T]]) -> None:
+        """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
+        transform value in correct form.
+        """
+        if not isinstance(value, FeatureIO):
+            value = self._parse_feature_value(value, feature_name)
+        self._check_feature_name(feature_name)
+        super().__setitem__(feature_name, value)
+
+    def _check_feature_name(self, feature_name: str) -> None:
+        if not isinstance(feature_name, str):
+            raise ValueError(f"Feature name must be a string but an object of type {type(feature_name)} was given.")
+
+        for char in feature_name:
+            if char in self.FORBIDDEN_CHARS:
+                raise ValueError(
+                    f"The name of feature ({self.feature_type}, {feature_name}) contains an illegal character '{char}'."
+                )
+
+        if feature_name == "":
+            raise ValueError("Feature name cannot be an empty string.")
+
+    @overload
+    def __getitem__(self, feature_name: str, load: Literal[True] = ...) -> _T:
+        ...
+
+    @overload
+    def __getitem__(self, feature_name: str, load: Literal[False] = ...) -> Union[_T, FeatureIO[_T]]:
+        ...
+
+    def __getitem__(self, feature_name: str, load: bool = True) -> Union[_T, FeatureIO[_T]]:
+        """Implements lazy loading."""
+        value = super().__getitem__(feature_name)
+
+        if isinstance(value, FeatureIO) and load:
+            value = value.load()
+            self[feature_name] = value
+
+        return value
+
+    def __eq__(self, other: object) -> bool:
+        """Compares its content against a content of another feature type dictionary."""
+        return deep_eq(self, other)
+
+    def __ne__(self, other: object) -> bool:
+        """Compares its content against a content of another feature type dictionary."""
+        return not self.__eq__(other)
+
+    def get_dict(self) -> Dict[str, _T]:
+        """Returns a Python dictionary of features and value."""
+        return dict(self)
+
+    @abstractmethod
+    def _parse_feature_value(self, value: object, feature_name: str) -> _T:
+        """Checks if value fits the feature type. If not it tries to fix it or raise an error.
+
+        :raises: ValueError
+        """
+
+
+class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
+    """_FeatureDict object specialized for Numpy arrays."""
+
+    def __init__(self, feature_dict: Dict[str, Union[np.ndarray, FeatureIO[np.ndarray]]], feature_type: FeatureType):
+        ndim = feature_type.ndim()
+        if ndim is None:
+            raise ValueError(f"Feature type {feature_type} does not represent a Numpy based feature.")
+        self.ndim = ndim
+        super().__init__(feature_dict, feature_type)
+
+    def _parse_feature_value(self, value: object, feature_name: str) -> np.ndarray:
+        if not isinstance(value, np.ndarray):
+            raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
+        if not hasattr(self, "ndim"):  # Because of serialization/deserialization during multiprocessing
+            return value
+        if value.ndim != self.ndim:
+            raise ValueError(
+                f"Numpy array of {self.feature_type} feature has to have {self.ndim} "
+                f"dimension{'s' if self.ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
+            )
+
+        if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
+            raise ValueError(
+                f"{self.feature_type} is a discrete feature type therefore dtype of data array "
+                f"has to be either integer or boolean type but feature {feature_name} has dtype {value.dtype.type}."
+            )
+
+        return value
+
+
+class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
+    """_FeatureDict object specialized for GeoDataFrames."""
+
+    def __init__(self, feature_dict: Dict[str, gpd.GeoDataFrame], feature_type: FeatureType):
+        if not feature_type.is_vector:
+            raise ValueError(f"Feature type {feature_type} does not represent a vector feature.")
+        super().__init__(feature_dict, feature_type)
+
+    def _parse_feature_value(self, value: object, feature_name: str) -> gpd.GeoDataFrame:
+        if isinstance(value, gpd.GeoSeries):
+            value = gpd.GeoDataFrame(dict(geometry=value), crs=value.crs)
+
+        if isinstance(value, gpd.GeoDataFrame):
+            if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
+                raise ValueError(
+                    f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with timestamps but "
+                    f"feature {feature_name} doesn't not have it."
+                )
+
+            return value
+
+        raise ValueError(
+            f"{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__} but feature "
+            f"{feature_name} has data of type {type(value)}."
+        )
+
+
+class _FeatureDictJson(_FeatureDict[Any]):
+    """_FeatureDict object specialized for meta-info."""
+
+    def _parse_feature_value(self, value: object, _: str) -> Any:
+        return value
+
+
+def _create_feature_dict(feature_type: FeatureType, value: Dict[str, Any]) -> _FeatureDict:
+    """Creates the correct FeatureIO, corresponding to the FeatureType."""
+    if feature_type.is_vector():
+        return _FeatureDictGeoDf(value, feature_type)
+    if feature_type is FeatureType.META_INFO:
+        return _FeatureDictJson(value, feature_type)
+    return _FeatureDictNumpy(value, feature_type)
 
 
 @attr.s(repr=False, eq=False, kw_only=True)
@@ -65,19 +232,19 @@ class EOPatch:
     arrays in other attributes.
     """
 
-    data = attr.ib(factory=dict)
-    mask = attr.ib(factory=dict)
-    scalar = attr.ib(factory=dict)
-    label = attr.ib(factory=dict)
-    vector = attr.ib(factory=dict)
-    data_timeless = attr.ib(factory=dict)
-    mask_timeless = attr.ib(factory=dict)
-    scalar_timeless = attr.ib(factory=dict)
-    label_timeless = attr.ib(factory=dict)
-    vector_timeless = attr.ib(factory=dict)
-    meta_info = attr.ib(factory=dict)
-    bbox = attr.ib(default=None)
-    timestamp = attr.ib(factory=list)
+    data: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.DATA))
+    mask: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.MASK))
+    scalar: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.SCALAR))
+    label: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.LABEL))
+    vector: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR))
+    data_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.DATA_TIMELESS))
+    mask_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.MASK_TIMELESS))
+    scalar_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.SCALAR_TIMELESS))
+    label_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.LABEL_TIMELESS))
+    vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
+    meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
+    bbox: Optional[BBox] = attr.ib(default=None)
+    timestamp: List[dt.date] = attr.ib(factory=list)
 
     def __setattr__(self, key, value, feature_name=None):
         """Raises TypeError if feature type attributes are not of correct type.
@@ -95,14 +262,18 @@ class EOPatch:
         super().__setattr__(key, value)
 
     @staticmethod
-    def _parse_feature_type_value(feature_type, value):
+    def _parse_feature_type_value(
+        feature_type: FeatureType, value: object
+    ) -> Union[_FeatureDict, BBox, List[dt.date], None]:
         """Checks or parses value which will be assigned to a feature type attribute of `EOPatch`. If the value
         cannot be parsed correctly it raises an error.
 
         :raises: TypeError, ValueError
         """
         if feature_type.has_dict() and isinstance(value, dict):
-            return value if isinstance(value, _FeatureDict) else _FeatureDict(value, feature_type)
+            if not isinstance(value, _FeatureDict):
+                value = _create_feature_dict(feature_type, value)
+            return value
 
         if feature_type is FeatureType.BBOX:
             if value is None or isinstance(value, BBox):
@@ -113,7 +284,7 @@ class EOPatch:
         if feature_type is FeatureType.TIMESTAMP:
             if isinstance(value, (tuple, list)):
                 return [
-                    timestamp if isinstance(timestamp, datetime.date) else dateutil.parser.parse(timestamp)
+                    timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp)
                     for timestamp in value
                 ]
 
@@ -587,119 +758,3 @@ class EOPatch:
             config=config,
             **kwargs,
         )
-
-
-class _FeatureDict(dict):
-    """A dictionary structure that holds features of certain feature type.
-
-    It checks that features have a correct and dimension. It also supports lazy loading by accepting a function as a
-    feature value, which is then called when the feature is accessed.
-    """
-
-    FORBIDDEN_CHARS = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
-
-    def __init__(self, feature_dict, feature_type):
-        """
-        :param feature_dict: A dictionary of feature names and values
-        :type feature_dict: dict(str: object)
-        :param feature_type: Type of features
-        :type feature_type: FeatureType
-        """
-        super().__init__()
-
-        self.feature_type = feature_type
-        self.ndim = self.feature_type.ndim()
-        self.is_vector = self.feature_type.is_vector()
-
-        for feature_name, value in feature_dict.items():
-            self[feature_name] = value
-
-    def __setitem__(self, feature_name, value):
-        """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
-        transform value in correct form.
-        """
-        value = self._parse_feature_value(value, feature_name)
-        self._check_feature_name(feature_name)
-        super().__setitem__(feature_name, value)
-
-    def _check_feature_name(self, feature_name):
-        if not isinstance(feature_name, str):
-            raise ValueError(f"Feature name must be a string but an object of type {type(feature_name)} was given.")
-
-        for char in feature_name:
-            if char in self.FORBIDDEN_CHARS:
-                raise ValueError(
-                    f"The name of feature ({self.feature_type}, {feature_name}) contains an illegal character '{char}'."
-                )
-
-        if feature_name == "":
-            raise ValueError("Feature name cannot be an empty string.")
-
-    def __getitem__(self, feature_name, load=True):
-        """Implements lazy loading."""
-        value = super().__getitem__(feature_name)
-
-        if isinstance(value, FeatureIO) and load:
-            value = value.load()
-            self[feature_name] = value
-
-        return value
-
-    def __eq__(self, other):
-        """Compares its content against a content of another feature type dictionary."""
-        return deep_eq(self, other)
-
-    def __ne__(self, other):
-        """Compares its content against a content of another feature type dictionary."""
-        return not self.__eq__(other)
-
-    def get_dict(self):
-        """Returns a Python dictionary of features and value."""
-        return dict(self)
-
-    def _parse_feature_value(self, value, feature_name):
-        """Checks if value fits the feature type. If not it tries to fix it or raise an error.
-
-        :raises: ValueError
-        """
-        if isinstance(value, FeatureIO):
-            return value
-        if not hasattr(self, "ndim"):  # Because of serialization/deserialization during multiprocessing
-            return value
-
-        if self.ndim:
-            if not isinstance(value, np.ndarray):
-                raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
-            if value.ndim != self.ndim:
-                raise ValueError(
-                    f"Numpy array of {self.feature_type} feature has to have {self.ndim} "
-                    f"dimension{'s' if self.ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
-                )
-
-            if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
-                raise ValueError(
-                    f"{self.feature_type} is a discrete feature type therefore dtype of data array "
-                    f"has to be either integer or boolean type but feature {feature_name} has dtype {value.dtype.type}."
-                )
-
-            return value
-
-        if self.is_vector:
-            if isinstance(value, gpd.GeoSeries):
-                value = gpd.GeoDataFrame(dict(geometry=value), crs=value.crs)
-
-            if isinstance(value, gpd.GeoDataFrame):
-                if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
-                    raise ValueError(
-                        f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with timestamps but "
-                        f"feature {feature_name} doesn't not have it."
-                    )
-
-                return value
-
-            raise ValueError(
-                f"{self.feature_type} feature works with data of type {gpd.GeoDataFrame.__name__} but feature "
-                f"{feature_name} has data of type {type(value)}."
-            )
-
-        return value
