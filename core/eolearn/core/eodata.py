@@ -277,9 +277,7 @@ class EOPatch:
         :raises: TypeError, ValueError
         """
         if feature_type.has_dict() and isinstance(value, dict):
-            if not isinstance(value, _FeatureDict):
-                value = _create_feature_dict(feature_type, value)
-            return value
+            return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
 
         if feature_type is FeatureType.BBOX:
             if value is None or isinstance(value, BBox):
