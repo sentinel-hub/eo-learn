@@ -100,13 +100,13 @@ class EOWorkflow:
 
         return uid_dict
 
-    def _create_dag(self, nodes: Sequence[EONode]) -> DirectedGraph:
+    def _create_dag(self, nodes: Sequence[EONode]) -> DirectedGraph[str]:
         """Creates a directed graph from workflow nodes that is used for scheduling purposes.
 
         :param nodes: A sequence of `EONode` objects
         :return: A directed graph of the workflow, with graph nodes containing `EONode` uids
         """
-        dag = DirectedGraph()
+        dag = DirectedGraph[str]()
         for node in nodes:
             for input_node in node.inputs:
                 if input_node.uid not in self._uid_dict:
