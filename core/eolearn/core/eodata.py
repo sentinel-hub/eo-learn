@@ -94,6 +94,7 @@ class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
         super().__setitem__(feature_name, value)
 
     def _check_feature_name(self, feature_name: str) -> None:
+        """Ensures that feature names are strings and do not contain forbidden characters."""
         if not isinstance(feature_name, str):
             raise ValueError(f"Feature name must be a string but an object of type {type(feature_name)} was given.")
 
@@ -184,7 +185,7 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
 
     def _parse_feature_value(self, value: object, feature_name: str) -> gpd.GeoDataFrame:
         if isinstance(value, gpd.GeoSeries):
-            value = gpd.GeoDataFrame(dict(geometry=value), crs=value.crs)
+            value = gpd.GeoDataFrame(geometry=value, crs=value.crs)
 
         if isinstance(value, gpd.GeoDataFrame):
             if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
