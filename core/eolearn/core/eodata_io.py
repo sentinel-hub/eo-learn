@@ -17,7 +17,8 @@ import pickle
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from typing import Any, BinaryIO, Generic, Iterable, Optional, TypeVar, Union
+from functools import wraps
+from typing import Any, BinaryIO, Callable, Generic, Iterable, Optional, TypeVar, Union
 
 import fs
 import fs.move
@@ -314,6 +315,32 @@ class FeatureIO(Generic[_T], metaclass=ABCMeta):
         """Writes data to a file in the appropriate way."""
 
 
+def _try_unpickling(read_method: Callable[[Any, Union[BinaryIO, gzip.GzipFile], str], _T]):
+    @wraps(read_method)
+    def unpickle_or_read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> _T:
+        file_format = MimeType(fs.path.splitext(path)[1].strip("."))
+        if file_format is MimeType.PICKLE:
+            warnings.warn(
+                f"File {self.path} is in pickle format which is deprecated since eo-learn version 1.0. Please re-save "
+                "this EOPatch with the new eo-learn version to update the format. In newer versions this backward "
+                "compatibility will be removed.",
+                EODeprecationWarning,
+            )
+
+            data = pickle.load(file)
+
+            # There seems to be an issue in geopandas==0.8.1 where unpickling GeoDataFrames, which were saved with an
+            # old geopandas version, loads geometry column into a pandas.Series instead geopandas.GeoSeries. Because
+            # of that it is missing a crs attribute which is only attached to the entire GeoDataFrame
+            if isinstance(data, GeoDataFrame) and not isinstance(data.geometry, GeoSeries):
+                data = data.set_geometry("geometry")
+
+            return data
+        return read_method(self, file, path)
+
+    return unpickle_or_read_from_file
+
+
 class FeatureIONumpy(FeatureIO[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
@@ -331,6 +358,7 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
 
     file_format = MimeType.GPKG
 
+    @_try_unpickling
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> gpd.GeoDataFrame:
         file_format = MimeType(fs.path.splitext(path)[1].strip("."))
 
@@ -350,24 +378,6 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
                 dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
 
             return dataframe
-
-        if file_format is MimeType.PICKLE:
-            warnings.warn(
-                f"File {self.path} is in pickle format which is deprecated since eo-learn version 1.0. Please re-save "
-                "this EOPatch with the new eo-learn version to update the format. In newer versions this backward "
-                "compatibility will be removed.",
-                EODeprecationWarning,
-            )
-
-            data = pickle.load(file)
-
-            # There seems to be an issue in geopandas==0.8.1 where unpickling GeoDataFrames, which were saved with an
-            # old geopandas version, loads geometry column into a pandas.Series instead geopandas.GeoSeries. Because
-            # of that it is missing a crs attribute which is only attached to the entire GeoDataFrame
-            if isinstance(data, GeoDataFrame) and not isinstance(data.geometry, GeoSeries):
-                data = data.set_geometry("geometry")
-
-            return data
 
         raise ValueError(f"Path {self.path} leads to a non-GPKG file, which is not supported.")
 
@@ -394,6 +404,7 @@ class FeatureIOJson(FeatureIO[_T]):
 
     file_format = MimeType.JSON
 
+    @_try_unpickling
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> _T:
         return json.load(file)
 
@@ -414,6 +425,7 @@ class FeatureIOBBox(FeatureIO[BBox]):
 
     file_format = MimeType.GEOJSON
 
+    @_try_unpickling
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> BBox:
         json_data = json.load(file)
         return Geometry.from_geojson(json_data).bbox
