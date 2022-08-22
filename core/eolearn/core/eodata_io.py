@@ -360,26 +360,21 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
 
     @_try_unpickling
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> gpd.GeoDataFrame:
-        file_format = MimeType(fs.path.splitext(path)[1].strip("."))
+        dataframe = gpd.read_file(file)
 
-        if file_format is MimeType.GPKG:
-            dataframe = gpd.read_file(file)
+        if dataframe.crs is not None:
+            # Trying to preserve a standard CRS and passing otherwise
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=SHUserWarning)
+                    dataframe.crs = CRS(dataframe.crs).pyproj_crs()
+            except ValueError:
+                pass
 
-            if dataframe.crs is not None:
-                # Trying to preserve a standard CRS and passing otherwise
-                try:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore", category=SHUserWarning)
-                        dataframe.crs = CRS(dataframe.crs).pyproj_crs()
-                except ValueError:
-                    pass
+        if "TIMESTAMP" in dataframe:
+            dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
 
-            if "TIMESTAMP" in dataframe:
-                dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
-
-            return dataframe
-
-        raise ValueError(f"Path {self.path} leads to a non-GPKG file, which is not supported.")
+        return dataframe
 
     def _write_to_file(self, data: gpd.GeoDataFrame, file: Union[BinaryIO, gzip.GzipFile]) -> None:
         layer = fs.path.basename(self.path)
