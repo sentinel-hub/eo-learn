@@ -245,7 +245,11 @@ def meteoblue_to_numpy(result) -> np.ndarray:
         code_n_timesteps = code_data.size // n_locations // n_time_intervals
         code_data = code_data.reshape((n_time_intervals, geo_ny, geo_nx, code_n_timesteps))
 
-        return code_data.transpose((0, 3, 1, 2))
+        # transpose from shape (n_time_intervals, geo_ny, geo_nx, code_n_timesteps)
+        # to (n_time_intervals, code_n_timesteps, geo_ny, geo_nx)
+        # and flip the y-axis (meteoblue is using northward facing axis
+        # but the standard for EOPatch features is a southward facing axis)
+        return np.flip(code_data.transpose((0, 3, 1, 2)), axis=2)
 
     data = np.array(list(map(map_code, geometry.codes)))
 
