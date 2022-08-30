@@ -243,9 +243,9 @@ def copy_documentation_examples(source_folder, target_folder):
             if line.startswith("examples/"):
                 files_to_include.append(line.split("/", 1)[1])
 
-    for notebook in files_to_include:
-        source_path = os.path.join(source_folder, notebook)
-        target_path = os.path.join(target_folder, notebook)
+    for file in files_to_include:
+        source_path = os.path.join(source_folder, file)
+        target_path = os.path.join(target_folder, file)
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
         shutil.copyfile(source_path, target_path)
 
