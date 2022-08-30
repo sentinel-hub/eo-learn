@@ -232,7 +232,7 @@ MARKDOWNS_FOLDER = "./markdowns"
 
 def copy_documentation_examples(source_folder, target_folder):
     """Makes sure to copy only notebooks that are actually included in the documentation"""
-    notebooks_to_include = []
+    files_to_include = ["core/images/eopatch.png"]
 
     for rst_file in ["examples.rst", "index.rst"]:
         with open(rst_file, "r") as fp:
@@ -241,11 +241,11 @@ def copy_documentation_examples(source_folder, target_folder):
         for line in content.split("\n"):
             line = line.strip(" \t")
             if line.startswith("examples/"):
-                notebooks_to_include.append(line.split("/", 1)[1])
+                files_to_include.append(line.split("/", 1)[1])
 
-    for notebook in notebooks_to_include:
-        source_path = os.path.join(source_folder, notebook)
-        target_path = os.path.join(target_folder, notebook)
+    for file in files_to_include:
+        source_path = os.path.join(source_folder, file)
+        target_path = os.path.join(target_folder, file)
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
         shutil.copyfile(source_path, target_path)
 
