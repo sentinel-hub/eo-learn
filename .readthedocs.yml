@@ -4,7 +4,7 @@ sphinx:
   configuration: docs/source/conf.py
 
 python:
-  version: 3.7
+  version: "3.7"
 
 build:
   os: "ubuntu-20.04"
