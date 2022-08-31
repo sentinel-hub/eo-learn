@@ -93,6 +93,13 @@ class FilterTimeSeriesTask(SimpleFilterTask):
     Removes all frames in the time-series with dates outside the user specified time interval.
     """
 
+    def _filter_func(self, date):
+        """
+        :param date: datetime.datetime
+        """
+        return self.start_date <= date <= self.end_date
+
+
     def __init__(self, start_date, end_date, filter_features=...):
         """
         :param start_date: Start date. All frames within the time-series taken after this date will be kept.
@@ -111,7 +118,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         if not isinstance(end_date, dt.datetime):
             raise ValueError("End date is not of correct type. Please provide the end_date as datetime.datetime.")
 
-        super().__init__(FeatureType.TIMESTAMP, lambda date: start_date <= date <= end_date, filter_features)
+        super().__init__(FeatureType.TIMESTAMP, self._filter_func, filter_features)
 
 
 class ValueFilloutTask(EOTask):
