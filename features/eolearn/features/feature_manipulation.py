@@ -99,7 +99,6 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         """
         return self.start_date <= date <= self.end_date
 
-
     def __init__(self, start_date, end_date, filter_features=...):
         """
         :param start_date: Start date. All frames within the time-series taken after this date will be kept.
