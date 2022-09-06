@@ -32,7 +32,7 @@ class EONode:
     name: Optional[str] = field(default=None)
     uid: str = field(init=False, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Additionally verifies the parameters and adds a unique id to the node."""
         if not isinstance(self.task, EOTask):
             raise ValueError(f"Value of `task` should be an instance of {EOTask.__name__}, got {self.task}.")
