@@ -122,3 +122,6 @@ features/.pytest_cache
 
 # execution reports
 **execution-report**
+
+# MacOS cache
+.DS_Store
