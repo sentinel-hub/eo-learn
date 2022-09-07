@@ -13,6 +13,7 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
+from typing import List
 
 import fs
 import numpy as np
@@ -553,6 +554,20 @@ class ExtractBandsTask(MapFeatureTask):
             raise ValueError("Band index out of feature's dimensions.")
 
         return feature[..., self.bands]
+
+
+class ExplodeBandsTask(EOTask):
+    def __init__(self, input_feature, output_features: List, bands: List[List[int]]):
+        self.input_feature = input_feature
+        self.output_features = output_features
+        self.bands = bands
+
+    def execute(self, eopatch):
+        for output_feature, band in zip(self.output_features, self.bands):
+            eopatch = ExtractBandsTask(
+                input_feature=self.input_feature, output_feature=output_feature, bands=band
+            ).execute(eopatch)
+        return eopatch
 
 
 class CreateEOPatchTask(EOTask):
