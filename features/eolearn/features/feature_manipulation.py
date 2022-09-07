@@ -265,13 +265,11 @@ class SpatialResizeTask(EOTask):
         resize_type, resize_type_param = resize_parameters
         resize_type = ResizeParam(resize_type)
 
-        if resize_type == ResizeParam.NEW_SIZE:
-            return {ResizeParam.NEW_SIZE.value: resize_type_param}
-        if resize_type == ResizeParam.SCALE_FACTORS:
-            return {ResizeParam.SCALE_FACTORS.value: resize_type_param}
         if resize_type == ResizeParam.RESOLUTION:
             new_size = bbox_to_dimensions(bbox, resize_type_param)
             return {ResizeParam.NEW_SIZE.value: new_size}
+
+        return {resize_type.value: resize_type_param}
 
     def __init__(
         self,
