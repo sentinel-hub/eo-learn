@@ -12,13 +12,13 @@ import datetime as dt
 import os
 import shutil
 from concurrent import futures
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import numpy as np
 import pytest
 from pytest import approx
 
-from sentinelhub import CRS, Band, BBox, DataCollection, MosaickingOrder, SHConfig, Unit
+from sentinelhub import CRS, Band, BBox, DataCollection, MosaickingOrder, ResamplingType, SHConfig, Unit
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.io import (
@@ -134,6 +134,35 @@ class TestProcessingIO:
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
+
+    @pytest.mark.parametrize(
+        ["resampling_type", "stats"],
+        [
+            (ResamplingType.NEAREST, [0.0836, 0.1547, 0.0794]),
+            (ResamplingType.BICUBIC, [0.0836, 0.1548, 0.0792]),
+            ("bicubic", [0.0836, 0.1548, 0.0792]),
+        ],
+    )
+    def test_upsampling_downsampling(self, resampling_type: ResamplingType, stats: List[float]):
+        task = SentinelHubInputTask(
+            bands_feature=(FeatureType.DATA, "BANDS"),
+            bands=["B01"],
+            size=self.size,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            data_collection=DataCollection.SENTINEL2_L1C,
+            max_threads=self.max_threads,
+            upsampling=resampling_type,
+            downsampling=resampling_type,
+        )
+
+        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
+        bands = eopatch[(FeatureType.DATA, "BANDS")]
+
+        assert calculate_stats(bands) == approx(stats)
+
+        width, height = self.size
+        assert bands.shape == (4, height, width, 1)
 
     def test_scl_only(self):
         """Download just SCL, without any other bands"""
