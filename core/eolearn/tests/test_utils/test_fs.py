@@ -57,7 +57,7 @@ def test_s3_filesystem(aws_session_token):
     filesystem = get_filesystem(s3_url)
     assert isinstance(filesystem, S3FS)
     assert filesystem.dir_path == folder_name
-    assert not filesystem.strict, "By default, resulting S3FS is not strict."
+    assert not filesystem.strict, "Other use-cases assume that the returned S3FS is non-strict by default."
 
     custom_config = SHConfig()
     custom_config.aws_access_key_id = "fake-key"
