@@ -42,6 +42,7 @@ from eolearn.core import (
     SaveTask,
     ZipFeatureTask,
 )
+from eolearn.core.core_tasks import ExplodeBandsTask
 
 
 @pytest.fixture(name="patch")
@@ -385,6 +386,27 @@ def test_map_features(test_eopatch):
     f_in, f_out = {FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]}
     with pytest.raises(ValueError):
         MapFeatureTask(f_in, f_out)
+
+
+def test_explode_bands(test_eopatch):
+    bands = []
+    move_bands = ExplodeBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), [], bands)
+    patch = move_bands(test_eopatch)
+    assert test_eopatch == patch
+
+    bands = [[2, 4, 8]]
+    move_bands = ExplodeBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], bands)
+    patch = move_bands(test_eopatch)
+    assert patch.data["MOVED_BANDS"] is not None
+
+    bands = [[0], [1], [1, 2]]
+    move_bands = ExplodeBandsTask(
+        (FeatureType.DATA, "REFERENCE_SCENES"),
+        [(FeatureType.DATA, "B01"), (FeatureType.DATA, "B02"), (FeatureType.DATA, "B02 & B03")],
+        bands,
+    )
+    patch = move_bands(test_eopatch)
+    assert patch.data["B01"] is not None and patch.data["B02"] is not None and patch.data["B01"] is not None
 
 
 def test_extract_bands(test_eopatch):
