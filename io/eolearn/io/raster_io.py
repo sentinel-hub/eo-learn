@@ -50,7 +50,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         *,
         filesystem: Optional[FS] = None,
         image_dtype: Optional[Union[np.dtype, type]] = None,
-        no_data_value: Optional[float] = 0,
+        no_data_value: Optional[float] = None,
         create: bool = False,
         config: Optional[SHConfig] = None,
     ):
@@ -62,8 +62,8 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         :param filesystem: An existing filesystem object. If not given it will be initialized according to `folder`
             parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
-        :param no_data_value: When exporting this is the value of pixels to be masked as undefined in exported images.
-            When importing this is values is assigned to the parts of arrays that don't exist in images.
+        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
+            When importing this value is assigned to the pixels with NoData.
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error.
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.

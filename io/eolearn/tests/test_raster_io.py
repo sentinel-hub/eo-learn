@@ -26,7 +26,7 @@ from fs.errors import ResourceNotFound
 from moto import mock_s3
 from numpy.testing import assert_array_equal
 
-from sentinelhub import read_data
+from sentinelhub import CRS, BBox, read_data
 from sentinelhub.time_utils import serialize_time
 
 from eolearn.core import EOPatch, FeatureType
@@ -360,3 +360,28 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
     new_eopatch = import_task(test_eopatch, filename=filename)
 
     assert_array_equal(new_eopatch[feature], test_eopatch[feature])
+
+
+@pytest.mark.parametrize(
+    "no_data_value, data_type", [(None, np.uint16), (np.nan, float), (0, int), (None, float), (1, np.byte)]
+)
+def test_export_import_sequence(no_data_value, data_type):
+    eopatch = EOPatch()
+    eopatch.bbox = BBox((0, 0, 1, 1), crs=CRS.WGS84)
+    data_feature = (FeatureType.DATA_TIMELESS, "DATA")
+
+    np_arr = np.zeros((10, 10, 1), dtype=data_type)
+    np_arr[:5, :5, :] = 1
+    eopatch[data_feature] = np_arr
+
+    export_task = ExportToTiffTask(feature=data_feature, folder="./", band_indices=[0], no_data_value=no_data_value)
+    export_task.execute(eopatch=eopatch, filename="test.tiff")
+
+    with rasterio.open("test.tiff") as src:
+        tif_array = src.read(masked=True)
+        assert np.sum(tif_array.mask) == np.sum(np_arr == no_data_value)
+
+    import_task = ImportFromTiffTask(feature=data_feature, folder="./", no_data_value=no_data_value)
+    new_eopatch = import_task.execute(filename="test.tiff")
+
+    assert_array_equal(eopatch[data_feature], new_eopatch[data_feature])
