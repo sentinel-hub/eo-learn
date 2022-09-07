@@ -22,6 +22,14 @@ _CV2_IMPORT_MESSAGE = (
 )
 
 
+class ResizeParam(Enum):
+    """Possible parameters (options) for passing the new dimensions to the spatial resizing of data."""
+
+    NEW_SIZE = "new_size"
+    SCALE_FACTORS = "scale_factors"
+    RESOLUTION = "resolution"
+
+
 class ResizeMethod(Enum):
     """Methods available for spatial resizing of data."""
 
