@@ -51,7 +51,7 @@ class RayExecutor(EOExecutor):
         return join_ray_futures(futures, **run_params.tqdm_kwargs)
 
     @staticmethod
-    def _get_processing_type(*_, **__) -> _ProcessingType:
+    def _get_processing_type(*_: Any, **__: Any) -> _ProcessingType:
         """Provides a type of processing for later references."""
         return _ProcessingType.RAY
 
