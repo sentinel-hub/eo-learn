@@ -143,7 +143,7 @@ def pickle_fs(filesystem: FS) -> bytes:
     if isinstance(filesystem, S3FS):
         filesystem._tlocal = None
     if isinstance(filesystem, MemoryFS):
-        filesystem.root.lock = None
+        filesystem.root.lock = None  # type: ignore[assignment]
     if isinstance(filesystem, TempFS):
         # The filesystem object is a copy of the original and isn't referenced outside this function. If we don't
         # deactivate auto-cleaning it will delete the temporary folder at the end of this function just before it

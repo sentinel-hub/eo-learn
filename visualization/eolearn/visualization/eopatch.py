@@ -69,6 +69,7 @@ class PlotConfig(BasePlotConfig):
 
     subplot_width: Union[float, int] = 8
     subplot_height: Union[float, int] = 8
+    interpolation: str = "none"
     subplot_kwargs: Dict[str, object] = field(default_factory=dict)
     show_title: bool = True
     title_kwargs: Dict[str, object] = field(default_factory=dict)
@@ -149,7 +150,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         label_kwargs = self._get_label_kwargs()
         for (row_idx, column_idx), axis in zip(it.product(range(rows), range(columns)), axes.flatten()):
             raster_slice = raster[row_idx, ...] if self.rgb else raster[row_idx, ..., column_idx]
-            axis.imshow(raster_slice)
+            axis.imshow(raster_slice, interpolation=self.config.interpolation)
 
             if timestamps and column_idx == 0:
                 axis.set_ylabel(timestamps[row_idx].isoformat(), **label_kwargs)

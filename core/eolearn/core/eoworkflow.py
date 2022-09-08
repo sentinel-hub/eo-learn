@@ -163,7 +163,7 @@ class EOWorkflow:
         return results
 
     @staticmethod
-    def validate_input_kwargs(input_kwargs: Dict[EONode, Dict[str, object]]):
+    def validate_input_kwargs(input_kwargs: Dict[EONode, Dict[str, object]]) -> None:
         """Validates EOWorkflow input arguments provided by user and raises an error if something is wrong.
 
         :param input_kwargs: A dictionary mapping tasks to task execution arguments
@@ -275,7 +275,9 @@ class EOWorkflow:
             return (exception, exception_traceback), False
 
     @staticmethod
-    def _relax_dependencies(*, node: EONode, out_degrees: Dict[str, int], intermediate_results: Dict[str, object]):
+    def _relax_dependencies(
+        *, node: EONode, out_degrees: Dict[str, int], intermediate_results: Dict[str, object]
+    ) -> None:
         """Relaxes dependencies incurred by `node` after it has been successfully executed. All the nodes it
         depended on are updated. If `node` was the last remaining node depending on a node `n` then `n`'s result
         are removed from memory.
@@ -353,7 +355,7 @@ class WorkflowResults:
     stats: Dict[str, NodeStats]
     error_node_uid: Optional[str] = field(init=False, default=None)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Checks if there is any node that failed during the workflow execution."""
         for node_uid, node_stats in self.stats.items():
             if node_stats.exception is not None:
