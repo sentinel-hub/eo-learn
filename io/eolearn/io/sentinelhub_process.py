@@ -572,7 +572,6 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             size=(size_x, size_y),
             data_folder=self.cache_folder,
             config=self.config,
-            geometry=geometry
         )
 
     def _extract_data(self, eopatch, images, shape):
