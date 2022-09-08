@@ -190,6 +190,7 @@ class SentinelHubInputBaseTask(EOTask):
 class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
     """Process API task to download data using evalscript"""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         features: Optional[FeatureType] = None,
@@ -367,6 +368,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         np.float32: "SampleType.FLOAT32",
     }
 
+    # pylint: disable=too-many-locals
     def __init__(
         self,
         data_collection: Optional[DataCollection] = None,
