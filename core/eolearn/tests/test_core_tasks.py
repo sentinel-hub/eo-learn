@@ -397,7 +397,7 @@ def test_explode_bands(test_eopatch):
     bands = [[2, 4, 8]]
     move_bands = ExplodeBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], bands)
     patch = move_bands(test_eopatch)
-    assert patch.data["MOVED_BANDS"] is not None
+    assert "MOVED_BANDS" in patch.data
 
     bands = [[0], [1], [1, 2]]
     move_bands = ExplodeBandsTask(
@@ -406,7 +406,9 @@ def test_explode_bands(test_eopatch):
         bands,
     )
     patch = move_bands(test_eopatch)
-    assert patch.data["B01"] is not None and patch.data["B02"] is not None and patch.data["B01"] is not None
+    assert "B01" in patch.data
+    assert "B02" in patch.data
+    assert "B02 & B03" in patch.data
 
 
 def test_extract_bands(test_eopatch):

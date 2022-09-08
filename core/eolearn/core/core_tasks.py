@@ -13,11 +13,12 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
-from typing import List
+from typing import Iterable, List, Tuple
 
 import fs
 import numpy as np
 
+from . import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
@@ -557,9 +558,25 @@ class ExtractBandsTask(MapFeatureTask):
 
 
 class ExplodeBandsTask(EOTask):
-    def __init__(self, input_feature, output_features: List, bands: List[List[int]]):
+    """Explode a subset of bands from one feature to multiple new features."""
+
+    def __init__(
+        self,
+        input_feature: Tuple[FeatureType, str],
+        output_features: Iterable[Tuple[FeatureType, str]],
+        bands: Iterable[List[int]],
+    ):
+        """
+        :param input_feature: A source feature from which to take the subset of bands.
+        :type input_feature: Tuple[FeatureType, str]
+        :param output_features: Output features to which exploded bands are written.
+        :type output_features: List[Tuple[FeatureType, str]]
+        :param bands: A iterable of list of bands to be moved.
+        :type bands: Iterable[List[int]]
+        """
         self.input_feature = input_feature
         self.output_features = output_features
+
         self.bands = bands
 
     def execute(self, eopatch):
