@@ -18,7 +18,7 @@ from typing import Iterable, List, Tuple
 import fs
 import numpy as np
 
-from . import FeatureType
+from .constants import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
