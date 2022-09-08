@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 
 import datetime as dt
 import logging
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -22,6 +22,7 @@ from sentinelhub import (
     DataCollection,
     MimeType,
     MosaickingOrder,
+    ResamplingType,
     SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
@@ -44,28 +45,26 @@ class SentinelHubInputBaseTask(EOTask):
 
     def __init__(
         self,
-        data_collection,
-        size=None,
-        resolution=None,
-        cache_folder=None,
-        config=None,
-        max_threads=None,
+        data_collection: DataCollection,
+        size: Optional[Tuple[int, int]] = None,
+        resolution: Optional[Union[float, Tuple[float, float]]] = None,
+        cache_folder: Optional[str] = None,
+        config: Optional[SHConfig] = None,
+        max_threads: Optional[int] = None,
+        upsampling: Optional[ResamplingType] = None,
+        downsampling: Optional[ResamplingType] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """
         :param data_collection: A collection of requested satellite data.
-        :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
-        :type size: tuple(int, int)
         :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
-        :type resolution: float or (float, float)
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
-        :type cache_folder: str
         :param config: An instance of SHConfig defining the service
-        :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
-        :type max_threads: int
+        :param upsampling: A type of upsampling to apply on data
+        :param downsampling: A type of downsampling to apply on data
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
         """
@@ -79,6 +78,8 @@ class SentinelHubInputBaseTask(EOTask):
         self.data_collection = DataCollection(data_collection)
         self.cache_folder = cache_folder
         self.session_loader = session_loader
+        self.upsampling = upsampling
+        self.downsampling = downsampling
 
     def execute(
         self,
@@ -189,48 +190,42 @@ class SentinelHubInputBaseTask(EOTask):
 class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
     """Process API task to download data using evalscript"""
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
-        features=None,
-        evalscript=None,
-        data_collection=None,
-        size=None,
-        resolution=None,
-        maxcc=None,
-        time_difference=None,
-        cache_folder=None,
-        max_threads=None,
-        config=None,
-        mosaicking_order=None,
-        aux_request_args=None,
+        features: Optional[FeatureType] = None,
+        evalscript: Optional[str] = None,
+        data_collection: Optional[DataCollection] = None,
+        size: Optional[Tuple[int, int]] = None,
+        resolution: Optional[Union[float, Tuple[float, float]]] = None,
+        maxcc: Optional[float] = None,
+        time_difference: Optional[dt.timedelta] = None,
+        mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
+        cache_folder: Optional[str] = None,
+        config: Optional[SHConfig] = None,
+        max_threads: Optional[int] = None,
+        upsampling: Optional[ResamplingType] = None,
+        downsampling: Optional[ResamplingType] = None,
+        aux_request_args: Optional[dict] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """
         :param features: Features to construct from the evalscript.
         :param evalscript: Evalscript for the request. Beware that all outputs from SentinelHub services should be named
             and should have the same name as corresponding feature
-        :type evalscript: str
         :param data_collection: Source of requested satellite data.
-        :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
-        :type size: tuple(int, int)
         :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
-        :type resolution: float or (float, float)
         :param maxcc: Maximum cloud coverage, a float in interval [0, 1]
-        :type maxcc: float
         :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
-        :type time_difference: datetime.timedelta
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
-        :type cache_folder: str
         :param config: An instance of SHConfig defining the service
-        :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
-        :type max_threads: int
+        :param upsampling: A type of upsampling to apply on data
+        :param downsampling: A type of downsampling to apply on data
         :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
-        :type mosaicking_order: str or MosaickingOrder or None
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
-        :type aux_request_args: dict
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
         """
@@ -241,6 +236,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             cache_folder=cache_folder,
             config=config,
             max_threads=max_threads,
+            upsampling=upsampling,
+            downsampling=downsampling,
             session_loader=session_loader,
         )
 
@@ -322,6 +319,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
                     mosaicking_order=self.mosaicking_order,
                     time_interval=time_interval,
                     maxcc=self.maxcc,
+                    upsampling=self.upsampling,
+                    downsampling=self.downsampling,
                     other_args=self.aux_request_args,
                 )
             ],
@@ -369,62 +368,51 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         np.float32: "SampleType.FLOAT32",
     }
 
+    # pylint: disable=too-many-locals
     def __init__(
         self,
-        data_collection=None,
-        size=None,
-        resolution=None,
-        bands_feature=None,
-        bands=None,
-        additional_data=None,
-        evalscript=None,
-        maxcc=None,
-        time_difference=None,
-        cache_folder=None,
-        max_threads=None,
-        config=None,
-        bands_dtype=None,
-        single_scene=False,
-        mosaicking_order=None,
-        aux_request_args=None,
+        data_collection: Optional[DataCollection] = None,
+        size: Optional[Tuple[int, int]] = None,
+        resolution: Optional[Union[float, Tuple[float, float]]] = None,
+        bands_feature: Optional[Tuple[FeatureType, str]] = None,
+        bands: Optional[List[str]] = None,
+        additional_data: Optional[List[Tuple[FeatureType, str]]] = None,
+        evalscript: Optional[str] = None,
+        maxcc: Optional[float] = None,
+        time_difference: Optional[dt.timedelta] = None,
+        cache_folder: Optional[str] = None,
+        config: Optional[SHConfig] = None,
+        max_threads: Optional[int] = None,
+        bands_dtype: Optional[List[str]] = None,
+        single_scene: bool = False,
+        mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
+        upsampling: Optional[ResamplingType] = None,
+        downsampling: Optional[ResamplingType] = None,
+        aux_request_args: Optional[dict] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
     ):
         """
         :param data_collection: Source of requested satellite data.
-        :type data_collection: DataCollection
         :param size: Number of pixels in x and y dimension.
-        :type size: tuple(int, int)
         :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
-        :type resolution: float or (float, float)
         :param bands_feature: A target feature into which to save the downloaded images.
-        :type bands_feature: tuple(sentinelhub.FeatureType, str)
         :param bands: An array of band names. If not specified it will download all bands specified for a given data
             collection.
-        :type bands: list[str]
         :param additional_data: A list of additional data to be downloaded, such as SCL, SNW, dataMask, etc.
-        :type additional_data: list[tuple(sentinelhub.FeatureType, str)]
         :param evalscript: An optional parameter to override an evalscript that is generated by default
-        :type evalscript: str or None
         :param maxcc: Maximum cloud coverage.
-        :type maxcc: float
         :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
-        :type time_difference: datetime.timedelta
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
-        :type cache_folder: str
         :param config: An instance of SHConfig defining the service
-        :type config: SHConfig or None
         :param max_threads: Maximum threads to be used when downloading data.
-        :type max_threads: int
         :param bands_dtype: output type of the bands array, if set to None the default is used
-        :type bands_dtype: type or None
         :param single_scene: If true, the service will compute a single image for the given time interval using
             mosaicking.
-        :type single_scene: bool
         :param mosaicking_order: Mosaicking order, which has to be either 'mostRecent', 'leastRecent' or 'leastCC'.
-        :type mosaicking_order: str or MosaickingOrder or None
+        :param upsampling: A type of upsampling to apply on data
+        :param downsampling: A type of downsampling to apply on data
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
-        :type aux_request_args: dict
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
         """
@@ -435,6 +423,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             cache_folder=cache_folder,
             config=config,
             max_threads=max_threads,
+            upsampling=upsampling,
+            downsampling=downsampling,
             session_loader=session_loader,
         )
         self.evalscript = evalscript
@@ -566,6 +556,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
                     time_interval=(date_from, date_to),
                     mosaicking_order=self.mosaicking_order,
                     maxcc=self.maxcc,
+                    upsampling=self.upsampling,
+                    downsampling=self.downsampling,
                     other_args=self.aux_request_args,
                 )
             ],
