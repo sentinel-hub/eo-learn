@@ -576,7 +576,6 @@ class ExplodeBandsTask(EOTask):
         """
         self.input_feature = input_feature
         self.output_features = output_features
-
         self.bands = bands
 
     def execute(self, eopatch):
