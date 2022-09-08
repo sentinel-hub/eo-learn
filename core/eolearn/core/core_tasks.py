@@ -568,11 +568,8 @@ class ExplodeBandsTask(EOTask):
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.
-        :type input_feature: Tuple[FeatureType, str]
         :param output_features: Output features to which exploded bands are written.
-        :type output_features: List[Tuple[FeatureType, str]]
         :param bands: A iterable of list of bands to be moved.
-        :type bands: Iterable[List[int]]
         """
         self.input_feature = input_feature
         self.output_features = output_features
