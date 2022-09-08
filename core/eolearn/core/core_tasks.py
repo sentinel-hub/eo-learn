@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Dict
 
 import fs
 import numpy as np
@@ -563,20 +563,17 @@ class ExplodeBandsTask(EOTask):
     def __init__(
         self,
         input_feature: Tuple[FeatureType, str],
-        output_features: Iterable[Tuple[FeatureType, str]],
-        bands: Iterable[List[int]],
+        output_mapping: Dict[Tuple[FeatureType, str], List[int]],
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.
-        :param output_features: Output features to which exploded bands are written.
-        :param bands: A iterable of list of bands to be moved.
+        :param output_mapping: A mapping of output features into the band indices used to explode the input feature.
         """
         self.input_feature = input_feature
-        self.output_features = output_features
-        self.bands = bands
+        self.output_mapping = output_mapping
 
     def execute(self, eopatch):
-        for output_feature, band in zip(self.output_features, self.bands):
+        for output_feature, band in self.output_mapping.items():
             eopatch = ExtractBandsTask(
                 input_feature=self.input_feature, output_feature=output_feature, bands=band
             ).execute(eopatch)
