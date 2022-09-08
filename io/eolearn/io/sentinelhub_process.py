@@ -20,6 +20,7 @@ from sentinelhub import (
     Band,
     BBox,
     DataCollection,
+    Geometry,
     MimeType,
     MosaickingOrder,
     ResamplingType,
@@ -33,9 +34,9 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
     serialize_time,
-    Geometry,
 )
 from sentinelhub.time_utils import RawTimeIntervalType
+
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
 LOGGER = logging.getLogger(__name__)
@@ -90,8 +91,7 @@ class SentinelHubInputBaseTask(EOTask):
         geometry: Optional[Geometry] = None,
     ):
         """Main execute method for the Process API tasks.
-        Geometry is an additional parameter that can be provided with the bbox.
-        """
+        The geometry is used only if also the bbox is provided."""
 
         eopatch = eopatch or EOPatch()
 
@@ -568,6 +568,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             ],
             responses=responses,
             bbox=bbox,
+            geometry=geometry,
             size=(size_x, size_y),
             data_folder=self.cache_folder,
             config=self.config,
