@@ -18,11 +18,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-<<<<<<< HEAD
 from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, SHConfig, Unit
-=======
-from sentinelhub import CRS, Band, BBox, DataCollection, MosaickingOrder, ResamplingType, SHConfig, Unit
->>>>>>> develop
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.io import (
