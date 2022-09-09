@@ -386,10 +386,10 @@ def test_export_import_sequence(no_data_value, data_type):
             # when reading, move axis to have the tif_array in the EOPatch.data_timeless dimension structure
             tif_array = np.moveaxis(src.read(masked=True), 0, -1)
 
-            if no_data_value is not np.nan:
-                no_data_arr = np_arr == no_data_value
-            else:
+            if no_data_value is np.nan:
                 no_data_arr = np.isnan(np_arr)
+            else:
+                no_data_arr = np_arr == no_data_value
 
             assert_array_equal(tif_array.mask, no_data_arr)
 
