@@ -20,6 +20,7 @@ from sentinelhub import (
     Band,
     BBox,
     DataCollection,
+    Geometry,
     MimeType,
     MosaickingOrder,
     ResamplingType,
@@ -34,6 +35,7 @@ from sentinelhub import (
     parse_time_interval,
     serialize_time,
 )
+from sentinelhub.time_utils import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
@@ -83,11 +85,13 @@ class SentinelHubInputBaseTask(EOTask):
 
     def execute(
         self,
-        eopatch=None,
-        bbox=None,
-        time_interval=None,
+        eopatch: Optional[EOPatch] = None,
+        bbox: Optional[BBox] = None,
+        time_interval: Optional[RawTimeIntervalType] = None,
+        geometry: Optional[Geometry] = None,
     ):
-        """Main execute method for the Process API tasks"""
+        """Main execute method for the Process API tasks.
+        The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
 
         eopatch = eopatch or EOPatch()
 
@@ -109,7 +113,7 @@ class SentinelHubInputBaseTask(EOTask):
             else:
                 eopatch.timestamp = eop_timestamp
 
-        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval)
+        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
         requests = [request.download_list[0] for request in requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
@@ -178,7 +182,7 @@ class SentinelHubInputBaseTask(EOTask):
         """Extract data from the received images and assign them to eopatch features"""
         raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
         """Build requests"""
         raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
@@ -297,7 +301,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             config=self.config,
         )
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
         """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
         if timestamp:
@@ -307,9 +311,9 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         else:
             dates = [parse_time_interval(time_interval, allow_undefined=True)]
 
-        return [self._create_sh_request(date, bbox, size_x, size_y) for date in dates]
+        return [self._create_sh_request(date, bbox, size_x, size_y, geometry) for date in dates]
 
-    def _create_sh_request(self, time_interval, bbox, size_x, size_y):
+    def _create_sh_request(self, time_interval, bbox, size_x, size_y, geometry):
         """Create an instance of SentinelHubRequest"""
         return SentinelHubRequest(
             evalscript=self.evalscript,
@@ -326,6 +330,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             ],
             responses=self.responses,
             bbox=bbox,
+            geometry=geometry,
             size=(size_x, size_y),
             data_folder=self.cache_folder,
             config=self.config,
@@ -530,7 +535,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             config=self.config,
         )
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval):
+    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
         """Build requests"""
         if timestamp is None:
             dates = [None]
@@ -539,9 +544,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         else:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
-        return [self._create_sh_request(date1, date2, bbox, size_x, size_y) for date1, date2 in dates]
+        return [self._create_sh_request(date1, date2, bbox, size_x, size_y, geometry) for date1, date2 in dates]
 
-    def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y):
+    def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y, geometry):
         """Create an instance of SentinelHubRequest"""
         responses = [
             SentinelHubRequest.output_response(band.name, MimeType.TIFF)
@@ -563,6 +568,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             ],
             responses=responses,
             bbox=bbox,
+            geometry=geometry,
             size=(size_x, size_y),
             data_folder=self.cache_folder,
             config=self.config,
