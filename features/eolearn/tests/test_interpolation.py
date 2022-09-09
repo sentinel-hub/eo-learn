@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.features import (
     AkimaInterpolationTask,
     BSplineInterpolationTask,
@@ -29,6 +29,23 @@ from eolearn.features import (
     NearestResamplingTask,
     SplineInterpolationTask,
 )
+
+
+@pytest.fixture(name="test_patch")
+def small_test_patch_fixture(example_eopatch):
+    test_patch = EOPatch(bbox=example_eopatch.bbox, timestamp=example_eopatch.timestamp)
+    required_features = (
+        (FeatureType.DATA, "NDVI"),
+        (FeatureType.MASK, "IS_VALID"),
+        (FeatureType.MASK_TIMELESS, "LULC"),
+        (FeatureType.MASK, "IS_VALID"),
+        (FeatureType.MASK_TIMELESS, "RANDOM_UINT8"),
+        (FeatureType.DATA, "BANDS-S2-L1C"),
+    )
+    for feature in required_features:
+        test_patch[feature] = example_eopatch[feature][..., :20, :20, :]
+    test_patch.label["RANDOM_DIGIT"] = example_eopatch.label["RANDOM_DIGIT"]
+    return test_patch
 
 
 @dataclasses.dataclass
@@ -66,9 +83,9 @@ INTERPOLATION_TEST_CASES = [
         ),
         result_len=68,
         img_min=0.0,
-        img_max=10.0,
-        img_mean=0.720405,
-        img_median=0.59765935,
+        img_max=0.82836,
+        img_mean=0.51187,
+        img_median=0.57889,
     ),
     InterpolationTestCase(
         "linear-p",
@@ -81,9 +98,9 @@ INTERPOLATION_TEST_CASES = [
         ),
         result_len=68,
         img_min=0.0,
-        img_max=10.0,
-        img_mean=0.720405,
-        img_median=0.59765935,
+        img_max=0.82836,
+        img_mean=0.51187,
+        img_median=0.57889,
     ),
     InterpolationTestCase(
         "linear_change_timescale",
@@ -96,9 +113,9 @@ INTERPOLATION_TEST_CASES = [
         ),
         result_len=68,
         img_min=0.0,
-        img_max=10.0,
-        img_mean=0.7204042,
-        img_median=0.59765697,
+        img_max=0.82836,
+        img_mean=0.51187,
+        img_median=0.57889,
     ),
     InterpolationTestCase(
         "cubic",
@@ -113,8 +130,8 @@ INTERPOLATION_TEST_CASES = [
         result_len=69,
         img_min=0.0,
         img_max=5.0,
-        img_mean=1.3592644,
-        img_median=0.6174331,
+        img_mean=1.3532,
+        img_median=0.638732,
     ),
     InterpolationTestCase(
         "spline",
@@ -128,10 +145,10 @@ INTERPOLATION_TEST_CASES = [
             unknown_value=0,
         ),
         result_len=147,
-        img_min=-0.3,
+        img_min=-0.17814,
         img_max=1.0,
-        img_mean=0.492752,
-        img_median=0.53776133,
+        img_mean=0.49738,
+        img_median=0.556853,
     ),
     InterpolationTestCase(
         "bspline",
@@ -143,10 +160,10 @@ INTERPOLATION_TEST_CASES = [
             spline_degree=5,
         ),
         result_len=1,
-        img_min=-0.032482587,
-        img_max=0.701796,
-        img_mean=0.42080238,
-        img_median=0.42889267,
+        img_min=-0.0163,
+        img_max=0.62323,
+        img_mean=0.319117,
+        img_median=0.32588,
     ),
     InterpolationTestCase(
         "bspline-p",
@@ -159,10 +176,10 @@ INTERPOLATION_TEST_CASES = [
             interpolate_pixel_wise=True,
         ),
         result_len=1,
-        img_min=-0.032482587,
-        img_max=0.701796,
-        img_mean=0.42080238,
-        img_median=0.42889267,
+        img_min=-0.0163,
+        img_max=0.62323,
+        img_mean=0.319117,
+        img_median=0.32588,
     ),
     InterpolationTestCase(
         "akima",
@@ -170,10 +187,10 @@ INTERPOLATION_TEST_CASES = [
             (FeatureType.DATA, "NDVI"), unknown_value=0, mask_feature=(FeatureType.MASK, "IS_VALID")
         ),
         result_len=68,
-        img_min=-0.13793105,
-        img_max=0.860242,
-        img_mean=0.53159297,
-        img_median=0.59087014,
+        img_min=-0.091035,
+        img_max=0.8283603,
+        img_mean=0.51427454,
+        img_median=0.59095883,
     ),
     InterpolationTestCase(
         "kriging interpolation",
@@ -181,10 +198,10 @@ INTERPOLATION_TEST_CASES = [
             (FeatureType.DATA, "NDVI"), result_interval=(-10, 10), resample_range=("2017-01-01", "2018-01-01", 10)
         ),
         result_len=37,
-        img_min=-0.19972801,
-        img_max=0.6591711,
-        img_mean=0.3773447,
-        img_median=0.3993981,
+        img_min=-0.18389,
+        img_max=0.5995388,
+        img_mean=0.35485545,
+        img_median=0.37279952,
     ),
     InterpolationTestCase(
         "nearest resample",
@@ -193,9 +210,9 @@ INTERPOLATION_TEST_CASES = [
         ),
         result_len=147,
         img_min=-0.2,
-        img_max=0.860242,
-        img_mean=0.35143828,
-        img_median=0.37481314,
+        img_max=0.8283603,
+        img_mean=0.32318678,
+        img_median=0.2794411,
         nan_replace=-0.2,
     ),
     InterpolationTestCase(
@@ -205,9 +222,9 @@ INTERPOLATION_TEST_CASES = [
         ),
         result_len=147,
         img_min=-0.2,
-        img_max=0.8480114,
-        img_mean=0.350186,
-        img_median=0.3393997,
+        img_max=0.82643485,
+        img_mean=0.32218185,
+        img_median=0.29093677,
         nan_replace=-0.2,
     ),
     InterpolationTestCase(
@@ -221,8 +238,8 @@ INTERPOLATION_TEST_CASES = [
         result_len=69,
         img_min=-0.2,
         img_max=5.0,
-        img_mean=1.234881997,
-        img_median=0.465670556,
+        img_mean=1.209852,
+        img_median=0.40995836,
         nan_replace=-0.2,
     ),
     InterpolationTestCase(
@@ -235,10 +252,10 @@ INTERPOLATION_TEST_CASES = [
             resample_range=("2015-09-01", "2016-01-01", "2016-07-01", "2017-01-01", "2017-07-01"),
         ),
         result_len=5,
-        img_min=-0.032482587,
-        img_max=0.8427637,
-        img_mean=0.5108417,
-        img_median=0.5042224,
+        img_min=-0.0252167,
+        img_max=0.816656,
+        img_mean=0.49966,
+        img_median=0.533415,
     ),
     InterpolationTestCase(
         "linear with bands and multiple masks",
@@ -253,10 +270,10 @@ INTERPOLATION_TEST_CASES = [
             ],
         ),
         result_len=68,
-        img_min=0.000200,
+        img_min=0.0003,
         img_max=10.0,
-        img_mean=0.3487376,
-        img_median=0.10036667,
+        img_mean=0.132176,
+        img_median=0.086,
     ),
 ]
 
@@ -308,14 +325,14 @@ COPY_FEATURE_CASES = [
 
 
 @pytest.mark.parametrize("test_case", INTERPOLATION_TEST_CASES)
-def test_interpolation(test_case, example_eopatch):
-    eopatch = test_case.execute(example_eopatch)
+def test_interpolation(test_case, test_patch):
+    eopatch = test_case.execute(test_patch)
 
     # Check types and shapes
     assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
     assert isinstance(eopatch.timestamp[0], datetime), "Expected timestamps of type datetime.datetime"
     assert len(eopatch.timestamp) == test_case.result_len
-    assert eopatch.data["NDVI"].shape == (test_case.result_len, 101, 100, 1)
+    assert eopatch.data["NDVI"].shape == (test_case.result_len, 20, 20, 1)
 
     # Check results
     delta = 1e-5  # Can't be higher accuracy because of Kriging interpolation
@@ -329,9 +346,9 @@ def test_interpolation(test_case, example_eopatch):
 
 
 @pytest.mark.parametrize("test_case", COPY_FEATURE_CASES)
-def test_copied_fields(test_case, example_eopatch):
+def test_copied_fields(test_case, test_patch):
     try:
-        eopatch = test_case.execute(example_eopatch)
+        eopatch = test_case.execute(test_patch)
     except ValueError:
         eopatch = None
 
