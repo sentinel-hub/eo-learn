@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, Tuple
 
 import fs
 import numpy as np
@@ -563,7 +563,7 @@ class ExplodeBandsTask(EOTask):
     def __init__(
         self,
         input_feature: Tuple[FeatureType, str],
-        output_mapping: Dict[Tuple[FeatureType, str], List[int]],
+        output_mapping: Dict[Tuple[FeatureType, str], Iterable[int]],
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.

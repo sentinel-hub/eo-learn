@@ -13,13 +13,14 @@ file in the root directory of this source tree.
 import copy
 import datetime
 import pickle
-from typing import Iterable
+from typing import Dict, Iterable, Tuple
 
 import numpy as np
 import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
+from numpy.testing import assert_equal
 
 from sentinelhub import CRS
 
@@ -390,30 +391,28 @@ def test_map_features(test_eopatch):
 
 
 @pytest.mark.parametrize(
-    "feature, new_features, list_of_bands",
+    "feature,  task_input",
     [
-        ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[2, 4, 8]]),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[2]]),
+        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): [2, 4, 8]}),
+        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): [2]}),
         (
             (FeatureType.DATA, "REFERENCE_SCENES"),
-            [(FeatureType.DATA, "B01"), (FeatureType.DATA, "B02"), (FeatureType.DATA, "B02 & B03")],
-            [[0], [1], [1, 2]],
+            {(FeatureType.DATA, "B01"): [0], (FeatureType.DATA, "B02"): [1], (FeatureType.DATA, "B02 & B03"): [1, 2]},
         ),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[]]),
+        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): []}),
     ],
 )
 def test_explode_bands(
     test_eopatch: EOPatch,
     feature: FeatureType,
-    new_features: Iterable[FeatureType],
-    list_of_bands: Iterable[Iterable[int]],
+    task_input: Dict[Tuple[FeatureType, str], Iterable[int]],
 ):
-    move_bands = ExplodeBandsTask(feature, dict(zip(new_features, list_of_bands)))
+    move_bands = ExplodeBandsTask(feature, task_input)
     patch = move_bands(test_eopatch)
-    assert all(new_feature[1] in patch.data for new_feature in new_features)
+    assert all(new_feature in patch for new_feature in task_input.keys())
 
-    for new_feature, bands in zip(new_features, list_of_bands):
-        assert all((patch[feature])[..., band] in patch[new_feature] for band in bands)
+    for new_feature, bands in task_input.items():
+        assert_equal(patch[new_feature], test_eopatch[feature][..., bands])
 
 
 def test_extract_bands(test_eopatch):
