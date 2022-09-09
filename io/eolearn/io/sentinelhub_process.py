@@ -91,7 +91,7 @@ class SentinelHubInputBaseTask(EOTask):
         geometry: Optional[Geometry] = None,
     ):
         """Main execute method for the Process API tasks.
-        The geometry is used only if also the bbox is provided."""
+        The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
 
         eopatch = eopatch or EOPatch()
 

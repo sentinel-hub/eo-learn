@@ -208,6 +208,73 @@ class TestProcessingIO:
         width, height = self.size
         assert bands.shape == (4, height, width, 1)
 
+    @pytest.mark.parametrize(
+        ["geometry", "stats"],
+        [
+            (
+                Geometry(
+                    BBox([easting + 50 * 10, northing, easting + size[0] * 10, northing + 50 * 10], crs=crs).geometry,
+                    crs=crs,
+                ),
+                [0.0, 1547.5, 0.0],
+            ),
+            (
+                Geometry(
+                    BBox(
+                        [easting - 20, northing - 20, easting + (size[0] + 10) * 10, northing + (size[1] + 10) * 10],
+                        crs=crs,
+                    ).geometry,
+                    crs=crs,
+                ),
+                [836.0, 1547.5, 793.75],
+            ),
+        ],
+    )
+    def test_geometry_argument_evalscript(self, geometry: Geometry, stats: List[float]):
+        evalscript = """
+            //VERSION=3
+
+            function setup() {
+                return {
+                    input: [{
+                        bands:["B01"],
+                        units: "DN"
+                    }],
+                    output:[
+                    {
+                        id:'bands',
+                        bands: 1,
+                        sampleType: SampleType.UINT16
+                    }
+                    ]
+                }
+            }
+
+
+            function evaluatePixel(sample) {
+                return {
+                    'bands': [sample.B01]
+                };
+            }
+        """
+        task_geom_evalscript = SentinelHubEvalscriptTask(
+            evalscript=evalscript,
+            data_collection=DataCollection.SENTINEL2_L1C,
+            features=[(FeatureType.DATA, "bands")],
+            size=self.size,
+            maxcc=self.maxcc,
+            time_difference=self.time_difference,
+            max_threads=self.max_threads,
+        )
+
+        eop = task_geom_evalscript.execute(bbox=self.bbox, time_interval=self.time_interval, geometry=geometry)
+
+        width, height = self.size
+        assert eop.data["bands"].shape == (4, height, width, 1)
+        bands = eop[(FeatureType.DATA, "bands")]
+
+        assert calculate_stats(bands) == approx(stats)
+
     def test_scl_only(self):
         """Download just SCL, without any other bands"""
         task = SentinelHubInputTask(
