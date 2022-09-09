@@ -574,10 +574,7 @@ class ExplodeBandsTask(EOTask):
 
     def execute(self, eopatch):
         for output_feature, bands in self.output_mapping.items():
-            if isinstance(bands, Iterable):
-                new_bands = list(bands)
-            else:
-                new_bands = [bands]
+            new_bands = list(bands) if isinstance(bands, Iterable) else [bands]
             eopatch = ExtractBandsTask(
                 input_feature=self.input_feature, output_feature=output_feature, bands=new_bands
             ).execute(eopatch)
