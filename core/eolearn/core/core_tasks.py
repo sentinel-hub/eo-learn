@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
-from typing import Iterable, List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import fs
 import numpy as np

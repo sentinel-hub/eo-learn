@@ -13,6 +13,7 @@ file in the root directory of this source tree.
 import copy
 import datetime
 import pickle
+from typing import Iterable
 
 import numpy as np
 import pytest
@@ -401,7 +402,12 @@ def test_map_features(test_eopatch):
         ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[]]),
     ],
 )
-def test_explode_bands(test_eopatch, feature, new_features, list_of_bands):
+def test_explode_bands(
+    test_eopatch: EOPatch,
+    feature: FeatureType,
+    new_features: Iterable[FeatureType],
+    list_of_bands: Iterable[Iterable[int]],
+):
     move_bands = ExplodeBandsTask(feature, dict(zip(new_features, list_of_bands)))
     patch = move_bands(test_eopatch)
     assert all(new_feature[1] in patch.data for new_feature in new_features)
