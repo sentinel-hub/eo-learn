@@ -388,27 +388,26 @@ def test_map_features(test_eopatch):
         MapFeatureTask(f_in, f_out)
 
 
-def test_explode_bands(test_eopatch):
-    bands = []
-    move_bands = ExplodeBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), [], bands)
+@pytest.mark.parametrize(
+    "feature, new_features, list_of_bands",
+    [
+        ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[2, 4, 8]]),
+        ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[2]]),
+        (
+            (FeatureType.DATA, "REFERENCE_SCENES"),
+            [(FeatureType.DATA, "B01"), (FeatureType.DATA, "B02"), (FeatureType.DATA, "B02 & B03")],
+            [[0], [1], [1, 2]],
+        ),
+        ((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], [[]]),
+    ],
+)
+def test_explode_bands(test_eopatch, feature, new_features, list_of_bands):
+    move_bands = ExplodeBandsTask(feature, dict(zip(new_features, list_of_bands)))
     patch = move_bands(test_eopatch)
-    assert test_eopatch == patch
+    assert all(new_feature[1] in patch.data for new_feature in new_features)
 
-    bands = [[2, 4, 8]]
-    move_bands = ExplodeBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), [(FeatureType.DATA, "MOVED_BANDS")], bands)
-    patch = move_bands(test_eopatch)
-    assert "MOVED_BANDS" in patch.data
-
-    bands = [[0], [1], [1, 2]]
-    move_bands = ExplodeBandsTask(
-        (FeatureType.DATA, "REFERENCE_SCENES"),
-        [(FeatureType.DATA, "B01"), (FeatureType.DATA, "B02"), (FeatureType.DATA, "B02 & B03")],
-        bands,
-    )
-    patch = move_bands(test_eopatch)
-    assert "B01" in patch.data
-    assert "B02" in patch.data
-    assert "B02 & B03" in patch.data
+    for new_feature, bands in zip(new_features, list_of_bands):
+        assert all((patch[feature])[..., band] in patch[new_feature] for band in bands)
 
 
 def test_extract_bands(test_eopatch):
