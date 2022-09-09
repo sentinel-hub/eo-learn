@@ -362,16 +362,16 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
     assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
 
-@pytest.mark.parametrize(
-    "no_data_value, data_type", [(None, np.uint16), (np.nan, float), (0, int), (None, float), (1, np.byte)]
-)
+@pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
+    """Tests import and export tiff tasks on generated array with different values of no_data_value."""
     eopatch = EOPatch()
     eopatch.bbox = BBox((0, 0, 1, 1), crs=CRS.WGS84)
     feature = (FeatureType.DATA_TIMELESS, "DATA")
 
     np_arr = np.zeros((10, 10, 1), dtype=data_type)
     np_arr[:5, :5, :] = 1
+    np_arr[7:, 7:, :] = no_data_value
     eopatch[feature] = np_arr
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
@@ -383,8 +383,15 @@ def test_export_import_sequence(no_data_value, data_type):
         export_task.execute(eopatch=eopatch, filename=filename)
 
         with rasterio.open(file_path) as src:
-            tif_array = src.read(masked=True)
-            assert np.sum(tif_array.mask) == np.sum(np_arr == no_data_value)
+            # when reading, move axis to have the tif_array in the EOPatch.data_timeless dimension structure
+            tif_array = np.moveaxis(src.read(masked=True), 0, -1)
+
+            if no_data_value is not np.nan:
+                no_data_arr = np_arr == no_data_value
+            else:
+                no_data_arr = np.isnan(np_arr)
+
+            assert_array_equal(tif_array.mask, no_data_arr)
 
         import_task = ImportFromTiffTask(feature=feature, folder=tmp_dir_name, no_data_value=no_data_value)
         new_eopatch = import_task.execute(filename=filename)
