@@ -84,6 +84,7 @@ class TestProcessingIO:
 
     def test_s2l1c_float32_uint16(self, cache_folder):
         task = SentinelHubInputTask(
+            bands=["B01", "B04", "B05"],
             bands_feature=(FeatureType.DATA, "BANDS"),
             additional_data=[(FeatureType.MASK, "dataMask")],
             size=self.size,
@@ -94,27 +95,29 @@ class TestProcessingIO:
             cache_folder=cache_folder,
         )
 
+        expected_int_stats = [418.3333, 853.6667, 451.75]
+
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
         is_data = eopatch[(FeatureType.MASK, "dataMask")]
 
-        assert calculate_stats(bands) == approx([0.0233, 0.0468, 0.0252])
+        assert calculate_stats(bands) == approx([x / 10000 for x in expected_int_stats], abs=1e-4)
 
         width, height = self.size
-        assert bands.shape == (4, height, width, 13)
+        assert bands.shape == (4, height, width, 3)
         assert is_data.shape == (4, height, width, 1)
         assert len(eopatch.timestamp) == 4
         assert bands.dtype == np.float32
 
         assert os.path.exists(cache_folder)
 
-        # change task's bans_dtype and run it again
+        # change task's bands_dtype and run it again
         task.bands_dtype = np.uint16
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx([232.5769, 467.5385, 251.8654])
+        assert calculate_stats(bands) == approx(expected_int_stats)
 
         assert bands.dtype == np.uint16
 
@@ -480,7 +483,7 @@ class TestProcessingIO:
     def test_multi_processing(self):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, "BANDS"),
-            bands=["B01", "B02", "B03"],
+            bands=["B01", "B02"],
             additional_data=[(FeatureType.MASK, "dataMask")],
             size=self.size,
             maxcc=self.maxcc,
@@ -490,12 +493,12 @@ class TestProcessingIO:
         )
 
         time_intervals = [
-            ("2017-01-01", "2017-01-30"),
-            ("2017-02-01", "2017-02-28"),
-            ("2017-03-01", "2017-03-30"),
-            ("2017-04-01", "2017-04-30"),
-            ("2017-05-01", "2017-05-30"),
-            ("2017-06-01", "2017-06-30"),
+            ("2017-01-01", "2017-01-15"),
+            ("2017-02-01", "2017-02-15"),
+            ("2017-03-01", "2017-03-15"),
+            ("2017-04-01", "2017-04-15"),
+            ("2017-05-01", "2017-05-15"),
+            ("2017-06-01", "2017-06-15"),
         ]
 
         with futures.ProcessPoolExecutor(max_workers=3) as executor:
@@ -505,7 +508,7 @@ class TestProcessingIO:
         array = np.concatenate([eop.data["BANDS"] for eop in eopatches], axis=0)
 
         width, height = self.size
-        assert array.shape == (20, height, width, 3)
+        assert array.shape == (13, height, width, 2)
 
     def test_get_available_timestamps_with_missing_data_collection_service_url(self):
         collection = DataCollection.SENTINEL2_L1C.define_from("COLLECTION_WITHOUT_URL", service_url=None)
