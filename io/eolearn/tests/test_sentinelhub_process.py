@@ -98,7 +98,7 @@ class TestProcessingIO:
         bands = eopatch[(FeatureType.DATA, "BANDS")]
         is_data = eopatch[(FeatureType.MASK, "dataMask")]
 
-        # assert calculate_stats(bands) == approx([x / 10000 for x in expected_int_stats])
+        assert calculate_stats(bands) == approx([x / 10000 for x in expected_int_stats], abs=1e-4)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
@@ -108,7 +108,7 @@ class TestProcessingIO:
 
         assert os.path.exists(cache_folder)
 
-        # change task's bans_dtype and run it again
+        # change task's bands_dtype and run it again
         task.bands_dtype = np.uint16
 
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
