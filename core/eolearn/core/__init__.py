@@ -8,6 +8,7 @@ from .core_tasks import (
     CreateEOPatchTask,
     DeepCopyTask,
     DuplicateFeatureTask,
+    ExplodeBandsTask,
     ExtractBandsTask,
     InitializeFeatureTask,
     LoadTask,
