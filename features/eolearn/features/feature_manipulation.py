@@ -15,14 +15,16 @@ file in the root directory of this source tree.
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 from geopandas import GeoDataFrame
 
+from sentinelhub import BBox, bbox_to_dimensions
+
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
 
-from .utils import ResizeLib, ResizeMethod, spatially_resize_image
+from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 
 LOGGER = logging.getLogger(__name__)
 
@@ -93,6 +95,12 @@ class FilterTimeSeriesTask(SimpleFilterTask):
     Removes all frames in the time-series with dates outside the user specified time interval.
     """
 
+    def _filter_func(self, date):
+        """
+        :param date: datetime.datetime
+        """
+        return self.start_date <= date <= self.end_date
+
     def __init__(self, start_date, end_date, filter_features=...):
         """
         :param start_date: Start date. All frames within the time-series taken after this date will be kept.
@@ -111,7 +119,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         if not isinstance(end_date, dt.datetime):
             raise ValueError("End date is not of correct type. Please provide the end_date as datetime.datetime.")
 
-        super().__init__(FeatureType.TIMESTAMP, lambda date: start_date <= date <= end_date, filter_features)
+        super().__init__(FeatureType.TIMESTAMP, self._filter_func, filter_features)
 
 
 class ValueFilloutTask(EOTask):
@@ -251,11 +259,23 @@ class LinearFunctionTask(MapFeatureTask):
 class SpatialResizeTask(EOTask):
     """Resizes the specified spatial features of EOPatch."""
 
+    def _process_resize_parameters(
+        self, resize_parameters: Tuple[ResizeParam, Tuple[float, float]], bbox: BBox
+    ) -> Dict[str, Tuple[float, float]]:
+        resize_type, resize_type_param = resize_parameters
+        resize_type = ResizeParam(resize_type)
+
+        if resize_type == ResizeParam.RESOLUTION:
+            new_size = bbox_to_dimensions(bbox, resize_type_param)
+            return {ResizeParam.NEW_SIZE.value: new_size}
+
+        return {resize_type.value: resize_type_param}
+
     def __init__(
         self,
+        *,
+        resize_parameters: Tuple[ResizeParam, Tuple[float, float]],
         features: Any = ...,
-        new_size: Optional[Tuple[int, int]] = None,
-        scale_factors: Optional[Tuple[float, float]] = None,
         resize_method: ResizeMethod = ResizeMethod.LINEAR,
         resize_library: ResizeLib = ResizeLib.PIL,
     ):
@@ -270,16 +290,17 @@ class SpatialResizeTask(EOTask):
             features anti-aliasing. For cases where execution speed is crucial one can use CV2.
         """
         self.features = features
+        self.resize_parameters = resize_parameters
+
         self.resize_function = partial(
             spatially_resize_image,
-            new_size=new_size,
-            scale_factors=scale_factors,
             resize_method=resize_method,
             resize_library=resize_library,
         )
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
+        resize_params = self._process_resize_parameters(self.resize_parameters, eopatch.bbox)
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
             if ftype.is_spatial() and ftype.is_raster():
-                eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname])
+                eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_params)
         return eopatch

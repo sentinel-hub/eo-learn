@@ -75,7 +75,7 @@ def test_meteoblue_raster_task(mocker):
 
     assert round(np.mean(data), 5) == 23.79214
     assert round(np.std(data), 5) == 0.3996
-    assert round(data[0, 0, 0, 0], 5) == 23.74646
+    assert round(data[0, -1, 0, 0], 5) == 23.74646
 
 
 def test_meteoblue_vector_task(mocker):

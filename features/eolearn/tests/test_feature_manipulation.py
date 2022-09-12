@@ -18,6 +18,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from eolearn.features.feature_manipulation import SpatialResizeTask
+from eolearn.features.utils import ResizeParam
 
 
 @pytest.mark.parametrize(
@@ -229,17 +230,30 @@ def test_linear_function_task():
     assert np.array_equal(eopatch[mask_timeless_feature], np.ones(mask_shape) * 5)
 
 
+@pytest.mark.parametrize(
+    ["resize_parameters", "features_call", "features_check", "outputs"],
+    [
+        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP"), ("data", "CLP"), (68, 50, 70, 1)),
+        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP"), ("mask", "CLM"), (68, 101, 100, 1)),
+        ((ResizeParam.NEW_SIZE, (50, 70)), ..., ("data", "CLP"), (68, 50, 70, 1)),
+        ((ResizeParam.NEW_SIZE, (50, 70)), ..., ("mask", "CLM"), (68, 50, 70, 1)),
+        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP", "CLP_small"), ("data", "CLP_small"), (68, 50, 70, 1)),
+        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP", "CLP_small"), ("data", "CLP"), (68, 101, 100, 1)),
+        ((ResizeParam.SCALE_FACTORS, (2, 2)), ("data", "CLP"), ("data", "CLP"), (68, 202, 200, 1)),
+        ((ResizeParam.SCALE_FACTORS, (0.1, 0.1)), ("data", "CLP"), ("data", "CLP"), (68, 10, 10, 1)),
+        ((ResizeParam.RESOLUTION, (5, 5)), ("data", "CLP"), ("data", "CLP"), (68, 200, 202, 1)),
+        ((ResizeParam.RESOLUTION, (20, 20)), ("data", "CLP"), ("data", "CLP"), (68, 50, 50, 1)),
+    ],
+)
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
-def test_spatial_resize_task(example_eopatch):
+def test_spatial_resize_task(example_eopatch, resize_parameters, features_call, features_check, outputs):
     # Warnings occur due to lossy casting in the downsampling procedure
-    resize_clp = SpatialResizeTask(("data", "CLP"), (50, 70))
-    assert resize_clp(example_eopatch).data["CLP"].shape == (68, 50, 70, 1)
-    assert resize_clp(example_eopatch).mask["CLM"].shape == (68, 101, 100, 1)
 
-    resize_all = SpatialResizeTask(..., (50, 70))
-    assert resize_all(example_eopatch).data["CLP"].shape == (68, 50, 70, 1)
-    assert resize_all(example_eopatch).mask["CLM"].shape == (68, 50, 70, 1)
+    resize = SpatialResizeTask(resize_parameters=resize_parameters, features=features_call)
+    assert resize(example_eopatch)[features_check].shape == outputs
 
-    resize_rename = SpatialResizeTask(("data", "CLP", "CLP_small"), (50, 70))
-    assert resize_rename(example_eopatch).data["CLP_small"].shape == (68, 50, 70, 1)
-    assert resize_rename(example_eopatch).data["CLP"].shape == (68, 50, 70, 1)
+
+def test_spatial_resize_task_exception(example_eopatch):
+    with pytest.raises(ValueError):
+        resize_wrong_param = SpatialResizeTask(features=("mask", "CLM"), resize_parameters=("blabla", (20, 20)))
+        resize_wrong_param(example_eopatch)

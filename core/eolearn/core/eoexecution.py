@@ -23,7 +23,7 @@ import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
@@ -39,6 +39,9 @@ if sys.version_info < (3, 8):
     from typing_extensions import Protocol
 else:
     from typing import Protocol  # pylint: disable=ungrouped-imports
+
+if TYPE_CHECKING:
+    from eolearn.visualization.eoexecutor import EOExecutorVisualization
 
 
 class _HandlerWithFsFactoryType(Protocol):
@@ -252,7 +255,7 @@ class EOExecutor:
         return None, None
 
     @classmethod
-    def _try_remove_logging(cls, log_path: Optional[str], logger: Optional[Logger], handler: Optional[Handler]):
+    def _try_remove_logging(cls, log_path: Optional[str], logger: Optional[Logger], handler: Optional[Handler]) -> None:
         """Removes a handler from a logger in case that handler exists."""
         if log_path and logger and handler:
             try:
@@ -354,7 +357,7 @@ class EOExecutor:
             return get_full_path(self.filesystem, report_path)
         return report_path
 
-    def make_report(self, include_logs: bool = True):
+    def make_report(self, include_logs: bool = True) -> "EOExecutorVisualization":
         """Makes a html report and saves it into the same folder where logs are stored.
 
         :param include_logs: If `True` log files will be loaded into the report file. If `False` they will be just

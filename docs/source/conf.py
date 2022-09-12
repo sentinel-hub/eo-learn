@@ -93,12 +93,12 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path .
-exclude_patterns = ["**.ipynb_checkpoints"]
+exclude_patterns = ["**.ipynb_checkpoints", "custom_reference*"]
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
@@ -232,7 +232,7 @@ MARKDOWNS_FOLDER = "./markdowns"
 
 def copy_documentation_examples(source_folder, target_folder):
     """Makes sure to copy only notebooks that are actually included in the documentation"""
-    notebooks_to_include = []
+    files_to_include = ["core/images/eopatch.png"]
 
     for rst_file in ["examples.rst", "index.rst"]:
         with open(rst_file, "r") as fp:
@@ -241,11 +241,11 @@ def copy_documentation_examples(source_folder, target_folder):
         for line in content.split("\n"):
             line = line.strip(" \t")
             if line.startswith("examples/"):
-                notebooks_to_include.append(line.split("/", 1)[1])
+                files_to_include.append(line.split("/", 1)[1])
 
-    for notebook in notebooks_to_include:
-        source_path = os.path.join(source_folder, notebook)
-        target_path = os.path.join(target_folder, notebook)
+    for file in files_to_include:
+        source_path = os.path.join(source_folder, file)
+        target_path = os.path.join(target_folder, file)
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
         shutil.copyfile(source_path, target_path)
 
@@ -347,13 +347,15 @@ with open("eotasks.rst", "w") as f:
 
 # Auto-generate documentation pages
 current_dir = os.path.abspath(os.path.dirname(__file__))
-target_dir = os.path.join(current_dir, "reference")
+reference_dir = os.path.join(current_dir, "reference")
+custom_reference_dir = os.path.join(current_dir, "custom_reference")
 modules = ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
-
-os.makedirs(target_dir, exist_ok=True)
 
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
 APIDOC_EXCLUDE = defaultdict(list, {"core": ["graph.py", "eodata_io.py", "eodata_merge.py"]})
+
+shutil.rmtree(reference_dir, ignore_errors=True)
+shutil.copytree(custom_reference_dir, reference_dir)
 
 
 def run_apidoc(_):
@@ -366,7 +368,7 @@ def run_apidoc(_):
         exclude = [os.path.join(module_dir, "eolearn", module, filename) for filename in APIDOC_EXCLUDE[module]]
         exclude.extend([os.path.join(module_dir, "setup.py"), os.path.join(module_dir, "eolearn", "tests")])
 
-        main(["-e", "-o", target_dir, module_dir, *exclude, *APIDOC_OPTIONS])
+        main(["-e", "-o", reference_dir, module_dir, *exclude, *APIDOC_OPTIONS])
 
 
 def setup(app):

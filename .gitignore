@@ -114,7 +114,7 @@ Pipfile*
 /docs/source/examples
 /docs/source/markdowns
 /docs/source/eotasks.rst
-/docs/source/reference/*.rst
+/docs/source/reference/
 
 # pytest
 .pytest_cache/
@@ -122,3 +122,6 @@ features/.pytest_cache
 
 # execution reports
 **execution-report**
+
+# MacOS cache
+.DS_Store

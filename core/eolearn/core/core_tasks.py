@@ -13,10 +13,12 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
+from typing import Dict, Iterable, Tuple, Union
 
 import fs
 import numpy as np
 
+from .constants import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
@@ -553,6 +555,30 @@ class ExtractBandsTask(MapFeatureTask):
             raise ValueError("Band index out of feature's dimensions.")
 
         return feature[..., self.bands]
+
+
+class ExplodeBandsTask(EOTask):
+    """Explode a subset of bands from one feature to multiple new features."""
+
+    def __init__(
+        self,
+        input_feature: Tuple[FeatureType, str],
+        output_mapping: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
+    ):
+        """
+        :param input_feature: A source feature from which to take the subset of bands.
+        :param output_mapping: A mapping of output features into the band indices used to explode the input feature.
+        """
+        self.input_feature = input_feature
+        self.output_mapping = output_mapping
+
+    def execute(self, eopatch):
+        for output_feature, bands in self.output_mapping.items():
+            new_bands = list(bands) if isinstance(bands, Iterable) else [bands]
+            eopatch = ExtractBandsTask(
+                input_feature=self.input_feature, output_feature=output_feature, bands=new_bands
+            ).execute(eopatch)
+        return eopatch
 
 
 class CreateEOPatchTask(EOTask):

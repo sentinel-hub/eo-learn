@@ -13,14 +13,16 @@ file in the root directory of this source tree.
 
 import collections
 import copy
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import DefaultDict, Dict, Generic, Iterator, List, Optional, Sequence, Set, Tuple, TypeVar
+
+_T = TypeVar("_T")
 
 
 class CyclicDependencyError(ValueError):
     """This error is raised when trying to get a topological ordering of a `DirectedGraph`."""
 
 
-class DirectedGraph:
+class DirectedGraph(Generic[_T]):
     """A directed graph using adjacency-list representation. The graph is multi-edge.
 
     Constructs a new graph from an adjacency list. If adjacency_dict is None, an empty graph is constructed.
@@ -28,7 +30,7 @@ class DirectedGraph:
     :param adjacency_dict: A dictionary mapping vertices to lists of neighbors
     """
 
-    def __init__(self, adjacency_dict: Optional[Dict[object, List[object]]] = None):
+    def __init__(self, adjacency_dict: Optional[Dict[_T, List[_T]]] = None):
         self._adj_dict = (
             collections.defaultdict(list, adjacency_dict) if adjacency_dict else collections.defaultdict(list)
         )
@@ -39,19 +41,19 @@ class DirectedGraph:
         """Returns the number of vertices in the graph."""
         return len(self._vertices)
 
-    def __contains__(self, vertex) -> bool:
+    def __contains__(self, vertex: _T) -> bool:
         """True if `vertex` is a vertex of the graph. False otherwise.
 
         :param vertex: Vertex
         """
         return vertex in self._vertices
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[_T]:
         """Returns iterator over the vertices of the graph."""
         return iter(self._vertices)
 
-    def _make_indegrees_dict(self):
-        indegrees = collections.defaultdict(int)
+    def _make_indegrees_dict(self) -> DefaultDict[_T, int]:
+        indegrees: DefaultDict[_T, int] = collections.defaultdict(int)
 
         for u_vertex in self._adj_dict:
             for v_vertex in self._adj_dict[u_vertex]:
@@ -59,11 +61,11 @@ class DirectedGraph:
 
         return indegrees
 
-    def get_indegrees(self) -> Dict[Any, int]:
+    def get_indegrees(self) -> Dict[_T, int]:
         """Returns a dictionary containing in-degrees of vertices of the graph."""
         return dict(self._indegrees)
 
-    def get_indegree(self, vertex) -> int:
+    def get_indegree(self, vertex: _T) -> int:
         """Returns the in-degree of the vertex.
 
         The in-degree is the number of vertices `vertex'` such that `vertex' -> vertex` is an edge of the graph.
@@ -72,13 +74,13 @@ class DirectedGraph:
         """
         return self._indegrees[vertex]
 
-    def get_outdegrees(self):
+    def get_outdegrees(self) -> Dict[_T, int]:
         """
         :return: dictionary of out-degrees, see get_outdegree
         """
         return {vertex: len(self._adj_dict[vertex]) for vertex in self._adj_dict}
 
-    def get_outdegree(self, vertex) -> int:
+    def get_outdegree(self, vertex: _T) -> int:
         """Returns the out-degree of the vertex.
 
         The out-degree is the number of vertices `vertex'` such that `vertex -> vertex'` is an edge of the graph.
@@ -87,29 +89,28 @@ class DirectedGraph:
         """
         return len(self._adj_dict[vertex])
 
-    def get_adj_dict(self) -> Dict[Any, list]:
+    def get_adj_dict(self) -> Dict[_T, list]:
         """
         :return: adj_dict
         """
         return {vertex: copy.copy(neighbours) for vertex, neighbours in self._adj_dict.items()}
 
-    def get_vertices(self) -> set:
+    def get_vertices(self) -> Set[_T]:
         """Returns the set of vertices of the graph."""
         return set(self._vertices)
 
-    def add_edge(self, u_vertex, v_vertex):
+    def add_edge(self, u_vertex: _T, v_vertex: _T) -> None:
         """Adds the edge `u_vertex -> v_vertex` to the graph if the edge is not already present.
 
         :param u_vertex: Vertex
         :param v_vertex: Vertex
-        :return: `True` if a new edge was added. `False` otherwise.
         """
         self._vertices.add(u_vertex)
         self._vertices.add(v_vertex)
         self._indegrees[v_vertex] += 1
         self._adj_dict[u_vertex].append(v_vertex)
 
-    def del_edge(self, u_vertex, v_vertex) -> bool:
+    def del_edge(self, u_vertex: _T, v_vertex: _T) -> bool:
         """Removes the edge `u_vertex -> v_vertex` from the graph if the edge is present.
 
         :param u_vertex: Vertex
@@ -123,7 +124,7 @@ class DirectedGraph:
 
         return False
 
-    def add_vertex(self, vertex) -> bool:
+    def add_vertex(self, vertex: _T) -> bool:
         """Adds a new vertex to the graph if not present.
 
         :param vertex: Vertex
@@ -135,7 +136,7 @@ class DirectedGraph:
 
         return False
 
-    def del_vertex(self, vertex) -> bool:
+    def del_vertex(self, vertex: _T) -> bool:
         """Removes the vertex `vertex` and all incident edges from the graph.
 
         **Note** that this is an expensive operation that should be avoided!
@@ -158,21 +159,20 @@ class DirectedGraph:
         self._vertices.remove(vertex)
         return True
 
-    def is_edge(self, u_vertex, v_vertex) -> bool:
+    def is_edge(self, u_vertex: _T, v_vertex: _T) -> bool:
         """True if `u_vertex -> v_vertex` is an edge of the graph. False otherwise."""
         return v_vertex in self._adj_dict[u_vertex]
 
-    def get_neighbors(self, vertex) -> list:
+    def get_neighbors(self, vertex: _T) -> List[_T]:
         """Returns the set of successor vertices of `vertex`."""
         return copy.copy(self._adj_dict[vertex])
 
     @staticmethod
-    def from_edges(edges: Sequence[Tuple[object, object]]) -> "DirectedGraph":
+    def from_edges(edges: Sequence[Tuple[_T, _T]]) -> "DirectedGraph[_T]":
         """Return DirectedGraph created from edges.
         :param edges: Pairs of objects that describe all the edges of the graph
-        :return: DirectedGraph
         """
-        dag = DirectedGraph()
+        dag: DirectedGraph = DirectedGraph[_T]()
         for _u, _v in edges:
             dag.add_edge(_u, _v)
         return dag
@@ -199,7 +199,7 @@ class DirectedGraph:
                         stack.append(v)
         return False
 
-    def topologically_ordered_vertices(self) -> list:
+    def topologically_ordered_vertices(self) -> List[_T]:
         """Computes an ordering `<` of vertices so that for any two vertices `v` and `v'` we have that if `v˙ depends
         on `v'` then `v' < v`. In words, all dependencies of a vertex precede the vertex in this ordering.
 
