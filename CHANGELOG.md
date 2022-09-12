@@ -1,3 +1,16 @@
+## [Version 1.2.1] - 2022-09-12
+
+- Corrected the default for `no_data_value` in `ImportFromTiffTask` and `ExportToTiffTask` to `None`. The previous default of `0` was a poor choice in many scenarios. The switch might alter behavior in existing code.
+- Changed the way `SpatialResizeTask` accepts parameters for the final image size. Now supports resizing by using resolution.  
+- Added `ExplodeBandsTask` that explodes a multi-band feature into multiple features.
+- Exposed resampling parameters in Sentinel Hub tasks and included a `geometry` execution parameter.
+- Reworked internal classes `FeatureIO` and `_FeatureDict` to improve types and maintainability.
+- Fixed y-axis orientation of `MeteoblueRasterTask`.
+- `FilterTimeSeriesTask` adjusted to work with multiprocessing.
+- EOPatch plotting no longer anti-aliases by default (removes issues with phantom values in mask plots)
+- Improved documentation building, fixing a few broken links.
+
+
 ## [Version 1.2.0] - 2022-07-27
 
 - Improved handling of filesystem objects:
