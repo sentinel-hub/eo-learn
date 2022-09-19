@@ -1,7 +1,7 @@
 jupyter
 m2r2
 nbsphinx
-sphinx-rtd-theme
+sphinx_rtd_theme>=1.0.0
 sphinx
 jinja2==3.0.3
 

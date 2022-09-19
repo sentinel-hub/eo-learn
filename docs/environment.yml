@@ -5,7 +5,7 @@ dependencies:
 - rasterio
 - pip:
   - Sphinx~=4.0
-  - sphinx-rtd-theme
+  - sphinx_rtd_theme>=1.0.0
   - nbsphinx
   - jupyter
   - m2r2
