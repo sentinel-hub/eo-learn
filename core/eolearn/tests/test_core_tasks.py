@@ -12,7 +12,6 @@ file in the root directory of this source tree.
 
 import copy
 import datetime
-import math
 import pickle
 from typing import Dict, Iterable, Tuple, Union
 
@@ -22,6 +21,7 @@ from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 from numpy.testing import assert_equal
+from pytest import approx
 
 from sentinelhub import CRS
 
@@ -426,10 +426,10 @@ def test_extract_bands(test_eopatch):
     patch = move_bands(test_eopatch)
     assert np.array_equal(patch.data["MOVED_BANDS"], patch.data["REFERENCE_SCENES"][..., bands])
 
+    tmp = patch.data["MOVED_BANDS"][0, 0, 0, 0]
     patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1.0
-    assert math.isclose(
-        patch.data["REFERENCE_SCENES"][0, 0, 0, bands[0]] + 1.0, patch.data["MOVED_BANDS"][0, 0, 0, 0], rel_tol=0.2
-    )
+    assert_equal(patch.data["REFERENCE_SCENES"][0, 0, 0, bands[0]], tmp)
+    assert tmp + 1.0 == approx(patch.data["MOVED_BANDS"][0, 0, 0, 0])
 
     bands = [2, 4, 16]
     move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
