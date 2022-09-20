@@ -12,6 +12,7 @@ file in the root directory of this source tree.
 
 import copy
 import datetime
+import math
 import pickle
 from typing import Dict, Iterable, Tuple, Union
 
@@ -424,6 +425,11 @@ def test_extract_bands(test_eopatch):
     move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
     patch = move_bands(test_eopatch)
     assert np.array_equal(patch.data["MOVED_BANDS"], patch.data["REFERENCE_SCENES"][..., bands])
+
+    patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1.0
+    assert math.isclose(
+        patch.data["REFERENCE_SCENES"][0, 0, 0, bands[0]] + 1.0, patch.data["MOVED_BANDS"][0, 0, 0, 0], rel_tol=0.2
+    )
 
     bands = [2, 4, 16]
     move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
