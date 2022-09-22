@@ -13,14 +13,21 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
+import sys
 from itertools import repeat
-from typing import TYPE_CHECKING, Dict, Iterable, List, Literal, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
 from .types import EllipsisType
 
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal  # pylint: disable=ungrouped-imports
+
 if TYPE_CHECKING:
     from ..eodata import EOPatch
+
 
 SingleFeatureSpec = Union[
     Literal[FeatureType.TIMESTAMP, FeatureType.BBOX], Tuple[FeatureType, str], Tuple[FeatureType, str, str]
