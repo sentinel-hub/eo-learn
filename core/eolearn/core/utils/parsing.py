@@ -288,13 +288,14 @@ class FeatureParser:
 
         If `eopatch` is not provided the method fails if an all-feature request is in the specification.
         """
-        feature_names = []
-        for feature_type, name, _ in self._feature_specs:
-            self._validate_parsing_request(feature_type, name, eopatch)
-            if name is None and feature_type.has_dict():
-                feature_names.extend(list(zip(repeat(feature_type), eopatch[feature_type])))  # type: ignore
+        feature_names: List[Tuple[FeatureType, Optional[str]]] = []
+        for ftype, name, _ in self._feature_specs:
+            self._validate_parsing_request(ftype, name, eopatch)
+            if name is None and ftype.has_dict():
+                # _validate_parsing_request should ensure that eopatch is not None
+                feature_names.extend((ftype, name) for name in eopatch[ftype])  # type: ignore[index]
             else:
-                feature_names.append((feature_type, name))
+                feature_names.append((ftype, name))
         return feature_names
 
     def get_renamed_features(
@@ -311,15 +312,15 @@ class FeatureParser:
 
         If `eopatch` is not provided the method fails if an all-feature request is in the specification.
         """
-        feature_names = []
-        for feature_type, old_name, new_name in self._feature_specs:
-            self._validate_parsing_request(feature_type, old_name, eopatch)
-            if old_name is None and feature_type.has_dict():
-                feature_names.extend(
-                    list(zip(repeat(feature_type), eopatch[feature_type], eopatch[feature_type]))  # type: ignore
-                )
+        feature_names: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
+        for feature_spec in self._feature_specs:
+            ftype, old_name, _ = feature_spec
+            self._validate_parsing_request(ftype, old_name, eopatch)
+            if old_name is None and ftype.has_dict():
+                # _validate_parsing_request should ensure that eopatch is not None
+                feature_names.extend((ftype, name, name) for name in eopatch[ftype])  # type: ignore[index]
             else:
-                feature_names.append((feature_type, old_name, new_name))
+                feature_names.append(feature_spec)
         return feature_names
 
 
