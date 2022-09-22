@@ -14,12 +14,22 @@ file in the root directory of this source tree.
 from __future__ import annotations
 
 from itertools import repeat
-from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Dict, Iterable, List, Literal, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
+from .types import EllipsisType
 
 if TYPE_CHECKING:
     from ..eodata import EOPatch
+
+SingleFeatureSpec = Union[
+    Literal[FeatureType.TIMESTAMP, FeatureType.BBOX], Tuple[FeatureType, str], Tuple[FeatureType, str, str]
+]
+SequenceFeatureSpec = Sequence[Union[SingleFeatureSpec, Tuple[FeatureType, EllipsisType]]]
+
+DictFeatureSpec = Dict[FeatureType, Union[None, EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]
+
+MultiFeatureSpec = Union[EllipsisType, Tuple[FeatureType, EllipsisType], SequenceFeatureSpec, DictFeatureSpec]
 
 
 class FeatureParser:
@@ -63,7 +73,7 @@ class FeatureParser:
                 FeatureType.BBOX: None
             }
 
-    4. Sequences of elements, each describing a feature. For elements describing a feature type it is understood as
+    4. Sequences of elements, each describing a feature. When describing all features of a given feature type use
        `(feature_type, ...)`. For specific features one can use `(feature_type, feature_name)` or even
        `(feature_type, old_name, new_name)` for renaming.
 
@@ -81,7 +91,11 @@ class FeatureParser:
     - For `get_renamed_features` a list of triples `(feature_type, old_name, new_name)`.
     """
 
-    def __init__(self, features: Union[dict, Sequence], allowed_feature_types: Optional[Iterable[FeatureType]] = None):
+    def __init__(
+        self,
+        features: Union[SingleFeatureSpec, MultiFeatureSpec],
+        allowed_feature_types: Optional[Iterable[FeatureType]] = None,
+    ):
         """
         :param features: A collection of features in one of the supported formats
         :param allowed_feature_types: Makes sure that only features of these feature types will be returned, otherwise
@@ -92,7 +106,7 @@ class FeatureParser:
         self._feature_specs = self._parse_features(features)
 
     def _parse_features(
-        self, features: Union[dict, Sequence]
+        self, features: Union[SingleFeatureSpec, MultiFeatureSpec]
     ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
         """This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
 
@@ -100,6 +114,10 @@ class FeatureParser:
         This is a correct schema for BBOX and TIMESTAMP while for other features this is corrected when outputting,
         either by processing the request or by substituting ellipses back (case of `get_feature_specifications`).
         """
+
+        if features is FeatureType.BBOX or features is FeatureType.TIMESTAMP:
+            return [(features, None, None)]
+
         if isinstance(features, dict):
             return self._parse_dict(features)
 
@@ -109,14 +127,14 @@ class FeatureParser:
         if features is ...:
             return list(zip(self.allowed_feature_types, repeat(None), repeat(None)))
 
-        if features is FeatureType.BBOX or features is FeatureType.TIMESTAMP:
-            return [(features, None, None)]
-
         raise ValueError(
             f"Unable to parse features {features}. Please see specifications of FeatureParser on viable inputs."
         )
 
-    def _parse_dict(self, features: dict) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
+    def _parse_dict(
+        self,
+        features: DictFeatureSpec,
+    ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
         """Implements parsing and validation in case the input is a dictionary."""
 
         feature_specs: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
@@ -139,9 +157,12 @@ class FeatureParser:
         return feature_specs
 
     def _parse_sequence(
-        self, features: Sequence
+        self,
+        features: Union[
+            Tuple[FeatureType, str], Tuple[FeatureType, str, str], Tuple[FeatureType, EllipsisType], SequenceFeatureSpec
+        ],
     ) -> List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]]:
-        """Implements parsing and validation in case the input is a sequence."""
+        """Implements parsing and validation in case the input is a tuple describing a single feature or a sequence."""
 
         feature_specs: List[Union[Tuple[FeatureType, str, str], Tuple[FeatureType, None, None]]] = []
 
@@ -250,7 +271,7 @@ class FeatureParser:
         if eopatch is not None and name is not None and (feature_type, name) not in eopatch:
             raise ValueError(f"Requested feature {(feature_type, name)} not part of eopatch.")
 
-    def get_feature_specifications(self) -> List[Tuple[FeatureType, object]]:
+    def get_feature_specifications(self) -> List[Tuple[FeatureType, Union[str, EllipsisType]]]:
         """Returns the feature specifications in a more streamlined fashion.
 
         Requests for all features, e.g. `(FeatureType.DATA, ...)`, are returned directly.
