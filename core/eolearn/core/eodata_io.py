@@ -13,12 +13,10 @@ import concurrent.futures
 import datetime
 import gzip
 import json
-import pickle
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from functools import wraps
-from typing import Any, BinaryIO, Callable, Generic, Iterable, Optional, TypeVar, Union
+from typing import Any, BinaryIO, Generic, Iterable, Optional, TypeVar, Union
 
 import fs
 import fs.move
@@ -28,14 +26,12 @@ import pandas as pd
 from fs.base import FS
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
-from geopandas import GeoDataFrame, GeoSeries
 
 from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FeatureTypeSet, OverwritePermission
-from .exceptions import EODeprecationWarning
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
 
@@ -269,16 +265,15 @@ class FeatureIO(Generic[_T], metaclass=ABCMeta):
 
         with self.filesystem.openbin(self.path, "r") as file_handle:
             if MimeType.GZIP.matches_extension(self.path):
-                path = fs.path.splitext(self.path)[0]
                 with gzip.open(file_handle, "rb") as gzip_fp:
-                    self.loaded_value = self._read_from_file(gzip_fp, path)
+                    self.loaded_value = self._read_from_file(gzip_fp)
             else:
-                self.loaded_value = self._read_from_file(file_handle, self.path)
+                self.loaded_value = self._read_from_file(file_handle)
 
         return self.loaded_value
 
     @abstractmethod
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> _T:
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> _T:
         """Loads from a file and decodes content."""
 
     def save(self, data: _T, compress_level: int = 0) -> None:
@@ -315,38 +310,12 @@ class FeatureIO(Generic[_T], metaclass=ABCMeta):
         """Writes data to a file in the appropriate way."""
 
 
-def _try_unpickling(read_method: Callable[[Any, Union[BinaryIO, gzip.GzipFile], str], _T]):
-    @wraps(read_method)
-    def unpickle_or_read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> _T:
-        file_format = MimeType(fs.path.splitext(path)[1].strip("."))
-        if file_format is MimeType.PICKLE:
-            warnings.warn(
-                f"File {self.path} is in pickle format which is deprecated since eo-learn version 1.0. Please re-save "
-                "this EOPatch with the new eo-learn version to update the format. In newer versions this backward "
-                "compatibility will be removed.",
-                EODeprecationWarning,
-            )
-
-            data = pickle.load(file)
-
-            # There seems to be an issue in geopandas==0.8.1 where unpickling GeoDataFrames, which were saved with an
-            # old geopandas version, loads geometry column into a pandas.Series instead geopandas.GeoSeries. Because
-            # of that it is missing a crs attribute which is only attached to the entire GeoDataFrame
-            if isinstance(data, GeoDataFrame) and not isinstance(data.geometry, GeoSeries):
-                data = data.set_geometry("geometry")
-
-            return data
-        return read_method(self, file, path)
-
-    return unpickle_or_read_from_file
-
-
 class FeatureIONumpy(FeatureIO[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
     file_format = MimeType.NPY
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> np.ndarray:
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> np.ndarray:
         return np.load(file)
 
     def _write_to_file(self, data: np.ndarray, file: Union[BinaryIO, gzip.GzipFile]) -> None:
@@ -358,8 +327,7 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
 
     file_format = MimeType.GPKG
 
-    @_try_unpickling
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], path: str) -> gpd.GeoDataFrame:
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> gpd.GeoDataFrame:
         dataframe = gpd.read_file(file)
 
         if dataframe.crs is not None:
@@ -399,8 +367,7 @@ class FeatureIOJson(FeatureIO[_T]):
 
     file_format = MimeType.JSON
 
-    @_try_unpickling
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> _T:
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> _T:
         return json.load(file)
 
     def _write_to_file(self, data: _T, file: Union[BinaryIO, gzip.GzipFile]) -> None:
@@ -420,8 +387,7 @@ class FeatureIOBBox(FeatureIO[BBox]):
 
     file_format = MimeType.GEOJSON
 
-    @_try_unpickling
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile], _: str) -> BBox:
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> BBox:
         json_data = json.load(file)
         return Geometry.from_geojson(json_data).bbox
 
