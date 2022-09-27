@@ -42,7 +42,7 @@ class BaseMeteoblueTask(EOTask):
         apikey: str,
         query: dict,
         units: dict = None,
-        time_difference: dt.timedelta = dt.timedelta(minutes=30),
+        time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008
         cache_folder: Optional[str] = None,
         cache_max_age: int = 604800,
     ):
@@ -240,7 +240,7 @@ def meteoblue_to_numpy(result) -> np.ndarray:
     # Therefore we have to first transpose each code individually and then transpose everything again
     def map_code(code):
         """Transpose a single code"""
-        code_data = np.array(list(map(lambda t: t.data, code.timeIntervals)))
+        code_data = np.array([t.data for t in code.timeIntervals])
 
         code_n_timesteps = code_data.size // n_locations // n_time_intervals
         code_data = code_data.reshape((n_time_intervals, geo_ny, geo_nx, code_n_timesteps))

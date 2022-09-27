@@ -10,6 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import concurrent.futures
+import contextlib
 import datetime
 import gzip
 import json
@@ -332,12 +333,9 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
 
         if dataframe.crs is not None:
             # Trying to preserve a standard CRS and passing otherwise
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=SHUserWarning)
-                    dataframe.crs = CRS(dataframe.crs).pyproj_crs()
-            except ValueError:
-                pass
+            with contextlib.suppress(ValueError), warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=SHUserWarning)
+                dataframe.crs = CRS(dataframe.crs).pyproj_crs()
 
         if "TIMESTAMP" in dataframe:
             dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)

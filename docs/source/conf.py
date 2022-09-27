@@ -43,10 +43,11 @@ doc_title = "eo-learn Documentation"
 # built documents.
 #
 # The release is read from __init__ file and version is shortened release string.
-for line in open(os.path.join(os.path.dirname(__file__), "../../setup.py")):
-    if "version=" in line:
-        release = line.split("=")[1].strip('", \n').strip("'")
-        version = release.rsplit(".", 1)[0]
+with open(os.path.join(os.path.dirname(__file__), "../../setup.py")) as setup_file:
+    for line in setup_file:
+        if "version=" in line:
+            release = line.split("=")[1].strip('", \n').strip("'")
+            version = release.rsplit(".", 1)[0]
 
 # -- General configuration ---------------------------------------------------
 

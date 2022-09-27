@@ -35,7 +35,7 @@ def test_nodes_different_uids():
 
 
 def test_hashing():
-    {EONode(Inc()): "Can be hashed!"}
+    _ = {EONode(Inc()): "Can be hashed!"}
 
     linear = EONode(Inc())
     for _ in range(5000):

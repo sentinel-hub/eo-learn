@@ -286,12 +286,10 @@ class EOPatch:
             if isinstance(value, (tuple, list)) and len(value) == 5:
                 return BBox(value[:4], crs=value[4])
 
-        if feature_type is FeatureType.TIMESTAMP:
-            if isinstance(value, (tuple, list)):
-                return [
-                    timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp)
-                    for timestamp in value
-                ]
+        if feature_type is FeatureType.TIMESTAMP and isinstance(value, (tuple, list)):
+            return [
+                timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp) for timestamp in value
+            ]
 
         raise TypeError(
             f"Attribute {feature_type} requires value of type {feature_type.type()} - "
@@ -364,10 +362,7 @@ class EOPatch:
         if not isinstance(self, type(other)):
             return False
 
-        for feature_type in FeatureType:
-            if not deep_eq(self[feature_type], other[feature_type]):
-                return False
-        return True
+        return all(deep_eq(self[feature_type], other[feature_type]) for feature_type in FeatureType)
 
     def __contains__(self, feature: Union[FeatureType, Tuple[FeatureType, str]]):
         if isinstance(feature, FeatureType):
