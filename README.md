@@ -90,9 +90,9 @@ Some subpackages contain extension modules under `extra` subfolder. Those module
 
 ### Conda Forge distribution
 
-The package requires a Python environment **>=3.7**. 
+The package requires a Python environment **>=3.7**.
 
-Thanks to the maintainers of the conda forge feedstock (@benhuff, @dcunn, @mwilson8, @oblute, @rluria14), `eo-learn` can 
+Thanks to the maintainers of the conda forge feedstock (@benhuff, @dcunn, @mwilson8, @oblute, @rluria14), `eo-learn` can
 be installed using `conda-forge` as follows:
 
 ```bash
@@ -123,7 +123,7 @@ docker pull sentinelhub/eolearn:latest
 docker run -p 8888:8888 sentinelhub/eolearn:latest
 ```
 
-An extended version of the `latest` image additionally contains all example notebooks and data to get you started with `eo-learn`. Run it with: 
+An extended version of the `latest` image additionally contains all example notebooks and data to get you started with `eo-learn`. Run it with:
 
 ```bash
 docker pull sentinelhub/eolearn:latest-examples
@@ -164,8 +164,8 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
  * [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
  * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
  * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
- * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a) 
- * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583) 
+ * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a)
+ * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
    * [High-Level Concept](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
    * [Data Handling](https://medium.com/sentinel-hub/area-monitoring-data-handling-c255b215364f)
    * [Outlier detection](https://medium.com/sentinel-hub/area-monitoring-observation-outlier-detection-34f86b7cc63)
@@ -183,8 +183,8 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
    * [The Challenge of Small Parcels](https://medium.com/sentinel-hub/area-monitoring-the-challenge-of-small-parcels-96121e169e5b)
    * [Traffic Light System](https://medium.com/sentinel-hub/area-monitoring-traffic-light-system-4a1348481c40)
    * [Expert Judgement Application](https://medium.com/sentinel-hub/expert-judgement-application-67a07f2feac4)
- * [Scale-up your eo-learn workflow using Batch Processing API](https://medium.com/sentinel-hub/scale-up-your-eo-learn-workflow-using-batch-processing-api-d183b70ea237) (by Maxim Lamare) 
- 
+ * [Scale-up your eo-learn workflow using Batch Processing API](https://medium.com/sentinel-hub/scale-up-your-eo-learn-workflow-using-batch-processing-api-d183b70ea237) (by Maxim Lamare)
+
 
 ## Questions and Issues
 
