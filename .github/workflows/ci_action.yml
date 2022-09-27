@@ -4,60 +4,50 @@ on:
   pull_request:
   push:
     branches:
-      - 'master'
-      - 'develop'
+      - "master"
+      - "develop"
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 
 env:
   # The only way to simulate if-else statement
   CHECKOUT_BRANCH: ${{ github.event_name == 'schedule' && 'develop' || github.ref }}
 
-
 jobs:
-
-  check-code-black-isort-flake8:
+  check-pre-commit-hooks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v2
         with:
           ref: ${{ env.CHECKOUT_BRANCH }}
-    
+
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: "3.8"
           architecture: x64
 
-      - name: Prepare linters
-        run: pip install black[jupyter] isort flake8 nbqa
-
-      - name: Check code compliance with black
-        run: black . --check --diff
-
-      - name: Check code compliance with isort
+      - name: Prepare pre-commit validators
         run: |
-          isort . --check --diff
-          nbqa isort . --nbqa-diff
+          pip install pre-commit
+          pre-commit install
 
-      - name: Check code compliance with flake8
-        run: |
-          flake8 .
-          nbqa flake8 . --nbqa-exclude=examples/core/CoreOverview.ipynb
+      - name: Check code compliance with pre-commit validators
+        run: pre-commit run --all-files
 
   test-on-github:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version:
-          - '3.7'
-          - '3.9'
-          - '3.10'
-        include: 
+          - "3.7"
+          - "3.9"
+          - "3.10"
+        include:
           # A flag marks whether full or partial tests should be run
           # We don't run integration tests on pull requests from outside repos, because they don't have secrets
-          - python-version: '3.8'
+          - python-version: "3.8"
             full_test_suite: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Checkout branch
