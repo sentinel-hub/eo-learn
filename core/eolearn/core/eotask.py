@@ -18,10 +18,11 @@ import inspect
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Union
 
 from .constants import FeatureType
 from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
+from .utils.types import EllipsisType
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +68,9 @@ class EOTask(metaclass=ABCMeta):
         """Override to specify action performed by task."""
 
     @staticmethod
-    def get_feature_parser(features, allowed_feature_types: Optional[Iterable[FeatureType]] = None) -> FeatureParser:
+    def get_feature_parser(
+        features, allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...
+    ) -> FeatureParser:
         """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
 
