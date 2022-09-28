@@ -210,7 +210,7 @@ class _FeatureDictJson(_FeatureDict[Any]):
 
 
 def _create_feature_dict(feature_type: FeatureType, value: Dict[str, Any]) -> _FeatureDict:
-    """Creates the correct FeatureIO, corresponding to the FeatureType."""
+    """Creates the correct FeatureDict, corresponding to the FeatureType."""
     if feature_type.is_vector():
         return _FeatureDictGeoDf(value, feature_type)
     if feature_type is FeatureType.META_INFO:

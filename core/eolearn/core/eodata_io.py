@@ -16,7 +16,7 @@ import json
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from typing import Any, BinaryIO, Generic, Iterable, Optional, TypeVar, Union
+from typing import Any, BinaryIO, Generic, Iterable, Optional, Type, TypeVar, Union
 
 import fs
 import fs.move
@@ -36,6 +36,7 @@ from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
 
 _T = TypeVar("_T")
+Self = TypeVar("Self", bound="FeatureIO")
 
 
 def save_eopatch(
@@ -67,10 +68,12 @@ def save_eopatch(
 
     features_to_save = []
     for ftype, fname, path in eopatch_features:
-        feature_io = _create_feature_io(ftype, path, filesystem)
+        # the paths here do not have file extensions, so FeatureIO needs to be constructed differently
+        # pylint: disable=protected-access
+        feature_io = _get_feature_io_constructor(ftype)._from_eopatch_path(path, filesystem, compress_level)
         data = eopatch[(ftype, fname)]
 
-        features_to_save.append((feature_io, data, compress_level))
+        features_to_save.append((feature_io, data))
 
     # Cannot be done before due to lazy loading (this would delete the files before the data is loaded)
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
@@ -108,7 +111,7 @@ def remove_redundant_files(filesystem, eopatch_features, filesystem_features, cu
 def load_eopatch(eopatch, filesystem, patch_location, features=..., lazy_loading=False):
     """A utility function used by `EOPatch.load` method."""
     features = list(walk_filesystem(filesystem, patch_location, features))
-    loading_data: Iterable[Any] = [_create_feature_io(ftype, path, filesystem) for ftype, _, path in features]
+    loading_data: Iterable[Any] = [_get_feature_io_constructor(ftype)(path, filesystem) for ftype, _, path in features]
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -238,19 +241,38 @@ def _to_lowercase(ftype, fname, *_):
 class FeatureIO(Generic[_T], metaclass=ABCMeta):
     """A class that handles the saving and loading process of a single feature at a given location."""
 
-    def __init__(self, path: str, filesystem: FS):
+    def __init__(self, path: str, filesystem: FS, compress_level: Optional[int] = None):
         """
         :param path: A path in the filesystem
         :param filesystem: A filesystem object
+        :compress_level: The compression level to be used when saving, inferred from path if not provided
         """
+        filename = fs.path.basename(path)
+        expected_extension = f".{self.get_file_format().extension}"
+        if compress_level is None:
+            # Infer compression level if not provided
+            compress_level = 1 if path.endswith(f".{MimeType.GZIP.extension}") else 0
+        if compress_level:
+            expected_extension += f".{MimeType.GZIP.extension}"
+        if not filename.endswith(expected_extension):
+            raise ValueError(f"FeatureIO expects a filepath with the {expected_extension} file extension, got {path}")
+
         self.path = path
         self.filesystem = filesystem
+        self.compress_level = compress_level
 
         self.loaded_value: Optional[_T] = None
 
-    @property
+    @classmethod
+    def _from_eopatch_path(cls: Type[Self], eopatch_path: str, filesystem: FS, compress_level: int = 0) -> Self:
+        """Constructor for creating FeatureIO objects directly from paths returned by `walk_eopatch`."""
+        gz_extension = ("." + MimeType.GZIP.extension) if compress_level else ""
+        path = f"{eopatch_path}.{cls.get_file_format().extension}{gz_extension}"
+        return cls(path, filesystem, compress_level)
+
+    @classmethod
     @abstractmethod
-    def file_format(self) -> MimeType:
+    def get_file_format(cls) -> MimeType:
         """The type of files handled by the FeatureIO."""
 
     def __repr__(self) -> str:
@@ -276,34 +298,31 @@ class FeatureIO(Generic[_T], metaclass=ABCMeta):
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> _T:
         """Loads from a file and decodes content."""
 
-    def save(self, data: _T, compress_level: int = 0) -> None:
+    def save(self, data: _T) -> None:
         """Method for saving a feature.
 
         To minimize the chance of corrupted files (in case of OSFS and TempFS) the file is first written and then moved
         to correct location. If any exceptions happen during the writing process the file is not moved (and old one not
         overwritten).
         """
-        gz_extension = ("." + MimeType.GZIP.extension) if compress_level else ""
-        path = f"{self.path}.{self.file_format.extension}{gz_extension}"
 
         if isinstance(self.filesystem, (OSFS, TempFS)):
             with TempFS(temp_dir=self.filesystem.root_path) as tempfs:
-                self._save(tempfs, data, "tmp_feature", compress_level)
-                if fs.__version__ == "2.4.16" and self.filesystem.exists(path):  # An issue in the fs version
-                    self.filesystem.remove(path)
-                fs.move.move_file(tempfs, "tmp_feature", self.filesystem, path)
+                self._save(tempfs, data, "tmp_feature")
+                if fs.__version__ == "2.4.16" and self.filesystem.exists(self.path):  # An issue in the fs version
+                    self.filesystem.remove(self.path)
+                fs.move.move_file(tempfs, "tmp_feature", self.filesystem, self.path)
             return
-        self._save(self.filesystem, data, path, compress_level)
+        self._save(self.filesystem, data, self.path)
 
-    def _save(self, filesystem: FS, data: _T, path: str, compress_level: int = 0) -> None:
+    def _save(self, filesystem: FS, data: _T, path: str) -> None:
         """Given a filesystem it saves and compresses the data."""
-        with filesystem.openbin(path, "w") as file_handle:
-            if compress_level == 0:
-                self._write_to_file(data, file_handle)
-
+        with filesystem.openbin(path, "w") as file:
+            if self.compress_level == 0:
+                self._write_to_file(data, file)
             else:
-                with gzip.GzipFile(fileobj=file_handle, compresslevel=compress_level, mode="wb") as gzip_file_handle:
-                    self._write_to_file(data, gzip_file_handle)
+                with gzip.GzipFile(fileobj=file, compresslevel=self.compress_level, mode="wb") as gzip_file:
+                    self._write_to_file(data, gzip_file)
 
     @abstractmethod
     def _write_to_file(self, data: _T, file: Union[BinaryIO, gzip.GzipFile]) -> None:
@@ -313,7 +332,9 @@ class FeatureIO(Generic[_T], metaclass=ABCMeta):
 class FeatureIONumpy(FeatureIO[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
-    file_format = MimeType.NPY
+    @classmethod
+    def get_file_format(cls) -> MimeType:
+        return MimeType.NPY
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> np.ndarray:
         return np.load(file)
@@ -325,7 +346,9 @@ class FeatureIONumpy(FeatureIO[np.ndarray]):
 class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
 
-    file_format = MimeType.GPKG
+    @classmethod
+    def get_file_format(cls) -> MimeType:
+        return MimeType.GPKG
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> gpd.GeoDataFrame:
         dataframe = gpd.read_file(file)
@@ -365,7 +388,9 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
 class FeatureIOJson(FeatureIO[_T]):
     """FeatureIO object specialized for JSON-like objects."""
 
-    file_format = MimeType.JSON
+    @classmethod
+    def get_file_format(cls) -> MimeType:
+        return MimeType.JSON
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> _T:
         return json.load(file)
@@ -385,7 +410,9 @@ class FeatureIOJson(FeatureIO[_T]):
 class FeatureIOBBox(FeatureIO[BBox]):
     """FeatureIO object specialized for BBox objects."""
 
-    file_format = MimeType.GEOJSON
+    @classmethod
+    def get_file_format(cls) -> MimeType:
+        return MimeType.GEOJSON
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> BBox:
         json_data = json.load(file)
@@ -403,12 +430,12 @@ def _jsonify_timestamp(param: object) -> str:
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
-def _create_feature_io(ftype: FeatureType, path: str, filesystem: FS) -> FeatureIO:
+def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
-        return FeatureIOBBox(path, filesystem)
+        return FeatureIOBBox
     if ftype in (FeatureType.TIMESTAMP, FeatureType.META_INFO):
-        return FeatureIOJson(path, filesystem)
+        return FeatureIOJson
     if ftype in FeatureTypeSet.VECTOR_TYPES:
-        return FeatureIOGeoDf(path, filesystem)
-    return FeatureIONumpy(path, filesystem)
+        return FeatureIOGeoDf
+    return FeatureIONumpy
