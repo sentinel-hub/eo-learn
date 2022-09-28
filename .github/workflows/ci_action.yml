@@ -31,7 +31,6 @@ jobs:
       - name: Prepare pre-commit validators
         run: |
           pip install pre-commit
-          pre-commit install
 
       - name: Check code compliance with pre-commit validators
         run: pre-commit run --all-files
