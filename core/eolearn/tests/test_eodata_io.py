@@ -12,7 +12,6 @@ import tempfile
 from typing import Any, Type
 
 import fs
-import fs.move
 import geopandas as gpd
 import numpy as np
 import pytest
@@ -284,7 +283,7 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
         assert not temp_fs.exists(fs.path.join(folder_name, "data_timeless", "mask.npy"))
 
 
-def data_equality(data1, data2):
+def assert_data_equal(data1: Any, data2: Any) -> None:
     if isinstance(data1, np.ndarray):
         np.testing.assert_array_equal(data1, data2)
     elif isinstance(data1, gpd.GeoDataFrame):
@@ -325,13 +324,13 @@ def test_feature_io(constructor: Type[FeatureIO], data: Any, compress_level: int
 
     file_extension = "." + str(constructor.get_file_format().extension)
     file_extension = file_extension if compress_level == 0 else file_extension + ".gz"
-
+    file_name = "name"
     with TempFS("testing_file_sistem") as temp_fs:
-        feat_io = constructor("name" + file_extension, filesystem=temp_fs)
-        constructor.save(data, temp_fs, "name", compress_level)
+        feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
+        constructor.save(data, temp_fs, file_name, compress_level)
         loaded_data = feat_io.load()
-        data_equality(loaded_data, data)
+        assert_data_equal(loaded_data, data)
 
-        temp_fs.remove("name" + file_extension)
+        temp_fs.remove(file_name + file_extension)
         cache_data = feat_io.load()
-        data_equality(loaded_data, cache_data)
+        assert_data_equal(loaded_data, cache_data)
