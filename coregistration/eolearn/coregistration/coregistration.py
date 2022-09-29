@@ -299,10 +299,10 @@ class PointBasedRegistrationTask(RegistrationTask):
         LOGGER.info("\t\t\t\tRANSACThreshold: %.2f", self.params["RANSACThreshold"])
 
     def check_params(self):
-        if not (self.params.get("Model") in ["Euler", "PartialAffine", "Homography"]):
+        if self.params.get("Model") not in ["Euler", "PartialAffine", "Homography"]:
             LOGGER.info("%s:Model set to Euler", self.__class__.__name__)
             self.params["Model"] = "Euler"
-        if not (self.params.get("Descriptor") in ["SIFT", "SURF"]):
+        if self.params.get("Descriptor") not in ["SIFT", "SURF"]:
             LOGGER.info("%s:Descriptor set to SIFT", self.__class__.__name__)
             self.params["Descriptor"] = "SIFT"
         if not isinstance(self.params.get("MaxIters"), int):

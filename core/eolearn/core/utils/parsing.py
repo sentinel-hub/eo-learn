@@ -13,6 +13,7 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
+import contextlib
 import sys
 from itertools import repeat
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
@@ -180,10 +181,8 @@ class FeatureParser:
 
         # Check for possible singleton
         if 2 <= len(features) <= 3:
-            try:
+            with contextlib.suppress(ValueError):
                 return [(self._parse_singleton(features))]
-            except ValueError:
-                pass
 
         for feature in features:
             if isinstance(feature, (tuple, list)) and 2 <= len(feature) <= 3:

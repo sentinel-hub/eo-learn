@@ -61,7 +61,7 @@ class SimpleFilterTask(EOTask):
     @staticmethod
     def _filter_vector_feature(gdf: GeoDataFrame, good_idxs: List[int], timestamps: List[dt.datetime]) -> GeoDataFrame:
         """Filters rows that don't match with the timestamps that will be kept."""
-        timestamps_to_keep = set(timestamps[idx] for idx in good_idxs)
+        timestamps_to_keep = {timestamps[idx] for idx in good_idxs}
         return gdf[gdf.TIMESTAMP.isin(timestamps_to_keep)]
 
     def execute(self, eopatch: EOPatch) -> EOPatch:

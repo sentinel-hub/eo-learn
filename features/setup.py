@@ -13,16 +13,17 @@ def get_long_description():
 
 
 def parse_requirements(file):
-    return sorted(
-        set(line.partition("#")[0].strip() for line in open(os.path.join(os.path.dirname(__file__), file))) - set("")
-    )
+    with open(os.path.join(os.path.dirname(__file__), file)) as requirements_file:
+        return sorted({line.partition("#")[0].strip() for line in requirements_file} - set(""))
 
 
 def get_version():
-    for line in open(os.path.join(os.path.dirname(__file__), "eolearn", "features", "__init__.py")):
-        if line.find("__version__") >= 0:
-            version = line.split("=")[1].strip()
-            version = version.strip('"').strip("'")
+    path = os.path.join(os.path.dirname(__file__), "eolearn", "features", "__init__.py")
+    with open(path) as version_file:
+        for line in version_file:
+            if line.find("__version__") >= 0:
+                version = line.split("=")[1].strip()
+                version = version.strip('"').strip("'")
     return version
 
 

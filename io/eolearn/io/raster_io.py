@@ -40,7 +40,7 @@ from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
+class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
     """Base abstract class for raster IO tasks"""
 
     def __init__(
@@ -306,34 +306,33 @@ class ExportToTiffTask(BaseRasterIoTask):
         src_transform: Affine,
     ) -> None:
         """Export an EOPatch feature to tiff based on input channel range."""
-        with rasterio.Env():
-            with filesystem.openbin(path, "w") as file_handle:
-                with rasterio.open(
-                    file_handle,
-                    "w",
-                    driver="GTiff",
-                    width=dst_width,
-                    height=dst_height,
-                    count=channel_count,
-                    dtype=image_array.dtype,
-                    nodata=self.no_data_value,
-                    transform=dst_transform,
-                    crs=dst_crs,
-                    compress=self.compress,
-                ) as dst:
-                    if dst_crs == src_crs:
-                        dst.write(image_array)
-                    else:
-                        for idx in range(channel_count):
-                            rasterio.warp.reproject(
-                                source=image_array[idx, ...],
-                                destination=rasterio.band(dst, idx + 1),
-                                src_transform=src_transform,
-                                src_crs=src_crs,
-                                dst_transform=dst_transform,
-                                dst_crs=dst_crs,
-                                resampling=rasterio.warp.Resampling.nearest,
-                            )
+        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:  # noqa: SIM117
+            with rasterio.open(
+                file_handle,
+                "w",
+                driver="GTiff",
+                width=dst_width,
+                height=dst_height,
+                count=channel_count,
+                dtype=image_array.dtype,
+                nodata=self.no_data_value,
+                transform=dst_transform,
+                crs=dst_crs,
+                compress=self.compress,
+            ) as dst:
+                if dst_crs == src_crs:
+                    dst.write(image_array)
+                else:
+                    for idx in range(channel_count):
+                        rasterio.warp.reproject(
+                            source=image_array[idx, ...],
+                            destination=rasterio.band(dst, idx + 1),
+                            src_transform=src_transform,
+                            src_crs=src_crs,
+                            dst_transform=dst_transform,
+                            dst_crs=dst_crs,
+                            resampling=rasterio.warp.Resampling.nearest,
+                        )
 
     def execute(self, eopatch: EOPatch, *, filename: Union[str, List[str], None] = "") -> EOPatch:
         """Execute method
@@ -465,9 +464,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
                 full_path = get_full_path(filesystem, path)
                 return self._read_image(full_path, bbox)
 
-        with rasterio.Env():
-            with filesystem.openbin(path, "r") as file_handle:
-                return self._read_image(file_handle, bbox)
+        with rasterio.Env(), filesystem.openbin(path, "r") as file_handle:
+            return self._read_image(file_handle, bbox)
 
     def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
         """Reads data from the image."""

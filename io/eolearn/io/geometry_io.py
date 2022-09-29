@@ -169,15 +169,14 @@ class VectorImportTask(_BaseVectorImportTask):
         bbox_bounds = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
         if self.full_path.startswith("s3://"):
-            with fiona.Env(session=self.aws_session):
-                with fiona.open(self.full_path, **self.fiona_kwargs) as features:
-                    feature_iter = features if bbox_bounds is None else features.filter(bbox=bbox_bounds)
+            with fiona.Env(session=self.aws_session), fiona.open(self.full_path, **self.fiona_kwargs) as features:
+                feature_iter = features if bbox_bounds is None else features.filter(bbox=bbox_bounds)
 
-                    return gpd.GeoDataFrame.from_features(
-                        feature_iter,
-                        columns=list(features.schema["properties"]) + ["geometry"],
-                        crs=self.dataset_crs.pyproj_crs(),
-                    )
+                return gpd.GeoDataFrame.from_features(
+                    feature_iter,
+                    columns=list(features.schema["properties"]) + ["geometry"],
+                    crs=self.dataset_crs.pyproj_crs(),
+                )
 
         return gpd.read_file(self.full_path, bbox=bbox_bounds, **self.fiona_kwargs)
 

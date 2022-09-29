@@ -81,13 +81,13 @@ def test_get_outdegree(test_graph):
 
 
 def test_vertices(test_graph):
-    assert test_graph.get_vertices() == set([1, 2, 3, 4])
+    assert test_graph.get_vertices() == {1, 2, 3, 4}
 
     graph = DirectedGraph()
     graph.add_edge(1, 2)
     graph.add_edge(2, 3)
     graph.add_edge(3, 4)
-    assert graph.get_vertices() == set([1, 2, 3, 4])
+    assert graph.get_vertices() == {1, 2, 3, 4}
 
 
 def test_add_vertex():
