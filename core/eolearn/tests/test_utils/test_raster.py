@@ -6,13 +6,20 @@ Copyright (c) 2017-2022 Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zup
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import sys
 import warnings
+from typing import Tuple
 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal  # pylint: disable=ungrouped-imports
 
 
 @pytest.mark.parametrize("size", [0, 5])
@@ -58,7 +65,14 @@ def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtyp
         ),
     ],
 )
-def test_constant_pad(array, multiple_of, up_down_rule, left_right_rule, pad_value, expected_result):
+def test_constant_pad(
+    array: np.ndarray,
+    multiple_of: Tuple[int, int],
+    up_down_rule: Literal["even", "up", "down"],
+    left_right_rule: Literal["even", "left", "right"],
+    pad_value: float,
+    expected_result: np.ndarray,
+):
     """Checks that the function pads correctly and minimally. In larger cases only the shapes are checked."""
     padded = constant_pad(array, multiple_of, up_down_rule, left_right_rule, pad_value)
     if expected_result is not None:
