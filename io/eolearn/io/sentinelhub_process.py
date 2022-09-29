@@ -267,7 +267,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
         _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
 
-        ftr_data_types = set(ft for ft, _, _ in _features if not ft.is_meta())
+        ftr_data_types = {ft for ft, _, _ in _features if not ft.is_meta()}
         if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_temporal() for ft in ftr_data_types):
             return _features
 
@@ -706,7 +706,7 @@ def get_available_timestamps(
     data_collection: DataCollection,
     *,
     time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
-    time_difference: dt.timedelta = dt.timedelta(seconds=-1),
+    time_difference: dt.timedelta = dt.timedelta(seconds=-1),  # noqa: B008
     maxcc: Optional[float] = None,
     config: Optional[SHConfig] = None,
 ) -> List[dt.datetime]:

@@ -54,9 +54,8 @@ def eopatch_fixture():
 
 
 def test_saving_to_a_file(eopatch):
-    with tempfile.NamedTemporaryFile() as fp:
-        with pytest.raises(CreateFailed):
-            eopatch.save(fp.name)
+    with tempfile.NamedTemporaryFile() as fp, pytest.raises(CreateFailed):
+        eopatch.save(fp.name)
 
 
 @mock_s3
