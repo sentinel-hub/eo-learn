@@ -8,7 +8,7 @@ file in the root directory of this source tree.
 """
 import sys
 import warnings
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import pytest
@@ -54,6 +54,7 @@ def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtyp
         (np.arange(4).reshape((2, 2)), (3, 3), "down", "left", 7, np.array([[7, 0, 1], [7, 2, 3], [7, 7, 7]])),
         (np.arange(20).reshape((4, 5)), (3, 3), "down", "left", 3, None),
         (np.arange(60).reshape((6, 10)), (11, 11), "even", "even", 3, None),
+        (np.ones((167, 210)), (256, 256), "even", "even", 3, None),
         (np.arange(6).reshape((2, 3)), (2, 2), "down", "even", 9, np.array([[0, 1, 2, 9], [3, 4, 5, 9]])),
         (
             np.arange(6).reshape((3, 2)),
@@ -71,7 +72,7 @@ def test_constant_pad(
     up_down_rule: Literal["even", "up", "down"],
     left_right_rule: Literal["even", "left", "right"],
     pad_value: float,
-    expected_result: np.ndarray,
+    expected_result: Optional[np.ndarray],
 ):
     """Checks that the function pads correctly and minimally. In larger cases only the shapes are checked."""
     padded = constant_pad(array, multiple_of, up_down_rule, left_right_rule, pad_value)
