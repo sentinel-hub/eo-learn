@@ -298,8 +298,9 @@ def assert_data_equal(data1: Any, data2: Any) -> None:
     [
         (FeatureIONumpy, np.zeros(20)),
         (FeatureIONumpy, np.zeros((2, 3, 3, 2), dtype=np.int16)),
+        (FeatureIONumpy, np.full((4, 5), fill_value=CRS.POP_WEB)),
         (FeatureIOBBox, BBox((1, 2, 3, 4), CRS.WGS84)),
-        (FeatureIOGeoDf, gpd.GeoDataFrame({"col1": ["name1"], "geometry": [Point(1, 2)]}, crs="EPSG:4326")),
+        (FeatureIOGeoDf, gpd.GeoDataFrame({"col1": ["name1"], "geometry": [Point(1, 2)]}, crs="EPSG:3857")),
         (FeatureIOGeoDf, gpd.GeoDataFrame({"col1": ["name1"], "geometry": [Point(1, 2)]}, crs="EPSG:32733")),
         (
             FeatureIOGeoDf,
@@ -309,7 +310,7 @@ def assert_data_equal(data1: Any, data2: Any) -> None:
                     "TIMESTAMP": [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
                     "geometry": [Point(1, 2), Point(2, 1)],
                 },
-                crs="EPSG:4326",
+                crs="EPSG:3857",
             ),
         ),
         (FeatureIOJson, {"test": "test1", "test3": {"test": "test1"}}),

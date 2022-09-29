@@ -332,7 +332,7 @@ class FeatureIONumpy(FeatureIO[np.ndarray]):
         return MimeType.NPY
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> np.ndarray:
-        return np.load(file)
+        return np.load(file, allow_pickle=True)
 
     @classmethod
     def _write_to_file(cls, data: np.ndarray, file: Union[BinaryIO, gzip.GzipFile], _: str) -> None:
