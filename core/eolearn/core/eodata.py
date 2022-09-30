@@ -18,12 +18,13 @@ import datetime as dt
 import logging
 import sys
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
 
 import attr
 import dateutil.parser
 import geopandas as gpd
 import numpy as np
+from fs.base import FS
 
 from sentinelhub import CRS, BBox
 
@@ -32,7 +33,8 @@ from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
-from .utils.parsing import parse_features
+from .utils.parsing import FeatureSpec, FeaturesSpecification, parse_features
+from .utils.types import EllipsisType
 
 if sys.version_info < (3, 8):
     from typing_extensions import Literal
@@ -251,15 +253,15 @@ class EOPatch:
     vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
     meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
     bbox: Optional[BBox] = attr.ib(default=None)
-    timestamp: List[dt.date] = attr.ib(factory=list)
+    timestamp: List[dt.datetime] = attr.ib(factory=list)
 
-    def __setattr__(self, key, value, feature_name=None):
+    def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
 
         In case they are a dictionary they are cast to _FeatureDict class.
         """
         if feature_name not in (None, Ellipsis) and FeatureType.has_value(key):
-            self[key][feature_name] = value
+            self.__getattribute__(key)[feature_name] = value
             return
 
         if FeatureType.has_value(key) and not isinstance(value, FeatureIO):
@@ -296,7 +298,7 @@ class EOPatch:
             f"failed to parse given value {value}"
         )
 
-    def __getattribute__(self, key, load=True, feature_name=None):
+    def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
         """Handles lazy loading and can even provide a single feature from _FeatureDict."""
         value = super().__getattribute__(key)
 
@@ -306,33 +308,32 @@ class EOPatch:
             value = getattr(self, key)
 
         if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
+            feature_name = cast(str, feature_name)  # the above check deals with ... and None
             return value[feature_name]
 
         return value
 
-    def __getitem__(self, feature_type):
+    def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
         """Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name).
 
         :param feature_type: Type of EOPatch feature
-        :type feature_type: FeatureType or str or (FeatureType, str)
-        :return: Dictionary of features
         """
         feature_name = None
         if isinstance(feature_type, tuple):
             self._check_tuple_key(feature_type)
             feature_type, feature_name = feature_type
 
-        return self.__getattribute__(FeatureType(feature_type).value, feature_name=feature_name)
+        ftype = FeatureType(feature_type).value
+        return self.__getattribute__(ftype, feature_name=feature_name)  # type: ignore[call-arg]
 
-    def __setitem__(self, feature_type, value):
+    def __setitem__(
+        self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
+    ) -> None:
         """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
         (feature_type, feature_name).
 
         :param feature_type: Type of EOPatch feature
-        :type feature_type: FeatureType or str or (FeatureType, str)
         :param value: New dictionary or list
-        :type value: dict or list
-        :return: Dictionary of features
         """
         feature_name = None
         if isinstance(feature_type, tuple):
@@ -341,30 +342,29 @@ class EOPatch:
 
         return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
 
-    def __delitem__(self, feature):
+    def __delitem__(self, feature: Tuple[FeatureType, str]) -> None:
         """Deletes the selected feature.
 
         :param feature: EOPatch feature
-        :type feature: (FeatureType, str)
         """
         self._check_tuple_key(feature)
         feature_type, feature_name = feature
         del self[feature_type][feature_name]
 
     @staticmethod
-    def _check_tuple_key(key):
+    def _check_tuple_key(key: tuple) -> None:
         """A helper function that checks a tuple, which should hold (feature_type, feature_name)."""
         if len(key) != 2:
             raise ValueError(f"Given element should be a tuple of (feature_type, feature_name), but {key} found.")
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""
-        if not isinstance(self, type(other)):
+        if not isinstance(other, type(self)):
             return False
 
         return all(deep_eq(self[feature_type], other[feature_type]) for feature_type in FeatureType)
 
-    def __contains__(self, feature: Union[FeatureType, Tuple[FeatureType, str]]):
+    def __contains__(self, feature: Union[FeatureType, Tuple[FeatureType, str]]) -> bool:
         if isinstance(feature, FeatureType):
             return bool(self[feature])
         if isinstance(feature, tuple) and len(feature) == 2:
@@ -377,11 +377,11 @@ class EOPatch:
             "`(feature_type, feature_name)` tuples."
         )
 
-    def __add__(self, other):
+    def __add__(self, other: EOPatch) -> EOPatch:
         """Merges two EOPatches into a new EOPatch."""
         return self.merge(other)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         feature_repr_list = []
         for feature_type in FeatureType:
             content = self[feature_type]
@@ -404,12 +404,11 @@ class EOPatch:
         return f"{self.__class__.__name__}({feature_repr})"
 
     @staticmethod
-    def _repr_value(value):
+    def _repr_value(value: object) -> str:
         """Creates a representation string for different types of data.
 
         :param value: data in any type
         :return: representation string
-        :rtype: str
         """
         if isinstance(value, np.ndarray):
             return f"{EOPatch._repr_value_class(value)}(shape={value.shape}, dtype={value.dtype})"
@@ -438,16 +437,15 @@ class EOPatch:
         return repr(value)
 
     @staticmethod
-    def _repr_value_class(value):
+    def _repr_value_class(value: object) -> str:
         """A representation of a class of a given value"""
         cls = value.__class__
         return ".".join([cls.__module__.split(".")[0], cls.__name__])
 
-    def __copy__(self, features=...):
+    def __copy__(self, features: FeaturesSpecification = ...) -> EOPatch:
         """Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
@@ -460,13 +458,11 @@ class EOPatch:
                 new_eopatch[feature_type] = copy.copy(self[feature_type])
         return new_eopatch
 
-    def __deepcopy__(self, memo=None, features=...):
+    def __deepcopy__(self, memo: Optional[dict] = None, features: FeaturesSpecification = ...) -> EOPatch:
         """Returns a new EOPatch with deep copies of given features.
 
         :param memo: built-in parameter for memoization
-        :type memo: dict
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
@@ -489,26 +485,22 @@ class EOPatch:
 
         return new_eopatch
 
-    def copy(self, features=..., deep=False):
+    def copy(self, features: FeaturesSpecification = ..., deep: bool = False) -> EOPatch:
         """Get a copy of the current `EOPatch`.
 
         :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied.
-        :type features: object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
             of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMP` will be copied even with a shallow copy.
-        :type deep: bool
         :return: An EOPatch copy.
-        :rtype: EOPatch
         """
         if deep:
             return self.__deepcopy__(features=features)  # pylint: disable=unnecessary-dunder-call
         return self.__copy__(features=features)  # pylint: disable=unnecessary-dunder-call
 
-    def reset_feature_type(self, feature_type):
+    def reset_feature_type(self, feature_type: FeatureType) -> None:
         """Resets the values of the given feature type.
 
         :param feature_type: Type of feature
-        :type feature_type: FeatureType
         """
         feature_type = FeatureType(feature_type)
         if feature_type.has_dict():
@@ -518,32 +510,29 @@ class EOPatch:
         else:
             self[feature_type] = []
 
-    def get_features(self):
+    def get_features(self) -> Dict[FeatureType, Union[Set[str], Literal[True]]]:
         """Returns a dictionary of all non-empty features of EOPatch.
 
         The elements are either sets of feature names or a boolean `True` in case feature type has no dictionary of
         feature names.
 
         :return: A dictionary of features
-        :rtype: dict(FeatureType: str or True)
         """
-        feature_dict = {}
+        feature_dict: Dict[FeatureType, Union[Set[str], Literal[True]]] = {}
         for feature_type in FeatureType:
             if self[feature_type]:
                 feature_dict[feature_type] = set(self[feature_type]) if feature_type.has_dict() else True
 
         return feature_dict
 
-    def get_spatial_dimension(self, feature_type, feature_name):
+    def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
         """
         Returns a tuple of spatial dimension (height, width) of a feature.
 
         The feature has to be spatial or time dependent.
 
-        :param feature_type: Enum of the attribute
-        :type feature_type: FeatureType
+        :param feature_type: Type of the feature
         :param feature_name: Name of the feature
-        :type feature_name: str
         """
         if feature_type.is_temporal() or feature_type.is_spatial():
             shape = self[feature_type][feature_name].shape
@@ -570,8 +559,13 @@ class EOPatch:
         return feature_list
 
     def save(
-        self, path, features=..., overwrite_permission=OverwritePermission.ADD_ONLY, compress_level=0, filesystem=None
-    ):
+        self,
+        path: str,
+        features: FeaturesSpecification = ...,
+        overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
+        compress_level: int = 0,
+        filesystem: Optional[FS] = None,
+    ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
         :param path: A location where to save EOPatch. It can be either a local path or a remote URL path.
@@ -602,20 +596,17 @@ class EOPatch:
         )
 
     @staticmethod
-    def load(path, features=..., lazy_loading=False, filesystem=None):
+    def load(
+        path: str, features: FeaturesSpecification = ..., lazy_loading: bool = False, filesystem: Optional[FS] = None
+    ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
 
         :param path: A location from where to load EOPatch. It can be either a local path or a remote URL path.
-        :type path: str
         :param features: A collection of features to be loaded. By default, all features will be loaded.
-        :type features: object
         :param lazy_loading: If `True` features will be lazy loaded.
-        :type lazy_loading: bool
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :type filesystem: fs.FS or None
         :return: Loaded EOPatch
-        :rtype: EOPatch
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=False)
@@ -623,13 +614,17 @@ class EOPatch:
 
         return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
 
-    def merge(self, *eopatches, features=..., time_dependent_op=None, timeless_op=None):
+    def merge(
+        self,
+        *eopatches: EOPatch,
+        features: FeaturesSpecification = ...,
+        time_dependent_op: Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable] = None,
+        timeless_op: Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable] = None,
+    ) -> EOPatch:
         """Merge features of given EOPatches into a new EOPatch.
 
         :param eopatches: Any number of EOPatches to be merged together with the current EOPatch
-        :type eopatches: EOPatch
         :param features: A collection of features to be merged together. By default, all features will be merged.
-        :type features: object
         :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
             joining time slices of all arrays will be sorted. Supported options are:
 
@@ -640,7 +635,6 @@ class EOPatch:
             - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
             - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
             - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
-        :type time_dependent_op: str or Callable or None
         :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
             are:
 
@@ -650,9 +644,7 @@ class EOPatch:
             - 'max': Join arrays by taking maximum values. Ignore NaN values.
             - 'mean': Join arrays by taking mean values. Ignore NaN values.
             - 'median': Join arrays by taking median values. Ignore NaN values.
-        :type timeless_op: str or Callable or None
-        :return: A dictionary with EOPatch features and values
-        :rtype: Dict[(FeatureType, str), object]
+        :return: A merged EOPatch
         """
         eopatch_content = merge_eopatches(
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
@@ -664,7 +656,7 @@ class EOPatch:
 
         return merged_eopatch
 
-    def get_time_series(self, ref_date=None, scale_time=1):
+    def get_time_series(self, ref_date: Optional[dt.datetime] = None, scale_time: int = 1) -> np.ndarray:
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
 
         An array is constructed as time_series[i] = (timestamp[i] - ref_date).total_seconds().
@@ -672,9 +664,7 @@ class EOPatch:
         If EOPatch timestamp attribute is empty the method returns None.
 
         :param ref_date: reference date relative to which the time is measured
-        :type ref_date: datetime object
         :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
-        :type scale_time: int
         """
 
         if not self.timestamp:
@@ -687,13 +677,11 @@ class EOPatch:
             [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in self.timestamp], dtype=np.int64
         )
 
-    def consolidate_timestamps(self, timestamps):
+    def consolidate_timestamps(self, timestamps: List[dt.datetime]) -> Set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
         :param timestamps: keep frames with date found in this list
-        :type timestamps: list of datetime objects
         :return: set of removed frames' dates
-        :rtype: set of datetime objects
         """
         remove_from_patch = set(self.timestamp).difference(timestamps)
         remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
@@ -714,7 +702,7 @@ class EOPatch:
 
     def plot(
         self,
-        feature,
+        feature: FeatureSpec,
         *,
         times: Union[List[int], slice, None] = None,
         channels: Union[List[int], slice, None] = None,
@@ -722,7 +710,7 @@ class EOPatch:
         rgb: Optional[Tuple[int, int, int]] = None,
         backend: Union[str, PlotBackend] = "matplotlib",
         config: Optional[BasePlotConfig] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> object:
         """Plots an `EOPatch` feature.
 

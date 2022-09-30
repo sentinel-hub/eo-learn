@@ -9,10 +9,14 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import functools
 import itertools as it
+import sys
 import warnings
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -20,16 +24,27 @@ from geopandas import GeoDataFrame
 
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
-from .utils.parsing import FeatureParser
+from .utils.parsing import FeatureParser, FeatureSpec, FeaturesSpecification
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal  # pylint: disable=ungrouped-imports
+
+if TYPE_CHECKING:
+    from .eodata import EOPatch
 
 
-def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_op=None):
+def merge_eopatches(
+    *eopatches: EOPatch,
+    features: FeaturesSpecification = ...,
+    time_dependent_op: Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable] = None,
+    timeless_op: Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable] = None,
+) -> Dict[FeatureSpec, Any]:
     """Merge features of given EOPatches into a new EOPatch.
 
     :param eopatches: Any number of EOPatches to be merged together
-    :type eopatches: EOPatch
     :param features: A collection of features to be merged together. By default, all features will be merged.
-    :type features: object
     :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
         joining time slices of all arrays will be sorted. Supported options are:
 
@@ -41,7 +56,6 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
         - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
         - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
 
-    :type time_dependent_op: str or Callable or None
     :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
         are:
 
@@ -52,9 +66,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
         - 'mean': Join arrays by taking mean values. Ignore NaN values.
         - 'median': Join arrays by taking median values. Ignore NaN values.
 
-    :type timeless_op: str or Callable or None
-    :return: A dictionary with EOPatch features and values
-    :rtype: Dict[(FeatureType, str), object]
+    :return: Merged EOPatch
     """
     reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
