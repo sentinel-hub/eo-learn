@@ -313,6 +313,22 @@ class EOPatch:
 
         return value
 
+    @overload
+    def __getitem__(
+        self, feature_type: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]
+    ) -> BBox:
+        ...
+
+    @overload
+    def __getitem__(
+        self, feature_type: Union[Literal[FeatureType.TIMESTAMP], Tuple[Literal[FeatureType.TIMESTAMP], Any]]
+    ) -> List[dt.datetime]:
+        ...
+
+    @overload
+    def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+        ...
+
     def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
         """Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name).
 
