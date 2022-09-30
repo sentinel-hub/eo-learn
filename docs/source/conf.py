@@ -71,7 +71,8 @@ extensions = [
 ]
 
 # Include typehints in descriptions
-autodoc_typehints = "description"
+autodoc_typehints = "both"
+autodoc_type_aliases = {"FeaturesSpecification": "eolearn.core.parsing.FeaturesSpecification"}
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
 autoclass_content = "both"
