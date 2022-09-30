@@ -26,23 +26,34 @@ if sys.version_info < (3, 8):
 else:
     from typing import Literal  # pylint: disable=ungrouped-imports
 
+if sys.version_info < (3, 10):
+    from typing_extensions import TypeAlias
+else:
+    from typing import TypeAlias  # pylint: disable=ungrouped-imports
+
 if TYPE_CHECKING:
     from ..eodata import EOPatch
 
+# DEVELOPER NOTE: the #: comments are applied as docstrings
 
-FeatureSpec = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None], Tuple[FeatureType, str]]
-FeatureRenameSpec = Union[
+#: Specification describing a single feature
+FeatureSpec: TypeAlias = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None], Tuple[FeatureType, str]]
+#: Specification describing a feature with its current and desired new name
+FeatureRenameSpec: TypeAlias = Union[
     Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None, None], Tuple[FeatureType, str, str]
 ]
-SingleFeatureSpec = Union[FeatureSpec, FeatureRenameSpec]
+SingleFeatureSpec: TypeAlias = Union[FeatureSpec, FeatureRenameSpec]
 
-SequenceFeatureSpec = Sequence[Union[SingleFeatureSpec, FeatureType, Tuple[FeatureType, Optional[EllipsisType]]]]
-DictFeatureSpec = Dict[FeatureType, Union[None, EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]
-MultiFeatureSpec = Union[
+SequenceFeatureSpec: TypeAlias = Sequence[
+    Union[SingleFeatureSpec, FeatureType, Tuple[FeatureType, Optional[EllipsisType]]]
+]
+DictFeatureSpec: TypeAlias = Dict[FeatureType, Union[None, EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]
+MultiFeatureSpec: TypeAlias = Union[
     EllipsisType, FeatureType, Tuple[FeatureType, EllipsisType], SequenceFeatureSpec, DictFeatureSpec
 ]
 
-FeaturesSpecification = Union[SingleFeatureSpec, MultiFeatureSpec]
+#: Specification of a single or multiple features. See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`.
+FeaturesSpecification: TypeAlias = Union[SingleFeatureSpec, MultiFeatureSpec]
 
 _ParserFeaturesSpec = Union[Tuple[FeatureType, None, None], Tuple[FeatureType, str, str]]
 
