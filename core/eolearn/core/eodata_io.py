@@ -38,6 +38,7 @@ from typing import (
     cast,
 )
 
+import dateutil.parser
 import fs
 import fs.move
 import geopandas as gpd
@@ -453,6 +454,14 @@ class FeatureIOJson(FeatureIO[_T]):
         file.write(json_data.encode())
 
 
+class FeatureIOTimestamp(FeatureIOJson[List[datetime.datetime]]):
+    """FeatureIOJson object specialized for List[dt.datetime]."""
+
+    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> List[datetime.datetime]:
+        data = json.load(file)
+        return [dateutil.parser.parse(timestamp) for timestamp in data]
+
+
 class FeatureIOBBox(FeatureIO[BBox]):
     """FeatureIO object specialized for BBox objects."""
 
@@ -481,8 +490,10 @@ def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
         return FeatureIOBBox
-    if ftype in (FeatureType.TIMESTAMP, FeatureType.META_INFO):
+    if ftype is FeatureType.META_INFO:
         return FeatureIOJson
+    if ftype is FeatureType.TIMESTAMP:
+        return FeatureIOTimestamp
     if ftype in FeatureTypeSet.VECTOR_TYPES:
         return FeatureIOGeoDf
     return FeatureIONumpy
