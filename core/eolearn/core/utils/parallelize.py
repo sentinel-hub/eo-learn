@@ -26,7 +26,6 @@ else:
 # pylint: disable=invalid-name
 _T = TypeVar("_T")
 _FutureType = TypeVar("_FutureType")
-_InputType = TypeVar("_InputType")
 _OutputType = TypeVar("_OutputType")
 
 
@@ -55,8 +54,8 @@ def _decide_processing_type(workers: Optional[int], multiprocess: bool) -> _Proc
 
 
 def parallelize(
-    function: Callable[[_InputType], _OutputType],
-    *params: Iterable[_InputType],
+    function: Callable[..., _OutputType],
+    *params: Iterable[Any],
     workers: Optional[int],
     multiprocess: bool = True,
     **tqdm_kwargs: Any,
@@ -117,8 +116,8 @@ def execute_with_mp_lock(function: Callable[..., _OutputType], *args: Any, **kwa
 
 def submit_and_monitor_execution(
     executor: Executor,
-    function: Callable[[_InputType], _OutputType],
-    *params: Iterable[_InputType],
+    function: Callable[..., _OutputType],
+    *params: Iterable[Any],
     **tqdm_kwargs: Any,
 ) -> List[_OutputType]:
     """Performs the execution parallelization and monitors the process using a progress bar.
