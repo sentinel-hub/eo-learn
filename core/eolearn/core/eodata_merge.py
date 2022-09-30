@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import functools
 import itertools as it
-import sys
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Dict, Union
@@ -25,11 +24,7 @@ from geopandas import GeoDataFrame
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
 from .utils.parsing import FeatureParser, FeatureSpec, FeaturesSpecification
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # pylint: disable=ungrouped-imports
+from .utils.types import Literal
 
 if TYPE_CHECKING:
     from .eodata import EOPatch

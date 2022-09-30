@@ -6,7 +6,6 @@ Copyright (c) 2017-2022 Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zup
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import sys
 import warnings
 from typing import Optional, Tuple
 
@@ -15,11 +14,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # pylint: disable=ungrouped-imports
+from eolearn.core.utils.types import Literal
 
 
 @pytest.mark.parametrize("size", [0, 5])
