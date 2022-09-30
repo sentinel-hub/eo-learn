@@ -29,7 +29,7 @@ else:
 if TYPE_CHECKING:
     from ..eodata import EOPatch
 
-
+#: Specification describing a single feature
 FeatureSpec = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None], Tuple[FeatureType, str]]
 FeatureRenameSpec = Union[
     Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None, None], Tuple[FeatureType, str, str]
@@ -42,6 +42,7 @@ MultiFeatureSpec = Union[
     EllipsisType, FeatureType, Tuple[FeatureType, EllipsisType], SequenceFeatureSpec, DictFeatureSpec
 ]
 
+#: Specification of a single or multiple features. See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`.
 FeaturesSpecification = Union[SingleFeatureSpec, MultiFeatureSpec]
 
 _ParserFeaturesSpec = Union[Tuple[FeatureType, None, None], Tuple[FeatureType, str, str]]
