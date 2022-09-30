@@ -380,7 +380,7 @@ class EOPatch:
 
         return all(deep_eq(self[feature_type], other[feature_type]) for feature_type in FeatureType)
 
-    def __contains__(self, feature: Union[FeatureType, Tuple[FeatureType, str]]) -> bool:
+    def __contains__(self, feature: object) -> bool:
         if isinstance(feature, FeatureType):
             return bool(self[feature])
         if isinstance(feature, tuple) and len(feature) == 2:
