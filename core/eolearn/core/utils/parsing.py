@@ -14,6 +14,7 @@ file in the root directory of this source tree.
 from __future__ import annotations
 
 import contextlib
+import sys
 from itertools import repeat
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
