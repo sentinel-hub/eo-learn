@@ -11,3 +11,4 @@ pytest-mock
 ray[default]
 responses
 twine
+types-python-dateutil
