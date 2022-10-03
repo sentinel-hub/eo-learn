@@ -108,15 +108,12 @@ class SaveTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
-    def execute(self, eopatch, *, eopatch_folder=""):
+    def execute(self, eopatch: EOPatch, *, eopatch_folder: Optional[str] = "") -> EOPatch:
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
-        :type eopatch: EOPatch
         :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it won't save anything.
-        :type eopatch_folder: str or None
         :return: The same EOPatch
-        :rtype: EOPatch
         """
         if eopatch_folder is None:
             return eopatch
@@ -143,16 +140,14 @@ class LoadTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, eopatch=None, *, eopatch_folder=""):
+    def execute(self, eopatch: Optional[EOPatch] = None, *, eopatch_folder: Optional[str] = "") -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch: Optional input EOPatch. If given the loaded features are merged onto it, otherwise a new EOPatch
             is created.
         :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it will return an empty
             or modified `EOPatch` (depending on the task input).
-        :type eopatch_folder: str or None
         :return: EOPatch loaded from disk
-        :rtype: EOPatch
         """
         if eopatch_folder is None:
             return eopatch or EOPatch()
@@ -173,15 +168,12 @@ class AddFeatureTask(EOTask):
         """
         self.feature_type, self.feature_name = self.parse_feature(feature)
 
-    def execute(self, eopatch, data):
+    def execute(self, eopatch: EOPatch, data: object) -> EOPatch:
         """Returns the EOPatch with added features.
 
         :param eopatch: input EOPatch
-        :type eopatch: EOPatch
         :param data: data to be added to the feature
-        :type data: object
         :return: input EOPatch with the specified feature
-        :rtype: EOPatch
         """
         if self.feature_name is None:
             eopatch[self.feature_type] = data
@@ -200,16 +192,14 @@ class RemoveFeatureTask(EOTask):
         """
         self.feature_parser = self.get_feature_parser(features)
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Returns the EOPatch with removed features.
 
         :param eopatch: input EOPatch
-        :type eopatch: EOPatch
         :return: input EOPatch without the specified feature
-        :rtype: EOPatch
         """
         for feature_type, feature_name in self.feature_parser.get_features(eopatch):
-            if feature_name is ...:
+            if feature_name is None:
                 eopatch.reset_feature_type(feature_type)
             else:
                 del eopatch[feature_type][feature_name]
@@ -226,13 +216,11 @@ class RenameFeatureTask(EOTask):
         """
         self.feature_parser = self.get_feature_parser(features)
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Returns the EOPatch with renamed features.
 
         :param eopatch: input EOPatch
-        :type eopatch: EOPatch
         :return: input EOPatch with the renamed features
-        :rtype: EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = eopatch[feature_type][feature_name]
@@ -252,13 +240,11 @@ class DuplicateFeatureTask(EOTask):
         self.feature_parser = self.get_feature_parser(features)
         self.deep = deep_copy
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Returns the EOPatch with copied features.
 
         :param eopatch: Input EOPatch
-        :type eopatch: EOPatch
         :return: Input EOPatch with the duplicated features.
-        :rtype: EOPatch
         :raises ValueError: Raises an exception when trying to duplicate a feature with an
             already existing feature name.
         """
@@ -322,16 +308,14 @@ class InitializeFeatureTask(EOTask):
         self.init_value = init_value
         self.dtype = dtype
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         :param eopatch: Input EOPatch.
-        :type eopatch: EOPatch
         :return: Input EOPatch with the initialized additional features.
-        :rtype: EOPatch
         """
         shape = eopatch[self.shape_feature].shape if self.shape_feature else self.shape
 
-        add_features = set(self.features) - set(eopatch.get_feature_list())
+        add_features = set(self.features) - set(self.parse_features(eopatch.get_feature_list()))
 
         for feature in add_features:
             eopatch[feature] = np.ones(shape, dtype=self.dtype) * self.init_value
@@ -350,14 +334,11 @@ class MoveFeatureTask(EOTask):
         self.feature_parser = self.get_feature_parser(features)
         self.deep = deep_copy
 
-    def execute(self, src_eopatch, dst_eopatch):
+    def execute(self, src_eopatch: EOPatch, dst_eopatch: EOPatch) -> EOPatch:
         """
         :param src_eopatch: Source EOPatch from which to take features.
-        :type src_eopatch: EOPatch
         :param dst_eopatch: Destination EOPatch to which to move/copy features.
-        :type dst_eopatch: EOPatch
         :return: dst_eopatch with the additional features from src_eopatch.
-        :rtype: EOPatch
         """
 
         for feature in self.feature_parser.get_features(src_eopatch):
@@ -434,12 +415,10 @@ class MapFeatureTask(EOTask):
         else:
             self.function = self.map_method
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         :param eopatch: Source EOPatch from which to read the data of input features.
-        :type eopatch: EOPatch
         :return: An eopatch with the additional mapped features.
-        :rtype: EOPatch
         """
         for input_feature, output_feature in zip(self.input_features, self.output_features):
             eopatch[output_feature] = self.function(eopatch[input_feature], **self.kwargs)
@@ -507,15 +486,17 @@ class ZipFeatureTask(EOTask):
         """
         self.input_features = self.parse_features(input_features)
         self.output_feature = self.parse_feature(output_feature)
-        self.function = zip_function if zip_function else self.zip_method
         self.kwargs = kwargs
 
-    def execute(self, eopatch):
+        if zip_function:  # mypy 0.981 has issues with inlined conditional and functions
+            self.function: Callable = zip_function
+        else:
+            self.function = self.zip_method
+
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         :param eopatch: Source EOPatch from which to read the data of input features.
-        :type eopatch: EOPatch
         :return: An eopatch with the additional zipped features.
-        :rtype: EOPatch
         """
         data = [eopatch[feature] for feature in self.input_features]
 
@@ -570,7 +551,7 @@ class ExplodeBandsTask(EOTask):
         self.input_feature = input_feature
         self.output_mapping = output_mapping
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         for output_feature, bands in self.output_mapping.items():
             new_bands = list(bands) if isinstance(bands, Iterable) else [bands]
             eopatch = ExtractBandsTask(
@@ -582,12 +563,11 @@ class ExplodeBandsTask(EOTask):
 class CreateEOPatchTask(EOTask):
     """Creates an EOPatch."""
 
-    def execute(self, **kwargs):
+    def execute(self, **kwargs: Any) -> EOPatch:
         """Returns a newly created EOPatch with the given kwargs.
 
         :param kwargs: Any valid kwargs accepted by :class:`EOPatch.__init__<eolearn.core.eodata.EOPatch>`
         :return: A new eopatch.
-        :rtype: EOPatch
         """
         return EOPatch(**kwargs)
 
@@ -604,12 +584,10 @@ class MergeEOPatchesTask(EOTask):
         """
         self.merge_kwargs = merge_kwargs
 
-    def execute(self, *eopatches):
+    def execute(self, *eopatches: EOPatch) -> EOPatch:
         """
         :param eopatches: EOPatches to be merged
-        :type eopatches: EOPatch
         :return: A new EOPatch with merged content
-        :rtype: EOPatch
         """
         if not eopatches:
             raise ValueError("At least one EOPatch should be given")
