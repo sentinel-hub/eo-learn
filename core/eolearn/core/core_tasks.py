@@ -13,15 +13,19 @@ file in the root directory of this source tree.
 """
 import copy
 from abc import ABCMeta, abstractmethod
-from typing import Dict, Iterable, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import fs
 import numpy as np
+from fs.base import FS
+
+from sentinelhub import SHConfig
 
 from .constants import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
+from .utils.parsing import FeatureSpec, FeaturesSpecification
 
 
 class CopyTask(EOTask):
@@ -30,10 +34,9 @@ class CopyTask(EOTask):
     It copies feature type dictionaries but not the data itself.
     """
 
-    def __init__(self, features=...):
+    def __init__(self, features: FeaturesSpecification = ...):
         """
         :param features: A collection of features or feature types that will be copied into a new EOPatch.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self.features = features
 
@@ -51,18 +54,16 @@ class DeepCopyTask(CopyTask):
 class IOTask(EOTask, metaclass=ABCMeta):
     """An abstract Input/Output task that can handle a path and a filesystem object."""
 
-    def __init__(self, path, filesystem=None, create=False, config=None):
+    def __init__(
+        self, path: str, filesystem: Optional[FS] = None, create: bool = False, config: Optional[SHConfig] = None
+    ):
         """
         :param path: root path where all EOPatches are saved
-        :type path: str
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path.
-        :type filesystem: fs.base.FS or None
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error
-        :type create: bool
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
-        :type config: SHConfig or None
         """
         self.path = path
         self.filesystem_path = "/" if filesystem is None else self.path
@@ -72,7 +73,7 @@ class IOTask(EOTask, metaclass=ABCMeta):
         self.config = config
 
     @property
-    def filesystem(self):
+    def filesystem(self) -> FS:
         """A filesystem property that unpickles an existing filesystem definition or creates a new one."""
         if self._pickled_filesystem is None:
             filesystem = get_filesystem(self.path, create=self._create_path, config=self.config)
@@ -89,16 +90,13 @@ class IOTask(EOTask, metaclass=ABCMeta):
 class SaveTask(IOTask):
     """Saves the given EOPatch to a filesystem."""
 
-    def __init__(self, path, filesystem=None, config=None, **kwargs):
+    def __init__(self, path: str, filesystem: Optional[FS] = None, config: Optional[SHConfig] = None, **kwargs: Any):
         """
         :param path: root path where all EOPatches are saved
-        :type path: str
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path.
-        :type filesystem: fs.base.FS or None
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
@@ -106,7 +104,6 @@ class SaveTask(IOTask):
         :type compress_level: int
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
-        :type config: SHConfig or None
         """
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=True, config=config)
@@ -132,20 +129,16 @@ class SaveTask(IOTask):
 class LoadTask(IOTask):
     """Loads an EOPatch from a filesystem."""
 
-    def __init__(self, path, filesystem=None, config=None, **kwargs):
+    def __init__(self, path: str, filesystem: Optional[FS] = None, config: Optional[SHConfig] = None, **kwargs: Any):
         """
         :param path: root directory where all EOPatches are saved
-        :type path: str
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
-        :type filesystem: fs.base.FS or None
         :param features: A collection of features to be loaded. By default, all features will be loaded.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :type lazy_loading: bool
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
-        :type config: SHConfig or None
         """
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
@@ -174,10 +167,9 @@ class LoadTask(IOTask):
 class AddFeatureTask(EOTask):
     """Adds a feature to the given EOPatch."""
 
-    def __init__(self, feature):
+    def __init__(self, feature: FeatureSpec):
         """
         :param feature: Feature to be added
-        :type feature: (FeatureType, feature_name) or FeatureType
         """
         self.feature_type, self.feature_name = self.parse_feature(feature)
 
@@ -202,10 +194,9 @@ class AddFeatureTask(EOTask):
 class RemoveFeatureTask(EOTask):
     """Removes one or multiple features from the given EOPatch."""
 
-    def __init__(self, features):
+    def __init__(self, features: FeaturesSpecification):
         """
         :param features: A collection of features to be removed.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self.feature_parser = self.get_feature_parser(features)
 
@@ -229,10 +220,9 @@ class RemoveFeatureTask(EOTask):
 class RenameFeatureTask(EOTask):
     """Renames one or multiple features from the given EOPatch."""
 
-    def __init__(self, features):
+    def __init__(self, features: FeaturesSpecification):
         """
         :param features: A collection of features to be renamed.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self.feature_parser = self.get_feature_parser(features)
 
@@ -254,12 +244,10 @@ class RenameFeatureTask(EOTask):
 class DuplicateFeatureTask(EOTask):
     """Duplicates one or multiple features in an EOPatch."""
 
-    def __init__(self, features, deep_copy=False):
+    def __init__(self, features: FeaturesSpecification, deep_copy: bool = False):
         """
         :param features: A collection of features to be copied.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
-        :type deep_copy: bool
         """
         self.feature_parser = self.get_feature_parser(features)
         self.deep = deep_copy
@@ -300,20 +288,24 @@ class InitializeFeatureTask(EOTask):
         InitializeFeature((FeatureType.MASK, 'mask1'), shape=(FeatureType.DATA, 'data1'), init_value=1)
     """
 
-    def __init__(self, features, shape, init_value=0, dtype=np.uint8):
+    def __init__(
+        self,
+        features: FeaturesSpecification,
+        shape: Union[Tuple[int, ...], FeatureSpec],
+        init_value: int = 0,
+        dtype: Union[np.dtype, type] = np.uint8,
+    ):
         """
         :param features: A collection of features to initialize.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param shape: A shape object (t, n, m, d) or a feature from which to read the shape.
-        :type shape: A tuple or an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param init_value: A value with which to initialize the array of the new feature.
-        :type init_value: int
         :param dtype: Type of array values.
-        :type dtype: NumPy dtype
         :raises ValueError: Raises an exception when passing the wrong shape argument.
         """
 
         self.features = self.parse_features(features)
+        self.shape_feature: Optional[Tuple[FeatureType, Optional[str]]]
+        self.shape: Union[None, Tuple[int, int, int], Tuple[int, int, int, int]]
 
         try:
             self.shape_feature = self.parse_feature(shape)
@@ -323,7 +315,7 @@ class InitializeFeatureTask(EOTask):
         if self.shape_feature:
             self.shape = None
         elif isinstance(shape, tuple) and len(shape) in (3, 4) and all(isinstance(x, int) for x in shape):
-            self.shape = shape
+            self.shape = cast(Union[Tuple[int, int, int], Tuple[int, int, int, int]], shape)
         else:
             raise ValueError("shape argument is not a shape tuple or a feature containing one.")
 
@@ -350,12 +342,10 @@ class InitializeFeatureTask(EOTask):
 class MoveFeatureTask(EOTask):
     """Task to copy/deepcopy fields from one EOPatch to another."""
 
-    def __init__(self, features, deep_copy=False):
+    def __init__(self, features: FeaturesSpecification, deep_copy: bool = False):
         """
         :param features: A collection of features to be moved.
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param deep_copy: Make a deep copy of feature's data if set to true, else just assign it.
-        :type deep_copy: bool
         """
         self.feature_parser = self.get_feature_parser(features)
         self.deep = deep_copy
@@ -418,24 +408,31 @@ class MapFeatureTask(EOTask):
         result = maximum(patch)
     """
 
-    def __init__(self, input_features, output_features, map_function=None, **kwargs):
+    def __init__(
+        self,
+        input_features: FeaturesSpecification,
+        output_features: FeaturesSpecification,
+        map_function: Optional[Callable] = None,
+        **kwargs: Any,
+    ):
         """
         :param input_features: A collection of the input features to be mapped.
-        :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_features: A collection of the output features to which to assign the output data.
-        :type output_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param map_function: A function or lambda to be applied to the input data.
         :raises ValueError: Raises an exception when passing feature collections with different lengths.
         :param kwargs: kwargs to be passed to the map function.
         """
         self.input_features = self.parse_features(input_features)
-        self.output_feature = self.parse_features(output_features)
+        self.output_features = self.parse_features(output_features)
         self.kwargs = kwargs
 
-        if len(self.input_features) != len(self.output_feature):
+        if len(self.input_features) != len(self.output_features):
             raise ValueError("The number of input and output features must match.")
 
-        self.function = map_function if map_function else self.map_method
+        if map_function:  # mypy 0.981 has issues with inlined conditional and functions
+            self.function: Callable = map_function
+        else:
+            self.function = self.map_method
 
     def execute(self, eopatch):
         """
@@ -444,8 +441,8 @@ class MapFeatureTask(EOTask):
         :return: An eopatch with the additional mapped features.
         :rtype: EOPatch
         """
-        for input_features, output_feature in zip(self.input_features, self.output_feature):
-            eopatch[output_feature] = self.function(eopatch[input_features], **self.kwargs)
+        for input_feature, output_feature in zip(self.input_features, self.output_features):
+            eopatch[output_feature] = self.function(eopatch[input_feature], **self.kwargs)
 
         return eopatch
 
@@ -495,12 +492,16 @@ class ZipFeatureTask(EOTask):
             result = maximum(patch)
     """
 
-    def __init__(self, input_features, output_feature, zip_function=None, **kwargs):
+    def __init__(
+        self,
+        input_features: FeaturesSpecification,
+        output_feature: FeaturesSpecification,
+        zip_function: Optional[Callable] = None,
+        **kwargs: Any,
+    ):
         """
         :param input_features: A collection of the input features to be mapped.
-        :type input_features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature object to which to assign the data.
-        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param zip_function: A function or lambda to be applied to the input data.
         :param kwargs: kwargs to be passed to the zip function.
         """
@@ -530,7 +531,7 @@ class ZipFeatureTask(EOTask):
 class MergeFeatureTask(ZipFeatureTask):
     """Merges multiple features together by concatenating their data along the last axis."""
 
-    def zip_method(self, *f, dtype=None):
+    def zip_method(self, *f: np.ndarray, dtype: Union[None, np.dtype, type] = None) -> np.ndarray:
         """Concatenates the data of features along the last axis."""
         return np.concatenate(f, axis=-1, dtype=dtype)  # pylint: disable=unexpected-keyword-arg
 
@@ -538,14 +539,11 @@ class MergeFeatureTask(ZipFeatureTask):
 class ExtractBandsTask(MapFeatureTask):
     """Moves a subset of bands from one feature to a new one."""
 
-    def __init__(self, input_feature, output_feature, bands):
+    def __init__(self, input_feature: FeaturesSpecification, output_feature: FeaturesSpecification, bands: List[int]):
         """
         :param input_feature: A source feature from which to take the subset of bands.
-        :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature to which to write the bands.
-        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param bands: A list of bands to be moved.
-        :type bands: list
         """
         super().__init__(input_feature, output_feature)
         self.bands = bands
@@ -600,7 +598,7 @@ class MergeEOPatchesTask(EOTask):
     Check :func:`EOPatch.merge<eolearn.core.eodata.EOPatch.merge>` for more information about the merging process.
     """
 
-    def __init__(self, **merge_kwargs):
+    def __init__(self, **merge_kwargs: Any):
         """
         :param merge_kwargs: Keyword arguments defined for `EOPatch.merge` method.
         """

@@ -12,6 +12,7 @@ from typing import Optional
 from .eodata import EOPatch
 from .eotask import EOTask
 from .utils.common import generate_uid
+from .utils.parsing import FeaturesSpecification
 
 
 class InputTask(EOTask):
@@ -34,11 +35,10 @@ class InputTask(EOTask):
 class OutputTask(EOTask):
     """Stores data as an output of `EOWorkflow` results."""
 
-    def __init__(self, name: Optional[str] = None, features=...):
+    def __init__(self, name: Optional[str] = None, features: FeaturesSpecification = ...):
         """
         :param name: A name under which the data will be saved in `WorkflowResults`, auto-generated if `None`
         :param features: A collection of features to be kept if the data is an `EOPatch`
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self._name = name or generate_uid("output")
         self.features = features
