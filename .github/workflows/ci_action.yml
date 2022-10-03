@@ -6,6 +6,7 @@ on:
     branches:
       - "master"
       - "develop"
+      - "feat/add-mypy-to-ci"
   schedule:
     - cron: "0 0 * * *"
 
@@ -34,6 +35,33 @@ jobs:
 
       - name: Check code compliance with pre-commit validators
         run: pre-commit run --all-files
+
+  check-code-pylint-and-mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.CHECKOUT_BRANCH }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+          architecture: x64
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libgdal-dev graphviz proj-bin gcc libproj-dev libspatialindex-dev
+          pip install -r requirements-dev.txt --upgrade
+          python install_all.py -e
+
+      - name: Run pylint
+        run: make pylint
+
+      - name: Run mypy
+        run: mypy core/eolearn/core
 
   test-on-github:
     runs-on: ubuntu-latest
@@ -75,10 +103,9 @@ jobs:
             --sh_client_secret "${{ secrets.SH_CLIENT_SECRET }}"
           pytest --cov --cov-report=term --cov-report=xml
 
-      - name: Run pylint and reduced tests
+      - name: Run reduced tests
         if: ${{ !matrix.full_test_suite }}
         run: |
-          make pylint
           pytest -m "not sh_integration"
 
       - name: Upload code coverage
