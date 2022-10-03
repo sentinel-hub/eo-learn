@@ -54,7 +54,7 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
             chunk = chunk[~np.isnan(chunk)]
             chunk = chunk.reshape((time_size - no_data_num, sample_size), order="F")
 
-            result = np.percentile(chunk, q=percentile, axis=0, **method_kwargs)
+            result = np.percentile(chunk, q=percentile, axis=0, **method_kwargs)  # type: ignore[call-overload]
 
         combined_data[mask] = result
 
