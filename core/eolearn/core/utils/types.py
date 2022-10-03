@@ -18,3 +18,8 @@ else:
     from typing_extensions import TypeAlias
 
     EllipsisType: TypeAlias = "builtins.ellipsis"
+
+if sys.version_info < (3, 8):
+    from typing_extensions import Literal
+else:
+    from typing import Literal  # pylint: disable=ungrouped-imports # noqa: F401

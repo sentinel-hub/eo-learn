@@ -19,12 +19,7 @@ from itertools import repeat
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
-from .types import EllipsisType
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # pylint: disable=ungrouped-imports
+from .types import EllipsisType, Literal
 
 if sys.version_info < (3, 10):
     from typing_extensions import TypeAlias

@@ -16,7 +16,6 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import logging
-import sys
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
 
@@ -34,12 +33,7 @@ from .eodata_merge import merge_eopatches
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import FeatureSpec, FeaturesSpecification, parse_features
-from .utils.types import EllipsisType
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # pylint: disable=ungrouped-imports
+from .utils.types import EllipsisType, Literal
 
 _T = TypeVar("_T")
 _Self = TypeVar("_Self")
@@ -380,7 +374,7 @@ class EOPatch:
 
         return all(deep_eq(self[feature_type], other[feature_type]) for feature_type in FeatureType)
 
-    def __contains__(self, feature: Union[FeatureType, Tuple[FeatureType, str]]) -> bool:
+    def __contains__(self, feature: object) -> bool:
         if isinstance(feature, FeatureType):
             return bool(self[feature])
         if isinstance(feature, tuple) and len(feature) == 2:
