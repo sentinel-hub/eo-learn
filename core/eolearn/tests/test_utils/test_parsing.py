@@ -1,5 +1,6 @@
+import datetime as dt
 from dataclasses import dataclass
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -12,103 +13,97 @@ from eolearn.core.utils.types import EllipsisType
 
 
 @dataclass
-class TestClass:
+class TestCase:
     input: FeaturesSpecification
     features: List[FeatureSpec]
     renaming: List[FeatureRenameSpec]
-    specifications: List[Tuple[FeatureType, Union[str, EllipsisType]]]
+    specifications: Optional[List[Tuple[FeatureType, Union[str, EllipsisType]]]]
 
 
 TEST_CASES_EMPTY = [
-    TestClass(input=(), features=[], renaming=[], specifications=[]),
+    TestCase(input=(), features=[], renaming=[], specifications=[]),
 ]
 
 SPECIAL_CASES = [
-    TestClass(
+    TestCase(
         input=((FeatureType.BBOX, None),),
         features=[(FeatureType.BBOX, None)],
         renaming=[(FeatureType.BBOX, None, None)],
         specifications=[(FeatureType.BBOX, Ellipsis)],
     ),
+    TestCase(
+        input=((FeatureType.TIMESTAMP, None),),
+        features=[(FeatureType.TIMESTAMP, None)],
+        renaming=[(FeatureType.TIMESTAMP, None, None)],
+        specifications=[(FeatureType.TIMESTAMP, Ellipsis)],
+    ),
 ]
 
 
 TEST_CASES = [
-    TestClass(
-        input=((FeatureType.DATA, "bands", "new_bands"),),
-        features=[(FeatureType.DATA, "bands")],
-        renaming=[(FeatureType.DATA, "bands", "new_bands")],
-        specifications=[(FeatureType.DATA, "bands")],
-    ),
-    TestClass(
-        input=([(FeatureType.DATA, "bands"), (FeatureType.MASK, "bands", "new_bands")]),
-        features=[(FeatureType.DATA, "bands"), (FeatureType.MASK, "bands")],
-        renaming=[(FeatureType.DATA, "bands", "bands"), (FeatureType.MASK, "bands", "new_bands")],
-        specifications=[(FeatureType.DATA, "bands"), (FeatureType.MASK, "bands")],
-    ),
-    TestClass(
+    TestCase(
         input=(
             {
-                FeatureType.DATA: [("IS_VALID", "new_IS_VALID"), ("CLM", "new_CLM")],
+                FeatureType.DATA: [("bands", "new_bands"), ("CLP", "new_CLP")],
                 FeatureType.MASK: [("IS_VALID", "new_IS_VALID"), ("CLM", "new_CLM")],
             }
         ),
         features=[
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLM"),
+            (FeatureType.DATA, "bands"),
+            (FeatureType.DATA, "CLP"),
             (FeatureType.MASK, "IS_VALID"),
             (FeatureType.MASK, "CLM"),
         ],
         renaming=[
-            (FeatureType.DATA, "IS_VALID", "new_IS_VALID"),
-            (FeatureType.DATA, "CLM", "new_CLM"),
+            (FeatureType.DATA, "bands", "new_bands"),
+            (FeatureType.DATA, "CLP", "new_CLP"),
             (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
             (FeatureType.MASK, "CLM", "new_CLM"),
         ],
         specifications=[
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLM"),
+            (FeatureType.DATA, "bands"),
+            (FeatureType.DATA, "CLP"),
             (FeatureType.MASK, "IS_VALID"),
             (FeatureType.MASK, "CLM"),
         ],
     ),
-    TestClass(
-        input=({FeatureType.DATA: [("IS_VALID", "new_IS_VALID"), ("CLM", "new_CLM")], FeatureType.BBOX: ...}),
+    TestCase(
+        input=({FeatureType.DATA: [("bands", "new_bands"), ("CLP", "new_CLP")], FeatureType.BBOX: ...}),
         features=[
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLM"),
+            (FeatureType.DATA, "bands"),
+            (FeatureType.DATA, "CLP"),
             (FeatureType.BBOX, None),
         ],
         renaming=[
-            (FeatureType.DATA, "IS_VALID", "new_IS_VALID"),
-            (FeatureType.DATA, "CLM", "new_CLM"),
+            (FeatureType.DATA, "bands", "new_bands"),
+            (FeatureType.DATA, "CLP", "new_CLP"),
             (FeatureType.BBOX, None, None),
         ],
         specifications=[
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLM"),
+            (FeatureType.DATA, "bands"),
+            (FeatureType.DATA, "CLP"),
             (FeatureType.BBOX, Ellipsis),
         ],
     ),
-    TestClass(
+    TestCase(
         input=[
-            (FeatureType.DATA, "IS_VALID", "new_IS_VALID"),
-            (FeatureType.DATA, "CLM", "new_CLM"),
+            (FeatureType.DATA, "bands", "new_bands"),
+            (FeatureType.DATA, "CLP", "new_CLP"),
             (FeatureType.BBOX, ...),
         ],
         features=[
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLM"),
+            (FeatureType.DATA, "bands"),
+            (FeatureType.DATA, "CLP"),
             (FeatureType.BBOX, None),
         ],
         renaming=[
-            (FeatureType.DATA, "IS_VALID", "new_IS_VALID"),
-            (FeatureType.DATA, "CLM", "new_CLM"),
+            (FeatureType.DATA, "bands", "new_bands"),
+            (FeatureType.DATA, "CLP", "new_CLP"),
             (FeatureType.BBOX, None, None),
         ],
         specifications=[
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLM"),
+            (FeatureType.DATA, "bands"),
+            (FeatureType.DATA, "CLP"),
             (FeatureType.BBOX, Ellipsis),
         ],
     ),
@@ -116,82 +111,61 @@ TEST_CASES = [
 
 
 TEST_CASES_ELLIPSIS = [
-    TestClass(
+    TestCase(
         input=(
             {
                 FeatureType.DATA: ...,
                 FeatureType.BBOX: ...,
-                FeatureType.MASK: [("bands", "new_bands"), ("CLP", "new_CLP")],
+                FeatureType.TIMESTAMP: ...,
+                FeatureType.MASK: [("IS_VALID", "new_IS_VALID"), ("CLM", "new_CLM")],
             }
         ),
         features=[
             (FeatureType.DATA, "bands"),
-            (FeatureType.DATA, "IS_VALID"),
             (FeatureType.DATA, "CLP"),
-            (FeatureType.DATA, "CLM"),
             (FeatureType.BBOX, None),
-            (FeatureType.MASK, "bands"),
-            (FeatureType.MASK, "CLP"),
+            (FeatureType.TIMESTAMP, None),
+            (FeatureType.MASK, "IS_VALID"),
+            (FeatureType.MASK, "CLM"),
         ],
         renaming=[
             (FeatureType.DATA, "bands", "bands"),
-            (FeatureType.DATA, "IS_VALID", "IS_VALID"),
             (FeatureType.DATA, "CLP", "CLP"),
-            (FeatureType.DATA, "CLM", "CLM"),
             (FeatureType.BBOX, None, None),
-            (FeatureType.MASK, "bands", "new_bands"),
-            (FeatureType.MASK, "CLP", "new_CLP"),
+            (FeatureType.TIMESTAMP, None, None),
+            (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
+            (FeatureType.MASK, "CLM", "new_CLM"),
         ],
-        specifications=[
-            (FeatureType.DATA, "bands"),
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLP"),
-            (FeatureType.DATA, "CLM"),
-            (FeatureType.BBOX, Ellipsis),
-            (FeatureType.MASK, "bands"),
-            (FeatureType.MASK, "CLP"),
-        ],
+        specifications=[],
     ),
-    TestClass(
+    TestCase(
         input=(
             (FeatureType.DATA, ...),
             (FeatureType.BBOX, ...),
-            (FeatureType.MASK, "bands", "new_bands"),
-            (FeatureType.MASK, "CLP", "new_CLP"),
+            (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
+            (FeatureType.MASK, "CLM", "new_CLM"),
         ),
         features=[
             (FeatureType.DATA, "bands"),
-            (FeatureType.DATA, "IS_VALID"),
             (FeatureType.DATA, "CLP"),
-            (FeatureType.DATA, "CLM"),
             (FeatureType.BBOX, None),
-            (FeatureType.MASK, "bands"),
-            (FeatureType.MASK, "CLP"),
+            (FeatureType.MASK, "IS_VALID"),
+            (FeatureType.MASK, "CLM"),
         ],
         renaming=[
             (FeatureType.DATA, "bands", "bands"),
-            (FeatureType.DATA, "IS_VALID", "IS_VALID"),
             (FeatureType.DATA, "CLP", "CLP"),
-            (FeatureType.DATA, "CLM", "CLM"),
             (FeatureType.BBOX, None, None),
-            (FeatureType.MASK, "bands", "new_bands"),
-            (FeatureType.MASK, "CLP", "new_CLP"),
+            (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
+            (FeatureType.MASK, "CLM", "new_CLM"),
         ],
-        specifications=[
-            (FeatureType.DATA, "bands"),
-            (FeatureType.DATA, "IS_VALID"),
-            (FeatureType.DATA, "CLP"),
-            (FeatureType.DATA, "CLM"),
-            (FeatureType.BBOX, Ellipsis),
-            (FeatureType.MASK, "bands"),
-            (FeatureType.MASK, "CLP"),
-        ],
+        specifications=[],
     ),
 ]
 
 
 @pytest.mark.parametrize("test_case", TEST_CASES_EMPTY + SPECIAL_CASES + TEST_CASES)
-def test_FeatureParser(test_case: TestClass):
+def test_FeatureParser(test_case: TestCase):
     parser = FeatureParser(test_case.input)
     assert parser.get_features() == test_case.features
     assert parser.get_renamed_features() == test_case.renaming
@@ -199,7 +173,7 @@ def test_FeatureParser(test_case: TestClass):
 
 
 @pytest.mark.parametrize("test_case", TEST_CASES_ELLIPSIS)
-def test_FeatureParser_Error(test_case: TestClass):
+def test_FeatureParser_Error(test_case: TestCase):
     """Test failing when test_case.input contains ... because it has no meaning without EOPatch."""
     parser = FeatureParser(test_case.input)
     with pytest.raises(ValueError):
@@ -212,19 +186,16 @@ def test_FeatureParser_Error(test_case: TestClass):
 def eopatch_fixture():
     eopatch = EOPatch()
     eopatch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    eopatch.data["IS_VALID"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eopatch.data["CLP"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    eopatch.data["CLM"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
-    eopatch.mask["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    eopatch.timestamp = [dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)]
     eopatch.mask["IS_VALID"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    eopatch.mask["CLP"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eopatch.mask["CLM"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     return eopatch
 
 
-@pytest.mark.parametrize("test_case", TEST_CASES_EMPTY + TEST_CASES + SPECIAL_CASES + TEST_CASES_ELLIPSIS)
-def test_FeatureParser_EOPatch(test_case: TestClass, eopatch: EOPatch):
+@pytest.mark.parametrize("test_case", TEST_CASES_EMPTY + SPECIAL_CASES + TEST_CASES + TEST_CASES_ELLIPSIS)
+def test_FeatureParser_EOPatch(test_case: TestCase, eopatch: EOPatch):
     parser = FeatureParser(test_case.input)
     assert parser.get_features(eopatch) == test_case.features
     assert parser.get_renamed_features(eopatch) == test_case.renaming
@@ -233,13 +204,13 @@ def test_FeatureParser_EOPatch(test_case: TestClass, eopatch: EOPatch):
 @pytest.fixture(name="empty_subset_eopatch")
 def empty_eopatch_fixture():
     eopatch = EOPatch()
-    eopatch.data["CLP"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    eopatch.mask["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    eopatch.data["CLP_S2C"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    eopatch.mask["CLM_S2C"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     return eopatch
 
 
 @pytest.mark.parametrize("test_case", TEST_CASES + TEST_CASES_ELLIPSIS)
-def test_FeatureParser_EOPatch_Error(test_case: TestClass, empty_subset_eopatch: EOPatch):
+def test_FeatureParser_EOPatch_Error(test_case: TestCase, empty_subset_eopatch: EOPatch):
     """Test failing when the test_case.input is not subset of EOPatch attributes."""
     parser = FeatureParser(test_case.input)
     with pytest.raises(ValueError):
@@ -252,12 +223,10 @@ def test_FeatureParser_allowed_Error():
     """Test failing when some features are not allowed."""
     with pytest.raises(ValueError):
         FeatureParser(
-            (
-                (
-                    (FeatureType.DATA, "bands", "new_bands"),
-                    (FeatureType.MASK, "bands", "new_bands"),
-                    (FeatureType.MASK, "CLP", "new_CLP"),
-                ),
-                (FeatureType.MASK),
-            )
+            features=(
+                (FeatureType.DATA, "bands", "new_bands"),
+                (FeatureType.MASK, "bands", "new_bands"),
+                (FeatureType.MASK, "CLP", "new_CLP"),
+            ),
+            allowed_feature_types=(FeatureType.MASK,),
         )
