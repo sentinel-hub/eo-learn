@@ -180,6 +180,22 @@ TEST_CASES_ELLIPSIS = [
     ),
 ]
 
+TEST_CASES_ALLOWED = [
+    TestClass(
+        input=(
+            (
+                (FeatureType.DATA, "bands", "new_bands"),
+                (FeatureType.MASK, "bands", "new_bands"),
+                (FeatureType.MASK, "CLP", "new_CLP"),
+            ),
+            (FeatureType.MASK),
+        ),
+        features=[],
+        renaming=[],
+        specifications=[],
+    ),
+]
+
 
 @pytest.mark.parametrize("test_case", TEST_CASES_EMPTY + SPECIAL_CASES + TEST_CASES)
 def test_FeatureParser(test_case: TestClass):
@@ -237,3 +253,10 @@ def test_FeatureParser_EOPatch_Error(test_case: TestClass, empty_eopatch: EOPatc
         parser.get_features(empty_eopatch)
     with pytest.raises(ValueError):
         parser.get_renamed_features(empty_eopatch)
+
+
+@pytest.mark.parametrize("test_case", TEST_CASES_ALLOWED)
+def test_FeatureParser_allowed_Error(test_case: TestClass, empty_eopatch: EOPatch):
+    """failing because some features are not allowed"""
+    with pytest.raises(ValueError):
+        FeatureParser(test_case.input)
