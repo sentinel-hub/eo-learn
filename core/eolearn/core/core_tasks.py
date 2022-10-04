@@ -12,7 +12,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import copy
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import fs
@@ -40,18 +40,18 @@ class CopyTask(EOTask):
         """
         self.features = features
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         return eopatch.copy(features=self.features)
 
 
 class DeepCopyTask(CopyTask):
     """Makes a deep copy of the given EOPatch."""
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         return eopatch.copy(features=self.features, deep=True)
 
 
-class IOTask(EOTask, metaclass=ABCMeta):
+class IOTask(EOTask, metaclass=ABCMeta):  # noqa B024
     """An abstract Input/Output task that can handle a path and a filesystem object."""
 
     def __init__(
@@ -81,10 +81,6 @@ class IOTask(EOTask, metaclass=ABCMeta):
             return filesystem
 
         return unpickle_fs(self._pickled_filesystem)
-
-    @abstractmethod
-    def execute(self, *eopatches, **kwargs):
-        """Implement execute function"""
 
 
 class SaveTask(IOTask):

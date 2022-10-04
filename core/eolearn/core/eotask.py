@@ -21,7 +21,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Type, TypeVar, Union
 
 from .constants import FeatureType
-from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
+from .utils.parsing import (
+    FeatureParser,
+    FeaturesSpecification,
+    parse_feature,
+    parse_features,
+    parse_renamed_feature,
+    parse_renamed_features,
+)
 from .utils.types import EllipsisType
 
 LOGGER = logging.getLogger(__name__)
@@ -70,7 +77,7 @@ class EOTask(metaclass=ABCMeta):
 
     @staticmethod
     def get_feature_parser(
-        features, allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...
+        features: FeaturesSpecification, allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...
     ) -> FeatureParser:
         """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
