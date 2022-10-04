@@ -44,6 +44,26 @@ TEST_CASES = [
     TestCase(
         input=(
             {
+                FeatureType.DATA: (("bands", "new_bands"),),
+                FeatureType.MASK: (("bands", "new_bands"),),
+            }
+        ),
+        features=[
+            (FeatureType.DATA, "bands"),
+            (FeatureType.MASK, "bands"),
+        ],
+        renaming=[
+            (FeatureType.DATA, "bands", "new_bands"),
+            (FeatureType.MASK, "bands", "new_bands"),
+        ],
+        specifications=[
+            (FeatureType.DATA, "bands"),
+            (FeatureType.MASK, "bands"),
+        ],
+    ),
+    TestCase(
+        input=(
+            {
                 FeatureType.DATA: [("bands", "new_bands"), ("CLP", "new_CLP")],
                 FeatureType.MASK: [("IS_VALID", "new_IS_VALID"), ("CLM", "new_CLM")],
             }
@@ -189,6 +209,7 @@ def eopatch_fixture():
     eopatch.data["CLP"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
     eopatch.timestamp = [dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)]
+    eopatch.mask["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eopatch.mask["IS_VALID"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eopatch.mask["CLM"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     return eopatch
