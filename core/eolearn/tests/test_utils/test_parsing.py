@@ -117,6 +117,7 @@ def test_feature_parser_no_eopatch(test_case: TestCase):
 @pytest.mark.parametrize(
     "test_input, specifications",
     [
+        [(FeatureType.DATA, ...), [(FeatureType.DATA, ...)]],
         [
             [FeatureType.BBOX, (FeatureType.MASK, "CLM"), FeatureType.DATA],
             [(FeatureType.BBOX, ...), (FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
