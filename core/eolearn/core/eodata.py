@@ -579,18 +579,13 @@ class EOPatch:
         """Method to save an EOPatch from memory to a storage.
 
         :param path: A location where to save EOPatch. It can be either a local path or a remote URL path.
-        :type path: str
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
-        :type features: list(FeatureType) or list((FeatureType, str)) or ...
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
-        :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
-        :type compress_level: int
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :type filesystem: fs.FS or None
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)
