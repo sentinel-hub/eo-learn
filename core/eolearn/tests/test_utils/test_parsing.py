@@ -41,14 +41,14 @@ def get_test_case_description(test_case: TestCase) -> str:
             features=[(FeatureType.BBOX, None)],
             renaming=[(FeatureType.BBOX, None, None)],
             specifications=[(FeatureType.BBOX, ...)],
-            description="Parsing BBox feature",
+            description="BBox feature",
         ),
         TestCase(
             input=(FeatureType.MASK, "CLM", "new_CLM"),
             features=[(FeatureType.MASK, "CLM")],
             renaming=[(FeatureType.MASK, "CLM", "new_CLM")],
             specifications=[(FeatureType.MASK, "CLM")],
-            description="Parsing renamed feature",
+            description="Renamed feature",
         ),
         TestCase(
             input=[FeatureType.BBOX, (FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
@@ -63,7 +63,7 @@ def get_test_case_description(test_case: TestCase) -> str:
                 (FeatureType.DATA, "bands"),
                 (FeatureType.VECTOR_TIMELESS, "geoms"),
             ],
-            description="Parsing a list of inputs",
+            description="List of inputs",
         ),
         TestCase(
             input=((FeatureType.TIMESTAMP, ...), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a", "b")),
@@ -74,7 +74,7 @@ def get_test_case_description(test_case: TestCase) -> str:
                 (FeatureType.SCALAR, "a", "b"),
             ],
             specifications=[(FeatureType.TIMESTAMP, ...), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a")],
-            description="Parsing a tuple of inputs with rename",
+            description="Tuple of inputs with rename",
         ),
         TestCase(
             input={
@@ -101,7 +101,7 @@ def get_test_case_description(test_case: TestCase) -> str:
                 (FeatureType.BBOX, ...),
                 (FeatureType.TIMESTAMP, ...),
             ],
-            description="Parsing dictionary",
+            description="Dictionary",
         ),
     ],
     ids=get_test_case_description,
@@ -117,7 +117,6 @@ def test_feature_parser_no_eopatch(test_case: TestCase):
 @pytest.mark.parametrize(
     "test_input, specifications",
     [
-        [(FeatureType.DATA, ...), [(FeatureType.DATA, ...)]],
         [
             [FeatureType.BBOX, (FeatureType.MASK, "CLM"), FeatureType.DATA],
             [(FeatureType.BBOX, ...), (FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
@@ -157,7 +156,10 @@ def test_feature_parser_no_eopatch_failure(
                 FeatureType.DATA: [("bands", "new_bands")],
                 FeatureType.BBOX: None,
             },
-            (FeatureType.MASK, FeatureType.DATA),
+            (
+                FeatureType.MASK,
+                FeatureType.DATA,
+            ),
         ],
     ],
 )
@@ -204,13 +206,13 @@ def eopatch_fixture():
                 (FeatureType.META_INFO, "something", "something"),
                 (FeatureType.TIMESTAMP, None, None),
             ],
-            description="Parsing a get-all",
+            description="Get-all",
         ),
         TestCase(
             input=(FeatureType.DATA, ...),
             features=[(FeatureType.DATA, "data"), (FeatureType.DATA, "CLP")],
             renaming=[(FeatureType.DATA, "data", "data"), (FeatureType.DATA, "CLP", "CLP")],
-            description="Parsing a get-all for a feature type",
+            description="Get-all for a feature type",
         ),
         TestCase(
             input=[
@@ -233,7 +235,7 @@ def eopatch_fixture():
                 (FeatureType.META_INFO, "something", "something"),
                 (FeatureType.MASK_TIMELESS, "LULC", "new_LULC"),
             ],
-            description="Parsing sequence with ellipsis",
+            description="Sequence with ellipsis",
         ),
         TestCase(
             input={
@@ -246,7 +248,7 @@ def eopatch_fixture():
                 (FeatureType.DATA, "CLP", "new_CLP"),
                 (FeatureType.MASK_TIMELESS, "LULC", "LULC"),
             ],
-            description="Parsing dictionary with ellipsis",
+            description="Dictionary with ellipsis",
         ),
         TestCase(
             input={FeatureType.VECTOR: ...}, features=[], renaming=[], description="Request all of an empty feature"
