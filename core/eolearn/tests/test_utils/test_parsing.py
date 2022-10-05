@@ -32,7 +32,7 @@ SPECIAL_CASES = [
         specifications=[(FeatureType.BBOX, Ellipsis)],
     ),
     TestCase(
-        input=((FeatureType.TIMESTAMP, None),),
+        input=((FeatureType.TIMESTAMP, ...),),
         features=[(FeatureType.TIMESTAMP, None)],
         renaming=[(FeatureType.TIMESTAMP, None, None)],
         specifications=[(FeatureType.TIMESTAMP, Ellipsis)],
@@ -222,7 +222,7 @@ def test_FeatureParser_EOPatch(test_case: TestCase, eopatch: EOPatch):
     assert parser.get_renamed_features(eopatch) == test_case.renaming
 
 
-@pytest.fixture(name="empty_subset_eopatch")
+@pytest.fixture(name="empty_intersection_eopatch")
 def empty_eopatch_fixture():
     eopatch = EOPatch()
     eopatch.data["CLP_S2C"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
@@ -231,13 +231,13 @@ def empty_eopatch_fixture():
 
 
 @pytest.mark.parametrize("test_case", TEST_CASES + TEST_CASES_ELLIPSIS)
-def test_FeatureParser_EOPatch_Error(test_case: TestCase, empty_subset_eopatch: EOPatch):
+def test_FeatureParser_EOPatch_Error(test_case: TestCase, empty_intersection_eopatch: EOPatch):
     """Test failing when the test_case.input is not subset of EOPatch attributes."""
     parser = FeatureParser(test_case.input)
     with pytest.raises(ValueError):
-        parser.get_features(empty_subset_eopatch)
+        parser.get_features(empty_intersection_eopatch)
     with pytest.raises(ValueError):
-        parser.get_renamed_features(empty_subset_eopatch)
+        parser.get_renamed_features(empty_intersection_eopatch)
 
 
 def test_FeatureParser_allowed_Error():
@@ -246,8 +246,37 @@ def test_FeatureParser_allowed_Error():
         FeatureParser(
             features=(
                 (FeatureType.DATA, "bands", "new_bands"),
-                (FeatureType.MASK, "bands", "new_bands"),
-                (FeatureType.MASK, "CLP", "new_CLP"),
+                (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
+                (FeatureType.MASK, "CLM", "new_CLM"),
             ),
             allowed_feature_types=(FeatureType.MASK,),
         )
+    with pytest.raises(ValueError):
+        FeatureParser(
+            features=(
+                (FeatureType.BBOX, ...),
+                (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
+                (FeatureType.MASK, "CLM", "new_CLM"),
+            ),
+            allowed_feature_types=(FeatureType.MASK,),
+        )
+
+
+def test_pars_dict_Error():
+    """Test failing when values of dictionary are not `...` or sequences with feature names."""
+    with pytest.raises(ValueError):
+        FeatureParser(
+            features={
+                FeatureType.DATA: {"bands": "new_bands"},
+                FeatureType.MASK: {"IS_VALID": "new_IS_VALID", "CLM": "new_CLM"},
+            }
+        )
+
+
+def test_get_renamed_features_eopatch_Error(empty_intersection_eopatch: EOPatch):
+    """Test failing when input of feature parser is not parameter of `eopatch`."""
+    parser = FeatureParser(
+        (FeatureType.DATA, "bands", "new_bands"),
+    )
+    with pytest.raises(ValueError):
+        parser.get_renamed_features(empty_intersection_eopatch)
