@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import contextlib
 import sys
-from itertools import repeat
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
@@ -146,7 +145,9 @@ class FeatureParser:
             return self._parse_sequence(features)
 
         if features is ...:
-            return list(zip(self.allowed_feature_types, repeat(None), repeat(None)))
+            # we sort allowed_feature_types to keep behaviour deterministic
+            ftypes = sorted(self.allowed_feature_types, key=lambda ftype: ftype.value)
+            return [(ftype, None, None) for ftype in ftypes]
 
         raise ValueError(
             f"Unable to parse features {features}. Please see specifications of FeatureParser on viable inputs."
