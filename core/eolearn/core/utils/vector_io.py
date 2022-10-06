@@ -29,7 +29,7 @@ def infer_schema(df):
         if in_type.name.startswith("datetime64"):
             # numpy datetime type regardless of frequency
             return "datetime"
-        if str(in_type) in types:
+        if str(in_type) in types:  # noqa
             out_type = types[str(in_type)]
         else:
             out_type = type(np.zeros(1, in_type).item()).__name__

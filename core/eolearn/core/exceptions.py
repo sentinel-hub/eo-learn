@@ -8,6 +8,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import warnings
+from typing import Any, Type
 
 
 class EODeprecationWarning(DeprecationWarning):
@@ -27,7 +28,7 @@ warnings.simplefilter("default", EOUserWarning)
 warnings.simplefilter("always", EORuntimeWarning)
 
 
-def renamed_and_deprecated(deprecated_class):
+def renamed_and_deprecated(deprecated_class: Type) -> Type:
     """A class decorator that signals that the class has been renamed when initialized.
 
     Example of use:
@@ -41,7 +42,7 @@ def renamed_and_deprecated(deprecated_class):
 
     """
 
-    def warn_and_init(self, *args, **kwargs):
+    def warn_and_init(self: Any, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
             f"The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. "
             "The old name is deprecated and will be removed in version 1.0",

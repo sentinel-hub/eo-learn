@@ -12,6 +12,7 @@ from typing import Optional
 from .eodata import EOPatch
 from .eotask import EOTask
 from .utils.common import generate_uid
+from .utils.parsing import FeaturesSpecification
 
 
 class InputTask(EOTask):
@@ -23,7 +24,7 @@ class InputTask(EOTask):
         """
         self.value = value
 
-    def execute(self, *, value: Optional[object] = None) -> object:  # type: ignore[override]
+    def execute(self, *, value: Optional[object] = None) -> object:
         """
         :param value: A value that the task should provide as its result. If not set uses the value from initialization
         :return: Directly returns `value`
@@ -34,11 +35,10 @@ class InputTask(EOTask):
 class OutputTask(EOTask):
     """Stores data as an output of `EOWorkflow` results."""
 
-    def __init__(self, name: Optional[str] = None, features=...):
+    def __init__(self, name: Optional[str] = None, features: FeaturesSpecification = ...):
         """
         :param name: A name under which the data will be saved in `WorkflowResults`, auto-generated if `None`
         :param features: A collection of features to be kept if the data is an `EOPatch`
-        :type features: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         """
         self._name = name or generate_uid("output")
         self.features = features
@@ -51,7 +51,7 @@ class OutputTask(EOTask):
         """
         return self._name
 
-    def execute(self, data: object) -> object:  # type: ignore[override]
+    def execute(self, data: object) -> object:
         """
         :param data: input data
         :return: Same data, to be stored in results (for `EOPatch` returns shallow copy containing only `features`)

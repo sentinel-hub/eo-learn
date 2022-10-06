@@ -9,18 +9,29 @@ file in the root directory of this source tree.
 import datetime
 import os
 import tempfile
+from typing import Any, Type
 
 import fs
+import geopandas as gpd
 import numpy as np
 import pytest
 from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
 from geopandas import GeoDataFrame
 from moto import mock_s3
+from shapely.geometry import Point
 
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
+from eolearn.core.eodata_io import (
+    FeatureIO,
+    FeatureIOBBox,
+    FeatureIOGeoDf,
+    FeatureIOJson,
+    FeatureIONumpy,
+    FeatureIOTimestamp,
+)
 
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
@@ -54,9 +65,8 @@ def eopatch_fixture():
 
 
 def test_saving_to_a_file(eopatch):
-    with tempfile.NamedTemporaryFile() as fp:
-        with pytest.raises(CreateFailed):
-            eopatch.save(fp.name)
+    with tempfile.NamedTemporaryFile() as fp, pytest.raises(CreateFailed):
+        eopatch.save(fp.name)
 
 
 @mock_s3
@@ -278,3 +288,60 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
         lazy_eopatch.save(folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
         assert temp_fs.exists(fs.path.join(folder_name, "data", "whatever.npy"))
         assert not temp_fs.exists(fs.path.join(folder_name, "data_timeless", "mask.npy"))
+
+
+def assert_data_equal(data1: Any, data2: Any) -> None:
+    if isinstance(data1, np.ndarray):
+        np.testing.assert_array_equal(data1, data2)
+    elif isinstance(data1, gpd.GeoDataFrame):
+        assert CRS(data1.crs) == CRS(data2.crs)
+        gpd.testing.assert_geodataframe_equal(data1, data2, check_crs=False, check_index_type=False, check_dtype=False)
+    else:
+        assert data1 == data2
+
+
+@pytest.mark.parametrize(
+    "constructor, data",
+    [
+        (FeatureIONumpy, np.zeros(20)),
+        (FeatureIONumpy, np.zeros((2, 3, 3, 2), dtype=np.int16)),
+        (FeatureIONumpy, np.full((4, 5), fill_value=CRS.POP_WEB)),
+        (FeatureIOGeoDf, gpd.GeoDataFrame({"col1": ["name1"], "geometry": [Point(1, 2)]}, crs="EPSG:3857")),
+        (FeatureIOGeoDf, gpd.GeoDataFrame({"col1": ["name1"], "geometry": [Point(1, 2)]}, crs="EPSG:32733")),
+        (
+            FeatureIOGeoDf,
+            gpd.GeoDataFrame(
+                {
+                    "values": [1, 2],
+                    "TIMESTAMP": [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+                    "geometry": [Point(1, 2), Point(2, 1)],
+                },
+                crs="EPSG:3857",
+            ),
+        ),
+        (FeatureIOJson, {}),
+        (FeatureIOJson, {"test": "test1", "test3": {"test": "test1"}}),
+        (FeatureIOBBox, BBox((1, 2, 3, 4), CRS.WGS84)),
+        (FeatureIOTimestamp, []),
+        (FeatureIOTimestamp, [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]),
+    ],
+)
+@pytest.mark.parametrize("compress_level", [0, 1])
+def test_feature_io(constructor: Type[FeatureIO], data: Any, compress_level: int) -> None:
+    """
+    Tests verifying that FeatureIO subclasses correctly save, load, and lazy-load data.
+    Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
+    """
+
+    file_extension = "." + str(constructor.get_file_format().extension)
+    file_extension = file_extension if compress_level == 0 else file_extension + ".gz"
+    file_name = "name"
+    with TempFS("testing_file_sistem") as temp_fs:
+        feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
+        constructor.save(data, temp_fs, file_name, compress_level)
+        loaded_data = feat_io.load()
+        assert_data_equal(loaded_data, data)
+
+        temp_fs.remove(file_name + file_extension)
+        cache_data = feat_io.load()
+        assert_data_equal(loaded_data, cache_data)

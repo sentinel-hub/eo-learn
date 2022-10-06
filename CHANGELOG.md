@@ -1,7 +1,20 @@
+## [Version 1.3.0] - 2022-10-06
+
+- (**codebreaking**) Adapted Sentinel Hub tasks to `sentinelhub-py 3.8.0` which switched to Catalog 1.0.0.
+- (**codebreaking**) Removed support for loading pickled objects in EOPatches (deprecated since version 1.0.0).
+- (**codebreaking**) Various improvements of `FeatureIO` class. Only affects direct use of class.
+- Added type annotations to majority of `eolearn.core`. The types are now exposed via `py.typed` file, which enables use of `mypy`. Added type-checking to CI for the `core` module.
+- Numpy-array based features can now save and load `object` populated arrays.
+- Improved documentation building, fixed links to GitHub.
+- Improved test coverage.
+- Added pre-commit hooks to repository for easier development.
+- Various minor improvements.
+
+
 ## [Version 1.2.1] - 2022-09-12
 
 - Corrected the default for `no_data_value` in `ImportFromTiffTask` and `ExportToTiffTask` to `None`. The previous default of `0` was a poor choice in many scenarios. The switch might alter behavior in existing code.
-- Changed the way `SpatialResizeTask` accepts parameters for the final image size. Now supports resizing by using resolution.  
+- Changed the way `SpatialResizeTask` accepts parameters for the final image size. Now supports resizing by using resolution.
 - Added `ExplodeBandsTask` that explodes a multi-band feature into multiple features.
 - Exposed resampling parameters in Sentinel Hub tasks and included a `geometry` execution parameter.
 - Reworked internal classes `FeatureIO` and `_FeatureDict` to improve types and maintainability.
@@ -38,9 +51,9 @@
 - Large improvements of parallelization in EOExecutor. Introduced the `eolearn.core.utils.parallelize` module, featuring tools for different parallelization modes.
 - Added support for session sharing in `SentinelHubInputTask`, `SentinelHubEvalscriptTask` and `SentinelHubDemTask` by adding a `session_loader` parameter. Session sharing of `sentinelhub-py` is explained [here](https://github.com/sentinel-hub/sentinelhub-py/blob/master/examples/session_sharing.ipynb).
 - Added `SpatialResizeTask` to `eolearn.features.feature_manipulation` for spatially resizing EOPatch features.
-- Improved how `ImportFromTiffTask` reads from remote filesystems. 
+- Improved how `ImportFromTiffTask` reads from remote filesystems.
 - Switched to non-structural hashing of `EONode` class to avoid massive slowdowns in large workflows.
-- Improved procedure for building documentation and displaying of type annotations. 
+- Improved procedure for building documentation and displaying of type annotations.
 - Various minor improvements.
 
 
@@ -182,7 +195,7 @@
 - Added `eolearn.features.DoublyLogisticApproximationTask`, contributed by @bsircelj.
 - Optional parameter `config` for `SaveTask` and `LoadTask` to enable defining custom AWS credentials.
 - Fixed a bug in `eolearn.features.ValueFilloutTask`.
-- Started releasing `eo-learn` (sub)packages also as wheels. 
+- Started releasing `eo-learn` (sub)packages also as wheels.
 - Minor improvements and fixes.
 
 ## [Version 0.7.7] - 2020-08-03

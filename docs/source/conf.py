@@ -16,6 +16,7 @@ import os
 import shutil
 import sys
 from collections import defaultdict
+from typing import Any, Dict, Optional
 
 import sphinx.ext.autodoc
 
@@ -42,10 +43,11 @@ doc_title = "eo-learn Documentation"
 # built documents.
 #
 # The release is read from __init__ file and version is shortened release string.
-for line in open(os.path.join(os.path.dirname(__file__), "../../setup.py")):
-    if "version=" in line:
-        release = line.split("=")[1].strip('", \n').strip("'")
-        version = release.rsplit(".", 1)[0]
+with open(os.path.join(os.path.dirname(__file__), "../../setup.py")) as setup_file:
+    for line in setup_file:
+        if "version=" in line:
+            release = line.split("=")[1].strip('", \n').strip("'")
+            version = release.rsplit(".", 1)[0]
 
 # -- General configuration ---------------------------------------------------
 
@@ -63,12 +65,14 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
     "nbsphinx",
+    "sphinx_rtd_theme",
     "IPython.sphinxext.ipython_console_highlighting",
     "m2r2",
 ]
 
-# Incude typehints in descriptions
+# Include typehints in descriptions
 autodoc_typehints = "description"
+autodoc_type_aliases = {"FeaturesSpecification": "eolearn.core.parsing.FeaturesSpecification"}
 
 # Both the class’ and the __init__ method’s docstring are concatenated and inserted.
 autoclass_content = "both"
@@ -309,7 +313,9 @@ def get_subclasses(cls):
     return list(set(direct_subclasses).union(nested_subclasses))
 
 
-with open("eotasks.rst", "w") as f:
+EOTASKS_PATH = "eotasks"
+
+with open(f"{EOTASKS_PATH}.rst", "w") as f:
     f.write("EOTasks\n")
     f.write("=======\n")
     f.write("\n")
@@ -349,6 +355,9 @@ with open("eotasks.rst", "w") as f:
 current_dir = os.path.abspath(os.path.dirname(__file__))
 reference_dir = os.path.join(current_dir, "reference")
 custom_reference_dir = os.path.join(current_dir, "custom_reference")
+custom_reference_files = {filename.rsplit(".", 1)[0] for filename in os.listdir(custom_reference_dir)}
+
+repository_dir = os.path.join(current_dir, "..", "..")
 modules = ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
 
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
@@ -371,6 +380,87 @@ def run_apidoc(_):
         main(["-e", "-o", reference_dir, module_dir, *exclude, *APIDOC_OPTIONS])
 
 
+def configure_github_link(_app: Any, pagename: str, _templatename: Any, context: Dict[str, Any], _doctree: Any) -> None:
+    """Because some pages are auto-generated and some are copied from their original location the link "Edit on GitHub"
+    of a page is wrong. This function computes a custom link for such pages and saves it to a custom meta parameter
+    `github_url` which is then picked up by `sphinx_rtd_theme`.
+
+    Resources to understand the implementation:
+    - https://www.sphinx-doc.org/en/master/extdev/appapi.html#event-html-page-context
+    - https://dev.readthedocs.io/en/latest/design/theme-context.html
+    - https://sphinx-rtd-theme.readthedocs.io/en/latest/configuring.html?highlight=github_url#file-wide-metadata
+    - https://github.com/readthedocs/sphinx_rtd_theme/blob/1.0.0/sphinx_rtd_theme/breadcrumbs.html#L35
+    """
+    # ReadTheDocs automatically sets the following parameters but for local testing we set them manually:
+    show_link = context.get("display_github")
+    context["display_github"] = True if show_link is None else show_link
+    context["github_user"] = context.get("github_user") or "sentinel-hub"
+    context["github_repo"] = context.get("github_repo") or "eo-learn"
+    context["github_version"] = context.get("github_version") or "develop"
+    context["conf_py_path"] = context.get("conf_py_path") or "/docs/source/"
+
+    if pagename.startswith("examples/"):
+        github_url = create_github_url(context, conf_py_path="/")
+
+    elif pagename.startswith("reference/"):
+        filename = pagename.split("/", 1)[1]
+
+        if filename in custom_reference_files:
+            github_url = create_github_url(context, pagename=f"custom_reference/{filename}")
+        else:
+            subpackage = filename.split(".")[1]
+            filename = filename.replace(".", "/")
+            filename = f"{subpackage}/{filename}"
+
+            full_path = os.path.join(repository_dir, f"{filename}.py")
+            is_module = os.path.exists(full_path)
+
+            github_url = create_github_url(
+                context,
+                theme_vcs_pageview_mode="blob" if is_module else "tree",
+                conf_py_path="/",
+                pagename=filename,
+                page_source_suffix=".py" if is_module else "",
+            )
+
+    elif pagename == EOTASKS_PATH:
+        # This page is auto-generated in conf.py
+        github_url = create_github_url(context, pagename="conf", page_source_suffix=".py")
+
+    else:
+        return
+
+    context["meta"] = context.get("meta") or {}
+    context["meta"]["github_url"] = github_url
+
+
+def create_github_url(
+    context: Dict[str, Any],
+    theme_vcs_pageview_mode: Optional[str] = None,
+    conf_py_path: Optional[str] = None,
+    pagename: Optional[str] = None,
+    page_source_suffix: Optional[str] = None,
+) -> str:
+    """Creates a GitHub URL from context in exactly the same way as in
+    https://github.com/readthedocs/sphinx_rtd_theme/blob/1.0.0/sphinx_rtd_theme/breadcrumbs.html#L39
+
+    The function allows URL customization by overwriting certain parameters.
+    """
+    github_host = context.get("github_host") or "github.com"
+    github_user = context.get("github_user", "")
+    github_repo = context.get("github_repo", "")
+    theme_vcs_pageview_mode = theme_vcs_pageview_mode or context.get("theme_vcs_pageview_mode") or "blob"
+    github_version = context.get("github_version", "")
+    conf_py_path = conf_py_path or context.get("conf_py_path", "")
+    pagename = pagename or context.get("pagename", "")
+    page_source_suffix = context.get("page_source_suffix", "") if page_source_suffix is None else page_source_suffix
+    return (
+        f"https://{github_host}/{github_user}/{github_repo}/{theme_vcs_pageview_mode}/"
+        f"{github_version}{conf_py_path}{pagename}{page_source_suffix}"
+    )
+
+
 def setup(app):
     app.connect("builder-inited", run_apidoc)
+    app.connect("html-page-context", configure_github_link)
     app.connect("autodoc-process-docstring", sphinx.ext.autodoc.between("Credits:", what=["module"], exclude=True))

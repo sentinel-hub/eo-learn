@@ -7,12 +7,14 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import warnings
+from typing import Optional, Tuple
 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
-from eolearn.core.utils.raster import fast_nanpercentile
+from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
+from eolearn.core.utils.types import Literal
 
 
 @pytest.mark.parametrize("size", [0, 5])
@@ -37,3 +39,43 @@ def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtyp
     result = fast_nanpercentile(data, percentile, method=method)
 
     assert_array_equal(result, expected_result)
+
+
+@pytest.mark.parametrize(
+    argnames="array, multiple_of, up_down_rule, left_right_rule, pad_value, expected_result",
+    argvalues=[
+        (np.arange(2).reshape((1, 2)), (3, 3), "even", "right", 5, np.array([[5, 5, 5], [0, 1, 5], [5, 5, 5]])),
+        (np.arange(2).reshape((1, 2)), (3, 3), "up", "even", 5, np.array([[5, 5, 5], [5, 5, 5], [0, 1, 5]])),
+        (np.arange(4).reshape((2, 2)), (3, 3), "down", "left", 7, np.array([[7, 0, 1], [7, 2, 3], [7, 7, 7]])),
+        (np.arange(20).reshape((4, 5)), (3, 3), "down", "left", 3, None),
+        (np.arange(60).reshape((6, 10)), (11, 11), "even", "even", 3, None),
+        (np.ones((167, 210)), (256, 256), "even", "even", 3, None),
+        (np.arange(6).reshape((2, 3)), (2, 2), "down", "even", 9, np.array([[0, 1, 2, 9], [3, 4, 5, 9]])),
+        (
+            np.arange(6).reshape((3, 2)),
+            (4, 4),
+            "down",
+            "even",
+            9,
+            np.array([[9, 0, 1, 9], [9, 2, 3, 9], [9, 4, 5, 9], [9, 9, 9, 9]]),
+        ),
+    ],
+)
+def test_constant_pad(
+    array: np.ndarray,
+    multiple_of: Tuple[int, int],
+    up_down_rule: Literal["even", "up", "down"],
+    left_right_rule: Literal["even", "left", "right"],
+    pad_value: float,
+    expected_result: Optional[np.ndarray],
+):
+    """Checks that the function pads correctly and minimally. In larger cases only the shapes are checked."""
+    padded = constant_pad(array, multiple_of, up_down_rule, left_right_rule, pad_value)
+    if expected_result is not None:
+        assert_array_equal(padded, expected_result)
+
+    # correct amount of padding is present
+    assert np.sum(padded == pad_value) - np.sum(array == pad_value) == np.prod(padded.shape) - np.prod(array.shape)
+    for dim in (0, 1):
+        assert (padded.shape[dim] - array.shape[dim]) // multiple_of[dim] == 0  # least amount of padding
+        assert padded.shape[dim] % multiple_of[dim] == 0  # is divisible

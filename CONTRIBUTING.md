@@ -146,7 +146,7 @@ class FooTask(EOTask):
 When creating a new task, bear in mind the following:
 
 * Tasks should be as modular as possible, facilitating task re-use and sharing.
-* An `EOTask` should perform a well-defined operation on the input eopatch(es). If the operation could be split into atomic sub-operations that could be used separately, then consider splitting the task into multiple tasks. Similarly, if tasks share the bulk of the implementation but differ in a minority of implementation, consider using Base classes and inheritance. The interpolation tasks represent a good example of this.  
+* An `EOTask` should perform a well-defined operation on the input eopatch(es). If the operation could be split into atomic sub-operations that could be used separately, then consider splitting the task into multiple tasks. Similarly, if tasks share the bulk of the implementation but differ in a minority of implementation, consider using Base classes and inheritance. The interpolation tasks represent a good example of this.
 * Tasks should be as generalizable as possible, therefore hard-coding of task parameters or `EOPatch` feature types should be avoided. Use the `EOTask._parse_features` method to parse input features in a task, and pass task parameters as arguments, either in the constructor, or at run-time.
 * If in doubt on whether a task is general enough to be of interest to the community, or you are not sure to which sub-package to contribute your task to, send us an email or open a [feature request](#feature-requests).
 

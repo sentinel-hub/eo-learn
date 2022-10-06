@@ -9,27 +9,41 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
+import datetime as dt
 import functools
 import itertools as it
 import warnings
-from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
 
+from sentinelhub import BBox
+
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
-from .utils.parsing import FeatureParser
+from .utils.parsing import FeatureParser, FeatureSpec, FeaturesSpecification
+from .utils.types import Literal
+
+if TYPE_CHECKING:
+    from .eodata import EOPatch
+
+OperationInputType = Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable]
 
 
-def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_op=None):
+def merge_eopatches(
+    *eopatches: EOPatch,
+    features: FeaturesSpecification = ...,
+    time_dependent_op: OperationInputType = None,
+    timeless_op: OperationInputType = None,
+) -> Dict[FeatureSpec, Any]:
     """Merge features of given EOPatches into a new EOPatch.
 
     :param eopatches: Any number of EOPatches to be merged together
-    :type eopatches: EOPatch
     :param features: A collection of features to be merged together. By default, all features will be merged.
-    :type features: object
     :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
         joining time slices of all arrays will be sorted. Supported options are:
 
@@ -41,7 +55,6 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
         - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
         - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
 
-    :type time_dependent_op: str or Callable or None
     :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
         are:
 
@@ -52,9 +65,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
         - 'mean': Join arrays by taking mean values. Ignore NaN values.
         - 'median': Join arrays by taking median values. Ignore NaN values.
 
-    :type timeless_op: str or Callable or None
-    :return: A dictionary with EOPatch features and values
-    :rtype: Dict[(FeatureType, str), object]
+    :return: Merged EOPatch
     """
     reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
@@ -62,7 +73,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
 
     feature_parser = FeatureParser(features)
     all_features = {feature for eopatch in eopatches for feature in feature_parser.get_features(eopatch)}
-    eopatch_content = {}
+    eopatch_content: Dict[FeatureSpec, object] = {}
 
     timestamps, order_mask_per_eopatch = _merge_timestamps(eopatches, reduce_timestamps)
     optimize_raster_temporal = _check_if_optimize(eopatches, time_dependent_op)
@@ -85,6 +96,7 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
             eopatch_content[feature] = timestamps
 
         if feature_type is FeatureType.META_INFO:
+            feature_name = cast(str, feature_name)  # parser makes sure of it
             eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
 
         if feature_type is FeatureType.BBOX:
@@ -93,34 +105,36 @@ def merge_eopatches(*eopatches, features=..., time_dependent_op=None, timeless_o
     return eopatch_content
 
 
-def _parse_operation(operation_input, is_timeless):
+def _parse_operation(operation_input: OperationInputType, is_timeless: bool) -> Callable:
     """Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
     arrays. If the input already is a function it returns it.
     """
-    if isinstance(operation_input, Callable):
-        return operation_input
+    defaults: Dict[Optional[str], Callable] = {
+        None: _return_if_equal_operation,
+        "concatenate": functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
+        "mean": functools.partial(np.nanmean, axis=0),
+        "median": functools.partial(np.nanmedian, axis=0),
+        "min": functools.partial(np.nanmin, axis=0),
+        "max": functools.partial(np.nanmax, axis=0),
+    }
+    if operation_input in defaults:
+        return defaults[operation_input]  # type: ignore[index]
 
-    try:
-        return {
-            None: _return_if_equal_operation,
-            "concatenate": functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
-            "mean": functools.partial(np.nanmean, axis=0),
-            "median": functools.partial(np.nanmedian, axis=0),
-            "min": functools.partial(np.nanmin, axis=0),
-            "max": functools.partial(np.nanmax, axis=0),
-        }[operation_input]
-    except KeyError as exception:
-        raise ValueError(f"Merge operation {operation_input} is not supported") from exception
+    if isinstance(operation_input, Callable):  # type: ignore[arg-type]  #mypy 0.981 has issues with callable
+        return cast(Callable, operation_input)
+    raise ValueError(f"Merge operation {operation_input} is not supported")
 
 
-def _return_if_equal_operation(arrays):
+def _return_if_equal_operation(arrays: np.ndarray) -> bool:
     """Checks if arrays are all equal and returns first one of them. If they are not equal it raises an error."""
     if _all_equal(arrays):
         return arrays[0]
     raise ValueError("Cannot merge given arrays because their values are not the same.")
 
 
-def _merge_timestamps(eopatches, reduce_timestamps):
+def _merge_timestamps(
+    eopatches: Sequence[EOPatch], reduce_timestamps: bool
+) -> Tuple[List[dt.datetime], List[np.ndarray]]:
     """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
@@ -131,11 +145,11 @@ def _merge_timestamps(eopatches, reduce_timestamps):
         return [], [np.array([], dtype=np.int32) for _ in range(len(eopatches))]
 
     if reduce_timestamps:
-        all_timestamps, order_mask = np.unique(all_timestamps, return_inverse=True)
-        all_timestamps = all_timestamps.tolist()
+        unique_timestamps, order_mask = np.unique(all_timestamps, return_inverse=True)  # type: ignore[call-overload]
+        ordered_timestamps = unique_timestamps.tolist()
     else:
-        order_mask = np.argsort(all_timestamps)
-        all_timestamps = sorted(all_timestamps)
+        order_mask = np.argsort(all_timestamps)  # type: ignore[arg-type]
+        ordered_timestamps = sorted(all_timestamps)
 
     order_mask = order_mask.tolist()
 
@@ -145,10 +159,10 @@ def _merge_timestamps(eopatches, reduce_timestamps):
         for eopatch_timestamps in timestamps_per_eopatch
     ]
 
-    return all_timestamps, order_mask_per_eopatch
+    return ordered_timestamps, order_mask_per_eopatch
 
 
-def _check_if_optimize(eopatches, operation_input):
+def _check_if_optimize(eopatches: Sequence[EOPatch], operation_input: OperationInputType) -> bool:
     """Checks whether optimisation of `_merge_time_dependent_raster_feature` is possible"""
     if operation_input not in [None, "mean", "median", "min", "max"]:
         return False
@@ -156,7 +170,13 @@ def _check_if_optimize(eopatches, operation_input):
     return _all_equal(timestamp_list)
 
 
-def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_mask_per_eopatch, optimize):
+def _merge_time_dependent_raster_feature(
+    eopatches: Sequence[EOPatch],
+    feature: FeatureSpec,
+    operation: Callable,
+    order_mask_per_eopatch: Sequence[np.ndarray],
+    optimize: bool,
+) -> np.ndarray:
     """Merges numpy arrays of a time-dependent raster feature with a given operation and masks on how to order and join
     time raster's time slices.
     """
@@ -193,7 +213,12 @@ def _merge_time_dependent_raster_feature(eopatches, feature, operation, order_ma
     return np.array(split_arrays)
 
 
-def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_mask_per_eopatch, optimize):
+def _extract_and_join_time_dependent_feature_values(
+    eopatches: Sequence[EOPatch],
+    feature: FeatureSpec,
+    order_mask_per_eopatch: Sequence[np.ndarray],
+    optimize: bool,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Collects feature arrays from EOPatches that have them and joins them together. It also joins together
     corresponding order masks.
     """
@@ -218,12 +243,14 @@ def _extract_and_join_time_dependent_feature_values(eopatches, feature, order_ma
     return np.concatenate(arrays, axis=0), np.concatenate(order_masks)
 
 
-def _is_strictly_increasing(array):
+def _is_strictly_increasing(array: np.ndarray) -> bool:
     """Checks if a 1D array of values is strictly increasing."""
-    return (np.diff(array) > 0).all()
+    return (np.diff(array) > 0).all().astype(bool)
 
 
-def _merge_timeless_raster_feature(eopatches, feature, operation):
+def _merge_timeless_raster_feature(
+    eopatches: Sequence[EOPatch], feature: FeatureSpec, operation: Callable
+) -> np.ndarray:
     """Merges numpy arrays of a timeless raster feature with a given operation."""
     arrays = _extract_feature_values(eopatches, feature)
 
@@ -239,7 +266,7 @@ def _merge_timeless_raster_feature(eopatches, feature, operation):
         ) from exception
 
 
-def _merge_vector_feature(eopatches, feature):
+def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> GeoDataFrame:
     """Merges GeoDataFrames of a vector feature."""
     dataframes = _extract_feature_values(eopatches, feature)
 
@@ -259,7 +286,7 @@ def _merge_vector_feature(eopatches, feature):
     return merged_dataframe
 
 
-def _select_meta_info_feature(eopatches, feature_name):
+def _select_meta_info_feature(eopatches: Sequence[EOPatch], feature_name: str) -> Any:
     """Selects a value for a meta info feature of a merged EOPatch. By default, the value is the first one."""
     values = _extract_feature_values(eopatches, (FeatureType.META_INFO, feature_name))
 
@@ -273,7 +300,7 @@ def _select_meta_info_feature(eopatches, feature_name):
     return values[0]
 
 
-def _get_common_bbox(eopatches):
+def _get_common_bbox(eopatches: Sequence[EOPatch]) -> Optional[BBox]:
     """Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones."""
     bboxes = [eopatch.bbox for eopatch in eopatches if eopatch.bbox is not None]
 
@@ -285,13 +312,13 @@ def _get_common_bbox(eopatches):
     raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes.")
 
 
-def _extract_feature_values(eopatches, feature):
+def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> List[Any]:
     """A helper function that extracts a feature values from those EOPatches where a feature exists."""
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
 
 
-def _all_equal(values):
+def _all_equal(values: Union[Sequence[Any], np.ndarray]) -> bool:
     """A helper function that checks if all values in a given list are equal to each other."""
     first_value = values[0]
 

@@ -71,6 +71,9 @@ flake8 = [
     "--extend-ignore=E402"
 ]
 
+[tool.nbqa.exclude]
+flake8 = "examples/core/CoreOverview.ipynb"
+
 [tool.mypy]
 follow_imports = "normal"
 ignore_missing_imports = true

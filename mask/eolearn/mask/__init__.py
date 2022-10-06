@@ -8,4 +8,4 @@ from .masking import JoinMasksTask, MaskFeatureTask
 from .snow_mask import SnowMaskTask, TheiaSnowMaskTask
 from .utils import resize_images
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"

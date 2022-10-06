@@ -1,8 +1,9 @@
 [flake8]
-ignore = E203, W503
+ignore = E203, W503, C408
 exclude = .git, __pycache__, build, dist
 max-line-length= 120
 max-complexity = 15
+min_python_version = 3.7.0
 per-file-ignores =
     # imported but unused
     __init__.py: F401

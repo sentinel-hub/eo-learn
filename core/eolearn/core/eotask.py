@@ -18,12 +18,22 @@ import inspect
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Type, TypeVar, Union
 
 from .constants import FeatureType
-from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
+from .utils.parsing import (
+    FeatureParser,
+    FeaturesSpecification,
+    parse_feature,
+    parse_features,
+    parse_renamed_feature,
+    parse_renamed_features,
+)
+from .utils.types import EllipsisType
 
 LOGGER = logging.getLogger(__name__)
+
+Self = TypeVar("Self")
 
 
 class EOTask(metaclass=ABCMeta):
@@ -34,11 +44,11 @@ class EOTask(metaclass=ABCMeta):
     parse_features = staticmethod(parse_features)
     parse_renamed_features = staticmethod(parse_renamed_features)
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls: Type[Self], *args: Any, **kwargs: Any) -> Self:
         """Stores initialization parameters and the order to the instance attribute `init_args`."""
-        self = super().__new__(cls)
+        self = super().__new__(cls)  # type: ignore[misc]
 
-        init_args = {}
+        init_args: Dict[str, object] = {}
         for arg, value in zip(inspect.getfullargspec(self.__init__).args[1 : len(args) + 1], args):
             init_args[arg] = repr(value)
         for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1 :]:
@@ -50,13 +60,12 @@ class EOTask(metaclass=ABCMeta):
         return self
 
     @property
-    def private_task_config(self):
+    def private_task_config(self) -> "_PrivateTaskConfig":
         """Keeps track of the arguments for which the task was initialized for better logging.
 
         :return: The initial configuration arguments of the task
-        :rtype: _PrivateTaskConfig
         """
-        return self._private_task_config
+        return self._private_task_config  # type: ignore[attr-defined]
 
     def __call__(self, *eopatches, **kwargs):
         """Syntactic sugar for task execution"""
@@ -67,7 +76,9 @@ class EOTask(metaclass=ABCMeta):
         """Override to specify action performed by task."""
 
     @staticmethod
-    def get_feature_parser(features, allowed_feature_types: Optional[Iterable[FeatureType]] = None) -> FeatureParser:
+    def get_feature_parser(
+        features: FeaturesSpecification, allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...
+    ) -> FeatureParser:
         """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
 

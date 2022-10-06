@@ -9,15 +9,11 @@ Copyright (c) 2017-2019 Blaž Sovdat (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-import sys
 from typing import Tuple
 
 import numpy as np
 
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # pylint: disable=ungrouped-imports
+from .types import Literal
 
 
 def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "linear") -> np.ndarray:
@@ -58,7 +54,7 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
             chunk = chunk[~np.isnan(chunk)]
             chunk = chunk.reshape((time_size - no_data_num, sample_size), order="F")
 
-            result = np.percentile(chunk, q=percentile, axis=0, **method_kwargs)
+            result = np.percentile(chunk, q=percentile, axis=0, **method_kwargs)  # type: ignore[call-overload]
 
         combined_data[mask] = result
 

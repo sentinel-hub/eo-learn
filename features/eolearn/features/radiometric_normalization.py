@@ -8,7 +8,7 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Matic Lubej, Devis Peressutti, Žiga 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
@@ -130,6 +130,7 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
         idx = np.where(valid_obs == 0, self.max_index, ind_tmp[ind, y_val, x_val])
         return idx
 
+    @abstractmethod
     def _get_reference_band(self, data):
         """Extract reference band from input 4D data according to compositing method
 
@@ -137,7 +138,6 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
         :type data: numpy array
         :return: 3D array containing reference band according to compositing method
         """
-        raise NotImplementedError
 
     def _get_indices(self, data):
         """Compute indices along temporal dimension corresponding to the sought percentile
