@@ -45,6 +45,7 @@ setup(
     author_email="eoresearch@sinergise.com",
     license="MIT",
     packages=find_packages(exclude=["eolearn.tests*"]),
+    package_data={"eolearn": ["core/py.typed"]},
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     extras_require={"RAY": parse_requirements("requirements-ray.txt")},

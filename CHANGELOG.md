@@ -1,3 +1,16 @@
+## [Version 1.3.0] - 2022-10-06
+
+- (**codebreaking**) Adapted Sentinel Hub tasks to `sentinelhub-py 3.8.0` which switched to Catalog 1.0.0.
+- (**codebreaking**) Removed support for loading pickled objects in EOPatches (deprecated since version 1.0.0).
+- (**codebreaking**) Various improvements of `FeatureIO` class. Only affects direct use of class.
+- Added type annotations to majority of `eolearn.core`. The types are now exposed via `py.typed` file, which enables use of `mypy`. Added type-checking to CI for the `core` module.
+- Numpy-array based features can now save and load `object` populated arrays.
+- Improved documentation building, fixed links to GitHub.
+- Improved test coverage.
+- Added pre-commit hooks to repository for easier development.
+- Various minor improvements.
+
+
 ## [Version 1.2.1] - 2022-09-12
 
 - Corrected the default for `no_data_value` in `ImportFromTiffTask` and `ExportToTiffTask` to `None`. The previous default of `0` was a poor choice in many scenarios. The switch might alter behavior in existing code.

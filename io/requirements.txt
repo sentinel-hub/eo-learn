@@ -5,4 +5,4 @@ fiona>=1.8.18
 geopandas>=0.8.1
 rasterio>=1.2.7
 rtree
-sentinelhub>=3.5.1
+sentinelhub>=3.8.0
