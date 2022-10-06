@@ -720,11 +720,11 @@ def get_available_timestamps(
     :param config: A configuration object.
     :return: A list of timestamps of available observations.
     """
-    query = None
+    query_filter = None
     if maxcc is not None and data_collection.has_cloud_coverage:
         if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
             raise ValueError('Maximum cloud coverage "maxcc" parameter should be a float on an interval [0, 1]')
-        query = {"eo:cloud_cover": {"lte": int(maxcc * 100)}}
+        query_filter = f"eo:cloud_cover < {int(maxcc * 100)}"
 
     fields = {"include": ["properties.datetime"], "exclude": []}
 
@@ -734,7 +734,7 @@ def get_available_timestamps(
 
     catalog = SentinelHubCatalog(config=config)
     search_iterator = catalog.search(
-        collection=data_collection, bbox=bbox, time=time_interval, query=query, fields=fields
+        collection=data_collection, bbox=bbox, time=time_interval, filter=query_filter, fields=fields
     )
 
     all_timestamps = search_iterator.get_timestamps()
