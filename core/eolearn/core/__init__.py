@@ -32,4 +32,4 @@ from .utils.fs import get_filesystem, load_s3_filesystem, pickle_fs, unpickle_fs
 from .utils.parallelize import execute_with_mp_lock, join_futures, join_futures_iter, parallelize
 from .utils.parsing import FeatureParser
 
-__version__ = "1.2.1"
+__version__ = "1.3.0"
