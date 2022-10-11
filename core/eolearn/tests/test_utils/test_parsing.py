@@ -170,7 +170,7 @@ def test_allowed_feature_types(test_input: FeaturesSpecification, allowed_types:
         FeatureParser(features=test_input, allowed_feature_types=allowed_types)
 
 
-@pytest.fixture(name="eopatch", scope="session")
+@pytest.fixture(name="eopatch", scope="module")
 def eopatch_fixture():
     return EOPatch(
         data=dict(data=np.zeros((2, 2, 2, 2)), CLP=np.zeros((2, 2, 2, 2))),  # name duplication intentional
