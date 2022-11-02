@@ -16,6 +16,7 @@ import contextlib
 import datetime
 import gzip
 import json
+import platform
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
@@ -50,7 +51,6 @@ from fs.tempfs import TempFS
 
 from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
-from sentinelhub.os_utils import sys_is_windows
 
 from .constants import FeatureType, FeatureTypeSet, OverwritePermission
 from .utils.parsing import FeatureParser, FeaturesSpecification
@@ -85,7 +85,7 @@ def save_eopatch(
         _check_letter_case_collisions(eopatch_features, fs_features)
         _check_add_only_permission(eopatch_features, fs_features)
 
-    elif sys_is_windows() and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
+    elif platform.system() == "Windows" and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
         _check_letter_case_collisions(eopatch_features, fs_features)
 
     else:
