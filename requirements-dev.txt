@@ -1,7 +1,7 @@
 codecov
 hypothesis
 moto
-mypy
+mypy>=0.990
 nbval
 pylint>=2.14.0
 pytest>=7.0.0
