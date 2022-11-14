@@ -525,6 +525,7 @@ class TestProcessingIO:
         assert all(timestamp.tzinfo is not None for timestamp in timestamps)
 
     def test_get_available_timestamps_custom_filtration(self):
+        """Chekcs that the custom filtration works as intended."""
         timestamps1 = get_available_timestamps(
             bbox=self.bbox,
             config=SHConfig(),
