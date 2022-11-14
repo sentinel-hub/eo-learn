@@ -524,6 +524,27 @@ class TestProcessingIO:
         assert len(timestamps) == 4
         assert all(timestamp.tzinfo is not None for timestamp in timestamps)
 
+    def test_get_available_timestamps_custom_filtration(self):
+        timestamps1 = get_available_timestamps(
+            bbox=self.bbox,
+            config=SHConfig(),
+            data_collection=DataCollection.SENTINEL2_L1C,
+            time_interval=self.time_interval,
+            timestamp_filter=lambda stamps, diff: stamps[:3],
+        )
+
+        assert len(timestamps1) == 3
+
+        timestamps2 = get_available_timestamps(
+            bbox=self.bbox,
+            config=SHConfig(),
+            data_collection=DataCollection.SENTINEL2_L1C,
+            time_interval=self.time_interval,
+            timestamp_filter=lambda stamps, diff: stamps[:5],
+        )
+
+        assert len(timestamps2) == 5
+
     def test_no_data_input_task_request(self):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, "BANDS"),
