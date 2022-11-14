@@ -714,7 +714,6 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
         """
         :param sen2cor_classification: "SCL" (scene classification), "CLD" (cloud probability) or "SNW"
             (snow probability) masks to be retrieved. Also, a list of their combination (e.g. ["SCL","CLD"])
-        :type sen2cor_classification: str or [str]
         :param kwargs: Additional arguments that will be passed to the `SentinelHubInputTask`
         """
         # definition of possible types and target features
