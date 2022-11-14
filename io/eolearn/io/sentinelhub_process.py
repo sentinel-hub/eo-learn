@@ -12,7 +12,7 @@ file in the root directory of this source tree.
 
 import datetime as dt
 import logging
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -35,9 +35,11 @@ from sentinelhub import (
     parse_time_interval,
     serialize_time,
 )
-from sentinelhub.time_utils import RawTimeIntervalType
+from sentinelhub.type_utils import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.utils.parsing import FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.types import Literal
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,9 +89,9 @@ class SentinelHubInputBaseTask(EOTask):
         self,
         eopatch: Optional[EOPatch] = None,
         bbox: Optional[BBox] = None,
-        time_interval: Optional[RawTimeIntervalType] = None,
+        time_interval: Optional[RawTimeIntervalType] = None,  # should be kept at this to prevent code-breaks
         geometry: Optional[Geometry] = None,
-    ):
+    ) -> EOPatch:
         """Main execute method for the Process API tasks.
         The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
 
@@ -182,11 +184,19 @@ class SentinelHubInputBaseTask(EOTask):
         """Extract data from the received images and assign them to eopatch features"""
         raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
+    def _build_requests(
+        self,
+        bbox: BBox,
+        size_x: int,
+        size_y: int,
+        timestamp: Optional[List[dt.datetime]],
+        time_interval: Optional[Tuple[dt.datetime, dt.datetime]],
+        geometry: Geometry,
+    ) -> List[SentinelHubRequest]:
         """Build requests"""
         raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
-    def _get_timestamp(self, time_interval, bbox):
+    def _get_timestamp(self, time_interval: Optional[Tuple[dt.datetime, dt.datetime]], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
 
@@ -197,7 +207,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        features: Optional[FeatureType] = None,
+        features: Optional[FeaturesSpecification] = None,
         evalscript: Optional[str] = None,
         data_collection: Optional[DataCollection] = None,
         size: Optional[Tuple[int, int]] = None,
@@ -301,7 +311,15 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             config=self.config,
         )
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
+    def _build_requests(
+        self,
+        bbox: BBox,
+        size_x: int,
+        size_y: int,
+        timestamp: List[dt.datetime],
+        time_interval: Optional[Tuple[dt.datetime, dt.datetime]],
+        geometry: Geometry,
+    ):
         """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
         if timestamp:
@@ -388,7 +406,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         cache_folder: Optional[str] = None,
         config: Optional[SHConfig] = None,
         max_threads: Optional[int] = None,
-        bands_dtype: Optional[List[str]] = None,
+        bands_dtype: Union[np.dtype, type] = None,
         single_scene: bool = False,
         mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
         upsampling: Optional[ResamplingType] = None,
@@ -475,7 +493,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
                 )
         return requested_bands
 
-    def generate_evalscript(self):
+    def generate_evalscript(self) -> str:
         """Generate the evalscript to be passed with the request, based on chosen bands"""
         evalscript = """
             //VERSION=3
@@ -535,7 +553,15 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             config=self.config,
         )
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
+    def _build_requests(
+        self,
+        bbox: BBox,
+        size_x: int,
+        size_y: int,
+        timestamp: Optional[List[dt.datetime]],
+        time_interval: Optional[Tuple[dt.datetime, dt.datetime]],
+        geometry: Geometry,
+    ) -> List[SentinelHubRequest]:
         """Build requests"""
         if timestamp is None:
             dates = [None]
@@ -618,7 +644,12 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         DATA_TIMELESS EOPatch feature.
     """
 
-    def __init__(self, feature=None, data_collection=DataCollection.DEM, **kwargs):
+    def __init__(
+        self,
+        feature: Union[None, str, FeatureSpec] = None,
+        data_collection: DataCollection = DataCollection.DEM,
+        **kwargs: Any,
+    ):
         if feature is None:
             feature = (FeatureType.DATA_TIMELESS, "dem")
         elif isinstance(feature, str):
@@ -675,11 +706,15 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
        * 11 - SNOW
     """
 
-    def __init__(self, sen2cor_classification, data_collection=DataCollection.SENTINEL2_L2A, **kwargs):
+    def __init__(
+        self,
+        sen2cor_classification: Union[Literal["SCL", "CLD", "SNW"], List[Literal["SCL", "CLD", "SNW"]]],
+        data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
+        **kwargs: Any,
+    ):
         """
         :param sen2cor_classification: "SCL" (scene classification), "CLD" (cloud probability) or "SNW"
             (snow probability) masks to be retrieved. Also, a list of their combination (e.g. ["SCL","CLD"])
-        :type sen2cor_classification: str or [str]
         :param kwargs: Additional arguments that will be passed to the `SentinelHubInputTask`
         """
         # definition of possible types and target features
@@ -697,7 +732,7 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
         if data_collection != DataCollection.SENTINEL2_L2A:
             raise ValueError("Sen2Cor classification layers are only available on Sentinel-2 L2A data.")
 
-        features = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
+        features: List[Tuple[FeatureType, str]] = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
         super().__init__(additional_data=features, data_collection=data_collection, **kwargs)
 
 
