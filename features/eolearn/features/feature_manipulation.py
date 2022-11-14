@@ -279,26 +279,19 @@ class SpatialResizeTask(EOTask):
             features anti-aliasing. For cases where execution speed is crucial one can use CV2.
         """
         self.features = features
-        if resize_parameters[0] not in ResizeParam._value2member_map_:
-            raise ValueError(
-                "The resize_parameters must be of type `Tuple[ResizeParam, Tuple[float, float]]` but the first element"
-                " is not a member of the `ResizeParam` Enum."
-            )
-        self.resize_parameters = resize_parameters
+        self.parameter_kind = ResizeParam(resize_parameters[0])
+        self.parameter_values = resize_parameters[1]
 
         self.resize_function = partial(
             spatially_resize_image, resize_method=resize_method, resize_library=resize_library
         )
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        resize_type, resize_type_param = self.resize_parameters
-        resize_type = ResizeParam(resize_type)
-
-        if resize_type == ResizeParam.RESOLUTION:
-            new_size = bbox_to_dimensions(eopatch.bbox, resize_type_param)
+        if self.parameter_kind == ResizeParam.RESOLUTION:
+            new_size = bbox_to_dimensions(eopatch.bbox, self.parameter_values)
             resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: new_size}
         else:
-            resize_fun_kwargs = {resize_type.value: resize_type_param}
+            resize_fun_kwargs = {self.parameter_kind.value: self.parameter_values}
 
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
             if ftype.is_spatial() and ftype.is_raster():
