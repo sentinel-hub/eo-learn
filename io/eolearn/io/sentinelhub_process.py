@@ -35,6 +35,7 @@ from sentinelhub import (
     parse_time_interval,
     serialize_time,
 )
+from sentinelhub.type_utils import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.utils.parsing import FeatureSpec, FeaturesSpecification
@@ -88,7 +89,7 @@ class SentinelHubInputBaseTask(EOTask):
         self,
         eopatch: Optional[EOPatch] = None,
         bbox: Optional[BBox] = None,
-        time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
+        time_interval: Optional[RawTimeIntervalType] = None,  # should be kept at this to prevent code-breaks
         geometry: Optional[Geometry] = None,
     ) -> EOPatch:
         """Main execute method for the Process API tasks.
