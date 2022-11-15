@@ -97,7 +97,7 @@ class SentinelHubInputBaseTask(EOTask):
 
         eopatch = eopatch or EOPatch()
 
-        self._check_and_set_eopatch_bbox(bbox, eopatch)
+        eopatch.bbox = self._extract_bbox(bbox, eopatch)
         size_x, size_y = self._get_size(eopatch)
 
         if time_interval:
@@ -158,15 +158,14 @@ class SentinelHubInputBaseTask(EOTask):
             eopatch.meta_info["time_difference"] = self.time_difference.total_seconds()
 
     @staticmethod
-    def _check_and_set_eopatch_bbox(bbox, eopatch):
+    def _extract_bbox(bbox: Optional[BBox], eopatch: EOPatch) -> BBox:
         if eopatch.bbox is None:
             if bbox is None:
                 raise ValueError("Either the eopatch or the task must provide valid bbox.")
-            eopatch.bbox = bbox
-            return
+            return bbox
 
         if bbox is None or eopatch.bbox == bbox:
-            return
+            return eopatch.bbox
         raise ValueError("Either the eopatch or the task must provide bbox, or they must be the same.")
 
     @staticmethod
