@@ -222,6 +222,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         downsampling: Optional[ResamplingType] = None,
         aux_request_args: Optional[dict] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     ):
         """
         :param features: Features to construct from the evalscript.
@@ -242,6 +243,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
+        :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
+            occurrences within the time_difference window. Check `get_available_timestamps` for more info.
         """
         super().__init__(
             data_collection=data_collection,
@@ -267,6 +270,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
+        self.timestamp_filter = timestamp_filter
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
@@ -305,6 +309,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         return get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
+            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
@@ -413,6 +418,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         downsampling: Optional[ResamplingType] = None,
         aux_request_args: Optional[dict] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     ):
         """
         :param data_collection: Source of requested satellite data.
@@ -438,6 +444,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
+        :param timestamp_filter: A callable that performs the final filtering of timestamps, usually to remove multiple
+            occurrences within the time_difference window. Check `get_available_timestamps` for more info.
         """
         super().__init__(
             data_collection=data_collection,
@@ -453,6 +461,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.evalscript = evalscript
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
+        self.timestamp_filter = timestamp_filter
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
@@ -547,6 +556,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         return get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
+            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
@@ -742,6 +752,7 @@ def get_available_timestamps(
     *,
     time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
     time_difference: dt.timedelta = dt.timedelta(seconds=-1),  # noqa: B008
+    timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     maxcc: Optional[float] = None,
     config: Optional[SHConfig] = None,
 ) -> List[dt.datetime]:
@@ -751,6 +762,10 @@ def get_available_timestamps(
     :param data_collection: A data collection for which to find available timestamps.
     :param time_interval: A time interval from which to provide the timestamps.
     :param time_difference: Minimum allowed time difference, used when filtering dates.
+    :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
+        occurrences within the time_difference window. The filtration is performed after all suitable timestamps for
+        the given region are obtained (with maxcc filtering already done by SH). By default only keeps the oldest
+        timestamp when multiple occur within `time_difference`.
     :param maxcc: Maximum cloud coverage filter from interval [0, 1], default is None.
     :param config: A configuration object.
     :return: A list of timestamps of available observations.
@@ -773,4 +788,4 @@ def get_available_timestamps(
     )
 
     all_timestamps = search_iterator.get_timestamps()
-    return filter_times(all_timestamps, time_difference)
+    return timestamp_filter(all_timestamps, time_difference)
