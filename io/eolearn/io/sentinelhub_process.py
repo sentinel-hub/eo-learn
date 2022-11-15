@@ -444,7 +444,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
-        :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
+        :param timestamp_filter: A callable that performs the final filtering of timestamps, usually to remove multiple
             occurrences within the time_difference window. Check `get_available_timestamps` for more info.
         """
         super().__init__(
