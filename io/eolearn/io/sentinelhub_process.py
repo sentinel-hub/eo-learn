@@ -103,17 +103,17 @@ class SentinelHubInputBaseTask(EOTask):
         if time_interval:
             time_interval = parse_time_interval(time_interval)
             timestamp = self._get_timestamp(time_interval, eopatch.bbox)
+            timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
         elif self.data_collection.is_timeless:
-            timestamp = None
+            timestamp = None  # should this be [] to match next branch in case of a fresh eopatch?
         else:
             timestamp = eopatch.timestamp
 
         if timestamp is not None:
-            eop_timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
-            if eopatch.timestamp:
-                self.check_timestamp_difference(eop_timestamp, eopatch.timestamp)
-            else:
-                eopatch.timestamp = eop_timestamp
+            if not eopatch.timestamp:
+                eopatch.timestamp = timestamp
+            elif timestamp != eopatch.timestamp:
+                raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
         requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
         requests = [request.download_list[0] for request in requests]
@@ -167,17 +167,6 @@ class SentinelHubInputBaseTask(EOTask):
         if bbox is None or eopatch.bbox == bbox:
             return eopatch.bbox
         raise ValueError("Either the eopatch or the task must provide bbox, or they must be the same.")
-
-    @staticmethod
-    def check_timestamp_difference(timestamp1, timestamp2):
-        """Raises an error if the two timestamps are not the same"""
-        error_msg = "Trying to write data to an existing EOPatch with a different timestamp."
-        if len(timestamp1) != len(timestamp2):
-            raise ValueError(error_msg)
-
-        for ts1, ts2 in zip(timestamp1, timestamp2):
-            if ts1 != ts2:
-                raise ValueError(error_msg)
 
     def _extract_data(self, eopatch, images, shape):
         """Extract data from the received images and assign them to eopatch features"""
