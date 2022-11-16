@@ -115,8 +115,8 @@ class SentinelHubInputBaseTask(EOTask):
             elif timestamp != eopatch.timestamp:
                 raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
-        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
-        requests = [request.download_list[0] for request in requests]
+        sh_requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
+        requests = [request.download_list[0] for request in sh_requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
         session = None if self.session_loader is None else self.session_loader()
@@ -174,17 +174,17 @@ class SentinelHubInputBaseTask(EOTask):
 
     def _build_requests(
         self,
-        bbox: BBox,
+        bbox: Optional[BBox],
         size_x: int,
         size_y: int,
         timestamp: Optional[List[dt.datetime]],
-        time_interval: Optional[Tuple[dt.datetime, dt.datetime]],
-        geometry: Geometry,
+        time_interval: Optional[RawTimeIntervalType],
+        geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
         raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
-    def _get_timestamp(self, time_interval: Optional[Tuple[dt.datetime, dt.datetime]], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
 
@@ -283,7 +283,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         return responses
 
-    def _get_timestamp(self, time_interval, bbox):
+    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
             return []
@@ -300,12 +300,12 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
     def _build_requests(
         self,
-        bbox: BBox,
+        bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: List[dt.datetime],
-        time_interval: Optional[Tuple[dt.datetime, dt.datetime]],
-        geometry: Geometry,
+        timestamp: Optional[List[dt.datetime]],
+        time_interval: Optional[RawTimeIntervalType],
+        geometry: Optional[Geometry],
     ):
         """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
@@ -393,7 +393,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         cache_folder: Optional[str] = None,
         config: Optional[SHConfig] = None,
         max_threads: Optional[int] = None,
-        bands_dtype: Union[np.dtype, type] = None,
+        bands_dtype: Union[None, np.dtype, type] = None,
         single_scene: bool = False,
         mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
         upsampling: Optional[ResamplingType] = None,
@@ -530,7 +530,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         return evalscript
 
-    def _get_timestamp(self, time_interval, bbox):
+    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
             return [time_interval[0]]
@@ -547,24 +547,24 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
     def _build_requests(
         self,
-        bbox: BBox,
+        bbox: Optional[BBox],
         size_x: int,
         size_y: int,
         timestamp: Optional[List[dt.datetime]],
-        time_interval: Optional[Tuple[dt.datetime, dt.datetime]],
-        geometry: Geometry,
+        time_interval: Optional[RawTimeIntervalType],
+        geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
         if timestamp is None:
-            dates = [None]
+            intervals: List[Optional[RawTimeIntervalType]] = [None]
         elif self.single_scene:
-            dates = [parse_time_interval(time_interval)]
+            intervals = [parse_time_interval(time_interval)]
         else:
-            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+            intervals = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
-        return [self._create_sh_request(date1, date2, bbox, size_x, size_y, geometry) for date1, date2 in dates]
+        return [self._create_sh_request(time_interval, bbox, size_x, size_y, geometry) for time_interval in intervals]
 
-    def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y, geometry):
+    def _create_sh_request(self, time_interval, bbox, size_x, size_y, geometry):
         """Create an instance of SentinelHubRequest"""
         responses = [
             SentinelHubRequest.output_response(band.name, MimeType.TIFF)
@@ -576,7 +576,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             input_data=[
                 SentinelHubRequest.input_data(
                     data_collection=self.data_collection,
-                    time_interval=(date_from, date_to),
+                    time_interval=time_interval,
                     mosaicking_order=self.mosaicking_order,
                     maxcc=self.maxcc,
                     upsampling=self.upsampling,
@@ -732,7 +732,7 @@ def get_available_timestamps(
     bbox: BBox,
     data_collection: DataCollection,
     *,
-    time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
+    time_interval: Optional[RawTimeIntervalType] = None,
     time_difference: dt.timedelta = dt.timedelta(seconds=-1),  # noqa: B008
     timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     maxcc: Optional[float] = None,
