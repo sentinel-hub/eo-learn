@@ -38,7 +38,7 @@ from sentinelhub import (
 from sentinelhub.type_utils import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
-from eolearn.core.utils.parsing import FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.types import Literal
 
 LOGGER = logging.getLogger(__name__)
@@ -195,9 +195,9 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        features: Optional[FeaturesSpecification] = None,
-        evalscript: Optional[str] = None,
-        data_collection: Optional[DataCollection] = None,
+        features: FeaturesSpecification,
+        evalscript: str,
+        data_collection: DataCollection,
         size: Optional[Tuple[int, int]] = None,
         resolution: Optional[Union[float, Tuple[float, float]]] = None,
         maxcc: Optional[float] = None,
@@ -248,9 +248,6 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         self.features = self._parse_and_validate_features(features)
         self.responses = self._create_response_objects()
-
-        if not evalscript:
-            raise ValueError("evalscript parameter must not be missing/empty")
         self.evalscript = evalscript
 
         if maxcc and isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
@@ -262,10 +259,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
-    def _parse_and_validate_features(self, features):
-        if not features:
-            raise ValueError("features must be defined")
-
+    def _parse_and_validate_features(self, features: FeaturesSpecification) -> List[FeatureRenameSpec]:
         allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
         _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
 
@@ -387,7 +381,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     # pylint: disable=too-many-locals
     def __init__(
         self,
-        data_collection: Optional[DataCollection] = None,
+        data_collection: DataCollection,
         size: Optional[Tuple[int, int]] = None,
         resolution: Optional[Union[float, Tuple[float, float]]] = None,
         bands_feature: Optional[Tuple[FeatureType, str]] = None,
