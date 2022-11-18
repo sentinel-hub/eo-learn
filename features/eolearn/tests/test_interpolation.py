@@ -275,8 +275,9 @@ COPY_FEATURE_CASES = [
 
 
 @pytest.mark.parametrize("test_case", INTERPOLATION_TEST_CASES)
-def test_interpolation(test_case, test_patch):
+def test_interpolation(test_case: InterpolationTestCase, test_patch):
     eopatch = test_case.execute(test_patch)
+    delta = 1e-4 if isinstance(test_case.task, KrigingInterpolationTask) else 1e-5
 
     # Check types and shapes
     assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
@@ -287,7 +288,7 @@ def test_interpolation(test_case, test_patch):
     # Check results
     feature_type, feature_name, _ = test_case.task.renamed_feature
     data = eopatch[feature_type, feature_name]
-    test_numpy_data(data, **test_case.expected_statistics, delta=1e-5)
+    test_numpy_data(data, **test_case.expected_statistics, delta=delta)
 
 
 @pytest.mark.parametrize("test_case", COPY_FEATURE_CASES)
