@@ -12,7 +12,6 @@ import copy
 import sys
 
 import pytest
-from numpy.testing import assert_array_equal
 from pytest import approx
 from skimage.feature import blob_dog
 
@@ -55,11 +54,7 @@ def test_blob_task(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
-    # Test that no other features were modified
-    for feature_name in small_ndvi_eopatch.data:
-        feature = FeatureType.DATA, feature_name
-        assert_array_equal(
-            small_ndvi_eopatch[feature], eopatch[feature], err_msg=f"EOPatch data feature '{feature}' has changed"
-        )
-
     test_numpy_data(eopatch[BLOB_FEATURE], exp_shape=(10, 20, 20, 1), **expected_statistics, delta=1e-4)
+
+    del eopatch[BLOB_FEATURE]
+    assert small_ndvi_eopatch == eopatch, "Other features of the EOPatch were affected."
