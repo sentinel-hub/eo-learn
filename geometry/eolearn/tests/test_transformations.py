@@ -167,7 +167,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
         img_exp_statistics={
             "exp_shape": (101, 100, 1),
             "exp_max": 8,
-            "exp_mean": 0.0229,
+            "exp_mean": 0.02285,
             "exp_median": 0,
         },
     ),
@@ -255,7 +255,7 @@ def test_vector_to_raster_result(test_case, test_eopatch):
 
     result = eopatch[test_case.task.raster_feature]
 
-    test_numpy_data(result, **test_case.img_exp_statistics, delta=2e-3)  # with delta=1e-3 one test fail
+    test_numpy_data(result, **test_case.img_exp_statistics, delta=1e-3)
 
 
 def test_polygon_overlap(test_eopatch):
