@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 import dataclasses
 import warnings
 from functools import partial
-from typing import Any, Optional, Type
+from typing import Any, Dict, Optional, Tuple, Type, Union
 
 import numpy as np
 import pytest
@@ -18,6 +18,8 @@ import shapely.ops
 from conftest import TEST_EOPATCH_PATH
 from numpy.testing import assert_array_equal
 from shapely.geometry import Polygon
+
+from sentinelhub.testing_utils import test_numpy_data
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
@@ -40,12 +42,7 @@ CUSTOM_DATAFRAME_3D.geometry = CUSTOM_DATAFRAME_3D.geometry.map(partial(shapely.
 class VectorToRasterTestCase:
     name: str
     task: EOTask
-    img_shape: tuple
-    img_max: int
-    img_min: int = 0
-    img_mean: Optional[float] = None
-    img_median: Optional[int] = None
-    img_dtype: type = np.uint8
+    img_exp_statistics: Dict[str, Union[Tuple[int, ...], Type, np.dtype, float]]
     warning: Optional[Type[Warning]] = None
 
 
@@ -59,10 +56,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
             no_data_value=20,
         ),
-        img_max=8,
-        img_mean=2.33267,
-        img_median=2,
-        img_shape=(101, 100, 1),
+        img_exp_statistics={"exp_shape": (101, 100, 1), "exp_max": 8, "exp_mean": 2.33267, "exp_median": 2},
     ),
     VectorToRasterTestCase(
         name="basic test timed",
@@ -73,11 +67,13 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
             no_data_value=20,
         ),
-        img_min=1,
-        img_max=20,
-        img_mean=12.4854,
-        img_median=20,
-        img_shape=(68, 101, 100, 1),
+        img_exp_statistics={
+            "exp_shape": (68, 101, 100, 1),
+            "exp_min": 1,
+            "exp_max": 20,
+            "exp_mean": 12.4854,
+            "exp_median": 20,
+        },
         warning=EORuntimeWarning,
     ),
     VectorToRasterTestCase(
@@ -92,12 +88,14 @@ VECTOR_TO_RASTER_TEST_CASES = (
             write_to_existing=True,
             raster_dtype=np.int32,
         ),
-        img_min=8,
-        img_max=20,
-        img_mean=19.76,
-        img_median=20,
-        img_dtype=np.int32,
-        img_shape=(50, 50, 1),
+        img_exp_statistics={
+            "exp_shape": (50, 50, 1),
+            "exp_dtype": np.int32,
+            "exp_min": 8,
+            "exp_max": 20,
+            "exp_mean": 19.76,
+            "exp_median": 20,
+        },
     ),
     VectorToRasterTestCase(
         name="multiple values filter, resolution, all touched",
@@ -112,12 +110,14 @@ VECTOR_TO_RASTER_TEST_CASES = (
             all_touched=True,
             write_to_existing=False,
         ),
-        img_min=1,
-        img_max=13,
-        img_mean=12.7093,
-        img_median=13,
-        img_dtype=np.uint16,
-        img_shape=(17, 17, 1),
+        img_exp_statistics={
+            "exp_shape": (17, 17, 1),
+            "exp_dtype": np.uint16,
+            "exp_min": 1,
+            "exp_max": 13,
+            "exp_mean": 12.7093,
+            "exp_median": 13,
+        },
     ),
     VectorToRasterTestCase(
         name="deprecated parameters, single value, custom resolution",
@@ -129,12 +129,14 @@ VECTOR_TO_RASTER_TEST_CASES = (
             no_data_value=-1,
             raster_dtype=np.int32,
         ),
-        img_min=-1,
-        img_max=14,
-        img_mean=-0.8411,
-        img_median=-1,
-        img_dtype=np.int32,
-        img_shape=(67, 31, 1),
+        img_exp_statistics={
+            "exp_shape": (67, 31, 1),
+            "exp_dtype": np.int32,
+            "exp_min": -1,
+            "exp_max": 14,
+            "exp_mean": -0.8411,
+            "exp_median": -1,
+        },
     ),
     VectorToRasterTestCase(
         name="empty vector data test",
@@ -145,10 +147,12 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
             no_data_value=0,
         ),
-        img_max=0,
-        img_mean=0,
-        img_median=0,
-        img_shape=(101, 100, 1),
+        img_exp_statistics={
+            "exp_shape": (101, 100, 1),
+            "exp_max": 0,
+            "exp_mean": 0,
+            "exp_median": 0,
+        },
     ),
     VectorToRasterTestCase(
         name="negative polygon buffering",
@@ -160,10 +164,12 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
             no_data_value=0,
         ),
-        img_max=8,
-        img_mean=0.0229,
-        img_median=0,
-        img_shape=(101, 100, 1),
+        img_exp_statistics={
+            "exp_shape": (101, 100, 1),
+            "exp_max": 8,
+            "exp_mean": 0.0229,
+            "exp_median": 0,
+        },
     ),
     VectorToRasterTestCase(
         name="positive polygon buffering",
@@ -175,10 +181,12 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
             no_data_value=0,
         ),
-        img_max=8,
-        img_mean=0.0664,
-        img_median=0,
-        img_shape=(101, 100, 1),
+        img_exp_statistics={
+            "exp_shape": (101, 100, 1),
+            "exp_max": 8,
+            "exp_mean": 0.0664,
+            "exp_median": 0,
+        },
     ),
     VectorToRasterTestCase(
         name="different crs",
@@ -189,10 +197,12 @@ VECTOR_TO_RASTER_TEST_CASES = (
             raster_shape=(FeatureType.DATA, "BANDS-S2-L1C"),
             no_data_value=0,
         ),
-        img_max=8,
-        img_mean=0.042079,
-        img_median=0,
-        img_shape=(101, 100, 1),
+        img_exp_statistics={
+            "exp_shape": (101, 100, 1),
+            "exp_max": 8,
+            "exp_mean": 0.042079,
+            "exp_median": 0,
+        },
         warning=EORuntimeWarning,
     ),
     VectorToRasterTestCase(
@@ -205,12 +215,14 @@ VECTOR_TO_RASTER_TEST_CASES = (
             no_data_value=-1,
             raster_dtype=np.dtype("int8"),
         ),
-        img_min=-1,
-        img_max=8,
-        img_mean=-0.9461386,
-        img_median=-1,
-        img_shape=(101, 100, 1),
-        img_dtype=np.int8,
+        img_exp_statistics={
+            "exp_shape": (101, 100, 1),
+            "exp_dtype": np.int8,
+            "exp_min": -1,
+            "exp_max": 8,
+            "exp_mean": -0.9461386,
+            "exp_median": -1,
+        },
         warning=EORuntimeWarning,
     ),
     VectorToRasterTestCase(
@@ -224,10 +236,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
             no_data_value=0,
             raster_dtype=bool,
         ),
-        img_min=False,
-        img_max=True,
-        img_dtype=bool,
-        img_shape=(100, 150, 1),
+        img_exp_statistics={"exp_shape": (100, 150, 1), "exp_dtype": bool, "exp_min": False, "exp_max": True},
     ),
 )
 
@@ -245,16 +254,8 @@ def test_vector_to_raster_result(test_case, test_eopatch):
             eopatch = test_case.task(test_eopatch)
 
     result = eopatch[test_case.task.raster_feature]
-    delta = 1e-3
 
-    assert np.amin(result) == pytest.approx(test_case.img_min, abs=delta), "Minimum values do not match."
-    assert np.amax(result) == pytest.approx(test_case.img_max, abs=delta), "Maximum values do not match."
-    if test_case.img_mean is not None:
-        assert np.mean(result) == pytest.approx(test_case.img_mean, abs=delta), "Mean values do not match."
-    if test_case.img_median is not None:
-        assert np.median(result) == pytest.approx(test_case.img_median, abs=delta), "Median values do not match."
-    assert result.dtype == test_case.img_dtype, "Wrong dtype of result."
-    assert result.shape == test_case.img_shape, "Result is of wrong shape."
+    test_numpy_data(result, **test_case.img_exp_statistics, delta=2e-3)  # with delta=1e-3 one test fail
 
 
 def test_polygon_overlap(test_eopatch):
