@@ -11,11 +11,10 @@ from datetime import datetime
 
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
-from pytest import approx
+
+from sentinelhub.testing_utils import test_numpy_data
 
 from eolearn.core import FeatureType
-from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import (
     BlueCompositingTask,
     HistogramMatchingTask,
@@ -47,7 +46,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
 
 
 @pytest.mark.parametrize(
-    "task, test_feature, expected_min, expected_max, expected_mean, expected_median",
+    "task, test_feature, expected_statistics",
     (
         [
             MaskFeatureTask(
@@ -56,20 +55,14 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
                 mask_values=[0, 1, 2, 3, 8, 9, 10, 11],
             ),
             DATA_TEST_FEATURE,
-            0.0002,
-            1.4244,
-            0.21167801,
-            0.142,
+            {"exp_min": 0.0002, "exp_max": 1.4244, "exp_mean": 0.21167801, "exp_median": 0.1422},
         ],
         [
             ReferenceScenesTask(
                 (FeatureType.DATA, "BANDS-S2-L1C", "TEST"), (FeatureType.SCALAR, "CLOUD_COVERAGE"), max_scene_number=5
             ),
             DATA_TEST_FEATURE,
-            0.0005,
-            0.5318,
-            0.16823094,
-            0.1404,
+            {"exp_min": 0.0005, "exp_max": 0.5318, "exp_mean": 0.16823094, "exp_median": 0.1404},
         ],
         [
             BlueCompositingTask(
@@ -79,10 +72,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
                 interpolation="geoville",
             ),
             DATA_TIMELESS_TEST_FEATURE,
-            0.0005,
-            0.5075,
-            0.11658352,
-            0.0833,
+            {"exp_min": 0.0005, "exp_max": 0.5075, "exp_mean": 0.11658352, "exp_median": 0.0833},
         ],
         [
             HOTCompositingTask(
@@ -93,10 +83,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
                 interpolation="geoville",
             ),
             DATA_TIMELESS_TEST_FEATURE,
-            0.0005,
-            0.5075,
-            0.117758796,
-            0.0846,
+            {"exp_min": 0.0005, "exp_max": 0.5075, "exp_mean": 0.117758796, "exp_median": 0.0846},
         ],
         [
             MaxNDVICompositingTask(
@@ -107,10 +94,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
                 interpolation="geoville",
             ),
             DATA_TIMELESS_TEST_FEATURE,
-            0.0005,
-            0.5075,
-            0.13430128,
-            0.0941,
+            {"exp_min": 0.0005, "exp_max": 0.5075, "exp_mean": 0.13430128, "exp_median": 0.0941},
         ],
         [
             MaxNDWICompositingTask(
@@ -121,10 +105,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
                 interpolation="geoville",
             ),
             DATA_TIMELESS_TEST_FEATURE,
-            0.0005,
-            0.5318,
-            0.2580135,
-            0.2888,
+            {"exp_min": 0.0005, "exp_max": 0.5318, "exp_mean": 0.2580135, "exp_median": 0.2888},
         ],
         [
             MaxRatioCompositingTask(
@@ -136,39 +117,25 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
                 interpolation="geoville",
             ),
             DATA_TIMELESS_TEST_FEATURE,
-            0.0006,
-            0.5075,
-            0.13513365,
-            0.0958,
+            {"exp_min": 0.0006, "exp_max": 0.5075, "exp_mean": 0.13513365, "exp_median": 0.0958},
         ],
         [
             HistogramMatchingTask(
                 (FeatureType.DATA, "BANDS-S2-L1C", "TEST"), (FeatureType.DATA_TIMELESS, "REFERENCE_COMPOSITE")
             ),
             DATA_TEST_FEATURE,
-            -0.049050678,
-            0.68174845,
-            0.1165936,
-            0.08370649,
+            {"exp_min": -0.049050678, "exp_max": 0.68174845, "exp_mean": 0.1165936, "exp_median": 0.08370649},
         ],
     ),
 )
-def test_haralick(eopatch, task, test_feature, expected_min, expected_max, expected_mean, expected_median):
+def test_radiometric_normalization(eopatch, task, test_feature, expected_statistics):
     initial_patch = copy.deepcopy(eopatch)
     eopatch = task.execute(eopatch)
-
-    # Test that no other features were modified
-    for feature, value in initial_patch.data.items():
-        if isinstance(value, FeatureIO):
-            value = value.load()
-        assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
 
     assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
     assert isinstance(eopatch.timestamp[0], datetime), "Expected timestamps of type datetime.datetime"
 
-    delta = 1e-3
-    result = eopatch[test_feature]
-    assert np.nanmin(result) == approx(expected_min, abs=delta)
-    assert np.nanmax(result) == approx(expected_max, abs=delta)
-    assert np.nanmean(result) == approx(expected_mean, abs=delta)
-    assert np.nanmedian(result) == approx(expected_median, abs=delta)
+    test_numpy_data(eopatch[test_feature], **expected_statistics, delta=1e-3)
+
+    del eopatch[test_feature]
+    assert initial_patch == eopatch, "Other features of the EOPatch were affected."

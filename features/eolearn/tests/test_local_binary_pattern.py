@@ -9,34 +9,31 @@ file in the root directory of this source tree.
 
 import copy
 
-import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
-from pytest import approx
+
+from sentinelhub.testing_utils import test_numpy_data
 
 from eolearn.core import FeatureType
-from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import LocalBinaryPatternTask
+
+LBP_FEATURE = (FeatureType.DATA, "NDVI", "lbp")
+OUTPUT_FEATURE = (FeatureType.DATA, "lbp")
 
 
 @pytest.mark.parametrize(
-    "task, expected_min, expected_max, expected_mean, expected_median",
-    ([LocalBinaryPatternTask((FeatureType.DATA, "NDVI", "lbp"), nb_points=24, radius=3), 0.0, 25.0, 15.8313, 21.0],),
+    "task, expected_statistics",
+    (
+        [
+            LocalBinaryPatternTask(LBP_FEATURE, nb_points=24, radius=3),
+            {"exp_min": 0.0, "exp_max": 25.0, "exp_mean": 15.8313, "exp_median": 21.0},
+        ],
+    ),
 )
-def test_local_binary_pattern(small_ndvi_eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+def test_local_binary_pattern(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
-    # Test that no other features were modified
-    for feature, value in small_ndvi_eopatch.data.items():
-        if isinstance(value, FeatureIO):
-            value = value.load()
-        assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
+    test_numpy_data(eopatch[OUTPUT_FEATURE], exp_shape=(10, 20, 20, 1), **expected_statistics, delta=1e-4)
 
-    delta = 1e-4
-
-    haralick = eopatch.data["lbp"]
-    assert np.min(haralick) == approx(expected_min, abs=delta)
-    assert np.max(haralick) == approx(expected_max, abs=delta)
-    assert np.mean(haralick) == approx(expected_mean, abs=delta)
-    assert np.median(haralick) == approx(expected_median, abs=delta)
+    del eopatch[OUTPUT_FEATURE]
+    assert small_ndvi_eopatch == eopatch, "Other features of the EOPatch were affected."
