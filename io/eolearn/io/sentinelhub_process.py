@@ -17,7 +17,6 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import numpy as np
 
 from sentinelhub import (
-    Band,
     BBox,
     DataCollection,
     Geometry,
@@ -29,7 +28,6 @@ from sentinelhub import (
     SentinelHubRequest,
     SentinelHubSession,
     SHConfig,
-    Unit,
     bbox_to_dimensions,
     filter_times,
     parse_time_interval,
@@ -79,7 +77,7 @@ class SentinelHubInputBaseTask(EOTask):
         self.resolution = resolution
         self.config = config or SHConfig()
         self.max_threads = max_threads
-        self.data_collection = DataCollection(data_collection)
+        self.data_collection: DataCollection = DataCollection(data_collection)
         self.cache_folder = cache_folder
         self.session_loader = session_loader
         self.upsampling = upsampling
@@ -474,8 +472,6 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         for band_name in bands:
             if band_name in band_info_dict:
                 requested_bands.append(band_info_dict[band_name])
-            elif self.data_collection.is_batch or self.data_collection.is_byoc:
-                requested_bands.append(Band(band_name, (Unit.DN,), (np.float32,)))
             else:
                 raise ValueError(
                     f"Data collection {self.data_collection} does not have specifications for {band_name}."
