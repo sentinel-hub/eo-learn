@@ -1,3 +1,13 @@
+## [Version 1.3.1] - 2022-11-23
+
+- Sentinel Hub IO tasks now support a custom timestamp filtration via `timestamp_filter` parameter.
+- `MergeFeatureTask` now supports the `axis` parameter.
+- Fix minor issues with the coregistration module.
+- Prepare for future removal of `sentinelhub.os_utils`.
+- Fix type annotations after `mypy` update.
+- Improvements to tests and various minor changes.
+
+
 ## [Version 1.3.0] - 2022-10-06
 
 - (**codebreaking**) Adapted Sentinel Hub tasks to `sentinelhub-py 3.8.0` which switched to Catalog 1.0.0.
