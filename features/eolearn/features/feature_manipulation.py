@@ -15,14 +15,15 @@ file in the root directory of this source tree.
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import Any, Callable, Iterable, List, Tuple, Union
 
 import numpy as np
 from geopandas import GeoDataFrame
 
-from sentinelhub import BBox, bbox_to_dimensions
+from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
+from eolearn.core.utils.parsing import FeaturesSpecification
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 
@@ -259,48 +260,40 @@ class LinearFunctionTask(MapFeatureTask):
 class SpatialResizeTask(EOTask):
     """Resizes the specified spatial features of EOPatch."""
 
-    def _process_resize_parameters(
-        self, resize_parameters: Tuple[ResizeParam, Tuple[float, float]], bbox: BBox
-    ) -> Dict[str, Tuple[float, float]]:
-        resize_type, resize_type_param = resize_parameters
-        resize_type = ResizeParam(resize_type)
-
-        if resize_type == ResizeParam.RESOLUTION:
-            new_size = bbox_to_dimensions(bbox, resize_type_param)
-            return {ResizeParam.NEW_SIZE.value: new_size}
-
-        return {resize_type.value: resize_type_param}
-
     def __init__(
         self,
         *,
         resize_parameters: Tuple[ResizeParam, Tuple[float, float]],
-        features: Any = ...,
+        features: FeaturesSpecification = ...,
         resize_method: ResizeMethod = ResizeMethod.LINEAR,
         resize_library: ResizeLib = ResizeLib.PIL,
     ):
         """
-        :param features: The specification of feature for which to perform resizing. Must be supported by the
-            :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`. Features can be renamed, see `FeatureParser`
-            documentation.
-        :param new_size: New size of the data (height, width)
-        :param scale_factors: Factors (f_height, f_width) by which to resize the image
+        :param features: Which features to resize. Supports new names for features.
+        :param resize_parameters: Instructions on how to perform the resizing process. For example use:
+            `['new_size', [500, 1000]]` to resize the data to size (500, 1000),
+            `['resolution', [10, 20]]` for changing resolution from 10 to 20,
+            `['scale_factors', [3, 3]]` to make the data three times larger.
         :param resize_method: Interpolation method used for resizing.
         :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
             features anti-aliasing. For cases where execution speed is crucial one can use CV2.
         """
         self.features = features
-        self.resize_parameters = resize_parameters
+        self.parameter_kind = ResizeParam(resize_parameters[0])
+        self.parameter_values = resize_parameters[1]
 
         self.resize_function = partial(
-            spatially_resize_image,
-            resize_method=resize_method,
-            resize_library=resize_library,
+            spatially_resize_image, resize_method=resize_method, resize_library=resize_library
         )
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        resize_params = self._process_resize_parameters(self.resize_parameters, eopatch.bbox)
+        if self.parameter_kind == ResizeParam.RESOLUTION:
+            new_size = bbox_to_dimensions(eopatch.bbox, self.parameter_values)
+            resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: new_size}
+        else:
+            resize_fun_kwargs = {self.parameter_kind.value: self.parameter_values}
+
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
             if ftype.is_spatial() and ftype.is_raster():
-                eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_params)
+                eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_fun_kwargs)
         return eopatch

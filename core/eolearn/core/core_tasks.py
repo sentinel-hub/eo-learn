@@ -508,11 +508,11 @@ class ZipFeatureTask(EOTask):
 
 
 class MergeFeatureTask(ZipFeatureTask):
-    """Merges multiple features together by concatenating their data along the last axis."""
+    """Merges multiple features together by concatenating their data along the specified axis."""
 
-    def zip_method(self, *f: np.ndarray, dtype: Union[None, np.dtype, type] = None) -> np.ndarray:
-        """Concatenates the data of features along the last axis."""
-        return np.concatenate(f, axis=-1, dtype=dtype)  # pylint: disable=unexpected-keyword-arg
+    def zip_method(self, *f: np.ndarray, dtype: Union[None, np.dtype, type] = None, axis: int = -1) -> np.ndarray:
+        """Concatenates the data of features along the specified axis."""
+        return np.concatenate(f, axis=axis, dtype=dtype)  # pylint: disable=unexpected-keyword-arg
 
 
 class ExtractBandsTask(MapFeatureTask):

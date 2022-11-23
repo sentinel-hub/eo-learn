@@ -9,6 +9,8 @@ file in the root directory of this source tree.
 import numpy as np
 import pytest
 
+from sentinelhub.testing_utils import test_numpy_data
+
 from eolearn.core import FeatureType
 from eolearn.geometry import FelzenszwalbSegmentationTask, SlicSegmentationTask, SuperpixelSegmentationTask
 
@@ -16,32 +18,23 @@ SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, "SP_FEATURE"
 
 
 @pytest.mark.parametrize(
-    "task, expected_min, expected_max, expected_mean, expected_median",
+    "task, expected_statistics",
     (
         [
             SuperpixelSegmentationTask(
                 (FeatureType.DATA, "BANDS-S2-L1C"), SUPERPIXEL_FEATURE, scale=100, sigma=0.5, min_size=100
             ),
-            0,
-            25,
-            10.6809,
-            11,
+            {"exp_dtype": np.int64, "exp_min": 0, "exp_max": 25, "exp_mean": 10.6809, "exp_median": 11},
         ],
         [
             FelzenszwalbSegmentationTask(
                 (FeatureType.DATA_TIMELESS, "MAX_NDVI"), SUPERPIXEL_FEATURE, scale=21, sigma=1.0, min_size=52
             ),
-            0,
-            22,
-            8.5302,
-            7,
+            {"exp_dtype": np.int64, "exp_min": 0, "exp_max": 22, "exp_mean": 8.5302, "exp_median": 7},
         ],
         [
             FelzenszwalbSegmentationTask((FeatureType.MASK, "CLM"), SUPERPIXEL_FEATURE, scale=1, sigma=0, min_size=15),
-            0,
-            171,
-            86.46267,
-            90,
+            {"exp_dtype": np.int64, "exp_min": 0, "exp_max": 171, "exp_mean": 86.46267, "exp_median": 90},
         ],
         [
             SlicSegmentationTask(
@@ -52,10 +45,7 @@ SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, "SP_FEATURE"
                 max_num_iter=20,
                 sigma=0.8,
             ),
-            0,
-            48,
-            24.6072,
-            25,
+            {"exp_dtype": np.int64, "exp_min": 0, "exp_max": 48, "exp_mean": 24.6072, "exp_median": 25},
         ],
         [
             SlicSegmentationTask(
@@ -66,22 +56,12 @@ SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, "SP_FEATURE"
                 max_num_iter=7,
                 sigma=0.2,
             ),
-            0,
-            195,
-            100.1844,
-            101,
+            {"exp_dtype": np.int64, "exp_min": 0, "exp_max": 195, "exp_mean": 100.1844, "exp_median": 101},
         ],
     ),
 )
-def test_superpixel(test_eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+def test_superpixel(test_eopatch, task, expected_statistics):
     task.execute(test_eopatch)
     result = test_eopatch[SUPERPIXEL_FEATURE]
 
-    assert result.dtype == np.int64, "Expected int64 dtype for result"
-
-    delta = 1e-3
-
-    assert np.amin(result) == pytest.approx(expected_min, delta), "Minimum values do not match."
-    assert np.amax(result) == pytest.approx(expected_max, delta), "Maxmum values do not match."
-    assert np.mean(result) == pytest.approx(expected_mean, delta), "Mean values do not match."
-    assert np.median(result) == pytest.approx(expected_median, delta), "Median values do not match."
+    test_numpy_data(result, **expected_statistics, delta=1e-4)

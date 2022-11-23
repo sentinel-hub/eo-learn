@@ -11,11 +11,12 @@ file in the root directory of this source tree.
 """
 import dataclasses
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 
 import numpy as np
 import pytest
-from pytest import approx
+
+from sentinelhub.testing_utils import test_numpy_data
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.features import (
@@ -53,10 +54,7 @@ class InterpolationTestCase:
     name: str
     task: EOTask
     result_len: int
-    img_min: float
-    img_max: float
-    img_mean: float
-    img_median: float
+    expected_statistics: Dict[str, float]
     nan_replace: Optional[float] = None
 
     def execute(self, eopatch):
@@ -82,10 +80,7 @@ INTERPOLATION_TEST_CASES = [
             unknown_value=10,
         ),
         result_len=68,
-        img_min=0.0,
-        img_max=0.82836,
-        img_mean=0.51187,
-        img_median=0.57889,
+        expected_statistics=dict(exp_min=0.0, exp_max=0.82836, exp_mean=0.51187, exp_median=0.57889),
     ),
     InterpolationTestCase(
         "linear-p",
@@ -97,10 +92,7 @@ INTERPOLATION_TEST_CASES = [
             interpolate_pixel_wise=True,
         ),
         result_len=68,
-        img_min=0.0,
-        img_max=0.82836,
-        img_mean=0.51187,
-        img_median=0.57889,
+        expected_statistics=dict(exp_min=0.0, exp_max=0.82836, exp_mean=0.51187, exp_median=0.57889),
     ),
     InterpolationTestCase(
         "linear_change_timescale",
@@ -112,10 +104,7 @@ INTERPOLATION_TEST_CASES = [
             scale_time=1,
         ),
         result_len=68,
-        img_min=0.0,
-        img_max=0.82836,
-        img_mean=0.51187,
-        img_median=0.57889,
+        expected_statistics=dict(exp_min=0.0, exp_max=0.82836, exp_mean=0.51187, exp_median=0.57889),
     ),
     InterpolationTestCase(
         "cubic",
@@ -128,10 +117,7 @@ INTERPOLATION_TEST_CASES = [
             bounds_error=False,
         ),
         result_len=69,
-        img_min=0.0,
-        img_max=5.0,
-        img_mean=1.3532,
-        img_median=0.638732,
+        expected_statistics=dict(exp_min=0.0, exp_max=5.0, exp_mean=1.3532, exp_median=0.638732),
     ),
     InterpolationTestCase(
         "spline",
@@ -145,10 +131,7 @@ INTERPOLATION_TEST_CASES = [
             unknown_value=0,
         ),
         result_len=147,
-        img_min=-0.17814,
-        img_max=1.0,
-        img_mean=0.49738,
-        img_median=0.556853,
+        expected_statistics=dict(exp_min=-0.1781458, exp_max=1.0, exp_mean=0.49738, exp_median=0.556853),
     ),
     InterpolationTestCase(
         "bspline",
@@ -160,10 +143,7 @@ INTERPOLATION_TEST_CASES = [
             spline_degree=5,
         ),
         result_len=1,
-        img_min=-0.0163,
-        img_max=0.62323,
-        img_mean=0.319117,
-        img_median=0.32588,
+        expected_statistics=dict(exp_min=-0.0162962, exp_max=0.62323, exp_mean=0.319117, exp_median=0.3258836),
     ),
     InterpolationTestCase(
         "bspline-p",
@@ -176,10 +156,7 @@ INTERPOLATION_TEST_CASES = [
             interpolate_pixel_wise=True,
         ),
         result_len=1,
-        img_min=-0.0163,
-        img_max=0.62323,
-        img_mean=0.319117,
-        img_median=0.32588,
+        expected_statistics=dict(exp_min=-0.0162962, exp_max=0.62323, exp_mean=0.319117, exp_median=0.3258836),
     ),
     InterpolationTestCase(
         "akima",
@@ -187,10 +164,7 @@ INTERPOLATION_TEST_CASES = [
             (FeatureType.DATA, "NDVI"), unknown_value=0, mask_feature=(FeatureType.MASK, "IS_VALID")
         ),
         result_len=68,
-        img_min=-0.091035,
-        img_max=0.8283603,
-        img_mean=0.51427454,
-        img_median=0.59095883,
+        expected_statistics=dict(exp_min=-0.091035, exp_max=0.8283603, exp_mean=0.51427454, exp_median=0.59095883),
     ),
     InterpolationTestCase(
         "kriging interpolation",
@@ -198,10 +172,7 @@ INTERPOLATION_TEST_CASES = [
             (FeatureType.DATA, "NDVI"), result_interval=(-10, 10), resample_range=("2017-01-01", "2018-01-01", 10)
         ),
         result_len=37,
-        img_min=-0.18389,
-        img_max=0.5995388,
-        img_mean=0.35485545,
-        img_median=0.37279952,
+        expected_statistics=dict(exp_min=-0.183885, exp_max=0.5995388, exp_mean=0.35485545, exp_median=0.37279952),
     ),
     InterpolationTestCase(
         "nearest resample",
@@ -209,10 +180,7 @@ INTERPOLATION_TEST_CASES = [
             (FeatureType.DATA, "NDVI"), result_interval=(0.0, 1.0), resample_range=("2016-01-01", "2018-01-01", 5)
         ),
         result_len=147,
-        img_min=-0.2,
-        img_max=0.8283603,
-        img_mean=0.32318678,
-        img_median=0.2794411,
+        expected_statistics=dict(exp_min=-0.2, exp_max=0.8283603, exp_mean=0.32318678, exp_median=0.2794411),
         nan_replace=-0.2,
     ),
     InterpolationTestCase(
@@ -221,10 +189,7 @@ INTERPOLATION_TEST_CASES = [
             (FeatureType.DATA, "NDVI"), result_interval=(0.0, 1.0), resample_range=("2016-01-01", "2018-01-01", 5)
         ),
         result_len=147,
-        img_min=-0.2,
-        img_max=0.82643485,
-        img_mean=0.32218185,
-        img_median=0.29093677,
+        expected_statistics=dict(exp_min=-0.2, exp_max=0.82643485, exp_mean=0.32218185, exp_median=0.29093677),
         nan_replace=-0.2,
     ),
     InterpolationTestCase(
@@ -236,10 +201,7 @@ INTERPOLATION_TEST_CASES = [
             unknown_value=5,
         ),
         result_len=69,
-        img_min=-0.2,
-        img_max=5.0,
-        img_mean=1.209852,
-        img_median=0.40995836,
+        expected_statistics=dict(exp_min=-0.2, exp_max=5.0, exp_mean=1.209852, exp_median=0.40995836),
         nan_replace=-0.2,
     ),
     InterpolationTestCase(
@@ -252,10 +214,7 @@ INTERPOLATION_TEST_CASES = [
             resample_range=("2015-09-01", "2016-01-01", "2016-07-01", "2017-01-01", "2017-07-01"),
         ),
         result_len=5,
-        img_min=-0.0252167,
-        img_max=0.816656,
-        img_mean=0.49966,
-        img_median=0.533415,
+        expected_statistics=dict(exp_min=-0.0252167, exp_max=0.816656, exp_mean=0.49966, exp_median=0.533415),
     ),
     InterpolationTestCase(
         "linear with bands and multiple masks",
@@ -270,10 +229,7 @@ INTERPOLATION_TEST_CASES = [
             ],
         ),
         result_len=68,
-        img_min=0.0003,
-        img_max=10.0,
-        img_mean=0.132176,
-        img_median=0.086,
+        expected_statistics=dict(exp_min=0.0003, exp_max=10.0, exp_mean=0.132176, exp_median=0.086),
     ),
 ]
 
@@ -295,10 +251,7 @@ COPY_FEATURE_CASES = [
             ],
         ),
         result_len=69,
-        img_min=0.0,
-        img_max=5.0,
-        img_mean=1.3592644,
-        img_median=0.6174331,
+        expected_statistics=dict(exp_min=0.0, exp_max=5.0, exp_mean=1.3592644, exp_median=0.6174331),
     ),
     InterpolationTestCase(
         "cubic_copy_fail",
@@ -316,17 +269,15 @@ COPY_FEATURE_CASES = [
             ],
         ),
         result_len=69,
-        img_min=0.0,
-        img_max=5.0,
-        img_mean=1.3592644,
-        img_median=0.6174331,
+        expected_statistics=dict(exp_min=0.0, exp_max=5.0, exp_mean=1.3592644, exp_median=0.6174331),
     ),
 ]
 
 
 @pytest.mark.parametrize("test_case", INTERPOLATION_TEST_CASES)
-def test_interpolation(test_case, test_patch):
+def test_interpolation(test_case: InterpolationTestCase, test_patch):
     eopatch = test_case.execute(test_patch)
+    delta = 1e-4 if isinstance(test_case.task, KrigingInterpolationTask) else 1e-5
 
     # Check types and shapes
     assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
@@ -335,14 +286,9 @@ def test_interpolation(test_case, test_patch):
     assert eopatch.data["NDVI"].shape == (test_case.result_len, 20, 20, 1)
 
     # Check results
-    delta = 1e-5  # Can't be higher accuracy because of Kriging interpolation
     feature_type, feature_name, _ = test_case.task.renamed_feature
     data = eopatch[feature_type, feature_name]
-
-    assert np.min(data) == approx(test_case.img_min, abs=delta)
-    assert np.max(data) == approx(test_case.img_max, abs=delta)
-    assert np.mean(data) == approx(test_case.img_mean, abs=delta)
-    assert np.median(data) == approx(test_case.img_median, abs=delta)
+    test_numpy_data(data, **test_case.expected_statistics, delta=delta)
 
 
 @pytest.mark.parametrize("test_case", COPY_FEATURE_CASES)
@@ -359,4 +305,4 @@ def test_copied_fields(test_case, test_patch):
             (FeatureType.MASK_TIMELESS, "LULC"),
         ]
         for feature in copied_features:
-            assert feature in eopatch.get_feature_list(), f"Expected feature `{feature}` is not present in EOPatch"
+            assert feature in eopatch, f"Expected feature `{feature}` is not present in EOPatch"

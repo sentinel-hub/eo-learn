@@ -175,7 +175,7 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
     """_FeatureDict object specialized for GeoDataFrames."""
 
     def __init__(self, feature_dict: Dict[str, gpd.GeoDataFrame], feature_type: FeatureType):
-        if not feature_type.is_vector:
+        if not feature_type.is_vector():
             raise ValueError(f"Feature type {feature_type} does not represent a vector feature.")
         super().__init__(feature_dict, feature_type)
 

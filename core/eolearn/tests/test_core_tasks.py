@@ -308,7 +308,8 @@ def test_move_feature():
     assert "MTless2" in patch_dst[FeatureType.MASK_TIMELESS]
 
 
-def test_merge_features():
+@pytest.mark.parametrize("axis", (0, -1))
+def test_merge_features(axis):
     patch = EOPatch()
 
     shape = (10, 5, 5, 3)
@@ -332,10 +333,10 @@ def test_merge_features():
     for feat, dat in zip(features, data):
         patch = AddFeatureTask(feat)(patch, dat)
 
-    patch = MergeFeatureTask(features[:3], (FeatureType.MASK, "merged"))(patch)
-    patch = MergeFeatureTask(features[3:], (FeatureType.MASK_TIMELESS, "merged_timeless"))(patch)
+    patch = MergeFeatureTask(features[:3], (FeatureType.MASK, "merged"), axis=axis)(patch)
+    patch = MergeFeatureTask(features[3:], (FeatureType.MASK_TIMELESS, "merged_timeless"), axis=axis)(patch)
 
-    expected = np.concatenate([patch[f] for f in features[:3]], axis=-1)
+    expected = np.concatenate([patch[f] for f in features[:3]], axis=axis)
 
     assert np.array_equal(patch.mask["merged"], expected)
 

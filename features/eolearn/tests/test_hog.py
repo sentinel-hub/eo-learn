@@ -8,12 +8,9 @@ file in the root directory of this source tree.
 """
 import copy
 
-import numpy as np
-from numpy.testing import assert_array_equal
-from pytest import approx
+from sentinelhub.testing_utils import test_numpy_data
 
 from eolearn.core import FeatureType
-from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import HOGTask
 
 
@@ -30,19 +27,12 @@ def test_hog(small_ndvi_eopatch):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
-    # Test that no other features were modified
-    for feature, value in small_ndvi_eopatch.data.items():
-        if isinstance(value, FeatureIO):
-            value = value.load()
-        assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
-
-    delta = 1e-4
-    for feature, expected_min, expected_max, expected_mean, expected_median in [
-        ("hog", 0.0, 0.5567, 0.0931, 0.0),
-        ("hog_visu", 0.0, 0.3241, 0.0105, 0.0),
+    for feature_name, expected_statistics in [
+        ("hog", {"exp_min": 0.0, "exp_max": 0.5567, "exp_mean": 0.09309, "exp_median": 0.0}),
+        ("hog_visu", {"exp_min": 0.0, "exp_max": 0.3241, "exp_mean": 0.010537, "exp_median": 0.0}),
     ]:
-        hog = eopatch.data[feature]
-        assert np.min(hog) == approx(expected_min, abs=delta)
-        assert np.max(hog) == approx(expected_max, abs=delta)
-        assert np.mean(hog) == approx(expected_mean, abs=delta)
-        assert np.median(hog) == approx(expected_median, abs=delta)
+        test_numpy_data(eopatch.data[feature_name], **expected_statistics, delta=1e-4)
+
+    del eopatch[(FeatureType.DATA, "hog")]
+    del eopatch[(FeatureType.DATA, "hog_visu")]
+    assert small_ndvi_eopatch == eopatch, "Other features of the EOPatch were affected."

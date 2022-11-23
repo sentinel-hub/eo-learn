@@ -331,7 +331,7 @@ class PointBasedRegistrationTask(RegistrationTask):
         # Initialise matrix and failed registrations flag
         warp_matrix = None
         # Initiate point detector
-        ptdt = cv2.xfeatures2d.SIFT_create() if self.params["Descriptor"] == "SIFT" else cv2.xfeatures2d.SURF_create()
+        ptdt = cv2.SIFT_create() if self.params["Descriptor"] == "SIFT" else cv2.SURF_create()
         # create BFMatcher object
         bf_matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
         # find the key points and descriptors with SIFT

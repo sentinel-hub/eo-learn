@@ -12,12 +12,11 @@ file in the root directory of this source tree.
 
 import datetime as dt
 import logging
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 
 from sentinelhub import (
-    Band,
     BBox,
     DataCollection,
     Geometry,
@@ -29,15 +28,16 @@ from sentinelhub import (
     SentinelHubRequest,
     SentinelHubSession,
     SHConfig,
-    Unit,
     bbox_to_dimensions,
     filter_times,
     parse_time_interval,
     serialize_time,
 )
-from sentinelhub.time_utils import RawTimeIntervalType
+from sentinelhub.type_utils import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.utils.parsing import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.types import Literal
 
 LOGGER = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class SentinelHubInputBaseTask(EOTask):
         self.resolution = resolution
         self.config = config or SHConfig()
         self.max_threads = max_threads
-        self.data_collection = DataCollection(data_collection)
+        self.data_collection: DataCollection = DataCollection(data_collection)
         self.cache_folder = cache_folder
         self.session_loader = session_loader
         self.upsampling = upsampling
@@ -87,34 +87,34 @@ class SentinelHubInputBaseTask(EOTask):
         self,
         eopatch: Optional[EOPatch] = None,
         bbox: Optional[BBox] = None,
-        time_interval: Optional[RawTimeIntervalType] = None,
+        time_interval: Optional[RawTimeIntervalType] = None,  # should be kept at this to prevent code-breaks
         geometry: Optional[Geometry] = None,
-    ):
+    ) -> EOPatch:
         """Main execute method for the Process API tasks.
         The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
 
         eopatch = eopatch or EOPatch()
 
-        self._check_and_set_eopatch_bbox(bbox, eopatch)
+        eopatch.bbox = self._extract_bbox(bbox, eopatch)
         size_x, size_y = self._get_size(eopatch)
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
             timestamp = self._get_timestamp(time_interval, eopatch.bbox)
+            timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
         elif self.data_collection.is_timeless:
-            timestamp = None
+            timestamp = None  # should this be [] to match next branch in case of a fresh eopatch?
         else:
             timestamp = eopatch.timestamp
 
         if timestamp is not None:
-            eop_timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
-            if eopatch.timestamp:
-                self.check_timestamp_difference(eop_timestamp, eopatch.timestamp)
-            else:
-                eopatch.timestamp = eop_timestamp
+            if not eopatch.timestamp:
+                eopatch.timestamp = timestamp
+            elif timestamp != eopatch.timestamp:
+                raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
-        requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
-        requests = [request.download_list[0] for request in requests]
+        sh_requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
+        requests = [request.download_list[0] for request in sh_requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
         session = None if self.session_loader is None else self.session_loader()
@@ -156,37 +156,33 @@ class SentinelHubInputBaseTask(EOTask):
             eopatch.meta_info["time_difference"] = self.time_difference.total_seconds()
 
     @staticmethod
-    def _check_and_set_eopatch_bbox(bbox, eopatch):
+    def _extract_bbox(bbox: Optional[BBox], eopatch: EOPatch) -> BBox:
         if eopatch.bbox is None:
             if bbox is None:
                 raise ValueError("Either the eopatch or the task must provide valid bbox.")
-            eopatch.bbox = bbox
-            return
+            return bbox
 
         if bbox is None or eopatch.bbox == bbox:
-            return
+            return eopatch.bbox
         raise ValueError("Either the eopatch or the task must provide bbox, or they must be the same.")
-
-    @staticmethod
-    def check_timestamp_difference(timestamp1, timestamp2):
-        """Raises an error if the two timestamps are not the same"""
-        error_msg = "Trying to write data to an existing EOPatch with a different timestamp."
-        if len(timestamp1) != len(timestamp2):
-            raise ValueError(error_msg)
-
-        for ts1, ts2 in zip(timestamp1, timestamp2):
-            if ts1 != ts2:
-                raise ValueError(error_msg)
 
     def _extract_data(self, eopatch, images, shape):
         """Extract data from the received images and assign them to eopatch features"""
         raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
+    def _build_requests(
+        self,
+        bbox: Optional[BBox],
+        size_x: int,
+        size_y: int,
+        timestamp: Optional[List[dt.datetime]],
+        time_interval: Optional[RawTimeIntervalType],
+        geometry: Optional[Geometry],
+    ) -> List[SentinelHubRequest]:
         """Build requests"""
         raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
-    def _get_timestamp(self, time_interval, bbox):
+    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
 
@@ -197,9 +193,9 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
     # pylint: disable=too-many-arguments
     def __init__(
         self,
-        features: Optional[FeatureType] = None,
-        evalscript: Optional[str] = None,
-        data_collection: Optional[DataCollection] = None,
+        features: FeaturesSpecification,
+        evalscript: str,
+        data_collection: DataCollection,
         size: Optional[Tuple[int, int]] = None,
         resolution: Optional[Union[float, Tuple[float, float]]] = None,
         maxcc: Optional[float] = None,
@@ -212,6 +208,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         downsampling: Optional[ResamplingType] = None,
         aux_request_args: Optional[dict] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     ):
         """
         :param features: Features to construct from the evalscript.
@@ -222,7 +219,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         :param resolution: Resolution in meters, passed as a single number or a tuple of two numbers -
             resolution in horizontal and resolution in vertical direction.
         :param maxcc: Maximum cloud coverage, a float in interval [0, 1]
-        :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+        :param time_difference: Minimum allowed time difference, used when filtering dates. Also used by the service
+            for mosaicking, timestamps might be misleading for large values.
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :param config: An instance of SHConfig defining the service
         :param max_threads: Maximum threads to be used when downloading data.
@@ -232,6 +230,8 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
+        :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
+            occurrences within the time_difference window. Check `get_available_timestamps` for more info.
         """
         super().__init__(
             data_collection=data_collection,
@@ -247,9 +247,6 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         self.features = self._parse_and_validate_features(features)
         self.responses = self._create_response_objects()
-
-        if not evalscript:
-            raise ValueError("evalscript parameter must not be missing/empty")
         self.evalscript = evalscript
 
         if maxcc and isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
@@ -257,13 +254,11 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
+        self.timestamp_filter = timestamp_filter
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
-    def _parse_and_validate_features(self, features):
-        if not features:
-            raise ValueError("features must be defined")
-
+    def _parse_and_validate_features(self, features: FeaturesSpecification) -> List[FeatureRenameSpec]:
         allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
         _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
 
@@ -287,7 +282,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         return responses
 
-    def _get_timestamp(self, time_interval, bbox):
+    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
             return []
@@ -295,13 +290,22 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         return get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
+            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             config=self.config,
         )
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
+    def _build_requests(
+        self,
+        bbox: Optional[BBox],
+        size_x: int,
+        size_y: int,
+        timestamp: Optional[List[dt.datetime]],
+        time_interval: Optional[RawTimeIntervalType],
+        geometry: Optional[Geometry],
+    ):
         """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
         if timestamp:
@@ -376,7 +380,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     # pylint: disable=too-many-locals
     def __init__(
         self,
-        data_collection: Optional[DataCollection] = None,
+        data_collection: DataCollection,
         size: Optional[Tuple[int, int]] = None,
         resolution: Optional[Union[float, Tuple[float, float]]] = None,
         bands_feature: Optional[Tuple[FeatureType, str]] = None,
@@ -388,13 +392,14 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         cache_folder: Optional[str] = None,
         config: Optional[SHConfig] = None,
         max_threads: Optional[int] = None,
-        bands_dtype: Optional[List[str]] = None,
+        bands_dtype: Union[None, np.dtype, type] = None,
         single_scene: bool = False,
         mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
         upsampling: Optional[ResamplingType] = None,
         downsampling: Optional[ResamplingType] = None,
         aux_request_args: Optional[dict] = None,
         session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     ):
         """
         :param data_collection: Source of requested satellite data.
@@ -407,7 +412,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :param additional_data: A list of additional data to be downloaded, such as SCL, SNW, dataMask, etc.
         :param evalscript: An optional parameter to override an evalscript that is generated by default
         :param maxcc: Maximum cloud coverage.
-        :param time_difference: Minimum allowed time difference, used when filtering dates, None by default.
+        :param time_difference: Minimum allowed time difference, used when filtering dates. Also used by the service
+            for mosaicking, timestamps might be misleading for large values.
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
         :param config: An instance of SHConfig defining the service
         :param max_threads: Maximum threads to be used when downloading data.
@@ -420,6 +426,8 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         :param aux_request_args: a dictionary with auxiliary information for the input_data part of the SH request
         :param session_loader: A callable that returns a valid SentinelHubSession, used for session sharing.
             Creates a new session if set to `None`, which should be avoided in large scale parallelization.
+        :param timestamp_filter: A callable that performs the final filtering of timestamps, usually to remove multiple
+            occurrences within the time_difference window. Check `get_available_timestamps` for more info.
         """
         super().__init__(
             data_collection=data_collection,
@@ -435,6 +443,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.evalscript = evalscript
         self.maxcc = maxcc
         self.time_difference = time_difference or dt.timedelta(seconds=1)
+        self.timestamp_filter = timestamp_filter
         self.single_scene = single_scene
         self.bands_dtype = bands_dtype
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
@@ -465,8 +474,6 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         for band_name in bands:
             if band_name in band_info_dict:
                 requested_bands.append(band_info_dict[band_name])
-            elif self.data_collection.is_batch or self.data_collection.is_byoc:
-                requested_bands.append(Band(band_name, (Unit.DN,), (np.float32,)))
             else:
                 raise ValueError(
                     f"Data collection {self.data_collection} does not have specifications for {band_name}."
@@ -475,7 +482,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
                 )
         return requested_bands
 
-    def generate_evalscript(self):
+    def generate_evalscript(self) -> str:
         """Generate the evalscript to be passed with the request, based on chosen bands"""
         evalscript = """
             //VERSION=3
@@ -521,7 +528,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         return evalscript
 
-    def _get_timestamp(self, time_interval, bbox):
+    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
             return [time_interval[0]]
@@ -529,24 +536,33 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         return get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
+            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
             time_difference=self.time_difference,
             config=self.config,
         )
 
-    def _build_requests(self, bbox, size_x, size_y, timestamp, time_interval, geometry):
+    def _build_requests(
+        self,
+        bbox: Optional[BBox],
+        size_x: int,
+        size_y: int,
+        timestamp: Optional[List[dt.datetime]],
+        time_interval: Optional[RawTimeIntervalType],
+        geometry: Optional[Geometry],
+    ) -> List[SentinelHubRequest]:
         """Build requests"""
         if timestamp is None:
-            dates = [None]
+            intervals: List[Optional[RawTimeIntervalType]] = [None]
         elif self.single_scene:
-            dates = [parse_time_interval(time_interval)]
+            intervals = [parse_time_interval(time_interval)]
         else:
-            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+            intervals = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
 
-        return [self._create_sh_request(date1, date2, bbox, size_x, size_y, geometry) for date1, date2 in dates]
+        return [self._create_sh_request(time_interval, bbox, size_x, size_y, geometry) for time_interval in intervals]
 
-    def _create_sh_request(self, date_from, date_to, bbox, size_x, size_y, geometry):
+    def _create_sh_request(self, time_interval, bbox, size_x, size_y, geometry):
         """Create an instance of SentinelHubRequest"""
         responses = [
             SentinelHubRequest.output_response(band.name, MimeType.TIFF)
@@ -558,7 +574,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             input_data=[
                 SentinelHubRequest.input_data(
                     data_collection=self.data_collection,
-                    time_interval=(date_from, date_to),
+                    time_interval=time_interval,
                     mosaicking_order=self.mosaicking_order,
                     maxcc=self.maxcc,
                     upsampling=self.upsampling,
@@ -618,7 +634,12 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         DATA_TIMELESS EOPatch feature.
     """
 
-    def __init__(self, feature=None, data_collection=DataCollection.DEM, **kwargs):
+    def __init__(
+        self,
+        feature: Union[None, str, FeatureSpec] = None,
+        data_collection: DataCollection = DataCollection.DEM,
+        **kwargs: Any,
+    ):
         if feature is None:
             feature = (FeatureType.DATA_TIMELESS, "dem")
         elif isinstance(feature, str):
@@ -675,11 +696,15 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
        * 11 - SNOW
     """
 
-    def __init__(self, sen2cor_classification, data_collection=DataCollection.SENTINEL2_L2A, **kwargs):
+    def __init__(
+        self,
+        sen2cor_classification: Union[Literal["SCL", "CLD", "SNW"], List[Literal["SCL", "CLD", "SNW"]]],
+        data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
+        **kwargs: Any,
+    ):
         """
         :param sen2cor_classification: "SCL" (scene classification), "CLD" (cloud probability) or "SNW"
             (snow probability) masks to be retrieved. Also, a list of their combination (e.g. ["SCL","CLD"])
-        :type sen2cor_classification: str or [str]
         :param kwargs: Additional arguments that will be passed to the `SentinelHubInputTask`
         """
         # definition of possible types and target features
@@ -697,7 +722,7 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
         if data_collection != DataCollection.SENTINEL2_L2A:
             raise ValueError("Sen2Cor classification layers are only available on Sentinel-2 L2A data.")
 
-        features = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
+        features: List[Tuple[FeatureType, str]] = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
         super().__init__(additional_data=features, data_collection=data_collection, **kwargs)
 
 
@@ -705,8 +730,9 @@ def get_available_timestamps(
     bbox: BBox,
     data_collection: DataCollection,
     *,
-    time_interval: Optional[Tuple[dt.datetime, dt.datetime]] = None,
+    time_interval: Optional[RawTimeIntervalType] = None,
     time_difference: dt.timedelta = dt.timedelta(seconds=-1),  # noqa: B008
+    timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     maxcc: Optional[float] = None,
     config: Optional[SHConfig] = None,
 ) -> List[dt.datetime]:
@@ -716,6 +742,10 @@ def get_available_timestamps(
     :param data_collection: A data collection for which to find available timestamps.
     :param time_interval: A time interval from which to provide the timestamps.
     :param time_difference: Minimum allowed time difference, used when filtering dates.
+    :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
+        occurrences within the time_difference window. The filtration is performed after all suitable timestamps for
+        the given region are obtained (with maxcc filtering already done by SH). By default only keeps the oldest
+        timestamp when multiple occur within `time_difference`.
     :param maxcc: Maximum cloud coverage filter from interval [0, 1], default is None.
     :param config: A configuration object.
     :return: A list of timestamps of available observations.
@@ -738,4 +768,4 @@ def get_available_timestamps(
     )
 
     all_timestamps = search_iterator.get_timestamps()
-    return filter_times(all_timestamps, time_difference)
+    return timestamp_filter(all_timestamps, time_difference)

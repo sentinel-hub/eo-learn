@@ -10,56 +10,38 @@ import copy
 
 import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
-from pytest import approx
+
+from sentinelhub.testing_utils import test_numpy_data
 
 from eolearn.core import FeatureType
-from eolearn.core.eodata_io import FeatureIO
 from eolearn.features import HaralickTask
 
 FEATURE = (FeatureType.DATA, "NDVI", "haralick")
+OUTPUT_FEATURE = (FeatureType.DATA, "haralick")
 
 
 @pytest.mark.parametrize(
-    "task, expected_min, expected_max, expected_mean, expected_median",
+    "task, expected_statistics",
     (
         [
             HaralickTask(FEATURE, texture_feature="contrast", angle=0, levels=255, window_size=3),
-            3.5,
-            9079.0,
-            965.8295,
-            628.5833,
+            {"exp_min": 3.5, "exp_max": 9079.0, "exp_mean": 965.8295, "exp_median": 628.5833},
         ],
         [
             HaralickTask(FEATURE, texture_feature="sum_of_square_variance", angle=np.pi / 2, levels=8, window_size=5),
-            0.96899,
-            48.7815,
-            23.0229,
-            23.8987,
+            {"exp_min": 0.96899, "exp_max": 48.7815, "exp_mean": 23.0229, "exp_median": 23.8987},
         ],
         [
             HaralickTask(FEATURE, texture_feature="sum_entropy", angle=-np.pi / 2, levels=8, window_size=7),
-            0,
-            1.7463,
-            0.5657,
-            0.5055,
+            {"exp_min": 0, "exp_max": 1.7463, "exp_mean": 0.5657, "exp_median": 0.50558},
         ],
     ),
 )
-def test_haralick(small_ndvi_eopatch, task, expected_min, expected_max, expected_mean, expected_median):
+def test_haralick(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
-    # Test that no other features were modified
-    for feature, value in small_ndvi_eopatch.data.items():
-        if isinstance(value, FeatureIO):
-            value = value.load()
-        assert_array_equal(value, eopatch.data[feature], err_msg=f"EOPatch data feature '{feature}' has changed")
+    test_numpy_data(eopatch[OUTPUT_FEATURE], exp_shape=(10, 20, 20, 1), **expected_statistics, delta=1e-4)
 
-    delta = 1e-4
-
-    haralick = eopatch.data["haralick"]
-    assert np.min(haralick) == approx(expected_min, abs=delta)
-    assert np.max(haralick) == approx(expected_max, abs=delta)
-    assert np.mean(haralick) == approx(expected_mean, abs=delta)
-    assert np.median(haralick) == approx(expected_median, abs=delta)
+    del eopatch[OUTPUT_FEATURE]
+    assert small_ndvi_eopatch == eopatch, "Other features of the EOPatch were affected."
