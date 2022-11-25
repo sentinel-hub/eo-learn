@@ -31,7 +31,6 @@ from sentinelhub import (
     bbox_to_dimensions,
     filter_times,
     parse_time_interval,
-    serialize_time,
 )
 from sentinelhub.type_utils import RawTimeIntervalType
 
@@ -126,16 +125,9 @@ class SentinelHubInputBaseTask(EOTask):
         shape = temporal_dim, size_y, size_x
         self._extract_data(eopatch, responses, shape)
 
-        eopatch.meta_info["size_x"] = size_x
-        eopatch.meta_info["size_y"] = size_y
-        if timestamp is not None:  # do not overwrite time interval in case of timeless features
-            eopatch.meta_info["time_interval"] = serialize_time(time_interval)
-
-        self._add_meta_info(eopatch)
-
         return eopatch
 
-    def _get_size(self, eopatch):
+    def _get_size(self, eopatch: EOPatch) -> Tuple[int, int]:
         """Get the size (width, height) for the request either from inputs, or from the (existing) eopatch"""
         if self.size is not None:
             return self.size
@@ -143,17 +135,7 @@ class SentinelHubInputBaseTask(EOTask):
         if self.resolution is not None:
             return bbox_to_dimensions(eopatch.bbox, self.resolution)
 
-        if eopatch.meta_info and eopatch.meta_info.get("size_x") and eopatch.meta_info.get("size_y"):
-            return eopatch.meta_info.get("size_x"), eopatch.meta_info.get("size_y")
-
         raise ValueError("Size or resolution for the requests should be provided!")
-
-    def _add_meta_info(self, eopatch):
-        """Add information to eopatch metadata"""
-        if self.maxcc:
-            eopatch.meta_info["maxcc"] = self.maxcc
-        if self.time_difference:
-            eopatch.meta_info["time_difference"] = self.time_difference.total_seconds()
 
     @staticmethod
     def _extract_bbox(bbox: Optional[BBox], eopatch: EOPatch) -> BBox:
