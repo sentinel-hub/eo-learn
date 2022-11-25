@@ -9,9 +9,12 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+from typing import List, Optional, Tuple
+
 import numpy as np
 
 from eolearn.core import MapFeatureTask
+from eolearn.core.utils.parsing import SingleFeatureSpec
 
 
 class EuclideanNormTask(MapFeatureTask):
@@ -22,22 +25,20 @@ class EuclideanNormTask(MapFeatureTask):
     where :math:`B_i` are the individual bands within a user-specified feature array.
     """
 
-    def __init__(self, input_feature, output_feature, bands=None):
+    def __init__(
+        self, input_feature: SingleFeatureSpec, output_feature: SingleFeatureSpec, bands: Optional[List[int]] = None
+    ):
         """
         :param input_feature: A source feature from which to take the subset of bands.
-        :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature to which to write the euclidean norm.
-        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param bands: A list of bands from which to extract the euclidean norm. If None, all bands are taken.
-        :type bands: list
         """
         super().__init__(input_feature, output_feature)
         self.bands = bands
 
-    def map_method(self, feature):
+    def map_method(self, feature: np.ndarray) -> np.ndarray:
         """
         :param feature: An eopatch on which to calculate the euclidean norm.
-        :type feature: numpy.array
         """
         array = feature if not self.bands else feature[..., self.bands]
         return np.sqrt(np.sum(array**2, axis=-1))[..., np.newaxis]
@@ -53,16 +54,19 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
     <http://www.cesbio.ups-tlse.fr/multitemp/?p=12746>`_.
     """
 
-    def __init__(self, input_feature, output_feature, bands, acorvi_constant=0, undefined_value=np.nan):
+    def __init__(
+        self,
+        input_feature: SingleFeatureSpec,
+        output_feature: SingleFeatureSpec,
+        bands: Tuple[int, int],
+        acorvi_constant: float = 0,
+        undefined_value: float = np.nan,
+    ):
         """
         :param input_feature: A source feature from which to take the bands.
-        :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature to which to write the NDI.
-        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param bands: A list of bands from which to calculate the NDI.
-        :type bands: list
         :param acorvi_constant: A constant to be used in the NDI calculation. It is set to 0 by default.
-        :type acorvi_constant: float
         :param undefined_value: A value to override any calculation result that is not a finite value (e.g.: inf, nan).
         """
         super().__init__(input_feature, output_feature)
@@ -74,10 +78,9 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
         self.undefined_value = undefined_value
         self.acorvi_constant = acorvi_constant
 
-    def map_method(self, feature):
+    def map_method(self, feature: np.ndarray) -> np.ndarray:
         """
         :param feature: An eopatch on which to calculate the NDI.
-        :type feature: numpy.array
         """
         band_a, band_b = feature[..., self.band_a], feature[..., self.band_b]
 
