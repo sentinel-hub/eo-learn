@@ -22,14 +22,11 @@ from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 _FractionType = Union[Number, Dict[int, Number]]
 
 
-def random_point_in_triangle(
-    triangle: Polygon, rng: Optional[np.random.Generator] = None, use_int_coords: bool = True
-) -> Point:
+def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generator] = None) -> Point:
     """Selects a random point from an interior of a triangle.
 
     :param triangle: A triangle polygon.
     :param rng: A random numbers generator. If not provided it will be initialized without a seed.
-    :param use_int_coords: A flag deciding if only integer coordinates should be sampled.
     """
     rng = rng or np.random.default_rng()
 
@@ -41,8 +38,7 @@ def random_point_in_triangle(
         + sqrt(random1) * (1 - random2) * np.asarray(vertex_b)
         + sqrt(random1) * random2 * np.asarray(vertex_c)
     )
-    if use_int_coords:
-        return Point(round(random_x), round(random_y))
+
     return Point(random_x, random_y)
 
 
