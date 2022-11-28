@@ -11,15 +11,14 @@ file in the root directory of this source tree.
 """
 from abc import ABCMeta
 from math import sqrt
-from numbers import Number
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon  # type: ignore
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 
-_FractionType = Union[Number, Dict[int, Number]]
+_FractionType = Union[float, Dict[int, float]]
 
 
 def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generator] = None) -> Point:
@@ -108,18 +107,18 @@ def expand_to_grids(
         return rows[:, np.newaxis], columns[:, np.newaxis]
 
     sample_height, sample_width = sample_size
-    row_grids = []
-    column_grids = []
+    row_grids_list = []
+    column_grids_list = []
     for row, column in zip(rows, columns):
-        row_grid, column_grid = np.meshgrid(
+        row_grid_list, column_grid_list = np.meshgrid(
             np.arange(row, row + sample_height), np.arange(column, column + sample_width)
         )
-        row_grids.append(np.transpose(row_grid))
-        column_grids.append(np.transpose(column_grid))
+        row_grids_list.append(np.transpose(row_grid_list))
+        column_grids_list.append(np.transpose(column_grid_list))
 
-    if row_grids and column_grids:
-        row_grids = np.concatenate(row_grids, axis=0)
-        column_grids = np.concatenate(column_grids, axis=0)
+    if row_grids_list and column_grids_list:
+        row_grids = np.concatenate(row_grids_list, axis=0)
+        column_grids = np.concatenate(column_grids_list, axis=0)
     else:
         row_grids = np.zeros((0, 0), dtype=int)
         column_grids = np.zeros((0, 0), dtype=int)
@@ -184,7 +183,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
 
             eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
-        if self.mask_of_samples is not None:
+        if self.mask_of_samples is not None and image_shape is not None:
             mask = get_mask_of_samples(image_shape, row_grid, column_grid)
             eopatch[self.mask_of_samples] = mask[..., np.newaxis]
 
@@ -236,7 +235,7 @@ class FractionSamplingTask(BaseSamplingTask):
         The input should either be a number or a dictionary linking labels to numbers. Number representing fractions
         are checked to be in [0, 1] or (if replacement is used) in [0, inf).
         """
-        if isinstance(fraction, Number):
+        if isinstance(fraction, (int, float)):
             if fraction < 0:
                 raise ValueError(f"Sampling fractions have to be positive, but {fraction} was given.")
             if not self.replace and not 0 <= fraction <= 1:
@@ -249,7 +248,7 @@ class FractionSamplingTask(BaseSamplingTask):
                 f"The fraction input is {fraction} but needs to be a number or a dictionary mapping labels to numbers."
             )
 
-    def _calculate_amount_per_value(self, image: np.ndarray, fraction) -> Dict[np.uint8, int]:
+    def _calculate_amount_per_value(self, image: np.ndarray, fraction) -> Dict[int, int]:
         """Calculates the number of samples needed for each value present in mask according to the fraction parameter"""
         uniques, counts = np.unique(image, return_counts=True)
         available = {val: n for val, n in zip(uniques, counts) if val not in self.exclude_values}
@@ -297,7 +296,7 @@ class BlockSamplingTask(BaseSamplingTask):
     """
 
     def __init__(
-        self, features_to_sample, amount: Number, sample_size: Tuple[int, int] = (1, 1), replace: bool = False, **kwargs
+        self, features_to_sample, amount: float, sample_size: Tuple[int, int] = (1, 1), replace: bool = False, **kwargs
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -320,7 +319,7 @@ class BlockSamplingTask(BaseSamplingTask):
         ):
             raise ValueError(f"Parameter sample_size should be a tuple of 2 integers but {sample_size} found")
 
-        self.sample_size = tuple(sample_size)
+        self.sample_size = sample_size
         self.replace = replace
 
     def _generate_dummy_mask(self, eopatch: EOPatch) -> np.ndarray:
@@ -332,7 +331,7 @@ class BlockSamplingTask(BaseSamplingTask):
 
         return np.ones((height, width), dtype=np.uint8)
 
-    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[Number] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[float] = None) -> EOPatch:
         """Execute a spatial sampling on features from a given EOPatch
 
         :param eopatch: Input eopatch to be sampled
@@ -379,8 +378,8 @@ class GridSamplingTask(BaseSamplingTask):
         """
         super().__init__(features_to_sample, **kwargs)
 
-        self.sample_size = tuple(sample_size)
-        self.stride = tuple(stride)
+        self.sample_size = sample_size
+        self.stride = stride
 
         if not all(value > 0 for value in self.sample_size + self.stride):
             raise ValueError("Both sample_size and stride should have only positive values")
