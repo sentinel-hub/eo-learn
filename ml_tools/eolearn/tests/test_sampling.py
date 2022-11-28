@@ -22,32 +22,26 @@ from eolearn.ml_tools.sampling import expand_to_grids, random_point_in_triangle
 
 
 @pytest.mark.parametrize(
-    "triangle, generator, values",
+    "triangle, expected_points",
     [
         (
             Polygon([[-10, -12], [5, 10], [15, 4]]),
-            np.random.default_rng(seed=42),
             [Point(7.057238842063997, 5.037835974428286), Point(10.360934995972169, 4.508212300648985)],
         ),
         (
             Polygon([[110, 112], [117, 102], [115, 104]]),
-            np.random.default_rng(seed=42),
             [Point(115.38602941857646, 103.97472742532676), Point(115.19386890346114, 104.02631432574218)],
         ),
         (
             Polygon([[0, 0], [5, 12], [15, 4]]),
-            np.random.default_rng(seed=42),
             [Point(8.259761655074744, 7.46815417512301), Point(11.094879093316592, 5.949786169595648)],
         ),
     ],
 )
-def test_random_point_in_triangle_generator(triangle, generator, values):
+def test_random_point_in_triangle_generator(triangle, expected_points):
+    generator = np.random.default_rng(seed=42)
     points = [random_point_in_triangle(triangle, generator) for _ in range(2)]
-    assert all(point.x == val.x and point.y == val.y for point, val in zip(points, values))
-
-
-def determinat(u, v):
-    return u[0] * v[1] - v[0] * u[1]
+    assert all(point == expected for point, expected in zip(points, expected_points))
 
 
 @pytest.mark.parametrize(
@@ -59,20 +53,8 @@ def determinat(u, v):
     ],
 )
 def test_random_point_in_triangle_interior(triangle):
-    x_coords, y_coords = triangle.exterior.coords.xy
-    vertex_v0, vertex_v1, vertex_v2 = zip(x_coords[:-1], y_coords[:-1])
-
-    vertex_v0 = np.asarray(vertex_v0)
-    vector_v1 = np.asarray(vertex_v1) - vertex_v0
-    vector_v2 = np.asarray(vertex_v2) - vertex_v0
-
-    quotient = determinat(vector_v1, vector_v2)
-
-    points = [np.asarray(random_point_in_triangle(triangle)) for _ in range(1000)]
-    a_s = [(determinat(point, vector_v2) - determinat(vertex_v0, vector_v2)) / quotient for point in points]
-    b_s = [-(determinat(point, vector_v1) - determinat(vertex_v0, vector_v1)) / quotient for point in points]
-
-    assert all((0, 0) < val < (1, 1) for val in zip(a_s, b_s))
+    points = [random_point_in_triangle(triangle) for _ in range(1000)]
+    assert all(triangle.contains(point) for point in points)
 
 
 @pytest.fixture(name="small_image")
