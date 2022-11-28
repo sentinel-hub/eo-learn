@@ -14,10 +14,47 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 from pytest import approx
+from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.ml_tools import BlockSamplingTask, FractionSamplingTask, GridSamplingTask, sample_by_values
-from eolearn.ml_tools.sampling import expand_to_grids
+from eolearn.ml_tools.sampling import expand_to_grids, random_point_in_triangle
+
+
+@pytest.mark.parametrize(
+    "triangle, expected_points",
+    [
+        (
+            Polygon([[-10, -12], [5, 10], [15, 4]]),
+            [Point(7.057238842063997, 5.037835974428286), Point(10.360934995972169, 4.508212300648985)],
+        ),
+        (
+            Polygon([[110, 112], [117, 102], [115, 104]]),
+            [Point(115.38602941857646, 103.97472742532676), Point(115.19386890346114, 104.02631432574218)],
+        ),
+        (
+            Polygon([[0, 0], [5, 12], [15, 4]]),
+            [Point(8.259761655074744, 7.46815417512301), Point(11.094879093316592, 5.949786169595648)],
+        ),
+    ],
+)
+def test_random_point_in_triangle_generator(triangle, expected_points):
+    generator = np.random.default_rng(seed=42)
+    points = [random_point_in_triangle(triangle, generator) for _ in range(2)]
+    assert all(point == expected for point, expected in zip(points, expected_points))
+
+
+@pytest.mark.parametrize(
+    "triangle",
+    [
+        (Polygon([[-10, -12], [5, 10], [15, 4]])),
+        (Polygon([[110, 112], [117, 102], [115, 104]])),
+        (Polygon([[0, 0], [5, 12], [15, 4]])),
+    ],
+)
+def test_random_point_in_triangle_interior(triangle):
+    points = [random_point_in_triangle(triangle) for _ in range(1000)]
+    assert all(triangle.contains(point) for point in points)
 
 
 @pytest.fixture(name="small_image")
