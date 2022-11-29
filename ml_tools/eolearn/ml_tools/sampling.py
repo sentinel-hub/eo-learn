@@ -206,7 +206,7 @@ class FractionSamplingTask(BaseSamplingTask):
         exclude_values: Optional[List[int]] = None,
         replace: bool = False,
         **kwargs,
-    ) -> EOTask:
+    ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
         :param sampling_feature: A timeless mask feature according to which points will be sampled.
@@ -298,7 +298,7 @@ class BlockSamplingTask(BaseSamplingTask):
         sample_size: Tuple[int, int] = (1, 1),
         replace: bool = False,
         **kwargs,
-    ) -> EOTask:
+    ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
         :param amount: The number of points to sample if integer valued and the fraction of all points if `float`
