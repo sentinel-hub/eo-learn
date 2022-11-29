@@ -17,7 +17,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
-from eolearn.core.utils.parsing import FeaturesSpecification
+from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
 
 _FractionType = Union[float, Dict[int, float]]
 
@@ -147,12 +147,15 @@ def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, colu
 class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
     """A base class for sampling tasks"""
 
-    def __init__(self, features_to_sample, *, mask_of_samples=None):
+    def __init__(
+        self,
+        features_to_sample: FeaturesSpecification,
+        *,
+        mask_of_samples: Optional[Tuple[FeatureType, Optional[str]]] = None,
+    ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
-        :type mask_of_samples: (FeatureType, str) or None
         """
         self.features_parser = self.get_feature_parser(
             features_to_sample,
@@ -169,12 +172,13 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         """Applies masks of sampled indices to EOPatch features to create sampled features and a mask of samples"""
         image_shape = None
         for feature_type, feature_name, new_feature_name in self.features_parser.get_renamed_features(eopatch):
-            data_to_sample = eopatch[feature_type][feature_name]
+            if feature_name is not None:
+                data_to_sample = eopatch[feature_type][feature_name]
 
-            feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
-            image_shape = feature_shape
+                feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
+                image_shape = feature_shape
 
-            eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
+                eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
         if self.mask_of_samples is not None and image_shape is not None:
             mask = get_mask_of_samples(image_shape, row_grid, column_grid)
@@ -193,7 +197,7 @@ class FractionSamplingTask(BaseSamplingTask):
     def __init__(
         self,
         features_to_sample: FeaturesSpecification,
-        sampling_feature: FeaturesSpecification,
+        sampling_feature: SingleFeatureSpec,
         fraction: _FractionType,
         exclude_values: Optional[List[int]] = None,
         replace: bool = False,
@@ -236,7 +240,7 @@ class FractionSamplingTask(BaseSamplingTask):
                 f"The fraction input is {fraction} but needs to be a number or a dictionary mapping labels to numbers."
             )
 
-    def _calculate_amount_per_value(self, image: np.ndarray, fraction) -> Dict[int, int]:
+    def _calculate_amount_per_value(self, image: np.ndarray, fraction: _FractionType) -> Dict[int, int]:
         """Calculates the number of samples needed for each value present in mask according to the fraction parameter"""
         uniques, counts = np.unique(image, return_counts=True)
         available = {val: n for val, n in zip(uniques, counts) if val not in self.exclude_values}
@@ -251,14 +255,10 @@ class FractionSamplingTask(BaseSamplingTask):
         """Execute random spatial sampling of specified features of eopatch
 
         :param eopatch: Input eopatch to be sampled
-        :type eopatch: EOPatch
         :param seed: Setting seed of random sampling. If None a random seed will be used.
-        :type seed: int or None
         :param fraction: Override the sampling fraction of the task. If None the value from task initialization will
             be used.
-        :type fraction: float or dict(int: float) or None
         :return: An EOPatch with additional spatially sampled features
-        :type eopatch: EOPatch
         """
         rng = np.random.default_rng(seed)
         sampling_image = eopatch[self.sampling_feature].squeeze(axis=-1)
@@ -287,7 +287,7 @@ class BlockSamplingTask(BaseSamplingTask):
         self,
         features_to_sample: FeaturesSpecification,
         amount: float,
-        sample_size: Union[List[int], Tuple[int, int]] = (1, 1),
+        sample_size: Tuple[int, int] = (1, 1),
         replace: bool = False,
         **kwargs: Any,
     ):
@@ -314,12 +314,16 @@ class BlockSamplingTask(BaseSamplingTask):
 
     def _generate_dummy_mask(self, eopatch: EOPatch) -> np.ndarray:
         """Generate a mask consisting entirely of `values` entries, used for sampling on whole raster"""
-        feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
-        height -= self.sample_size[0] - 1
-        width -= self.sample_size[1] - 1
 
-        return np.ones((height, width), dtype=np.uint8)
+        feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
+        if feature_name is not None:
+            height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
+            height -= self.sample_size[0] - 1
+            width -= self.sample_size[1] - 1
+
+            return np.ones((height, width), dtype=np.uint8)
+        else:
+            raise ValueError(f"Feature {feature_type} can not get spatial dimension")
 
     def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[float] = None) -> EOPatch:
         """Execute a spatial sampling on features from a given EOPatch
@@ -357,8 +361,8 @@ class GridSamplingTask(BaseSamplingTask):
     def __init__(
         self,
         features_to_sample: FeaturesSpecification,
-        sample_size: Union[List[int], Tuple[int, int]] = (1, 1),
-        stride: Union[List[int], Tuple[int, int]] = (1, 1),
+        sample_size: Tuple[int, int] = (1, 1),
+        stride: Tuple[int, int] = (1, 1),
         **kwargs: Any,
     ):
         """
@@ -393,11 +397,14 @@ class GridSamplingTask(BaseSamplingTask):
         :return: An EOPatch with additional spatially sampled features
         """
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
+        if feature_name is not None:
+            image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
 
-        rows, columns = self._sample_regular_grid(image_shape)
-        size_x, size_y = self.sample_size  # this way it also works for lists
-        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
+            rows, columns = self._sample_regular_grid(image_shape)
+            size_x, size_y = self.sample_size  # this way it also works for lists
+            row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
-        eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
-        return eopatch
+            eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
+            return eopatch
+        else:
+            raise ValueError(f"Feature {feature_type} can not get spatial dimension")
