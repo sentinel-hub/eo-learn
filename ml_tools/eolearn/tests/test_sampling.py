@@ -8,13 +8,13 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import copy
-from typing import Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 from pytest import approx
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon  # type: ignore
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.ml_tools import BlockSamplingTask, FractionSamplingTask, GridSamplingTask, sample_by_values
@@ -38,7 +38,7 @@ from eolearn.ml_tools.sampling import expand_to_grids, random_point_in_triangle
         ),
     ],
 )
-def test_random_point_in_triangle_generator(triangle, expected_points):
+def test_random_point_in_triangle_generator(triangle: Polygon, expected_points: List[Point]) -> None:
     generator = np.random.default_rng(seed=42)
     points = [random_point_in_triangle(triangle, generator) for _ in range(2)]
     assert all(point == expected for point, expected in zip(points, expected_points))
@@ -52,7 +52,7 @@ def test_random_point_in_triangle_generator(triangle, expected_points):
         (Polygon([[0, 0], [5, 12], [15, 4]])),
     ],
 )
-def test_random_point_in_triangle_interior(triangle):
+def test_random_point_in_triangle_interior(triangle: Polygon) -> None:
     points = [random_point_in_triangle(triangle) for _ in range(1000)]
     assert all(triangle.contains(point) for point in points)
 
@@ -75,7 +75,7 @@ def small_image_fixture():
         (np.ones((100, 100)), {1: 10001}),
     ],
 )
-def test_sample_by_values_errors(image, n_samples):
+def test_sample_by_values_errors(image: np.ndarray, n_samples: Dict[int, int]) -> None:
     rng = np.random.default_rng()
     with pytest.raises(ValueError):
         sample_by_values(image, n_samples, rng=rng)
@@ -90,7 +90,7 @@ def test_sample_by_values_errors(image, n_samples):
         ({0: 100, 2: 30000}, True),
     ],
 )
-def test_sample_by_values(small_image, seed, n_samples, replace):
+def test_sample_by_values(small_image: np.ndarray, seed: int, n_samples: Dict[int, int], replace: bool) -> None:
     rng = np.random.default_rng(seed)
 
     rows, cols = sample_by_values(small_image, n_samples, rng=rng, replace=replace)
@@ -107,7 +107,7 @@ def test_sample_by_values(small_image, seed, n_samples, replace):
 
 
 @pytest.mark.parametrize("sample_size", [(1, 1), (2, 3), (10, 11)])
-def test_expand_to_grids(sample_size: Tuple[int, int]):
+def test_expand_to_grids(sample_size: Tuple[int, int]) -> None:
     rows = np.array([1, 1, 2, 3, 4])
     columns = np.array([2, 3, 1, 1, 4])
 
@@ -120,7 +120,7 @@ def test_expand_to_grids(sample_size: Tuple[int, int]):
 
 @pytest.mark.parametrize("seed", list(range(5)))
 @pytest.mark.parametrize("amount", [100, 5231, 0.4, 0])
-def test_object_sampling_task(small_image, seed, amount):
+def test_object_sampling_task(small_image: np.ndarray, seed: int, amount: int) -> None:
     t, h, w, d = 10, *small_image.shape, 5
     eop = EOPatch()
     eop.data["bands"] = np.arange(t * h * w * d).reshape(t, h, w, d)
@@ -152,7 +152,7 @@ def test_object_sampling_task(small_image, seed, amount):
 
 
 @pytest.mark.parametrize("seed", range(3))
-def test_object_sampling_reproducibility(test_eopatch, seed):
+def test_object_sampling_reproducibility(test_eopatch: EOPatch, seed: int) -> None:
     task = BlockSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED")],
         amount=0.1,
@@ -174,7 +174,7 @@ def test_object_sampling_reproducibility(test_eopatch, seed):
     "fraction, replace",
     [[2, False], [-0.5, True], [{1: 0.5, 3: 0.4, 5: 1.2}, False], [{1: 0.5, 3: -0.4, 5: 1.2}, True], [(1, 0.4), True]],
 )
-def test_fraction_sampling_errors(fraction, replace):
+def test_fraction_sampling_errors(fraction: Union[float, Dict[int, float]], replace: bool) -> None:
     with pytest.raises(ValueError):
         FractionSamplingTask(
             [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED")],
@@ -195,7 +195,9 @@ def test_fraction_sampling_errors(fraction, replace):
         [{2: 0.1, 3: 1, 5: 1}, [0, 2]],
     ],
 )
-def test_fraction_sampling(seed, fraction, exclude, test_eopatch):
+def test_fraction_sampling(
+    seed: int, fraction: Union[float, Dict[int, float]], exclude: Optional[List], test_eopatch: EOPatch
+) -> None:
     task = FractionSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED"), (FeatureType.MASK_TIMELESS, "LULC", "LULC_SAMPLED")],
         (FeatureType.MASK_TIMELESS, "LULC"),
@@ -237,7 +239,9 @@ def test_fraction_sampling(seed, fraction, exclude, test_eopatch):
 
 @pytest.mark.parametrize("seed", range(3))
 @pytest.mark.parametrize("fraction", [0.3, {1: 0.1, 4: 0.3}])
-def test_fraction_sampling_reproducibility(test_eopatch, fraction, seed):
+def test_fraction_sampling_reproducibility(
+    test_eopatch: EOPatch, fraction: Union[float, Dict[int, float]], seed: int
+) -> None:
     task = FractionSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED")],
         (FeatureType.MASK_TIMELESS, "LULC"),
@@ -264,7 +268,12 @@ def test_fraction_sampling_reproducibility(test_eopatch, fraction, seed):
         [(6, 5), (3, 3), (68, 6144, 5, 13)],
     ],
 )
-def test_grid_sampling_task(test_eopatch, sample_size, stride, expected_shape):
+def test_grid_sampling_task(
+    test_eopatch: EOPatch,
+    sample_size: Tuple[int, int],
+    stride: Tuple[int, int],
+    expected_shape: Tuple[int, int, int, int],
+) -> None:
     sample_mask = FeatureType.MASK_TIMELESS, "SAMPLE_MASK"
     task = GridSamplingTask(
         features_to_sample=[

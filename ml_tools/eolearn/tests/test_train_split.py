@@ -8,6 +8,8 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+from typing import Any
+
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
@@ -29,7 +31,7 @@ OUTPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST_TRAIN_MASK")
         ([0.5, 0.7], {"split_type": "nonsense"}),
     ],
 )
-def test_bad_args(bad_arg, bad_kwargs):
+def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
     with pytest.raises(ValueError):
         TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 

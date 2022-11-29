@@ -21,14 +21,14 @@ except ImportError as exception:
 
 
 def plot_confusion_matrix(
-    confusion_matrix,
+    confusion_matrix: np.ndarray,
     classes,
-    normalize=True,
-    title="Confusion matrix",
+    normalize: bool = True,
+    title: str = "Confusion matrix",
     cmap=plt.cm.Blues,
-    xlabel="Predicted label",
-    ylabel="True label",
-):
+    xlabel: str = "Predicted label",
+    ylabel: str = "True label",
+) -> None:
     """Make a single confusion matrix plot."""
     if normalize:
         normalisation_factor = confusion_matrix.sum(axis=1)[:, np.newaxis] + np.finfo(float).eps

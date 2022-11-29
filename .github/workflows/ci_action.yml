@@ -60,7 +60,9 @@ jobs:
         run: make pylint
 
       - name: Run mypy
-        run: mypy core/eolearn/core
+        run: |
+          mypy core/eolearn/core
+          mypy ml_tools/eolearn/ml_tools
 
   test-on-github:
     runs-on: ubuntu-latest

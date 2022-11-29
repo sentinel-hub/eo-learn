@@ -17,6 +17,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon  # type: ignore
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.utils.parsing import FeaturesSpecification
 
 _FractionType = Union[float, Dict[int, float]]
 
@@ -199,24 +200,19 @@ class FractionSamplingTask(BaseSamplingTask):
 
     def __init__(
         self,
-        features_to_sample,
-        sampling_feature,
+        features_to_sample: FeaturesSpecification,
+        sampling_feature: FeaturesSpecification,
         fraction: _FractionType,
         exclude_values: Optional[List[int]] = None,
         replace: bool = False,
         **kwargs,
-    ):
+    ) -> EOTask:
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param sampling_feature: A timeless mask feature according to which points will be sampled.
-        :type sampling_feature: (FeatureType, str)
         :param fraction: Fraction of points to sample. Can be dictionary mapping values of mask to fractions.
-        :type fraction: float or dict(int: float)
         :param exclude_values: Skips points that have these values in `sampling_mask`
-        :type exclude_values: list(int)
         :param replace: Whether to sample with replacement. False means each value can only be chosen once.
-        :type replace: bool
         :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
         """
         super().__init__(features_to_sample, **kwargs)
@@ -296,17 +292,19 @@ class BlockSamplingTask(BaseSamplingTask):
     """
 
     def __init__(
-        self, features_to_sample, amount: float, sample_size: Tuple[int, int] = (1, 1), replace: bool = False, **kwargs
-    ):
+        self,
+        features_to_sample: FeaturesSpecification,
+        amount: float,
+        sample_size: Tuple[int, int] = (1, 1),
+        replace: bool = False,
+        **kwargs,
+    ) -> EOTask:
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param amount: The number of points to sample if integer valued and the fraction of all points if `float`
-        :type amount: int or float
         :param sample_size: A tuple describing a size of sampled blocks. The size is defined as a tuple of number of
             rows and number of columns.
         :param replace: Whether to sample with replacement. False means each value can only be chosen once.
-        :type replace: bool
         :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
         """
         super().__init__(features_to_sample, **kwargs)
@@ -364,11 +362,14 @@ class GridSamplingTask(BaseSamplingTask):
     """
 
     def __init__(
-        self, features_to_sample, sample_size: Tuple[int, int] = (1, 1), stride: Tuple[int, int] = (1, 1), **kwargs
+        self,
+        features_to_sample: FeaturesSpecification,
+        sample_size: Tuple[int, int] = (1, 1),
+        stride: Tuple[int, int] = (1, 1),
+        **kwargs,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param sample_size: A tuple describing a size of sampled blocks. The size is defined as a tuple of number of
             rows and number of columns.
         :param stride: A tuple describing a distance between upper left corners of two consecutive sampled blocks.
