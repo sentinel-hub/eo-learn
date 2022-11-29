@@ -10,7 +10,6 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Any
 
 import numpy as np
 
@@ -18,10 +17,10 @@ import numpy as np
 # This code was copied from https://gist.github.com/seberg/3866040
 def rolling_window(
     array: np.ndarray,
-    window: Any = (0,),
-    asteps: Any = None,
-    wsteps: Any = None,
-    axes: Any = None,
+    window=(0,),
+    asteps=None,
+    wsteps=None,
+    axes=None,
     toend: bool = True,
 ) -> np.ndarray:
     """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New

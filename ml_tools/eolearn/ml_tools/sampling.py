@@ -151,7 +151,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         self,
         features_to_sample: FeaturesSpecification,
         *,
-        mask_of_samples: Optional[Tuple[FeatureType, Optional[str]]] = None,
+        mask_of_samples: Optional[Tuple[FeatureType, str]] = None,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -164,7 +164,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
 
         self.mask_of_samples = mask_of_samples
         if mask_of_samples is not None:
-            self.mask_of_samples = self.parse_feature(
+            self.mask_of_samples = self.parse_feature(  # type: ignore[assignment]
                 self.mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
             )
 
@@ -317,7 +317,10 @@ class BlockSamplingTask(BaseSamplingTask):
 
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
         if feature_name is None:
-            raise ValueError(f"Feature {feature_type} can not get spatial dimension")
+            raise ValueError(
+                f"Encountered {feature_type} when calculating spatial dimension, please report bug to eo-learn"
+                " developers."
+            )
 
         height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
         height -= self.sample_size[0] - 1
@@ -398,7 +401,10 @@ class GridSamplingTask(BaseSamplingTask):
         """
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
         if feature_name is None:
-            raise ValueError(f"Feature {feature_type} can not get spatial dimension")
+            raise ValueError(
+                f"Encountered {feature_type} when calculating spatial dimension, please report bug to eo-learn"
+                " developers."
+            )
 
         image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
         rows, columns = self._sample_regular_grid(image_shape)
