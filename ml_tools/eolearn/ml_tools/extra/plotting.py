@@ -15,7 +15,7 @@ import itertools
 import numpy as np
 
 try:
-    import matplotlib.pyplot as plt  # type: ignore
+    import matplotlib.pyplot as plt
 except ImportError as exception:
     raise ImportError("This module requires an installation of matplotlib package") from exception
 

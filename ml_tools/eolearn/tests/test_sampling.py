@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 from pytest import approx
-from shapely.geometry import Point, Polygon  # type: ignore
+from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.ml_tools import BlockSamplingTask, FractionSamplingTask, GridSamplingTask, sample_by_values

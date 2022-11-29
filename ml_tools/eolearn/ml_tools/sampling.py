@@ -11,10 +11,10 @@ file in the root directory of this source tree.
 """
 from abc import ABCMeta
 from math import sqrt
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from shapely.geometry import Point, Polygon  # type: ignore
+from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.utils.parsing import FeaturesSpecification
@@ -108,23 +108,19 @@ def expand_to_grids(
         return rows[:, np.newaxis], columns[:, np.newaxis]
 
     sample_height, sample_width = sample_size
-    row_grids_list = []
-    column_grids_list = []
+    row_grids = []
+    column_grids = []
     for row, column in zip(rows, columns):
-        row_grid_list, column_grid_list = np.meshgrid(
+        row_grid, column_grid = np.meshgrid(
             np.arange(row, row + sample_height), np.arange(column, column + sample_width)
         )
-        row_grids_list.append(np.transpose(row_grid_list))
-        column_grids_list.append(np.transpose(column_grid_list))
+        row_grids.append(np.transpose(row_grid))
+        column_grids.append(np.transpose(column_grid))
 
-    if row_grids_list and column_grids_list:
-        row_grids = np.concatenate(row_grids_list, axis=0)
-        column_grids = np.concatenate(column_grids_list, axis=0)
-    else:
-        row_grids = np.zeros((0, 0), dtype=int)
-        column_grids = np.zeros((0, 0), dtype=int)
+    if row_grids and column_grids:
+        return np.concatenate(row_grids, axis=0), np.concatenate(column_grids, axis=0)
 
-    return row_grids, column_grids
+    return np.zeros((0, 0), dtype=int), np.zeros((0, 0), dtype=int)
 
 
 def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, column_grid: np.ndarray) -> np.ndarray:
@@ -176,10 +172,6 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
             data_to_sample = eopatch[feature_type][feature_name]
 
             feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
-            if image_shape is not None and feature_shape != image_shape:
-                raise ValueError(
-                    f"All features should have same spatial dimensions but found {image_shape} and {feature_shape}"
-                )
             image_shape = feature_shape
 
             eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
@@ -205,7 +197,7 @@ class FractionSamplingTask(BaseSamplingTask):
         fraction: _FractionType,
         exclude_values: Optional[List[int]] = None,
         replace: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -295,9 +287,9 @@ class BlockSamplingTask(BaseSamplingTask):
         self,
         features_to_sample: FeaturesSpecification,
         amount: float,
-        sample_size: Tuple[int, int] = (1, 1),
+        sample_size: Union[List[int], Tuple[int, int]] = (1, 1),
         replace: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -317,7 +309,7 @@ class BlockSamplingTask(BaseSamplingTask):
         ):
             raise ValueError(f"Parameter sample_size should be a tuple of 2 integers but {sample_size} found")
 
-        self.sample_size = sample_size
+        self.sample_size = tuple(sample_size)
         self.replace = replace
 
     def _generate_dummy_mask(self, eopatch: EOPatch) -> np.ndarray:
@@ -343,13 +335,14 @@ class BlockSamplingTask(BaseSamplingTask):
         sampling_image = self._generate_dummy_mask(eopatch)
 
         amount = self.amount if amount is None else amount
-        if isinstance(amount, (int, np.integer)):
-            n_samples_per_value = {1: amount}
+        if isinstance(amount, (int, np.integer)):  # type: ignore[unreachable]
+            n_samples_per_value = {1: amount}  # type: ignore[unreachable]
         else:
             n_samples_per_value = {1: round(sampling_image.size * amount)}
 
         rows, columns = sample_by_values(sampling_image, n_samples_per_value, rng=rng, replace=self.replace)
-        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=self.sample_size)
+        size_x, size_y = self.sample_size  # this way it also works for lists
+        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
         eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
         return eopatch
@@ -364,9 +357,9 @@ class GridSamplingTask(BaseSamplingTask):
     def __init__(
         self,
         features_to_sample: FeaturesSpecification,
-        sample_size: Tuple[int, int] = (1, 1),
-        stride: Tuple[int, int] = (1, 1),
-        **kwargs,
+        sample_size: Union[List[int], Tuple[int, int]] = (1, 1),
+        stride: Union[List[int], Tuple[int, int]] = (1, 1),
+        **kwargs: Any,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -379,8 +372,8 @@ class GridSamplingTask(BaseSamplingTask):
         """
         super().__init__(features_to_sample, **kwargs)
 
-        self.sample_size = sample_size
-        self.stride = stride
+        self.sample_size = tuple(sample_size)
+        self.stride = tuple(stride)
 
         if not all(value > 0 for value in self.sample_size + self.stride):
             raise ValueError("Both sample_size and stride should have only positive values")
@@ -403,7 +396,8 @@ class GridSamplingTask(BaseSamplingTask):
         image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
 
         rows, columns = self._sample_regular_grid(image_shape)
-        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=self.sample_size)
+        size_x, size_y = self.sample_size  # this way it also works for lists
+        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
         eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
         return eopatch
