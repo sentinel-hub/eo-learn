@@ -316,14 +316,14 @@ class BlockSamplingTask(BaseSamplingTask):
         """Generate a mask consisting entirely of `values` entries, used for sampling on whole raster"""
 
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        if feature_name is not None:
-            height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
-            height -= self.sample_size[0] - 1
-            width -= self.sample_size[1] - 1
-
-            return np.ones((height, width), dtype=np.uint8)
-        else:
+        if feature_name is None:
             raise ValueError(f"Feature {feature_type} can not get spatial dimension")
+
+        height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
+        height -= self.sample_size[0] - 1
+        width -= self.sample_size[1] - 1
+
+        return np.ones((height, width), dtype=np.uint8)
 
     def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[float] = None) -> EOPatch:
         """Execute a spatial sampling on features from a given EOPatch
@@ -397,14 +397,13 @@ class GridSamplingTask(BaseSamplingTask):
         :return: An EOPatch with additional spatially sampled features
         """
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        if feature_name is not None:
-            image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
-
-            rows, columns = self._sample_regular_grid(image_shape)
-            size_x, size_y = self.sample_size  # this way it also works for lists
-            row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
-
-            eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
-            return eopatch
-        else:
+        if feature_name is None:
             raise ValueError(f"Feature {feature_type} can not get spatial dimension")
+
+        image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
+        rows, columns = self._sample_regular_grid(image_shape)
+        size_x, size_y = self.sample_size  # this way it also works for lists
+        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
+
+        eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
+        return eopatch
