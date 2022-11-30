@@ -11,7 +11,6 @@ import datetime as dt
 import os
 
 import numpy as np
-import pytest
 from meteoblue_dataset_sdk.protobuf.dataset_pb2 import DatasetApiProtobuf
 
 from sentinelhub import CRS, BBox
@@ -100,34 +99,6 @@ def test_meteoblue_vector_task(mocker):
 
     data_series = data["11_2 m above gnd_mean"]
     assert round(data_series.mean(), 5) == 23.75278
-    assert round(data_series.std(), 5) == 2.99785
-
-
-def test_meteoblue_query_precedence(mocker):
-    """Unit test for query precedence in a MeteoblueTask"""
-    mocker.patch(
-        "meteoblue_dataset_sdk.Client.querySync",
-        return_value=_load_meteoblue_client_response("test_meteoblue_vector_input.bin"),
-    )
-
-    feature = FeatureType.VECTOR, "WEATHER-DATA"
-    meteoblue_task_no_query = MeteoblueVectorTask(feature, "dummy-api-key")
-    meteoblue_task_with_query = MeteoblueVectorTask(feature, "dummy-api-key", query=RASTER_QUERY, units=UNITS)
-
-    eopatch = EOPatch(bbox=BBOX)
-
-    with pytest.raises(ValueError):
-        meteoblue_task_no_query.execute(eopatch, time_interval=TIME_INTERVAL)
-
-    eopatch = meteoblue_task_no_query.execute(eopatch, time_interval=TIME_INTERVAL, query=VECTOR_QUERY)
-    eopatch_query_overwrite = meteoblue_task_with_query.execute(
-        eopatch, time_interval=TIME_INTERVAL, query=VECTOR_QUERY
-    )
-
-    assert eopatch_query_overwrite == eopatch
-    assert eopatch.bbox == BBOX
-
-    data_series = eopatch[feature]["11_2 m above gnd_mean"]
     assert round(data_series.std(), 5) == 2.99785
 
 
