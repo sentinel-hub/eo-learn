@@ -131,8 +131,8 @@ class BaseMeteoblueTask(EOTask):
         geometry = Geometry(bbox.geometry, bbox.crs).transform(CRS.WGS84)
         geojson = shapely.geometry.mapping(geometry.geometry)
 
-        query = query if query != None else self.query
-        if query == None:
+        query = query if query is not None else self.query
+        if query is None:
             raise ValueError("Query has to specified in execute method or during task initialization")
 
         executable_query = {
