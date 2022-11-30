@@ -11,6 +11,7 @@ import datetime as dt
 import os
 
 import numpy as np
+import pytest
 from meteoblue_dataset_sdk.protobuf.dataset_pb2 import DatasetApiProtobuf
 
 from sentinelhub import CRS, BBox
@@ -102,8 +103,71 @@ def test_meteoblue_vector_task(mocker):
     assert round(data_series.std(), 5) == 2.99785
 
 
+def test_meteoblue_query_precedence(mocker):
+    """Unit test for query precedence in a MeteoblueTask"""
+    mocker.patch(
+        "meteoblue_dataset_sdk.Client.querySync",
+        return_value=_load_meteoblue_client_response("test_meteoblue_vector_input.bin"),
+    )
+
+    feature = FeatureType.VECTOR, "WEATHER-DATA"
+    meteoblue_task_no_query = MeteoblueVectorTask(feature, "dummy-api-key", units=UNITS)
+    meteoblue_task_with_query = MeteoblueVectorTask(feature, "dummy-api-key", query=RASTER_QUERY, units=UNITS)
+
+    eopatch = EOPatch(bbox=BBOX)
+
+    with pytest.raises(ValueError):
+        meteoblue_task_no_query.execute(eopatch, time_interval=TIME_INTERVAL)
+
+    spy_no_query = mocker.spy(meteoblue_task_no_query, "_get_data")
+    meteoblue_task_no_query.execute(eopatch, time_interval=TIME_INTERVAL, query=VECTOR_QUERY)
+    spy_no_query.assert_called_once_with(
+        {
+            "units": {"temperature": "C", "velocity": "km/h", "length": "metric", "energy": "watts"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": (((7.52, 47.5), (7.52, 47.6), (7.7, 47.6), (7.7, 47.5), (7.52, 47.5)),),
+            },
+            "format": "protobuf",
+            "timeIntervals": ["2020-08-01T00:00:00/2020-08-03T00:00:00"],
+            "queries": [
+                {
+                    "domain": "NEMS4",
+                    "gapFillDomain": None,
+                    "timeResolution": "daily",
+                    "codes": [{"code": 11, "level": "2 m above gnd", "aggregation": "mean"}],
+                    "transformations": None,
+                }
+            ],
+        }
+    )
+
+    spy_with_query = mocker.spy(meteoblue_task_with_query, "_get_data")
+    meteoblue_task_with_query.execute(eopatch, time_interval=TIME_INTERVAL, query=VECTOR_QUERY)
+    spy_with_query.assert_called_once_with(
+        {
+            "units": {"temperature": "C", "velocity": "km/h", "length": "metric", "energy": "watts"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": (((7.52, 47.5), (7.52, 47.6), (7.7, 47.6), (7.7, 47.5), (7.52, 47.5)),),
+            },
+            "format": "protobuf",
+            "timeIntervals": ["2020-08-01T00:00:00/2020-08-03T00:00:00"],
+            "queries": [
+                {
+                    "domain": "NEMS4",
+                    "gapFillDomain": None,
+                    "timeResolution": "daily",
+                    "codes": [{"code": 11, "level": "2 m above gnd", "aggregation": "mean"}],
+                    "transformations": None,
+                }
+            ],
+        }
+    )
+
+
 def _load_meteoblue_client_response(filename):
-    """Loads locally stored responses of Meteoblue client
+    """Loads locally stored responses of meteoblue client
 
     To update content of saved files use:
     with open('<path>', 'wb') as fp:
