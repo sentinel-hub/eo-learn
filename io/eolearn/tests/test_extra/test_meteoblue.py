@@ -132,7 +132,7 @@ def test_meteoblue_query_precedence(mocker):
 
 
 def _load_meteoblue_client_response(filename):
-    """Loads locally stored responses of Meteoblue client
+    """Loads locally stored responses of meteoblue client
 
     To update content of saved files use:
     with open('<path>', 'wb') as fp:
