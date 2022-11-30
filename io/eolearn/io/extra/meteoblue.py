@@ -40,8 +40,8 @@ class BaseMeteoblueTask(EOTask):
         self,
         feature,
         apikey: str,
-        query: dict = None,
-        units: dict = None,
+        query: Optional[dict] = None,
+        units: Optional[dict] = None,
         time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008
         cache_folder: Optional[str] = None,
         cache_max_age: int = 604800,
@@ -51,9 +51,11 @@ class BaseMeteoblueTask(EOTask):
         :type feature: (FeatureType, str)
         :param apikey: meteoblue API key
         :type apikey: str
-        :param query: meteoblue dataset API query definition
+        :param query: meteoblue dataset API query definition. If set to None (default) the query has to be set
+            in the execute method instead.
         :type query: dict
-        :param units: meteoblue dataset API units definition
+        :param units: meteoblue dataset API units definition. If set to None (default) request will use default units
+            as specified in https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api#units
         :type units: dict
         :param time_difference: The size of a time interval around each timestamp for which data will be collected. It
             is used only in a combination with ``time_interval`` parameter from ``execute`` method.
