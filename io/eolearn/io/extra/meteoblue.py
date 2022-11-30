@@ -40,7 +40,7 @@ class BaseMeteoblueTask(EOTask):
         self,
         feature,
         apikey: str,
-        query: dict,
+        query: dict = None,
         units: dict = None,
         time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008
         cache_folder: Optional[str] = None,
@@ -109,16 +109,19 @@ class BaseMeteoblueTask(EOTask):
         """It should return an output feature object and a list of timestamps"""
         raise NotImplementedError
 
-    def execute(self, eopatch=None, *, bbox=None, time_interval=None):
+    def execute(self, eopatch=None, *, query=None, bbox=None, time_interval=None):
         """Execute method that adds new Meteoblue data into an EOPatch
 
         :param eopatch: An EOPatch in which data will be added. If not provided a new EOPatch will be created.
         :type eopatch: EOPatch or None
         :param bbox: A bounding box of a request. Should be provided if eopatch parameter is not provided.
         :type bbox: BBox or None
+        :param query: Meteoblue dataset API query definition. This query takes precedence over one defined in __init__.
+        :type query: dict
         :param time_interval: An interval for which data should be downloaded. If not provided then timestamps from
             provided eopatch will be used.
         :type time_interval: (dt.datetime, dt.datetime) or (str, str) or None
+        :raises ValueError: Raises an exception when no query is set during Task initialization or the execute method.
         """
         eopatch = eopatch or EOPatch()
         eopatch.bbox = self._prepare_bbox(eopatch, bbox)
@@ -127,14 +130,19 @@ class BaseMeteoblueTask(EOTask):
         bbox = eopatch.bbox
         geometry = Geometry(bbox.geometry, bbox.crs).transform(CRS.WGS84)
         geojson = shapely.geometry.mapping(geometry.geometry)
-        query = {
+
+        query = query if query != None else self.query
+        if query == None:
+            raise ValueError("Query has to specified in execute method or during task initialization")
+
+        executable_query = {
             "units": self.units,
             "geometry": geojson,
             "format": "protobuf",
             "timeIntervals": time_intervals,
-            "queries": [self.query],
+            "queries": [query],
         }
-        result_data, result_timestamp = self._get_data(query)
+        result_data, result_timestamp = self._get_data(executable_query)
 
         if not eopatch.timestamp and result_timestamp:
             eopatch.timestamp = result_timestamp
