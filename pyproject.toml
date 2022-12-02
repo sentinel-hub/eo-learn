@@ -86,3 +86,4 @@ warn_unused_ignores = true
 # disallow_untyped_decorators = true
 warn_unreachable = true
 strict_equality = true
+preatty = true
