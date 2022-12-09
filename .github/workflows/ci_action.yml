@@ -7,7 +7,8 @@ on:
       - "master"
       - "develop"
   schedule:
-    - cron: "0 0 * * *"
+    # Schedule events are triggered by whoever last changed the cron schedule
+    - cron: "5 0 * * *"
 
 env:
   # The only way to simulate if-else statement
