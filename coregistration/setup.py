@@ -31,7 +31,7 @@ setup(
     name="eo-learn-coregistration",
     python_requires=">=3.7",
     version=get_version(),
-    description="A collection of image co-registration EOTasks and utilities",
+    description="A collection of image co-registration EOTasks",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
     url="https://github.com/sentinel-hub/eo-learn",
@@ -47,7 +47,6 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
-    extras_require={"THUNDER": parse_requirements("requirements-thunder.txt")},
     zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",

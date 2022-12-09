@@ -23,8 +23,6 @@ import numpy as np
 from eolearn.core import EOTask
 from eolearn.core.exceptions import EORuntimeWarning
 
-from .utils import EstimateEulerTransformModel, ransac
-
 LOGGER = logging.getLogger(__name__)
 
 MAX_TRANSLATION = 20
@@ -288,104 +286,12 @@ class ECCRegistrationTask(RegistrationTask):
         return warp_matrix
 
 
-class PointBasedRegistrationTask(RegistrationTask):
-    """Registration class implementing a point-based registration from OpenCV contrib package"""
-
-    def get_params(self):
-        LOGGER.info("%s:Params for this registration are:", self.__class__.__name__)
-        LOGGER.info("\t\t\t\tModel: %s", self.params["Model"])
-        LOGGER.info("\t\t\t\tDescriptor: %s", self.params["Descriptor"])
-        LOGGER.info("\t\t\t\tMaxIters: %d", self.params["MaxIters"])
-        LOGGER.info("\t\t\t\tRANSACThreshold: %.2f", self.params["RANSACThreshold"])
-
-    def check_params(self):
-        if self.params.get("Model") not in ["Euler", "PartialAffine", "Homography"]:
-            LOGGER.info("%s:Model set to Euler", self.__class__.__name__)
-            self.params["Model"] = "Euler"
-        if self.params.get("Descriptor") not in ["SIFT", "SURF"]:
-            LOGGER.info("%s:Descriptor set to SIFT", self.__class__.__name__)
-            self.params["Descriptor"] = "SIFT"
-        if not isinstance(self.params.get("MaxIters"), int):
-            LOGGER.info("%s:RANSAC MaxIters set to 1000", self.__class__.__name__)
-            self.params["MaxIters"] = 1000
-        if not isinstance(self.params.get("RANSACThreshold"), float):
-            LOGGER.info("%s:RANSAC threshold set to 7.0", self.__class__.__name__)
-            self.params["RANSACThreshold"] = 7.0
-
-    def register(self, src, trg, trg_mask=None, src_mask=None):
-        """Implementation of pair-wise registration and warping using point-based matching
-
-        This function estimates a number of transforms (Euler, PartialAffine and Homography) using point-based matching.
-        Features descriptor are first extracted from the pair of images using either SIFT or SURF descriptors. A
-        brute-force point-matching algorithm estimates matching points and a transformation is computed. All
-        transformations use RANSAC to robustly fit a transform to the matching points. However, the feature extraction
-        and point matching estimation can be very poor and unstable. In those cases, an identity transform is used
-        to warp the images instead.
-
-        :param src: 2D single channel source moving image
-        :param trg: 2D single channel target reference image
-        :param trg_mask: Mask of target image. Not used in this method.
-        :param src_mask: Mask of source image. Not used in this method.
-        :return: Estimated 2D transformation matrix of shape 2x3
-        """
-        # Initialise matrix and failed registrations flag
-        warp_matrix = None
-        # Initiate point detector
-        ptdt = cv2.SIFT_create() if self.params["Descriptor"] == "SIFT" else cv2.SURF_create()
-        # create BFMatcher object
-        bf_matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
-        # find the key points and descriptors with SIFT
-        kp1, des1 = ptdt.detectAndCompute(self.rescale_image(src), None)
-        kp2, des2 = ptdt.detectAndCompute(self.rescale_image(trg), None)
-        # Match descriptors if any are found
-        if des1 is not None and des2 is not None:
-            matches = bf_matcher.match(des1, des2)
-            # Sort them in the order of their distance.
-            matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.asarray([kp1[m.queryIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)
-            trg_pts = np.asarray([kp2[m.trainIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)
-            # Parse model and estimate matrix
-            if self.params["Model"] == "PartialAffine":
-                warp_matrix = cv2.estimateRigidTransform(src_pts, trg_pts, fullAffine=False)
-            elif self.params["Model"] == "Euler":
-                model = EstimateEulerTransformModel(src_pts, trg_pts)
-                warp_matrix = ransac(src_pts.shape[0], model, 3, self.params["MaxIters"], 1, 5)
-            elif self.params["Model"] == "Homography":
-                warp_matrix, _ = cv2.findHomography(
-                    src_pts,
-                    trg_pts,
-                    cv2.RANSAC,
-                    ransacReprojThreshold=self.params["RANSACThreshold"],
-                    maxIters=self.params["MaxIters"],
-                )
-                if warp_matrix is not None:
-                    warp_matrix = warp_matrix[:2, :]
-        return warp_matrix
-
-    @staticmethod
-    def rescale_image(image):
-        """Normalise and scale image in 0-255 range"""
-        s2_min_value, s2_max_value = 0, 1
-        out_min_value, out_max_value = 0, 255
-        # Clamp values in 0-1 range
-        image[image > s2_max_value] = s2_max_value
-        image[image < s2_min_value] = s2_min_value
-        # Rescale to uint8 range
-        out_image = out_max_value + (image - s2_min_value) * (out_max_value - out_min_value) / (
-            s2_max_value - s2_min_value
-        )
-        return out_image.astype(np.uint8)
-
-
-def get_gradient(src):
+def get_gradient(src: np.ndarray) -> np.ndarray:
     """Method which calculates and returns the gradients for the input image, which are
     better suited for co-registration
-
-    :param src: input image
-    :type src: ndarray
-    :return: ndarray
     """
     # Calculate the x and y gradients using Sobel operator
+    src = src.astype(np.float32)
     grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
     grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
 
