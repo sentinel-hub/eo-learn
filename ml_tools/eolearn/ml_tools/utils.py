@@ -11,18 +11,25 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+from typing import Any, Optional
+from warnings import warn
+
 import numpy as np
+
+from eolearn.core.exceptions import EODeprecationWarning
 
 
 # This code was copied from https://gist.github.com/seberg/3866040
 def rolling_window(
     array: np.ndarray,
-    window=(0,),
-    asteps=None,
-    wsteps=None,
-    axes=None,
+    window: Any = (0,),
+    asteps: Optional[Any] = None,
+    wsteps: Optional[Any] = None,
+    axes: Optional[Any] = None,
     toend: bool = True,
 ) -> np.ndarray:
+    warn("rolling_window` has been deprecated", EODeprecationWarning, stacklevel=2)
+
     """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New
     dimensions are added at the end of `array` or after the corresponding original dimension.
 
