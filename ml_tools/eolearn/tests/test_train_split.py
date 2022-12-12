@@ -50,7 +50,7 @@ def test_train_split() -> None:
     bins = [0.2, 0.5, 0.8]
     expected_unique = set(range(1, len(bins) + 2))
 
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType("per_class"))(
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
         patch, seed=1
     )
     assert set(np.unique(patch[OUTPUT_FEATURE])) <= expected_unique
@@ -65,7 +65,7 @@ def test_train_split() -> None:
         assert unique_counts[0] == expected_count
 
     # seed=2 should produce different result than seed=1
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType("per_class"))(
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
         patch, seed=2
     )
     result_seed2 = np.copy(patch[OUTPUT_FEATURE])
@@ -73,7 +73,7 @@ def test_train_split() -> None:
     assert not np.array_equal(result_seed1, result_seed2)
 
     # test with seed 1 should produce the same result as before
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType("per_class"))(
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
         patch, seed=1
     )
     result_seed_equal = patch[OUTPUT_FEATURE]
@@ -92,7 +92,7 @@ def test_train_split() -> None:
         (FeatureType.MASK_TIMELESS, "TEST"),
         (FeatureType.MASK_TIMELESS, "BINS"),
         bins,
-        split_type=TrainTestSplitType("per_class"),
+        split_type=TrainTestSplitType.PER_CLASS,
         ignore_values=[2],
     )
 
@@ -110,7 +110,7 @@ def test_train_split_per_pixel() -> None:
     patch[INPUT_FEATURE] = input_data
 
     bins = [0.2, 0.6]
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType("per_pixel"))(
+    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_PIXEL)(
         patch, seed=1
     )
 
@@ -138,7 +138,7 @@ def test_train_split_per_value() -> None:
 
     bins = [0.2, 0.6]
 
-    split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType("per_value"))
+    split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_VALUE)
 
     # seeds should get ignored when splitting 'per_value'
     patch1 = split_task(patch1, seed=1)

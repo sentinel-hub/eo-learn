@@ -29,8 +29,8 @@ def rolling_window(
     toend: bool = True,
 ) -> np.ndarray:
     warn(
-        "Function `rolling_window` is going to be removed, you should use `numpy.lib.stride_tricks.sliding_window_view`"
-        " instead of it.",
+        "Function `rolling_window` will be removed in a future version, please use"
+        " `numpy.lib.stride_tricks.sliding_window_view` instead.",
         EODeprecationWarning,
         stacklevel=2,
     )
