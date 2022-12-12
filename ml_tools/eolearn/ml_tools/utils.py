@@ -28,7 +28,12 @@ def rolling_window(
     axes: Optional[Any] = None,
     toend: bool = True,
 ) -> np.ndarray:
-    warn("rolling_window` has been deprecated", EODeprecationWarning, stacklevel=2)
+    warn(
+        "Function `rolling_window` is going to be removed, you should use `numpy.lib.stride_tricks.sliding_window_view`"
+        " instead of it.",
+        EODeprecationWarning,
+        stacklevel=2,
+    )
 
     """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New
     dimensions are added at the end of `array` or after the corresponding original dimension.
