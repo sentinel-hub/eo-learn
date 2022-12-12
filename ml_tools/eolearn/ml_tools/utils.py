@@ -28,13 +28,6 @@ def rolling_window(
     axes: Optional[Any] = None,
     toend: bool = True,
 ) -> np.ndarray:
-    warn(
-        "Function `rolling_window` will be removed in a future version, please use"
-        " `numpy.lib.stride_tricks.sliding_window_view` instead.",
-        EODeprecationWarning,
-        stacklevel=2,
-    )
-
     """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New
     dimensions are added at the end of `array` or after the corresponding original dimension.
 
@@ -106,6 +99,13 @@ def rolling_window(
     """
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
+
+    warn(
+        "Function `rolling_window` will be removed in a future version, please use"
+        " `numpy.lib.stride_tricks.sliding_window_view` instead.",
+        EODeprecationWarning,
+        stacklevel=2,
+    )
 
     array = np.asarray(array)
     orig_shape = np.asarray(array.shape)
