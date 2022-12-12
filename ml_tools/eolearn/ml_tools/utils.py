@@ -100,12 +100,11 @@ def rolling_window(
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
 
-    warn(
+    warning = (
         "Function `rolling_window` will be removed in a future version, please use"
-        " `numpy.lib.stride_tricks.sliding_window_view` instead.",
-        EODeprecationWarning,
-        stacklevel=2,
+        " `numpy.lib.stride_tricks.sliding_window_view` instead."
     )
+    warn(warning, EODeprecationWarning, stacklevel=2)
 
     array = np.asarray(array)
     orig_shape = np.asarray(array.shape)
