@@ -11,16 +11,21 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+from typing import Any, Optional
+from warnings import warn
+
 import numpy as np
+
+from eolearn.core.exceptions import EODeprecationWarning
 
 
 # This code was copied from https://gist.github.com/seberg/3866040
 def rolling_window(
     array: np.ndarray,
-    window=(0,),
-    asteps=None,
-    wsteps=None,
-    axes=None,
+    window: Any = (0,),
+    asteps: Optional[Any] = None,
+    wsteps: Optional[Any] = None,
+    axes: Optional[Any] = None,
     toend: bool = True,
 ) -> np.ndarray:
     """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New
@@ -94,6 +99,12 @@ def rolling_window(
     """
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
+
+    warning = (
+        "Function `rolling_window` will be removed in a future version, please use"
+        " `numpy.lib.stride_tricks.sliding_window_view` instead."
+    )
+    warn(warning, EODeprecationWarning, stacklevel=2)
 
     array = np.asarray(array)
     orig_shape = np.asarray(array.shape)

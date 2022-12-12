@@ -58,7 +58,7 @@ def test_random_point_in_triangle_interior(triangle: Polygon) -> None:
 
 
 @pytest.fixture(name="small_image")
-def small_image_fixture():
+def small_image_fixture() -> np.ndarray:
     image_size = 100, 75
     image = np.zeros(image_size, dtype=np.uint8)
     image[40:60, 40:60] = 1

@@ -221,7 +221,7 @@ class FractionSamplingTask(BaseSamplingTask):
 
         self._validate_fraction_input(fraction)
 
-    def _validate_fraction_input(self, fraction: _FractionType):
+    def _validate_fraction_input(self, fraction: _FractionType) -> None:
         """Validates that the input for `fraction` is correct
 
         The input should either be a number or a dictionary linking labels to numbers. Number representing fractions
