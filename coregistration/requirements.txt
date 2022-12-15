@@ -1,1 +1,2 @@
 eo-learn-core
+opencv-python
