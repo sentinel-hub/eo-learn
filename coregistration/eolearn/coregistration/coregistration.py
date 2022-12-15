@@ -120,8 +120,8 @@ class ECCRegistrationTask(EOTask):
                 valid_mask,
                 self.gauss_kernel_size,
             )
-        except cv2.error as e:
-            warnings.warn(f"Could not calculate the warp matrix: {e}", EORuntimeWarning)
+        except cv2.error as cv2err:
+            warnings.warn(f"Could not calculate the warp matrix: {cv2err}", EORuntimeWarning)
 
         return warp_matrix
 
@@ -160,7 +160,7 @@ class ECCRegistrationTask(EOTask):
                     eopatch[feature_type][feature_name][idx], warp_matrix
                 )
 
-        new_eopatch.meta_info = dict()
+        new_eopatch.meta_info = {}
         new_eopatch.meta_info["warp_matrices"] = warp_matrices
         return new_eopatch
 
@@ -175,15 +175,14 @@ class ECCRegistrationTask(EOTask):
                 borderMode=self.border_mode,
                 borderValue=self.border_value,
             )
-        else:
-            return cv2.warpAffine(
-                img.astype(np.float32),
-                warp_matrix,
-                shape,
-                flags=flags,
-                borderMode=self.border_mode,
-                borderValue=self.border_value,
-            )
+        return cv2.warpAffine(
+            img.astype(np.float32),
+            warp_matrix,
+            shape,
+            flags=flags,
+            borderMode=self.border_mode,
+            borderValue=self.border_value,
+        )
 
     def warp_feature(self, img: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
         """Function to warp input image given an estimated 2D linear transformation"""
