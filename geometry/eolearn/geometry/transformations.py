@@ -250,7 +250,9 @@ class VectorToRasterTask(EOTask):
             if isinstance(self.raster_shape[0], int) and isinstance(self.raster_shape[1], int):
                 return self.raster_shape
 
-            feature_type, feature_name = self.parse_feature(self.raster_shape, FeatureTypeSet.RASTER_TYPES)
+            feature_type, feature_name = self.parse_feature(
+                self.raster_shape, allowed_feature_types=FeatureTypeSet.RASTER_TYPES
+            )
             return eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))  # cast verified in parser
 
         if self.raster_resolution:
