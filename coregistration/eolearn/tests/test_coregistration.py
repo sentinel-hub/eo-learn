@@ -43,11 +43,9 @@ def test_registration(example_eopatch):
     with pytest.warns(EORuntimeWarning):
         reopatch = reg(example_eopatch)
 
-    assert (
-        example_eopatch.data["BANDS-S2-L1C"].shape == reopatch.data["BANDS-S2-L1C"].shape
-    ), "Shapes of .data['bands'] do not match"
-    assert example_eopatch.data["NDVI"].shape == reopatch.data["NDVI"].shape, "Shapes of .data['ndvi'] do not match"
-    assert example_eopatch.mask["CLM"].shape == reopatch.mask["CLM"].shape, "Shapes of .mask['cm'] do not match"
+    assert example_eopatch.data["BANDS-S2-L1C"].shape == reopatch.data["BANDS-S2-L1C"].shape
+    assert example_eopatch.data["NDVI"].shape == reopatch.data["NDVI"].shape
+    assert example_eopatch.mask["CLM"].shape == reopatch.mask["CLM"].shape
     assert not np.allclose(
         example_eopatch.data["BANDS-S2-L1C"], reopatch.data["BANDS-S2-L1C"]
     ), "Registration did not warp .data['bands']"
@@ -55,7 +53,7 @@ def test_registration(example_eopatch):
         example_eopatch.data["NDVI"], reopatch.data["NDVI"]
     ), "Registration did not warp .data['ndvi']"
     assert not np.allclose(example_eopatch.mask["CLM"], reopatch.mask["CLM"]), "Registration did not warp .mask['cm']"
-    assert "warp_matrices" in reopatch.meta_info, "Estimated transformations not saved to EOPatch"
+    assert "warp_matrices" in reopatch.meta_info
 
     for warp_matrix in reopatch.meta_info["warp_matrices"].values():
         assert np.linalg.norm(np.array(warp_matrix)[:, 2]) <= 5.0, "Estimated translation is larger than max value"
