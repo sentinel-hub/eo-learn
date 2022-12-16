@@ -1,2 +1,2 @@
 eo-learn-core
-opencv-contrib-python-headless>=4.1
+opencv-python
