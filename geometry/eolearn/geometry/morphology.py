@@ -10,15 +10,18 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import itertools as it
 from enum import Enum
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import skimage.filters.rank
 import skimage.morphology
 
-from eolearn.core import EOTask, MapFeatureTask
+from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
+from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
 
 
 class ErosionTask(EOTask):
@@ -26,25 +29,31 @@ class ErosionTask(EOTask):
     The task performs an erosion to the provided mask
 
     :param mask_feature: The mask which is to be eroded
-    :type mask_feature: (FeatureType, str)
     :param disk_radius: Radius of the erosion disk (in pixels). Default is set to `1`
-    :type disk_radius: int
     :param erode_labels: List of labels to erode. If `None`, all unique labels are eroded. Default is `None`
-    :type erode_labels: list(int)
     :param no_data_label: Value used to replace eroded pixels. Default is set to `0`
-    :type no_data_label: int
     """
 
-    def __init__(self, mask_feature, disk_radius=1, erode_labels=None, no_data_label=0):
+    def __init__(
+        self,
+        mask_feature: SingleFeatureSpec,
+        disk_radius: int = 1,
+        erode_labels: Optional[List[int]] = None,
+        no_data_label: int = 0,
+    ):
         if not isinstance(disk_radius, int) or disk_radius is None or disk_radius < 1:
             raise ValueError("Disk radius should be an integer larger than 0!")
 
-        self.mask_type, self.mask_name, self.new_mask_name = self.parse_renamed_feature(mask_feature)
+        parsed_mask_feature = cast(
+            Tuple[FeatureType, str, str],
+            self.parse_renamed_feature(mask_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES),
+        )
+        self.mask_type, self.mask_name, self.new_mask_name = parsed_mask_feature
         self.disk = skimage.morphology.disk(disk_radius)
         self.erode_labels = erode_labels
         self.no_data_label = no_data_label
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         feature_array = eopatch[(self.mask_type, self.mask_name)].squeeze().copy()
 
         all_labels = np.unique(feature_array)
@@ -74,12 +83,10 @@ class MorphologicalOperations(Enum):
     MEDIAN = "median"
 
     @classmethod
-    def get_operation(cls, morph_type):
+    def get_operation(cls, morph_type: MorphologicalOperations) -> Callable:
         """Maps morphological operation type to function
 
         :param morph_type: Morphological operation type
-        :type morph_type: MorphologicalOperations
-        :return: function
         """
         return {
             cls.OPENING: skimage.morphology.opening,
@@ -96,44 +103,35 @@ class MorphologicalStructFactory:
     """
 
     @staticmethod
-    def get_disk(radius):
+    def get_disk(radius: int) -> np.ndarray:
         """
         :param radius: Radius of disk
-        :type radius: int
         :return: The structuring element where elements of the neighborhood are 1 and 0 otherwise.
-        :rtype: numpy.ndarray
         """
         return skimage.morphology.disk(radius)
 
     @staticmethod
-    def get_diamond(radius):
+    def get_diamond(radius: int) -> np.ndarray:
         """
         :param radius: Radius of diamond
-        :type radius: int
         :return: The structuring element where elements of the neighborhood are 1 and 0 otherwise.
-        :rtype: numpy.ndarray
         """
         return skimage.morphology.diamond(radius)
 
     @staticmethod
-    def get_rectangle(width, height):
+    def get_rectangle(width: int, height: int) -> np.ndarray:
         """
         :param width: Width of rectangle
-        :type width: int
         :param height: Height of rectangle
-        :type height: int
         :return: A structuring element consisting only of ones, i.e. every pixel belongs to the neighborhood.
-        :rtype: numpy.ndarray
         """
         return skimage.morphology.rectangle(width, height)
 
     @staticmethod
-    def get_square(width):
+    def get_square(width: int) -> np.ndarray:
         """
         :param width: Size of square
-        :type width: int
         :return: A structuring element consisting only of ones, i.e. every pixel belongs to the neighborhood.
-        :rtype: numpy.ndarray
         """
         return skimage.morphology.square(width)
 
@@ -143,8 +141,8 @@ class MorphologicalFilterTask(MapFeatureTask):
 
     def __init__(
         self,
-        input_features,
-        output_features=None,
+        input_features: FeaturesSpecification,
+        output_features: Optional[FeaturesSpecification] = None,
         *,
         morph_operation: Union[MorphologicalOperations, Callable],
         struct_elem: Optional[np.ndarray] = None,
@@ -166,7 +164,7 @@ class MorphologicalFilterTask(MapFeatureTask):
             self.morph_operation = morph_operation
         self.struct_elem = struct_elem
 
-    def map_method(self, feature):
+    def map_method(self, feature: np.ndarray) -> np.ndarray:
         """Applies the morphological operation to a raster feature."""
         feature = feature.copy()
         if feature.ndim == 3:
