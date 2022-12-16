@@ -96,12 +96,10 @@ class VectorToRasterTask(EOTask):
             `raster_resolution`.
         :param raster_dtype: Data type of the obtained raster array, default is `numpy.uint8`.
         :param no_data_value: Default value of all other raster pixels into which no value will be rasterized.
-        :type no_data_value: int or float
         :param write_to_existing: If `True` it will write to existing raster array and overwrite parts of its values.
             If `False` it will create a new raster array and remove the old one. Default is `False`.
         :param overlap_value: A value to override parts of raster where polygons of different classes overlap. If None,
             rasterization overlays polygon as it is the default behavior of `rasterio.features.rasterize`.
-        :type overlap_value: raster's dtype
         :param buffer: Buffer value passed to vector_data.buffer() before rasterization. If 0, no buffering is done.
         :param: rasterio_params: Additional parameters to be passed to `rasterio.features.rasterize`. Currently,
             available parameters are `all_touched` and `merge_alg`
@@ -383,7 +381,6 @@ class RasterToVectorTask(EOTask):
 
             - `features=(FeatureType.MASK, 'CLOUD_MASK', 'VECTOR_CLOUD_MASK')`
             - `features=[(FeatureType.MASK_TIMELESS, 'CLASSIFICATION'), (FeatureType.MASK, 'TEMPORAL_CLASSIFICATION')]`
-        :type features: object supported by eolearn.core.utilities.FeatureParser class
         :param values: List of values which will be vectorized. By default, is set to ``None`` and all values will be
             vectorized
         :param values_column: Name of the column in vector feature where raster values will be written
