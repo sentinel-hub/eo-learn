@@ -8,7 +8,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-from typing import Any
+from typing import Any, Tuple
 
 import numpy as np
 import pytest
@@ -36,56 +36,63 @@ def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
         TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 
 
-def test_train_split() -> None:
-    shape = (1000, 1000, 3)
-    data = np.random.randint(10, size=shape, dtype=int)
+@pytest.fixture(name="eopatch")
+def eopatch_fixture() -> EOPatch:
+    eopatch = EOPatch()
+    eopatch[INPUT_FEATURE] = np.random.randint(10, size=(1000, 1000, 3), dtype=int)
 
+    return eopatch
+
+
+@pytest.fixture(name="eopatch_pair")
+def eopatch_pair_fixture(eopatch: EOPatch) -> Tuple[EOPatch, EOPatch]:
+    patch = EOPatch()
+    patch[INPUT_FEATURE] = np.random.randint(10, size=(1000, 1000, 3), dtype=int)
+
+    return eopatch, patch
+
+
+def test_train_split(eopatch: EOPatch) -> None:
     indices = [(0, 2, 0, 2), (0, 2, 2, 4), (2, 4, 0, 2), (2, 4, 2, 4), (0, 4, 4, 8), (4, 8, 0, 4), (4, 8, 4, 8)]
     for index, (i_1, i_2, j_1, j_2) in enumerate(indices, 1):
-        data[i_1:i_2, j_1:j_2, :] = index * 11
-
-    patch = EOPatch()
-    patch[INPUT_FEATURE] = data
+        eopatch[INPUT_FEATURE][i_1:i_2, j_1:j_2, :] = index * 11
 
     bins = [0.2, 0.5, 0.8]
     expected_unique = set(range(1, len(bins) + 2))
 
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
-        patch, seed=1
+    eopatch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
+        eopatch, seed=1
     )
-    assert set(np.unique(patch[OUTPUT_FEATURE])) <= expected_unique
+    assert set(np.unique(eopatch[OUTPUT_FEATURE])) <= expected_unique
 
-    result_seed1 = np.copy(patch[OUTPUT_FEATURE])
-    unique = (np.unique(result_seed1[i_1:i_2, j_1:j_2, :], return_counts=True) for i_1, i_2, j_1, j_2 in indices)
-    expected = [(i_2 - i_1) * (j_2 - j_1) * shape[-1] for i_1, i_2, j_1, j_2 in indices]
+    result = np.copy(eopatch[OUTPUT_FEATURE])
+    unique = (np.unique(result[i_1:i_2, j_1:j_2, :], return_counts=True) for i_1, i_2, j_1, j_2 in indices)
+    expected = [(i_2 - i_1) * (j_2 - j_1) * 3 for i_1, i_2, j_1, j_2 in indices]
 
     for (unique_values, unique_counts), expected_count in zip(unique, expected):
         assert len(unique_values) == 1
         assert len(unique_counts) == 1
         assert unique_counts[0] == expected_count
 
-    # seed=2 should produce different result than seed=1
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
-        patch, seed=2
-    )
-    result_seed2 = np.copy(patch[OUTPUT_FEATURE])
-    assert set(np.unique(result_seed2)) <= expected_unique
-    assert not np.array_equal(result_seed1, result_seed2)
 
-    # test with seed 1 should produce the same result as before
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)(
-        patch, seed=1
-    )
-    result_seed_equal = patch[OUTPUT_FEATURE]
-    assert set(np.unique(result_seed2)) <= expected_unique
-    assert_array_equal(result_seed1, result_seed_equal)
+def test_seed(eopatch: EOPatch) -> None:
+    """seed=2 should produce different result than seed=1"""
+    bins = [0.2, 0.5, 0.8]
+    split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)
+    result_seed1 = np.copy(split_task(eopatch, seed=1)[OUTPUT_FEATURE])
 
-    # test ignore_values=[2]
+    assert not np.array_equal(result_seed1, split_task(eopatch, seed=2)[OUTPUT_FEATURE])
+    assert_array_equal(result_seed1, split_task(eopatch, seed=1)[OUTPUT_FEATURE])
+
+
+def test_ignore_value(eopatch: EOPatch) -> None:
+    """test ignore_values=[2]"""
 
     bins = [0.2, 0.5, 0.7, 0.8]
     expected_unique = set(range(0, len(bins) + 2))
+    data = np.random.randint(10, size=eopatch[INPUT_FEATURE].shape)
 
-    data = np.random.randint(10, size=shape)
+    patch = EOPatch()
     patch[INPUT_FEATURE] = data
 
     split_task = TrainTestSplitTask(
@@ -96,60 +103,38 @@ def test_train_split() -> None:
         ignore_values=[2],
     )
 
-    patch = split_task(patch, seed=542)
+    patch = split_task(patch)
 
     assert set(np.unique(patch[(FeatureType.MASK_TIMELESS, "BINS")])) <= expected_unique
     assert np.all(patch[(FeatureType.MASK_TIMELESS, "BINS")][data == 2] == 0)
 
 
-def test_train_split_per_pixel() -> None:
-    shape = (1000, 1000, 3)
-
-    input_data = np.random.randint(10, size=shape, dtype=int)
-    patch = EOPatch()
-    patch[INPUT_FEATURE] = input_data
-
+def test_train_split_per_pixel(eopatch: EOPatch) -> None:
     bins = [0.2, 0.6]
-    patch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_PIXEL)(
-        patch, seed=1
+    eopatch = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_PIXEL)(
+        eopatch, seed=1
     )
 
-    output_data = patch[OUTPUT_FEATURE]
-    unique, counts = np.unique(output_data, return_counts=True)
-    class_percentages = np.round(counts / input_data.size, 1)
+    unique, counts = np.unique(eopatch[OUTPUT_FEATURE], return_counts=True)
+    class_percentages = np.round(counts / eopatch[INPUT_FEATURE].size, 1)
     expected_unique = list(range(1, len(bins) + 2))
 
     assert_array_equal(unique, expected_unique)
     assert_array_equal(class_percentages, [0.2, 0.4, 0.4])
 
 
-def test_train_split_per_value() -> None:
+def test_train_split_per_value(eopatch_pair: Tuple[EOPatch, EOPatch]) -> None:
     """Test if class ids get assigned to the same subclasses in multiple eopatches"""
-    shape = (1000, 1000, 3)
-
-    input1 = np.random.randint(10, size=shape, dtype=int)
-    input2 = np.random.randint(10, size=shape, dtype=int)
-
-    patch1 = EOPatch()
-    patch1[INPUT_FEATURE] = input1
-
-    patch2 = EOPatch()
-    patch2[INPUT_FEATURE] = input2
-
     bins = [0.2, 0.6]
-
     split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_VALUE)
 
-    # seeds should get ignored when splitting 'per_value'
-    patch1 = split_task(patch1, seed=1)
-    patch2 = split_task(patch2, seed=1)
+    patch1, patch2 = eopatch_pair
+    patch1, patch2 = split_task(patch1), split_task(patch2)
+    otuput1, otuput2 = patch1[OUTPUT_FEATURE], patch2[OUTPUT_FEATURE]
 
-    otuput1 = patch1[OUTPUT_FEATURE]
-    otuput2 = patch2[OUTPUT_FEATURE]
-
-    unique = set(np.unique(input1)) | set(np.unique(input2))
+    unique = set(np.unique(patch1[INPUT_FEATURE])) | set(np.unique(patch2[INPUT_FEATURE]))
 
     for uniq in unique:
-        folds1 = otuput1[input1 == uniq]
-        folds2 = otuput2[input2 == uniq]
+        folds1 = otuput1[patch1[INPUT_FEATURE] == uniq]
+        folds2 = otuput2[patch2[INPUT_FEATURE] == uniq]
         assert_array_equal(np.unique(folds1), np.unique(folds2))
