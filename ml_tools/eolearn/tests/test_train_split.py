@@ -67,7 +67,7 @@ def test_train_split(eopatch: EOPatch) -> None:
 
     result = np.copy(eopatch[OUTPUT_FEATURE])
     unique = (np.unique(result[i_1:i_2, j_1:j_2, :], return_counts=True) for i_1, i_2, j_1, j_2 in indices)
-    expected = [(i_2 - i_1) * (j_2 - j_1) * 3 for i_1, i_2, j_1, j_2 in indices]
+    expected = [(i_2 - i_1) * (j_2 - j_1) * eopatch[OUTPUT_FEATURE].shape[-1] for i_1, i_2, j_1, j_2 in indices]
 
     for (unique_values, unique_counts), expected_count in zip(unique, expected):
         assert len(unique_values) == 1
