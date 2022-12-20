@@ -17,9 +17,7 @@ from PIL import Image
 
 from eolearn.core.exceptions import EORuntimeWarning
 
-_CV2_IMPORT_MESSAGE = (
-    "The CV2 backend is not installed by default. We suggest you install the `opencv-contrib-python-headless package."
-)
+_CV2_IMPORT_MESSAGE = "The CV2 backend is not installed by default. We suggest you install the `opencv-python` package."
 
 
 class ResizeParam(Enum):
