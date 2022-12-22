@@ -65,6 +65,7 @@ jobs:
           mypy core/eolearn/core
           mypy ml_tools/eolearn/ml_tools
           mypy geometry/eolearn/geometry
+          mypy features/eolearn/features
 
   test-on-github:
     runs-on: ubuntu-latest
