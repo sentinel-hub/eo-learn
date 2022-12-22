@@ -16,6 +16,7 @@ import datetime as dt
 import inspect
 import warnings
 from functools import partial
+from typing import Any, Callable, List, Optional, Set, Tuple, Union, cast
 
 import dateutil
 import numpy as np
@@ -24,6 +25,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EOUserWarning
+from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
 
 try:
     import numba
@@ -32,18 +34,16 @@ except ImportError as exception:
         f"Failed to import numba with exception: '{exception}'. Some interpolation tasks won't work", EOUserWarning
     )
 
+ResampleRangeType = Union[None, Tuple[str, str, int], List[str], List[dt.datetime]]
 
-def base_interpolation_function(data, times, resampled_times):
+
+def base_interpolation_function(data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
     """Interpolates data feature
 
     :param data: Array in a shape of t x (h x w x n)
-    :type data: numpy.ndarray
     :param times: Array of reference times relative to the first timestamp
-    :type times:
     :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
-    :type resampled_times: numpy.array
     :return: Array of interpolated values
-    :rtype: numpy.ndarray
     """
 
     _, height_width_depth = data.shape
@@ -95,52 +95,42 @@ class InterpolationTask(EOTask):
     the feature will contain interpolated and resampled values and corresponding new timestamps.
 
     :param feature: A feature to be interpolated with optional new feature name
-    :type feature: (FeatureType, str) or (FeatureType, str, str)
-    :param interpolation_object: Interpolation class which is initialized with
-    :type interpolation_object: object
+    :param interpolation_object: Interpolation class which is initialized with `interpolation_parameters`
     :param resample_range: If None the data will be only interpolated over existing timestamps and NaN values will be
-        replaced with interpolated values (if possible) in the existing EOPatch. Otherwise, ``resample_range`` can be
+        replaced with interpolated values (if possible) in the existing EOPatch. Otherwise, `resample_range` can be
         set to tuple in a form of (start_date, end_date, step_days), e.g. ('2018-01-01', '2018-06-01', 16). This will
         create a new EOPatch with resampled values for times start_date, start_date + step_days,
         start_date + 2 * step_days, ... . End date is excluded from timestamps. Additionally, ``resample_range`` can
         be a list of dates or date-strings where the interpolation will be evaluated.
-    :type resample_range: (str, str, int) or list(str) or list(datetime.datetime) or None
     :param result_interval: Maximum and minimum of returned data
-    :type result_interval: (float, float)
     :param mask_feature: A mask feature which will be used to mask certain features
-    :type mask_feature: (FeatureType, str)
     :param copy_features: List of tuples of type (FeatureType, str) or (FeatureType, str, str) that are copied
         over into the new EOPatch. The first string is the feature name, and the second one (optional) is a new name
         to be used for the feature
-    :type copy_features: list((FeatureType, str) or (FeatureType, str, str))
     :param unknown_value: Value which will be used for timestamps where interpolation cannot be calculated
-    :type unknown_value: float or numpy.nan
     :param filling_factor: Multiplication factor used to create temporal gap between consecutive observations. Value
         has to be greater than 1. Default is `10`
-    :type filling_factor: int
     :param scale_time: Factor used to scale the time difference in seconds between acquisitions. If `scale_time=60`,
         returned time is in minutes, if `scale_time=3600` in hours. Default is `3600`
-    :type scale_time: int
     :param interpolate_pixel_wise: Flag to indicate pixel wise interpolation or fast interpolation that creates a single
         interpolation object for the whole image
-    :type interpolate_pixel_wise: bool
-    :param interpolation_parameters: Parameters which will be propagated to ``interpolation_object``
+    :param interpolation_parameters: Parameters which will be propagated to `interpolation_object`
     """
 
     def __init__(
         self,
-        feature,
-        interpolation_object,
+        feature: SingleFeatureSpec,
+        interpolation_object: Callable,
         *,
-        resample_range=None,
-        result_interval=None,
-        mask_feature=None,
-        copy_features=None,
-        unknown_value=np.nan,
-        filling_factor=10,
-        scale_time=3600,
-        interpolate_pixel_wise=False,
-        **interpolation_parameters,
+        resample_range: ResampleRangeType = None,
+        result_interval: Optional[Tuple[float, float]] = None,
+        mask_feature: Optional[SingleFeatureSpec] = None,
+        copy_features: Optional[FeaturesSpecification] = None,
+        unknown_value: float = np.nan,
+        filling_factor: int = 10,
+        scale_time: int = 3600,
+        interpolate_pixel_wise: bool = False,
+        **interpolation_parameters: Any,
     ):
         self.renamed_feature = self.parse_renamed_feature(feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
 
@@ -173,18 +163,13 @@ class InterpolationTask(EOTask):
         self._resampled_times = None
 
     @staticmethod
-    def _mask_feature_data(feature_data, mask, mask_type):
+    def _mask_feature_data(feature_data: np.ndarray, mask: np.ndarray, mask_type: FeatureType) -> np.ndarray:
         """Masks values of data feature with a given mask of given mask type. The masking is done by assigning
         `numpy.nan` value.
 
         :param feature_data: Data array which will be masked
-        :type feature_data: numpy.ndarray
         :param mask: Mask array
-        :type mask: numpy.ndarray
-        :param mask_type: Feature type of mask
-        :type mask_type: FeatureType
         :return: Masked data array
-        :rtype: numpy.ndarray
         """
 
         if mask_type.is_spatial() and feature_data.shape[1:3] != mask.shape[-3:-1]:
@@ -215,16 +200,14 @@ class InterpolationTask(EOTask):
         return feature_data
 
     @staticmethod
-    def _get_start_end_nans(data):
+    def _get_start_end_nans(data: np.ndarray) -> np.ndarray:
         """Find NaN values in data that either start or end the time-series
 
         Function to return a binary array of same size as data where `True` values correspond to NaN values present at
         beginning or end of time-series. NaNs internal to the time-series are not included in the binary mask.
 
         :param data: Array of observations of size TxNOBS
-        :type data: numpy.array
         :return: Binary array of shape TxNOBS. `True` values indicate NaNs present at beginning or end of time-series
-        :rtype: numpy.array
         """
         # find NaNs that start a time-series
         start_nan = np.isnan(data)
@@ -238,23 +221,23 @@ class InterpolationTask(EOTask):
         return np.logical_or(start_nan, end_nan)
 
     @staticmethod
-    def _get_unique_times(data, times):
+    def _get_unique_times(data: np.ndarray, times: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Replace duplicate acquisitions which have same values on the chosen timescale with their average.
         The average is calculated with numpy.nanmean, meaning that NaN values are ignored when calculating the average.
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
-        :type data: numpy.ndarray
         :param times: Array of reference times relative to the first timestamp
-        :type times: numpy.array
         :return: cleaned versions of data input
-        :rtype: numpy.ndarray
-        :return: cleaned versions of times input
-        :rtype: numpy.array
         """
         seen = set()
-        duplicated_indices = np.array(
-            [idx for idx, item in enumerate(times) if item in seen or seen.add(item)], dtype=int
-        )
+        duplication_list = []
+        for idx, item in enumerate(times):
+            if item in seen:
+                duplication_list.append(idx)
+            else:
+                seen.add(item)
+        duplicated_indices = np.array(duplication_list, dtype=int)
+
         duplicated_times = np.unique(times[duplicated_indices])
 
         for time in duplicated_times:
@@ -267,16 +250,14 @@ class InterpolationTask(EOTask):
 
         return data, times
 
-    def _copy_old_features(self, new_eopatch, old_eopatch):
+    def _copy_old_features(self, new_eopatch: EOPatch, old_eopatch: EOPatch) -> EOPatch:
         """Copy features from old EOPatch
 
         :param new_eopatch: New EOPatch container where the old features will be copied to
-        :type new_eopatch: EOPatch
         :param old_eopatch: Old EOPatch container where the old features are located
-        :type old_eopatch: EOPatch
         """
         if self.copy_features_parser is not None:
-            existing_features = set(new_eopatch.get_feature_list())
+            existing_features: Set[Tuple[FeatureType, Optional[str]]] = set(self.parse_features(..., new_eopatch))
 
             renamed_features = self.copy_features_parser.get_renamed_features(old_eopatch)
             for copy_feature_type, copy_feature_name, copy_new_feature_name in renamed_features:
@@ -295,17 +276,13 @@ class InterpolationTask(EOTask):
 
         return new_eopatch
 
-    def interpolate_data(self, data, times, resampled_times):
+    def interpolate_data(self, data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
         """Interpolates data feature
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
-        :type data: numpy.ndarray
         :param times: Array of reference times relative to the first timestamp
-        :type times: numpy.array
         :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
-        :type resampled_times: numpy.array
         :return: Array of interpolated values
-        :rtype: numpy.ndarray
         """
         # pylint: disable=too-many-locals
         # get size of 2d array t x nobs
@@ -374,27 +351,24 @@ class InterpolationTask(EOTask):
         # return interpolated values
         return new_data
 
-    def get_interpolation_function(self, times, series):
+    def get_interpolation_function(self, times: np.ndarray, series: np.ndarray) -> Callable:
         """Initializes interpolation model
 
         :param times: Array of reference times in second relative to the first timestamp
-        :type times: numpy.array
         :param series: One dimensional array of time series
-        :type series: numpy.array
         :return: Initialized interpolation model class
         """
         if str(inspect.getmodule(self.interpolation_object))[9:14] == "numpy":
             return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
-    def get_resampled_timestamp(self, timestamp):
+    def get_resampled_timestamp(self, timestamp: List[dt.datetime]) -> List[dt.datetime]:
         """Takes a list of timestamps and generates new list of timestamps according to ``resample_range``
 
         :param timestamp: list of timestamps
-        :type timestamp: list(datetime.datetime)
         :return: new list of timestamps
-        :rtype: list(datetime.datetime)
         """
+        days: List[dt.datetime]
         if self.resample_range is None:
             return timestamp
 
@@ -402,23 +376,24 @@ class InterpolationTask(EOTask):
             raise ValueError(f"Invalid resample_range {self.resample_range}, expected tuple")
 
         if tuple(map(type, self.resample_range)) == (str, str, int):
-            start_date = dateutil.parser.parse(self.resample_range[0])
-            end_date = dateutil.parser.parse(self.resample_range[1])
-            step = dt.timedelta(days=self.resample_range[2])
+            resample_range = cast(Tuple[str, str, int], self.resample_range)
+            start_date = dateutil.parser.parse(resample_range[0])
+            end_date = dateutil.parser.parse(resample_range[1])
+            step = dt.timedelta(days=resample_range[2])
             days = [start_date]
             while days[-1] + step < end_date:
                 days.append(days[-1] + step)
 
-        elif self.resample_range and np.all([isinstance(date, str) for date in self.resample_range]):
-            days = [dateutil.parser.parse(date) for date in self.resample_range]
-        elif self.resample_range and np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
-            days = list(self.resample_range)
+        elif np.all([isinstance(date, str) for date in self.resample_range]):
+            days = [dateutil.parser.parse(date) for date in cast(List[str], self.resample_range)]
+        elif np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
+            days = list(cast(List[dt.datetime], self.resample_range))
         else:
             raise ValueError("Invalid format in {self.resample_range}, expected strings or datetimes")
 
         return days
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute method that processes EOPatch and returns EOPatch"""
         # pylint: disable=too-many-locals
         feature_type, feature_name, new_feature_name = self.renamed_feature
@@ -486,26 +461,21 @@ class LinearInterpolationTask(InterpolationTask):
 
     :param parallel: interpolation is calculated in parallel using as many CPUs as detected
         by the multiprocessing module.
-    :type parallel: bool
     :param kwargs: parameters of InterpolationTask(EOTask)
     """
 
-    def __init__(self, feature, parallel=False, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, parallel: bool = False, **kwargs: Any):
         self.parallel = parallel
         super().__init__(feature, np.interp, **kwargs)
 
-    def interpolate_data(self, data, times, resampled_times):
+    def interpolate_data(self, data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
         """Interpolates data feature
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
-        :type data: numpy.ndarray
         :param times: Array of reference times in second relative to the first timestamp
-        :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
             array.
-        :type resampled_times: numpy.array
         :return: Array of interpolated values
-        :rtype: numpy.ndarray
         """
         if self.parallel:
             return interpolation_function_parallel(data, times, resampled_times)
@@ -513,47 +483,39 @@ class LinearInterpolationTask(InterpolationTask):
 
 
 class CubicInterpolationTask(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
-    """
+    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
 
-    def __init__(self, feature, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, kind="cubic", **kwargs)
 
 
 class SplineInterpolationTask(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`
-    """
+    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`"""
 
-    def __init__(self, feature, *, spline_degree=3, smoothing_factor=0, **kwargs):
+    def __init__(
+        self, feature: SingleFeatureSpec, *, spline_degree: int = 3, smoothing_factor: float = 0, **kwargs: Any
+    ):
         super().__init__(feature, scipy.interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
 
 
 class BSplineInterpolationTask(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`
-    """
+    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`"""
 
-    def __init__(self, feature, *, spline_degree=3, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, *, spline_degree: int = 3, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.make_interp_spline, k=spline_degree, **kwargs)
 
 
 class AkimaInterpolationTask(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`
-    """
+    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`"""
 
-    def __init__(self, feature, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.Akima1DInterpolator, **kwargs)
 
 
 class KrigingObject:
-    """
-    Interpolation function like object for Kriging
-    """
+    """Interpolation function like object for Kriging"""
 
-    def __init__(self, times, series, **kwargs):
+    def __init__(self, times: np.ndarray, series: np.ndarray, **kwargs: Any):
         self.regressor = GaussianProcessRegressor(**kwargs)
 
         # Since most of the data is close to zero (relatively to time points), first get time data in [0,1] range
@@ -566,40 +528,38 @@ class KrigingObject:
         self.regressor.fit(times.reshape(-1, 1) / self.normalizing_factor, series)
         self.call_args = kwargs.get("call_args", {})
 
-    def __call__(self, new_times, **kwargs):
+    def __call__(self, new_times: np.ndarray, **kwargs: Any) -> np.ndarray:
         call_args = self.call_args.copy()
         call_args.update(kwargs)
         return self.regressor.predict(new_times.reshape(-1, 1) / self.normalizing_factor, **call_args)
 
 
 class KrigingInterpolationTask(InterpolationTask):
-    """
-    Implements `eolearn.features.InterpolationTask` by using `sklearn.gaussian_process.GaussianProcessRegressor`
+    """Implements `eolearn.features.InterpolationTask` by using `sklearn.gaussian_process.GaussianProcessRegressor`
+
     Gaussian processes (superset of kriging) are especially used in geological missing data estimation.
-    Compared to spline interpolation, gaussian processes produce much more smoothed results
-    (which may or may not be desirable).
-
+    Compared to spline interpolation, gaussian processes produce much more smoothed results (might be desirable).
     """
 
-    def __init__(self, feature, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, **kwargs: Any):
         super().__init__(feature, KrigingObject, interpolate_pixel_wise=True, **kwargs)
 
 
 class ResamplingTask(InterpolationTask):
-    """
-    A subclass of InterpolationTask task that works only with data with no missing, masked or
-    invalid values. It always resamples timeseries to different timestamps.
+    """A subclass of InterpolationTask task that works only with data with no missing, masked or invalid values.
+
+    It always resamples timeseries to different timestamps.
     """
 
     def __init__(
         self,
-        feature,
-        interpolation_object,
-        resample_range,
+        feature: SingleFeatureSpec,
+        interpolation_object: Callable,
+        resample_range: ResampleRangeType,
         *,
-        result_interval=None,
-        unknown_value=np.nan,
-        **interpolation_parameters,
+        result_interval: Optional[Tuple[float, float]] = None,
+        unknown_value: float = np.nan,
+        **interpolation_parameters: Any,
     ):
         if resample_range is None:
             raise ValueError("resample_range parameter must be in form ('start_date', 'end_date', step_days)")
@@ -612,18 +572,14 @@ class ResamplingTask(InterpolationTask):
             **interpolation_parameters,
         )
 
-    def interpolate_data(self, data, times, resampled_times):
+    def interpolate_data(self, data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
         """Interpolates data feature
 
         :param data: Array in a shape of t x nobs, where nobs = h x w x n
-        :type data: numpy.ndarray
         :param times: Array of reference times in second relative to the first timestamp
-        :type times: numpy.array
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
             array.
-        :type resampled_times: numpy.array
         :return: Array of interpolated values
-        :rtype: numpy.ndarray
         """
         if True in np.unique(np.isnan(data)):
             raise ValueError("Data must not contain any masked/invalid pixels or NaN values")
@@ -635,13 +591,11 @@ class ResamplingTask(InterpolationTask):
         new_data[time_mask] = interp_func(resampled_times[time_mask])
         return new_data
 
-    def get_interpolation_function(self, times, series):
+    def get_interpolation_function(self, times: np.ndarray, series: np.ndarray) -> Callable:
         """Initializes interpolation model
 
         :param times: Array of reference times in second relative to the first timestamp
-        :type times: numpy.array
         :param series: One dimensional array of time series
-        :type series: numpy.array
         :return: Initialized interpolation model class
         """
         return self.interpolation_object(times, series, axis=0, **self.interpolation_parameters)
@@ -652,7 +606,7 @@ class NearestResamplingTask(ResamplingTask):
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
     """
 
-    def __init__(self, feature, resample_range, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="nearest", **kwargs)
 
 
@@ -661,7 +615,7 @@ class LinearResamplingTask(ResamplingTask):
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`
     """
 
-    def __init__(self, feature, resample_range, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="linear", **kwargs)
 
 
@@ -670,5 +624,5 @@ class CubicResamplingTask(ResamplingTask):
     Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`
     """
 
-    def __init__(self, feature, resample_range, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="cubic", **kwargs)

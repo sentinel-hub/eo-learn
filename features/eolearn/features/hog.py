@@ -9,10 +9,13 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
+from typing import Optional, Tuple
+
 import numpy as np
 import skimage.feature
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.utils.parsing import SingleFeatureSpec
 
 
 class HOGTask(EOTask):
@@ -27,32 +30,26 @@ class HOGTask(EOTask):
 
     def __init__(
         self,
-        feature,
-        orientations=9,
-        pixels_per_cell=(8, 8),
-        cells_per_block=(3, 3),
-        visualize=True,
-        hog_feature_vector=False,
-        block_norm="L2-Hys",
-        visualize_feature_name="",
+        feature: SingleFeatureSpec,
+        orientations: int = 9,
+        pixels_per_cell: Tuple[int, int] = (8, 8),
+        cells_per_block: Tuple[int, int] = (3, 3),
+        visualize: bool = True,
+        hog_feature_vector: bool = False,
+        block_norm: str = "L2-Hys",
+        visualize_feature_name: Optional[str] = None,
     ):
         """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
             specified it will be saved with name '<feature_name>_HOG'
 
             Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'hog')`
-        :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param orientations: Number of direction to use for the oriented gradient
-        :type orientations: int
         :param pixels_per_cell: Number of pixels in a cell
-        :type pixels_per_cell: (int, int)
         :param cells_per_block: Number of cells in a block
-        :type cells_per_block: (int, int)
         :param visualize: Produce a visualization for the HOG in an image
-        :type visualize: bool
         :param visualize_feature_name: Name of the visualization feature to be added to the eopatch (if empty and
-            visualize is True, the become “new_name”_VIZU
-        :type visualize_feature_name: str
+            visualize is True, it becomes “new_name”_VIZU
         """
         self.feature_parser = self.get_feature_parser(feature, allowed_feature_types=[FeatureType.DATA])
 
@@ -63,11 +60,8 @@ class HOGTask(EOTask):
         self.block_norm = block_norm
         self.hog_feature_vector = hog_feature_vector
         self.visualize_name = visualize_feature_name
-        if self.visualize_name == "":
-            for _, _, new_feature_name in self.feature:
-                self.visualize_name = new_feature_name + "_VISU"
 
-    def _compute_hog(self, data):
+    def _compute_hog(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         results_im = np.empty(
             (
                 data.shape[0],
@@ -104,18 +98,17 @@ class HOGTask(EOTask):
                                 results_im[time, row, col, angle] = res[block_row, block_col, cell_row, cell_col, angle]
         return results_im, im_visu
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute computation of HoG features on input eopatch
 
         :param eopatch: Input eopatch
-        :type eopatch: eolearn.core.EOPatch
         :return: EOPatch instance with new keys holding the HoG features and HoG image for visualisation.
-        :rtype: eolearn.core.EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
-            result = self._compute_hog(eopatch[feature_type][feature_name])
-            eopatch[feature_type][new_feature_name] = result[0]
+            result_im, im_visu = self._compute_hog(eopatch[feature_type, feature_name])
+            eopatch[feature_type, new_feature_name] = result_im
             if self.visualize:
-                eopatch[feature_type][self.visualize_name] = result[1]
+                visualize_name = self.visualize_name or f"{new_feature_name}_VISU"
+                eopatch[feature_type, visualize_name] = im_visu
 
         return eopatch
