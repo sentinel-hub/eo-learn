@@ -28,7 +28,6 @@ class PlotBackend(Enum):
     """Types of backend for plotting"""
 
     MATPLOTLIB = "matplotlib"
-    HVPLOT = "hvplot"
 
 
 def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs) -> object:
@@ -43,12 +42,6 @@ def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLI
 
     if backend is PlotBackend.MATPLOTLIB:
         return MatplotlibVisualization(*args, **kwargs).plot()
-
-    if backend is PlotBackend.HVPLOT:
-        # pylint: disable=import-outside-toplevel
-        from .extra.hvplot import HvPlotVisualization
-
-        return HvPlotVisualization(*args, **kwargs).plot()
 
     raise ValueError(f"EOPatch plotting backend {backend} is not supported")
 
