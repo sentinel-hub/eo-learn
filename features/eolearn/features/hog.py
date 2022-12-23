@@ -49,7 +49,7 @@ class HOGTask(EOTask):
         :param cells_per_block: Number of cells in a block
         :param visualize: Produce a visualization for the HOG in an image
         :param visualize_feature_name: Name of the visualization feature to be added to the eopatch (if empty and
-            visualize is True, it becomes “new_name”_VIZU
+            visualize is True, it becomes “new_name”_VIZU)
         """
         self.feature_parser = self.get_feature_parser(feature, allowed_feature_types=[FeatureType.DATA])
 
