@@ -160,8 +160,7 @@ class ECCRegistrationTask(EOTask):
                     eopatch[feature_type][feature_name][idx], warp_matrix
                 )
 
-        new_eopatch.meta_info = {}
-        new_eopatch.meta_info["warp_matrices"] = warp_matrices
+        new_eopatch[FeatureType.META_INFO, "warp_matrices"] = warp_matrices
         return new_eopatch
 
     def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: Tuple[int, int], flags: int) -> np.ndarray:
@@ -206,11 +205,9 @@ class ECCRegistrationTask(EOTask):
     def is_translation_large(self, warp_matrix: np.ndarray) -> bool:
         """Method that checks if estimated linear translation could be implausible.
 
-        This function checks whether the norm of the estimated translation in pixels exceeds a predefined
-        value.
-
+        This function checks whether the norm of the estimated translation in pixels exceeds a predefined value.
         """
-        return np.linalg.norm(warp_matrix[:, 2]) > self.max_translation
+        return np.linalg.norm(warp_matrix[:, 2]).astype(float) > self.max_translation
 
 
 def get_gradient(src: np.ndarray) -> np.ndarray:

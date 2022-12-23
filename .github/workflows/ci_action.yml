@@ -63,6 +63,7 @@ jobs:
       - name: Run mypy
         run: |
           mypy core/eolearn/core
+          mypy coregistration/eolearn/coregistration
           mypy geometry/eolearn/geometry
           mypy features/eolearn/features
           mypy ml_tools/eolearn/ml_tools
