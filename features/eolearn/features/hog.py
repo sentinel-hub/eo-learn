@@ -45,8 +45,8 @@ class HOGTask(EOTask):
 
             Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'hog')`
         :param orientations: Number of direction to use for the oriented gradient
-        :param pixels_per_cell: Number of pixels in a cell
-        :param cells_per_block: Number of cells in a block
+        :param pixels_per_cell: Number of pixels in a cell, provided as a pair of integers.
+        :param cells_per_block: Number of cells in a block, provided as a pair of integers.
         :param visualize: Produce a visualization for the HOG in an image
         :param visualize_feature_name: Name of the visualization feature to be added to the eopatch (if empty and
             visualize is True, it becomes “new_name”_VIZU)
