@@ -9,23 +9,20 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import itertools as it
+from typing import List, Optional
 
 import numpy as np
 from scipy.optimize import curve_fit
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.utils.parsing import SingleFeatureSpec
 
 
-def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5):
-    # pylint: disable=invalid-name,locally-disabled
-    """
-    Function that is passed to `scipy.optimize`
-    """
-    return initial_value + scale * np.piecewise(
-        middle,
-        [middle < a1, middle >= a1],
-        [lambda y: np.exp(-(((a1 - y) / a4) ** a5)), lambda y: np.exp(-(((y - a1) / a2) ** a3))],
-    )
+def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5) -> np.ndarray:
+    # pylint: disable=invalid-name
+    """Function passed to `scipy.optimize`"""
+    funclist = [lambda y: np.exp(-(((a1 - y) / a4) ** a5)), lambda y: np.exp(-(((y - a1) / a2) ** a3))]
+    return initial_value + scale * np.piecewise(middle, [middle < a1, middle >= a1], funclist)
 
 
 class DoublyLogisticApproximationTask(EOTask):
@@ -33,16 +30,18 @@ class DoublyLogisticApproximationTask(EOTask):
     EOTask class for calculation of doubly logistic approximation on each pixel for a feature. The task creates new
     feature with the function parameters for each pixel as vectors.
     :param feature: A feature on which the function will be approximated
-    :type feature: (FeatureType, str)
     :param new_feature: Name of the new feature where parameters of the function are saved
-    :type new_feature: (FeatureType, str)
     :param initial_parameters: Initial parameter guess
-    :type initial_parameters: List of floats length 7 corresponding to each parameter
     :param valid_mask: A feature used as a mask for valid regions. If left as None the whole patch is used
-    :type valid_mask: (FeatureType, str) or None
     """
 
-    def __init__(self, feature, new_feature="DOUBLY_LOGISTIC_PARAM", initial_parameters=None, valid_mask=None):
+    def __init__(
+        self,
+        feature: SingleFeatureSpec,
+        new_feature: SingleFeatureSpec = (FeatureType.DATA_TIMELESS, "DOUBLY_LOGISTIC_PARAM"),
+        initial_parameters: Optional[List[float]] = None,
+        valid_mask: Optional[SingleFeatureSpec] = None,
+    ):
         self.initial_parameters = initial_parameters
         self.feature = self.parse_feature(feature)
         self.new_feature = self.parse_feature(new_feature)
@@ -50,12 +49,10 @@ class DoublyLogisticApproximationTask(EOTask):
             self.parse_feature(valid_mask, allowed_feature_types=[FeatureType.MASK]) if valid_mask else None
         )
 
-    def _fit_optimize(self, x_axis, y_axis):
+    def _fit_optimize(self, x_axis: np.ndarray, y_axis: np.ndarray) -> np.ndarray:
         """
         :param x_axis: Horizontal coordinates of points
-        :type x_axis: List of floats
         :param y_axis: Vertical coordinates of points
-        :type y_axis: List of floats
         :return: List of optimized parameters [c1, c2, a1, a2, a3, a4, a5]
         """
         bounds_lower = [
@@ -89,7 +86,7 @@ class DoublyLogisticApproximationTask(EOTask):
         )
         return optimal_values[0]
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         :param eopatch: Input eopatch with data on which the doubly logistic approximation is computed
         :return: Output patch with doubly logistic approximation parameters

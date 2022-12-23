@@ -64,8 +64,10 @@ jobs:
         run: |
           mypy core/eolearn/core
           mypy coregistration/eolearn/coregistration
-          mypy ml_tools/eolearn/ml_tools
           mypy geometry/eolearn/geometry
+          mypy features/eolearn/features
+          mypy ml_tools/eolearn/ml_tools
+          mypy visualization/eolearn/visualization
 
   test-on-github:
     runs-on: ubuntu-latest
