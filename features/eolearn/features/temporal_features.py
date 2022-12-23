@@ -12,10 +12,11 @@ file in the root directory of this source tree.
 """
 
 import itertools as it
+from typing import List, Optional
 
 import numpy as np
 
-from eolearn.core import EOTask
+from eolearn.core import EOPatch, EOTask
 
 
 class AddSpatioTemporalFeaturesTask(EOTask):
@@ -40,14 +41,14 @@ class AddSpatioTemporalFeaturesTask(EOTask):
 
     def __init__(
         self,
-        argmax_ndvi="ARGMAX_NDVI",
-        argmin_ndvi="ARGMIN_NDVI",
-        argmax_red="ARGMAX_B4",
-        argmax_ndvi_slope="ARGMAX_NDVI_SLOPE",
-        argmin_ndvi_slope="ARGMIN_NDVI_SLOPE",
-        feats_feature="STF",
-        data_feature="BANDS-S2-L1C",
-        indices=None,
+        argmax_ndvi: str = "ARGMAX_NDVI",
+        argmin_ndvi: str = "ARGMIN_NDVI",
+        argmax_red: str = "ARGMAX_B4",
+        argmax_ndvi_slope: str = "ARGMAX_NDVI_SLOPE",
+        argmin_ndvi_slope: str = "ARGMIN_NDVI_SLOPE",
+        feats_feature: str = "STF",
+        data_feature: str = "BANDS-S2-L1C",
+        indices: Optional[List[int]] = None,
     ):
         """Class constructor
 
@@ -57,23 +58,15 @@ class AddSpatioTemporalFeaturesTask(EOTask):
         have 13 bands and indices for green/red/infrared/short-wave-infrared are used.
 
         :param argmax_ndvi: Name of `argmax_ndvi` feature in eopatch. Default is `'ARGMAX_NDVI'`
-        :type argmax_ndvi: str
         :param argmin_ndvi: Name of `argmin_ndvi` feature in eopatch. Default is `'ARGMIN_NDVI'`
-        :type argmin_ndvi: str
         :param argmax_red: Name of `argmax_red` feature in eopatch. Default is `'ARGMAX_B4'`
-        :type argmax_red: str
         :param argmax_ndvi_slope: Name of `argmax_ndvi_slope` feature in eopatch. Default is `'ARGMAX_NDVI_SLOPE'`
-        :type argmax_ndvi_slope: str
         :param argmin_ndvi_slope: Name of `argmin_ndvi_slope` feature in eopatch. Default is `'ARGMIN_NDVI_SLOPE'`
-        :type argmin_ndvi_slope: str
         :param feats_feature: Name of feature containing spatio-temporal features. Default is `'STF'`
-        :type feats_feature: str
         :param data_feature: Name of feature containing the reflectances to be used as features. Default is
             `'BANDS-S2-L1C'`
-        :type data_feature: str
         :param indices: List of indices from `data_feature` to be used as features. Default is `None`, corresponding to
-                        [2, 3, 7, 11] indices
-        :type indices: None or list of int
+            [2, 3, 7, 11] indices
         """
         self.argmax_ndvi = argmax_ndvi
         self.argmin_ndvi = argmin_ndvi
@@ -86,7 +79,7 @@ class AddSpatioTemporalFeaturesTask(EOTask):
             indices = [2, 3, 7, 11]
         self.indices = indices
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Compute spatio-temporal features for input eopatch
 
         :param eopatch: Input eopatch
@@ -123,25 +116,21 @@ class AddMaxMinTemporalIndicesTask(EOTask):
 
     def __init__(
         self,
-        data_feature="NDVI",
-        data_index=None,
-        amax_data_feature="ARGMAX_NDVI",
-        amin_data_feature="ARGMIN_NDVI",
-        mask_data=True,
+        data_feature: str = "NDVI",
+        data_index: Optional[int] = None,
+        amax_data_feature: str = "ARGMAX_NDVI",
+        amin_data_feature: str = "ARGMIN_NDVI",
+        mask_data: bool = True,
     ):
         """Task constructor
 
         :param data_feature: Name of the feature in data used for computation of max/min. Default is `'NDVI'`
-        :type data_feature: str
         :param data_index: Index of to be extracted from last dimension in `data_feature`. If None, last dimension of
             data array is assumed ot be of size 1 (e.g. as in NDVI). Default is `None`
-        :type data_index: int
         :param amax_data_feature: Name of feature to be associated to computed feature of argmax values
-        :type amax_data_feature: str
         :param amin_data_feature: Name of feature to be associated to computed feature of argmin values
-        :type amin_data_feature: str
         :param mask_data: Flag specifying whether to mask data with `'VALID_DATA'` mask. If `False`, the `'IS_DATA'`
-                          mask is used
+            mask is used
         """
         self.data_feature = data_feature
         self.data_index = data_index
@@ -149,7 +138,7 @@ class AddMaxMinTemporalIndicesTask(EOTask):
         self.amax_feature = amax_data_feature
         self.amin_feature = amin_data_feature
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Compute argmax/argmin of specified `data_feature` and `data_index`
 
         :param eopatch: Input eopatch
@@ -191,10 +180,10 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
     def __init__(
         self,
-        data_feature="NDVI",
-        argmax_feature="ARGMAX_NDVI_SLOPE",
-        argmin_feature="ARGMIN_NDVI_SLOPE",
-        mask_data=True,
+        data_feature: str = "NDVI",
+        argmax_feature: str = "ARGMAX_NDVI_SLOPE",
+        argmin_feature: str = "ARGMIN_NDVI_SLOPE",
+        mask_data: bool = True,
     ):
         """Task constructor
 
@@ -211,7 +200,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         self.argmin_feature = argmin_feature
         self.mask_data = mask_data
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Computation of NDVI slope using finite central differences
 
         This implementation loops through every spatial location, considers the valid NDVI values and approximates their
