@@ -281,7 +281,8 @@ class SpatialResizeTask(EOTask):
         if self.parameter_kind == ResizeParam.RESOLUTION:
             if not eopatch.bbox:
                 raise ValueError("Resolution-specified resizing can only be done on EOPatches with a defined BBox.")
-            new_size = bbox_to_dimensions(eopatch.bbox, self.parameter_values)
+            _, new_res = self.parameter_values
+            new_size = bbox_to_dimensions(eopatch.bbox, new_res)
             resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: new_size}
         else:
             resize_fun_kwargs = {self.parameter_kind.value: self.parameter_values}
