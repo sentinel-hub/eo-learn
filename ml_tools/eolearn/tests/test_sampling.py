@@ -224,7 +224,7 @@ def fraction_task_fixture(request) -> EOTask:
 @pytest.mark.parametrize("seed", range(3))
 @pytest.mark.parametrize(
     "fraction_task",
-    [
+    [  # fraction, exclude_values
         [0.2, None],
         [0.4, [0, 1]],
         [{1: 0.1, 3: 0.4}, None],
