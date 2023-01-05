@@ -40,7 +40,7 @@ def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
 def eopatch1_fixture(seed: Optional[int] = None) -> EOPatch:
     eopatch = EOPatch()
     rng = np.random.default_rng(seed)
-    eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3), dtype=int)
+    eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3))
 
     return eopatch
 
