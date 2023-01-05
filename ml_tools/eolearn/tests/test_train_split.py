@@ -78,7 +78,7 @@ def test_train_split(eopatch1: EOPatch) -> None:
 
 
 def test_seed(eopatch1: EOPatch) -> None:
-    """seed=2 should produce different result than seed=1"""
+    """Check that using seeds works as intended."""
     bins = [0.2, 0.5, 0.8]
     split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)
     result_seed1 = np.copy(split_task(eopatch1, seed=1)[OUTPUT_FEATURE])
