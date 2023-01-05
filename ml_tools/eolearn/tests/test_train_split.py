@@ -36,8 +36,11 @@ def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
         TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 
 
-@pytest.fixture(name="eopatch1")
-def eopatch1_fixture(seed: Optional[int] = None) -> EOPatch:
+SEED = 1
+
+
+@pytest.fixture(name="eopatch1", scope="function")
+def eopatch1_fixture(seed: Optional[int] = SEED) -> EOPatch:
     eopatch = EOPatch()
     rng = np.random.default_rng(seed)
     eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3))
@@ -46,7 +49,7 @@ def eopatch1_fixture(seed: Optional[int] = None) -> EOPatch:
 
 
 @pytest.fixture(name="eopatch2")
-def eopatch2_fixture(seed: Optional[int] = None) -> EOPatch:
+def eopatch2_fixture(seed: Optional[int] = SEED) -> EOPatch:
     eopatch = EOPatch()
     rng = np.random.default_rng(seed)
     eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3), dtype=int)
@@ -58,18 +61,18 @@ def test_train_split(eopatch1: EOPatch) -> None:
     """test hardcode some values in input feature and checks if hardcode values are split together"""
     indices = [(0, 2, 0, 2), (0, 2, 2, 4), (2, 4, 0, 2), (2, 4, 2, 4), (0, 4, 4, 8), (4, 8, 0, 4), (4, 8, 4, 8)]
     for index, (i_1, i_2, j_1, j_2) in enumerate(indices, 1):
-        eopatch1[INPUT_FEATURE][i_1:i_2, j_1:j_2, :] = index * 11
+        eopatch1[INPUT_FEATURE][i_1:i_2, j_1:j_2, :] = index * 11  # reason for scope on eopatch1 fixture
 
     bins = [0.2, 0.5, 0.8]
     expected_unique = set(range(1, len(bins) + 2))
 
     split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_CLASS)
-    eopatch1 = split_task(eopatch1, seed=1)
-    assert set(np.unique(eopatch1[OUTPUT_FEATURE])) <= expected_unique
+    result_eopatch = split_task(eopatch1, seed=1)
+    assert set(np.unique(result_eopatch[OUTPUT_FEATURE])) <= expected_unique
 
-    result = np.copy(eopatch1[OUTPUT_FEATURE])
+    result = np.copy(result_eopatch[OUTPUT_FEATURE])
     unique = (np.unique(result[i_1:i_2, j_1:j_2, :], return_counts=True) for i_1, i_2, j_1, j_2 in indices)
-    expected = [(i_2 - i_1) * (j_2 - j_1) * eopatch1[OUTPUT_FEATURE].shape[-1] for i_1, i_2, j_1, j_2 in indices]
+    expected = [(i_2 - i_1) * (j_2 - j_1) * result_eopatch[OUTPUT_FEATURE].shape[-1] for i_1, i_2, j_1, j_2 in indices]
 
     for (unique_values, unique_counts), expected_count in zip(unique, expected):
         assert len(unique_values) == 1
@@ -90,8 +93,6 @@ def test_seed(eopatch1: EOPatch) -> None:
 
 
 def test_ignore_value(eopatch1: EOPatch) -> None:
-    """test ignore_values=[2]"""
-
     bins = [0.2, 0.5, 0.7, 0.8]
     expected_unique = set(range(0, len(bins) + 2))
 
@@ -103,19 +104,19 @@ def test_ignore_value(eopatch1: EOPatch) -> None:
         ignore_values=[2],
     )
 
-    eopatch1 = split_task(eopatch1)
+    result_eopatch = split_task(eopatch1)
 
-    assert set(np.unique(eopatch1[(FeatureType.MASK_TIMELESS, "BINS")])) <= expected_unique
-    assert np.all(eopatch1[(FeatureType.MASK_TIMELESS, "BINS")][eopatch1[INPUT_FEATURE] == 2] == 0)
+    assert set(np.unique(result_eopatch[(FeatureType.MASK_TIMELESS, "BINS")])) <= expected_unique
+    assert np.all(result_eopatch[(FeatureType.MASK_TIMELESS, "BINS")][result_eopatch[INPUT_FEATURE] == 2] == 0)
 
 
 def test_train_split_per_pixel(eopatch1: EOPatch) -> None:
     bins = [0.2, 0.6]
     split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_PIXEL)
-    eopatch1 = split_task(eopatch1, seed=1)
+    result_eopatch = split_task(eopatch1, seed=1)
 
-    unique, counts = np.unique(eopatch1[OUTPUT_FEATURE], return_counts=True)
-    class_percentages = np.round(counts / eopatch1[INPUT_FEATURE].size, 1)
+    unique, counts = np.unique(result_eopatch[OUTPUT_FEATURE], return_counts=True)
+    class_percentages = np.round(counts / result_eopatch[INPUT_FEATURE].size, 1)
     expected_unique = list(range(1, len(bins) + 2))
 
     assert_array_equal(unique, expected_unique)
@@ -127,12 +128,12 @@ def test_train_split_per_value(eopatch1: EOPatch, eopatch2: EOPatch) -> None:
     bins = [0.2, 0.6]
     split_task = TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bins, split_type=TrainTestSplitType.PER_VALUE)
 
-    eopatch1, eopatch2 = split_task(eopatch1), split_task(eopatch2)
-    otuput1, otuput2 = eopatch1[OUTPUT_FEATURE], eopatch2[OUTPUT_FEATURE]
+    result_eopatch1, result_eopatch2 = split_task(eopatch1), split_task(eopatch2)
+    otuput1, otuput2 = result_eopatch1[OUTPUT_FEATURE], result_eopatch2[OUTPUT_FEATURE]
 
-    unique = set(np.unique(eopatch1[INPUT_FEATURE])) | set(np.unique(eopatch2[INPUT_FEATURE]))
+    unique = set(np.unique(result_eopatch1[INPUT_FEATURE])) | set(np.unique(result_eopatch2[INPUT_FEATURE]))
 
     for uniq in unique:
-        folds1 = otuput1[eopatch1[INPUT_FEATURE] == uniq]
-        folds2 = otuput2[eopatch2[INPUT_FEATURE] == uniq]
+        folds1 = otuput1[result_eopatch1[INPUT_FEATURE] == uniq]
+        folds2 = otuput2[result_eopatch2[INPUT_FEATURE] == uniq]
         assert_array_equal(np.unique(folds1), np.unique(folds2))
