@@ -64,13 +64,13 @@ def sample_by_values(
         raise ValueError(f"Given image has shape {image.shape} but sampling operates only on 2D images")
 
     rng = rng or np.random.default_rng()
-    rows = np.empty([0], dtype=int)
-    columns = np.empty([0], dtype=int)
+    rows = np.empty((0,), dtype=np.int16)
+    columns = np.empty((0,), dtype=np.int16)
 
     for value, n_samples in n_samples_per_value.items():
-        sample_indices = rng.choice(np.nonzero(image == value), size=n_samples, replace=replace, axis=1)
-        rows = np.concatenate((rows, sample_indices[0]))
-        columns = np.concatenate((columns, sample_indices[1]))
+        sample_rows, sample_cols = rng.choice(np.nonzero(image == value), size=n_samples, replace=replace, axis=1)
+        rows = np.concatenate((rows, sample_rows))
+        columns = np.concatenate((columns, sample_cols))
 
     return rows, columns
 

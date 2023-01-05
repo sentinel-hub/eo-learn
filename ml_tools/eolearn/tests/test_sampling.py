@@ -165,16 +165,9 @@ def test_object_sampling_task_mask(
     block_task.execute(eopatch, seed=seed)
     expected_amount = amount if isinstance(amount, int) else round(np.prod(small_image.shape) * amount)
 
-    # check validity of sampling
     assert eopatch.data["SAMPLED_DATA"].shape == (t, expected_amount, 1, d)
     assert eopatch.mask_timeless["SAMPLED_LABELS"].shape == (expected_amount, 1, 1)
     assert eopatch.mask_timeless["sampling_mask"].shape == (h, w, 1)
-
-
-@pytest.mark.parametrize("seed", range(5))
-@pytest.mark.parametrize("block_task", [100, 5231, 0.4, 0], indirect=True)
-def test_object_sampling_task(eopatch: EOPatch, seed: int, block_task: BlockSamplingTask) -> None:
-    block_task.execute(eopatch, seed=seed)
 
     sampled_uniques, sampled_counts = np.unique(eopatch.data["SAMPLED_DATA"], return_counts=True)
     masked = eopatch.mask_timeless["sampling_mask"].squeeze(axis=2) == 1
@@ -250,7 +243,9 @@ def test_fraction_sampling_mask(fraction_task: FractionSamplingTask, seed: int, 
 
 @pytest.mark.parametrize("seed", range(3))
 @pytest.mark.parametrize("fraction_task", [[0.2, None], [0.4, [0, 1]]], indirect=True)
-def test_fraction_sampling(fraction_task: FractionSamplingTask, seed: int, test_eopatch: EOPatch) -> None:
+def test_fraction_sampling_input_fraction(
+    fraction_task: FractionSamplingTask, seed: int, test_eopatch: EOPatch
+) -> None:
     eopatch = fraction_task(test_eopatch, seed=seed)
 
     # Test balance and inclusion/exclusion
@@ -277,7 +272,7 @@ def test_fraction_sampling(fraction_task: FractionSamplingTask, seed: int, test_
     ],
     indirect=True,
 )
-def test_fraction_sampling_fine_tuned(fraction_task: FractionSamplingTask, seed: int, test_eopatch: EOPatch) -> None:
+def test_fraction_sampling_input_dict(fraction_task: FractionSamplingTask, seed: int, test_eopatch: EOPatch) -> None:
     eopatch = fraction_task(test_eopatch, seed=seed)
 
     full_values, full_counts = np.unique(eopatch[(FeatureType.MASK_TIMELESS, "LULC")], return_counts=True)
