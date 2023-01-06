@@ -60,11 +60,7 @@ def test_ndvi_slope_indices():
     timestamp = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
     eopatch = EOPatch(timestamp=list(timestamp))
 
-    t, h, w, = (
-        10,
-        3,
-        3,
-    )
+    t, h, w = (10, 3, 3)
     ndvi_shape = (t, h, w, 1)
     xx = np.zeros(ndvi_shape, np.float32)
     x = np.linspace(0, np.pi, t)

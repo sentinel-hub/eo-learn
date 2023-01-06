@@ -323,6 +323,7 @@ class CloudMaskTask(EOTask):
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
         :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
+
         # Map over channel dimension on 3d tensor
         def func3d(dim):
             return map_over_axis(dim, func2d, axis=2)

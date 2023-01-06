@@ -44,8 +44,10 @@ def renamed_and_deprecated(deprecated_class: Type) -> Type:
 
     def warn_and_init(self: Any, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
-            f"The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. "
-            "The old name is deprecated and will be removed in version 1.0",
+            (
+                f"The class {self.__class__.__name__} has been renamed to {self.__class__.__mro__[1].__name__}. "
+                "The old name is deprecated and will be removed in version 1.0"
+            ),
             EODeprecationWarning,
         )
         super(deprecated_class, self).__init__(*args, **kwargs)
