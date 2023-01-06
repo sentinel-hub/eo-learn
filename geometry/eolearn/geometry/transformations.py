@@ -195,8 +195,10 @@ class VectorToRasterTask(EOTask):
 
         if bbox.crs is not vector_data_crs:
             warnings.warn(
-                "Vector data is not in the same CRS as EOPatch, this task will re-project vector data for "
-                "each execution",
+                (
+                    "Vector data is not in the same CRS as EOPatch, this task will re-project vector data for "
+                    "each execution"
+                ),
                 EORuntimeWarning,
             )
             vector_data = vector_data.to_crs(bbox.crs.pyproj_crs())
@@ -274,9 +276,11 @@ class VectorToRasterTask(EOTask):
             expected_full_shape = raster_shape + (1,)
             if raster.shape != expected_full_shape:
                 warnings.warn(
-                    f"The existing raster feature {self.raster_feature} has a shape {raster.shape} but "
-                    f"the expected shape is {expected_full_shape}. This might cause errors or unexpected "
-                    "results.",
+                    (
+                        f"The existing raster feature {self.raster_feature} has a shape {raster.shape} but "
+                        f"the expected shape is {expected_full_shape}. This might cause errors or unexpected "
+                        "results."
+                    ),
                     EORuntimeWarning,
                 )
 
