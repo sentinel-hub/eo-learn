@@ -8,7 +8,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pytest
@@ -40,18 +40,18 @@ SEED = 1
 
 
 @pytest.fixture(name="eopatch1", scope="function")
-def eopatch1_fixture(seed: Optional[int] = SEED) -> EOPatch:
+def eopatch1_fixture() -> EOPatch:
     eopatch = EOPatch()
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(SEED)
     eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3))
 
     return eopatch
 
 
 @pytest.fixture(name="eopatch2")
-def eopatch2_fixture(seed: Optional[int] = SEED) -> EOPatch:
+def eopatch2_fixture() -> EOPatch:
     eopatch = EOPatch()
-    rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(SEED)
     eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3), dtype=int)
 
     return eopatch
