@@ -60,33 +60,19 @@ def sample_by_values(
     :return: A pair of numpy arrays first one containing row indices and second one containing column indices of sampled
         points.
     """
-    rng = rng or np.random.default_rng()
     if image.ndim != 2:
         raise ValueError(f"Given image has shape {image.shape} but sampling operates only on 2D images")
 
-    uniques, counts = np.unique(image, return_counts=True)
-    value_counts = dict(zip(uniques, counts))
+    rng = rng or np.random.default_rng()
+    rows = np.empty((0,), dtype=np.int16)
+    columns = np.empty((0,), dtype=np.int16)
 
-    all_rows, all_columns = [], []
     for value, n_samples in n_samples_per_value.items():
-        n_points = value_counts.get(value, 0)
+        sample_rows, sample_cols = rng.choice(np.nonzero(image == value), size=n_samples, replace=replace, axis=1)
+        rows = np.concatenate((rows, sample_rows))
+        columns = np.concatenate((columns, sample_cols))
 
-        if n_samples > n_points and not replace:
-            raise ValueError(
-                f"For label {value} the requested amount of samples is {n_samples} but only {n_points} points are "
-                "available."
-            )
-
-        rows, columns = np.nonzero(image == value)
-
-        sample_indices = rng.choice(rows.size, size=n_samples, replace=(n_samples > n_points))
-
-        all_rows.append(rows[sample_indices])
-        all_columns.append(columns[sample_indices])
-
-    if all_rows and all_columns:
-        return np.concatenate(all_rows), np.concatenate(all_columns)
-    return np.array([], dtype=int), np.array([], dtype=int)
+    return rows, columns
 
 
 def expand_to_grids(
@@ -110,19 +96,17 @@ def expand_to_grids(
         return rows[:, np.newaxis], columns[:, np.newaxis]
 
     sample_height, sample_width = sample_size
-    row_grids = []
-    column_grids = []
+    row_grids = np.empty((0, sample_width), dtype=int)
+    column_grids = np.empty((0, sample_width), dtype=int)
+
     for row, column in zip(rows, columns):
         row_grid, column_grid = np.meshgrid(
             np.arange(row, row + sample_height), np.arange(column, column + sample_width)
         )
-        row_grids.append(np.transpose(row_grid))
-        column_grids.append(np.transpose(column_grid))
+        row_grids = np.concatenate((row_grids, np.transpose(row_grid)), axis=0)
+        column_grids = np.concatenate((column_grids, np.transpose(column_grid)), axis=0)
 
-    if row_grids and column_grids:
-        return np.concatenate(row_grids, axis=0), np.concatenate(column_grids, axis=0)
-
-    return np.zeros((0, 0), dtype=int), np.zeros((0, 0), dtype=int)
+    return row_grids, column_grids
 
 
 def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, column_grid: np.ndarray) -> np.ndarray:
