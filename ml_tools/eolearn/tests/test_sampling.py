@@ -147,7 +147,7 @@ SAMPLING_MASK = FeatureType.MASK_TIMELESS, "sampling_mask"
 
 @pytest.fixture(name="block_task")
 def block_task_fixture(request) -> EOTask:
-    """constructed for indirect=True testing"""
+    """Constructed for indirect=True testing."""
     return BlockSamplingTask(
         [(FeatureType.DATA, "bands", "SAMPLED_DATA"), (FeatureType.MASK_TIMELESS, "raster", "SAMPLED_LABELS")],
         amount=request.param,
@@ -206,7 +206,7 @@ def test_fraction_sampling_errors(fraction: Union[float, Dict[int, float]], repl
 
 @pytest.fixture(name="fraction_task")
 def fraction_task_fixture(request) -> EOTask:
-    """constructed for indirect=True testing"""
+    """Constructed for indirect=True testing."""
     return FractionSamplingTask(
         [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED"), (FeatureType.MASK_TIMELESS, "LULC", "LULC_SAMPLED")],
         (FeatureType.MASK_TIMELESS, "LULC"),
@@ -306,7 +306,7 @@ SAMPLE_MASK = FeatureType.MASK_TIMELESS, "SAMPLE_MASK"
 
 @pytest.fixture(name="grid_task")
 def grid_task_fixture(request) -> EOTask:
-    """constructed for indirect=True testing"""
+    """Constructed for indirect=True testing."""
     return GridSamplingTask(
         features_to_sample=[
             (FeatureType.DATA, "BANDS-S2-L1C", "SAMPLED_BANDS"),
