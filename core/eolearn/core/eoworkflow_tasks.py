@@ -13,8 +13,8 @@ from typing import Optional
 
 from .eodata import EOPatch
 from .eotask import EOTask
+from .types import FeaturesSpecification
 from .utils.common import generate_uid
-from .utils.parsing import FeaturesSpecification
 
 
 class InputTask(EOTask):

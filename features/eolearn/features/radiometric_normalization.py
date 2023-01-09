@@ -14,7 +14,7 @@ from typing import Optional
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class ReferenceScenesTask(EOTask):

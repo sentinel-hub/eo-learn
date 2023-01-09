@@ -20,7 +20,7 @@ from geopandas import GeoDataFrame
 from pyproj import CRS
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 from .eopatch_base import BaseEOPatchVisualization, BasePlotConfig
 

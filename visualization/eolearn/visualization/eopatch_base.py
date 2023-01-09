@@ -17,8 +17,9 @@ import numpy as np
 from geopandas import GeoDataFrame
 
 from eolearn.core import EOPatch
+from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.common import is_discrete_type
-from eolearn.core.utils.parsing import SingleFeatureSpec, parse_feature
+from eolearn.core.utils.parsing import parse_feature
 
 
 @dataclass

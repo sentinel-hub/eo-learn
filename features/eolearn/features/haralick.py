@@ -17,7 +17,7 @@ import skimage.feature
 
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EOUserWarning
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class HaralickTask(EOTask):

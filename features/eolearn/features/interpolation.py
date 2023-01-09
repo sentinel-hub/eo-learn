@@ -25,7 +25,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EOUserWarning
-from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 try:
     import numba

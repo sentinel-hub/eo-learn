@@ -16,7 +16,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.utils.parsing import FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 
 
 class TrainTestSplitType(Enum):

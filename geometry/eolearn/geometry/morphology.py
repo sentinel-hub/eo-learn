@@ -21,7 +21,7 @@ import skimage.filters.rank
 import skimage.morphology
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
-from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 
 class ErosionTask(EOTask):

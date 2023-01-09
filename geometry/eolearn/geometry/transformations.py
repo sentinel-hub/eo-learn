@@ -33,7 +33,7 @@ from sentinelhub import CRS, BBox, bbox_to_dimensions, parse_time
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 LOGGER = logging.getLogger(__name__)
 

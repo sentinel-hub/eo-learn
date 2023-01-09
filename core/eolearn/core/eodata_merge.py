@@ -25,8 +25,8 @@ from sentinelhub import BBox
 
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
-from .types import Literal
-from .utils.parsing import FeatureParser, FeatureSpec, FeaturesSpecification
+from .types import FeatureSpec, FeaturesSpecification, Literal
+from .utils.parsing import FeatureParser
 
 if TYPE_CHECKING:
     from .eodata import EOPatch

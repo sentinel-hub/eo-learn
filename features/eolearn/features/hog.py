@@ -15,7 +15,7 @@ import numpy as np
 import skimage.feature
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class HOGTask(EOTask):

@@ -20,7 +20,7 @@ import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utils.parsing import FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 
 LOGGER = logging.getLogger(__name__)
 

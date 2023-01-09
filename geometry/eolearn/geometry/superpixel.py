@@ -19,7 +19,7 @@ import skimage.segmentation
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 LOGGER = logging.getLogger(__name__)
 

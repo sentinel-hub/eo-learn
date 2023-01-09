@@ -15,7 +15,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5) -> np.ndarray:

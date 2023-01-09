@@ -14,7 +14,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from eolearn.core import MapFeatureTask
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class EuclideanNormTask(MapFeatureTask):

@@ -36,8 +36,7 @@ from sentinelhub import (
 from sentinelhub.type_utils import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
-from eolearn.core.types import Literal
-from eolearn.core.utils.parsing import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification, Literal
 
 LOGGER = logging.getLogger(__name__)
 

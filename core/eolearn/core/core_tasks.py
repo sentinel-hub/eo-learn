@@ -26,8 +26,8 @@ from sentinelhub import SHConfig
 from .constants import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
+from .types import FeatureSpec, FeaturesSpecification
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
-from .utils.parsing import FeatureSpec, FeaturesSpecification
 
 
 class CopyTask(EOTask):
