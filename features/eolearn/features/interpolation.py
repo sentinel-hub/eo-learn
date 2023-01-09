@@ -11,6 +11,7 @@ Copyright (c) 2018-2019 William Ouellette
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import datetime as dt
 import inspect
@@ -25,7 +26,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EOUserWarning
-from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 try:
     import numba

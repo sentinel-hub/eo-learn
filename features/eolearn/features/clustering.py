@@ -8,6 +8,7 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 from typing import Callable, List, Optional, Union, cast
 
@@ -16,8 +17,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.image import grid_to_graph
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.utils.parsing import FeatureSpec
-from eolearn.core.utils.types import Literal
+from eolearn.core.types import FeatureSpec, Literal
 
 
 class ClusteringTask(EOTask):

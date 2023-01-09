@@ -8,13 +8,15 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Matic Lubej, Devis Peressutti, Žiga 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from typing import Optional
 
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class ReferenceScenesTask(EOTask):

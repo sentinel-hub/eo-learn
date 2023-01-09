@@ -8,8 +8,7 @@ import pytest
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureParser, FeatureType
-from eolearn.core.utils.parsing import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.types import EllipsisType
+from eolearn.core.types import EllipsisType, FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 
 
 @dataclass

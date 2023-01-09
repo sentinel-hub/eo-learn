@@ -8,6 +8,8 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import itertools as it
 from typing import List, Optional
 
@@ -15,7 +17,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5) -> np.ndarray:

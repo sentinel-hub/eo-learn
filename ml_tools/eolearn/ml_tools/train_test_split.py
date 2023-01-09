@@ -9,6 +9,7 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 from enum import Enum
 from typing import Any, List, Optional, Union
@@ -16,7 +17,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.utils.parsing import FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 
 
 class TrainTestSplitType(Enum):

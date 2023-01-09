@@ -23,15 +23,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Type, TypeVar, Union
 
 from .constants import FeatureType
-from .utils.parsing import (
-    FeatureParser,
-    FeaturesSpecification,
-    parse_feature,
-    parse_features,
-    parse_renamed_feature,
-    parse_renamed_features,
-)
-from .utils.types import EllipsisType
+from .types import EllipsisType, FeaturesSpecification
+from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 

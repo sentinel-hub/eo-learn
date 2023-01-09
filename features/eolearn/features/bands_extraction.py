@@ -8,13 +8,14 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
 import numpy as np
 
 from eolearn.core import MapFeatureTask
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class EuclideanNormTask(MapFeatureTask):

@@ -24,8 +24,7 @@ from geopandas import GeoDataFrame
 from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
-from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
-from eolearn.core.utils.types import Literal
+from eolearn.core.types import FeaturesSpecification, Literal, SingleFeatureSpec
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 

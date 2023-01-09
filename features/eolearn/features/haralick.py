@@ -8,6 +8,7 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import itertools as it
 import warnings
@@ -17,7 +18,7 @@ import skimage.feature
 
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EOUserWarning
-from eolearn.core.utils.parsing import SingleFeatureSpec
+from eolearn.core.types import SingleFeatureSpec
 
 
 class HaralickTask(EOTask):

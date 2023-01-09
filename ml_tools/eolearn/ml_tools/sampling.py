@@ -19,7 +19,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
-from eolearn.core.utils.parsing import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 _FractionType = Union[float, Dict[int, float]]
 
