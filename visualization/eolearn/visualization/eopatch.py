@@ -8,6 +8,8 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime as dt
 import itertools as it
 from dataclasses import dataclass, field
