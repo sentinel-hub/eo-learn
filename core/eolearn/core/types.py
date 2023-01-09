@@ -15,7 +15,8 @@ from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 from .constants import FeatureType
 
 if sys.version_info >= (3, 10):
-    from types import EllipsisType, TypeAlias  # pylint: disable=ungrouped-imports
+    from types import EllipsisType  # pylint: disable=ungrouped-imports
+    from typing import TypeAlias
 else:
     import builtins  # noqa: F401
 
