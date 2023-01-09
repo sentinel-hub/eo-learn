@@ -30,10 +30,10 @@ from sentinelhub import CRS, BBox
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
+from .types import EllipsisType, Literal
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import FeatureSpec, FeaturesSpecification, parse_features
-from .utils.types import EllipsisType, Literal
 
 _T = TypeVar("_T")
 _Self = TypeVar("_Self")

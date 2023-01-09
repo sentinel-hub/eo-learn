@@ -53,8 +53,8 @@ from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 
 from .constants import FeatureType, FeatureTypeSet, OverwritePermission
+from .types import EllipsisType
 from .utils.parsing import FeatureParser, FeaturesSpecification
-from .utils.types import EllipsisType
 from .utils.vector_io import infer_schema
 
 _T = TypeVar("_T")

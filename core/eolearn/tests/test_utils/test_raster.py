@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
+from eolearn.core.types import Literal
 from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
-from eolearn.core.utils.types import Literal
 
 
 @pytest.mark.parametrize("size", [0, 5])
