@@ -66,6 +66,7 @@ jobs:
           mypy coregistration/eolearn/coregistration
           mypy geometry/eolearn/geometry
           mypy features/eolearn/features
+          mypy mask/eolearn/mask
           mypy ml_tools/eolearn/ml_tools
           mypy visualization/eolearn/visualization
 
