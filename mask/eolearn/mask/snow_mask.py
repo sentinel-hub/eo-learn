@@ -207,7 +207,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         height, width = input_array.shape[1:]
         size = (height // self.red_params[0], width // self.red_params[0])
         return resize_images(
-            resize_images(input_array[..., np.newaxis], new_size=size),  # type: ignore[arg-type]
+            resize_images(input_array[..., np.newaxis], new_size=size),
             new_size=(height, width),
         ).squeeze()
 
