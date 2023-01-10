@@ -18,7 +18,7 @@ from typing import Callable, List, Union
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType, ZipFeatureTask
-from eolearn.core.types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, Literal, SingleFeatureSpec
 
 
 class JoinMasksTask(ZipFeatureTask):
@@ -27,8 +27,8 @@ class JoinMasksTask(ZipFeatureTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: FeatureSpec,
-        join_operation: Union[str, Callable] = "and",
+        output_feature: SingleFeatureSpec,
+        join_operation: Union[Literal["and", "or", "xor"], Callable] = "and",
     ):
         """
         :param input_features: Mask features to be joined together.

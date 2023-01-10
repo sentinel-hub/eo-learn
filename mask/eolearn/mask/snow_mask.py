@@ -35,7 +35,7 @@ class BaseSnowMaskTask(EOTask):
         data_feature: FeatureSpec,
         band_indices: List[int],
         dilation_size: int = 0,
-        undefined_value=0,
+        undefined_value: int = 0,
         mask_name: str = "SNOW_MASK",
     ):
         """
@@ -282,7 +282,8 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
             if (total_snow_frac[date] > self.ndsi_params[2]) and (
                 snow_frac is not None and np.any(snow_frac[date] > self.dem_params[1])
             ):
-                z_s = dem_edges[max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]  # type: ignore
+                z_s = dem_edges[np.max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]
+
                 snow_mask_pass2[date, :, :] = np.where(
                     np.logical_and(
                         dem > z_s,

@@ -16,7 +16,7 @@ from typing import List
 import numpy as np
 
 from eolearn.core import MapFeatureTask
-from eolearn.core.types import FeatureSpec, FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 
 
 class ClassFrequencyTask(MapFeatureTask):
@@ -25,7 +25,7 @@ class ClassFrequencyTask(MapFeatureTask):
     def __init__(
         self,
         input_feature: FeaturesSpecification,
-        output_feature: FeatureSpec,
+        output_feature: FeaturesSpecification,
         classes: List[int],
         no_data_value: int = 0,
     ):
