@@ -807,7 +807,7 @@ class TestSentinelHubInputTaskDataCollections:
             time_interval=("2020-06-1", "2020-06-1"),
             data_size=1,
             timestamp_length=1,
-            stats=[0.0351, 0.034, 0.0351],
+            stats=[0.0346, 0.0334, 0.0346],
         ),
     ]
 
