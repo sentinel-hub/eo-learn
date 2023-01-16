@@ -1,2 +1,2 @@
 eo-learn-core
-opencv-python
+opencv-python-headless
