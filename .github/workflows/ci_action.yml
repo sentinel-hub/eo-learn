@@ -6,7 +6,6 @@ on:
     branches:
       - "master"
       - "develop"
-      - "fix/gitlab-action"
   schedule:
     # Schedule events are triggered by whoever last changed the cron schedule
     - cron: "5 0 * * *"
