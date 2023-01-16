@@ -12,5 +12,6 @@ run_sh_integration_tests:
   script:
     - pip install -r requirements-dev.txt --upgrade
     - python install_all.py
-    - sentinelhub.config --sh_client_id "$SH_CLIENT_ID" --sh_client_secret "$SH_CLIENT_SECRET" > /dev/null  # Gitlab can't mask SH_CLIENT_SECRET in logs
+    - pip install opencv-python-headless # regular opencv-python does not work on Gitlab runners
+    - sentinelhub.config --sh_client_id "$SH_CLIENT_ID" --sh_client_secret "$SH_CLIENT_SECRET" > /dev/null # Gitlab can't mask SH_CLIENT_SECRET in logs
     - pytest -m sh_integration
