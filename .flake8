@@ -1,5 +1,6 @@
 [flake8]
-ignore = E203, W503, C408
+# B028 is ignored because !r flags cannot be used in python < 3.8
+ignore = E203, W503, C408, B028
 exclude = .git, __pycache__, build, dist
 max-line-length= 120
 max-complexity = 15
