@@ -520,21 +520,6 @@ class EOPatch:
         else:
             self[feature_type] = []
 
-    def get_features(self) -> Dict[FeatureType, Union[Set[str], Literal[True]]]:
-        """Returns a dictionary of all non-empty features of EOPatch.
-
-        The elements are either sets of feature names or a boolean `True` in case feature type has no dictionary of
-        feature names.
-
-        :return: A dictionary of features
-        """
-        feature_dict: Dict[FeatureType, Union[Set[str], Literal[True]]] = {}
-        for feature_type in FeatureType:
-            if self[feature_type]:
-                feature_dict[feature_type] = set(self[feature_type]) if feature_type.has_dict() else True
-
-        return feature_dict
-
     def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
         """
         Returns a tuple of spatial dimension (height, width) of a feature.
@@ -552,20 +537,18 @@ class EOPatch:
             "FeatureType used to determine the width and height of raster must be time dependent or spatial."
         )
 
-    def get_feature_list(self) -> List[Union[FeatureType, Tuple[FeatureType, str]]]:
+    def get_features(self) -> List[FeatureSpec]:
         """Returns a list of all non-empty features of EOPatch.
 
-        The elements are either only FeatureType or a pair of FeatureType and feature name.
-
-        :return: list of features
+        :return: List of non-empty features
         """
-        feature_list: List[Union[FeatureType, Tuple[FeatureType, str]]] = []
+        feature_list: List[FeatureSpec] = []
         for feature_type in FeatureType:
-            if feature_type.has_dict():
+            if (feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMP) and feature_type in self:
+                feature_list.append((feature_type, None))
+            else:
                 for feature_name in self[feature_type]:
                     feature_list.append((feature_type, feature_name))
-            elif self[feature_type]:
-                feature_list.append(feature_type)
         return feature_list
 
     def save(
