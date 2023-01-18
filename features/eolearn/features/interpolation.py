@@ -404,6 +404,7 @@ class InterpolationTask(EOTask):
         If reference date is None the first date in the EOPatch's timestamp is taken.
         If EOPatch timestamp attribute is empty the method returns None.
 
+        :eopatch: the EOPatch whose timestamps are used to construct the time series
         :param ref_date: reference date relative to which the time is measured
         :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
         """
