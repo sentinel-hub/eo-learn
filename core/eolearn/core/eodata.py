@@ -644,27 +644,6 @@ class EOPatch:
 
         return merged_eopatch
 
-    def get_time_series(self, ref_date: Optional[dt.datetime] = None, scale_time: int = 1) -> np.ndarray:
-        """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
-
-        An array is constructed as time_series[i] = (timestamp[i] - ref_date).total_seconds().
-        If reference date is None the first date in the EOPatch's timestamp is taken.
-        If EOPatch timestamp attribute is empty the method returns None.
-
-        :param ref_date: reference date relative to which the time is measured
-        :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
-        """
-
-        if not self.timestamp:
-            return np.zeros(0, dtype=np.int64)
-
-        if ref_date is None:
-            ref_date = self.timestamp[0]
-
-        return np.asarray(
-            [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in self.timestamp], dtype=np.int64
-        )
-
     def consolidate_timestamps(self, timestamps: List[dt.datetime]) -> Set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
