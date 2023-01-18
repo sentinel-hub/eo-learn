@@ -12,14 +12,18 @@ file in the root directory of this source tree.
 """
 
 from typing import Any, Optional
-from warnings import warn
 
 import numpy as np
+
+from sentinelhub.exceptions import deprecated_function
 
 from eolearn.core.exceptions import EODeprecationWarning
 
 
 # This code was copied from https://gist.github.com/seberg/3866040
+@deprecated_function(
+    category=EODeprecationWarning, message_suffix="Please use `numpy.lib.stride_tricks.sliding_window_view` instead."
+)
 def rolling_window(
     array: np.ndarray,
     window: Any = (0,),
@@ -99,12 +103,6 @@ def rolling_window(
     """
     # pylint: disable=too-many-branches
     # pylint: disable=too-many-statements
-
-    warning = (
-        "Function `rolling_window` will be removed in a future version, please use"
-        " `numpy.lib.stride_tricks.sliding_window_view` instead."
-    )
-    warn(warning, EODeprecationWarning, stacklevel=2)
 
     array = np.asarray(array)
     orig_shape = np.asarray(array.shape)
