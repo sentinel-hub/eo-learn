@@ -9,7 +9,7 @@ file in the root directory of this source tree.
 import numpy as np
 import pytest
 
-from sentinelhub.testing_utils import test_numpy_data
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import FeatureType
 from eolearn.geometry import FelzenszwalbSegmentationTask, SlicSegmentationTask, SuperpixelSegmentationTask
@@ -64,4 +64,4 @@ def test_superpixel(test_eopatch, task, expected_statistics):
     task.execute(test_eopatch)
     result = test_eopatch[SUPERPIXEL_FEATURE]
 
-    test_numpy_data(result, **expected_statistics, delta=1e-4)
+    assert_statistics_match(result, **expected_statistics, abs_delta=1e-4)

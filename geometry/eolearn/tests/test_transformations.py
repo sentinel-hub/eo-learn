@@ -19,7 +19,7 @@ from conftest import TEST_EOPATCH_PATH
 from numpy.testing import assert_array_equal
 from shapely.geometry import Polygon
 
-from sentinelhub.testing_utils import test_numpy_data
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
@@ -255,7 +255,7 @@ def test_vector_to_raster_result(test_case, test_eopatch):
 
     result = eopatch[test_case.task.raster_feature]
 
-    test_numpy_data(result, **test_case.img_exp_statistics, delta=1e-3)
+    assert_statistics_match(result, **test_case.img_exp_statistics, abs_delta=1e-3)
 
 
 def test_polygon_overlap(test_eopatch):

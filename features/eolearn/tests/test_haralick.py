@@ -11,7 +11,7 @@ import copy
 import numpy as np
 import pytest
 
-from sentinelhub.testing_utils import test_numpy_data
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import FeatureType
 from eolearn.features import HaralickTask
@@ -41,7 +41,7 @@ def test_haralick(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)
 
-    test_numpy_data(eopatch[OUTPUT_FEATURE], exp_shape=(10, 20, 20, 1), **expected_statistics, delta=1e-4)
+    assert_statistics_match(eopatch[OUTPUT_FEATURE], exp_shape=(10, 20, 20, 1), **expected_statistics, abs_delta=1e-4)
 
     del eopatch[OUTPUT_FEATURE]
     assert small_ndvi_eopatch == eopatch, "Other features of the EOPatch were affected."
