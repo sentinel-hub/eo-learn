@@ -33,7 +33,7 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
 )
-from sentinelhub.type_utils import RawTimeIntervalType
+from sentinelhub.types import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification, Literal
