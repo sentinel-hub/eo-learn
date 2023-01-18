@@ -8,7 +8,7 @@ file in the root directory of this source tree.
 """
 import copy
 
-from sentinelhub.testing_utils import test_numpy_data
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import FeatureType
 from eolearn.features import HOGTask
@@ -31,7 +31,7 @@ def test_hog(small_ndvi_eopatch):
         ("hog", {"exp_min": 0.0, "exp_max": 0.5567, "exp_mean": 0.09309, "exp_median": 0.0}),
         ("hog_visu", {"exp_min": 0.0, "exp_max": 0.3241, "exp_mean": 0.010537, "exp_median": 0.0}),
     ]:
-        test_numpy_data(eopatch.data[feature_name], **expected_statistics, delta=1e-4)
+        assert_statistics_match(eopatch.data[feature_name], **expected_statistics, abs_delta=1e-4)
 
     del eopatch[(FeatureType.DATA, "hog")]
     del eopatch[(FeatureType.DATA, "hog_visu")]
