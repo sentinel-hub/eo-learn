@@ -51,18 +51,22 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
 
     def _reproject_and_clip(self, vectors: gpd.GeoDataFrame, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
         """Method to reproject and clip vectors to the EOPatch crs and bbox"""
-        if not bbox and (self.reproject or self.clip):
-            raise ValueError("To clip or reproject vector data, eopatch.bbox has to be defined!")
 
         if self.reproject:
-            vectors = vectors.to_crs(bbox.crs.pyproj_crs()) if bbox else vectors
+            if not bbox:
+                raise ValueError("To reproject vector data, eopatch.bbox has to be defined!")
+
+            vectors = vectors.to_crs(bbox.crs.pyproj_crs())
 
         if self.clip:
-            bbox_crs = bbox.crs.pyproj_crs() if bbox else None
+            if not bbox:
+                raise ValueError("To clip vector data, eopatch.bbox has to be defined!")
+
+            bbox_crs = bbox.crs.pyproj_crs()
             if vectors.crs != bbox_crs:
                 raise ValueError("To clip, vectors should be in same CRS as EOPatch bbox!")
 
-            extent = gpd.GeoSeries([bbox.geometry], crs=bbox_crs) if bbox else None
+            extent = gpd.GeoSeries([bbox.geometry], crs=bbox_crs)
             vectors = gpd.clip(vectors, extent, keep_geom_type=True)
 
         return vectors
