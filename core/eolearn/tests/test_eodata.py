@@ -27,7 +27,7 @@ def mini_eopatch_fixture():
     eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.WGS84))
     eop.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eop.data["zeros"] = np.zeros((2, 3, 3, 2), dtype=float)
-    eop.mask["ones"] = np.ones((2, 3, 3, 2), dtype=int)
+    eop.mask["ones"] = np.ones((2, 6, 6, 1), dtype=int)
     eop.mask["twos"] = np.ones((2, 3, 3, 2), dtype=int) * 2
     eop.mask_timeless["threes"] = np.ones((3, 3, 1), dtype=np.uint8) * 3
 
@@ -295,6 +295,18 @@ def test_reset_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) ->
     for ftype, fname in old.get_features():
         if ftype != feature_type:
             assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
+
+
+@pytest.mark.parametrize(
+    "feature, expected_dim",
+    [
+        [(FeatureType.DATA, "zeros"), (3, 3)],
+        [(FeatureType.MASK, "ones"), (6, 6)],
+        [(FeatureType.MASK_TIMELESS, "threes"), (3, 3)],
+    ],
+)
+def test_get_spatial_dimension(feature, expected_dim, mini_eopatch: EOPatch):
+    assert mini_eopatch.get_spatial_dimension(*feature) == expected_dim
 
 
 def test_get_features(mini_eopatch: EOPatch):
