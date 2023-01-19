@@ -285,6 +285,18 @@ def test_equals():
     assert eop1 != eop2
 
 
+@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.MASK_TIMELESS, FeatureType.BBOX])
+def test_reset_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
+    old = mini_eopatch.copy(deep=True)
+
+    mini_eopatch.reset_feature_type(feature_type)
+    assert mini_eopatch[feature_type] == ({} if feature_type.has_dict() else None)
+
+    for ftype, fname in old.get_features():
+        if ftype != feature_type:
+            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
+
+
 def test_get_features(mini_eopatch: EOPatch):
     expected_features = [
         (FeatureType.DATA, "bands"),
