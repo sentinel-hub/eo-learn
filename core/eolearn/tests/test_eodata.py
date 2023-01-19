@@ -141,36 +141,36 @@ def test_simplified_feature_operations():
     assert np.array_equal(eop[feature], bands), "Data numpy array not stored"
 
 
-def test_delete_feature():
-    bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    zeros = np.zeros_like(bands, dtype=float)
-    ones = np.ones_like(bands, dtype=int)
-    twos = np.ones_like(bands, dtype=int) * 2
-    threes = np.ones((3, 3, 1), dtype=np.uint8) * 3
-    arranged = np.arange(3 * 3 * 1, dtype=np.uint16).reshape(3, 3, 1)
+@pytest.fixture(name="eopatch_for_delete_test")
+def eopatch_delete_test_fixture():
+    eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.WGS84))
+    eop.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    eop.data["zeros"] = np.zeros((2, 3, 3, 2), dtype=float)
+    eop.mask["ones"] = np.ones((2, 3, 3, 2), dtype=int)
+    eop.mask["twos"] = np.ones((2, 3, 3, 2), dtype=int) * 2
+    eop.mask_timeless["threes"] = np.ones((3, 3, 1), dtype=np.uint8) * 3
 
-    eop = EOPatch(
-        data={"bands": bands, "zeros": zeros},
-        mask={"ones": ones, "twos": twos},
-        mask_timeless={"threes": threes, "arranged": arranged},
-    )
+    return eop
 
-    test_cases = [
-        [FeatureType.DATA, "zeros", "bands", bands],
-        [FeatureType.MASK, "ones", "twos", twos],
-        [FeatureType.MASK_TIMELESS, "threes", "arranged", arranged],
-    ]
-    for feature_type, deleted, remaining, unchanged in test_cases:
-        del eop[(feature_type, deleted)]
-        assert deleted not in eop[feature_type], f"`({feature_type}, {deleted})` not deleted"
-        assert_array_equal(
-            eop[feature_type][remaining],
-            unchanged,
-            err_msg=f"`({feature_type}, {remaining})` changed or wrongly deleted",
-        )
 
+@pytest.mark.parametrize(
+    "feature", [(FeatureType.DATA, "zeros"), (FeatureType.MASK, "ones"), (FeatureType.MASK_TIMELESS, "threes")]
+)
+def test_delete_existing_feature(feature, eopatch_for_delete_test: EOPatch):
+    eop = eopatch_for_delete_test
+    old = eop.copy(deep=True)
+
+    del eop[feature]
+    assert feature not in eop
+
+    for old_feature in old.get_features():
+        if old_feature != feature:
+            assert_array_equal(old[old_feature], eop[old_feature])
+
+
+def test_delete_fail_on_nonexisting_feature(eopatch_for_delete_test):
     with pytest.raises(KeyError):
-        del eop[(FeatureType.DATA, "not_here")]
+        del eopatch_for_delete_test[(FeatureType.DATA, "not_here")]
 
 
 def test_shallow_copy(test_eopatch):
