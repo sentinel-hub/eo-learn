@@ -10,6 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import datetime
+from typing import Any, Tuple
 
 import numpy as np
 import pytest
@@ -20,10 +21,11 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
+from eolearn.core.types import FeaturesSpecification
 
 
 @pytest.fixture(name="mini_eopatch")
-def mini_eopatch_fixture():
+def mini_eopatch_fixture() -> EOPatch:
     eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.WGS84))
     eop.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     eop.data["zeros"] = np.zeros((2, 3, 3, 2), dtype=float)
@@ -34,7 +36,7 @@ def mini_eopatch_fixture():
     return eop
 
 
-def test_numpy_feature_types():
+def test_numpy_feature_types() -> None:
     eop = EOPatch()
 
     data_examples = []
@@ -56,7 +58,7 @@ def test_numpy_feature_types():
         assert valid_count == expected_count, f"Feature type {feature_type} should take only a specific type of data"
 
 
-def test_vector_feature_types():
+def test_vector_feature_types() -> None:
     eop = EOPatch()
 
     invalid_entries = [{}, [], 0, None]
@@ -83,7 +85,7 @@ def test_vector_feature_types():
 @pytest.mark.parametrize(
     "invalid_entry", [0, list(range(4)), tuple(range(5)), {}, set(), [1, 2, 4, 3, 4326, 3], "BBox"]
 )
-def test_bbox_feature_type(invalid_entry):
+def test_bbox_feature_type(invalid_entry: Any) -> None:
     eop = EOPatch()
     with pytest.raises((TypeError, ValueError)):
         # Invalid bbox entry should raise an error
@@ -93,7 +95,7 @@ def test_bbox_feature_type(invalid_entry):
 @pytest.mark.parametrize(
     "valid_entry", [["2018-01-01", "15.2.1992"], (datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.date(2017, 1, 11))]
 )
-def test_timestamp_valid_feature_type(valid_entry):
+def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
     eop = EOPatch()
     eop.timestamp = valid_entry
 
@@ -106,7 +108,7 @@ def test_timestamp_valid_feature_type(valid_entry):
         datetime.datetime(2017, 1, 1, 10, 4, 7),
     ],
 )
-def test_timestamp_invalid_feature_type(invalid_entry):
+def test_timestamp_invalid_feature_type(invalid_entry: Any) -> None:
     eop = EOPatch()
     with pytest.raises((ValueError, TypeError)):
         eop.timestamp = invalid_entry
@@ -118,7 +120,7 @@ def test_invalid_characters():
         eop.data_timeless["mask.npy"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
 
 
-def test_repr(test_eopatch_path):
+def test_repr(test_eopatch_path: str) -> None:
     test_eopatch = EOPatch.load(test_eopatch_path)
     repr_str = repr(test_eopatch)
     assert repr_str.startswith("EOPatch(") and repr_str.endswith(")")
@@ -127,7 +129,7 @@ def test_repr(test_eopatch_path):
     assert repr(EOPatch()) == "EOPatch()"
 
 
-def test_repr_no_crs(test_eopatch):
+def test_repr_no_crs(test_eopatch: EOPatch) -> None:
     test_eopatch.vector_timeless["LULC"].crs = None
     repr_str = test_eopatch.__repr__()
     assert (
@@ -135,7 +137,7 @@ def test_repr_no_crs(test_eopatch):
     ), "EOPatch __repr__ must return non-empty string even in case of missing crs"
 
 
-def test_add_feature():
+def test_add_feature() -> None:
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
 
     eop = EOPatch()
@@ -144,7 +146,7 @@ def test_add_feature():
     assert np.array_equal(eop.data["bands"], bands), "Data numpy array not stored"
 
 
-def test_simplified_feature_operations():
+def test_simplified_feature_operations() -> None:
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     feature = FeatureType.DATA, "TEST-BANDS"
     eop = EOPatch()
@@ -156,7 +158,7 @@ def test_simplified_feature_operations():
 @pytest.mark.parametrize(
     "feature", [(FeatureType.DATA, "zeros"), (FeatureType.MASK, "ones"), (FeatureType.MASK_TIMELESS, "threes")]
 )
-def test_delete_existing_feature(feature, mini_eopatch: EOPatch):
+def test_delete_existing_feature(feature: Tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
     del mini_eopatch[feature]
@@ -167,12 +169,12 @@ def test_delete_existing_feature(feature, mini_eopatch: EOPatch):
             assert_array_equal(old[old_feature], mini_eopatch[old_feature])
 
 
-def test_delete_fail_on_nonexisting_feature(mini_eopatch):
+def test_delete_fail_on_nonexisting_feature(mini_eopatch: EOPatch) -> None:
     with pytest.raises(KeyError):
         del mini_eopatch[(FeatureType.DATA, "not_here")]
 
 
-def test_shallow_copy(test_eopatch):
+def test_shallow_copy(test_eopatch: EOPatch) -> None:
     eopatch_copy = test_eopatch.copy()
     assert test_eopatch == eopatch_copy
     assert test_eopatch is not eopatch_copy
@@ -185,7 +187,7 @@ def test_shallow_copy(test_eopatch):
     assert test_eopatch != eopatch_copy
 
 
-def test_deep_copy(test_eopatch):
+def test_deep_copy(test_eopatch: EOPatch) -> None:
     eopatch_copy = test_eopatch.copy(deep=True)
     assert test_eopatch == eopatch_copy
     assert test_eopatch is not eopatch_copy
@@ -195,7 +197,7 @@ def test_deep_copy(test_eopatch):
 
 
 @pytest.mark.parametrize("features", (..., [(FeatureType.MASK, "CLM")]))
-def test_copy_lazy_loaded_patch(test_eopatch_path, features):
+def test_copy_lazy_loaded_patch(test_eopatch_path: str, features: FeaturesSpecification) -> None:
     # shallow copy
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
     copied_eopatch = original_eopatch.copy(features=features)
@@ -226,7 +228,7 @@ def test_copy_lazy_loaded_patch(test_eopatch_path, features):
     assert np.array_equal(mask1, mask2) and mask1 is not mask2, "Data no longer matches after deep copying."
 
 
-def test_copy_features(test_eopatch):
+def test_copy_features(test_eopatch: EOPatch) -> None:
     feature = FeatureType.MASK, "CLM"
     eopatch_copy = test_eopatch.copy(features=[feature])
     assert test_eopatch != eopatch_copy
@@ -243,7 +245,7 @@ def test_copy_features(test_eopatch):
         [FeatureType.TIMESTAMP, None],
     ],
 )
-def test_contains(ftype, fname, test_eopatch):
+def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None:
     assert ftype in test_eopatch
     assert (ftype, fname) in test_eopatch
 
@@ -255,7 +257,7 @@ def test_contains(ftype, fname, test_eopatch):
     assert ftype, fname not in test_eopatch
 
 
-def test_equals():
+def test_equals() -> None:
     eop1 = EOPatch(data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     eop2 = EOPatch(data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     assert eop1 == eop2
@@ -303,11 +305,13 @@ def test_reset_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) ->
         [(FeatureType.MASK_TIMELESS, "threes"), (3, 3)],
     ],
 )
-def test_get_spatial_dimension(feature, expected_dim, mini_eopatch: EOPatch):
+def test_get_spatial_dimension(
+    feature: Tuple[FeatureType, str], expected_dim: Tuple[int, int], mini_eopatch: EOPatch
+) -> None:
     assert mini_eopatch.get_spatial_dimension(*feature) == expected_dim
 
 
-def test_get_features(mini_eopatch: EOPatch):
+def test_get_features(mini_eopatch: EOPatch) -> None:
     expected_features = [
         (FeatureType.DATA, "bands"),
         (FeatureType.DATA, "zeros"),
@@ -319,7 +323,7 @@ def test_get_features(mini_eopatch: EOPatch):
     assert mini_eopatch.get_features() == expected_features
 
 
-def test_timestamp_consolidation():
+def test_timestamp_consolidation() -> None:
     # 10 frames
     timestamps = [
         datetime.datetime(2017, 1, 1, 10, 4, 7),
