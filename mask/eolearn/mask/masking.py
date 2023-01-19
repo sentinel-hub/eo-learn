@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, Iterable, Union
 
 import numpy as np
 
@@ -55,8 +55,8 @@ class JoinMasksTask(ZipFeatureTask):
 
     def zip_method(self, *masks: np.ndarray) -> np.ndarray:
         """Joins masks using the provided operation"""
-        final_mask, *tmp = masks
-        for mask in tmp:
+        final_mask, *masks_to_join = masks
+        for mask in masks_to_join:
             final_mask = self.join_method(final_mask, mask)
         return final_mask
 
@@ -74,7 +74,7 @@ class MaskFeatureTask(EOTask):
         self,
         feature: SingleFeatureSpec,
         mask_feature: SingleFeatureSpec,
-        mask_values: List[int],
+        mask_values: Iterable[int],
         no_data_value: float = np.nan,
     ):
         """
