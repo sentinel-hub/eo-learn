@@ -520,21 +520,6 @@ class EOPatch:
         else:
             self[feature_type] = []
 
-    def get_features(self) -> Dict[FeatureType, Union[Set[str], Literal[True]]]:
-        """Returns a dictionary of all non-empty features of EOPatch.
-
-        The elements are either sets of feature names or a boolean `True` in case feature type has no dictionary of
-        feature names.
-
-        :return: A dictionary of features
-        """
-        feature_dict: Dict[FeatureType, Union[Set[str], Literal[True]]] = {}
-        for feature_type in FeatureType:
-            if self[feature_type]:
-                feature_dict[feature_type] = set(self[feature_type]) if feature_type.has_dict() else True
-
-        return feature_dict
-
     def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
         """
         Returns a tuple of spatial dimension (height, width) of a feature.
@@ -552,20 +537,19 @@ class EOPatch:
             "FeatureType used to determine the width and height of raster must be time dependent or spatial."
         )
 
-    def get_feature_list(self) -> List[Union[FeatureType, Tuple[FeatureType, str]]]:
+    def get_features(self) -> List[FeatureSpec]:
         """Returns a list of all non-empty features of EOPatch.
 
-        The elements are either only FeatureType or a pair of FeatureType and feature name.
-
-        :return: list of features
+        :return: List of non-empty features
         """
-        feature_list: List[Union[FeatureType, Tuple[FeatureType, str]]] = []
+        feature_list: List[FeatureSpec] = []
         for feature_type in FeatureType:
-            if feature_type.has_dict():
+            if feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMP:
+                if feature_type in self:
+                    feature_list.append((feature_type, None))
+            else:
                 for feature_name in self[feature_type]:
                     feature_list.append((feature_type, feature_name))
-            elif self[feature_type]:
-                feature_list.append(feature_type)
         return feature_list
 
     def save(
@@ -660,27 +644,6 @@ class EOPatch:
             merged_eopatch[feature] = value
 
         return merged_eopatch
-
-    def get_time_series(self, ref_date: Optional[dt.datetime] = None, scale_time: int = 1) -> np.ndarray:
-        """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
-
-        An array is constructed as time_series[i] = (timestamp[i] - ref_date).total_seconds().
-        If reference date is None the first date in the EOPatch's timestamp is taken.
-        If EOPatch timestamp attribute is empty the method returns None.
-
-        :param ref_date: reference date relative to which the time is measured
-        :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
-        """
-
-        if not self.timestamp:
-            return np.zeros(0, dtype=np.int64)
-
-        if ref_date is None:
-            ref_date = self.timestamp[0]
-
-        return np.asarray(
-            [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in self.timestamp], dtype=np.int64
-        )
 
     def consolidate_timestamps(self, timestamps: List[dt.datetime]) -> Set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.

@@ -394,6 +394,31 @@ class InterpolationTask(EOTask):
 
         return days
 
+    @staticmethod
+    def _get_eopatch_time_series(
+        eopatch: EOPatch, ref_date: Optional[dt.datetime] = None, scale_time: int = 1
+    ) -> np.ndarray:
+        """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
+
+        An array is constructed as time_series[i] = (timestamp[i] - ref_date).total_seconds().
+        If reference date is None the first date in the EOPatch's timestamp is taken.
+        If EOPatch timestamp attribute is empty the method returns None.
+
+        :param eopatch: the EOPatch whose timestamps are used to construct the time series
+        :param ref_date: reference date relative to which the time is measured
+        :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
+        """
+        if not eopatch.timestamp:
+            return np.zeros(0, dtype=np.int64)
+
+        if ref_date is None:
+            ref_date = eopatch.timestamp[0]
+
+        return np.asarray(
+            [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in eopatch.timestamp],
+            dtype=np.int64,
+        )
+
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute method that processes EOPatch and returns EOPatch"""
         # pylint: disable=too-many-locals
@@ -421,10 +446,12 @@ class InterpolationTask(EOTask):
         new_eopatch = EOPatch() if self.resample_range else eopatch
 
         # Resample times
-        times = eopatch.get_time_series(scale_time=self.scale_time)
+        times = self._get_eopatch_time_series(eopatch, scale_time=self.scale_time)
         new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
         total_diff = int((new_eopatch.timestamp[0].date() - eopatch.timestamp[0].date()).total_seconds())
-        resampled_times = new_eopatch.get_time_series(scale_time=self.scale_time) + total_diff // self.scale_time
+        resampled_times = (
+            self._get_eopatch_time_series(new_eopatch, scale_time=self.scale_time) + total_diff // self.scale_time
+        )
 
         # Add BBox to eopatch if it was created anew
         if new_eopatch.bbox is None:
