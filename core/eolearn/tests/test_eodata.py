@@ -10,7 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import datetime
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 import numpy as np
 import pytest
@@ -21,7 +21,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import FeatureSpec, FeaturesSpecification
 
 
 @pytest.fixture(name="mini_eopatch")
@@ -32,6 +32,7 @@ def mini_eopatch_fixture() -> EOPatch:
     eop.mask["ones"] = np.ones((2, 6, 6, 1), dtype=int)
     eop.mask["twos"] = np.ones((2, 3, 3, 2), dtype=int) * 2
     eop.mask_timeless["threes"] = np.ones((3, 3, 1), dtype=np.uint8) * 3
+    eop.meta_info["beep"] = "boop"
 
     return eop
 
@@ -156,7 +157,13 @@ def test_simplified_feature_operations() -> None:
 
 
 @pytest.mark.parametrize(
-    "feature", [(FeatureType.DATA, "zeros"), (FeatureType.MASK, "ones"), (FeatureType.MASK_TIMELESS, "threes")]
+    "feature",
+    [
+        (FeatureType.DATA, "zeros"),
+        (FeatureType.MASK, "ones"),
+        (FeatureType.MASK_TIMELESS, "threes"),
+        (FeatureType.META_INFO, "beep"),
+    ],
 )
 def test_delete_existing_feature(feature: Tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
@@ -311,16 +318,26 @@ def test_get_spatial_dimension(
     assert mini_eopatch.get_spatial_dimension(*feature) == expected_dim
 
 
-def test_get_features(mini_eopatch: EOPatch) -> None:
-    expected_features = [
-        (FeatureType.DATA, "bands"),
-        (FeatureType.DATA, "zeros"),
-        (FeatureType.MASK, "ones"),
-        (FeatureType.MASK, "twos"),
-        (FeatureType.MASK_TIMELESS, "threes"),
-        (FeatureType.BBOX, None),
-    ]
-    assert mini_eopatch.get_features() == expected_features
+@pytest.mark.parametrize(
+    "patch, expected_features",
+    [
+        (
+            pytest.lazy_fixture("mini_eopatch"),
+            [
+                (FeatureType.DATA, "bands"),
+                (FeatureType.DATA, "zeros"),
+                (FeatureType.MASK, "ones"),
+                (FeatureType.MASK, "twos"),
+                (FeatureType.MASK_TIMELESS, "threes"),
+                (FeatureType.META_INFO, "beep"),
+                (FeatureType.BBOX, None),
+            ],
+        ),
+        (EOPatch(), []),
+    ],
+)
+def test_get_features(patch: EOPatch, expected_features: List[FeatureSpec]) -> None:
+    assert patch.get_features() == expected_features
 
 
 def test_timestamp_consolidation() -> None:
