@@ -9,23 +9,30 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
+from typing import List
 
 import numpy as np
 
 from eolearn.core import MapFeatureTask
+from eolearn.core.types import FeaturesSpecification
 
 
 class ClassFrequencyTask(MapFeatureTask):
     """Calculates frequencies of each provided class through the temporal dimension."""
 
-    def __init__(self, input_feature, output_feature, classes, no_data_value=0):
+    def __init__(
+        self,
+        input_feature: FeaturesSpecification,
+        output_feature: FeaturesSpecification,
+        classes: List[int],
+        no_data_value: int = 0,
+    ):
         """
         :param input_feature: A source feature from which to read the values.
-        :type input_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param output_feature: An output feature to which to write the frequencies.
-        :type output_feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param classes: Classes of which frequencies to calculate.
-        :type classes: a list of integers
         """
         super().__init__(input_feature, output_feature)
 

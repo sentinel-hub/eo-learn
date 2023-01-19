@@ -26,7 +26,7 @@ from sentinelhub import SHConfig
 from .constants import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
-from .types import FeatureSpec, FeaturesSpecification
+from .types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
@@ -472,7 +472,7 @@ class ZipFeatureTask(EOTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: FeaturesSpecification,
+        output_feature: SingleFeatureSpec,
         zip_function: Optional[Callable] = None,
         **kwargs: Any,
     ):
