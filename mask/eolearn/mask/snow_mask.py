@@ -271,7 +271,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         dem: np.ndarray,
         clm_temp: np.ndarray,
         snow_mask_pass1: np.ndarray,
-        snow_frac: np.ndarray,
+        snow_frac: Optional[np.ndarray],
         dem_edges: np.ndarray,
     ) -> np.ndarray:
         """Second pass of snow detection"""
