@@ -285,6 +285,18 @@ def test_equals():
     assert eop1 != eop2
 
 
+def test_get_features(mini_eopatch: EOPatch):
+    expected_features = [
+        (FeatureType.DATA, "bands"),
+        (FeatureType.DATA, "zeros"),
+        (FeatureType.MASK, "ones"),
+        (FeatureType.MASK, "twos"),
+        (FeatureType.MASK_TIMELESS, "threes"),
+        (FeatureType.BBOX, None),
+    ]
+    assert mini_eopatch.get_features() == expected_features
+
+
 def test_timestamp_consolidation():
     # 10 frames
     timestamps = [
