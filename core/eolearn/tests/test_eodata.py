@@ -197,33 +197,36 @@ def test_deep_copy(test_eopatch):
 
 @pytest.mark.parametrize("features", (..., [(FeatureType.MASK, "CLM")]))
 def test_copy_lazy_loaded_patch(test_eopatch_path, features):
+    # pylint: disable=unnecessary-dunder-call
+
+    # shallow copy
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
     copied_eopatch = original_eopatch.copy(features=features)
 
-    value1 = original_eopatch.mask.__getitem__("CLM", load=False)
-    assert isinstance(value1, FeatureIO)
-    value2 = copied_eopatch.mask.__getitem__("CLM", load=False)
-    assert isinstance(value2, FeatureIO)
-    assert value1 is value2
+    original_data = original_eopatch.mask.__getitem__("CLM", load=False)
+    assert isinstance(original_data, FeatureIO), "Shallow copying loads the data."
+    copied_data = copied_eopatch.mask.__getitem__("CLM", load=False)
+    assert original_data is copied_data
 
-    mask1 = original_eopatch.mask["CLM"]
+    original_mask = original_eopatch.mask["CLM"]
     assert copied_eopatch.mask.__getitem__("CLM", load=False).loaded_value is not None
-    mask2 = copied_eopatch.mask["CLM"]
-    assert isinstance(mask1, np.ndarray)
-    assert mask1 is mask2
+    copied_mask = copied_eopatch.mask["CLM"]
+    assert original_mask is copied_mask
 
+    # deep copy
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
     copied_eopatch = original_eopatch.copy(features=features, deep=True)
 
-    value1 = original_eopatch.mask.__getitem__("CLM", load=False)
-    assert isinstance(value1, FeatureIO)
-    value2 = copied_eopatch.mask.__getitem__("CLM", load=False)
-    assert isinstance(value2, FeatureIO)
-    assert value1 is not value2
+    original_data = original_eopatch.mask.__getitem__("CLM", load=False)
+    assert isinstance(original_data, FeatureIO), "Deep copying loads the data of source."
+    copied_data = copied_eopatch.mask.__getitem__("CLM", load=False)
+    assert isinstance(copied_data, FeatureIO), "Deep copying loads the data of target."
+    assert original_data is not copied_data, "Deep copying only does a shallow copy of FeatureIO objects."
+
     mask1 = original_eopatch.mask["CLM"]
     assert copied_eopatch.mask.__getitem__("CLM", load=False).loaded_value is None
     mask2 = copied_eopatch.mask["CLM"]
-    assert np.array_equal(mask1, mask2) and mask1 is not mask2
+    assert np.array_equal(mask1, mask2) and mask1 is not mask2, "Data no longer matches after deep copying."
 
 
 def test_copy_features(test_eopatch):
