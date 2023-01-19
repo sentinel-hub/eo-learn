@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
-from typing import Callable, List, Union
+from typing import Callable, Dict, List, Union
 
 import numpy as np
 
@@ -35,9 +35,13 @@ class JoinMasksTask(ZipFeatureTask):
         :param output_feature: Feature to which to save the joined mask.
         :param join_operation: How to join masks. Supports `'and'`, `'or'`, `'xor'`, or a `Callable` object.
         """
-
+        self.join_method: Callable[[np.ndarray, np.ndarray], np.ndarray]
         if isinstance(join_operation, str):
-            methods = {"and": np.logical_and, "or": np.logical_or, "xor": np.logical_xor}
+            methods: Dict[str, Callable[[np.ndarray, np.ndarray], np.ndarray]] = {
+                "and": np.logical_and,
+                "or": np.logical_or,
+                "xor": np.logical_xor,
+            }
             if join_operation not in methods:
                 raise ValueError(
                     f"Join operation {join_operation} is not a viable choice. For operations other than {list(methods)}"
@@ -53,7 +57,7 @@ class JoinMasksTask(ZipFeatureTask):
         """Joins masks using the provided operation"""
         final_mask, *tmp = masks
         for mask in tmp:
-            final_mask = self.join_method(final_mask, mask)  # type: ignore[operator]
+            final_mask = self.join_method(final_mask, mask)
         return final_mask
 
 
