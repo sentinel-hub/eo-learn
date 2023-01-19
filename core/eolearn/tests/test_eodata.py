@@ -22,6 +22,18 @@ from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
 
 
+@pytest.fixture(name="mini_eopatch")
+def mini_eopatch_fixture():
+    eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.WGS84))
+    eop.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    eop.data["zeros"] = np.zeros((2, 3, 3, 2), dtype=float)
+    eop.mask["ones"] = np.ones((2, 3, 3, 2), dtype=int)
+    eop.mask["twos"] = np.ones((2, 3, 3, 2), dtype=int) * 2
+    eop.mask_timeless["threes"] = np.ones((3, 3, 1), dtype=np.uint8) * 3
+
+    return eop
+
+
 def test_numpy_feature_types():
     eop = EOPatch()
 
@@ -141,36 +153,23 @@ def test_simplified_feature_operations():
     assert np.array_equal(eop[feature], bands), "Data numpy array not stored"
 
 
-@pytest.fixture(name="eopatch_for_delete_test")
-def eopatch_delete_test_fixture():
-    eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.WGS84))
-    eop.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    eop.data["zeros"] = np.zeros((2, 3, 3, 2), dtype=float)
-    eop.mask["ones"] = np.ones((2, 3, 3, 2), dtype=int)
-    eop.mask["twos"] = np.ones((2, 3, 3, 2), dtype=int) * 2
-    eop.mask_timeless["threes"] = np.ones((3, 3, 1), dtype=np.uint8) * 3
-
-    return eop
-
-
 @pytest.mark.parametrize(
     "feature", [(FeatureType.DATA, "zeros"), (FeatureType.MASK, "ones"), (FeatureType.MASK_TIMELESS, "threes")]
 )
-def test_delete_existing_feature(feature, eopatch_for_delete_test: EOPatch):
-    eop = eopatch_for_delete_test
-    old = eop.copy(deep=True)
+def test_delete_existing_feature(feature, mini_eopatch: EOPatch):
+    old = mini_eopatch.copy(deep=True)
 
-    del eop[feature]
-    assert feature not in eop
+    del mini_eopatch[feature]
+    assert feature not in mini_eopatch
 
     for old_feature in old.get_features():
         if old_feature != feature:
-            assert_array_equal(old[old_feature], eop[old_feature])
+            assert_array_equal(old[old_feature], mini_eopatch[old_feature])
 
 
-def test_delete_fail_on_nonexisting_feature(eopatch_for_delete_test):
+def test_delete_fail_on_nonexisting_feature(mini_eopatch):
     with pytest.raises(KeyError):
-        del eopatch_for_delete_test[(FeatureType.DATA, "not_here")]
+        del mini_eopatch[(FeatureType.DATA, "not_here")]
 
 
 def test_shallow_copy(test_eopatch):
