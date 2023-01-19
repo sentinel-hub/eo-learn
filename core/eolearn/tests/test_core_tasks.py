@@ -108,7 +108,7 @@ def test_partial_copy(patch):
 def test_load_task(test_eopatch_path):
     full_load = LoadTask(test_eopatch_path)
     full_patch = full_load.execute(eopatch_folder=".")
-    assert len(full_patch.get_feature_list()) == 30
+    assert len(full_patch.get_features()) == 30
 
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
@@ -301,11 +301,10 @@ def test_move_feature():
     patch_dst = EOPatch()
     patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
 
-    assert FeatureType.MASK_TIMELESS in patch_dst.get_features()
-    assert FeatureType.DATA not in patch_dst.get_features()
+    assert FeatureType.DATA not in patch_dst, "FeatureType.DATA features were moved but shouldn't be."
 
-    assert "MTless1" in patch_dst[FeatureType.MASK_TIMELESS]
-    assert "MTless2" in patch_dst[FeatureType.MASK_TIMELESS]
+    assert (FeatureType.MASK_TIMELESS, "MTless1") in patch_dst
+    assert (FeatureType.MASK_TIMELESS, "MTless2") in patch_dst
 
 
 @pytest.mark.parametrize("axis", (0, -1))

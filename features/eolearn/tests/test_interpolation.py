@@ -16,7 +16,7 @@ from typing import Dict, Optional
 import numpy as np
 import pytest
 
-from sentinelhub.testing_utils import test_numpy_data
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.features import (
@@ -288,7 +288,7 @@ def test_interpolation(test_case: InterpolationTestCase, test_patch):
     # Check results
     feature_type, feature_name, _ = test_case.task.renamed_feature
     data = eopatch[feature_type, feature_name]
-    test_numpy_data(data, **test_case.expected_statistics, delta=delta)
+    assert_statistics_match(data, **test_case.expected_statistics, abs_delta=delta)
 
 
 @pytest.mark.parametrize("test_case", COPY_FEATURE_CASES)

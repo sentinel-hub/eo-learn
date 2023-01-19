@@ -17,7 +17,7 @@ import contextlib
 from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
-from .types import (
+from ..types import (
     DictFeatureSpec,
     EllipsisType,
     FeatureRenameSpec,
