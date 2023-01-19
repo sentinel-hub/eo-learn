@@ -35,8 +35,6 @@ class JoinMasksTask(ZipFeatureTask):
         :param output_feature: Feature to which to save the joined mask.
         :param join_operation: How to join masks. Supports `'and'`, `'or'`, `'xor'`, or a `Callable` object.
         """
-        input_features = self.parse_features(input_features)
-        output_feature = self.parse_feature(output_feature)  # type: ignore[assignment]
 
         if isinstance(join_operation, str):
             methods = {"and": np.logical_and, "or": np.logical_or, "xor": np.logical_xor}
@@ -53,8 +51,8 @@ class JoinMasksTask(ZipFeatureTask):
 
     def zip_method(self, *masks: np.ndarray) -> np.ndarray:
         """Joins masks using the provided operation"""
-        final_mask, *masks = masks  # type: ignore[assignment]
-        for mask in masks:
+        final_mask, *tmp = masks
+        for mask in tmp:
             final_mask = self.join_method(final_mask, mask)  # type: ignore[operator]
         return final_mask
 

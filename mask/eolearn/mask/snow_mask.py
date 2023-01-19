@@ -230,7 +230,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
 
     def _apply_first_pass(
         self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem, clm_temp: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
         """Apply first pass of snow detection"""
         snow_mask_pass1 = np.where(
             np.logical_and(
@@ -262,7 +262,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
                     snow_frac[date, nbin] = (
                         np.sum(snow_mask_pass1[date][in_dem_range_clear]) / dem_hist_clear_pixels[date, nbin]
                     )
-        return snow_mask_pass1, snow_frac, dem_edges  # type: ignore[return-value]
+        return snow_mask_pass1, snow_frac, dem_edges
 
     def _apply_second_pass(
         self,
