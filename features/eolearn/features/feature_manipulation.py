@@ -16,7 +16,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
@@ -252,24 +252,31 @@ class SpatialResizeTask(EOTask):
     def __init__(
         self,
         *,
-        resize_parameters: Tuple[ResizeParam, Tuple[float, float]],
+        resize_type: ResizeParam,
+        height_param: float,
+        width_param: float,
         features: FeaturesSpecification = ...,
         resize_method: ResizeMethod = ResizeMethod.LINEAR,
         resize_library: ResizeLib = ResizeLib.PIL,
     ):
         """
         :param features: Which features to resize. Supports new names for features.
-        :param resize_parameters: Instructions on how to perform the resizing process. For example use:
-            `['new_size', [500, 1000]]` to resize the data to size (500, 1000),
-            `['resolution', [10, 20]]` for changing resolution from 10 to 20,
-            `['scale_factors', [3, 3]]` to make the data three times larger.
+        :param resize_type: Type of resizing process to be performed. Options:
+            * `new_size` (combined with width_param, height_param). Resizes data to size (width_param, height_param)
+            * `resolution` (combined with width_param, height_param). Resizes the data to have
+               width_param, height_param resolution over width/height axis. Uses EOPatch bbox to compute.
+            * `scale_factor` (combined with width_param, height_param). Resizes the data by scaling the width
+               and height by a factor set by width_param and height_param.
+        :param height_param: Parameter to be applied to the height in combination with the resize_type
+        :param width_param: Parameter to be applied to the width in combination with the resize_type
         :param resize_method: Interpolation method used for resizing.
         :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
             features anti-aliasing. For cases where execution speed is crucial one can use CV2.
         """
         self.features = features
-        self.parameter_kind = ResizeParam(resize_parameters[0])
-        self.parameter_values = resize_parameters[1]
+        self.resize_type = ResizeParam(resize_type)
+        self.height_param = height_param
+        self.width_param = width_param
 
         self.resize_function = partial(
             spatially_resize_image, resize_method=resize_method, resize_library=resize_library
@@ -277,13 +284,13 @@ class SpatialResizeTask(EOTask):
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         resize_fun_kwargs: Dict[str, Any]
-        if self.parameter_kind == ResizeParam.RESOLUTION:
+        if self.resize_type == ResizeParam.RESOLUTION:
             if not eopatch.bbox:
                 raise ValueError("Resolution-specified resizing can only be done on EOPatches with a defined BBox.")
-            new_size = bbox_to_dimensions(eopatch.bbox, self.parameter_values)
-            resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: new_size}
+            new_width, new_height = bbox_to_dimensions(eopatch.bbox, (self.width_param, self.height_param))
+            resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: (new_height, new_width)}
         else:
-            resize_fun_kwargs = {self.parameter_kind.value: self.parameter_values}
+            resize_fun_kwargs = {self.resize_type.value: (self.height_param, self.width_param)}
 
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
             if ftype.is_spatial() and ftype.is_raster():
