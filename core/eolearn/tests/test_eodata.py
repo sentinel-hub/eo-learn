@@ -196,8 +196,6 @@ def test_deep_copy(test_eopatch):
 
 @pytest.mark.parametrize("features", (..., [(FeatureType.MASK, "CLM")]))
 def test_copy_lazy_loaded_patch(test_eopatch_path, features):
-    # pylint: disable=unnecessary-dunder-call
-
     # shallow copy
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
     copied_eopatch = original_eopatch.copy(features=features)
