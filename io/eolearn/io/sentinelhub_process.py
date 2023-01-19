@@ -435,7 +435,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_bands = []
         if bands_feature:
             self.bands_feature = self.parse_feature(bands_feature, allowed_feature_types=[FeatureType.DATA])
-            if bands:
+            if bands is not None:
                 self.requested_bands = self._parse_requested_bands(bands, self.data_collection.bands)
             else:
                 self.requested_bands = list(self.data_collection.bands)
