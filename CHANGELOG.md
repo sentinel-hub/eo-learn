@@ -3,7 +3,7 @@
 - (**codebreaking**) Complete overhaul of `eolearn.coregistration`. See documentation for details.
 - (**codebreaking**) Removed non-working HVPlot backend for `eolearn.visualization`.
 - (**codebreaking**) The `SpatialResizeTask` had a bug when resizing w.r.t resolution. The issue was fixed and the signature of the task was redesigned to better avoid mistakes. See documentation for details.
-- (**codebreaking**) The `EOPatch` methods `get_features` and `get_feature_list` were recombined into a new `get_features` method. See documentation for details.
+- (**codebreaking**) The `EOPatch` methods `get_features` and `get_feature_list` were recombined into a new `get_features` method. The method `get_time_series` was removed. See documentation for details.
 - (**codebreaking**) Removed unsound `use_int_coords` option in `eolearn.ml_tools.sampling.random_point_in_triangle`.
 - Added ability to specify query in execute method of `MeteoblueTask`.
 - `SentinelHubInputTask` no longer saves redundant data into meta-features.
