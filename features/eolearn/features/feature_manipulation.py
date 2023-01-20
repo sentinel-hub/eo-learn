@@ -264,10 +264,10 @@ class SpatialResizeTask(EOTask):
         :param resize_type: Determines type of resizing process and how `width_param` and `height_param` are used.
             Options:
                 * `new_size`: Resizes data to size (width_param, height_param)
-                * `resolution`: Resizes the data to have width_param, height_param resolution over width/height axis.
-                   Uses EOPatch bbox to compute.
-                * `scale_factor` Resizes the data by scaling the width and height by a factor set by
-                   width_param and height_param respectively.
+                * | `resolution`: Resizes the data to have width_param, height_param resolution over width/height axis.
+                  | Uses EOPatch bbox to compute.
+                * | `scale_factor` Resizes the data by scaling the width and height by a factor set by
+                  | width_param and height_param respectively.
         :param height_param: Parameter to be applied to the height in combination with the resize_type
         :param width_param: Parameter to be applied to the width in combination with the resize_type
         :param resize_method: Interpolation method used for resizing.
