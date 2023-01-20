@@ -50,7 +50,7 @@ class BaseSnowMaskTask(EOTask):
         self.undefined_value = undefined_value
         self.mask_feature = (FeatureType.MASK, mask_name)
 
-    def _apply_dilation(self, snow_masks):
+    def _apply_dilation(self, snow_masks: np.ndarray) -> np.ndarray:
         """Apply binary dilation for each mask in the series"""
         if self.dilation_size:
             snow_masks = np.array([binary_dilation(mask, disk(self.dilation_size)) for mask in snow_masks])
@@ -148,7 +148,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         red_params: Tuple[float, float, float, float, float] = (12, 0.3, 0.1, 0.2, 0.040),
         ndsi_params: Tuple[float, float, float] = (0.4, 0.15, 0.001),
         b10_index: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
@@ -187,7 +187,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         self.b10_index = b10_index
         self._validate_params()
 
-    def _validate_params(self):
+    def _validate_params(self) -> None:
         """Check length of parameters defining threshold values"""
         for params, n_params in [(self.dem_params, 2), (self.red_params, 5), (self.ndsi_params, 3)]:
             if not isinstance(params, (tuple, list)) or len(params) != n_params:
@@ -229,7 +229,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         ).astype(np.uint8)
 
     def _apply_first_pass(
-        self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem, clm_temp: np.ndarray
+        self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem: np.ndarray, clm_temp: np.ndarray
     ) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
         """Apply first pass of snow detection"""
         snow_mask_pass1 = np.where(

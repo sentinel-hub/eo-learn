@@ -46,7 +46,7 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
         self.clip = clip
 
     @abc.abstractmethod
-    def _load_vector_data(self, bbox: Optional[BBox]):
+    def _load_vector_data(self, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
         """Loads vector data given a bounding box"""
 
     def _reproject_and_clip(self, vectors: gpd.GeoDataFrame, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
@@ -122,7 +122,7 @@ class VectorImportTask(_BaseVectorImportTask):
 
         self.fiona_kwargs = kwargs
         self._aws_session = None
-        self._dataset_crs = None
+        self._dataset_crs: Optional[CRS] = None
 
         super().__init__(feature=feature, reproject=reproject, clip=clip, config=config)
 
@@ -163,7 +163,7 @@ class VectorImportTask(_BaseVectorImportTask):
 
         return self._dataset_crs
 
-    def _read_crs(self):
+    def _read_crs(self) -> None:
         """Reads information about CRS from a dataset"""
         with fiona.open(self.full_path, **self.fiona_kwargs) as features:
             self._dataset_crs = CRS(features.crs)
