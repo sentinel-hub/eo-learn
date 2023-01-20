@@ -352,7 +352,7 @@ class EOPatch:
 
         return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
 
-    def __delitem__(self, feature: Tuple[FeatureType, str]) -> None:
+    def __delitem__(self, feature: FeatureSpec) -> None:
         """Deletes the selected feature.
 
         :param feature: EOPatch feature
@@ -361,12 +361,13 @@ class EOPatch:
         feature_type, feature_name = feature
         if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMP]:
             self.reset_feature_type(feature_type)
-        del self[feature_type][feature_name]
+        else:
+            del self[feature_type][feature_name]
 
     @staticmethod
     def _check_tuple_key(key: tuple) -> None:
         """A helper function that checks a tuple, which should hold (feature_type, feature_name)."""
-        if len(key) != 2:
+        if not isinstance(key, (tuple, list)) or len(key) != 2:
             raise ValueError(f"Given element should be a tuple of (feature_type, feature_name), but {key} found.")
 
     def __eq__(self, other: object) -> bool:

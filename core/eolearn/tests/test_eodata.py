@@ -163,10 +163,10 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.MASK, "ones"),
         (FeatureType.MASK_TIMELESS, "threes"),
         (FeatureType.META_INFO, "beep"),
-        (FeatureType.BBOX),
+        (FeatureType.BBOX, None),
     ],
 )
-def test_delete_existing_feature(feature: Tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
+def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
     del mini_eopatch[feature]
@@ -174,6 +174,7 @@ def test_delete_existing_feature(feature: Tuple[FeatureType, str], mini_eopatch:
 
     for old_feature in old.get_features():
         if old_feature != feature:
+            # this also works for BBox :D
             assert_array_equal(old[old_feature], mini_eopatch[old_feature])
 
 
