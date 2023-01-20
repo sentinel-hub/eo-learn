@@ -26,8 +26,8 @@ from sentinelhub import SHConfig
 from .constants import FeatureType
 from .eodata import EOPatch
 from .eotask import EOTask
+from .types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
-from .utils.parsing import FeatureSpec, FeaturesSpecification
 
 
 class CopyTask(EOTask):
@@ -313,7 +313,7 @@ class InitializeFeatureTask(EOTask):
         """
         shape = eopatch[self.shape_feature].shape if self.shape_feature else self.shape
 
-        add_features = set(self.features) - set(self.parse_features(eopatch.get_feature_list()))
+        add_features = set(self.features) - set(self.parse_features(eopatch.get_features()))
 
         for feature in add_features:
             eopatch[feature] = np.ones(shape, dtype=self.dtype) * self.init_value
@@ -472,7 +472,7 @@ class ZipFeatureTask(EOTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: FeaturesSpecification,
+        output_feature: SingleFeatureSpec,
         zip_function: Optional[Callable] = None,
         **kwargs: Any,
     ):

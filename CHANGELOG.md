@@ -1,3 +1,18 @@
+## [Version 1.4.0] - 2023-1-20
+
+- (**codebreaking**) Complete overhaul of `eolearn.coregistration`. See documentation for details.
+- (**codebreaking**) Removed non-working HVPlot backend for `eolearn.visualization`.
+- (**codebreaking**) The `SpatialResizeTask` had a bug when resizing w.r.t resolution. The issue was fixed and the signature of the task was redesigned to better avoid mistakes. See documentation for details.
+- (**codebreaking**) The `EOPatch` methods `get_features` and `get_feature_list` were recombined into a new `get_features` method. The method `get_time_series` was removed. See documentation for details.
+- (**codebreaking**) Removed unsound `use_int_coords` option in `eolearn.ml_tools.sampling.random_point_in_triangle`.
+- Added ability to specify query in execute method of `MeteoblueTask`.
+- `SentinelHubInputTask` no longer saves redundant data into meta-features.
+- Module `eolearn.core.utils.types` was moved to `eolearn.core.types`. Old one will be removed in the future.
+- Switched `opencv-contrib-python-headless` requirement to `opencv-python-headless`
+- Added type annotations to most of the code base.
+- Various improvements to tests and code.
+
+
 ## [Version 1.3.1] - 2022-11-23
 
 - Sentinel Hub IO tasks now support a custom timestamp filtration via `timestamp_filter` parameter.

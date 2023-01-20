@@ -8,13 +8,16 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Devis Peressutti, Žiga Lukšič (Sin
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 from math import sqrt
+from typing import Any, Callable
 
 import numpy as np
 import skimage.feature
 
-from eolearn.core import EOTask
+from eolearn.core import EOPatch, EOTask
+from eolearn.core.types import SingleFeatureSpec
 
 
 class BlobTask(EOTask):
@@ -39,11 +42,9 @@ class BlobTask(EOTask):
 
                     Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'blob')
 
-    :type feature: (FeatureType, str) or (FeatureType, str, str)
     :param blob_object: Name of the blob method to use
     :type blob_object: skimage.feature.blob_*
-    :param blob_parameters: List of parameters to be passed to the blob function. Below a list of such parameters.
-    :type blob_parameters: dict
+    :param blob_parameters: List of parameters to be passed to the blob function. Below is a list of such parameters.
     :param min_sigma: The minimum standard deviation for Gaussian Kernel. Keep this low to detect smaller blobs
     :type min_sigma: float
     :param max_sigma: The maximum standard deviation for Gaussian Kernel. Keep this high to detect larger blobs
@@ -65,13 +66,13 @@ class BlobTask(EOTask):
     :type sigma_ratio: float
     """
 
-    def __init__(self, feature, blob_object, **blob_parameters):
+    def __init__(self, feature: SingleFeatureSpec, blob_object: Callable, **blob_parameters: Any):
         self.feature_parser = self.get_feature_parser(feature)
 
         self.blob_object = blob_object
         self.blob_parameters = blob_parameters
 
-    def _compute_blob(self, data):
+    def _compute_blob(self, data: np.ndarray) -> np.ndarray:
         result = np.zeros(data.shape, dtype=float)
         for time in range(data.shape[0]):
             for band in range(data.shape[-1]):
@@ -83,13 +84,11 @@ class BlobTask(EOTask):
                 result[time, x_coord, y_coord, band] = radius
         return result
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute computation of blobs on input eopatch
 
         :param eopatch: Input eopatch
-        :type eopatch: eolearn.core.EOPatch
         :return: EOPatch instance with new key holding the blob image.
-        :rtype: eolearn.core.EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
             eopatch[feature_type][new_feature_name] = self._compute_blob(
@@ -102,7 +101,17 @@ class BlobTask(EOTask):
 class DoGBlobTask(BlobTask):
     """Task to compute blobs with Difference of Gaussian (DoG) method"""
 
-    def __init__(self, feature, *, sigma_ratio=1.6, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs):
+    def __init__(
+        self,
+        feature: SingleFeatureSpec,
+        *,
+        sigma_ratio: float = 1.6,
+        min_sigma: float = 1,
+        max_sigma: float = 30,
+        threshold: float = 0.1,
+        overlap: float = 0.5,
+        **kwargs: Any,
+    ):
         super().__init__(
             feature,
             skimage.feature.blob_dog,
@@ -111,7 +120,7 @@ class DoGBlobTask(BlobTask):
             max_sigma=max_sigma,
             threshold=threshold,
             overlap=overlap,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -119,7 +128,16 @@ class DoHBlobTask(BlobTask):
     """Task to compute blobs with Determinant of the Hessian (DoH) method"""
 
     def __init__(
-        self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs
+        self,
+        feature: SingleFeatureSpec,
+        *,
+        num_sigma: float = 10,
+        log_scale: bool = False,
+        min_sigma: float = 1,
+        max_sigma: float = 30,
+        threshold: float = 0.1,
+        overlap: float = 0.5,
+        **kwargs: Any,
     ):
         super().__init__(
             feature,
@@ -130,7 +148,7 @@ class DoHBlobTask(BlobTask):
             max_sigma=max_sigma,
             threshold=threshold,
             overlap=overlap,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -138,7 +156,16 @@ class LoGBlobTask(BlobTask):
     """Task to compute blobs with Laplacian of Gaussian (LoG) method"""
 
     def __init__(
-        self, feature, *, num_sigma=10, log_scale=False, min_sigma=1, max_sigma=30, threshold=0.1, overlap=0.5, **kwargs
+        self,
+        feature: SingleFeatureSpec,
+        *,
+        num_sigma: float = 10,
+        log_scale: bool = False,
+        min_sigma: float = 1,
+        max_sigma: float = 30,
+        threshold: float = 0.1,
+        overlap: float = 0.5,
+        **kwargs: Any,
     ):
         super().__init__(
             feature,
@@ -149,5 +176,5 @@ class LoGBlobTask(BlobTask):
             max_sigma=max_sigma,
             threshold=threshold,
             overlap=overlap,
-            **kwargs
+            **kwargs,
         )

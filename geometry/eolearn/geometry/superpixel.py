@@ -8,15 +8,18 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import logging
 import warnings
+from typing import Any, Callable
 
 import numpy as np
 import skimage.segmentation
 
-from eolearn.core import EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
 from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.types import SingleFeatureSpec
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,11 +33,11 @@ class SuperpixelSegmentationTask(EOTask):
 
     def __init__(
         self,
-        feature,
-        superpixel_feature,
+        feature: SingleFeatureSpec,
+        superpixel_feature: SingleFeatureSpec,
         *,
-        segmentation_object=skimage.segmentation.felzenszwalb,
-        **segmentation_params
+        segmentation_object: Callable = skimage.segmentation.felzenszwalb,
+        **segmentation_params: Any,
     ):
         """
         :param feature: Raster feature which will be used in segmentation
@@ -50,13 +53,13 @@ class SuperpixelSegmentationTask(EOTask):
         self.segmentation_object = segmentation_object
         self.segmentation_params = segmentation_params
 
-    def _create_superpixel_mask(self, data):
+    def _create_superpixel_mask(self, data: np.ndarray) -> np.ndarray:
         """Method which performs the segmentation"""
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             return self.segmentation_object(data, **self.segmentation_params)
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Main execute method"""
         data = eopatch[self.feature]
 
@@ -84,7 +87,7 @@ class FelzenszwalbSegmentationTask(SuperpixelSegmentationTask):
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb
     """
 
-    def __init__(self, feature, superpixel_feature, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, superpixel_feature: SingleFeatureSpec, **kwargs: Any):
         """Arguments are passed to `SuperpixelSegmentationTask` task"""
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.felzenszwalb, **kwargs)
 
@@ -96,13 +99,13 @@ class SlicSegmentationTask(SuperpixelSegmentationTask):
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.slic
     """
 
-    def __init__(self, feature, superpixel_feature, **kwargs):
+    def __init__(self, feature: SingleFeatureSpec, superpixel_feature: SingleFeatureSpec, **kwargs: Any):
         """Arguments are passed to `SuperpixelSegmentationTask` task"""
         super().__init__(
             feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, start_label=0, **kwargs
         )
 
-    def _create_superpixel_mask(self, data):
+    def _create_superpixel_mask(self, data: np.ndarray) -> np.ndarray:
         """Method which performs the segmentation"""
         if np.issubdtype(data.dtype, np.floating) and data.dtype != np.float64:
             data = data.astype(np.float64)
@@ -118,12 +121,10 @@ class MarkSegmentationBoundariesTask(EOTask):
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.mark_boundaries
     """
 
-    def __init__(self, feature, new_feature, **params):
+    def __init__(self, feature: SingleFeatureSpec, new_feature: SingleFeatureSpec, **params: Any):
         """
         :param feature: Input feature - super-pixel mask
-        :type feature: (FeatureType, str)
         :param new_feature: Output feature - a new feature where new mask with boundaries will be put
-        :type new_feature: (FeatureType, str)
         :param params: Additional parameters which will be passed to `mark_boundaries`. Supported parameters are `mode`
             and `background_label`
         """
@@ -132,7 +133,7 @@ class MarkSegmentationBoundariesTask(EOTask):
 
         self.params = params
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute method"""
         segmentation_mask = eopatch[self.feature][..., 0]
 

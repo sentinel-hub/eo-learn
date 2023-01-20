@@ -14,40 +14,21 @@ file in the root directory of this source tree.
 from __future__ import annotations
 
 import contextlib
-import sys
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
-from .types import EllipsisType, Literal
-
-if sys.version_info < (3, 10):
-    from typing_extensions import TypeAlias
-else:
-    from typing import TypeAlias  # pylint: disable=ungrouped-imports
+from ..types import (
+    DictFeatureSpec,
+    EllipsisType,
+    FeatureRenameSpec,
+    FeatureSpec,
+    FeaturesSpecification,
+    SequenceFeatureSpec,
+    SingleFeatureSpec,
+)
 
 if TYPE_CHECKING:
     from ..eodata import EOPatch
-
-# DEVELOPER NOTE: the #: comments are applied as docstrings
-
-#: Specification describing a single feature
-FeatureSpec: TypeAlias = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None], Tuple[FeatureType, str]]
-#: Specification describing a feature with its current and desired new name
-FeatureRenameSpec: TypeAlias = Union[
-    Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None, None], Tuple[FeatureType, str, str]
-]
-SingleFeatureSpec: TypeAlias = Union[FeatureSpec, FeatureRenameSpec]
-
-SequenceFeatureSpec: TypeAlias = Sequence[
-    Union[SingleFeatureSpec, FeatureType, Tuple[FeatureType, Optional[EllipsisType]]]
-]
-DictFeatureSpec: TypeAlias = Dict[FeatureType, Union[None, EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]
-MultiFeatureSpec: TypeAlias = Union[
-    EllipsisType, FeatureType, Tuple[FeatureType, EllipsisType], SequenceFeatureSpec, DictFeatureSpec
-]
-
-#: Specification of a single or multiple features. See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`.
-FeaturesSpecification: TypeAlias = Union[SingleFeatureSpec, MultiFeatureSpec]
 
 _ParserFeaturesSpec = Union[Tuple[FeatureType, None, None], Tuple[FeatureType, str, str]]
 

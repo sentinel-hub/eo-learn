@@ -10,382 +10,213 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
-import copy
 import logging
 import warnings
-from abc import ABC, abstractmethod
-from enum import Enum
+from typing import Optional, Tuple
 
 import cv2
 import numpy as np
 
-from eolearn.core import EOTask
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
-
-from .utils import EstimateEulerTransformModel, ransac
+from eolearn.core.types import FeaturesSpecification
 
 LOGGER = logging.getLogger(__name__)
 
-MAX_TRANSLATION = 20
-MAX_ROTATION = np.pi / 9
 
+class ECCRegistrationTask(EOTask):
+    """Multi-temporal image co-registration using OpenCV Enhanced Cross-Correlation method
 
-class InterpolationType(Enum):
-    """Types of interpolation, available are NEAREST, LINEAR and CUBIC"""
+    The task uses a temporal stack of images of the same location (i.e. a temporal-spatial feature in `EOPatch`)
+    and a reference timeless feature to estimate a transformation that aligns each frame of the temporal stack
+    to the reference feature.
 
-    NEAREST = 0
-    LINEAR = 1
-    CUBIC = 3
-
-
-class RegistrationTask(EOTask, ABC):
-    """Abstract class for multi-temporal image co-registration
-
-    The task uses a temporal stack of images of the same location (i.e. a temporal-spatial feature in `EOPatch`).
-    Starting from the latest frame and proceeding backwards it calculates a transformation between two temporally
-    adjacent images. The transformation is used to correct the earlier image to best fit the later. The reason for
-    such reversed order is that the latest frames are supposed to be less affected by orthorectificational
-    inaccuracies.
 
     Each transformation is calculated using only a single channel of the images. If feature which contains masks of
-    valid pixels is specified it is used during the calculation. At the end the transformations are applied to each
-    of the specified features. Any additional registration parameters can be passed on to registration method class.
-
-    Parameters:
-
-    :param registration_feature: A feature which will be used for co-registration,
-                                    e.g. feature=(FeatureType.DATA, 'bands'). By default, this feature is of type
-                                    `FeatureType.DATA` therefore also only feature name can be given e.g.
-                                    feature='bands'
-    :type registration_feature: (FeatureType, str) or str
-    :param channel: Index of `feature`'s channel to be used in co-registration
-    :type channel: int
-    :param valid_mask_feature: Feature containing a mask of valid pixels for `registration_feature`. By default, no
-                                mask is set. It can be set to e.g. valid_mask_feature=(FeatureType.MASK, 'IS_DATA')
-                                or valid_mask_feature='IS_DATA' if the feature is of type `FeatureType.MASK`
-    :type valid_mask_feature: str or (FeatureType, str) or None
-    :param apply_to_features: A collection of features to which co-registration will be applied to. By default, this
-                                is only `registration_feature` and `valid_mask_feature` if given. Note that each
-                                feature must have same temporal dimension as `registration_feature`.
-    :type apply_to_features: dict(FeatureType: set(str) or dict(str: str))
-    :param interpolation_type: Type of interpolation used. Default is `InterpolationType.CUBIC`
-    :type interpolation_type: InterpolationType
-    :param params: Any other registration setting which will be passed to registration method
-    :type params: object
+    valid pixels is specified it is used during the estimation of the transformation. The estimated transformations
+    are applied to each of the specified features.
     """
 
     def __init__(
         self,
-        registration_feature,
-        channel=0,
-        valid_mask_feature=None,
-        apply_to_features=...,
-        interpolation_type=InterpolationType.CUBIC,
-        **params,
+        registration_feature: Tuple[FeatureType, str],
+        reference_feature: Tuple[FeatureType, str],
+        channel: int,
+        valid_mask_feature: Optional[Tuple[FeatureType, str]] = None,
+        apply_to_features: FeaturesSpecification = ...,
+        interpolation_mode: int = cv2.INTER_LINEAR,
+        warp_mode: int = cv2.MOTION_TRANSLATION,
+        max_iter: int = 100,
+        gauss_kernel_size: int = 1,
+        border_mode: int = cv2.BORDER_REPLICATE,
+        border_value: float = 0,
+        num_threads: int = 1,
+        max_translation: float = 5.0,
     ):
-        self.registration_feature = self.parse_feature(registration_feature)
-
-        self.channel = channel
-
-        self.valid_mask_feature = None if valid_mask_feature is None else self.parse_feature(valid_mask_feature)
-
-        if apply_to_features is ...:
-            apply_to_features = [self.registration_feature]
-            if valid_mask_feature:
-                apply_to_features.append(self.valid_mask_feature)
-        self.apply_features_parser = self.get_feature_parser(apply_to_features)
-
-        self.interpolation_type = interpolation_type
-        self.params = params
-
-    @abstractmethod
-    def register(self, src, trg, trg_mask=None, src_mask=None):
-        """Method for registration
-
-        :param src: src
-        :param trg: trg
-        :param trg_mask: trg_mask
-        :param src_mask: src_mask
         """
-        raise NotImplementedError
+        :param registration_feature: Feature in EOPatch holding the multi-temporal stack to register to the
+            reference. Needs to be of FeatureType.DATA.
+        :param reference_feature: Feature in EOPatch used as reference frame for registration.
+        :param channel: Defines the index of the stack and reference feature to use during registration.
+        :param valid_mask_feature: Optional feature in EOPatch that defines which pixels should be used for
+            registration.
+        :param apply_to_features: List of temporal features in EOPatch to which applied the estimated
+            transformation.
+        :param interpolation_mode: Interpolation type used when transforming the stack of images.
+        :param warp_mode: Defines the transformation model used to match the stack and the reference.
+            Examples include TRANSLATION, RIGID_MOTION, AFFINE.
+        :param max_iter: Maximum number of iterations used during optimization of algorithm.
+        :param gauss_kernel_size: Size of Gaussian kernel used to smooth images prior to registration.
+        :param border_mode: Defines the padding strategy when transforming the images with estimated
+            transformation.
+        :param border_value: Value used for padding when border mode is set to CONSTANT.
+        :param num_threads: Number of threads used for optimization of the algorithm.
+        :param max_translation: Estimated transformations are considered incorrect when the norm of the
+            translation component is larger than this parameter.
+        """
+        self.registration_feature = self.parse_feature(registration_feature, allowed_feature_types=[FeatureType.DATA])
+        self.reference_feature = self.parse_feature(
+            reference_feature, allowed_feature_types=[FeatureType.DATA_TIMELESS]
+        )
+        self.channel = channel
+        self.valid_mask_feature = (
+            None
+            if valid_mask_feature is None
+            else self.parse_feature(valid_mask_feature, allowed_feature_types=[FeatureType.MASK])
+        )
+        self.apply_features_parser = self.get_feature_parser(
+            apply_to_features, allowed_feature_types=[FeatureType.DATA, FeatureType.MASK]
+        )
+        self.warp_mode = warp_mode
+        self.interpolation_mode = interpolation_mode
+        self.max_iter = max_iter
+        self.gauss_kernel_size = gauss_kernel_size
+        self.border_mode = border_mode
+        self.border_value = border_value
+        self.num_threads = num_threads
+        self.max_translation = max_translation
 
-    @abstractmethod
-    def check_params(self):
-        """Method to validate registration parameters"""
-        raise NotImplementedError
+    def register(
+        self,
+        src: np.ndarray,
+        trg: np.ndarray,
+        valid_mask: Optional[np.ndarray] = None,
+        warp_mode: int = cv2.MOTION_TRANSLATION,
+    ) -> np.ndarray:
+        """Method that estimates the transformation between source and target image"""
+        criteria = (cv2.TERM_CRITERIA_COUNT, self.max_iter, 0)
+        warp_matrix_size = (3, 3) if warp_mode == cv2.MOTION_HOMOGRAPHY else (2, 3)
+        warp_matrix = np.eye(*warp_matrix_size, dtype=np.float32)
 
-    @abstractmethod
-    def get_params(self):
-        """Method to print out registration parameters used"""
-        raise NotImplementedError
-
-    @staticmethod
-    def _get_interpolation_flag(interpolation_type):
         try:
-            return {
-                InterpolationType.CUBIC: cv2.INTER_CUBIC,
-                InterpolationType.NEAREST: cv2.INTER_NEAREST,
-                InterpolationType.LINEAR: cv2.INTER_LINEAR,
-            }[interpolation_type]
-        except KeyError as exception:
-            raise ValueError("Unsupported interpolation method specified") from exception
+            cv2.setNumThreads(self.num_threads)
+            _, warp_matrix = cv2.findTransformECC(
+                src.astype(np.float32),
+                trg.astype(np.float32),
+                warp_matrix,
+                warp_mode,
+                criteria,
+                valid_mask,
+                self.gauss_kernel_size,
+            )
+        except cv2.error as cv2err:
+            warnings.warn(f"Could not calculate the warp matrix: {cv2err}", EORuntimeWarning)
 
-    def execute(self, eopatch):
+        return warp_matrix
+
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Method that estimates registrations and warps EOPatch objects"""
-        self.check_params()
-        self.get_params()
+        multi_temp_stack = eopatch[self.registration_feature][..., self.channel]
+        time_frames = multi_temp_stack.shape[0]
 
-        new_eopatch = copy.deepcopy(eopatch)
+        valid_mask = None
+        if self.valid_mask_feature is not None:
+            valid_mask = eopatch[self.valid_mask_feature].squeeze(axis=-1)
+            valid_mask = valid_mask.astype(np.uint8)
 
-        # get data used for registration
-        sliced_data = copy.deepcopy(eopatch[self.registration_feature][..., self.channel])
-        time_frames = sliced_data.shape[0]
+        reference_image = eopatch[self.reference_feature][..., self.channel]
 
-        # extract and normalize gradients
-        try:
-            sliced_data = [get_gradient(d) for d in sliced_data]
-            sliced_data = [np.clip(d, np.percentile(d, 5), np.percentile(d, 95)) for d in sliced_data]
-        except BaseException:
-            warnings.warn("Could not calculate gradients, using original data", EORuntimeWarning)
-            sliced_data = list(sliced_data)
+        new_eopatch = EOPatch(bbox=eopatch.bbox, timestamp=eopatch.timestamp)
+        for feature_type, feature_name in self.apply_features_parser.get_features(eopatch):
+            new_eopatch[feature_type][feature_name] = np.zeros_like(eopatch[feature_type][feature_name])
 
-        iflag = self._get_interpolation_flag(self.interpolation_type)
+        warp_matrices = {}
 
-        # Pair-wise registration starting from the most recent frame
-        for idx in range(time_frames - 1, 0, -1):
-            src_mask, trg_mask = None, None
-            if self.valid_mask_feature is not None:
-                src_mask = new_eopatch[self.valid_mask_feature][idx]
-                trg_mask = new_eopatch[self.valid_mask_feature][idx - 1]
+        for idx in range(time_frames):
+            valid_mask_ = None if valid_mask is None else valid_mask[idx]
+            warp_matrix = self.register(
+                reference_image, multi_temp_stack[idx], valid_mask=valid_mask_, warp_mode=self.warp_mode
+            )
 
-            # Estimate transformation
-            warp_matrix = self.register(sliced_data[idx], sliced_data[idx - 1], src_mask=src_mask, trg_mask=trg_mask)
-
-            # Check amount of deformation
-            rflag = self.is_registration_suspicious(warp_matrix)
-
-            # Flag suspicious registrations and set them to the identity
-            if rflag:
-                warnings.warn(
-                    f"A problem in pair-wise registration of time slices {idx} and {idx - 1}", EORuntimeWarning
-                )
+            if self.is_translation_large(warp_matrix):
                 warp_matrix = np.eye(2, 3)
+
+            warp_matrices[idx] = warp_matrix.tolist()
 
             # Apply transformation to every given feature
             for feature_type, feature_name in self.apply_features_parser.get_features(eopatch):
-                new_eopatch[feature_type][feature_name][idx - 1] = self.warp(
-                    warp_matrix, new_eopatch[feature_type][feature_name][idx - 1], iflag
+                new_eopatch[feature_type][feature_name][idx] = self.warp_feature(
+                    eopatch[feature_type][feature_name][idx], warp_matrix
                 )
 
-            # warp data for next round
-            sliced_data[idx - 1] = self.warp(warp_matrix, sliced_data[idx - 1], iflag)
-
+        new_eopatch[FeatureType.META_INFO, "warp_matrices"] = warp_matrices
         return new_eopatch
 
-    def warp(self, warp_matrix, img, iflag=cv2.INTER_NEAREST):
-        """Function to warp input image given an estimated 2D linear transformation
+    def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: Tuple[int, int], flags: int) -> np.ndarray:
+        """Transform the target image with the estimated transformation matrix"""
+        if warp_matrix.shape == (3, 3):
+            return cv2.warpPerspective(
+                img.astype(np.float32),
+                warp_matrix,
+                shape,
+                flags=flags,
+                borderMode=self.border_mode,
+                borderValue=self.border_value,
+            )
+        return cv2.warpAffine(
+            img.astype(np.float32),
+            warp_matrix,
+            shape,
+            flags=flags,
+            borderMode=self.border_mode,
+            borderValue=self.border_value,
+        )
 
-        :param warp_matrix: Linear 2x3 matrix to use to linearly warp the input images
-        :type warp_matrix: ndarray
-        :param img: Image to be warped with estimated transformation
-        :type img: ndarray
-        :param iflag: Interpolation flag, specified interpolation using during resampling of warped image
-        :type iflag: cv2.INTER_*
-        :return: Warped image using the linear matrix
-        """
+    def warp_feature(self, img: np.ndarray, warp_matrix: np.ndarray) -> np.ndarray:
+        """Function to warp input image given an estimated 2D linear transformation"""
 
         height, width = img.shape[:2]
-        warped_img = np.zeros_like(img, dtype=img.dtype)
+        warped_img = np.zeros_like(img, dtype=np.float32)
 
-        iflag += cv2.WARP_INVERSE_MAP
+        flags = self.interpolation_mode + cv2.WARP_INVERSE_MAP
 
         # Check if image to warp is 2D or 3D. If 3D need to loop over channels
-        if (self.interpolation_type == InterpolationType.LINEAR) or img.ndim == 2:
-            warped_img = cv2.warpAffine(img.astype(np.float32), warp_matrix, (width, height), flags=iflag).astype(
-                img.dtype
-            )
-
+        if img.ndim == 2:
+            warped_img = self.warp(img, warp_matrix, (width, height), flags=flags)
         elif img.ndim == 3:
             for idx in range(img.shape[-1]):
-                warped_img[..., idx] = cv2.warpAffine(
-                    img[..., idx].astype(np.float32), warp_matrix, (width, height), flags=iflag
-                ).astype(img.dtype)
+                warped_img[..., idx] = self.warp(img[..., idx], warp_matrix, (width, height), flags=flags)
         else:
-            raise ValueError(f"Image has incorrect number of dimensions: {img.ndim}")
+            raise ValueError(f"Image has incorrect number of dimensions: {img.ndim}. Correct number is either 2 or 3.")
 
-        return warped_img
+        return warped_img.astype(img.dtype)
 
-    @staticmethod
-    def is_registration_suspicious(warp_matrix):
-        """Static method that checks if estimated linear transformation could be implausible.
+    def is_translation_large(self, warp_matrix: np.ndarray) -> bool:
+        """Method that checks if estimated linear translation could be implausible.
 
-        This function checks whether the norm of the estimated translation or the rotation angle exceed predefined
-        values. For the translation, a maximum translation radius of 20 pixels is flagged, while larger rotations than
-        20 degrees are flagged.
-
-        :param warp_matrix: Input linear transformation matrix
-        :type warp_matrix: ndarray
-        :return: 0 if registration doesn't exceed threshold, 1 otherwise
+        This function checks whether the norm of the estimated translation in pixels exceeds a predefined value.
         """
-        if warp_matrix is None:
-            return 1
-
-        cos_theta = np.trace(warp_matrix[:2, :2]) / 2
-        rot_angle = np.arccos(cos_theta)
-        transl_norm = np.linalg.norm(warp_matrix[:, 2])
-        return 1 if int((rot_angle > MAX_ROTATION) or (transl_norm > MAX_TRANSLATION)) else 0
+        return np.linalg.norm(warp_matrix[:, 2]).astype(float) > self.max_translation
 
 
-class ECCRegistrationTask(RegistrationTask):
-    """Registration task implementing an intensity-based method from OpenCV"""
-
-    def get_params(self):
-        LOGGER.info("%s:Params for this registration are:", self.__class__.__name__)
-        LOGGER.info("\t\t\t\tMaxIters: %d", self.params["MaxIters"])
-        LOGGER.info("\t\t\t\tgaussFiltSize: %d", self.params["gaussFiltSize"])
-
-    def check_params(self):
-        if not isinstance(self.params.get("MaxIters"), int):
-            LOGGER.info("%s:MaxIters set to 200", self.__class__.__name__)
-            self.params["MaxIters"] = 200
-        if not isinstance(self.params.get("gaussFilterSize"), int):
-            LOGGER.info("%s:gaussFilterSize set to 1", self.__class__.__name__)
-            self.params["gaussFiltSize"] = 1
-
-    def register(self, src, trg, trg_mask=None, src_mask=None):
-        """Implementation of pair-wise registration and warping using Enhanced Correlation Coefficient
-
-        This function estimates Euclidean transformation (x,y translation + rotation) using the intensities of the
-        pair of images to be registered. The similarity metric is a modification of the cross-correlation metric, which
-        is invariant to distortions in contrast and brightness.
-
-        :param src: 2D single channel source moving image
-        :param trg: 2D single channel target reference image
-        :param trg_mask: Mask of target image. Not used in this method.
-        :param src_mask: Mask of source image. Not used in this method.
-        :return: Estimated 2D transformation matrix of shape 2x3
-        """
-        # Parameters of registration
-        warp_mode = cv2.MOTION_EUCLIDEAN
-        # Specify the threshold of the increment
-        # in the correlation coefficient between two iterations
-        termination_eps = 1e-10
-        # Define termination criteria
-        criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, self.params["MaxIters"], termination_eps)
-        # Initialise warp matrix
-        warp_matrix = np.eye(2, 3, dtype=np.float32)
-        # Run the ECC algorithm. The results are stored in warp_matrix.
-        _, warp_matrix = cv2.findTransformECC(
-            src.astype(np.float32),
-            trg.astype(np.float32),
-            warp_matrix,
-            warp_mode,
-            criteria,
-            None,
-            self.params["gaussFiltSize"],
-        )
-        return warp_matrix
-
-
-class PointBasedRegistrationTask(RegistrationTask):
-    """Registration class implementing a point-based registration from OpenCV contrib package"""
-
-    def get_params(self):
-        LOGGER.info("%s:Params for this registration are:", self.__class__.__name__)
-        LOGGER.info("\t\t\t\tModel: %s", self.params["Model"])
-        LOGGER.info("\t\t\t\tDescriptor: %s", self.params["Descriptor"])
-        LOGGER.info("\t\t\t\tMaxIters: %d", self.params["MaxIters"])
-        LOGGER.info("\t\t\t\tRANSACThreshold: %.2f", self.params["RANSACThreshold"])
-
-    def check_params(self):
-        if self.params.get("Model") not in ["Euler", "PartialAffine", "Homography"]:
-            LOGGER.info("%s:Model set to Euler", self.__class__.__name__)
-            self.params["Model"] = "Euler"
-        if self.params.get("Descriptor") not in ["SIFT", "SURF"]:
-            LOGGER.info("%s:Descriptor set to SIFT", self.__class__.__name__)
-            self.params["Descriptor"] = "SIFT"
-        if not isinstance(self.params.get("MaxIters"), int):
-            LOGGER.info("%s:RANSAC MaxIters set to 1000", self.__class__.__name__)
-            self.params["MaxIters"] = 1000
-        if not isinstance(self.params.get("RANSACThreshold"), float):
-            LOGGER.info("%s:RANSAC threshold set to 7.0", self.__class__.__name__)
-            self.params["RANSACThreshold"] = 7.0
-
-    def register(self, src, trg, trg_mask=None, src_mask=None):
-        """Implementation of pair-wise registration and warping using point-based matching
-
-        This function estimates a number of transforms (Euler, PartialAffine and Homography) using point-based matching.
-        Features descriptor are first extracted from the pair of images using either SIFT or SURF descriptors. A
-        brute-force point-matching algorithm estimates matching points and a transformation is computed. All
-        transformations use RANSAC to robustly fit a transform to the matching points. However, the feature extraction
-        and point matching estimation can be very poor and unstable. In those cases, an identity transform is used
-        to warp the images instead.
-
-        :param src: 2D single channel source moving image
-        :param trg: 2D single channel target reference image
-        :param trg_mask: Mask of target image. Not used in this method.
-        :param src_mask: Mask of source image. Not used in this method.
-        :return: Estimated 2D transformation matrix of shape 2x3
-        """
-        # Initialise matrix and failed registrations flag
-        warp_matrix = None
-        # Initiate point detector
-        ptdt = cv2.SIFT_create() if self.params["Descriptor"] == "SIFT" else cv2.SURF_create()
-        # create BFMatcher object
-        bf_matcher = cv2.BFMatcher(cv2.NORM_L1, crossCheck=True)
-        # find the key points and descriptors with SIFT
-        kp1, des1 = ptdt.detectAndCompute(self.rescale_image(src), None)
-        kp2, des2 = ptdt.detectAndCompute(self.rescale_image(trg), None)
-        # Match descriptors if any are found
-        if des1 is not None and des2 is not None:
-            matches = bf_matcher.match(des1, des2)
-            # Sort them in the order of their distance.
-            matches = sorted(matches, key=lambda x: x.distance)
-            src_pts = np.asarray([kp1[m.queryIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)
-            trg_pts = np.asarray([kp2[m.trainIdx].pt for m in matches], dtype=np.float32).reshape(-1, 2)
-            # Parse model and estimate matrix
-            if self.params["Model"] == "PartialAffine":
-                warp_matrix = cv2.estimateRigidTransform(src_pts, trg_pts, fullAffine=False)
-            elif self.params["Model"] == "Euler":
-                model = EstimateEulerTransformModel(src_pts, trg_pts)
-                warp_matrix = ransac(src_pts.shape[0], model, 3, self.params["MaxIters"], 1, 5)
-            elif self.params["Model"] == "Homography":
-                warp_matrix, _ = cv2.findHomography(
-                    src_pts,
-                    trg_pts,
-                    cv2.RANSAC,
-                    ransacReprojThreshold=self.params["RANSACThreshold"],
-                    maxIters=self.params["MaxIters"],
-                )
-                if warp_matrix is not None:
-                    warp_matrix = warp_matrix[:2, :]
-        return warp_matrix
-
-    @staticmethod
-    def rescale_image(image):
-        """Normalise and scale image in 0-255 range"""
-        s2_min_value, s2_max_value = 0, 1
-        out_min_value, out_max_value = 0, 255
-        # Clamp values in 0-1 range
-        image[image > s2_max_value] = s2_max_value
-        image[image < s2_min_value] = s2_min_value
-        # Rescale to uint8 range
-        out_image = out_max_value + (image - s2_min_value) * (out_max_value - out_min_value) / (
-            s2_max_value - s2_min_value
-        )
-        return out_image.astype(np.uint8)
-
-
-def get_gradient(src):
+def get_gradient(src: np.ndarray) -> np.ndarray:
     """Method which calculates and returns the gradients for the input image, which are
     better suited for co-registration
-
-    :param src: input image
-    :type src: ndarray
-    :return: ndarray
     """
     # Calculate the x and y gradients using Sobel operator
+    src = src.astype(np.float32)
     grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
     grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
 

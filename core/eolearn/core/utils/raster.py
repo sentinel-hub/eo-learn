@@ -13,7 +13,7 @@ from typing import Tuple
 
 import numpy as np
 
-from .types import Literal
+from ..types import Literal
 
 
 def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "linear") -> np.ndarray:

@@ -261,8 +261,10 @@ class ExportToTiffTask(BaseRasterIoTask):
         if image_dtype == np.int64:
             image_dtype = np.int32
             warnings.warn(
-                f"Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export "
-                "as numpy.int32 instead",
+                (
+                    f"Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export "
+                    "as numpy.int32 instead"
+                ),
                 EORuntimeWarning,
             )
 

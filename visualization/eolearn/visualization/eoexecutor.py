@@ -17,14 +17,15 @@ import inspect
 import os
 import warnings
 from collections import defaultdict
-from typing import DefaultDict, List, Tuple
+from typing import Any, DefaultDict, Dict, List, Tuple, cast
 
 import fs
 import graphviz
 import matplotlib.pyplot as plt
 import pygments
+import pygments.formatter
 import pygments.lexers
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, Template
 from pygments.formatters.html import HtmlFormatter
 
 from eolearn.core import EOExecutor
@@ -40,12 +41,16 @@ class EOExecutorVisualization:
         """
         self.eoexecutor = eoexecutor
 
-    def make_report(self, include_logs: bool = True):
+    def make_report(self, include_logs: bool = True) -> None:
         """Makes a html report and saves it into the same folder where logs are stored."""
         if self.eoexecutor.execution_results is None:
             raise RuntimeError(
                 "Cannot produce a report without running the executor first, check EOExecutor.run method"
             )
+
+        # These should be set automatically after a run
+        start_time = cast(dt.datetime, self.eoexecutor.start_time)
+        report_folder = cast(str, self.eoexecutor.report_folder)
 
         if os.environ.get("DISPLAY", "") == "":
             plt.switch_backend("Agg")
@@ -55,8 +60,10 @@ class EOExecutorVisualization:
         except graphviz.backend.ExecutableNotFound as ex:
             dependency_graph = None
             warnings.warn(
-                f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to have "
-                "the dependency graph in the final report!",
+                (
+                    f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to have "
+                    "the dependency graph in the final report!"
+                ),
                 EOUserWarning,
             )
 
@@ -71,7 +78,7 @@ class EOExecutorVisualization:
             execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
 
         html = template.render(
-            title=f"Report {self._format_datetime(self.eoexecutor.start_time)}",
+            title=f"Report {self._format_datetime(start_time)}",
             dependency_graph=dependency_graph,
             general_stats=self.eoexecutor.general_stats,
             exception_stats=self._get_exception_stats(),
@@ -84,23 +91,22 @@ class EOExecutorVisualization:
             execution_names=self.eoexecutor.execution_names,
             code_css=formatter.get_style_defs(),
         )
-
-        self.eoexecutor.filesystem.makedirs(self.eoexecutor.report_folder, recreate=True)
+        self.eoexecutor.filesystem.makedirs(report_folder, recreate=True)
 
         with self.eoexecutor.filesystem.open(self.eoexecutor.get_report_path(full_path=False), "w") as file_handle:
             file_handle.write(html)
 
-    def _create_dependency_graph(self):
+    def _create_dependency_graph(self) -> str:
         """Provides an image of dependency graph"""
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
-    def _get_exception_stats(self):
+    def _get_exception_stats(self) -> List[Tuple[str, str, List[Tuple[str, int]]]]:
         """Creates aggregated stats about exceptions"""
         formatter = HtmlFormatter()
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
 
-        exception_stats = defaultdict(lambda: defaultdict(lambda: 0))
+        exception_stats: DefaultDict[str, DefaultDict[str, int]] = defaultdict(lambda: defaultdict(lambda: 0))
 
         for workflow_results in self.eoexecutor.execution_results:
             if not workflow_results.error_node_uid:
@@ -132,10 +138,10 @@ class EOExecutorVisualization:
 
         return ordered_exception_stats
 
-    def _get_node_descriptions(self):
+    def _get_node_descriptions(self) -> List[Dict[str, Any]]:
         """Prepares a list of node names and initialization parameters of their tasks"""
         descriptions = []
-        name_counts = defaultdict(lambda: 0)
+        name_counts: Dict[str, int] = defaultdict(lambda: 0)
 
         for node in self.eoexecutor.workflow.get_nodes():
             node_name = node.get_name(name_counts[node.get_name()])
@@ -146,7 +152,7 @@ class EOExecutorVisualization:
                     "name": f"{node_name} ({node.uid})",
                     "uid": node.uid,
                     "args": {
-                        key: value.replace("<", "&lt;").replace(">", "&gt;")
+                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore
                         for key, value in node.task.private_task_config.init_args.items()
                     },
                 }
@@ -154,7 +160,7 @@ class EOExecutorVisualization:
 
         return descriptions
 
-    def _render_task_sources(self, formatter):
+    def _render_task_sources(self, formatter: pygments.formatter.Formatter) -> Dict[str, Any]:
         """Renders source code of EOTasks"""
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
         sources = {}
@@ -166,6 +172,7 @@ class EOExecutorVisualization:
             if key in sources:
                 continue
 
+            source: Any
             if task.__module__.startswith("eolearn"):
                 subpackage_name = ".".join(task.__module__.split(".")[:2])
                 subpackage = importlib.import_module(subpackage_name)
@@ -185,13 +192,14 @@ class EOExecutorVisualization:
 
         return sources
 
-    def _render_execution_tracebacks(self, formatter):
+    def _render_execution_tracebacks(self, formatter: pygments.formatter.Formatter) -> list:
         """Renders stack traces of those executions which failed"""
         tb_lexer = pygments.lexers.get_lexer_by_name("py3tb", stripall=True)
 
         tracebacks = []
         for results in self.eoexecutor.execution_results:
-            if results.workflow_failed():
+            if results.workflow_failed() and results.error_node_uid is not None:
+                # second part of above check needed only for typechecking purposes
                 failed_node_stats = results.stats[results.error_node_uid]
                 traceback = pygments.highlight(failed_node_stats.exception_traceback, tb_lexer, formatter)
             else:
@@ -201,7 +209,7 @@ class EOExecutorVisualization:
 
         return tracebacks
 
-    def _get_template(self):
+    def _get_template(self) -> Template:
         """Loads and sets up a template for report"""
         templates_dir = os.path.join(os.path.dirname(__file__), "report_templates")
         env = Environment(loader=FileSystemLoader(templates_dir))

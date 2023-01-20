@@ -9,27 +9,26 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 from abc import ABCMeta
 from math import sqrt
-from numbers import Number
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
-_FractionType = Union[Number, Dict[int, Number]]
+_FractionType = Union[float, Dict[int, float]]
 
 
-def random_point_in_triangle(
-    triangle: Polygon, rng: Optional[np.random.Generator] = None, use_int_coords: bool = True
-) -> Point:
+def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generator] = None) -> Point:
     """Selects a random point from an interior of a triangle.
 
     :param triangle: A triangle polygon.
     :param rng: A random numbers generator. If not provided it will be initialized without a seed.
-    :param use_int_coords: A flag deciding if only integer coordinates should be sampled.
     """
     rng = rng or np.random.default_rng()
 
@@ -41,8 +40,7 @@ def random_point_in_triangle(
         + sqrt(random1) * (1 - random2) * np.asarray(vertex_b)
         + sqrt(random1) * random2 * np.asarray(vertex_c)
     )
-    if use_int_coords:
-        return Point(round(random_x), round(random_y))
+
     return Point(random_x, random_y)
 
 
@@ -62,33 +60,19 @@ def sample_by_values(
     :return: A pair of numpy arrays first one containing row indices and second one containing column indices of sampled
         points.
     """
-    rng = rng or np.random.default_rng()
     if image.ndim != 2:
         raise ValueError(f"Given image has shape {image.shape} but sampling operates only on 2D images")
 
-    uniques, counts = np.unique(image, return_counts=True)
-    value_counts = dict(zip(uniques, counts))
+    rng = rng or np.random.default_rng()
+    rows = np.empty((0,), dtype=np.int16)
+    columns = np.empty((0,), dtype=np.int16)
 
-    all_rows, all_columns = [], []
     for value, n_samples in n_samples_per_value.items():
-        n_points = value_counts.get(value, 0)
+        sample_rows, sample_cols = rng.choice(np.nonzero(image == value), size=n_samples, replace=replace, axis=1)
+        rows = np.concatenate((rows, sample_rows))
+        columns = np.concatenate((columns, sample_cols))
 
-        if n_samples > n_points and not replace:
-            raise ValueError(
-                f"For label {value} the requested amount of samples is {n_samples} but only {n_points} points are "
-                "available."
-            )
-
-        rows, columns = np.nonzero(image == value)
-
-        sample_indices = rng.choice(rows.size, size=n_samples, replace=(n_samples > n_points))
-
-        all_rows.append(rows[sample_indices])
-        all_columns.append(columns[sample_indices])
-
-    if all_rows and all_columns:
-        return np.concatenate(all_rows), np.concatenate(all_columns)
-    return np.array([], dtype=int), np.array([], dtype=int)
+    return rows, columns
 
 
 def expand_to_grids(
@@ -112,21 +96,15 @@ def expand_to_grids(
         return rows[:, np.newaxis], columns[:, np.newaxis]
 
     sample_height, sample_width = sample_size
-    row_grids = []
-    column_grids = []
+    row_grids = np.empty((0, sample_width), dtype=int)
+    column_grids = np.empty((0, sample_width), dtype=int)
+
     for row, column in zip(rows, columns):
         row_grid, column_grid = np.meshgrid(
             np.arange(row, row + sample_height), np.arange(column, column + sample_width)
         )
-        row_grids.append(np.transpose(row_grid))
-        column_grids.append(np.transpose(column_grid))
-
-    if row_grids and column_grids:
-        row_grids = np.concatenate(row_grids, axis=0)
-        column_grids = np.concatenate(column_grids, axis=0)
-    else:
-        row_grids = np.zeros((0, 0), dtype=int)
-        column_grids = np.zeros((0, 0), dtype=int)
+        row_grids = np.concatenate((row_grids, np.transpose(row_grid)), axis=0)
+        column_grids = np.concatenate((column_grids, np.transpose(column_grid)), axis=0)
 
     return row_grids, column_grids
 
@@ -155,12 +133,15 @@ def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, colu
 class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
     """A base class for sampling tasks"""
 
-    def __init__(self, features_to_sample, *, mask_of_samples=None):
+    def __init__(
+        self,
+        features_to_sample: FeaturesSpecification,
+        *,
+        mask_of_samples: Optional[Tuple[FeatureType, str]] = None,
+    ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
-        :type mask_of_samples: (FeatureType, str) or None
         """
         self.features_parser = self.get_feature_parser(
             features_to_sample,
@@ -169,7 +150,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
 
         self.mask_of_samples = mask_of_samples
         if mask_of_samples is not None:
-            self.mask_of_samples = self.parse_feature(
+            self.mask_of_samples = self.parse_feature(  # type: ignore[assignment]
                 self.mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
             )
 
@@ -177,18 +158,15 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         """Applies masks of sampled indices to EOPatch features to create sampled features and a mask of samples"""
         image_shape = None
         for feature_type, feature_name, new_feature_name in self.features_parser.get_renamed_features(eopatch):
-            data_to_sample = eopatch[feature_type][feature_name]
+            if feature_name is not None:
+                data_to_sample = eopatch[feature_type][feature_name]
 
-            feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
-            if image_shape is not None and feature_shape != image_shape:
-                raise ValueError(
-                    f"All features should have same spatial dimensions but found {image_shape} and {feature_shape}"
-                )
-            image_shape = feature_shape
+                feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
+                image_shape = feature_shape
 
-            eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
+                eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
-        if self.mask_of_samples is not None:
+        if self.mask_of_samples is not None and image_shape is not None:
             mask = get_mask_of_samples(image_shape, row_grid, column_grid)
             eopatch[self.mask_of_samples] = mask[..., np.newaxis]
 
@@ -204,24 +182,19 @@ class FractionSamplingTask(BaseSamplingTask):
 
     def __init__(
         self,
-        features_to_sample,
-        sampling_feature,
+        features_to_sample: FeaturesSpecification,
+        sampling_feature: SingleFeatureSpec,
         fraction: _FractionType,
         exclude_values: Optional[List[int]] = None,
         replace: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param sampling_feature: A timeless mask feature according to which points will be sampled.
-        :type sampling_feature: (FeatureType, str)
         :param fraction: Fraction of points to sample. Can be dictionary mapping values of mask to fractions.
-        :type fraction: float or dict(int: float)
         :param exclude_values: Skips points that have these values in `sampling_mask`
-        :type exclude_values: list(int)
         :param replace: Whether to sample with replacement. False means each value can only be chosen once.
-        :type replace: bool
         :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
         """
         super().__init__(features_to_sample, **kwargs)
@@ -234,13 +207,13 @@ class FractionSamplingTask(BaseSamplingTask):
 
         self._validate_fraction_input(fraction)
 
-    def _validate_fraction_input(self, fraction: _FractionType):
+    def _validate_fraction_input(self, fraction: _FractionType) -> None:
         """Validates that the input for `fraction` is correct
 
         The input should either be a number or a dictionary linking labels to numbers. Number representing fractions
         are checked to be in [0, 1] or (if replacement is used) in [0, inf).
         """
-        if isinstance(fraction, Number):
+        if isinstance(fraction, (int, float)):
             if fraction < 0:
                 raise ValueError(f"Sampling fractions have to be positive, but {fraction} was given.")
             if not self.replace and not 0 <= fraction <= 1:
@@ -253,7 +226,7 @@ class FractionSamplingTask(BaseSamplingTask):
                 f"The fraction input is {fraction} but needs to be a number or a dictionary mapping labels to numbers."
             )
 
-    def _calculate_amount_per_value(self, image: np.ndarray, fraction) -> Dict[np.uint8, int]:
+    def _calculate_amount_per_value(self, image: np.ndarray, fraction: _FractionType) -> Dict[int, int]:
         """Calculates the number of samples needed for each value present in mask according to the fraction parameter"""
         uniques, counts = np.unique(image, return_counts=True)
         available = {val: n for val, n in zip(uniques, counts) if val not in self.exclude_values}
@@ -268,14 +241,10 @@ class FractionSamplingTask(BaseSamplingTask):
         """Execute random spatial sampling of specified features of eopatch
 
         :param eopatch: Input eopatch to be sampled
-        :type eopatch: EOPatch
         :param seed: Setting seed of random sampling. If None a random seed will be used.
-        :type seed: int or None
         :param fraction: Override the sampling fraction of the task. If None the value from task initialization will
             be used.
-        :type fraction: float or dict(int: float) or None
         :return: An EOPatch with additional spatially sampled features
-        :type eopatch: EOPatch
         """
         rng = np.random.default_rng(seed)
         sampling_image = eopatch[self.sampling_feature].squeeze(axis=-1)
@@ -301,17 +270,19 @@ class BlockSamplingTask(BaseSamplingTask):
     """
 
     def __init__(
-        self, features_to_sample, amount: Number, sample_size: Tuple[int, int] = (1, 1), replace: bool = False, **kwargs
+        self,
+        features_to_sample: FeaturesSpecification,
+        amount: float,
+        sample_size: Tuple[int, int] = (1, 1),
+        replace: bool = False,
+        **kwargs: Any,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param amount: The number of points to sample if integer valued and the fraction of all points if `float`
-        :type amount: int or float
         :param sample_size: A tuple describing a size of sampled blocks. The size is defined as a tuple of number of
             rows and number of columns.
         :param replace: Whether to sample with replacement. False means each value can only be chosen once.
-        :type replace: bool
         :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
         """
         super().__init__(features_to_sample, **kwargs)
@@ -329,14 +300,21 @@ class BlockSamplingTask(BaseSamplingTask):
 
     def _generate_dummy_mask(self, eopatch: EOPatch) -> np.ndarray:
         """Generate a mask consisting entirely of `values` entries, used for sampling on whole raster"""
+
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
+        if feature_name is None:
+            raise ValueError(
+                f"Encountered {feature_type} when calculating spatial dimension, please report bug to eo-learn"
+                " developers."
+            )
+
         height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
         height -= self.sample_size[0] - 1
         width -= self.sample_size[1] - 1
 
         return np.ones((height, width), dtype=np.uint8)
 
-    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[Number] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[float] = None) -> EOPatch:
         """Execute a spatial sampling on features from a given EOPatch
 
         :param eopatch: Input eopatch to be sampled
@@ -350,13 +328,14 @@ class BlockSamplingTask(BaseSamplingTask):
         sampling_image = self._generate_dummy_mask(eopatch)
 
         amount = self.amount if amount is None else amount
-        if isinstance(amount, (int, np.integer)):
-            n_samples_per_value = {1: amount}
+        if isinstance(amount, (int, np.integer)):  # type: ignore[unreachable]
+            n_samples_per_value = {1: amount}  # type: ignore[unreachable]
         else:
             n_samples_per_value = {1: round(sampling_image.size * amount)}
 
         rows, columns = sample_by_values(sampling_image, n_samples_per_value, rng=rng, replace=self.replace)
-        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=self.sample_size)
+        size_x, size_y = self.sample_size  # this way it also works for lists
+        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
         eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
         return eopatch
@@ -369,11 +348,14 @@ class GridSamplingTask(BaseSamplingTask):
     """
 
     def __init__(
-        self, features_to_sample, sample_size: Tuple[int, int] = (1, 1), stride: Tuple[int, int] = (1, 1), **kwargs
+        self,
+        features_to_sample: FeaturesSpecification,
+        sample_size: Tuple[int, int] = (1, 1),
+        stride: Tuple[int, int] = (1, 1),
+        **kwargs: Any,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
-        :type features_to_sample: an object supported by :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param sample_size: A tuple describing a size of sampled blocks. The size is defined as a tuple of number of
             rows and number of columns.
         :param stride: A tuple describing a distance between upper left corners of two consecutive sampled blocks.
@@ -404,10 +386,16 @@ class GridSamplingTask(BaseSamplingTask):
         :return: An EOPatch with additional spatially sampled features
         """
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
+        if feature_name is None:
+            raise ValueError(
+                f"Encountered {feature_type} when calculating spatial dimension, please report bug to eo-learn"
+                " developers."
+            )
 
+        image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
         rows, columns = self._sample_regular_grid(image_shape)
-        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=self.sample_size)
+        size_x, size_y = self.sample_size  # this way it also works for lists
+        row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
         eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
         return eopatch

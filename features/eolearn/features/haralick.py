@@ -8,6 +8,7 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import itertools as it
 import warnings
@@ -15,8 +16,9 @@ import warnings
 import numpy as np
 import skimage.feature
 
-from eolearn.core import EOTask
+from eolearn.core import EOPatch, EOTask
 from eolearn.core.exceptions import EOUserWarning
+from eolearn.core.types import SingleFeatureSpec
 
 
 class HaralickTask(EOTask):
@@ -39,25 +41,27 @@ class HaralickTask(EOTask):
         "difference_entropy",
     }
 
-    def __init__(self, feature, texture_feature="contrast", distance=1, angle=0, levels=8, window_size=3, stride=1):
+    def __init__(
+        self,
+        feature: SingleFeatureSpec,
+        texture_feature: str = "contrast",
+        distance: int = 1,
+        angle: float = 0,
+        levels: int = 8,
+        window_size: int = 3,
+        stride: int = 1,
+    ):
         """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
             specified it will be saved with name '<feature_name>_HARALICK'.
 
             Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'haralick_values')`
-        :type feature: (FeatureType, str) or (FeatureType, str, str)
         :param texture_feature: Type of Haralick textural feature to be calculated
-        :type texture_feature: str
         :param distance: Distance between pairs of pixels used for GLCM
-        :type distance: int
         :param angle: Angle between pairs of pixels used for GLCM in radians, e.g. angle=np.pi/4
-        :type angle: float
         :param levels: Number of bins in GLCM
-        :type levels: int
         :param window_size: Size of the moving GLCM window
-        :type window_size: int
         :param stride: How much the GLCM window moves each time
-        :type stride: int
         """
         self.feature_parser = self.get_feature_parser(feature)
 
@@ -82,7 +86,7 @@ class HaralickTask(EOTask):
                 "Haralick stride is superior to the window size; some pixel values will be ignored", EOUserWarning
             )
 
-    def _custom_texture(self, glcm):
+    def _custom_texture(self, glcm: np.ndarray) -> np.ndarray:
         # Sum of square: Variance
         if self.texture_feature == "sum_of_square_variance":
             i_raw = np.empty_like(glcm)
@@ -99,29 +103,31 @@ class HaralickTask(EOTask):
         elif self.texture_feature == "sum_average":
             # Slow
             tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-            index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)]
-            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            index = np.array([list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)])
+            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
             res = np.array(p_x_y * np.array(range(len(index)))).sum()
         elif self.texture_feature == "sum_variance":
             # Slow
             tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-            index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)]
-            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            index = np.array([list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)])
+            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
             sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
             res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
         elif self.texture_feature == "sum_entropy":
             # Slow
             tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-            index = [list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)]
-            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            index = np.array([list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)])
+            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
             res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
         elif self.texture_feature == "difference_variance":
             # Slow
             tuple_array = np.array(
                 list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))), dtype=(int, 2)
             )
-            index = [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in range(self.levels)]
-            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            index = np.array(
+                [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in range(self.levels)]
+            )
+            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
             sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
             res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
         else:
@@ -130,12 +136,14 @@ class HaralickTask(EOTask):
             tuple_array = np.array(
                 list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))), dtype=(int, 2)
             )
-            index = [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in range(self.levels)]
-            p_x_y = [glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))]
+            index = np.array(
+                [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in range(self.levels)]
+            )
+            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
             res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
         return res
 
-    def _calculate_haralick(self, data):
+    def _calculate_haralick(self, data: np.ndarray) -> np.ndarray:
         result = np.empty(data.shape, dtype=float)
         # For each date and each band
         for time in range(data.shape[0]):
@@ -164,8 +172,8 @@ class HaralickTask(EOTask):
                         result[time, i, j, band] = res
         return result
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
-            eopatch[feature_type][new_feature_name] = self._calculate_haralick(eopatch[feature_type][feature_name])
+            eopatch[feature_type, new_feature_name] = self._calculate_haralick(eopatch[feature_type, feature_name])
 
         return eopatch

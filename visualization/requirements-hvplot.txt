@@ -1,4 +1,0 @@
-geoviews
-hvplot
-pyepsg
-xarray

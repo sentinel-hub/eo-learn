@@ -10,7 +10,7 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from typing import Callable, Optional, Tuple
+from typing import Callable
 
 import cv2
 import numpy as np
@@ -46,12 +46,12 @@ def map_over_axis(data: np.ndarray, func: Callable[[np.ndarray], np.ndarray], ax
 
 
 def resize_images(
-    data: np.ndarray,
-    new_size: Optional[Tuple[int, int]] = None,
-    scale_factors: Optional[Tuple[float, float]] = None,
-    anti_alias: bool = True,
-    interpolation: str = "linear",
-) -> np.ndarray:
+    data,
+    new_size=None,
+    scale_factors=None,
+    anti_alias=True,
+    interpolation="linear",
+):
     """DEPRECATED, please use `eolearn.features.utils.spatially_resize_image` instead.
 
     Resizes the image(s) according to given size or scale factors.
@@ -74,12 +74,12 @@ def resize_images(
     height_width_axis = {2: (0, 1), 3: (0, 1), 4: (1, 2)}
 
     # Old height and width
-    old_size = [data.shape[axis] for axis in height_width_axis[ndims]]
+    old_size = tuple(data.shape[axis] for axis in height_width_axis[ndims])
 
     if new_size is not None and scale_factors is None:
-        scale_factors = [new / old for old, new in zip(old_size, new_size)]
+        scale_factors = tuple(new / old for old, new in zip(old_size, new_size))
     elif scale_factors is not None and new_size is None:
-        new_size = [int(size * factor) for size, factor in zip(old_size, scale_factors)]
+        new_size = tuple(int(size * factor) for size, factor in zip(old_size, scale_factors))
     else:
         raise ValueError("Exactly one of the arguments new_size, scale_factors must be given.")
 
@@ -89,13 +89,13 @@ def resize_images(
     interpolation_method = inter_methods[interpolation]
     downscaling = scale_factors[0] < 1 or scale_factors[1] < 1
 
-    def _resize2d(image):
+    def _resize2d(image: np.ndarray) -> np.ndarray:
         if downscaling and anti_alias:
             # Sigma computation based on skimage resize implementation
-            sigmas = [((1 / s) - 1) / 2 for s in scale_factors]
+            sigmas = tuple(((1 / s) - 1) / 2 for s in scale_factors)
 
             # Limit sigma values above 0
-            sigma_y, sigma_x = [max(1e-8, sigma) for sigma in sigmas]
+            sigma_y, sigma_x = tuple(max(1e-8, sigma) for sigma in sigmas)
             image = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma_x, sigmaY=sigma_y, borderType=cv2.BORDER_REFLECT)
 
         height, width = new_size

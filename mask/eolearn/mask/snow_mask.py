@@ -10,14 +10,17 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja, Eva Erzin (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import itertools
 import logging
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 from skimage.morphology import binary_dilation, disk
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.types import FeatureSpec
 
 from .utils import resize_images
 
@@ -27,15 +30,19 @@ LOGGER = logging.getLogger(__name__)
 class BaseSnowMaskTask(EOTask):
     """Base class for snow detection and masking"""
 
-    def __init__(self, data_feature, band_indices, dilation_size=0, undefined_value=0, mask_name="SNOW_MASK"):
+    def __init__(
+        self,
+        data_feature: FeatureSpec,
+        band_indices: List[int],
+        dilation_size: int = 0,
+        undefined_value: int = 0,
+        mask_name: str = "SNOW_MASK",
+    ):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
-        :type data_feature: tuple(FeatureType, str)
         :param band_indices: A list containing the indices at which the required bands can be found in the data_feature.
-        :type band_indices: list(int)
         :param dilation_size: Size of the disk in pixels for performing dilation. Value 0 means do not perform
             this post-processing step.
-        :type dilation_size: int
         """
         self.bands_feature = self.parse_feature(data_feature)
         self.band_indices = band_indices
@@ -43,13 +50,13 @@ class BaseSnowMaskTask(EOTask):
         self.undefined_value = undefined_value
         self.mask_feature = (FeatureType.MASK, mask_name)
 
-    def _apply_dilation(self, snow_masks):
+    def _apply_dilation(self, snow_masks: np.ndarray) -> np.ndarray:
         """Apply binary dilation for each mask in the series"""
         if self.dilation_size:
             snow_masks = np.array([binary_dilation(mask, disk(self.dilation_size)) for mask in snow_masks])
         return snow_masks
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> Any:
         raise NotImplementedError
 
 
@@ -62,26 +69,29 @@ class SnowMaskTask(BaseSnowMaskTask):
 
     NDVI_THRESHOLD = 0.1
 
-    def __init__(self, data_feature, band_indices, ndsi_threshold=0.4, brightness_threshold=0.3, **kwargs):
+    def __init__(
+        self,
+        data_feature: FeatureSpec,
+        band_indices: List[int],
+        ndsi_threshold: float = 0.4,
+        brightness_threshold: float = 0.3,
+        **kwargs: Any,
+    ):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
             containing the bands 2, 3, 7, 11, i.e. (FeatureType.DATA, 'BANDS')
-        :type data_feature: tuple(FeatureType, str)
         :param band_indices: A list containing the indices at which the required bands can be found in the data_feature.
             The required bands are B03, B04, B08 and B11 and the indices should be provided in this order. If the
             'BANDS' array contains all 13 L1C bands, then `band_indices=[2, 3, 7, 11]`. If the 'BANDS' are the 12 bands
             with L2A values, then `band_indices=[2, 3, 7, 10]`
-        :type band_indices: list(int)
         :param ndsi_threshold: Minimum value of the NDSI required to classify the pixel as snow
-        :type ndsi_threshold: float
         :param brightness_threshold: Minimum value of the red band for a pixel to be classified as bright
-        :type brightness_threshold: float
         """
         super().__init__(data_feature, band_indices, **kwargs)
         self.ndsi_threshold = ndsi_threshold
         self.brightness_threshold = brightness_threshold
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         bands = eopatch[self.bands_feature][..., self.band_indices]
         with np.errstate(divide="ignore", invalid="ignore"):
             # (B03 - B11) / (B03 + B11)
@@ -130,51 +140,43 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
 
     def __init__(
         self,
-        data_feature,
-        band_indices,
-        cloud_mask_feature,
-        dem_feature,
-        dem_params=(100, 0.1),
-        red_params=(12, 0.3, 0.1, 0.2, 0.040),
-        ndsi_params=(0.4, 0.15, 0.001),
-        b10_index=None,
-        **kwargs,
+        data_feature: FeatureSpec,
+        band_indices: List[int],
+        cloud_mask_feature: FeatureSpec,
+        dem_feature: FeatureSpec,
+        dem_params: Tuple[float, float] = (100, 0.1),
+        red_params: Tuple[float, float, float, float, float] = (12, 0.3, 0.1, 0.2, 0.040),
+        ndsi_params: Tuple[float, float, float] = (0.4, 0.15, 0.001),
+        b10_index: Optional[int] = None,
+        **kwargs: Any,
     ):
         """
         :param data_feature: EOPatch feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
             containing the bands B3, B4, and B11
 
             Example: `(FeatureType.DATA, 'ALL-BANDS')`
-        :type data_feature: tuple(FeatureType, str)
         :param band_indices: A list containing the indices at which the required bands can be found in the bands
             feature. If all L1C band values are provided, `band_indices=[2, 3, 11]`. If all L2A band values are
             provided, then `band_indices=[2, 3, 10]`
-        :type band_indices: list(int)
         :param cloud_mask_feature: EOPatch CLM feature represented by a tuple in the form of
             `(FeatureType, 'feature_name')` containing the cloud mask
-        :type cloud_mask_feature: tuple(FeatureType, str)
         :param dem_feature: EOPatch DEM feature represented by a tuple in the form of `(FeatureType, 'feature_name')`
             containing the digital elevation model
-        :type dem_feature: tuple(FeatureType, str)
         :param b10_index: Array index where the B10 band is stored in the bands feature. This is used to refine the
             initial cloud mask
-        :type b10_index: int
         :param dem_params: Tuple with parameters pertaining DEM processing. The first value specifies the bin size
             used to group DEM values, while the second value specifies the minimum snow fraction in an elevation band
             to define z_s. With reference to the ATBD, the tuple is (d_z, f_t)
-        :type dem_params: (float, float)
         :param red_params: Tuple specifying parameters to process the B04 red band. The first parameter defines the
             scaling factor for down-sampling the red band, the second parameter is the maximum value of the
             down-sampled red band for a dark cloud pixel, the third parameter is the minimum value
             to return a non-snow pixel to the cloud mask, the fourth is the minimum reflectance value to pass the 1st
             snow test, and the fifth is the minimum reflectance value to pass the 2nd snow test. With reference to the
             ATBD, the tuple is (r_f, r_d, r_b, r_1, r_2)
-        :type red_params: (float, float, float, float, float)
         :param ndsi_params: Tuple specifying parameters for the NDSI. First parameter is the minimum value to pass the
             1st snow test, the second parameter is the minimum value to pass the 2nd snow test, and the third parameter
             is the minimum snow fraction in the image to activate the pass 2 snow test. With reference to the
             ATBD, the tuple is (n_1, n_2, f_s)
-        :type ndsi_params: (float, float, float)
         """
         super().__init__(data_feature, band_indices, **kwargs)
         self.dem_feature = self.parse_feature(dem_feature)
@@ -185,7 +187,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         self.b10_index = b10_index
         self._validate_params()
 
-    def _validate_params(self):
+    def _validate_params(self) -> None:
         """Check length of parameters defining threshold values"""
         for params, n_params in [(self.dem_params, 2), (self.red_params, 5), (self.ndsi_params, 3)]:
             if not isinstance(params, (tuple, list)) or len(params) != n_params:
@@ -193,7 +195,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
                     f"Incorrect format or number of parameters for {params}. Has to be a tuple of length {n_params}"
                 )
 
-    def _resample_red(self, input_array):
+    def _resample_red(self, input_array: np.ndarray) -> np.ndarray:
         """Method to resample the values of the red band
 
         The input array is first down-scaled using bicubic interpolation and up-scaled back using nearest neighbour
@@ -205,10 +207,13 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         height, width = input_array.shape[1:]
         size = (height // self.red_params[0], width // self.red_params[0])
         return resize_images(
-            resize_images(input_array[..., np.newaxis], new_size=size), new_size=(height, width)
+            resize_images(input_array[..., np.newaxis], new_size=size),
+            new_size=(height, width),
         ).squeeze()
 
-    def _adjust_cloud_mask(self, bands, cloud_mask, dem, b10):
+    def _adjust_cloud_mask(
+        self, bands: np.ndarray, cloud_mask: np.ndarray, dem: np.ndarray, b10: np.ndarray
+    ) -> np.ndarray:
         """Adjust existing cloud mask using cirrus band if L1C data and resampled red band
 
         Add to the existing cloud mask pixels found thresholding down-sampled red band and cirrus band/DEM
@@ -223,7 +228,9 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
             clm_b10,
         ).astype(np.uint8)
 
-    def _apply_first_pass(self, bands, ndsi, clm, dem, clm_temp):
+    def _apply_first_pass(
+        self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem: np.ndarray, clm_temp: np.ndarray
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
         """Apply first pass of snow detection"""
         snow_mask_pass1 = np.where(
             np.logical_and(
@@ -257,7 +264,16 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
                     )
         return snow_mask_pass1, snow_frac, dem_edges
 
-    def _apply_second_pass(self, bands, ndsi, dem, clm_temp, snow_mask_pass1, snow_frac, dem_edges):
+    def _apply_second_pass(
+        self,
+        bands: np.ndarray,
+        ndsi: np.ndarray,
+        dem: np.ndarray,
+        clm_temp: np.ndarray,
+        snow_mask_pass1: np.ndarray,
+        snow_frac: Optional[np.ndarray],
+        dem_edges: np.ndarray,
+    ) -> np.ndarray:
         """Second pass of snow detection"""
         _, height, width, _ = bands.shape
         total_snow_frac = np.sum(snow_mask_pass1, axis=(1, 2)) / (height * width)
@@ -266,7 +282,8 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
             if (total_snow_frac[date] > self.ndsi_params[2]) and (
                 snow_frac is not None and np.any(snow_frac[date] > self.dem_params[1])
             ):
-                z_s = dem_edges[max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]
+                z_s = dem_edges[np.max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]
+
                 snow_mask_pass2[date, :, :] = np.where(
                     np.logical_and(
                         dem > z_s,
@@ -280,7 +297,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
                 )
         return snow_mask_pass2
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Run multi-pass snow detection"""
         bands = eopatch[self.bands_feature][..., self.band_indices]
         b10 = eopatch[self.bands_feature][..., self.b10_index] if self.b10_index is not None else None

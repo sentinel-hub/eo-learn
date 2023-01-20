@@ -8,11 +8,13 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Devis Peressutti, Žiga Lukšič (Sin
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import numpy as np
 import skimage.feature
 
-from eolearn.core import EOTask
+from eolearn.core import EOPatch, EOTask
+from eolearn.core.types import SingleFeatureSpec
 
 
 class LocalBinaryPatternTask(EOTask):
@@ -24,16 +26,14 @@ class LocalBinaryPatternTask(EOTask):
     The task uses skimage.feature.local_binary_pattern to extract the texture features.
     """
 
-    def __init__(self, feature, nb_points=24, radius=3):
+    def __init__(self, feature: SingleFeatureSpec, nb_points: int = 24, radius: int = 3):
         """
         :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
             specified it will be saved with name '<feature_name>_LBP'.
 
             Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'lbp')
         :param nb_points: Number of point to use
-        :type nb_points: int
         :param radius: Radius of the circle of neighbors
-        :type radius: int
         """
         self.feature_parser = self.get_feature_parser(feature)
 
@@ -42,7 +42,7 @@ class LocalBinaryPatternTask(EOTask):
         if nb_points < 1 or radius < 1:
             raise ValueError("Local binary pattern task parameters must be positives")
 
-    def _compute_lbp(self, data):
+    def _compute_lbp(self, data: np.ndarray) -> np.ndarray:
         result = np.empty(data.shape, dtype=float)
         for time in range(data.shape[0]):
             for band in range(data.shape[-1]):
@@ -52,15 +52,13 @@ class LocalBinaryPatternTask(EOTask):
                 )
         return result
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute computation of local binary patterns on input eopatch
 
         :param eopatch: Input eopatch
-        :type eopatch: eolearn.core.EOPatch
         :return: EOPatch instance with new key holding the LBP image.
-        :rtype: eolearn.core.EOPatch
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
-            eopatch[feature_type][new_feature_name] = self._compute_lbp(eopatch[feature_type][feature_name])
+            eopatch[feature_type, new_feature_name] = self._compute_lbp(eopatch[feature_type, feature_name])
 
         return eopatch

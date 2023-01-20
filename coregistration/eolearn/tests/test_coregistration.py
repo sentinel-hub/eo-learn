@@ -11,54 +11,49 @@ file in the root directory of this source tree.
 
 import logging
 
+import cv2
 import numpy as np
 import pytest
 
-from eolearn.core import EOPatch, FeatureType
+from eolearn.core import FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.coregistration import ECCRegistrationTask, InterpolationType
+from eolearn.coregistration import ECCRegistrationTask
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-@pytest.fixture(name="eopatch")
-def eopatch_fixture():
-    bands = np.zeros((2, 20, 20, 1))
-    bands[1] = np.arange(400).reshape(1, 20, 20, 1) / 400
-    bands[0] = bands[1]
-    bands[1, 5:15, 5:15, :] = 0.5
-    bands[0, 7:17, 5:15, :] = 0.5
-    mask = np.ones((2, 20, 20, 1), dtype=np.int16)
-    ndvi = np.ones((2, 20, 20, 1))
-    dem = np.ones((20, 20, 1))
+def test_registration(example_eopatch):
+    apply_to_features = [(FeatureType.DATA, "NDVI"), (FeatureType.DATA, "BANDS-S2-L1C"), (FeatureType.MASK, "CLM")]
 
-    eop = EOPatch()
-    eop[FeatureType.DATA, "bands"] = bands
-    eop[FeatureType.DATA, "ndvi"] = ndvi
-    eop[FeatureType.MASK, "cm"] = mask
-    eop[FeatureType.DATA_TIMELESS, "dem"] = dem
-    return eop
-
-
-def test_registration(eopatch):
     reg = ECCRegistrationTask(
-        (FeatureType.DATA, "bands"),
-        valid_mask_feature=(FeatureType.MASK, "cm"),
-        interpolation_type=InterpolationType.NEAREST,
-        apply_to_features={FeatureType.DATA: ["bands", "ndvi"], FeatureType.MASK: ["cm"]},
+        registration_feature=(FeatureType.DATA, "NDVI"),
+        reference_feature=(FeatureType.DATA_TIMELESS, "MAX_NDVI"),
+        channel=0,
+        valid_mask_feature=None,
+        apply_to_features=apply_to_features,
+        interpolation_mode=cv2.INTER_LINEAR,
+        warp_mode=cv2.MOTION_TRANSLATION,
+        max_iter=100,
+        gauss_kernel_size=1,
+        border_mode=cv2.BORDER_REPLICATE,
+        border_value=0,
+        num_threads=-1,
+        max_translation=5.0,
     )
     with pytest.warns(EORuntimeWarning):
-        reopatch = reg(eopatch)
+        reopatch = reg(example_eopatch)
 
-    assert eopatch.data["bands"].shape == reopatch.data["bands"].shape, "Shapes of .data['bands'] do not match"
-    assert eopatch.data["ndvi"].shape == reopatch.data["ndvi"].shape, "Shapes of .data['ndvi'] do not match"
-    assert eopatch.mask["cm"].shape == reopatch.mask["cm"].shape, "Shapes of .mask['cm'] do not match"
-    assert (
-        eopatch.data_timeless["dem"].shape == reopatch.data_timeless["dem"].shape
-    ), "Shapes of .data['bands'] do not match"
-    assert not np.allclose(eopatch.data["bands"], reopatch.data["bands"]), "Registration did not warp .data['bands']"
-    assert not np.allclose(eopatch.data["ndvi"], reopatch.data["ndvi"]), "Registration did not warp .data['ndvi']"
-    assert not np.allclose(eopatch.mask["cm"], reopatch.mask["cm"]), "Registration did not warp .mask['cm']"
-    assert np.allclose(
-        eopatch.data_timeless["dem"], reopatch.data_timeless["dem"]
-    ), "Registration did warp data_timeless"
+    assert example_eopatch.data["BANDS-S2-L1C"].shape == reopatch.data["BANDS-S2-L1C"].shape
+    assert example_eopatch.data["NDVI"].shape == reopatch.data["NDVI"].shape
+    assert example_eopatch.mask["CLM"].shape == reopatch.mask["CLM"].shape
+    assert not np.allclose(
+        example_eopatch.data["BANDS-S2-L1C"], reopatch.data["BANDS-S2-L1C"]
+    ), "Registration did not warp .data['bands']"
+    assert not np.allclose(
+        example_eopatch.data["NDVI"], reopatch.data["NDVI"]
+    ), "Registration did not warp .data['ndvi']"
+    assert not np.allclose(example_eopatch.mask["CLM"], reopatch.mask["CLM"]), "Registration did not warp .mask['cm']"
+    assert "warp_matrices" in reopatch.meta_info
+
+    for warp_matrix in reopatch.meta_info["warp_matrices"].values():
+        assert np.linalg.norm(np.array(warp_matrix)[:, 2]) <= 5.0, "Estimated translation is larger than max value"

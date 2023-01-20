@@ -48,7 +48,6 @@ setup(
     package_data={"eolearn": ["visualization/report_templates/report.html"]},
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
-    extras_require={"HVPLOT": parse_requirements("requirements-hvplot.txt")},
     zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",

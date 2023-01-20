@@ -11,24 +11,26 @@ file in the root directory of this source tree.
 """
 
 import itertools
+from typing import List, Optional, Union
 
 import numpy as np
 
 try:
     import matplotlib.pyplot as plt
+    from matplotlib.colors import Colormap
 except ImportError as exception:
     raise ImportError("This module requires an installation of matplotlib package") from exception
 
 
 def plot_confusion_matrix(
-    confusion_matrix,
-    classes,
-    normalize=True,
-    title="Confusion matrix",
-    cmap=plt.cm.Blues,
-    xlabel="Predicted label",
-    ylabel="True label",
-):
+    confusion_matrix: np.ndarray,
+    classes: List[str],
+    normalize: bool = True,
+    title: str = "Confusion matrix",
+    cmap: Optional[Union[str, Colormap]] = plt.cm.Blues,
+    xlabel: str = "Predicted label",
+    ylabel: str = "True label",
+) -> None:
     """Make a single confusion matrix plot."""
     if normalize:
         normalisation_factor = confusion_matrix.sum(axis=1)[:, np.newaxis] + np.finfo(float).eps

@@ -11,11 +11,12 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Iterable, List, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
@@ -23,7 +24,7 @@ from geopandas import GeoDataFrame
 from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
-from eolearn.core.utils.parsing import FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification, Literal, SingleFeatureSpec
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 
@@ -35,14 +36,14 @@ class SimpleFilterTask(EOTask):
     Transforms an eopatch of shape [n, w, h, d] into [m, w, h, d] for m <= n. It removes all slices which don't
     conform to the filter_func.
 
-    A filter_func is a callable which takes a numpy array and returns a bool.
+    A filter_func is a callable which takes a numpy array or list of datetimes and returns a bool.
     """
 
     def __init__(
         self,
-        feature: Union[Tuple[FeatureType, str], FeatureType],
+        feature: SingleFeatureSpec,
         filter_func: Union[Callable[[np.ndarray], bool], Callable[[dt.datetime], bool]],
-        filter_features: Any = ...,
+        filter_features: FeaturesSpecification = ...,
     ):
         """
         :param feature: Feature in the EOPatch , e.g. feature=(FeatureType.DATA, 'bands')
@@ -96,31 +97,22 @@ class FilterTimeSeriesTask(SimpleFilterTask):
     Removes all frames in the time-series with dates outside the user specified time interval.
     """
 
-    def _filter_func(self, date):
-        """
-        :param date: datetime.datetime
-        """
+    def _filter_func(self, date: dt.datetime) -> bool:
         return self.start_date <= date <= self.end_date
 
-    def __init__(self, start_date, end_date, filter_features=...):
+    def __init__(self, start_date: dt.datetime, end_date: dt.datetime, filter_features: FeaturesSpecification = ...):
         """
         :param start_date: Start date. All frames within the time-series taken after this date will be kept.
-        :type start_date: datetime.datetime
         :param end_date: End date. All frames within the time-series taken before this date will be kept.
-        :type end_date: datetime.datetime
         :param filter_features: A collection of features which will be filtered
-        :type filter_features: dict(FeatureType: set(str))
         """
         self.start_date = start_date
         self.end_date = end_date
 
-        if not isinstance(start_date, dt.datetime):
-            raise ValueError("Start date is not of correct type. Please provide the start_date as datetime.datetime.")
+        if not isinstance(start_date, dt.datetime) or not isinstance(end_date, dt.datetime):
+            raise ValueError("Both start_date and end_date must be datetime.datetime objects.")
 
-        if not isinstance(end_date, dt.datetime):
-            raise ValueError("End date is not of correct type. Please provide the end_date as datetime.datetime.")
-
-        super().__init__(FeatureType.TIMESTAMP, self._filter_func, filter_features)
+        super().__init__((FeatureType.TIMESTAMP, None), self._filter_func, filter_features)
 
 
 class ValueFilloutTask(EOTask):
@@ -138,16 +130,18 @@ class ValueFilloutTask(EOTask):
         'bf': nan, nan, nan, 8, 5, nan, 1, 0, nan, nan -> 8, 8, 8, 8, 5, 1, 1, 0, 0, 0
     """
 
-    def __init__(self, feature, operations="fb", value=np.nan, axis=0):
+    def __init__(
+        self,
+        feature: SingleFeatureSpec,
+        operations: Literal["f", "b", "fb", "bf"] = "fb",
+        value: float = np.nan,
+        axis: int = 0,
+    ):
         """
         :param feature: A feature that must be value-filled.
-        :type feature: an object supported by the :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`
         :param operations: Fill directions, which should be one of ['f', 'b', 'fb', 'bf'].
-        :type operations: str
         :param value: Which value to fill by its neighbors.
-        :type value: any numpy dtype
         :param axis: An axis along which to fill values.
-        :type axis: int
         """
         if operations not in ["f", "b", "fb", "bf"]:
             raise ValueError("'operations' parameter should be one of the following options: f, b, fb, bf.")
@@ -158,18 +152,14 @@ class ValueFilloutTask(EOTask):
         self.axis = axis
 
     @staticmethod
-    def fill(data, value=np.nan, operation="f"):
+    def fill(data: np.ndarray, value: float = np.nan, operation: Literal["f", "b"] = "f") -> np.ndarray:
         """Fills occurrences of a desired value in a 2d array with their neighbors in either forward or backward
         direction.
 
         :param data: A 2d numpy array.
-        :type data: numpy.ndarray
         :param value: Which value to fill by its neighbors.
-        :type value: any numpy dtype
         :param operation: Fill directions, which should be either 'f' or 'b'.
-        :type operation: str
         :return: Value-filled numpy array.
-        :rtype: numpy.ndarray
         """
         if not isinstance(data, np.ndarray) or data.ndim != 2:
             raise ValueError("Wrong data input")
@@ -193,12 +183,10 @@ class ValueFilloutTask(EOTask):
 
         return data[np.arange(n_rows)[:, np.newaxis], idx]
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         :param eopatch: Source EOPatch from which to read the feature data.
-        :type eopatch: EOPatch
         :return: An eopatch with the value-filled feature.
-        :rtype: EOPatch
         """
         data = eopatch[self.feature]
 
@@ -211,7 +199,8 @@ class ValueFilloutTask(EOTask):
         original_shape = data.shape
         data = data.reshape(np.prod(original_shape[:-1]), original_shape[-1])
 
-        for operation in self.operations:
+        for operation in self.operations:  # iterates over string that represents the operation
+            operation = cast(Literal["f", "b"], operation)
             data = self.fill(data, value=self.value, operation=operation)
 
         data = data.reshape(*original_shape)
@@ -230,8 +219,8 @@ class LinearFunctionTask(MapFeatureTask):
 
     def __init__(
         self,
-        input_features,
-        output_features=None,
+        input_features: FeaturesSpecification,
+        output_features: Optional[FeaturesSpecification] = None,
         slope: float = 1,
         intercept: float = 0,
         dtype: Union[str, type, np.dtype, None] = None,
@@ -251,7 +240,7 @@ class LinearFunctionTask(MapFeatureTask):
 
         super().__init__(input_features, output_features, slope=slope, intercept=intercept)
 
-    def map_method(self, feature: np.ndarray, slope: float, intercept: float) -> np.ndarray:
+    def map_method(self, feature: np.ndarray, slope: float, intercept: float) -> np.ndarray:  # type:ignore[override]
         """A method where feature is multiplied by a slope"""
         rescaled_feature = feature * slope + intercept
         return rescaled_feature if self.dtype is None else rescaled_feature.astype(self.dtype)
@@ -263,35 +252,46 @@ class SpatialResizeTask(EOTask):
     def __init__(
         self,
         *,
-        resize_parameters: Tuple[ResizeParam, Tuple[float, float]],
+        resize_type: ResizeParam,
+        height_param: float,
+        width_param: float,
         features: FeaturesSpecification = ...,
         resize_method: ResizeMethod = ResizeMethod.LINEAR,
         resize_library: ResizeLib = ResizeLib.PIL,
     ):
         """
         :param features: Which features to resize. Supports new names for features.
-        :param resize_parameters: Instructions on how to perform the resizing process. For example use:
-            `['new_size', [500, 1000]]` to resize the data to size (500, 1000),
-            `['resolution', [10, 20]]` for changing resolution from 10 to 20,
-            `['scale_factors', [3, 3]]` to make the data three times larger.
+        :param resize_type: Determines type of resizing process and how `width_param` and `height_param` are used.
+            Options:
+                * `new_size`: Resizes data to size (width_param, height_param)
+                * | `resolution`: Resizes the data to have width_param, height_param resolution over width/height axis.
+                  | Uses EOPatch bbox to compute.
+                * | `scale_factor` Resizes the data by scaling the width and height by a factor set by
+                  | width_param and height_param respectively.
+        :param height_param: Parameter to be applied to the height in combination with the resize_type
+        :param width_param: Parameter to be applied to the width in combination with the resize_type
         :param resize_method: Interpolation method used for resizing.
         :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
             features anti-aliasing. For cases where execution speed is crucial one can use CV2.
         """
         self.features = features
-        self.parameter_kind = ResizeParam(resize_parameters[0])
-        self.parameter_values = resize_parameters[1]
+        self.resize_type = ResizeParam(resize_type)
+        self.height_param = height_param
+        self.width_param = width_param
 
         self.resize_function = partial(
             spatially_resize_image, resize_method=resize_method, resize_library=resize_library
         )
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        if self.parameter_kind == ResizeParam.RESOLUTION:
-            new_size = bbox_to_dimensions(eopatch.bbox, self.parameter_values)
-            resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: new_size}
+        resize_fun_kwargs: Dict[str, Any]
+        if self.resize_type == ResizeParam.RESOLUTION:
+            if not eopatch.bbox:
+                raise ValueError("Resolution-specified resizing can only be done on EOPatches with a defined BBox.")
+            new_width, new_height = bbox_to_dimensions(eopatch.bbox, (self.width_param, self.height_param))
+            resize_fun_kwargs = {ResizeParam.NEW_SIZE.value: (new_height, new_width)}
         else:
-            resize_fun_kwargs = {self.parameter_kind.value: self.parameter_values}
+            resize_fun_kwargs = {self.resize_type.value: (self.height_param, self.width_param)}
 
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
             if ftype.is_spatial() and ftype.is_raster():

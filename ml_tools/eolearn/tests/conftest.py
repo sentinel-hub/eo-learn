@@ -12,5 +12,5 @@ TEST_EOPATCH_PATH = os.path.join(EXAMPLE_DATA_PATH, "TestEOPatch")
 
 
 @pytest.fixture(name="test_eopatch")
-def test_eopatch_fixture():
+def test_eopatch_fixture() -> EOPatch:
     return EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True)

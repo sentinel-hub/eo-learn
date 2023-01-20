@@ -9,12 +9,15 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 from enum import Enum
+from typing import Any, List, Optional, Union
 
 import numpy as np
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.types import FeaturesSpecification
 
 
 class TrainTestSplitType(Enum):
@@ -62,19 +65,19 @@ class TrainTestSplitTask(EOTask):
     """
 
     def __init__(
-        self, input_feature, output_feature, bins, split_type=TrainTestSplitType.PER_PIXEL, ignore_values=None
+        self,
+        input_feature: FeaturesSpecification,
+        output_feature: FeaturesSpecification,
+        bins: Union[float, List[Any]],
+        split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
+        ignore_values: Optional[List[int]] = None,
     ):
         """
         :param input_feature: The input feature to guide the split.
-        :type input_feature: (FeatureType, feature_name)
         :param input_feature: The output feature where to save the mask.
-        :type input_feature: (FeatureType, feature_name)
         :param bins: Cumulative probabilities of all value classes or a single float, representing a fraction.
-        :type bins: a float or list of floats
         :param split_type: Value split type, either 'PER_PIXEL', 'PER_CLASS' or 'PER_VALUE'.
-        :type split_type: TrainTestSplitType
         :param ignore_values: A list of values in input_feature to ignore and not assign them to any subsets.
-        :type ignore_values: a list of integers
         """
         self.input_feature = self.parse_feature(input_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
         self.output_feature = self.parse_feature(output_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
@@ -95,14 +98,11 @@ class TrainTestSplitTask(EOTask):
         self.bins = bins
         self.split_type = TrainTestSplitType(split_type)
 
-    def execute(self, eopatch, *, seed=None):
+    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None) -> EOPatch:
         """
         :param eopatch: input EOPatch
-        :type eopatch: EOPatch
         :param seed: An argument to be passed to numpy.random.seed function.
-        :type seed: int or None
         :return: Input EOPatch with the train set mask.
-        :rtype: EOPatch
         """
         if self.split_type in [TrainTestSplitType.PER_CLASS, TrainTestSplitType.PER_PIXEL]:
             np.random.seed(seed)

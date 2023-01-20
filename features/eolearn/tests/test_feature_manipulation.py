@@ -231,29 +231,37 @@ def test_linear_function_task():
 
 
 @pytest.mark.parametrize(
-    ["resize_parameters", "features_call", "features_check", "outputs"],
+    ["resize_type", "height_param", "width_param", "features_call", "features_check", "outputs"],
     [
-        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP"), ("data", "CLP"), (68, 50, 70, 1)),
-        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP"), ("mask", "CLM"), (68, 101, 100, 1)),
-        ((ResizeParam.NEW_SIZE, (50, 70)), ..., ("data", "CLP"), (68, 50, 70, 1)),
-        ((ResizeParam.NEW_SIZE, (50, 70)), ..., ("mask", "CLM"), (68, 50, 70, 1)),
-        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP", "CLP_small"), ("data", "CLP_small"), (68, 50, 70, 1)),
-        ((ResizeParam.NEW_SIZE, (50, 70)), ("data", "CLP", "CLP_small"), ("data", "CLP"), (68, 101, 100, 1)),
-        ((ResizeParam.SCALE_FACTORS, (2, 2)), ("data", "CLP"), ("data", "CLP"), (68, 202, 200, 1)),
-        ((ResizeParam.SCALE_FACTORS, (0.1, 0.1)), ("data", "CLP"), ("data", "CLP"), (68, 10, 10, 1)),
-        ((ResizeParam.RESOLUTION, (5, 5)), ("data", "CLP"), ("data", "CLP"), (68, 200, 202, 1)),
-        ((ResizeParam.RESOLUTION, (20, 20)), ("data", "CLP"), ("data", "CLP"), (68, 50, 50, 1)),
+        (ResizeParam.NEW_SIZE, 50, 70, ("data", "CLP"), ("data", "CLP"), (68, 50, 70, 1)),
+        (ResizeParam.NEW_SIZE, 50, 70, ("data", "CLP"), ("mask", "CLM"), (68, 101, 100, 1)),
+        (ResizeParam.NEW_SIZE, 50, 70, ..., ("data", "CLP"), (68, 50, 70, 1)),
+        (ResizeParam.NEW_SIZE, 50, 70, ..., ("mask", "CLM"), (68, 50, 70, 1)),
+        (ResizeParam.NEW_SIZE, 50, 70, ("data", "CLP", "CLP_small"), ("data", "CLP_small"), (68, 50, 70, 1)),
+        (ResizeParam.NEW_SIZE, 50, 70, ("data", "CLP", "CLP_small"), ("data", "CLP"), (68, 101, 100, 1)),
+        (ResizeParam.SCALE_FACTORS, 2, 2, ("data", "CLP"), ("data", "CLP"), (68, 202, 200, 1)),
+        (ResizeParam.SCALE_FACTORS, 0.5, 2, ("data", "CLP"), ("data", "CLP"), (68, 50, 200, 1)),
+        (ResizeParam.SCALE_FACTORS, 0.1, 0.1, ("data", "CLP"), ("data", "CLP"), (68, 10, 10, 1)),
+        (ResizeParam.RESOLUTION, 5, 5, ("data", "CLP"), ("data", "CLP"), (68, 202, 200, 1)),
+        (ResizeParam.RESOLUTION, 20, 20, ("data", "CLP"), ("data", "CLP"), (68, 50, 50, 1)),
+        (ResizeParam.RESOLUTION, 5, 20, ("data", "CLP"), ("data", "CLP"), (68, 202, 50, 1)),
     ],
 )
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
-def test_spatial_resize_task(example_eopatch, resize_parameters, features_call, features_check, outputs):
+def test_spatial_resize_task(
+    example_eopatch, resize_type, height_param, width_param, features_call, features_check, outputs
+):
     # Warnings occur due to lossy casting in the downsampling procedure
 
-    resize = SpatialResizeTask(resize_parameters=resize_parameters, features=features_call)
+    resize = SpatialResizeTask(
+        resize_type=resize_type, height_param=height_param, width_param=width_param, features=features_call
+    )
     assert resize(example_eopatch)[features_check].shape == outputs
 
 
 def test_spatial_resize_task_exception(example_eopatch):
     with pytest.raises(ValueError):
-        resize_wrong_param = SpatialResizeTask(features=("mask", "CLM"), resize_parameters=("blabla", (20, 20)))
+        resize_wrong_param = SpatialResizeTask(
+            features=("mask", "CLM"), resize_type="blabla", height_param=20, width_param=20
+        )
         resize_wrong_param(example_eopatch)

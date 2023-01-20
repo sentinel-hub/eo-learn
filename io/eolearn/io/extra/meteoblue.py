@@ -1,5 +1,5 @@
 """
-Module with tasks that provide data from Meteoblue services
+Module with tasks that provide data from meteoblue services
 
 To use tasks from this module you have to install METEOBLUE package extension:
 
@@ -8,7 +8,7 @@ To use tasks from this module you have to install METEOBLUE package extension:
     pip install eo-learn-io[METEOBLUE]
 
 Credits:
-Copyright (c) 2021-2022 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sinergise)
+Copyright (c) 2021-2022 Patrick Zippenfenig (meteoblue), Matej Aleksandrov (Sinergise)
 
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
@@ -34,26 +34,28 @@ from eolearn.core import EOPatch, EOTask
 
 
 class BaseMeteoblueTask(EOTask):
-    """A base task implementing the logic that is common for all Meteoblue tasks"""
+    """A base task implementing the logic that is common for all meteoblue tasks"""
 
     def __init__(
         self,
         feature,
         apikey: str,
-        query: dict,
-        units: dict = None,
+        query: Optional[dict] = None,
+        units: Optional[dict] = None,
         time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008
         cache_folder: Optional[str] = None,
         cache_max_age: int = 604800,
     ):
         """
-        :param feature: A feature in which Meteoblue data will be stored
+        :param feature: A feature in which meteoblue data will be stored
         :type feature: (FeatureType, str)
-        :param apikey: Meteoblue API key
+        :param apikey: meteoblue API key
         :type apikey: str
-        :param query: Meteoblue dataset API query definition
+        :param query: meteoblue dataset API query definition. If set to None (default) the query has to be set
+            in the execute method instead.
         :type query: dict
-        :param units: Meteoblue dataset API units definition
+        :param units: meteoblue dataset API units definition. If set to None (default) request will use default units
+            as specified in https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api#units
         :type units: dict
         :param time_difference: The size of a time interval around each timestamp for which data will be collected. It
             is used only in a combination with ``time_interval`` parameter from ``execute`` method.
@@ -84,7 +86,7 @@ class BaseMeteoblueTask(EOTask):
         return bbox or eopatch.bbox
 
     def _prepare_time_intervals(self, eopatch, time_interval):
-        """Prepare a list of time intervals for which data will be collected from Meteoblue services"""
+        """Prepare a list of time intervals for which data will be collected from meteoblue services"""
         if not eopatch.timestamp and not time_interval:
             raise ValueError("Time interval should either be defined with eopatch.timestamp of time_interval parameter")
 
@@ -109,16 +111,19 @@ class BaseMeteoblueTask(EOTask):
         """It should return an output feature object and a list of timestamps"""
         raise NotImplementedError
 
-    def execute(self, eopatch=None, *, bbox=None, time_interval=None):
-        """Execute method that adds new Meteoblue data into an EOPatch
+    def execute(self, eopatch=None, *, query=None, bbox=None, time_interval=None):
+        """Execute method that adds new meteoblue data into an EOPatch
 
         :param eopatch: An EOPatch in which data will be added. If not provided a new EOPatch will be created.
         :type eopatch: EOPatch or None
         :param bbox: A bounding box of a request. Should be provided if eopatch parameter is not provided.
         :type bbox: BBox or None
+        :param query: meteoblue dataset API query definition. This query takes precedence over one defined in __init__.
+        :type query: dict
         :param time_interval: An interval for which data should be downloaded. If not provided then timestamps from
             provided eopatch will be used.
         :type time_interval: (dt.datetime, dt.datetime) or (str, str) or None
+        :raises ValueError: Raises an exception when no query is set during Task initialization or the execute method.
         """
         eopatch = eopatch or EOPatch()
         eopatch.bbox = self._prepare_bbox(eopatch, bbox)
@@ -127,14 +132,19 @@ class BaseMeteoblueTask(EOTask):
         bbox = eopatch.bbox
         geometry = Geometry(bbox.geometry, bbox.crs).transform(CRS.WGS84)
         geojson = shapely.geometry.mapping(geometry.geometry)
-        query = {
+
+        query = query if query is not None else self.query
+        if query is None:
+            raise ValueError("Query has to specified in execute method or during task initialization")
+
+        executable_query = {
             "units": self.units,
             "geometry": geojson,
             "format": "protobuf",
             "timeIntervals": time_intervals,
-            "queries": [self.query],
+            "queries": [query],
         }
-        result_data, result_timestamp = self._get_data(query)
+        result_data, result_timestamp = self._get_data(executable_query)
 
         if not eopatch.timestamp and result_timestamp:
             eopatch.timestamp = result_timestamp
@@ -144,13 +154,13 @@ class BaseMeteoblueTask(EOTask):
 
 
 class MeteoblueVectorTask(BaseMeteoblueTask):
-    """Obtains weather data from Meteoblue services as a vector feature
+    """Obtains weather data from meteoblue services as a vector feature
 
     The data is obtained as a VECTOR feature in a ``geopandas.GeoDataFrame`` where columns include latitude, longitude,
     timestamp and a columns for each weather variable. All data is downloaded from the
-    `Meteoblue dataset API <https://docs.meteoblue.com/en/apis/environmental-data/dataset-api>`__.
+    meteoblue dataset API (<https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api>).
 
-    A Meteoblue API key is required to retrieve data.
+    A meteoblue API key is required to retrieve data.
     """
 
     def _get_data(self, query):
@@ -164,13 +174,13 @@ class MeteoblueVectorTask(BaseMeteoblueTask):
 
 
 class MeteoblueRasterTask(BaseMeteoblueTask):
-    """Obtains weather data from Meteoblue services as a raster feature
+    """Obtains weather data from meteoblue services as a raster feature
 
     It returns a 4D numpy array with dimensions (time, height, width, weather variables) which should be stored as a
     DATA feature. Data is resampled to WGS84 plate carrée to a specified resolution using the
-    `Meteoblue dataset API <https://docs.meteoblue.com/en/apis/environmental-data/dataset-api>`__.
+    meteoblue dataset API (<https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api>).
 
-    A Meteoblue API key is required to retrieve data.
+    A meteoblue API key is required to retrieve data.
     """
 
     def _get_data(self, query):
@@ -185,9 +195,9 @@ class MeteoblueRasterTask(BaseMeteoblueTask):
 
 
 def meteoblue_to_dataframe(result) -> pd.DataFrame:
-    """Transform a Meteoblue dataset API result to a dataframe
+    """Transform a meteoblue dataset API result to a dataframe
 
-    :param result: A response of Meteoblue API
+    :param result: A response of meteoblue API
     :type result: Dataset_pb2.DatasetApiProtobuf
     :returns: A dataframe with columns TIMESTAMP, Longitude, Latitude and aggregation columns
     """
@@ -221,9 +231,9 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
 
 
 def meteoblue_to_numpy(result) -> np.ndarray:
-    """Transform a Meteoblue dataset API result to a dataframe
+    """Transform a meteoblue dataset API result to a dataframe
 
-    :param result: A response of Meteoblue API
+    :param result: A response of meteoblue API
     :type result: Dataset_pb2.DatasetApiProtobuf
     :returns: A 4D numpy array with shape (time, height, width, weather variables)
     """
@@ -235,7 +245,7 @@ def meteoblue_to_numpy(result) -> np.ndarray:
     geo_ny = geometry.ny
     geo_nx = geometry.nx
 
-    # Meteoblue data is using dimensions (n_variables, n_time_intervals, ny, nx, n_timesteps)
+    # meteoblue data is using dimensions (n_variables, n_time_intervals, ny, nx, n_timesteps)
     # Individual time intervals may have different number of timesteps (not a dimension)
     # Therefore we have to first transpose each code individually and then transpose everything again
     def map_code(code):
@@ -278,7 +288,7 @@ def _meteoblue_timestamps_from_time_interval(timestamp_pb):
 
 
 def _parse_timestring(timestring):
-    """A helper method to parse specific timestrings obtained from Meteoblue service"""
+    """A helper method to parse specific timestrings obtained from meteoblue service"""
     if "-" in timestring:
         timestring = timestring.split("-")[0]
     return dateutil.parser.parse(timestring)

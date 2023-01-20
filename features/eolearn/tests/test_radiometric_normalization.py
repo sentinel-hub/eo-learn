@@ -12,7 +12,7 @@ from datetime import datetime
 import numpy as np
 import pytest
 
-from sentinelhub.testing_utils import test_numpy_data
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import FeatureType
 from eolearn.features import (
@@ -135,7 +135,7 @@ def test_radiometric_normalization(eopatch, task, test_feature, expected_statist
     assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
     assert isinstance(eopatch.timestamp[0], datetime), "Expected timestamps of type datetime.datetime"
 
-    test_numpy_data(eopatch[test_feature], **expected_statistics, delta=1e-3)
+    assert_statistics_match(eopatch[test_feature], **expected_statistics, abs_delta=1e-3)
 
     del eopatch[test_feature]
     assert initial_patch == eopatch, "Other features of the EOPatch were affected."

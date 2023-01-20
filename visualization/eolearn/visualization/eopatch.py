@@ -8,11 +8,13 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime as dt
 import itertools as it
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +22,7 @@ from geopandas import GeoDataFrame
 from pyproj import CRS
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.types import SingleFeatureSpec
 
 from .eopatch_base import BaseEOPatchVisualization, BasePlotConfig
 
@@ -28,10 +31,9 @@ class PlotBackend(Enum):
     """Types of backend for plotting"""
 
     MATPLOTLIB = "matplotlib"
-    HVPLOT = "hvplot"
 
 
-def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs) -> object:
+def plot_eopatch(*args: Any, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs: Any) -> object:
     """The main `EOPatch` plotting function. It pr
 
     :param args: Positional arguments to be propagated to a plotting backend.
@@ -43,12 +45,6 @@ def plot_eopatch(*args, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLI
 
     if backend is PlotBackend.MATPLOTLIB:
         return MatplotlibVisualization(*args, **kwargs).plot()
-
-    if backend is PlotBackend.HVPLOT:
-        # pylint: disable=import-outside-toplevel
-        from .extra.hvplot import HvPlotVisualization
-
-        return HvPlotVisualization(*args, **kwargs).plot()
 
     raise ValueError(f"EOPatch plotting backend {backend} is not supported")
 
@@ -80,14 +76,16 @@ class PlotConfig(BasePlotConfig):
 class MatplotlibVisualization(BaseEOPatchVisualization):
     """EOPatch visualization using `matplotlib` framework."""
 
+    config: PlotConfig
+
     def __init__(
         self,
         eopatch: EOPatch,
-        feature,
+        feature: SingleFeatureSpec,
         *,
         axes: Optional[np.ndarray] = None,
         config: Optional[PlotConfig] = None,
-        **kwargs,
+        **kwargs: Any,
     ):
         """
         :param eopatch: An EOPatch with a feature to plot.
@@ -98,10 +96,9 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         """
         config = config or PlotConfig()
         super().__init__(eopatch, feature, config=config, **kwargs)
-        self.config = cast(PlotConfig, self.config)
 
         if axes is not None and not isinstance(axes, np.ndarray):
-            axes = np.array([np.array([axes])])
+            axes = np.array([np.array([axes])])  # type: ignore[unreachable]
         self.axes = axes
 
     def plot(self) -> np.ndarray:
@@ -236,7 +233,9 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
 
         return axes
 
-    def _provide_axes(self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs) -> np.ndarray:
+    def _provide_axes(
+        self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs: Any
+    ) -> np.ndarray:
         """Either provides an existing grid of axes or creates new one"""
         if self.axes is not None:
             return self.axes

@@ -1,2 +1,3 @@
+# using headless version of opencv, otherwise gitlab runners fail
 eo-learn-core
-opencv-contrib-python-headless>=4.1
+opencv-python-headless

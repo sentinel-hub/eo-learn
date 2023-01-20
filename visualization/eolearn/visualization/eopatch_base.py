@@ -8,15 +8,18 @@ Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Viš
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import abc
 import datetime as dt
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 from geopandas import GeoDataFrame
 
 from eolearn.core import EOPatch
+from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.common import is_discrete_type
 from eolearn.core.utils.parsing import parse_feature
 
@@ -42,7 +45,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
     def __init__(
         self,
         eopatch: EOPatch,
-        feature,
+        feature: SingleFeatureSpec,
         *,
         config: BasePlotConfig,
         times: Union[List[int], slice, None] = None,
@@ -87,7 +90,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
     def plot(self) -> object:
         """Plots the given feature"""
 
-    def collect_and_prepare_feature(self) -> Tuple[object, List[dt.datetime]]:
+    def collect_and_prepare_feature(self) -> Tuple[Any, List[dt.datetime]]:
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = self.eopatch[self.feature]

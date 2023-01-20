@@ -7,12 +7,14 @@ Copyright (c) 2021-2022 Matej Aleksandrov, Matej Batič, Miha Kadunc, Žiga Luk�
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 from typing import Optional
 
 from .eodata import EOPatch
 from .eotask import EOTask
+from .types import FeaturesSpecification
 from .utils.common import generate_uid
-from .utils.parsing import FeaturesSpecification
 
 
 class InputTask(EOTask):
