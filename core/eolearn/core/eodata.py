@@ -359,6 +359,8 @@ class EOPatch:
         """
         self._check_tuple_key(feature)
         feature_type, feature_name = feature
+        if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMP]:
+            self.reset_feature_type(feature_type)
         del self[feature_type][feature_name]
 
     @staticmethod

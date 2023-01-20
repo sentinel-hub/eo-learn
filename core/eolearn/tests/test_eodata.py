@@ -163,6 +163,7 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.MASK, "ones"),
         (FeatureType.MASK_TIMELESS, "threes"),
         (FeatureType.META_INFO, "beep"),
+        (FeatureType.BBOX),
     ],
 )
 def test_delete_existing_feature(feature: Tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
