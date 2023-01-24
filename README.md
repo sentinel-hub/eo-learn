@@ -39,7 +39,7 @@ to use any of the available tasks and is encouraged to improve the, develop new 
 At the moment there are the following subpackages:
 
 - **`eo-learn-core`** - The main subpackage which implements basic building blocks (`EOPatch`, `EOTask` and `EOWorkflow`) and commonly used functionalities.
-- **`eo-learn-coregistration`** - The subpackage that deals with image co-registraion.
+- **`eo-learn-coregistration`** - The subpackage that deals with image co-registration.
 - **`eo-learn-features`** - A collection of utilities for extracting data properties and feature manipulation.
 - **`eo-learn-geometry`** - Geometry subpackage used for geometric transformation and conversion between vector and raster data.
 - **`eo-learn-io`** - Input/output subpackage that deals with obtaining data from Sentinel Hub services or saving and loading data locally.
