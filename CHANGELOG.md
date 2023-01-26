@@ -15,7 +15,7 @@
 
 ## [Version 1.3.1] - 2022-11-23
 
-- Sentinel Hub IO tasks now support a custom timestamp filtration via `timestamp_filter` parameter.
+- Sentinel Hub IO tasks now support a custom timestamp filtration via `timestamp_filter` parameter, contributed by @ColinMoldenhauer.
 - `MergeFeatureTask` now supports the `axis` parameter.
 - Fix minor issues with the coregistration module.
 - Prepare for future removal of `sentinelhub.os_utils`.
