@@ -116,7 +116,7 @@ jobs:
           pytest -m "not sh_integration"
 
       - name: Upload code coverage
-        if: ${{ matrix.full_test_suite }}
+        if: ${{ matrix.full_test_suite && github.event_name == 'push' }}
         uses: codecov/codecov-action@v2
         with:
           files: coverage.xml
