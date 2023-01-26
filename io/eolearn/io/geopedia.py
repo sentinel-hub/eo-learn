@@ -42,7 +42,7 @@ class AddGeopediaFeatureTask(EOTask):
         feature: FeatureSpec,
         layer: Union[str, int],
         theme: str,
-        raster_value: Union[Dict[str, Tuple[float, List[float]]], int, float],
+        raster_value: Union[Dict[str, Tuple[float, List[float]]], float],
         raster_dtype: Union[np.dtype, type] = np.uint8,
         no_data_val: float = 0,
         image_format: MimeType = MimeType.PNG,
@@ -118,7 +118,7 @@ class AddGeopediaFeatureTask(EOTask):
     def _map_from_binaries(
         self,
         eopatch: EOPatch,
-        dst_shape: Union[int, Tuple[int, ...]],
+        dst_shape: Union[int, Tuple[int, int]],
         request_data: np.ndarray,
         binaries_raster_value: float,
     ) -> np.ndarray:
@@ -140,7 +140,7 @@ class AddGeopediaFeatureTask(EOTask):
     def _map_from_multiclass(
         self,
         eopatch: EOPatch,
-        dst_shape: Union[int, Tuple[int, ...]],
+        dst_shape: Union[int, Tuple[int, int]],
         request_data: np.ndarray,
         multiclass_raster_value: Dict[str, Tuple[float, List[float]]],
     ) -> np.ndarray:
@@ -162,8 +162,7 @@ class AddGeopediaFeatureTask(EOTask):
         """
         raster = np.ones(dst_shape, dtype=self.raster_dtype) * self.no_data_val
 
-        for key in multiclass_raster_value.keys():
-            value, intensities = multiclass_raster_value[key]
+        for value, intensities in multiclass_raster_value.values():
             raster[np.mean(np.abs(request_data - intensities), axis=-1) < self.mean_abs_difference] = value
 
         return self._reproject(eopatch, raster)
@@ -180,11 +179,9 @@ class AddGeopediaFeatureTask(EOTask):
         (request_data,) = np.asarray(request.get_data())
 
         if isinstance(self.raster_value, dict):
-            multiclass_raster_value: Dict[str, Tuple[float, List[float]]] = self.raster_value
-            raster = self._map_from_multiclass(eopatch, (height, width), request_data, multiclass_raster_value)
+            raster = self._map_from_multiclass(eopatch, (height, width), request_data, self.raster_value)
         elif isinstance(self.raster_value, (int, float)):
-            binaries_raster_value: float = self.raster_value
-            raster = self._map_from_binaries(eopatch, (height, width), request_data, binaries_raster_value)
+            raster = self._map_from_binaries(eopatch, (height, width), request_data, self.raster_value)
         else:
             raise ValueError("Unsupported raster value type")
 
