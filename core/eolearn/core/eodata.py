@@ -276,11 +276,8 @@ class EOPatch:
         if feature_type.has_dict() and isinstance(value, dict):
             return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
 
-        if feature_type is FeatureType.BBOX:
-            if value is None or isinstance(value, BBox):
-                return value
-            if isinstance(value, (tuple, list)) and len(value) == 5:
-                return BBox(value[:4], crs=value[4])
+        if feature_type is FeatureType.BBOX and (value is None or isinstance(value, BBox)):
+            return value
 
         if feature_type is FeatureType.TIMESTAMP and isinstance(value, (tuple, list)):
             return [
