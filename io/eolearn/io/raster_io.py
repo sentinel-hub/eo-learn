@@ -68,7 +68,10 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
-        self.feature = self.parse_feature(feature)
+        ftype, fname = self.parse_feature(feature)
+        if fname is None:
+            raise ValueError(f"Feature {feature} is not eligible for this task.")
+        self.feature = ftype, fname
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
@@ -240,14 +243,13 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         if isinstance(self.date_indices, tuple):
             dates = np.array(timestamps)
-            if tuple(map(type, self.date_indices)) == (int, int):
-                start_date = dates[self.date_indices[0]]
-                end_date = dates[self.date_indices[1]]
-            elif tuple(map(type, self.date_indices)) == (str, str):
-                start_date, end_date = parse_time_interval(self.date_indices)
-            elif tuple(map(type, self.date_indices)) == (dt.datetime, dt.datetime):
-                start_date = self.date_indices[0]
-                end_date = self.date_indices[1]
+            start_idx, end_idx = self.date_indices
+            if isinstance(start_idx, int) and isinstance(end_idx, int):
+                start_date, end_date = dates[start_idx], dates[end_idx]
+            elif isinstance(start_idx, str) and isinstance(end_idx, str):
+                start_date, end_date = parse_time_interval((start_idx, end_idx))
+            elif isinstance(start_idx, dt.datetime) and isinstance(end_idx, dt.datetime):
+                start_date, end_date = start_idx, end_idx
             else:
                 raise ValueError(f"Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes")
             return array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
@@ -471,9 +473,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
     def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
         """Reads data from the image."""
+        src: DatasetReader
         with rasterio.open(file_object) as src:
-            src: DatasetReader
-
             read_window, read_bbox = self._get_reading_window_and_bbox(src, bbox)
             boundless_reading = read_window is not None
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
@@ -492,7 +493,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
         if image_crs is None or image_transform is None or image_bounds is None:
             return None, bbox
 
-        image_bbox = BBox(list(image_bounds), crs=image_crs.to_epsg())
+        min_x, min_y, max_x, max_y = reader.bounds
+        image_bbox = BBox((min_x, min_y, max_x, max_y), crs=image_crs.to_epsg())
         if bbox is None:
             return None, image_bbox
 

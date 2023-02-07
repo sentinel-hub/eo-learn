@@ -94,12 +94,13 @@ class SentinelHubInputBaseTask(EOTask):
 
         eopatch = eopatch or EOPatch()
 
-        eopatch.bbox = self._extract_bbox(bbox, eopatch)
-        size_x, size_y = self._get_size(eopatch)
+        area_bbox = self._extract_bbox(bbox, eopatch)
+        eopatch.bbox = area_bbox
+        size_x, size_y = self._get_size(area_bbox)
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamp = self._get_timestamp(time_interval, eopatch.bbox)
+            timestamp = self._get_timestamp(time_interval, area_bbox)
             timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
         elif self.data_collection.is_timeless:
             timestamp = None  # should this be [] to match next branch in case of a fresh eopatch?
@@ -112,7 +113,7 @@ class SentinelHubInputBaseTask(EOTask):
             elif timestamp != eopatch.timestamp:
                 raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
-        sh_requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
+        sh_requests = self._build_requests(area_bbox, size_x, size_y, timestamp, time_interval, geometry)
         requests = [request.download_list[0] for request in sh_requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
@@ -127,13 +128,13 @@ class SentinelHubInputBaseTask(EOTask):
 
         return eopatch
 
-    def _get_size(self, eopatch: EOPatch) -> Tuple[int, int]:
+    def _get_size(self, bbox: BBox) -> Tuple[int, int]:
         """Get the size (width, height) for the request either from inputs, or from the (existing) eopatch"""
         if self.size is not None:
             return self.size
 
         if self.resolution is not None:
-            return bbox_to_dimensions(eopatch.bbox, self.resolution)
+            return bbox_to_dimensions(bbox, self.resolution)
 
         raise ValueError("Size or resolution for the requests should be provided!")
 
@@ -287,9 +288,10 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         timestamp: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
-    ):
+    ) -> List[SentinelHubRequest]:
         """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
+        dates: List[Optional[Tuple[Optional[dt.datetime], Optional[dt.datetime]]]]
         if timestamp:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
         elif timestamp is None:
@@ -441,13 +443,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
                 self.requested_bands = list(self.data_collection.bands)
 
         self.requested_additional_bands = []
+        self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            additional_data = self.parse_renamed_features(additional_data)
-            additional_bands = [band for _, band, _ in additional_data]
+            parsed_additional_data = self.parse_renamed_features(additional_data)
+            additional_bands = [band for _, band, _ in parsed_additional_data]
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands
-
-        self.additional_data = additional_data
+            self.additional_data = parsed_additional_data
 
     def _parse_requested_bands(self, bands, available_bands):
         """Checks that all requested bands are available and returns the band information for further processing"""
@@ -513,7 +515,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
-            return [time_interval[0]]
+            return [time_interval[0]]  # type: ignore[index, list-item]
 
         return get_available_timestamps(
             bbox=bbox,
