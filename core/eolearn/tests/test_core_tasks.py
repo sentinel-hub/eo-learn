@@ -23,7 +23,7 @@ from fs_s3fs import S3FS
 from numpy.testing import assert_equal
 from pytest import approx
 
-from sentinelhub import CRS
+from sentinelhub import CRS, BBox
 
 from eolearn.core import (
     AddFeatureTask,
@@ -66,7 +66,7 @@ def patch_fixture():
         datetime.datetime(2017, 3, 12, 10, 7, 6),
         datetime.datetime(2017, 3, 15, 10, 12, 14),
     ]
-    patch.bbox = (324.54, 546.45, 955.4, 63.43, 3857)
+    patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
 
@@ -439,7 +439,7 @@ def test_extract_bands(test_eopatch):
 
 def test_create_eopatch():
     data = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    bbox = [5.60, 52.68, 5.75, 52.63, CRS.WGS84]
+    bbox = BBox((5.60, 52.68, 5.75, 52.63), CRS.WGS84)
 
     patch = CreateEOPatchTask()(data={"bands": data}, bbox=bbox)
     assert np.array_equal(patch.data["bands"], data)

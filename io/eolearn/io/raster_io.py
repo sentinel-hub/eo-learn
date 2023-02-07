@@ -493,7 +493,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
         if image_crs is None or image_transform is None or image_bounds is None:
             return None, bbox
 
-        image_bbox = BBox(tuple(image_bounds), crs=image_crs.to_epsg())  # type: ignore[arg-type]
+        min_x, min_y, max_x, max_y = reader.bounds
+        image_bbox = BBox((min_x, min_y, max_x, max_y), crs=image_crs.to_epsg())
         if bbox is None:
             return None, image_bbox
 
