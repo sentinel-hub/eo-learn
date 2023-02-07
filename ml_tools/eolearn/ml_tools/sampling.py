@@ -328,8 +328,8 @@ class BlockSamplingTask(BaseSamplingTask):
         sampling_image = self._generate_dummy_mask(eopatch)
 
         amount = self.amount if amount is None else amount
-        if isinstance(amount, (int, np.integer)):  # type: ignore[unreachable]
-            n_samples_per_value = {1: amount}  # type: ignore[unreachable]
+        if isinstance(amount, (int, np.integer)):
+            n_samples_per_value = {1: amount}
         else:
             n_samples_per_value = {1: round(sampling_image.size * amount)}
 
