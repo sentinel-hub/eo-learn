@@ -67,6 +67,7 @@ jobs:
             coregistration/eolearn/coregistration \
             geometry/eolearn/geometry \
             features/eolearn/features \
+            io/eolearn/io \
             mask/eolearn/mask \
             ml_tools/eolearn/ml_tools \
             visualization/eolearn/visualization
