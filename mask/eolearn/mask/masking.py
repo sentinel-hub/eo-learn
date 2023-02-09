@@ -16,9 +16,10 @@ from __future__ import annotations
 from typing import Callable, Dict, Iterable, Union
 
 import numpy as np
+from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType, ZipFeatureTask
-from eolearn.core.types import FeaturesSpecification, Literal, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 
 class JoinMasksTask(ZipFeatureTask):

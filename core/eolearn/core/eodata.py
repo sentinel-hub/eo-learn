@@ -24,13 +24,14 @@ import dateutil.parser
 import geopandas as gpd
 import numpy as np
 from fs.base import FS
+from typing_extensions import Literal
 
 from sentinelhub import CRS, BBox
 
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification, Literal
+from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import parse_features

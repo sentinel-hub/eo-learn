@@ -16,6 +16,7 @@ import logging
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
+from typing_extensions import Literal
 
 from sentinelhub import (
     BBox,
@@ -36,7 +37,7 @@ from sentinelhub import (
 from sentinelhub.types import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
-from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification, Literal
+from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 
 LOGGER = logging.getLogger(__name__)
 

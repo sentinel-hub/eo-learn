@@ -20,11 +20,12 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
+from typing_extensions import Literal
 
 from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
-from eolearn.core.types import FeaturesSpecification, Literal, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 

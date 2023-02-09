@@ -12,8 +12,7 @@ file in the root directory of this source tree.
 from typing import Tuple
 
 import numpy as np
-
-from ..types import Literal
+from typing_extensions import Literal
 
 
 def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "linear") -> np.ndarray:
