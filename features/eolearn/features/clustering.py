@@ -15,9 +15,10 @@ from typing import Callable, List, Optional, Union, cast
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.image import grid_to_graph
+from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeatureSpec, Literal
+from eolearn.core.types import FeatureSpec
 
 
 class ClusteringTask(EOTask):

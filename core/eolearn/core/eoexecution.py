@@ -18,7 +18,6 @@ import concurrent.futures
 import datetime as dt
 import inspect
 import logging
-import sys
 import threading
 import warnings
 from dataclasses import dataclass
@@ -27,6 +26,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
+from typing_extensions import Protocol
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
@@ -34,11 +34,6 @@ from .exceptions import EORuntimeWarning
 from .utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, unpickle_fs
 from .utils.logging import LogFileFilter
 from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Protocol
-else:
-    from typing import Protocol  # pylint: disable=ungrouped-imports
 
 
 class _HandlerWithFsFactoryType(Protocol):

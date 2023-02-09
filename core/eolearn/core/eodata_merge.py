@@ -20,12 +20,13 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence,
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
+from typing_extensions import Literal
 
 from sentinelhub import BBox
 
 from .constants import FeatureType
 from .exceptions import EORuntimeWarning
-from .types import FeatureSpec, FeaturesSpecification, Literal
+from .types import FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
 
 if TYPE_CHECKING:

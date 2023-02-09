@@ -6,3 +6,4 @@ geopandas>=0.8.1
 rasterio>=1.2.7
 rtree
 sentinelhub>=3.8.0
+typing-extensions
