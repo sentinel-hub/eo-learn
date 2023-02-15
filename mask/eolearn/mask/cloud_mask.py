@@ -12,6 +12,7 @@ file in the root directory of this source tree.
 """
 import logging
 import os
+from functools import partial
 from typing import Optional, Tuple, Union
 
 import cv2
@@ -180,9 +181,6 @@ class CloudMaskTask(EOTask):
         else:
             self.dil_kernel = None
 
-        # Because the real sigma is calculated only later in execute method this task is not thread safe!
-        self.sigma = 1.0
-
     @staticmethod
     def _parse_resolution_arg(resolution: Union[None, float, Tuple[float, float]]) -> Optional[Tuple[float, float]]:
         """Parses initialization resolution argument"""
@@ -254,7 +252,7 @@ class CloudMaskTask(EOTask):
 
         return nt_min, nt_max, nt_rel
 
-    def _red_ssim(self, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5):
+    def _red_ssim(self, *, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5, sigma):
         """Slightly reduced (pre-computed) SSIM computation"""
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
@@ -266,9 +264,7 @@ class CloudMaskTask(EOTask):
         mu2_2 = mu2 * mu2
         mu1_mu2 = mu1 * mu2
 
-        sigma12 = cv2.GaussianBlur(
-            (data_x * data_y).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT
-        )
+        sigma12 = cv2.GaussianBlur((data_x * data_y).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
         sigma12 -= mu1_mu2
 
         # Formula
@@ -282,13 +278,13 @@ class CloudMaskTask(EOTask):
 
         return np.divide(num, den)
 
-    def _win_avg(self, data):
+    def _win_avg(self, data, sigma):
         """Spatial window average"""
-        return cv2.GaussianBlur(data.astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        return cv2.GaussianBlur(data.astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _win_prevar(self, data):
+    def _win_prevar(self, data, sigma):
         """Incomplete spatial window variance"""
-        return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
     def _average(self, data):
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
@@ -334,7 +330,7 @@ class CloudMaskTask(EOTask):
 
         return data
 
-    def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel):
+    def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel, sigma):
         """Calculate SSIM stats"""
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
@@ -354,13 +350,14 @@ class CloudMaskTask(EOTask):
 
             for t_j in range(n_frames):
                 ssim_ij = self._red_ssim(
-                    bands[nt_rel, ..., b_i],
-                    bands_r[t_j, ..., b_i],
-                    valid_mask[t_j, ..., 0],
-                    win_avg[nt_rel, ..., b_i],
-                    win_avg_r[t_j, ..., b_i],
-                    var[nt_rel, ..., b_i],
-                    var_r[t_j, ..., b_i],
+                    data_x=bands[nt_rel, ..., b_i],
+                    data_y=bands_r[t_j, ..., b_i],
+                    valid_mask=valid_mask[t_j, ..., 0],
+                    mu1=win_avg[nt_rel, ..., b_i],
+                    mu2=win_avg_r[t_j, ..., b_i],
+                    sigma1_2=var[nt_rel, ..., b_i],
+                    sigma2_2=var_r[t_j, ..., b_i],
+                    sigma=sigma,
                 )
 
                 local_ssim.append(ssim_ij)
@@ -395,7 +392,7 @@ class CloudMaskTask(EOTask):
 
         return mono_proba[..., np.newaxis]
 
-    def _do_multi_temporal_cloud_detection(self, bands, is_data):
+    def _do_multi_temporal_cloud_detection(self, bands, is_data, sigma):
         """Performs a cloud detection process on multiple scenes at once"""
         multi_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
@@ -419,10 +416,12 @@ class CloudMaskTask(EOTask):
 
             # Add window averages and variances to local data
             if loc_mu is None or prev_nt_min != nt_min or prev_nt_max != nt_max:
-                loc_mu, loc_var = self._update_batches(loc_mu, loc_var, bands_t, is_data_t)
+                loc_mu, loc_var = self._update_batches(loc_mu, loc_var, bands_t, is_data_t, sigma)
 
             # Interweave and concatenate
-            multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
+            multi_features = self._extract_multi_features(
+                bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands, sigma
+            )
 
             multi_proba[t_i * img_size : (t_i + 1) * img_size] = self._run_prediction(
                 self.multi_classifier, multi_features
@@ -433,32 +432,32 @@ class CloudMaskTask(EOTask):
 
         return multi_proba[..., np.newaxis]
 
-    def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t):
+    def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t, sigma):
         """Updates window variance and mean values for a batch"""
         # Add window averages and variances to local data
         if loc_mu is None:
-            win_avg_bands = self._map_sequence(bands_t, self._win_avg)
-            win_avg_is_data = self._map_sequence(is_data_t, self._win_avg)
+            win_avg_bands = self._map_sequence(bands_t, partial(self._win_avg, sigma=sigma))
+            win_avg_is_data = self._map_sequence(is_data_t, partial(self._win_avg, sigma=sigma))
 
             win_avg_is_data[win_avg_is_data == 0.0] = 1.0
 
             loc_mu = win_avg_bands / win_avg_is_data
 
-            win_prevars = self._map_sequence(bands_t, self._win_prevar)
+            win_prevars = self._map_sequence(bands_t, partial(self._win_prevar, sigma=sigma))
             win_prevars -= loc_mu * loc_mu
 
             loc_var = win_prevars
 
         else:
-            win_avg_bands = self._map_sequence(bands_t[-1][None, ...], self._win_avg)
-            win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], self._win_avg)
+            win_avg_bands = self._map_sequence(bands_t[-1][None, ...], partial(self._win_avg, sigma=sigma))
+            win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], partial(self._win_avg, sigma=sigma))
 
             win_avg_is_data[win_avg_is_data == 0.0] = 1.0
 
             loc_mu[:-1] = loc_mu[1:]
             loc_mu[-1] = (win_avg_bands / win_avg_is_data)[0]
 
-            win_prevars = self._map_sequence(bands_t[-1][None, ...], self._win_prevar)
+            win_prevars = self._map_sequence(bands_t[-1][None, ...], partial(self._win_prevar, sigma=sigma))
             win_prevars[0] -= loc_mu[-1] * loc_mu[-1]
 
             loc_var[:-1] = loc_var[1:]
@@ -466,10 +465,10 @@ class CloudMaskTask(EOTask):
 
         return loc_mu, loc_var
 
-    def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands):
+    def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands, sigma):
         """Extracts features for a batch"""
         # Compute SSIM stats
-        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
+        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel, sigma)
 
         # Compute temporal stats
         temp_min = np.ma.min(masked_bands, axis=0).data[None, ...]
@@ -522,7 +521,7 @@ class CloudMaskTask(EOTask):
         is_data = eopatch[self.is_data_feature].astype(bool)
 
         original_shape = bands.shape[1:-1]
-        scale_factors, self.sigma = self._scale_factors(original_shape, eopatch.bbox)
+        scale_factors, sigma = self._scale_factors(original_shape, eopatch.bbox)
 
         is_data_sm = is_data
         # Downscale if specified
@@ -549,7 +548,7 @@ class CloudMaskTask(EOTask):
 
         # Run SSIM-based multi-temporal classifier if needed
         if any([self.mask_feature, multi_mask_feature, multi_proba_feature]):
-            multi_proba = self._do_multi_temporal_cloud_detection(bands, is_data_sm)
+            multi_proba = self._do_multi_temporal_cloud_detection(bands, is_data_sm, sigma)
             multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
 
             # Upscale if necessary
