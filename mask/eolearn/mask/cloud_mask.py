@@ -234,23 +234,22 @@ class CloudMaskTask(EOTask):
 
         return rescale, sigma
 
-    def _frame_indices(self, num_of_frames, target_idx):
+    def _frame_indices(self, num_of_all_frames: int, target_idx: int) -> Tuple[int, int]:
         """Returns frame indices within a given time window, with the target index relative to it"""
         # Get reach
-        nt_min = target_idx - self.max_proc_frames // 2
-        nt_max = target_idx + self.max_proc_frames - self.max_proc_frames // 2
+        min_frame = target_idx - self.max_proc_frames // 2
+        max_frame = min_frame + self.max_proc_frames
 
-        # Shift reach
-        shift = max(0, -nt_min) - max(0, nt_max - num_of_frames)
-        nt_min += shift
-        nt_max += shift
+        # Shift interval so that it is inside [0, num_all_frames] (unless it's too big)
+        shift = max(0, -min_frame) - max(0, max_frame - num_of_all_frames)
+        min_frame += shift
+        max_frame += shift
 
-        # Get indices within range
-        nt_min = max(0, nt_min)
-        nt_max = min(num_of_frames, nt_max)
-        nt_rel = target_idx - nt_min
+        # Takes care of case where interval is larger than `num_all_frames`
+        min_frame = max(0, min_frame)
+        max_frame = min(num_of_all_frames, max_frame)
 
-        return nt_min, nt_max, nt_rel
+        return min_frame, max_frame
 
     def _red_ssim(self, *, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5, sigma):
         """Slightly reduced (pre-computed) SSIM computation"""
@@ -407,7 +406,8 @@ class CloudMaskTask(EOTask):
 
         for t_i in range(n_times):
             # Extract temporal window indices
-            nt_min, nt_max, nt_rel = self._frame_indices(n_times, t_i)
+            nt_min, nt_max = self._frame_indices(n_times, t_i)
+            rel_t_i = t_i - nt_min
 
             bands_t = bands[nt_min:nt_max]
             is_data_t = is_data[nt_min:nt_max]
@@ -420,7 +420,7 @@ class CloudMaskTask(EOTask):
 
             # Interweave and concatenate
             multi_features = self._extract_multi_features(
-                bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands, sigma
+                bands_t, is_data_t, loc_mu, loc_var, rel_t_i, masked_bands, sigma
             )
 
             multi_proba[t_i * img_size : (t_i + 1) * img_size] = self._run_prediction(
