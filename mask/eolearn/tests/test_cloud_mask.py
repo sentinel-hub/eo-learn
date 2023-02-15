@@ -30,8 +30,8 @@ def test_mono_temporal_cloud_detection(test_eopatch):
     )
     eop_clm = add_tcm(test_eopatch)
 
-    assert_array_equal(eop_clm.mask["CLM_TEST"], eop_clm.mask["CLM_S2C"])
-    assert_array_equal(eop_clm.data["CLP_TEST"], eop_clm.data["CLP_S2C"])
+    assert_array_equal(eop_clm.mask["CLM_TEST"], test_eopatch.mask["CLM_S2C"])
+    assert_array_equal(eop_clm.data["CLP_TEST"], test_eopatch.data["CLP_S2C"])
 
 
 def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
@@ -63,6 +63,6 @@ def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
     assert np.mean(cloudless == eop_clm.label["IS_CLOUDLESS"][:, 0]) > 0.94
 
     # Check multi-temporal results and final mask
-    assert_array_equal(eop_clm.data["CLP_MULTI_TEST"], eop_clm.data["CLP_MULTI"])
-    assert_array_equal(eop_clm.mask["CLM_MULTI_TEST"], eop_clm.mask["CLM_MULTI"])
-    assert_array_equal(eop_clm.mask["CLM_INTERSSIM_TEST"], eop_clm.mask["CLM_INTERSSIM"])
+    assert_array_equal(eop_clm.data["CLP_MULTI_TEST"], test_eopatch.data["CLP_MULTI"])
+    assert_array_equal(eop_clm.mask["CLM_MULTI_TEST"], test_eopatch.mask["CLM_MULTI"])
+    assert_array_equal(eop_clm.mask["CLM_INTERSSIM_TEST"], test_eopatch.mask["CLM_INTERSSIM"])
