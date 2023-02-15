@@ -174,18 +174,12 @@ class CloudMaskTask(EOTask):
         self.sigma = 1.0
 
     @staticmethod
-    def _parse_resolution_arg(res):
+    def _parse_resolution_arg(resolution: Union[None, float, Tuple[float, float]]) -> Optional[Tuple[float, float]]:
         """Parses initialization resolution argument"""
-        if res is None:
-            return None
+        if isinstance(resolution, (int, float)):
+            resolution = resolution, resolution
 
-        if isinstance(res, (int, float, str)):
-            res = res, res
-
-        if isinstance(res, tuple) and len(res) == 2:
-            return tuple(float(rs.strip("m")) if isinstance(rs, str) else rs for rs in res)
-
-        raise ValueError("Wrong resolution parameter passed as an argument.")
+        return resolution
 
     @property
     def mono_classifier(self):
