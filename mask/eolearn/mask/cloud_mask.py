@@ -13,6 +13,7 @@ file in the root directory of this source tree.
 
 import logging
 import os
+from typing import Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -71,39 +72,34 @@ class CloudMaskTask(EOTask):
 
     def __init__(
         self,
-        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature=(FeatureType.MASK, "IS_DATA"),
-        all_bands=True,
-        processing_resolution=None,
-        max_proc_frames=11,
+        data_feature: Tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature: Tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
+        all_bands: bool = True,
+        processing_resolution: Union[None, int, Tuple[int, int]] = None,
+        max_proc_frames: int = 11,
         mono_features=None,
         multi_features=None,
-        mask_feature=(FeatureType.MASK, "CLM_INTERSSIM"),
-        mono_threshold=0.4,
-        multi_threshold=0.5,
-        average_over=4,
-        dilation_size=2,
+        mask_feature: Optional[Tuple[FeatureType, str]] = (FeatureType.MASK, "CLM_INTERSSIM"),
+        mono_threshold: float = 0.4,
+        multi_threshold: float = 0.5,
+        average_over: Optional[int] = 4,
+        dilation_size: Optional[int] = 2,
         mono_classifier=None,
         multi_classifier=None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
             Default value: `'BANDS-S2-L1C'`.
-        :type data_feature: str
         :param is_data_feature: A mask feature which indicates whether data is valid.
             Default value: `'IS_DATA'`.
-        :type is_data_feature: str
         :param all_bands: Flag, which indicates whether images will consist of all 13 Sentinel-2 bands or only
-            the required 10. Default value:  `True`.
-        :type all_bands: bool
+            the required 10.
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
             expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
-            it is used for both dimensions. Default is `None` (source resolution).
-        :type processing_resolution: int or (int, int)
+            it is used for both dimensions. Default `None` represents source resolution.
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
             considered in a single batch iteration (To keep memory usage at agreeable levels, the task operates on
-            smaller batches of time frames). Default value:  `11`.
-        :type max_proc_frames: int
+            smaller batches of time frames).
         :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
             the mono classifier. The probabilities are added as a data feature, while masks are added as a mask
             feature. By default, none of them are added.
@@ -112,20 +108,15 @@ class CloudMaskTask(EOTask):
             The probabilities are added as a data feature, while masks are added as a mask feature. By default,
             none of them are added.
         :type multi_features: (str or None, str or None)
-        :param mask_feature: Name of the output intersection feature. The masks are added to the `eopatch.mask`
-            attribute dictionary. Default value: `'CLM_INTERSSIM'`. If None, the intersection feature is not computed.
-        :type mask_feature: str or None
-        :param mono_threshold: Cloud probability threshold for the mono classifier. Default value: `0.4`.
-        :type mono_threshold: float
-        :param multi_threshold: Cloud probability threshold for the multi classifier. Default value: `0.5`.
-        :type multi_threshold: float
+        :param mask_feature: Name of the output intersection feature. Default value: `'CLM_INTERSSIM'`. If `None` the
+            intersection feature is not computed.
+        :param mono_threshold: Cloud probability threshold for the mono classifier.
+        :param multi_threshold: Cloud probability threshold for the multi classifier.
         :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
-            A value of `0` or `None` skips this post-processing step. Default value mimics the default for
+            A value of `0` skips this post-processing step. Default value mimics the default for
             s2cloudless: `4`.
-        :type average_over: int or None
         :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
             post-processing step. Default value mimics the default for s2cloudless: `2`.
-        :type dilation_size: int or None
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
             Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
             "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
