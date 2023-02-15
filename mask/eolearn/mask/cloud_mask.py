@@ -10,7 +10,6 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-
 import logging
 import os
 from typing import Optional, Tuple, Union
@@ -21,7 +20,7 @@ from lightgbm import Booster
 from skimage.morphology import disk
 from typing_extensions import Protocol
 
-from sentinelhub import bbox_to_resolution
+from sentinelhub import BBox, bbox_to_resolution
 
 from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 
@@ -220,25 +219,20 @@ class CloudMaskTask(EOTask):
 
         return prediction if is_booster else prediction[..., 1]
 
-    def _scale_factors(self, reference_shape, bbox):
+    def _scale_factors(self, reference_shape: Tuple[int, int], bbox: BBox) -> Tuple[Tuple[float, float], float]:
         """Compute the resampling factors for height and width of the input array and sigma
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
-        :type reference_shape: (int, int)
         :param bbox: An EOPatch bounding box
-        :type bbox: sentinelhub.BBox
         :return: Rescale factor for rows and columns
-        :rtype: ((float, float), float)
         """
-        res_x, res_y = bbox_to_resolution(bbox, width=reference_shape[1], height=reference_shape[0])
+        height, width = reference_shape
+        res_x, res_y = bbox_to_resolution(bbox, width=width, height=height)
 
-        if self.proc_resolution is None:
-            pres_x, pres_y = res_x, res_y
-        else:
-            pres_x, pres_y = self.proc_resolution
+        process_res_x, process_res_y = (res_x, res_y) if self.proc_resolution is None else self.proc_resolution
 
-        rescale = res_y / pres_y, res_x / pres_x
-        sigma = 200 / (pres_x + pres_y)
+        rescale = res_y / process_res_y, res_x / process_res_x
+        sigma = 200 / (process_res_x + process_res_y)
 
         return rescale, sigma
 
