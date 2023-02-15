@@ -19,6 +19,7 @@ import cv2
 import numpy as np
 from lightgbm import Booster
 from skimage.morphology import disk
+from typing_extensions import Protocol
 
 from sentinelhub import bbox_to_resolution
 
@@ -27,6 +28,16 @@ from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
 from .utils import map_over_axis, resize_images
 
 LOGGER = logging.getLogger(__name__)
+
+
+class ClassifierType(Protocol):
+    """Defines the necessary classifier interface."""
+
+    def predict(self, X: np.ndarray) -> np.ndarray:  # pylint: disable=missing-function-docstring,invalid-name
+        ...
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # pylint: disable=missing-function-docstring,invalid-name
+        ...
 
 
 class CloudMaskTask(EOTask):
@@ -75,7 +86,7 @@ class CloudMaskTask(EOTask):
         data_feature: Tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
         is_data_feature: Tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
         all_bands: bool = True,
-        processing_resolution: Union[None, int, Tuple[int, int]] = None,
+        processing_resolution: Union[None, float, Tuple[float, float]] = None,
         max_proc_frames: int = 11,
         mono_features=None,
         multi_features=None,
@@ -84,8 +95,8 @@ class CloudMaskTask(EOTask):
         multi_threshold: float = 0.5,
         average_over: Optional[int] = 4,
         dilation_size: Optional[int] = 2,
-        mono_classifier=None,
-        multi_classifier=None,
+        mono_classifier: Optional[ClassifierType] = None,
+        multi_classifier: Optional[ClassifierType] = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
@@ -182,7 +193,7 @@ class CloudMaskTask(EOTask):
         return resolution
 
     @property
-    def mono_classifier(self):
+    def mono_classifier(self) -> ClassifierType:
         """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
         if self._mono_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
@@ -191,7 +202,7 @@ class CloudMaskTask(EOTask):
         return self._mono_classifier
 
     @property
-    def multi_classifier(self):
+    def multi_classifier(self) -> ClassifierType:
         """An instance of pre-trained multi-temporal cloud classifier. Loaded only the first time it is required."""
         if self._multi_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
@@ -200,21 +211,14 @@ class CloudMaskTask(EOTask):
         return self._multi_classifier
 
     @staticmethod
-    def _run_prediction(classifier, features):
+    def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
         """Uses classifier object on given data"""
         is_booster = isinstance(classifier, Booster)
 
-        if is_booster:
-            predict_method = classifier.predict
-        else:
-            # We assume it is a scikit-learn Estimator model
-            predict_method = classifier.predict_proba
-
+        predict_method = classifier.predict if is_booster else classifier.predict_proba
         prediction = execute_with_mp_lock(predict_method, features)
 
-        if is_booster:
-            return prediction
-        return prediction[..., 1]
+        return prediction if is_booster else prediction[..., 1]
 
     def _scale_factors(self, reference_shape, bbox):
         """Compute the resampling factors for height and width of the input array and sigma
@@ -308,6 +312,7 @@ class CloudMaskTask(EOTask):
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
         :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
+        # TODO: this should be replaced with `eolearn.features.utils._apply_to_spatial_axes`
 
         # Map over channel dimension on 3d tensor
         def func3d(dim):
