@@ -10,11 +10,38 @@ file in the root directory of this source tree.
 """
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 from pytest import approx
 
 from eolearn.core import FeatureType
 from eolearn.mask import CloudMaskTask
+from eolearn.mask.cloud_mask import _get_window_indices
+
+
+@pytest.mark.parametrize(
+    "num_of_elements, middle_idx, window_size, expected_indices",
+    (
+        [100, 0, 10, (0, 10)],
+        [100, 1, 10, (0, 10)],
+        [100, 50, 10, (45, 55)],
+        [271, 270, 10, (261, 271)],
+        [314, 314, 10, (304, 314)],
+        [100, 0, 11, (0, 11)],
+        [100, 1, 11, (0, 11)],
+        [100, 50, 11, (45, 56)],
+        [271, 270, 11, (260, 271)],
+        [314, 314, 11, (303, 314)],
+        [11, 2, 11, (0, 11)],
+        [11, 2, 33, (0, 11)],
+    ),
+)
+def test_window_indices_function(num_of_elements, middle_idx, window_size, expected_indices):
+    min_idx, max_idx = _get_window_indices(num_of_elements, middle_idx, window_size)
+    assert (min_idx, max_idx) == expected_indices
+
+    test_list = list(range(num_of_elements))
+    assert len(test_list[min_idx:max_idx]) == min(num_of_elements, window_size)
 
 
 def test_mono_temporal_cloud_detection(test_eopatch):
