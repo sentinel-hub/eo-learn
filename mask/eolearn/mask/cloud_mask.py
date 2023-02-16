@@ -374,46 +374,42 @@ class CloudMaskTask(EOTask):
 
         return mono_proba[..., np.newaxis]
 
-    def _do_multi_temporal_cloud_detection(self, bands, is_data, sigma):
+    def _do_multi_temporal_cloud_detection(self, bands: np.ndarray, is_data: np.ndarray, sigma: float) -> np.ndarray:
         """Performs a cloud detection process on multiple scenes at once"""
         multi_proba = np.empty(np.prod(bands.shape[:-1]))
         img_size = np.prod(bands.shape[1:-1])
 
         n_times = bands.shape[0]
 
-        loc_mu = None
-        loc_var = None
+        local_avg, local_var = None, None
+        prev_min_tdx, prev_max_tdx = None, None
 
-        prev_nt_min = None
-        prev_nt_max = None
-
-        for t_i in range(n_times):
+        for tdx in range(n_times):
             # Extract temporal window indices
-            nt_min, nt_max = _get_window_indices(n_times, t_i, self.max_proc_frames)
-            rel_t_i = t_i - nt_min
+            min_tdx, max_tdx = _get_window_indices(n_times, tdx, self.max_proc_frames)
+            rel_tdx = tdx - min_tdx
 
-            bands_t = bands[nt_min:nt_max]
-            is_data_t = is_data[nt_min:nt_max]
+            bands_slice = bands[min_tdx:max_tdx]
+            is_data_slice = is_data[min_tdx:max_tdx]
+            masked_bands = np.ma.array(bands_slice, mask=~is_data_slice.repeat(bands_slice.shape[-1], axis=-1))
 
-            masked_bands = np.ma.array(bands_t, mask=~is_data_t.repeat(bands_t.shape[-1], axis=-1))
-
-            # Add window averages and variances to local data
-            if loc_mu is None or prev_nt_min != nt_min or prev_nt_max != nt_max:
-                loc_mu, loc_var = self._update_batches(loc_mu, loc_var, bands_t, is_data_t, sigma)
+            # Calculate the averages/variances for the local (windowed) streaming data
+            if local_avg is None or (min_tdx, max_tdx) != (prev_min_tdx, prev_max_tdx):
+                local_avg, local_var = self._update_batches(local_avg, local_var, bands_slice, is_data_slice, sigma)
 
             # Interweave and concatenate
             multi_features = self._extract_multi_features(
-                bands_t, is_data_t, loc_mu, loc_var, rel_t_i, masked_bands, sigma
+                bands_slice, is_data_slice, local_avg, local_var, rel_tdx, masked_bands, sigma
             )
 
-            multi_proba[t_i * img_size : (t_i + 1) * img_size] = self._run_prediction(
+            multi_proba[tdx * img_size : (tdx + 1) * img_size] = self._run_prediction(
                 self.multi_classifier, multi_features
             )
 
-            prev_nt_min = nt_min
-            prev_nt_max = nt_max
+            prev_min_tdx = min_tdx
+            prev_max_tdx = max_tdx
 
-        return multi_proba[..., np.newaxis]
+        return multi_proba[..., None]
 
     def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t, sigma):
         """Updates window variance and mean values for a batch"""
