@@ -601,6 +601,6 @@ def _get_window_indices(middle_idx: int, window_size: int, num_all_indices: int)
     if min_frame < 0:
         return 0, window_size
     if max_frame >= num_all_indices:
-        return num_all_indices - window_size, num_all_indices
+        return num_all_indices - window_size - 1, num_all_indices
 
     return min_frame, max_frame
