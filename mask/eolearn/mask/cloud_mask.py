@@ -390,32 +390,31 @@ class CloudMaskTask(EOTask):
         n_times = bands.shape[0]
 
         local_avg, local_var = None, None
-        prev_min_tdx, prev_max_tdx = None, None
+        prev_left, prev_right = None, None
 
-        for tdx in range(n_times):
+        for t_idx in range(n_times):
             # Extract temporal window indices
-            min_tdx, max_tdx = _get_window_indices(n_times, tdx, self.max_proc_frames)
-            rel_tdx = tdx - min_tdx
+            left, right = _get_window_indices(n_times, t_idx, self.max_proc_frames)
 
-            bands_slice = bands[min_tdx:max_tdx]
-            is_data_slice = is_data[min_tdx:max_tdx]
+            bands_slice = bands[left:right]
+            is_data_slice = is_data[left:right]
             masked_bands = np.ma.array(bands_slice, mask=~is_data_slice.repeat(bands_slice.shape[-1], axis=-1))
 
             # Calculate the averages/variances for the local (windowed) streaming data
-            if local_avg is None or (min_tdx, max_tdx) != (prev_min_tdx, prev_max_tdx):
+            if local_avg is None or (left, right) != (prev_left, prev_right):
                 local_avg, local_var = self._update_batches(local_avg, local_var, bands_slice, is_data_slice, sigma)
 
             # Interweave and concatenate
             multi_features = self._extract_multi_features(
-                bands_slice, is_data_slice, local_avg, local_var, rel_tdx, masked_bands, sigma
+                bands_slice, is_data_slice, local_avg, local_var, t_idx - left, masked_bands, sigma
             )
 
-            multi_proba[tdx * img_size : (tdx + 1) * img_size] = self._run_prediction(
+            multi_proba[t_idx * img_size : (t_idx + 1) * img_size] = self._run_prediction(
                 self.multi_classifier, multi_features
             )
 
-            prev_min_tdx = min_tdx
-            prev_max_tdx = max_tdx
+            prev_left = left
+            prev_right = right
 
         return multi_proba[..., None]
 
@@ -460,13 +459,13 @@ class CloudMaskTask(EOTask):
         is_data: np.ndarray,
         local_avg: np.ndarray,
         local_var: np.ndarray,
-        rel_tdx: int,
+        local_t_idx: int,
         masked_bands: np.ndarray,
         sigma: float,
     ) -> np.ndarray:
         """Extracts features for a batch"""
         # Compute SSIM stats
-        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands, is_data, local_avg, local_var, rel_tdx, sigma)
+        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands, is_data, local_avg, local_var, local_t_idx, sigma)
 
         # Compute temporal stats
         temp_min = np.ma.min(masked_bands, axis=0).data[None, ...]
@@ -475,9 +474,9 @@ class CloudMaskTask(EOTask):
         # Compute difference stats
         t_all = len(bands)
 
-        diff_max = (masked_bands[rel_tdx][None, ...] - temp_min).data
+        diff_max = (masked_bands[local_t_idx][None, ...] - temp_min).data
         diff_mean = (
-            masked_bands[rel_tdx][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)
+            masked_bands[local_t_idx][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)
         ).data
 
         # Interweave
@@ -497,8 +496,8 @@ class CloudMaskTask(EOTask):
         # Put it all together
         multi_features = np.concatenate(
             (
-                bands[rel_tdx][None, ...],
-                local_avg[rel_tdx][None, ...],
+                bands[local_t_idx][None, ...],
+                local_avg[local_t_idx][None, ...],
                 ssim_interweaved,
                 temp_interweaved,
                 diff_interweaved,
