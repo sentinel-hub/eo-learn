@@ -39,7 +39,10 @@ from eolearn.mask.cloud_mask import _get_window_indices
 def test_window_indices_function(num_of_elements, middle_idx, window_size, expected_indices):
     indices = _get_window_indices(num_of_elements, middle_idx, window_size)
     assert indices == expected_indices
-    assert len(range(*indices)) == window_size
+
+    test_list = list(range(num_of_elements))
+    test_slice = test_list[slice(*indices)]
+    assert len(test_slice) == min(num_of_elements, window_size)
 
 
 def test_mono_temporal_cloud_detection(test_eopatch):
