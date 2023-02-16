@@ -411,38 +411,37 @@ class CloudMaskTask(EOTask):
 
         return multi_proba[..., None]
 
-    def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t, sigma):
-        """Updates window variance and mean values for a batch"""
-        # Add window averages and variances to local data
-        if loc_mu is None:
-            win_avg_bands = self._map_sequence(bands_t, partial(self._win_avg, sigma=sigma))
-            win_avg_is_data = self._map_sequence(is_data_t, partial(self._win_avg, sigma=sigma))
+    def _update_batches(
+        self, local_avg: np.ndarray, local_var: np.ndarray, bands: np.ndarray, is_data: np.ndarray, sigma: float
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates or updates the window average and variance.
+        The calculation is done per 2D image along the temporal and band axes.
+        """
+        local_avg_func = partial(self._win_avg, sigma=sigma)
+        local_var_func = partial(self._win_prevar, sigma=sigma)
 
-            win_avg_is_data[win_avg_is_data == 0.0] = 1.0
+        # take full batch if avg/var don't exist, otherwise take only last index slice
+        data = bands if local_avg is None else bands[-1][None, ...]
+        data_mask = is_data if local_avg is None else is_data[-1][None, ...]
 
-            loc_mu = win_avg_bands / win_avg_is_data
+        avg_data = self._map_sequence(data, local_avg_func)
+        avg_data_mask = self._map_sequence(data_mask, local_avg_func)
+        var_data = self._map_sequence(data, local_var_func)
 
-            win_prevars = self._map_sequence(bands_t, partial(self._win_prevar, sigma=sigma))
-            win_prevars -= loc_mu * loc_mu
-
-            loc_var = win_prevars
-
+        if local_avg is None:
+            local_avg = avg_data / avg_data_mask
+            local_var = var_data - local_avg**2
         else:
-            win_avg_bands = self._map_sequence(bands_t[-1][None, ...], partial(self._win_avg, sigma=sigma))
-            win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], partial(self._win_avg, sigma=sigma))
+            # shift back, drop first element
+            local_avg[:-1] = local_avg[1:]
+            local_var[:-1] = local_var[1:]
 
-            win_avg_is_data[win_avg_is_data == 0.0] = 1.0
+            # set new element
+            local_avg[-1] = (avg_data / avg_data_mask)[0]
+            local_var[-1] = var_data[0] - local_avg[-1] ** 2
 
-            loc_mu[:-1] = loc_mu[1:]
-            loc_mu[-1] = (win_avg_bands / win_avg_is_data)[0]
-
-            win_prevars = self._map_sequence(bands_t[-1][None, ...], partial(self._win_prevar, sigma=sigma))
-            win_prevars[0] -= loc_mu[-1] * loc_mu[-1]
-
-            loc_var[:-1] = loc_var[1:]
-            loc_var[-1] = win_prevars[0]
-
-        return loc_mu, loc_var
+        return local_avg, local_var
 
     def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands, sigma):
         """Extracts features for a batch"""
