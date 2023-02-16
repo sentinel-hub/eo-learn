@@ -91,7 +91,7 @@ def is_discrete_type(number_type: Union[np.dtype, type]) -> bool:
 
 
 def _apply_to_spatial_axes(
-    map_function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: Tuple[int, int]
+    function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: Tuple[int, int]
 ) -> np.ndarray:
     """Helper function for applying mapping to spatial axes
 
@@ -103,12 +103,12 @@ def _apply_to_spatial_axes(
     """
 
     if data.ndim <= 2:
-        return map_function(data)
+        return function(data)
 
     axis = next(i for i in range(data.ndim) if i not in spatial_axes)
     data = np.moveaxis(data, axis, 0)
 
     ax1, ax2 = (ax if axis > ax else ax - 1 for ax in spatial_axes)
 
-    mapped_slices = [_apply_to_spatial_axes(map_function, data_slice, (ax1, ax2)) for data_slice in data]
+    mapped_slices = [_apply_to_spatial_axes(function, data_slice, (ax1, ax2)) for data_slice in data]
     return np.moveaxis(np.stack(mapped_slices), 0, axis)
