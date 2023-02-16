@@ -234,23 +234,6 @@ class CloudMaskTask(EOTask):
 
         return rescale, sigma
 
-    def _frame_indices(self, num_of_all_frames: int, target_idx: int) -> Tuple[int, int]:
-        """Returns frame indices within a given time window, with the target index relative to it"""
-        # Get reach
-        min_frame = target_idx - self.max_proc_frames // 2
-        max_frame = min_frame + self.max_proc_frames
-
-        # Shift interval so that it is inside [0, num_all_frames] (unless it's too big)
-        shift = max(0, -min_frame) - max(0, max_frame - num_of_all_frames)
-        min_frame += shift
-        max_frame += shift
-
-        # Takes care of case where interval is larger than `num_all_frames`
-        min_frame = max(0, min_frame)
-        max_frame = min(num_of_all_frames, max_frame)
-
-        return min_frame, max_frame
-
     def _red_ssim(self, *, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5, sigma):
         """Slightly reduced (pre-computed) SSIM computation"""
         # Increase precision and mask invalid regions
@@ -406,7 +389,7 @@ class CloudMaskTask(EOTask):
 
         for t_i in range(n_times):
             # Extract temporal window indices
-            nt_min, nt_max = self._frame_indices(n_times, t_i)
+            nt_min, nt_max = _get_window_indices(n_times, t_i, self.max_proc_frames)
             rel_t_i = t_i - nt_min
 
             bands_t = bands[nt_min:nt_max]
