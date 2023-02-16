@@ -10,6 +10,7 @@ file in the root directory of this source tree.
 """
 
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 from pytest import approx
 
@@ -18,19 +19,25 @@ from eolearn.mask import CloudMaskTask
 from eolearn.mask.cloud_mask import _get_window_indices
 
 
-def test_window_indices_function():
-    # normal case (middle index in the middle, window size < num_all_indices)
-    assert_array_equal(_get_window_indices(middle_idx=45, window_size=5, num_all_indices=50), [45 - 2, 45 + 2 + 1])
-    assert_array_equal(_get_window_indices(middle_idx=45, window_size=4, num_all_indices=50), [45 - 2, 45 + 1 + 1])
-
-    # edge indices
-    assert_array_equal(_get_window_indices(middle_idx=2, window_size=10, num_all_indices=50), [0, 10])
-    assert_array_equal(_get_window_indices(middle_idx=50 - 2, window_size=10, num_all_indices=50), [50 - 10 - 1, 50])
-
-    # window size larger than num of all indices
-    assert_array_equal(_get_window_indices(middle_idx=0, window_size=50, num_all_indices=10), [0, 10])
-    assert_array_equal(_get_window_indices(middle_idx=5, window_size=50, num_all_indices=10), [0, 10])
-    assert_array_equal(_get_window_indices(middle_idx=1, window_size=50, num_all_indices=10), [0, 10])
+@pytest.mark.parametrize(
+    "num_of_elements, middle_idx, window_size, expected_indices",
+    (
+        [100, 0, 10, (0, 10)],
+        [100, 1, 10, (0, 10)],
+        [100, 50, 10, (45, 55)],
+        [100, 99, 10, (90, 100)],
+        [100, 100, 10, (90, 100)],
+        [100, 0, 11, (0, 11)],
+        [100, 1, 11, (0, 11)],
+        [100, 50, 11, (45, 56)],
+        [100, 99, 11, (89, 100)],
+        [100, 100, 11, (89, 100)],
+    ),
+)
+def test_window_indices_function(num_of_elements, middle_idx, window_size, expected_indices):
+    indices = _get_window_indices(num_of_elements, middle_idx, window_size)
+    assert indices == expected_indices
+    assert len(range(*indices)) == window_size
 
 
 def test_mono_temporal_cloud_detection(test_eopatch):
