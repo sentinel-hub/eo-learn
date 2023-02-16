@@ -56,7 +56,7 @@ def test_is_discrete_type(number_type, is_discrete):
 
 
 @pytest.mark.parametrize(
-    "resize_function, data, spatial_axes, expected",
+    "map_function, data, spatial_axes, expected",
     [
         (partial(np.resize, new_shape=(2, 2)), np.zeros(shape=0), (1, 2), np.zeros((2, 2))),
         (partial(np.resize, new_shape=(2, 2)), np.ones((2, 3, 4, 1)), (1, 2), np.ones((2, 2, 2, 1))),
@@ -69,12 +69,24 @@ def test_is_discrete_type(number_type, is_discrete):
             (1, 2),
             np.array([[[[0], [1]], [[2], [3]]], [[[12], [13]], [[14], [15]]]]),
         ),
+        (
+            partial(np.flip, axis=0),
+            np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
+            (1, 2),
+            np.array(
+                [
+                    [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
+                    [[[20], [21], [22], [23]], [[16], [17], [18], [19]], [[12], [13], [14], [15]]],
+                ]
+            ),
+        ),
+        (lambda x: x + 1, np.arange(24).reshape((2, 3, 4, 1)), (1, 2), np.arange(1, 25).reshape((2, 3, 4, 1))),
     ],
 )
 def test_apply_to_spatial_axes(
-    resize_function: Callable[[np.ndarray], np.ndarray],
+    map_function: Callable[[np.ndarray], np.ndarray],
     data: np.ndarray,
     spatial_axes: Tuple[int, int],
     expected: np.ndarray,
 ) -> None:
-    assert_array_equal(_apply_to_spatial_axes(resize_function, data, spatial_axes), expected)
+    assert_array_equal(_apply_to_spatial_axes(map_function, data, spatial_axes), expected)

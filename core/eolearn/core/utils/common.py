@@ -91,24 +91,24 @@ def is_discrete_type(number_type: Union[np.dtype, type]) -> bool:
 
 
 def _apply_to_spatial_axes(
-    resize_function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: Tuple[int, int]
+    map_function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: Tuple[int, int]
 ) -> np.ndarray:
-    """Helper function for applying resizing to spatial axes
+    """Helper function for applying mapping to spatial axes
 
     Recursively slices data into smaller-dimensional ones, until only the spatial axes remain. The indices of spatial
     axes have to be adjusted if the recursion-axis is smaller than either one, e.g. spatial axes (1, 2) become (0, 1)
     after splitting the 3D data along axis 0 into 2D arrays.
 
-    After achieving 2D data slices the resizing function is applied. The data is then reconstructed into original form.
+    After achieving 2D data slices the mapping function is applied. The data is then reconstructed into original form.
     """
 
     if data.ndim <= 2:
-        return resize_function(data)
+        return map_function(data)
 
     axis = next(i for i in range(data.ndim) if i not in spatial_axes)
     data = np.moveaxis(data, axis, 0)
 
     ax1, ax2 = (ax if axis > ax else ax - 1 for ax in spatial_axes)
 
-    mapped_slices = [_apply_to_spatial_axes(resize_function, data_slice, (ax1, ax2)) for data_slice in data]
+    mapped_slices = [_apply_to_spatial_axes(map_function, data_slice, (ax1, ax2)) for data_slice in data]
     return np.moveaxis(np.stack(mapped_slices), 0, axis)
