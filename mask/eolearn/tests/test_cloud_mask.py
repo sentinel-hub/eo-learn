@@ -15,6 +15,22 @@ from pytest import approx
 
 from eolearn.core import FeatureType
 from eolearn.mask import CloudMaskTask
+from eolearn.mask.cloud_mask import _get_window_indices
+
+
+def test_window_indices_function():
+    # normal case (middle index in the middle, window size < num_all_indices)
+    assert_array_equal(_get_window_indices(middle_idx=45, window_size=5, num_all_indices=50), [45 - 2, 45 + 2 + 1])
+    assert_array_equal(_get_window_indices(middle_idx=45, window_size=4, num_all_indices=50), [45 - 2, 45 + 1 + 1])
+
+    # edge indices
+    assert_array_equal(_get_window_indices(middle_idx=2, window_size=10, num_all_indices=50), [0, 10])
+    assert_array_equal(_get_window_indices(middle_idx=50 - 2, window_size=10, num_all_indices=50), [50 - 10 - 1, 50])
+
+    # window size larger than num of all indices
+    assert_array_equal(_get_window_indices(middle_idx=0, window_size=50, num_all_indices=10), [0, 10])
+    assert_array_equal(_get_window_indices(middle_idx=5, window_size=50, num_all_indices=10), [0, 10])
+    assert_array_equal(_get_window_indices(middle_idx=1, window_size=50, num_all_indices=10), [0, 10])
 
 
 def test_mono_temporal_cloud_detection(test_eopatch):
