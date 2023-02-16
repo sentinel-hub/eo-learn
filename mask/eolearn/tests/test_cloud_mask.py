@@ -38,7 +38,7 @@ from eolearn.mask.cloud_mask import _get_window_indices
 )
 def test_window_indices_function(num_of_elements, middle_idx, window_size, expected_indices):
     min_idx, max_idx = _get_window_indices(num_of_elements, middle_idx, window_size)
-    assert min_idx, max_idx == expected_indices
+    assert (min_idx, max_idx) == expected_indices
 
     test_list = list(range(num_of_elements))
     assert len(test_list[min_idx:max_idx]) == min(num_of_elements, window_size)
