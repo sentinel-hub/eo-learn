@@ -581,7 +581,7 @@ class CloudMaskTask(EOTask):
         return eopatch
 
 
-def _get_window_indices(num_of_elements: int, middle_idx: int, window_size: int) -> Tuple[int, int]:
+def _get_window_indices(middle_idx: int, window_size: int, num_all_indices: int) -> Tuple[int, int]:
     """
     Returns the minimum and maximum indices to be used for indexing, lower inclusive and upper exclusive.
     The window has the following properties:
@@ -589,8 +589,8 @@ def _get_window_indices(num_of_elements: int, middle_idx: int, window_size: int)
         2. centered around `middle_idx` if possible, otherwise shifted so that the window is contained without reducing
             it's size.
     """
-    if window_size >= num_of_elements:
-        return 0, num_of_elements
+    if window_size >= num_all_indices:
+        return 0, num_all_indices
 
     # Construct window (is not necessarily contained)
     min_frame = middle_idx - window_size // 2
@@ -600,7 +600,7 @@ def _get_window_indices(num_of_elements: int, middle_idx: int, window_size: int)
     # Only one of the following can happen because `window_size < num_of_elements`
     if min_frame < 0:
         return 0, window_size
-    if max_frame >= num_of_elements:
-        return num_of_elements - window_size, num_of_elements
+    if max_frame >= num_all_indices:
+        return num_all_indices - window_size, num_all_indices
 
     return min_frame, max_frame
