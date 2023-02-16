@@ -15,7 +15,8 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 from PIL import Image
 
-from eolearn.core.exceptions import EORuntimeWarning, _apply_to_spatial_axes
+from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.utils.common import _apply_to_spatial_axes
 
 _CV2_IMPORT_MESSAGE = "The CV2 backend is not installed by default. We suggest you install the `opencv-python` package."
 
