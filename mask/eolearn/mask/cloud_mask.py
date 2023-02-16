@@ -440,14 +440,15 @@ class CloudMaskTask(EOTask):
         if local_avg is None:
             local_avg = avg_data / avg_data_mask
             local_var = var_data - local_avg**2
-        else:
-            # shift back, drop first element
-            local_avg[:-1] = local_avg[1:]
-            local_var[:-1] = local_var[1:]
+            return local_avg, local_var
 
-            # set new element
-            local_avg[-1] = (avg_data / avg_data_mask)[0]
-            local_var[-1] = var_data[0] - local_avg[-1] ** 2
+        # shift back, drop first element
+        local_avg[:-1] = local_avg[1:]
+        local_var[:-1] = local_var[1:]
+
+        # set new element
+        local_avg[-1] = (avg_data / avg_data_mask)[0]
+        local_var[-1] = var_data[0] - local_avg[-1] ** 2
 
         return local_avg, local_var
 
