@@ -319,11 +319,9 @@ class InterpolationTask(EOTask):
         # array defining index correspondence between reference times and resampled times
         ori2res = np.array(
             [
-                (
-                    np.abs(resampled_times - o).argmin()
-                    if np.min(resampled_times) <= o <= np.max(resampled_times)
-                    else None
-                )
+                np.abs(resampled_times - o).argmin()
+                if np.min(resampled_times) <= o <= np.max(resampled_times)
+                else None
                 for o in times
             ]
         )
