@@ -435,6 +435,8 @@ class CloudMaskTask(EOTask):
 
         avg_data = self._map_sequence(data, local_avg_func)
         avg_data_mask = self._map_sequence(data_mask, local_avg_func)
+        avg_data_mask[avg_data_mask == 0.0] = 1.0
+
         var_data = self._map_sequence(data, local_var_func)
 
         if local_avg is None:
