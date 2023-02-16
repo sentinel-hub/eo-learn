@@ -35,6 +35,7 @@ from eolearn.mask.cloud_mask import _get_window_indices
         [11, 2, 11, (0, 11)],
         [11, 2, 33, (0, 11)],
     ),
+    ids=str,
 )
 def test_window_indices_function(num_of_elements, middle_idx, window_size, expected_indices):
     min_idx, max_idx = _get_window_indices(num_of_elements, middle_idx, window_size)
