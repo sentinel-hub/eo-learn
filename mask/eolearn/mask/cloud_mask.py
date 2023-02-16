@@ -312,32 +312,40 @@ class CloudMaskTask(EOTask):
 
         return data
 
-    def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel, sigma):
+    def _ssim_stats(
+        self,
+        bands: np.ndarray,
+        is_data: np.ndarray,
+        local_avg: np.ndarray,
+        local_var: np.ndarray,
+        rel_tdx: int,
+        sigma: float,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate SSIM stats"""
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
         ssim_std = np.empty_like(ssim_max)
 
-        bands_r = np.delete(bands, nt_rel, axis=0)
-        win_avg_r = np.delete(win_avg, nt_rel, axis=0)
-        var_r = np.delete(var, nt_rel, axis=0)
+        bands_r = np.delete(bands, rel_tdx, axis=0)
+        win_avg_r = np.delete(local_avg, rel_tdx, axis=0)
+        var_r = np.delete(local_var, rel_tdx, axis=0)
 
         n_frames = bands_r.shape[0]
         n_bands = bands_r.shape[-1]
 
-        valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel, ..., 0].reshape(1, *is_data.shape[1:-1], 1)
+        valid_mask = np.delete(is_data, rel_tdx, axis=0) & is_data[rel_tdx, ..., 0].reshape(1, *is_data.shape[1:-1], 1)
 
         for b_i in range(n_bands):
             local_ssim = []
 
             for t_j in range(n_frames):
                 ssim_ij = self._red_ssim(
-                    data_x=bands[nt_rel, ..., b_i],
+                    data_x=bands[rel_tdx, ..., b_i],
                     data_y=bands_r[t_j, ..., b_i],
                     valid_mask=valid_mask[t_j, ..., 0],
-                    mu1=win_avg[nt_rel, ..., b_i],
+                    mu1=local_avg[rel_tdx, ..., b_i],
                     mu2=win_avg_r[t_j, ..., b_i],
-                    sigma1_2=var[nt_rel, ..., b_i],
+                    sigma1_2=local_var[rel_tdx, ..., b_i],
                     sigma2_2=var_r[t_j, ..., b_i],
                     sigma=sigma,
                 )
@@ -372,7 +380,7 @@ class CloudMaskTask(EOTask):
                 self.mono_classifier, mono_features
             )
 
-        return mono_proba[..., np.newaxis]
+        return mono_proba[..., None]
 
     def _do_multi_temporal_cloud_detection(self, bands: np.ndarray, is_data: np.ndarray, sigma: float) -> np.ndarray:
         """Performs a cloud detection process on multiple scenes at once"""
@@ -443,20 +451,31 @@ class CloudMaskTask(EOTask):
 
         return local_avg, local_var
 
-    def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands, sigma):
+    def _extract_multi_features(
+        self,
+        bands: np.ndarray,
+        is_data: np.ndarray,
+        local_avg: np.ndarray,
+        local_var: np.ndarray,
+        rel_tdx: int,
+        masked_bands: np.ndarray,
+        sigma: float,
+    ) -> np.ndarray:
         """Extracts features for a batch"""
         # Compute SSIM stats
-        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel, sigma)
+        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands, is_data, local_avg, local_var, rel_tdx, sigma)
 
         # Compute temporal stats
         temp_min = np.ma.min(masked_bands, axis=0).data[None, ...]
         temp_mean = np.ma.mean(masked_bands, axis=0).data[None, ...]
 
         # Compute difference stats
-        t_all = len(bands_t)
+        t_all = len(bands)
 
-        diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
-        diff_mean = (masked_bands[nt_rel][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)).data
+        diff_max = (masked_bands[rel_tdx][None, ...] - temp_min).data
+        diff_mean = (
+            masked_bands[rel_tdx][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)
+        ).data
 
         # Interweave
         ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3 * ssim_max.shape[-1]))
@@ -475,8 +494,8 @@ class CloudMaskTask(EOTask):
         # Put it all together
         multi_features = np.concatenate(
             (
-                bands_t[nt_rel][None, ...],
-                loc_mu[nt_rel][None, ...],
+                bands[rel_tdx][None, ...],
+                local_avg[rel_tdx][None, ...],
                 ssim_interweaved,
                 temp_interweaved,
                 diff_interweaved,
