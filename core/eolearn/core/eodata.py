@@ -461,7 +461,7 @@ class EOPatch:
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
 
-        new_eopatch = EOPatch()
+        new_eopatch = EOPatch(bbox=copy.copy(self.bbox))
         for feature_type, feature_name in parse_features(features, eopatch=self):
             if feature_type.has_dict():
                 new_eopatch[feature_type][feature_name] = self[feature_type].__getitem__(feature_name, load=False)
@@ -478,7 +478,7 @@ class EOPatch:
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
 
-        new_eopatch = EOPatch()
+        new_eopatch = EOPatch(bbox=copy.deepcopy(self.bbox))
         for feature_type, feature_name in parse_features(features, eopatch=self):
             if feature_type.has_dict():
                 value = self[feature_type].__getitem__(feature_name, load=False)
@@ -499,9 +499,10 @@ class EOPatch:
     def copy(self, features: FeaturesSpecification = ..., deep: bool = False) -> EOPatch:
         """Get a copy of the current `EOPatch`.
 
-        :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied.
+        :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied. Note that
+            `BBOX` is always copied.
         :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
-            of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMP` will be copied even with a shallow copy.
+            of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMP` will be deepcopied even with a shallow copy.
         :return: An EOPatch copy.
         """
         if deep:
