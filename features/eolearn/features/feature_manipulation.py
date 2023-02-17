@@ -72,7 +72,7 @@ class SimpleFilterTask(EOTask):
         :param eopatch: An input EOPatch.
         :return: A new EOPatch with filtered features.
         """
-        filtered_eopatch = EOPatch()
+        filtered_eopatch = EOPatch(bbox=eopatch.bbox)
         good_idxs = self._get_filtered_indices(eopatch[self.feature])
 
         for feature in self.filter_features_parser.get_features(eopatch):
