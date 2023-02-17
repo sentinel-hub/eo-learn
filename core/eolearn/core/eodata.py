@@ -640,7 +640,7 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
-        merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBox, None)])
+        merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
         for feature, value in eopatch_content.items():
             merged_eopatch[feature] = value
 
