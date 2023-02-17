@@ -93,7 +93,7 @@ def is_discrete_type(number_type: Union[np.dtype, type]) -> bool:
 def _apply_to_spatial_axes(
     function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: Tuple[int, int]
 ) -> np.ndarray:
-    """Helper function for applying mapping to spatial axes
+    """Helper function for applying a 2D -> 2D function to a higher dimension array
 
     Recursively slices data into smaller-dimensional ones, until only the spatial axes remain. The indices of spatial
     axes have to be adjusted if the recursion-axis is smaller than either one, e.g. spatial axes (1, 2) become (0, 1)
