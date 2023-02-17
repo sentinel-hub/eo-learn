@@ -5,6 +5,7 @@ Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+import dataclasses
 import warnings
 from functools import partial
 from typing import Callable, Tuple
@@ -55,65 +56,66 @@ def test_is_discrete_type(number_type, is_discrete):
     assert is_discrete_type(numpy_dtype) is is_discrete
 
 
-@pytest.mark.parametrize(
-    "function, data, spatial_axes, expected",
-    [
-        pytest.param(
-            partial(np.resize, new_shape=(2, 2)), np.zeros(shape=0), (1, 2), np.zeros((2, 2)), id="minimal test"
+@dataclasses.dataclass
+class ApplyToTestCase:
+    function: Callable[[np.ndarray], np.ndarray]
+    data: np.ndarray
+    spatial_axes: Tuple[int, int]
+    expected: np.ndarray
+
+
+APPLY_TO_TEST_CASES = [
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(2, 2)),
+        data=np.zeros(shape=0),
+        spatial_axes=(1, 2),
+        expected=np.zeros((2, 2)),
+    ),
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(3, 2)),
+        data=np.ones((2, 3, 4, 1)),
+        spatial_axes=(0, 1),
+        expected=np.ones((3, 2, 4, 1)),
+    ),
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(5, 6)),
+        data=np.ones((2, 3, 4, 1)),
+        spatial_axes=(0, 2),
+        expected=np.ones((5, 3, 6, 1)),
+    ),
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(1, 2)),
+        data=np.ones((2, 3, 4, 1)),
+        spatial_axes=(3, 2),
+        expected=np.ones((2, 3, 1, 2)),
+    ),
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(2, 2)),
+        data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
+        spatial_axes=(1, 2),
+        expected=np.array([[[[0], [1]], [[2], [3]]], [[[12], [13]], [[14], [15]]]]),
+    ),
+    ApplyToTestCase(
+        function=partial(np.flip, axis=0),
+        data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
+        spatial_axes=(1, 2),
+        expected=np.array(
+            [
+                [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
+                [[[20], [21], [22], [23]], [[16], [17], [18], [19]], [[12], [13], [14], [15]]],
+            ]
         ),
-        pytest.param(
-            partial(np.resize, new_shape=(3, 2)),
-            np.ones((2, 3, 4, 1)),
-            (0, 1),
-            np.ones((3, 2, 4, 1)),
-            id="common test case",
-        ),
-        pytest.param(
-            partial(np.resize, new_shape=(5, 6)),
-            np.ones((2, 3, 4, 1)),
-            (0, 2),
-            np.ones((5, 3, 6, 1)),
-            id="test bigger new shape",
-        ),
-        pytest.param(
-            partial(np.resize, new_shape=(1, 2)),
-            np.ones((2, 3, 4, 1)),
-            (3, 2),
-            np.ones((2, 3, 1, 2)),
-            id="test reverse axis",
-        ),
-        pytest.param(
-            partial(np.resize, new_shape=(2, 2)),
-            np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
-            (1, 2),
-            np.array([[[[0], [1]], [[2], [3]]], [[[12], [13]], [[14], [15]]]]),
-            id="test applying function",
-        ),
-        pytest.param(
-            partial(np.flip, axis=0),
-            np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
-            (1, 2),
-            np.array(
-                [
-                    [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
-                    [[[20], [21], [22], [23]], [[16], [17], [18], [19]], [[12], [13], [14], [15]]],
-                ]
-            ),
-            id="test applying axis dependent function",
-        ),
-        pytest.param(
-            lambda x: x + 1,
-            np.arange(24).reshape((2, 3, 4, 1)),
-            (1, 2),
-            np.arange(1, 25).reshape((2, 3, 4, 1)),
-            id="test applying not numpy function",
-        ),
-    ],
-)
-def test_apply_to_spatial_axes(
-    function: Callable[[np.ndarray], np.ndarray],
-    data: np.ndarray,
-    spatial_axes: Tuple[int, int],
-    expected: np.ndarray,
-) -> None:
-    assert_array_equal(_apply_to_spatial_axes(function, data, spatial_axes), expected)
+    ),
+    ApplyToTestCase(
+        function=lambda x: x + 1,
+        data=np.arange(24).reshape((2, 3, 4, 1)),
+        spatial_axes=(1, 2),
+        expected=np.arange(1, 25).reshape((2, 3, 4, 1)),
+    ),
+]
+
+
+@pytest.mark.parametrize("test_case", APPLY_TO_TEST_CASES)
+def test_apply_to_spatial_axes(test_case: ApplyToTestCase) -> None:
+    image = _apply_to_spatial_axes(test_case.function, test_case.data, test_case.spatial_axes)
+    assert_array_equal(image, test_case.expected)
