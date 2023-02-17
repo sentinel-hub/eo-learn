@@ -44,7 +44,6 @@ from eolearn.core import (
     RenameFeatureTask,
     SaveTask,
     ZipFeatureTask,
-    deep_eq,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureSpec
@@ -76,10 +75,10 @@ def patch_fixture() -> EOPatch:
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
 def test_copy(task: CopyTask, patch: EOPatch) -> None:
     patch_copy = task().execute(patch)
-    assert deep_eq(patch_copy, patch)
+    assert patch_copy == patch
 
     patch_copy.data["bands"][0, 0, 0, 0] += 1
-    assert not deep_eq(patch_copy, patch) if task == DeepCopyTask else deep_eq(patch_copy, patch)
+    assert (patch_copy != patch) if task == DeepCopyTask else (patch_copy == patch)
 
     patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
     assert "new" not in patch.data
@@ -94,13 +93,12 @@ def expected_patch_fixture(patch, request) -> EOPatch:
     "features, expected_patch",
     [
         ([(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX], ["mask_timeless", "bbox"]),
-        ([FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values"), FeatureType.BBOX], ["scalar", "timestamp", "bbox"]),
+        ([FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")], ["scalar", "timestamp"]),
     ],
     indirect=["expected_patch"],
 )
 def test_partial_copy(features: List[FeatureSpec], patch: EOPatch, expected_patch: EOPatch) -> None:
-    partial_copy = DeepCopyTask(features=features).execute(patch)
-    assert deep_eq(partial_copy, expected_patch)
+    assert DeepCopyTask(features=features).execute(patch) == expected_patch
 
 
 def test_load_task(test_eopatch_path):
