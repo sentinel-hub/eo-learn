@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import logging
 import os
 from functools import partial
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -23,7 +23,7 @@ from typing_extensions import Protocol
 
 from sentinelhub import BBox, bbox_to_resolution
 
-from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
+from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
 
 from .utils import map_over_axis, resize_images
 
@@ -88,8 +88,8 @@ class CloudMaskTask(EOTask):
         all_bands: bool = True,
         processing_resolution: Union[None, float, Tuple[float, float]] = None,
         max_proc_frames: int = 11,
-        mono_features=None,
-        multi_features=None,
+        mono_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
+        multi_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
         mask_feature: Optional[Tuple[FeatureType, str]] = (FeatureType.MASK, "CLM_INTERSSIM"),
         mono_threshold: float = 0.4,
         multi_threshold: float = 0.5,
@@ -284,7 +284,6 @@ class CloudMaskTask(EOTask):
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
         :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
-        # TODO: this should be replaced with `eolearn.features.utils._apply_to_spatial_axes`
 
         # Map over channel dimension on 3d tensor
         def func3d(dim):
@@ -385,12 +384,14 @@ class CloudMaskTask(EOTask):
     def _do_multi_temporal_cloud_detection(self, bands: np.ndarray, is_data: np.ndarray, sigma: float) -> np.ndarray:
         """Performs a cloud detection process on multiple scenes at once"""
         multi_proba = np.empty(np.prod(bands.shape[:-1]))
-        img_size = np.prod(bands.shape[1:-1])
+        img_size = int(np.prod(bands.shape[1:-1]))
 
         n_times = bands.shape[0]
 
-        local_avg, local_var = None, None
-        prev_left, prev_right = None, None
+        local_avg: Optional[np.ndarray] = None
+        local_var: Optional[np.ndarray] = None
+        prev_left: Optional[int] = None
+        prev_right: Optional[int] = None
 
         for t_idx in range(n_times):
             # Extract temporal window indices
@@ -403,6 +404,8 @@ class CloudMaskTask(EOTask):
             # Calculate the averages/variances for the local (windowed) streaming data
             if local_avg is None or (left, right) != (prev_left, prev_right):
                 local_avg, local_var = self._update_batches(local_avg, local_var, bands_slice, is_data_slice, sigma)
+
+            local_var = cast(np.ndarray, local_var)
 
             # Interweave and concatenate
             multi_features = self._extract_multi_features(
@@ -419,7 +422,12 @@ class CloudMaskTask(EOTask):
         return multi_proba[..., None]
 
     def _update_batches(
-        self, local_avg: np.ndarray, local_var: np.ndarray, bands: np.ndarray, is_data: np.ndarray, sigma: float
+        self,
+        local_avg: Optional[np.ndarray],
+        local_var: Optional[np.ndarray],
+        bands: np.ndarray,
+        is_data: np.ndarray,
+        sigma: float,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculates or updates the window average and variance.
@@ -438,9 +446,11 @@ class CloudMaskTask(EOTask):
 
         var_data = self._map_sequence(data, local_var_func)
 
-        if local_avg is None:
+        if local_avg is None or local_var is None:
             local_avg = avg_data / avg_data_mask
+            local_avg = cast(np.ndarray, local_avg)
             local_var = var_data - local_avg**2
+            local_var = cast(np.ndarray, local_var)
             return local_avg, local_var
 
         # shift back, drop first element
@@ -509,7 +519,7 @@ class CloudMaskTask(EOTask):
 
         return multi_features
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance
@@ -520,7 +530,10 @@ class CloudMaskTask(EOTask):
         is_data = eopatch[self.is_data_feature].astype(bool)
 
         original_shape = bands.shape[1:-1]
-        scale_factors, sigma = self._scale_factors(original_shape, eopatch.bbox)
+        patch_bbox = eopatch.bbox
+        if patch_bbox is None:
+            raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
+        scale_factors, sigma = self._scale_factors(original_shape, patch_bbox)
 
         is_data_sm = is_data
         # Downscale if specified
