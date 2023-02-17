@@ -98,11 +98,11 @@ def test_deepcopy(patch):
 def test_partial_copy(patch):
     partial_copy = DeepCopyTask(features=[(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX]).execute(patch)
     expected_patch = EOPatch(mask_timeless=patch.mask_timeless, bbox=patch.bbox)
-    assert partial_copy == expected_patch, "Partial copying was not successful"
+    assert partial_copy == expected_patch
 
     partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
-    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp)
-    assert partial_deepcopy == expected_patch, "Partial deep copying was not successful"
+    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp, bbox=patch.bbox)
+    assert partial_deepcopy == expected_patch
 
 
 def test_load_task(test_eopatch_path):
