@@ -102,6 +102,12 @@ def _apply_to_spatial_axes(
     After achieving 2D data slices the mapping function is applied. The data is then reconstructed into original form.
     """
 
+    if len(spatial_axes) != 2:
+        raise ValueError("Parameter `spatial_axes` should be tuple of two increasing int smaller then `data.ndim`")
+    ax1, ax2 = spatial_axes
+    if ax1 >= ax2 or ax2 >= data.ndim:
+        raise ValueError("Parameter `spatial_axes` should be tuple of two increasing int smaller then `data.ndim`")
+
     if data.ndim <= 2:
         return function(data)
 

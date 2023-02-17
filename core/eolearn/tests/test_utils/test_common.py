@@ -8,7 +8,7 @@ file in the root directory of this source tree.
 import dataclasses
 import warnings
 from functools import partial
-from typing import Callable, Tuple
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -61,16 +61,10 @@ class ApplyToTestCase:
     function: Callable[[np.ndarray], np.ndarray]
     data: np.ndarray
     spatial_axes: Tuple[int, int]
-    expected: np.ndarray
+    expected: Optional[np.ndarray] = None
 
 
 APPLY_TO_TEST_CASES = [
-    ApplyToTestCase(
-        function=partial(np.resize, new_shape=(2, 2)),
-        data=np.zeros(shape=0),
-        spatial_axes=(1, 2),
-        expected=np.zeros((2, 2)),
-    ),
     ApplyToTestCase(
         function=partial(np.resize, new_shape=(3, 2)),
         data=np.ones((2, 3, 4, 1)),
@@ -82,12 +76,6 @@ APPLY_TO_TEST_CASES = [
         data=np.ones((2, 3, 4, 1)),
         spatial_axes=(0, 2),
         expected=np.ones((5, 3, 6, 1)),
-    ),
-    ApplyToTestCase(
-        function=partial(np.resize, new_shape=(2, 4)),
-        data=np.ones((2, 3, 4, 1)),
-        spatial_axes=(3, 2),
-        expected=np.ones((2, 3, 2, 4)),
     ),
     ApplyToTestCase(
         function=partial(np.resize, new_shape=(2, 4)),
@@ -113,17 +101,6 @@ APPLY_TO_TEST_CASES = [
         ),
     ),
     ApplyToTestCase(
-        function=partial(np.flip, axis=0),
-        data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
-        spatial_axes=(2, 1),
-        expected=np.array(
-            [
-                [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
-                [[[20], [21], [22], [23]], [[16], [17], [18], [19]], [[12], [13], [14], [15]]],
-            ]
-        ),
-    ),
-    ApplyToTestCase(
         function=lambda x: x + 1,
         data=np.arange(24).reshape((2, 3, 4, 1)),
         spatial_axes=(1, 2),
@@ -136,3 +113,38 @@ APPLY_TO_TEST_CASES = [
 def test_apply_to_spatial_axes(test_case: ApplyToTestCase) -> None:
     image = _apply_to_spatial_axes(test_case.function, test_case.data, test_case.spatial_axes)
     assert_array_equal(image, test_case.expected)
+
+
+APPLY_TO_FAIL_TEST_CASES = [
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(2, 2)),
+        data=np.zeros(shape=0),
+        spatial_axes=(1, 2),
+    ),
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(2, 4)),
+        data=np.ones((2, 3, 4, 1)),
+        spatial_axes=(3, 2),
+    ),
+    ApplyToTestCase(
+        function=partial(np.flip, axis=0),
+        data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
+        spatial_axes=(2, 2),
+    ),
+    ApplyToTestCase(
+        function=lambda x: x + 1,
+        data=np.arange(24).reshape((2, 3, 4, 1)),
+        spatial_axes=(1,),
+    ),
+    ApplyToTestCase(
+        function=lambda x: x + 1,
+        data=np.arange(24).reshape((2, 3, 4, 1)),
+        spatial_axes=(1, 2, 3),
+    ),
+]
+
+
+@pytest.mark.parametrize("test_case", APPLY_TO_FAIL_TEST_CASES)
+def test_apply_to_spatial_axes_fails(test_case: ApplyToTestCase) -> None:
+    with pytest.raises(ValueError):
+        _apply_to_spatial_axes(test_case.function, test_case.data, test_case.spatial_axes)
