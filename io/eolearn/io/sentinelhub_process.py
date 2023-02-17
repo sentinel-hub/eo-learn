@@ -94,7 +94,7 @@ class SentinelHubInputBaseTask(EOTask):
         The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
 
         eopatch_bbox = eopatch.bbox if eopatch is not None else None
-        area_bbox = self._extract_bbox(bbox, eopatch_bbox)
+        area_bbox = self._consolidate_bbox(bbox, eopatch_bbox)
 
         eopatch = eopatch or EOPatch(bbox=area_bbox)
         eopatch.bbox = area_bbox
@@ -141,7 +141,7 @@ class SentinelHubInputBaseTask(EOTask):
         raise ValueError("Size or resolution for the requests should be provided!")
 
     @staticmethod
-    def _extract_bbox(bbox: Optional[BBox], eopatch_bbox: Optional[BBox]) -> BBox:
+    def _consolidate_bbox(bbox: Optional[BBox], eopatch_bbox: Optional[BBox]) -> BBox:
         if eopatch_bbox is None:
             if bbox is None:
                 raise ValueError("Either the eopatch or the task must provide valid bbox.")
