@@ -84,10 +84,16 @@ APPLY_TO_TEST_CASES = [
         expected=np.ones((5, 3, 6, 1)),
     ),
     ApplyToTestCase(
-        function=partial(np.resize, new_shape=(1, 2)),
+        function=partial(np.resize, new_shape=(2, 4)),
         data=np.ones((2, 3, 4, 1)),
         spatial_axes=(3, 2),
-        expected=np.ones((2, 3, 1, 2)),
+        expected=np.ones((2, 3, 2, 4)),
+    ),
+    ApplyToTestCase(
+        function=partial(np.resize, new_shape=(2, 4)),
+        data=np.ones((2, 3, 4, 1)),
+        spatial_axes=(2, 3),
+        expected=np.ones((2, 3, 2, 4)),
     ),
     ApplyToTestCase(
         function=partial(np.resize, new_shape=(2, 2)),
@@ -99,6 +105,17 @@ APPLY_TO_TEST_CASES = [
         function=partial(np.flip, axis=0),
         data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
         spatial_axes=(1, 2),
+        expected=np.array(
+            [
+                [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
+                [[[20], [21], [22], [23]], [[16], [17], [18], [19]], [[12], [13], [14], [15]]],
+            ]
+        ),
+    ),
+    ApplyToTestCase(
+        function=partial(np.flip, axis=0),
+        data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
+        spatial_axes=(2, 1),
         expected=np.array(
             [
                 [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
