@@ -67,15 +67,21 @@ class ApplyToAxesTestCase:
 APPLY_TO_TEST_CASES = [
     ApplyToAxesTestCase(
         function=partial(np.resize, new_shape=(3, 2)),
-        data=np.ones((2, 3, 4, 1)),
+        data=np.ones((2, 3)),
         spatial_axes=(0, 1),
-        expected=np.ones((3, 2, 4, 1)),
+        expected=np.ones((3, 2)),
+    ),
+    ApplyToAxesTestCase(
+        function=partial(np.resize, new_shape=(4, 3)),
+        data=np.ones((2, 3, 2, 3, 1)),
+        spatial_axes=(1, 2),
+        expected=np.ones((2, 4, 3, 3, 1)),
     ),
     ApplyToAxesTestCase(
         function=partial(np.resize, new_shape=(5, 6)),
-        data=np.ones((2, 3, 4, 1)),
+        data=np.ones((2, 3, 4)),
         spatial_axes=(0, 2),
-        expected=np.ones((5, 3, 6, 1)),
+        expected=np.ones((5, 3, 6)),
     ),
     ApplyToAxesTestCase(
         function=partial(np.resize, new_shape=(2, 4)),
@@ -91,13 +97,10 @@ APPLY_TO_TEST_CASES = [
     ),
     ApplyToAxesTestCase(
         function=partial(np.flip, axis=0),
-        data=np.arange(2 * 3 * 4).reshape((2, 3, 4, 1)),
+        data=np.arange(2 * 3 * 4).reshape((2, 3, 4)),
         spatial_axes=(1, 2),
         expected=np.array(
-            [
-                [[[8], [9], [10], [11]], [[4], [5], [6], [7]], [[0], [1], [2], [3]]],
-                [[[20], [21], [22], [23]], [[16], [17], [18], [19]], [[12], [13], [14], [15]]],
-            ]
+            [[[8, 9, 10, 11], [4, 5, 6, 7], [0, 1, 2, 3]], [[20, 21, 22, 23], [16, 17, 18, 19], [12, 13, 14, 15]]]
         ),
     ),
     ApplyToAxesTestCase(

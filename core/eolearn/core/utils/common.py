@@ -104,10 +104,15 @@ def _apply_to_spatial_axes(
 
     ax1, ax2 = spatial_axes
     if ax1 >= ax2:
-        raise ValueError(f"For parameter `spatial_axes` the second axis must be greater than first, got {spatial_axes}.")
+        raise ValueError(
+            f"For parameter `spatial_axes` the second axis must be greater than first, got {spatial_axes}."
+        )
 
     if ax2 >= data.ndim:
-        raise ValueError(f"Values in `spatial_axes` must be smaller than `data.ndim`, got {spatial_axes} for data of dimension {data.ndim}.")
+        raise ValueError(
+            f"Values in `spatial_axes` must be smaller than `data.ndim`, got {spatial_axes} for data of dimension"
+            f" {data.ndim}."
+        )
 
     if data.ndim <= 2:
         return function(data)
