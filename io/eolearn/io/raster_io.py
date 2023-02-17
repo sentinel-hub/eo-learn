@@ -528,16 +528,13 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
         return np.concatenate(data_per_path, axis=0), final_bbox
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Union[None, str, List[str]] = "") -> EOPatch:
         """Execute method which adds a new feature to the EOPatch
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created
-        :type eopatch: EOPatch or None
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
-        :type filename: str, list of str or None
         :return: New EOPatch with added raster layer
-        :rtype: EOPatch
         """
         if filename is None:
             if eopatch is None:
@@ -545,12 +542,15 @@ class ImportFromTiffTask(BaseRasterIoTask):
             return eopatch
 
         feature_type, feature_name = self.feature
-        eopatch = eopatch or EOPatch()
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamp)
+        current_bbox = eopatch.bbox if eopatch is not None else None
+        current_timestamps = eopatch.timestamps if eopatch is not None else []
 
-        data, bbox = self._load_data(filename_paths, eopatch.bbox)
+        filename_paths = self._get_filename_paths(filename, current_timestamps)
 
+        data, bbox = self._load_data(filename_paths, current_bbox)
+
+        eopatch = eopatch or EOPatch(bbox=bbox)
         if eopatch.bbox is None:
             eopatch.bbox = bbox
 
