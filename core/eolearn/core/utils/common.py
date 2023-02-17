@@ -104,7 +104,7 @@ def _apply_to_spatial_axes(
 
     ax1, ax2 = spatial_axes
     if ax1 >= ax2:
-        raise ValueError("Values in `spatial_axes` should be increasing.")
+        raise ValueError(f"For parameter `spatial_axes` the second axis must be greater than first, got {spatial_axes}.")
 
     if ax2 >= data.ndim:
         raise ValueError("Values in `spatial_axes` should smaller then `data.ndim`.")
