@@ -179,7 +179,7 @@ def test_rename_feature(patch: EOPatch) -> None:
     f_type, f_name, f_new_name = FeatureType.DATA, "bands", "new_bands"
 
     with pytest.raises(KeyError):
-        patch[(f_type, f_name)]
+        patch[(f_type, f_new_name)]
     patch_copy = copy.deepcopy(patch)
 
     patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
