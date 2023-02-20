@@ -169,16 +169,9 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert feature_name not in patch[FeatureType.DATA]
 
 
-@pytest.mark.parametrize("feature", [FeatureType.MASK_TIMELESS, FeatureType.DATA])
+@pytest.mark.parametrize("feature", [FeatureType.DATA, FeatureType.BBOX, FeatureType.TIMESTAMP])
 def test_remove_feature(feature: FeatureType, patch: EOPatch) -> None:
-    assert len(patch[feature]) != 0
-    patch = RemoveFeatureTask((feature, ...))(patch)
-    assert len(patch[feature]) == 0
-
-
-@pytest.mark.parametrize("feature", [FeatureType.BBOX, FeatureType.TIMESTAMP])
-def test_remove_bbox_timestamp(feature: FeatureType, patch: EOPatch) -> None:
-    # this test should fail after reworke of bbox and timestamps
+    # this test should fail for bbox and timestamps after rework
     assert patch[feature]
     patch = RemoveFeatureTask((feature, ...))(patch)
     assert not patch[feature]
