@@ -148,28 +148,31 @@ def test_io_task_pickling(filesystem, task_class):
     assert isinstance(unpickled_task, task_class)
 
 
-def test_add_rename_remove_feature(patch):
+def test_add_feature(patch):
     cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
     feature_name = "CLOUD MASK"
-    new_feature_name = "CLM"
 
-    patch = copy.deepcopy(patch)
+    with pytest.raises(KeyError):
+        patch.mask[feature_name]
 
     patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, cloud_mask)
-    assert np.array_equal(patch.mask[feature_name], cloud_mask), "Feature was not added"
+    assert np.array_equal(patch.mask[feature_name], cloud_mask)
 
-    patch = RenameFeatureTask((FeatureType.MASK, feature_name, new_feature_name))(patch)
-    assert np.array_equal(patch.mask[new_feature_name], cloud_mask), "Feature was not renamed"
-    assert feature_name not in patch[FeatureType.MASK], "Old feature still exists"
 
-    patch = RemoveFeatureTask((FeatureType.MASK, new_feature_name))(patch)
-    assert feature_name not in patch.mask, "Feature was not removed"
+def test_rename_feature(patch):
+    feature_name = "bands"
+    new_feature_name = "data"
+    patch_copy = copy.deepcopy(patch)
 
-    patch = RemoveFeatureTask((FeatureType.MASK_TIMELESS, ...))(patch)
-    assert len(patch.mask_timeless) == 0, "mask_timeless features were not removed"
+    patch = RenameFeatureTask((FeatureType.DATA, feature_name, new_feature_name))(patch)
+    assert np.array_equal(patch.data[new_feature_name], patch_copy.data[feature_name])
+    assert feature_name not in patch[FeatureType.DATA]
 
-    patch = RemoveFeatureTask((FeatureType.MASK, ...))(patch)
-    assert len(patch.mask) == 0, "mask features were not removed"
+
+@pytest.mark.parametrize("feature", [FeatureType.MASK_TIMELESS, FeatureType.MASK])
+def test_remove_feature(feature: FeatureType, patch: EOPatch) -> None:
+    patch = RemoveFeatureTask((feature, ...))(patch)
+    assert len(patch[feature]) == 0
 
 
 def test_duplicate_feature(patch):
