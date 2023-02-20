@@ -10,8 +10,8 @@
 [![Code coverage](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
 <img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
-
 # eo-learn
+
 **eo-learn makes extraction of valuable information from satellite imagery easy.**
 
 The availability of open Earth observation (EO) data through the Copernicus and Landsat programs represents an
@@ -58,6 +58,7 @@ pip install eo-learn
 ```
 
 In order to avoid heavy package dependencies it is possible to install each subpackage separately:
+
 ```bash
 pip install eo-learn-core
 pip install eo-learn-coregistration
@@ -137,7 +138,6 @@ docker build -f docker/eolearn.dockerfile . --tag=sentinelhub/eolearn:latest
 docker build -f docker/eolearn-examples.dockerfile . --tag=sentinelhub/eolearn:latest-examples
 ```
 
-
 ## Documentation
 
 For more information on the package content, visit [readthedocs](https://eo-learn.readthedocs.io/).
@@ -152,46 +152,44 @@ If you would like to contribute to `eo-learn`, check out our [contribution guide
 
 ## Blog posts and papers
 
- * [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c) (by Devis Peressutti)
- * [Land Cover Classification with eo-learn: Part 1 - Mastering Satellite Image Data in an Open-Source Python Environment](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-1-2471e8098195) (by Matic Lubej)
- * [Land Cover Classification with eo-learn: Part 2 - Going from Data to Predictions in the Comfort of Your Laptop](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-2-bd9aa86f8500) (by Matic Lubej)
- * [Land Cover Classification with eo-learn: Part 3 - Pushing Beyond the Point of “Good Enough”](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-3-c62ed9ecd405) (by Matic Lubej)
- * [Innovations in satellite measurements for development](https://blogs.worldbank.org/opendata/innovations-satellite-measurements-development)
- * [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
- * [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification) (by Anze Zupanc)
- * [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966) (by Daniel Moraite)
- * [NoRSC19 Workshop on eo-learn](https://github.com/sentinel-hub/norsc19-eo-learn-workshop)
- * [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
- * [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
- * [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
- * [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a)
- * [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
-   * [High-Level Concept](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
-   * [Data Handling](https://medium.com/sentinel-hub/area-monitoring-data-handling-c255b215364f)
-   * [Outlier detection](https://medium.com/sentinel-hub/area-monitoring-observation-outlier-detection-34f86b7cc63)
-   * [Identifying built-up areas](https://medium.com/sentinel-hub/area-monitoring-how-to-train-a-binary-classifier-for-built-up-areas-7f2d7114ed1c)
-   * [Similarity Score](https://medium.com/sentinel-hub/area-monitoring-similarity-score-72e5cbfb33b6)
-   * [Bare Soil Marker](https://medium.com/sentinel-hub/area-monitoring-bare-soil-marker-608bc95712ae)
-   * [Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-mowing-marker-e99cff0c2d08)
-   * [Pixel-level Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-pixel-level-mowing-marker-968402a8579b)
-   * [Crop Type Marker](https://medium.com/sentinel-hub/area-monitoring-crop-type-marker-1e70f672bf44)
-   * [Homogeneity Marker](https://medium.com/sentinel-hub/area-monitoring-homogeneity-marker-742047b834dc)
-   * [Parcel Boundary Detection](https://medium.com/sentinel-hub/parcel-boundary-detection-for-cap-2a316a77d2f6)
-   * Land Cover Classification (still to come)
-   * Minimum Agriculture Activity (still to come)
-   * [Combining the Markers into Decisions](https://medium.com/sentinel-hub/area-monitoring-combining-markers-into-decisions-d74f70fe7721)
-   * [The Challenge of Small Parcels](https://medium.com/sentinel-hub/area-monitoring-the-challenge-of-small-parcels-96121e169e5b)
-   * [Traffic Light System](https://medium.com/sentinel-hub/area-monitoring-traffic-light-system-4a1348481c40)
-   * [Expert Judgement Application](https://medium.com/sentinel-hub/expert-judgement-application-67a07f2feac4)
- * [Scale-up your eo-learn workflow using Batch Processing API](https://medium.com/sentinel-hub/scale-up-your-eo-learn-workflow-using-batch-processing-api-d183b70ea237) (by Maxim Lamare)
-
+- [Introducing eo-learn](https://medium.com/sentinel-hub/introducing-eo-learn-ab37f2869f5c) (by Devis Peressutti)
+- [Land Cover Classification with eo-learn: Part 1 - Mastering Satellite Image Data in an Open-Source Python Environment](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-1-2471e8098195) (by Matic Lubej)
+- [Land Cover Classification with eo-learn: Part 2 - Going from Data to Predictions in the Comfort of Your Laptop](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-2-bd9aa86f8500) (by Matic Lubej)
+- [Land Cover Classification with eo-learn: Part 3 - Pushing Beyond the Point of “Good Enough”](https://medium.com/sentinel-hub/land-cover-classification-with-eo-learn-part-3-c62ed9ecd405) (by Matic Lubej)
+- [Innovations in satellite measurements for development](https://blogs.worldbank.org/opendata/innovations-satellite-measurements-development)
+- [Use eo-learn with AWS SageMaker](https://medium.com/@drewbo19/use-eo-learn-with-aws-sagemaker-9420856aafb5) (by Drew Bollinger)
+- [Spatio-Temporal Deep Learning: An Application to Land Cover Classification](https://www.researchgate.net/publication/333262625_Spatio-Temporal_Deep_Learning_An_Application_to_Land_Cover_Classification) (by Anze Zupanc)
+- [Tree Cover Prediction with Deep Learning](https://medium.com/dataseries/tree-cover-prediction-with-deep-learning-afeb0b663966) (by Daniel Moraite)
+- [NoRSC19 Workshop on eo-learn](https://github.com/sentinel-hub/norsc19-eo-learn-workshop)
+- [Tracking a rapidly changing planet](https://medium.com/@developmentseed/tracking-a-rapidly-changing-planet-bc02efe3545d) (by Development Seed)
+- [Land Cover Monitoring System](https://medium.com/sentinel-hub/land-cover-monitoring-system-84406e3019ae) (by Jovan Visnjic and Matej Aleksandrov)
+- [eo-learn Webinar](https://www.youtube.com/watch?v=Rv-yK7Vbk4o) (by Anze Zupanc)
+- [Cloud Masks at Your Service](https://medium.com/sentinel-hub/cloud-masks-at-your-service-6e5b2cb2ce8a)
+- [ML examples for Common Agriculture Policy](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
+  - [High-Level Concept](https://medium.com/sentinel-hub/area-monitoring-concept-effc2c262583)
+  - [Data Handling](https://medium.com/sentinel-hub/area-monitoring-data-handling-c255b215364f)
+  - [Outlier detection](https://medium.com/sentinel-hub/area-monitoring-observation-outlier-detection-34f86b7cc63)
+  - [Identifying built-up areas](https://medium.com/sentinel-hub/area-monitoring-how-to-train-a-binary-classifier-for-built-up-areas-7f2d7114ed1c)
+  - [Similarity Score](https://medium.com/sentinel-hub/area-monitoring-similarity-score-72e5cbfb33b6)
+  - [Bare Soil Marker](https://medium.com/sentinel-hub/area-monitoring-bare-soil-marker-608bc95712ae)
+  - [Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-mowing-marker-e99cff0c2d08)
+  - [Pixel-level Mowing Marker](https://medium.com/sentinel-hub/area-monitoring-pixel-level-mowing-marker-968402a8579b)
+  - [Crop Type Marker](https://medium.com/sentinel-hub/area-monitoring-crop-type-marker-1e70f672bf44)
+  - [Homogeneity Marker](https://medium.com/sentinel-hub/area-monitoring-homogeneity-marker-742047b834dc)
+  - [Parcel Boundary Detection](https://medium.com/sentinel-hub/parcel-boundary-detection-for-cap-2a316a77d2f6)
+  - Land Cover Classification (still to come)
+  - Minimum Agriculture Activity (still to come)
+  - [Combining the Markers into Decisions](https://medium.com/sentinel-hub/area-monitoring-combining-markers-into-decisions-d74f70fe7721)
+  - [The Challenge of Small Parcels](https://medium.com/sentinel-hub/area-monitoring-the-challenge-of-small-parcels-96121e169e5b)
+  - [Traffic Light System](https://medium.com/sentinel-hub/area-monitoring-traffic-light-system-4a1348481c40)
+  - [Expert Judgement Application](https://medium.com/sentinel-hub/expert-judgement-application-67a07f2feac4)
+- [Scale-up your eo-learn workflow using Batch Processing API](https://medium.com/sentinel-hub/scale-up-your-eo-learn-workflow-using-batch-processing-api-d183b70ea237) (by Maxim Lamare)
 
 ## Questions and Issues
 
 Feel free to ask questions about the package and its use cases at [Sentinel Hub forum](https://forum.sentinel-hub.com/) or raise an issue on [GitHub](https://github.com/sentinel-hub/eo-learn/issues).
 
 You are welcome to send your feedback to the package authors, EO Research team, through any of [Sentinel Hub communication channel](https://sentinel-hub.com/develop/communication-channels).
-
 
 ## License
 
