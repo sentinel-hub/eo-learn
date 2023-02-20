@@ -176,6 +176,9 @@ def test_add_bbox_timestemps(feature: FeatureSpec, feature_data: Union[np.ndarra
 def test_rename_feature(patch: EOPatch) -> None:
     feature_name = "bands"
     new_feature_name = "data"
+
+    with pytest.raises(KeyError):
+        patch.data[new_feature_name]
     patch_copy = copy.deepcopy(patch)
 
     patch = RenameFeatureTask((FeatureType.DATA, feature_name, new_feature_name))(patch)
