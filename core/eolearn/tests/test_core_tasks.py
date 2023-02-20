@@ -175,16 +175,15 @@ def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray) -> 
 
 
 def test_rename_feature(patch: EOPatch) -> None:
-    feature = (FeatureType.DATA, "bands")
-    new_feature = (FeatureType.DATA, "new_bands")
+    f_type, f_name, f_new_name = FeatureType.DATA, "bands", "new_bands"
 
     with pytest.raises(KeyError):
-        patch[new_feature]
+        patch[(f_type, f_name)]
     patch_copy = copy.deepcopy(patch)
 
-    patch = RenameFeatureTask((FeatureType.DATA, "bands", "new_bands"))(patch)
-    assert np.array_equal(patch[new_feature], patch_copy[feature])
-    assert "bands" not in patch[FeatureType.DATA]
+    patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
+    assert np.array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
+    assert f_name not in patch[f_type]
 
 
 def test_remove_feature(patch: EOPatch) -> None:
