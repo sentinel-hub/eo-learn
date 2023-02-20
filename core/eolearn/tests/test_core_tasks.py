@@ -176,6 +176,14 @@ def test_remove_feature(feature: FeatureType, patch: EOPatch) -> None:
     assert len(patch[feature]) == 0
 
 
+@pytest.mark.parametrize("feature", [FeatureType.BBOX, FeatureType.TIMESTAMP])
+def test_remove_bbox_timestamp(feature: FeatureType, patch: EOPatch) -> None:
+    # this test should fail after reworke of bbox and timestamps
+    assert patch[feature]
+    patch = RemoveFeatureTask((feature, ...))(patch)
+    assert not patch[feature]
+
+
 def test_duplicate_feature(patch):
     mask_data = np.arange(10).reshape(5, 2, 1, 1)
     feature_name = "MASK1"
