@@ -148,7 +148,7 @@ def test_io_task_pickling(filesystem, task_class):
     assert isinstance(unpickled_task, task_class)
 
 
-def test_add_feature(patch):
+def test_add_feature(patch: EOPatch) -> None:
     cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
     feature_name = "CLOUD MASK"
 
@@ -159,7 +159,7 @@ def test_add_feature(patch):
     assert np.array_equal(patch.mask[feature_name], cloud_mask)
 
 
-def test_rename_feature(patch):
+def test_rename_feature(patch: EOPatch) -> None:
     feature_name = "bands"
     new_feature_name = "data"
     patch_copy = copy.deepcopy(patch)
@@ -169,8 +169,9 @@ def test_rename_feature(patch):
     assert feature_name not in patch[FeatureType.DATA]
 
 
-@pytest.mark.parametrize("feature", [FeatureType.MASK_TIMELESS, FeatureType.MASK])
+@pytest.mark.parametrize("feature", [FeatureType.MASK_TIMELESS, FeatureType.DATA])
 def test_remove_feature(feature: FeatureType, patch: EOPatch) -> None:
+    assert len(patch[feature]) != 0
     patch = RemoveFeatureTask((feature, ...))(patch)
     assert len(patch[feature]) == 0
 
