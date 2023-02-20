@@ -168,6 +168,7 @@ def test_add_feature(patch: EOPatch) -> None:
     ],
 )
 def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray) -> None:
+    # this test should fail for bbox and timestamps after rework
     patch = EOPatch()
     assert not patch[feature]
     patch = AddFeatureTask(feature)(patch, feature_data)
@@ -187,8 +188,6 @@ def test_rename_feature(patch: EOPatch) -> None:
 
 
 def test_remove_feature(patch: EOPatch) -> None:
-    # this test should fail for bbox and timestamps after rework
-
     feature = (FeatureType.DATA, "bands")
     patch_copy = copy.deepcopy(patch)
     assert len(patch[feature]) != 0
