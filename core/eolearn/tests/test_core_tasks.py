@@ -190,7 +190,7 @@ def test_rename_feature(patch: EOPatch) -> None:
 def test_remove_feature(patch: EOPatch) -> None:
     feature = (FeatureType.DATA, "bands")
     patch_copy = copy.deepcopy(patch)
-    assert len(patch[feature]) != 0
+    assert feature in patch
 
     patch = RemoveFeatureTask(feature)(patch)
     with pytest.raises(KeyError):
