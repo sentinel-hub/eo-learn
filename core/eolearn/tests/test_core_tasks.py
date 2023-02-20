@@ -11,7 +11,7 @@ file in the root directory of this source tree.
 """
 
 import copy
-import datetime
+import datetime as dt
 import pickle
 from typing import Dict, Iterable, Tuple, Union
 
@@ -46,6 +46,7 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
+from eolearn.core.types import FeatureSpec
 
 
 @pytest.fixture(name="patch")
@@ -55,16 +56,16 @@ def patch_fixture():
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.timestamp = [
-        datetime.datetime(2017, 1, 1, 10, 4, 7),
-        datetime.datetime(2017, 1, 4, 10, 14, 5),
-        datetime.datetime(2017, 1, 11, 10, 3, 51),
-        datetime.datetime(2017, 1, 14, 10, 13, 46),
-        datetime.datetime(2017, 1, 24, 10, 14, 7),
-        datetime.datetime(2017, 2, 10, 10, 1, 32),
-        datetime.datetime(2017, 2, 20, 10, 6, 35),
-        datetime.datetime(2017, 3, 2, 10, 0, 20),
-        datetime.datetime(2017, 3, 12, 10, 7, 6),
-        datetime.datetime(2017, 3, 15, 10, 12, 14),
+        dt.datetime(2017, 1, 1, 10, 4, 7),
+        dt.datetime(2017, 1, 4, 10, 14, 5),
+        dt.datetime(2017, 1, 11, 10, 3, 51),
+        dt.datetime(2017, 1, 14, 10, 13, 46),
+        dt.datetime(2017, 1, 24, 10, 14, 7),
+        dt.datetime(2017, 2, 10, 10, 1, 32),
+        dt.datetime(2017, 2, 20, 10, 6, 35),
+        dt.datetime(2017, 3, 2, 10, 0, 20),
+        dt.datetime(2017, 3, 12, 10, 7, 6),
+        dt.datetime(2017, 3, 15, 10, 12, 14),
     ]
     patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
@@ -157,6 +158,19 @@ def test_add_feature(patch: EOPatch) -> None:
 
     patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, cloud_mask)
     assert np.array_equal(patch.mask[feature_name], cloud_mask)
+
+
+@pytest.mark.parametrize(
+    "feature, feature_data",
+    [
+        ((FeatureType.BBOX, None), BBox((24.54, 56.45, 95.4, 13.43), CRS(3857))),
+        ((FeatureType.TIMESTAMP, None), [dt.datetime(2022, 1, 1, 10, 4, 7), dt.datetime(2022, 1, 4, 10, 14, 5)]),
+    ],
+)
+def test_add_bbox_timestemps(feature: FeatureSpec, feature_data: Union[np.ndarray], patch: EOPatch) -> None:
+    assert patch[feature] != feature_data
+    patch = AddFeatureTask(feature)(patch, feature_data)
+    assert patch[feature] == feature_data
 
 
 def test_rename_feature(patch: EOPatch) -> None:
