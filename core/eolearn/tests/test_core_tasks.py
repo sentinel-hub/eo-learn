@@ -175,7 +175,7 @@ def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray, pat
 
 def test_rename_feature(patch: EOPatch) -> None:
     feature_name = "bands"
-    new_feature_name = "data"
+    new_feature_name = "new_bands"
 
     with pytest.raises(KeyError):
         patch.data[new_feature_name]
