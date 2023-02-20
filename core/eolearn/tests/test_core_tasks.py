@@ -151,13 +151,13 @@ def test_io_task_pickling(filesystem, task_class):
 
 def test_add_feature(patch: EOPatch) -> None:
     cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
-    feature_name = "CLOUD MASK"
+    feature = (FeatureType.MASK, "CLOUD MASK")
 
     with pytest.raises(KeyError):
-        patch.mask[feature_name]
+        patch[feature]
 
-    patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, cloud_mask)
-    assert np.array_equal(patch.mask[feature_name], cloud_mask)
+    patch = AddFeatureTask(feature)(patch, cloud_mask)
+    assert np.array_equal(patch[feature], cloud_mask)
 
 
 @pytest.mark.parametrize(
@@ -167,23 +167,24 @@ def test_add_feature(patch: EOPatch) -> None:
         ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
-def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray, patch: EOPatch) -> None:
-    assert patch[feature] != feature_data
+def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray) -> None:
+    patch = EOPatch()
+    assert not patch[feature]
     patch = AddFeatureTask(feature)(patch, feature_data)
     assert patch[feature] == feature_data
 
 
 def test_rename_feature(patch: EOPatch) -> None:
-    feature_name = "bands"
-    new_feature_name = "new_bands"
+    feature = (FeatureType.DATA, "bands")
+    new_feature = (FeatureType.DATA, "new_bands")
 
     with pytest.raises(KeyError):
-        patch.data[new_feature_name]
+        patch[new_feature]
     patch_copy = copy.deepcopy(patch)
 
-    patch = RenameFeatureTask((FeatureType.DATA, feature_name, new_feature_name))(patch)
-    assert np.array_equal(patch.data[new_feature_name], patch_copy.data[feature_name])
-    assert feature_name not in patch[FeatureType.DATA]
+    patch = RenameFeatureTask((FeatureType.DATA, "bands", "new_bands"))(patch)
+    assert np.array_equal(patch[new_feature], patch_copy[feature])
+    assert "bands" not in patch[FeatureType.DATA]
 
 
 def test_remove_feature(patch: EOPatch) -> None:
