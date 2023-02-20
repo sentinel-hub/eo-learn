@@ -167,7 +167,7 @@ def test_add_feature(patch: EOPatch) -> None:
         ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
-def test_add_bbox_timestemps(feature: FeatureSpec, feature_data: Union[np.ndarray], patch: EOPatch) -> None:
+def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray, patch: EOPatch) -> None:
     assert patch[feature] != feature_data
     patch = AddFeatureTask(feature)(patch, feature_data)
     assert patch[feature] == feature_data
