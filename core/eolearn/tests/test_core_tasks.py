@@ -11,8 +11,8 @@ file in the root directory of this source tree.
 """
 
 import copy
-import datetime as dt
 import pickle
+from datetime import datetime
 from typing import Dict, Iterable, Tuple, Union
 
 import numpy as np
@@ -56,16 +56,16 @@ def patch_fixture():
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.timestamp = [
-        dt.datetime(2017, 1, 1, 10, 4, 7),
-        dt.datetime(2017, 1, 4, 10, 14, 5),
-        dt.datetime(2017, 1, 11, 10, 3, 51),
-        dt.datetime(2017, 1, 14, 10, 13, 46),
-        dt.datetime(2017, 1, 24, 10, 14, 7),
-        dt.datetime(2017, 2, 10, 10, 1, 32),
-        dt.datetime(2017, 2, 20, 10, 6, 35),
-        dt.datetime(2017, 3, 2, 10, 0, 20),
-        dt.datetime(2017, 3, 12, 10, 7, 6),
-        dt.datetime(2017, 3, 15, 10, 12, 14),
+        datetime(2017, 1, 1, 10, 4, 7),
+        datetime(2017, 1, 4, 10, 14, 5),
+        datetime(2017, 1, 11, 10, 3, 51),
+        datetime(2017, 1, 14, 10, 13, 46),
+        datetime(2017, 1, 24, 10, 14, 7),
+        datetime(2017, 2, 10, 10, 1, 32),
+        datetime(2017, 2, 20, 10, 6, 35),
+        datetime(2017, 3, 2, 10, 0, 20),
+        datetime(2017, 3, 12, 10, 7, 6),
+        datetime(2017, 3, 15, 10, 12, 14),
     ]
     patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
@@ -164,7 +164,7 @@ def test_add_feature(patch: EOPatch) -> None:
     "feature, feature_data",
     [
         ((FeatureType.BBOX, None), BBox((24.54, 56.45, 95.4, 13.43), CRS(3857))),
-        ((FeatureType.TIMESTAMP, None), [dt.datetime(2022, 1, 1, 10, 4, 7), dt.datetime(2022, 1, 4, 10, 14, 5)]),
+        ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
 def test_add_bbox_timestemps(feature: FeatureSpec, feature_data: Union[np.ndarray], patch: EOPatch) -> None:
@@ -186,12 +186,32 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert feature_name not in patch[FeatureType.DATA]
 
 
-@pytest.mark.parametrize("feature", [FeatureType.DATA, FeatureType.BBOX, FeatureType.TIMESTAMP])
-def test_remove_feature(feature: FeatureType, patch: EOPatch) -> None:
+def test_remove_feature(patch: EOPatch) -> None:
     # this test should fail for bbox and timestamps after rework
+
+    feature = (FeatureType.DATA, "bands")
+    patch_copy = copy.deepcopy(patch)
+    assert len(patch[feature]) != 0
+
+    patch = RemoveFeatureTask(feature)(patch)
+    with pytest.raises(KeyError):
+        patch[feature]
+
+    del patch_copy[feature]
+    assert patch == patch_copy
+
+
+@pytest.mark.parametrize("feature", [(FeatureType.BBOX, None), (FeatureType.TIMESTAMP, None)])
+def test_remove_bbox_timestamp(feature: FeatureSpec, patch: EOPatch) -> None:
+    # this test should fail for bbox and timestamps after rework
+    patch_copy = copy.deepcopy(patch)
     assert patch[feature]
-    patch = RemoveFeatureTask((feature, ...))(patch)
+
+    patch = RemoveFeatureTask(feature)(patch)
     assert not patch[feature]
+
+    del patch_copy[feature]
+    assert patch == patch_copy
 
 
 def test_duplicate_feature(patch):
