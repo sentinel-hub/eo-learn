@@ -233,7 +233,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
     test_case = TIFF_TEST_CASES[-1]
     eopatch = copy.deepcopy(test_eopatch)
     eopatch[test_case.feature_type][test_case.name] = test_case.data
-    eopatch.timestamp = test_eopatch.timestamp[: test_case.data.shape[0]]
+    eopatch.timestamps = test_eopatch.timestamps[: test_case.data.shape[0]]
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         tmp_file_name = "temp_file_*"
@@ -245,7 +245,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
         )
         export_task(eopatch, filename=tmp_file_name)
 
-        for timestamp in eopatch.timestamp:
+        for timestamp in eopatch.timestamps:
             expected_path = os.path.join(tmp_dir_name, timestamp.strftime("temp_file_%Y%m%dT%H%M%S.tif"))
             assert os.path.exists(expected_path), f"Path {expected_path} does not exist"
 
@@ -260,7 +260,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
         )
         export_task(eopatch)
 
-        for timestamp in eopatch.timestamp:
+        for timestamp in eopatch.timestamps:
             expected_path = os.path.join(tmp_dir_name, timestamp.strftime(tmp_file_name_reproject))
             assert os.path.exists(expected_path), f"Path {expected_path} does not exist"
 
@@ -340,7 +340,7 @@ def test_time_dependent_feature(test_eopatch):
 
     assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
-    test_eopatch.timestamp[-1] = datetime.datetime(2020, 10, 10)
+    test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
     filename_import = [
         f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamp
     ]

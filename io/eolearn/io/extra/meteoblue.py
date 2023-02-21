@@ -92,8 +92,10 @@ class BaseMeteoblueTask(EOTask):
 
     def _prepare_time_intervals(self, eopatch, time_interval):
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
-        if not eopatch.timestamp and not time_interval:
-            raise ValueError("Time interval should either be defined with eopatch.timestamp of time_interval parameter")
+        if not eopatch.timestamps and not time_interval:
+            raise ValueError(
+                "Time interval should either be defined with eopatch.timestamps of time_interval parameter"
+            )
 
         if time_interval:
             start_time, end_time = serialize_time(parse_time_interval(time_interval))
