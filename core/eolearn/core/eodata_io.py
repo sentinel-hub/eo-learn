@@ -53,6 +53,7 @@ from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 
 from .constants import FeatureType, FeatureTypeSet, OverwritePermission
+from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeaturesSpecification
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
@@ -218,6 +219,17 @@ def walk_main_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[Feature
             ftype_str, fname = fs.path.split(raw_path)
         else:
             ftype_str, fname = raw_path, ...
+
+        if ftype_str == "timestamp":
+            warnings.warn(
+                (
+                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated `timestamp` feature. "
+                    "Save the EOPatch again to update it and use the `timestamps` feature."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=2,
+            )
+            ftype_str = FeatureType.TIMESTAMP.value
 
         if FeatureType.has_value(ftype_str):
             yield FeatureType(ftype_str), fname, fs.path.combine(folder_path, path)

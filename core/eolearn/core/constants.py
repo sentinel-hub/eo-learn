@@ -52,7 +52,7 @@ class FeatureType(Enum):
     VECTOR_TIMELESS = "vector_timeless"
     META_INFO = "meta_info"
     BBOX = "bbox"
-    TIMESTAMP = "timestamp"
+    TIMESTAMP = "timestamps"
 
     @classmethod
     def has_value(cls, value: str) -> bool:
