@@ -13,14 +13,14 @@ file in the root directory of this source tree.
 import copy
 import datetime
 import pickle
-from typing import Dict, Iterable, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 from pytest import approx
 
 from sentinelhub import CRS, BBox
@@ -46,6 +46,7 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
+from eolearn.core.types import FeaturesSpecification
 
 
 @pytest.fixture(name="patch")
@@ -172,46 +173,42 @@ def test_add_rename_remove_feature(patch):
     assert len(patch.mask) == 0, "mask features were not removed"
 
 
-def test_duplicate_feature(patch):
-    mask_data = np.arange(10).reshape(5, 2, 1, 1)
-    feature_name = "MASK1"
-    duplicate_name = "MASK2"
+@pytest.mark.parametrize(
+    "feature_specification",
+    [
+        [(FeatureType.DATA, "bands", "bands2")],
+        [(FeatureType.DATA, "bands", "bands2"), (FeatureType.MASK_TIMELESS, "mask", "mask2")],
+        [(FeatureType.DATA, "bands", f"bands{i}") for i in range(5)],
+    ],
+)
+def test_duplicate_feature(feature_specification: List[FeaturesSpecification], patch: EOPatch) -> None:
+    patch = DuplicateFeatureTask(feature_specification)(patch)
 
-    patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, mask_data)
+    assert all([spec[2] in patch[spec[0]] for spec in feature_specification])
+    assert all([id(patch[spec[0]][spec[1]]) == id(patch[spec[0]][spec[2]]) for spec in feature_specification])
+    assert all([np.array_equal(patch[spec[0]][spec[1]], patch[spec[0]][spec[2]]) for spec in feature_specification])
 
-    duplicate_task = DuplicateFeatureTask((FeatureType.MASK, feature_name, duplicate_name))
+
+def test_duplicate_feature_deep(patch: EOPatch) -> None:
+    duplicate_task = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup"))
+    duplicate_task_deep = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup_deep"), deep_copy=True)
     patch = duplicate_task(patch)
+    patch = duplicate_task_deep(patch)
 
-    assert duplicate_name in patch.mask, "Feature was not duplicated. Name not found."
-    assert id(patch.mask["MASK1"]) == id(patch.mask["MASK2"])
-    assert np.array_equal(
-        patch.mask[duplicate_name], mask_data
-    ), "Feature was not duplicated correctly. Data does not match."
+    assert all(f_name in patch.data for f_name in ["bands_dup", "bands_dup_deep"])
+    assert_array_equal(patch.data["bands_dup"], patch.data["bands_dup_deep"])
+    patch.data["bands"] += 1
+    assert_array_equal(patch.data["bands_dup"], patch.data["bands"])
+    assert not np.array_equal(patch.data["bands_dup"], patch.data["bands_dup_deep"])
+
+
+def test_duplicate_feature_fails(patch: EOPatch) -> None:
+    duplicate_task = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup"))
+    patch = duplicate_task(patch)
 
     with pytest.raises(ValueError):
         # Expected a ValueError when creating an already exising feature.
         patch = duplicate_task(patch)
-
-    duplicate_names = {"D1", "D2"}
-    feature_list = [(FeatureType.MASK, "MASK1", "D1"), (FeatureType.MASK, "MASK2", "D2")]
-    patch = DuplicateFeatureTask(feature_list).execute(patch)
-
-    assert duplicate_names.issubset(patch.mask), "Duplicating multiple features failed."
-
-    patch = DuplicateFeatureTask((FeatureType.MASK, "MASK1", "DEEP"), deep_copy=True)(patch)
-    assert id(patch.mask["MASK1"]) != id(patch.mask["DEEP"])
-    assert np.array_equal(
-        patch.mask["MASK1"], patch.mask["DEEP"]
-    ), "Feature was not duplicated correctly. Data does not match."
-
-    # Duplicating MASK1 three times into D3, D4, D5 doesn't work, because EOTask.feature_gen
-    # returns a dict containing only ('MASK1', 'D5') duplication
-
-    duplicate_names = {"D3", "D4", "D5"}
-    feature_list = [(FeatureType.MASK, "MASK1", new) for new in duplicate_names]
-    patch = DuplicateFeatureTask(feature_list).execute(patch)
-
-    assert duplicate_names.issubset(patch.mask), "Duplicating single feature multiple times failed."
 
 
 def test_initialize_feature(patch):
