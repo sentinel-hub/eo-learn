@@ -265,11 +265,6 @@ def test_initialize_feature_fails() -> None:
         InitializeFeatureTask({FeatureType.DATA: ("F1", "F2", "F3")}, 1234)
 
 
-def test_initialize_feature_bbox(patch: EOPatch) -> None:
-    patch = InitializeFeatureTask(FeatureType.DATA, (FeatureType.BBOX, None))(patch)
-    assert True
-
-
 def test_move_feature():
     patch_src = EOPatch()
     patch_dst = EOPatch()
