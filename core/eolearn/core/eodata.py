@@ -18,6 +18,7 @@ import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
+from warnings import warn
 
 import attr
 import dateutil.parser
@@ -248,7 +249,18 @@ class EOPatch:
     vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
     meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
     bbox: Optional[BBox] = attr.ib(default=None)
-    timestamp: List[dt.datetime] = attr.ib(factory=list)
+    @property
+    def timestamp(self) -> List[dt.datetime]:
+        """A property for handling the deprecated timestamp attribute.
+
+        :return: A list of EOPatch timestamps
+        """
+        warn(
+            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.timestamps
 
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
