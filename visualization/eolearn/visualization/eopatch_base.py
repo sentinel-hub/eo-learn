@@ -18,7 +18,7 @@ from typing import Any, List, Optional, Tuple, Union
 import numpy as np
 from geopandas import GeoDataFrame
 
-from eolearn.core import EOPatch
+from eolearn.core import EOPatch, FeatureType
 from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.common import is_discrete_type
 from eolearn.core.utils.parsing import parse_feature
@@ -35,7 +35,7 @@ class BasePlotConfig:
     """
 
     rgb_factor: Optional[float] = 3.5
-    timestamp_column: Optional[str] = "TIMESTAMP"
+    timestamp_column: Optional[str] = FeatureType.TIMESTAMP.value.upper()
     geometry_column: str = "geometry"
 
 
