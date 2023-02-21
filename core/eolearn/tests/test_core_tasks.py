@@ -20,7 +20,7 @@ import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 from pytest import approx
 
 from sentinelhub import CRS, BBox
@@ -84,21 +84,27 @@ def test_copy(task: CopyTask, patch: EOPatch) -> None:
     assert "new" not in patch.data
 
 
-@pytest.fixture(name="expected_patch")
-def expected_patch_fixture(patch, request) -> EOPatch:
-    return EOPatch(**{feature: getattr(patch, feature) for feature in request.param})
-
-
 @pytest.mark.parametrize(
-    "features, expected_patch",
+    "features",
     [
-        ([(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX], ["mask_timeless", "bbox"]),
-        ([FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")], ["scalar", "timestamp"]),
+        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.BBOX, None)],
+        [(FeatureType.TIMESTAMP, None), (FeatureType.SCALAR, "values")],
     ],
-    indirect=["expected_patch"],
 )
-def test_partial_copy(features: List[FeatureSpec], patch: EOPatch, expected_patch: EOPatch) -> None:
-    assert DeepCopyTask(features=features).execute(patch) == expected_patch
+def test_partial_copy(features: List[FeatureSpec], patch: EOPatch) -> None:
+    patch_copy = DeepCopyTask(features=features)(patch)
+    features_not_in_copy = set(patch.get_features()) - set(features)
+
+    for feature in features_not_in_copy:
+        assert feature not in patch_copy
+
+    for feature in features:
+        assert feature in patch_copy
+
+        if isinstance(patch[feature], np.ndarray):
+            assert_array_equal(patch_copy[feature], patch[feature])
+        else:
+            assert patch_copy[feature] == patch[feature]
 
 
 def test_load_task(test_eopatch_path):
