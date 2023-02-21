@@ -219,7 +219,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
         ndvi = np.ma.array(eopatch.data[self.data_feature], dtype=np.float32, mask=~valid_data_mask.astype(bool))
 
-        all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
+        all_dates = np.asarray([x.toordinal() for x in eopatch.timestamps])
 
         if ndvi.ndim == 4:
             h, w = ndvi.shape[1:3]

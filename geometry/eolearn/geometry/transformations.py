@@ -151,7 +151,7 @@ class VectorToRasterTask(EOTask):
         """
         vector_data = self._get_vector_data_from_eopatch(eopatch)
         # EOPatch has a bbox, verified in execute
-        vector_data = self._preprocess_vector_data(vector_data, cast(BBox, eopatch.bbox), eopatch.timestamp)
+        vector_data = self._preprocess_vector_data(vector_data, cast(BBox, eopatch.bbox), eopatch.timestamps)
 
         if self._rasterize_per_timestamp:
             for timestamp, vector_data_per_timestamp in vector_data.groupby("TIMESTAMP"):
@@ -268,7 +268,7 @@ class VectorToRasterTask(EOTask):
     def _get_raster(self, eopatch: EOPatch, height: int, width: int) -> np.ndarray:
         """Provides raster into which data will be written"""
         feature_type, feature_name = self.raster_feature
-        raster_shape = (len(eopatch.timestamp), height, width) if self._rasterize_per_timestamp else (height, width)
+        raster_shape = (len(eopatch.timestamps), height, width) if self._rasterize_per_timestamp else (height, width)
 
         if self.write_to_existing and feature_name in eopatch[feature_type]:
             raster = eopatch[self.raster_feature]
@@ -336,7 +336,7 @@ class VectorToRasterTask(EOTask):
             rasterio_dtype = self._RASTERIO_DTYPES_MAP[original_dtype]
             raster = raster.astype(rasterio_dtype)
 
-        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamp)}
+        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamps)}
 
         for timestamp, shape_iterator in vector_data_iterator:
             if shape_iterator is None:
@@ -468,7 +468,7 @@ class RasterToVectorTask(EOTask):
             else:
                 gpd_list = [
                     self._vectorize_single_raster(
-                        raster[time_idx, ...], affine_transform, crs, timestamp=eopatch.timestamp[time_idx]
+                        raster[time_idx, ...], affine_transform, crs, timestamp=eopatch.timestamps[time_idx]
                     )
                     for time_idx in range(raster.shape[0])
                 ]

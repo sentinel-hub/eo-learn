@@ -33,7 +33,7 @@ def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
     assert filtered_eopatch.scalar["CLOUD_COVERAGE"].shape == (0, 1)
     assert len(filtered_eopatch.vector["CLM_VECTOR"]) == 0
     assert np.array_equal(filtered_eopatch.mask_timeless["LULC"], example_eopatch.mask_timeless["LULC"])
-    assert filtered_eopatch.timestamp == []
+    assert filtered_eopatch.timestamps == []
 
 
 @pytest.mark.parametrize(
@@ -66,13 +66,13 @@ def test_content_after_time_filter():
 
     new_start, new_end = 4, -3
 
-    eop = EOPatch(timestamp=timestamps, data={"data": data})
+    eop = EOPatch(timestamps=timestamps, data={"data": data})
 
     filter_task = FilterTimeSeriesTask(start_date=timestamps[new_start], end_date=timestamps[new_end])
     filtered_eop = filter_task.execute(eop)
 
     assert filtered_eop is not eop
-    assert filtered_eop.timestamp == timestamps[new_start : new_end + 1]
+    assert filtered_eop.timestamps == timestamps[new_start : new_end + 1]
     assert np.array_equal(filtered_eop.data["data"], data[new_start : new_end + 1, ...])
 
 

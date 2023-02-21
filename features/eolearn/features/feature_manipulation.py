@@ -86,7 +86,7 @@ class SimpleFilterTask(EOTask):
                 if feature_type.is_raster():
                     data = data[good_idxs]
                 else:
-                    data = self._filter_vector_feature(data, good_idxs, eopatch.timestamp)
+                    data = self._filter_vector_feature(data, good_idxs, eopatch.timestamps)
 
             filtered_eopatch[feature] = data
 

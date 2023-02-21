@@ -667,10 +667,10 @@ class EOPatch:
         :param timestamps: keep frames with date found in this list
         :return: set of removed frames' dates
         """
-        remove_from_patch = set(self.timestamp).difference(timestamps)
-        remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
-        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
-        good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
+        remove_from_patch = set(self.timestamps).difference(timestamps)
+        remove_from_patch_idxs = [self.timestamps.index(rm_date) for rm_date in remove_from_patch]
+        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
+        good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
 
         for feature_type in [
             feature_type for feature_type in FeatureType if (feature_type.is_temporal() and feature_type.has_dict())
@@ -681,7 +681,7 @@ class EOPatch:
                 if isinstance(value, list):
                     self[feature_type][feature_name] = [value[idx] for idx in good_timestamp_idxs]
 
-        self.timestamp = good_timestamps
+        self.timestamps = good_timestamps
         return remove_from_patch
 
     def plot(

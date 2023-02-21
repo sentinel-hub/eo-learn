@@ -87,7 +87,7 @@ class TiffTestCase:
         return self.get_expected().shape[0]
 
 
-DATES = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True).timestamp
+DATES = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True).timestamps
 SCALAR_ARRAY = np.arange(10 * 6, dtype=np.float32).reshape(10, 6)
 MASK_ARRAY = np.arange(5 * 3 * 2 * 1, dtype=np.uint16).reshape(5, 3, 2, 1)
 DATA_TIMELESS_ARRAY = np.arange(3 * 2 * 5, dtype=np.float64).reshape(3, 2, 5)

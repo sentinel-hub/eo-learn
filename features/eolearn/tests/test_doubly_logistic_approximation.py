@@ -22,7 +22,7 @@ def test_double_logistic_approximation(example_eopatch):
     start, stop = indices[0], indices[-1] + 2
 
     eopatch = EOPatch()
-    eopatch.timestamp = timestamps[start:stop]
+    eopatch.timestamps = timestamps[start:stop]
     eopatch.data["TEST"] = np.reshape(data[start:stop, 0, 0, 0], (-1, 1, 1, 1))
     eopatch.mask["IS_VALID"] = np.reshape(mask[start:stop, 0, 0, 0], (-1, 1, 1, 1))
     eopatch = DoublyLogisticApproximationTask(

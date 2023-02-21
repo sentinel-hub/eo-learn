@@ -23,21 +23,21 @@ from eolearn.core.exceptions import EORuntimeWarning
 def test_time_dependent_merge():
     all_timestamps = [dt.datetime(2020, month, 1) for month in range(1, 7)]
     eop1 = EOPatch(
-        data={"bands": np.ones((3, 4, 5, 2))}, timestamp=[all_timestamps[0], all_timestamps[5], all_timestamps[4]]
+        data={"bands": np.ones((3, 4, 5, 2))}, timestamps=[all_timestamps[0], all_timestamps[5], all_timestamps[4]]
     )
     eop2 = EOPatch(
         data={"bands": np.ones((5, 4, 5, 2))},
-        timestamp=[all_timestamps[3], all_timestamps[1], all_timestamps[2], all_timestamps[4], all_timestamps[3]],
+        timestamps=[all_timestamps[3], all_timestamps[1], all_timestamps[2], all_timestamps[4], all_timestamps[3]],
     )
 
     eop = eop1.merge(eop2)
-    expected_eop = EOPatch(data={"bands": np.ones((6, 4, 5, 2))}, timestamp=all_timestamps)
+    expected_eop = EOPatch(data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
     assert eop == expected_eop
 
     eop = eop1.merge(eop2, time_dependent_op="concatenate")
     expected_eop = EOPatch(
         data={"bands": np.ones((8, 4, 5, 2))},
-        timestamp=all_timestamps[:4] + [all_timestamps[3], all_timestamps[4]] + all_timestamps[4:],
+        timestamps=all_timestamps[:4] + [all_timestamps[3], all_timestamps[4]] + all_timestamps[4:],
     )
     assert eop == expected_eop
 
@@ -50,7 +50,7 @@ def test_time_dependent_merge():
         eop1.merge(eop2)
 
     eop = eop1.merge(eop2, time_dependent_op="mean")
-    expected_eop = EOPatch(data={"bands": np.ones((6, 4, 5, 2))}, timestamp=all_timestamps)
+    expected_eop = EOPatch(data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
     expected_eop.data["bands"][1, ...] = 4
     expected_eop.data["bands"][3, ...] = 3
     expected_eop.data["bands"][4, ...] = 2
@@ -61,9 +61,9 @@ def test_time_dependent_merge():
 def test_time_dependent_merge_with_missing_features():
     timestamps = [dt.datetime(2020, month, 1) for month in range(1, 7)]
     eop1 = EOPatch(
-        data={"bands": np.ones((6, 4, 5, 2))}, label={"label": np.ones((6, 7), dtype=np.uint8)}, timestamp=timestamps
+        data={"bands": np.ones((6, 4, 5, 2))}, label={"label": np.ones((6, 7), dtype=np.uint8)}, timestamps=timestamps
     )
-    eop2 = EOPatch(timestamp=timestamps[:4])
+    eop2 = EOPatch(timestamps=timestamps[:4])
 
     eop = eop1.merge(eop2)
     assert eop == eop1
@@ -79,7 +79,7 @@ def test_failed_time_dependent_merge():
     eop1 = EOPatch(data={"bands": np.ones((6, 4, 5, 2))})
     with pytest.raises(ValueError):
         eop1.merge()
-    eop2 = EOPatch(data={"bands": np.ones((1, 4, 5, 2))}, timestamp=[dt.datetime(2020, 1, 1)])
+    eop2 = EOPatch(data={"bands": np.ones((1, 4, 5, 2))}, timestamps=[dt.datetime(2020, 1, 1)])
     with pytest.raises(ValueError):
         eop2.merge(eop1)
 

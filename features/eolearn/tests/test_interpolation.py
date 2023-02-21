@@ -34,7 +34,7 @@ from eolearn.features import (
 
 @pytest.fixture(name="test_patch")
 def small_test_patch_fixture(example_eopatch):
-    test_patch = EOPatch(bbox=example_eopatch.bbox, timestamp=example_eopatch.timestamp)
+    test_patch = EOPatch(bbox=example_eopatch.bbox, timestamps=example_eopatch.timestamp)
     required_features = (
         (FeatureType.DATA, "NDVI"),
         (FeatureType.MASK, "IS_VALID"),

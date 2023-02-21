@@ -151,8 +151,8 @@ class BaseMeteoblueTask(EOTask):
         }
         result_data, result_timestamp = self._get_data(executable_query)
 
-        if not eopatch.timestamp and result_timestamp:
-            eopatch.timestamp = result_timestamp
+        if not eopatch.timestamps and result_timestamp:
+            eopatch.timestamps = result_timestamp
 
         eopatch[self.feature] = result_data
         return eopatch

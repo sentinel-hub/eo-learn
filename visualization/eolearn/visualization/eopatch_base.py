@@ -94,7 +94,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = self.eopatch[self.feature]
-        timestamps = self.eopatch.timestamp
+        timestamps = self.eopatch.timestamps
 
         if feature_type.is_raster():
             if self.times is not None:

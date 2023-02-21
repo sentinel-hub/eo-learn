@@ -107,12 +107,12 @@ class SentinelHubInputBaseTask(EOTask):
         elif self.data_collection.is_timeless:
             timestamp = None  # should this be [] to match next branch in case of a fresh eopatch?
         else:
-            timestamp = eopatch.timestamp
+            timestamp = eopatch.timestamps
 
         if timestamp is not None:
-            if not eopatch.timestamp:
-                eopatch.timestamp = timestamp
-            elif timestamp != eopatch.timestamp:
+            if not eopatch.timestamps:
+                eopatch.timestamps = timestamp
+            elif timestamp != eopatch.timestamps:
                 raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
         sh_requests = self._build_requests(area_bbox, size_x, size_y, timestamp, time_interval, geometry)
