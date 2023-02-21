@@ -178,7 +178,7 @@ def test_rename_feature(patch: EOPatch) -> None:
 
     patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
     assert np.array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
-    assert f_name not in patch[f_type]
+    assert (f_type, f_name) not in patch
 
 
 @pytest.mark.parametrize(
