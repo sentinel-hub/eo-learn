@@ -171,13 +171,11 @@ def test_add_feature(feature: FeatureSpec, feature_data: np.ndarray) -> None:
 
 def test_rename_feature(patch: EOPatch) -> None:
     f_type, f_name, f_new_name = FeatureType.DATA, "bands", "new_bands"
-
-    with pytest.raises(KeyError):
-        patch[(f_type, f_new_name)]
+    assert (f_type, f_new_name) not in patch
     patch_copy = copy.deepcopy(patch)
 
     patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
-    assert np.array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
+    assert_array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
     assert (f_type, f_name) not in patch
 
 
