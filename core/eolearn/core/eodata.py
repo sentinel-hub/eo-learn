@@ -187,11 +187,23 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
             value = gpd.GeoDataFrame(geometry=value, crs=value.crs)
 
         if isinstance(value, gpd.GeoDataFrame):
-            if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
-                raise ValueError(
-                    f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with timestamps but "
-                    f"feature {feature_name} doesn't not have it."
-                )
+            if self.feature_type is FeatureType.VECTOR:
+                if "TIMESTAMP" in value:
+                    warn(
+                        (
+                            f"{self.feature_type} feature has to contain a column 'TIMESTAMPS' instead of 'TIMESTAMP'"
+                            " (deprecated)"
+                        ),
+                        category=EODeprecationWarning,
+                        stacklevel=2,
+                    )
+                    value = value.rename(columns={"TIMESTAMP": FeatureType.TIMESTAMP.value.upper()})
+
+                if FeatureType.TIMESTAMP.value.upper() not in value:
+                    raise ValueError(
+                        f"{self.feature_type} feature has to contain a column 'TIMESTAMPS' with timestamps but "
+                        f"feature {feature_name} doesn't not have it."
+                    )
 
             return value
 
