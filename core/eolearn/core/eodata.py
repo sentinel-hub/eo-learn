@@ -32,6 +32,7 @@ from sentinelhub import CRS, BBox
 from .constants import FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
+from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
@@ -257,7 +258,7 @@ class EOPatch:
         """
         warn(
             "The attribute `timestamp` is deprecated, use `timestamps` instead.",
-            category=DeprecationWarning,
+            category=EODeprecationWarning,
             stacklevel=2,
         )
         return self.timestamps
