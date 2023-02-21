@@ -250,6 +250,8 @@ class EOPatch:
     vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
     meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
     bbox: Optional[BBox] = attr.ib(default=None)
+    timestamps: List[dt.datetime] = attr.ib(factory=list)
+
     @property
     def timestamp(self) -> List[dt.datetime]:
         """A property for handling the deprecated timestamp attribute.
