@@ -20,7 +20,7 @@ import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 from pytest import approx
 
 from sentinelhub import CRS, BBox
@@ -149,30 +149,24 @@ def test_io_task_pickling(filesystem, task_class):
     assert isinstance(unpickled_task, task_class)
 
 
-def test_add_feature(patch: EOPatch) -> None:
-    cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
-    feature = (FeatureType.MASK, "CLOUD MASK")
-
-    with pytest.raises(KeyError):
-        patch[feature]
-
-    patch = AddFeatureTask(feature)(patch, cloud_mask)
-    assert np.array_equal(patch[feature], cloud_mask)
-
-
 @pytest.mark.parametrize(
     "feature, feature_data",
     [
+        ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
         ((FeatureType.BBOX, None), BBox((24.54, 56.45, 95.4, 13.43), CRS(3857))),
         ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
-def test_add_bbox_timestamps(feature: FeatureSpec, feature_data: np.ndarray) -> None:
+def test_add_feature(feature: FeatureSpec, feature_data: np.ndarray) -> None:
     # this test should fail for bbox and timestamps after rework
     patch = EOPatch()
-    assert not patch[feature]
+    assert feature not in patch
     patch = AddFeatureTask(feature)(patch, feature_data)
-    assert patch[feature] == feature_data
+
+    if isinstance(feature_data, np.ndarray):
+        assert_array_equal(patch[feature], feature_data)
+    else:
+        assert patch[feature] == feature_data
 
 
 def test_rename_feature(patch: EOPatch) -> None:
@@ -187,27 +181,16 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert f_name not in patch[f_type]
 
 
-def test_remove_feature(patch: EOPatch) -> None:
-    feature = (FeatureType.DATA, "bands")
+@pytest.mark.parametrize(
+    "feature", [(FeatureType.DATA, "bands"), (FeatureType.BBOX, None), (FeatureType.TIMESTAMP, None)]
+)
+def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
+    # this test should fail for bbox and timestamps after rework
     patch_copy = copy.deepcopy(patch)
     assert feature in patch
 
     patch = RemoveFeatureTask(feature)(patch)
-    with pytest.raises(KeyError):
-        patch[feature]
-
-    del patch_copy[feature]
-    assert patch == patch_copy
-
-
-@pytest.mark.parametrize("feature", [(FeatureType.BBOX, None), (FeatureType.TIMESTAMP, None)])
-def test_remove_bbox_timestamp(feature: FeatureSpec, patch: EOPatch) -> None:
-    # this test should fail for bbox and timestamps after rework
-    patch_copy = copy.deepcopy(patch)
-    assert patch[feature]
-
-    patch = RemoveFeatureTask(feature)(patch)
-    assert not patch[feature]
+    assert feature not in patch
 
     del patch_copy[feature]
     assert patch == patch_copy
