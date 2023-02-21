@@ -102,20 +102,20 @@ class SentinelHubInputBaseTask(EOTask):
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamp = self._get_timestamp(time_interval, area_bbox)
-            timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
+            timestamps = self._get_timestamp(time_interval, area_bbox)
+            timestamps = [time_point.replace(tzinfo=None) for time_point in timestamps]
         elif self.data_collection.is_timeless:
-            timestamp = None  # should this be [] to match next branch in case of a fresh eopatch?
+            timestamps = None  # should this be [] to match next branch in case of a fresh eopatch?
         else:
-            timestamp = eopatch.timestamps
+            timestamps = eopatch.timestamps
 
-        if timestamp is not None:
+        if timestamps is not None:
             if not eopatch.timestamps:
-                eopatch.timestamps = timestamp
-            elif timestamp != eopatch.timestamps:
+                eopatch.timestamps = timestamps
+            elif timestamps != eopatch.timestamps:
                 raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
-        sh_requests = self._build_requests(area_bbox, size_x, size_y, timestamp, time_interval, geometry)
+        sh_requests = self._build_requests(area_bbox, size_x, size_y, timestamps, time_interval, geometry)
         requests = [request.download_list[0] for request in sh_requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
@@ -124,7 +124,7 @@ class SentinelHubInputBaseTask(EOTask):
         responses = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug("Downloads complete")
 
-        temporal_dim = 1 if timestamp is None else len(timestamp)
+        temporal_dim = 1 if timestamps is None else len(timestamps)
         shape = temporal_dim, size_y, size_x
         self._extract_data(eopatch, responses, shape)
 
