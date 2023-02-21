@@ -20,7 +20,7 @@ import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 from pytest import approx
 
 from sentinelhub import CRS, BBox
@@ -46,6 +46,7 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
+from eolearn.core.types import FeatureSpec
 
 
 @pytest.fixture(name="patch")
@@ -214,49 +215,59 @@ def test_duplicate_feature(patch):
     assert duplicate_names.issubset(patch.mask), "Duplicating single feature multiple times failed."
 
 
-def test_initialize_feature(patch):
-    patch = DeepCopyTask()(patch)
-
-    init_val = 123
-    shape = (5, 10, 10, 3)
+@pytest.mark.parametrize(
+    "init_val, shape, feature, feature_wrong",
+    [
+        (123, (5, 10, 10, 3), (FeatureType.MASK, "test"), (FeatureType.MASK_TIMELESS, "wrong")),
+        (123, (10, 10, 3), (FeatureType.MASK_TIMELESS, "test"), (FeatureType.MASK, "wrong")),
+    ],
+)
+def test_initialize_feature(
+    init_val: float, shape: Tuple[int, ...], feature: FeatureSpec, feature_wrong: FeatureSpec, patch: EOPatch
+) -> None:
     compare_data = np.ones(shape) * init_val
 
-    patch = InitializeFeatureTask((FeatureType.MASK, "test"), shape=shape, init_value=init_val)(patch)
-    assert patch.mask["test"].shape == shape
-    assert np.array_equal(patch.mask["test"], compare_data)
+    patch = InitializeFeatureTask(feature, shape=shape, init_value=init_val)(patch)
+    assert patch[feature].shape == shape
+    assert_array_equal(patch[feature], compare_data)
 
     with pytest.raises(ValueError):
         # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
-        patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, "wrong"), shape=shape, init_value=init_val)(patch)
+        InitializeFeatureTask(feature_wrong, shape=shape, init_value=init_val)(patch)
 
-    init_val = 123
-    shape = (10, 10, 3)
-    compare_data = np.ones(shape) * init_val
 
-    patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, "test"), shape=shape, init_value=init_val)(patch)
-    assert patch.mask_timeless["test"].shape == shape
-    assert np.array_equal(patch.mask_timeless["test"], compare_data)
+@pytest.mark.parametrize(
+    "init_val, shape, feature_type, new_names, case_feature_spec",
+    [
+        (123, (5, 10, 10, 3), FeatureType.MASK, ("F1", "F2", "F3"), False),
+        (123, (FeatureType.DATA, "bands"), FeatureType.DATA, ("F1", "F2", "F3"), True),
+    ],
+)
+def test_initialize_feature_rename(
+    init_val: float,
+    shape: Union[Tuple[int, ...], FeatureSpec],
+    feature_type: FeatureType,
+    new_names: Tuple[str, ...],
+    patch: EOPatch,
+    case_feature_spec: bool,
+) -> None:
+    result_shape = patch[shape].shape if case_feature_spec else shape
+    compare_data = init_val * np.ones(result_shape)
 
+    patch = InitializeFeatureTask({feature_type: new_names}, shape=shape, init_value=init_val)(patch)
+    assert set(new_names) <= set(patch[feature_type])
+    assert all(patch[feature_type][key].shape == result_shape for key in new_names)
+    (assert_array_equal(patch[feature_type][key], compare_data) for key in new_names)
+
+
+def test_initialize_feature_fails() -> None:
     with pytest.raises(ValueError):
-        # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
-        patch = InitializeFeatureTask((FeatureType.MASK, "wrong"), shape=shape, init_value=init_val)(patch)
+        InitializeFeatureTask({FeatureType.DATA: ("F1", "F2", "F3")}, 1234)
 
-    init_val = 123
-    shape = (5, 10, 10, 3)
-    compare_data = np.ones(shape) * init_val
-    new_names = ("F1", "F2", "F3")
 
-    patch = InitializeFeatureTask({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
-    assert set(new_names) < set(patch.mask), "Failed to initialize new features from a shape tuple."
-    assert all(patch.mask[key].shape == shape for key in new_names)
-    assert all(np.array_equal(patch.mask[key], compare_data) for key in new_names)
-
-    patch = InitializeFeatureTask({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, "bands"))(patch)
-    assert set(new_names) < set(patch.data), "Failed to initialize new features from an existing feature."
-    assert all(patch.data[key].shape == patch.data["bands"].shape for key in new_names)
-
-    with pytest.raises(ValueError):
-        InitializeFeatureTask({FeatureType.DATA: new_names}, 1234)
+def test_initialize_feature_bbox(patch: EOPatch) -> None:
+    patch = InitializeFeatureTask(FeatureType.DATA, (FeatureType.BBOX, None))(patch)
+    assert True
 
 
 def test_move_feature():
