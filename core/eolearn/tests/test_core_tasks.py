@@ -101,7 +101,7 @@ def test_partial_copy(patch):
     assert partial_copy == expected_patch
 
     partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
-    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamps, bbox=patch.bbox)
+    expected_patch = EOPatch(scalar=patch.scalar, timestamps=patch.timestamps, bbox=patch.bbox)
     assert partial_deepcopy == expected_patch
 
 
