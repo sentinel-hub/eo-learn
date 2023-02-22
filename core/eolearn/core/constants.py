@@ -146,7 +146,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
     def type(self) -> type:
         """Returns type of the data for the given FeatureType."""
-        if self is FeatureType.TIMESTAMP:
+        if self is FeatureType.TIMESTAMPS:
             return list
         if self is FeatureType.BBOX:
             return BBox
@@ -183,7 +183,7 @@ class FeatureTypeSet:
             FeatureType.SCALAR,
             FeatureType.LABEL,
             FeatureType.VECTOR,
-            FeatureType.TIMESTAMP,
+            FeatureType.TIMESTAMPS,
         ]
     )
     TIMELESS_TYPES = frozenset(
@@ -198,7 +198,7 @@ class FeatureTypeSet:
     DISCRETE_TYPES = frozenset(
         [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
     )
-    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
+    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS])
     VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
     RASTER_TYPES = frozenset(
         [

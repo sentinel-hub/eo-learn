@@ -229,7 +229,7 @@ def walk_main_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[Feature
                 category=EODeprecationWarning,
                 stacklevel=2,
             )
-            ftype_str = FeatureType.TIMESTAMP.value
+            ftype_str = FeatureType.TIMESTAMPS.value
 
         if FeatureType.has_value(ftype_str):
             yield FeatureType(ftype_str), fname, fs.path.combine(folder_path, path)
@@ -504,7 +504,7 @@ def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
         return FeatureIOBBox
     if ftype is FeatureType.META_INFO:
         return FeatureIOJson
-    if ftype is FeatureType.TIMESTAMP:
+    if ftype is FeatureType.TIMESTAMPS:
         return FeatureIOTimestamp
     if ftype in FeatureTypeSet.VECTOR_TYPES:
         return FeatureIOGeoDf

@@ -135,7 +135,7 @@ def test_save_load(eopatch, fs_loader):
         eopatch2 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
         assert eopatch == eopatch2
 
-        features = {FeatureType.DATA_TIMELESS: ["mask"], FeatureType.TIMESTAMP: ...}
+        features = {FeatureType.DATA_TIMELESS: ["mask"], FeatureType.TIMESTAMPS: ...}
         eopatch2.save("/", filesystem=temp_fs, features=features, compress_level=3, overwrite_permission=1)
         eopatch2 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=True)
         assert eopatch == eopatch2
