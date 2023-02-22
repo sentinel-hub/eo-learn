@@ -198,6 +198,7 @@ def test_duplicate_feature_deep(patch: EOPatch) -> None:
 
     assert all(f_name in patch.data for f_name in ["bands_dup", "bands_dup_deep"])
     assert_array_equal(patch.data["bands_dup"], patch.data["bands_dup_deep"])
+    assert id(patch.data["bands_dup"]) != id(patch.data["bands_dup_deep"])
     patch.data["bands"] += 1
     assert_array_equal(patch.data["bands_dup"], patch.data["bands"])
     assert not np.array_equal(patch.data["bands_dup"], patch.data["bands_dup_deep"])
