@@ -363,7 +363,7 @@ class InterpolationTask(EOTask):
             return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
-    def get_resampled_timestamp(self, timestamp: List[dt.datetime]) -> List[dt.datetime]:
+    def get_resampled_timestamp(self, timestamps: List[dt.datetime]) -> List[dt.datetime]:
         """Takes a list of timestamps and generates new list of timestamps according to ``resample_range``
 
         :param timestamp: list of timestamps
@@ -371,7 +371,7 @@ class InterpolationTask(EOTask):
         """
         days: List[dt.datetime]
         if self.resample_range is None:
-            return timestamp
+            return timestamps
 
         if not isinstance(self.resample_range, (tuple, list)):
             raise ValueError(f"Invalid resample_range {self.resample_range}, expected tuple")
@@ -401,8 +401,8 @@ class InterpolationTask(EOTask):
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
 
         An array is constructed as time_series[i] = (timestamp[i] - ref_date).total_seconds().
-        If reference date is None the first date in the EOPatch's timestamp is taken.
-        If EOPatch timestamp attribute is empty the method returns None.
+        If reference date is None the first date in the EOPatch's timestamp array is taken.
+        If EOPatch `timestamps` attribute is empty the method returns None.
 
         :param eopatch: the EOPatch whose timestamps are used to construct the time series
         :param ref_date: reference date relative to which the time is measured

@@ -102,7 +102,7 @@ class SentinelHubInputBaseTask(EOTask):
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamps = self._get_timestamp(time_interval, area_bbox)
+            timestamps = self._get_timestamps(time_interval, area_bbox)
             timestamps = [time_point.replace(tzinfo=None) for time_point in timestamps]
         elif self.data_collection.is_timeless:
             timestamps = None  # should this be [] to match next branch in case of a fresh eopatch?
@@ -160,16 +160,16 @@ class SentinelHubInputBaseTask(EOTask):
         bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: Optional[List[dt.datetime]],
+        timestamps: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
         raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
-    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
-        raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
+        raise NotImplementedError("The _get_timestamps method should be implemented by the subclass.")
 
 
 class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
@@ -267,7 +267,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         return responses
 
-    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
             return []
@@ -287,16 +287,16 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: Optional[List[dt.datetime]],
+        timestamps: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
-        """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
+        """Defines request timestamps and builds requests. In case `timestamps` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
         dates: List[Optional[Tuple[Optional[dt.datetime], Optional[dt.datetime]]]]
-        if timestamp:
-            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
-        elif timestamp is None:
+        if timestamps:
+            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamps]
+        elif timestamps is None:
             dates = [None]
         else:
             dates = [parse_time_interval(time_interval, allow_undefined=True)]
@@ -514,7 +514,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         return evalscript
 
-    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
             return [time_interval[0]]  # type: ignore[index, list-item]
@@ -534,17 +534,17 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: Optional[List[dt.datetime]],
+        timestamps: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
-        if timestamp is None:
+        if timestamps is None:
             intervals: List[Optional[RawTimeIntervalType]] = [None]
         elif self.single_scene:
             intervals = [parse_time_interval(time_interval)]
         else:
-            intervals = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+            intervals = [(date - self.time_difference, date + self.time_difference) for date in timestamps]
 
         return [self._create_sh_request(time_interval, bbox, size_x, size_y, geometry) for time_interval in intervals]
 
