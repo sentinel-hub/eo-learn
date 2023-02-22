@@ -53,8 +53,10 @@ from eolearn.core.types import FeatureSpec
 def patch_fixture() -> EOPatch:
     patch = EOPatch()
     patch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    patch.data["CLP"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
+    patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
     patch.timestamp = [
         datetime.datetime(2017, 1, 1, 10, 4, 7),
         datetime.datetime(2017, 1, 4, 10, 14, 5),
@@ -91,8 +93,10 @@ def test_copy(task: CopyTask, patch: EOPatch) -> None:
         [(FeatureType.TIMESTAMP, None), (FeatureType.SCALAR, "values")],
     ],
 )
-def test_partial_copy(features: List[FeatureSpec], patch: EOPatch) -> None:
-    patch_copy = DeepCopyTask(features=features)(patch)
+@pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
+def test_partial_copy(features: List[FeatureSpec], task: CopyTask, patch: EOPatch) -> None:
+    patch_copy = task(features=features)(patch)
+    features.append((FeatureType.BBOX, None))
     features_not_in_copy = set(patch.get_features()) - set(features)
 
     for feature in features_not_in_copy:
