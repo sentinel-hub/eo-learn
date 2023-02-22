@@ -443,7 +443,7 @@ class InterpolationTask(EOTask):
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
 
         # If resampling create new EOPatch
-        new_eopatch = EOPatch() if self.resample_range else eopatch
+        new_eopatch = EOPatch(bbox=eopatch.bbox) if self.resample_range else eopatch
 
         # Resample times
         times = self._get_eopatch_time_series(eopatch, scale_time=self.scale_time)
@@ -452,10 +452,6 @@ class InterpolationTask(EOTask):
         resampled_times = (
             self._get_eopatch_time_series(new_eopatch, scale_time=self.scale_time) + total_diff // self.scale_time
         )
-
-        # Add BBox to eopatch if it was created anew
-        if new_eopatch.bbox is None:
-            new_eopatch.bbox = eopatch.bbox
 
         # Replace duplicate acquisitions which have same values on the chosen timescale with their average
         feature_data, times = self._get_unique_times(feature_data, times)

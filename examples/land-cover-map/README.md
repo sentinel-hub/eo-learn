@@ -11,12 +11,12 @@ explained.
 
 In order to run the example you'll need a Sentinel Hub account. You can get a trial version [here](https://www.sentinel-hub.com) and a free R&D account [here](https://earth.esa.int/aos/OSEO)
 
-Once you have the account set up, login to [Sentinel Hub Configurator](https://apps.sentinel-hub.com/configurator/). By default you will already have the default confoguration with an **instance ID** (alpha-numeric code of length 36). For this tutorial it is recommended that you create a new configuration (`"Add new configuration"`) and set the configuration to be based on **Python scripts template**. Such configuration will already contain all layers used in these examples. Otherwise you will have to define the layers for your  configuration yourself.
+Once you have the account set up, login to [Sentinel Hub Configurator](https://apps.sentinel-hub.com/configurator/). By default you will already have the default confoguration with an **instance ID** (alpha-numeric code of length 36). For this tutorial it is recommended that you create a new configuration (`"Add new configuration"`) and set the configuration to be based on **Python scripts template**. Such configuration will already contain all layers used in these examples. Otherwise you will have to define the layers for your configuration yourself.
 
 After you have decided which configuration to use, you have two options You can either put configuration's **instance ID** into `sentinelhub` package's configuration file following the [configuration instructions](http://sentinelhub-py.readthedocs.io/en/latest/configure.html) or you can write it down in the example notebooks.
 
-__Note: The full end-to-end LULC workflow is not yet shown in the example so make sure to
-check regularly for the updates.__
+**Note: The full end-to-end LULC workflow is not yet shown in the example so make sure to
+check regularly for the updates.**
 
 ---
 
@@ -29,11 +29,12 @@ Each smaller piece is called an `EOPatch` in the `eo-learn` package. In order to
 use `BBOXSplitter` from [`sentinelhub`](https://github.com/sentinel-hub/sentinelhub-py) python package.
 
 **Notebook: 1_split-AOI.ipynb**
-* Inputs:
-    * a geo-json file defining the AOI. In our case, a buffered version of Slovenia. (`reference-data/slovenia-def/svn_buffered.geojson`)
-* Outputs:
-    * pickled `BBoxSplitter` with 293 tiles (seeds for 293 `EOPatch`es)
-    * geopandas dataframe of tiles
+
+- Inputs:
+  - a geo-json file defining the AOI. In our case, a buffered version of Slovenia. (`reference-data/slovenia-def/svn_buffered.geojson`)
+- Outputs:
+  - pickled `BBoxSplitter` with 293 tiles (seeds for 293 `EOPatch`es)
+  - geopandas dataframe of tiles
 
 ![SLO-tiles](./readme_figs/aoi_to_tiles.png)
 
@@ -42,37 +43,39 @@ use `BBOXSplitter` from [`sentinelhub`](https://github.com/sentinel-hub/sentinel
 ## 2. Create EOPatches
 
 Now is time to create an `EOPatch` for each out of 293 tiles of the AOI. The `EOPatch` is created by filling it with Sentinel-2 data using Sentinel Hub services. We will add the following data to each `EOPatch`:
-* L1C RGB (bands B04, B03, and B02)
-* cloud probability and cloud mask from SentinelHub's `s2cloudless` cloud detector
-    * in order to perform the cloud detection the 10 L1C bands needed by the `s2cloudless` cloud detector are going to be downloaded (and removed before saving)
+
+- L1C RGB (bands B04, B03, and B02)
+- cloud probability and cloud mask from SentinelHub's `s2cloudless` cloud detector
+  - in order to perform the cloud detection the 10 L1C bands needed by the `s2cloudless` cloud detector are going to be downloaded (and removed before saving)
 
 ### 2.1 Determine the number of valid observations
 
 We can count how many times in a time series a pixel is valid or not from the or SentinelHub's cloud mask.
 
 **Notebook: 2_eopatch-L1C.ipynb**
-* Inputs:
-    * pickled `BBoxSplitter` with 293 tiles (seeds for 293 `EOPatch`es)
-* Outputs:
-    * `EOPatch`(es) with the following content:
-        * cloud probability map per frame
-        * cloud mask per frame
-        * `IS_DATA` mask
-        * `VALID_DATA` mask
-        * map of number of valid frames per pixel
-        * fraction of valid pixels per frame
-    * geo-referenced tiff files with number of valid observations
-* Tasks (this example shows how to):
-    * create an EOPatch and fill it with data (Sentinel-2 L1C) using SentinelHub services
-    * run SentinelHub's cloud detector (`s2cloudless`)
-    * remove features from an EOPatch
-    * validate pixels using custom (user-specified) predicate
-    * count number of valid observations per pixel
-    * export a feature to geo-referenced tiff file
-    * add custom (user-defined) feature to EOPatch
-    * remove frames from an EOPatch using custom custom (user-specified) predicate
-    * save EOPatch to disk
-    * load EOPatch from disk
+
+- Inputs:
+  - pickled `BBoxSplitter` with 293 tiles (seeds for 293 `EOPatch`es)
+- Outputs:
+  - `EOPatch`(es) with the following content:
+    - cloud probability map per frame
+    - cloud mask per frame
+    - `IS_DATA` mask
+    - `VALID_DATA` mask
+    - map of number of valid frames per pixel
+    - fraction of valid pixels per frame
+  - geo-referenced tiff files with number of valid observations
+- Tasks (this example shows how to):
+  - create an EOPatch and fill it with data (Sentinel-2 L1C) using SentinelHub services
+  - run SentinelHub's cloud detector (`s2cloudless`)
+  - remove features from an EOPatch
+  - validate pixels using custom (user-specified) predicate
+  - count number of valid observations per pixel
+  - export a feature to geo-referenced tiff file
+  - add custom (user-defined) feature to EOPatch
+  - remove frames from an EOPatch using custom custom (user-specified) predicate
+  - save EOPatch to disk
+  - load EOPatch from disk
 
 If we take a look into the first `EOPatch` this is what we'll find:
 

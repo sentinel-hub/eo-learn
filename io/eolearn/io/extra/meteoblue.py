@@ -28,7 +28,7 @@ try:
 except ImportError as exception:
     raise ImportError("This module requires an installation of meteoblue_dataset_sdk package") from exception
 
-from sentinelhub import CRS, Geometry, parse_time_interval, serialize_time
+from sentinelhub import CRS, BBox, Geometry, parse_time_interval, serialize_time
 
 from eolearn.core import EOPatch, EOTask
 
@@ -76,14 +76,19 @@ class BaseMeteoblueTask(EOTask):
         self.time_difference = time_difference
 
     @staticmethod
-    def _prepare_bbox(eopatch, bbox):
-        """Prepares a bbox from input parameters"""
-        if not eopatch.bbox and not bbox:
-            raise ValueError("Bounding box is not provided")
-        if eopatch.bbox and bbox and eopatch.bbox != bbox:
-            raise ValueError("Provided eopatch.bbox and bbox are not the same")
+    def _get_modified_eopatch(eopatch: Optional[EOPatch], bbox: Optional[BBox]) -> EOPatch:
+        if bbox is not None:
+            if eopatch is None:
+                eopatch = EOPatch(bbox=bbox)
+            elif eopatch.bbox is None:
+                eopatch.bbox = bbox
+            elif eopatch.bbox != bbox:
+                raise ValueError("Provided eopatch.bbox and bbox are not the same")
+            return eopatch
 
-        return bbox or eopatch.bbox
+        if eopatch is None or eopatch.bbox is None:
+            raise ValueError("Bounding box is not provided")
+        return eopatch
 
     def _prepare_time_intervals(self, eopatch, time_interval):
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
@@ -125,8 +130,8 @@ class BaseMeteoblueTask(EOTask):
         :type time_interval: (dt.datetime, dt.datetime) or (str, str) or None
         :raises ValueError: Raises an exception when no query is set during Task initialization or the execute method.
         """
-        eopatch = eopatch or EOPatch()
-        eopatch.bbox = self._prepare_bbox(eopatch, bbox)
+        eopatch = self._get_modified_eopatch(eopatch, bbox)
+
         time_intervals = self._prepare_time_intervals(eopatch, time_interval)
 
         bbox = eopatch.bbox
