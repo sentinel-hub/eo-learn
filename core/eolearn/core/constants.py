@@ -85,9 +85,6 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
     BBOX = "bbox"
     TIMESTAMPS = "timestamps"
 
-    # to be deprecated
-    TIMESTAMP = "timestamp"
-
     @classmethod
     def has_value(cls, value: str) -> bool:
         """True if value is in FeatureType values. False otherwise."""
