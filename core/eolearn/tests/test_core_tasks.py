@@ -212,31 +212,25 @@ def test_duplicate_feature(feature_specification: List[FeaturesSpecification], p
 
     for f_type, f_name, f_dup_name in feature_specification:
         assert f_dup_name in patch[f_type]
-        assert id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)])
+        assert id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)]), "DuplicateFeatureTask used deep copy."
         assert_array_equal(patch[(f_type, f_name)], patch[(f_type, f_dup_name)])
 
 
 def test_duplicate_feature_deep(patch: EOPatch) -> None:
-    duplicate_task = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup"))
-    duplicate_task_deep = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup_deep"), deep_copy=True)
-    patch = duplicate_task(patch)
-    patch = duplicate_task_deep(patch)
+    patch = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup"), deep_copy=True)(patch)
 
-    assert all(f_name in patch.data for f_name in ["bands_dup", "bands_dup_deep"])
-    assert_array_equal(patch.data["bands_dup"], patch.data["bands_dup_deep"])
-    assert id(patch.data["bands_dup"]) != id(patch.data["bands_dup_deep"])
-    patch.data["bands"] += 1
+    assert "bands_dup" in patch.data
     assert_array_equal(patch.data["bands_dup"], patch.data["bands"])
-    assert not np.array_equal(patch.data["bands_dup"], patch.data["bands_dup_deep"])
+    assert id(patch.data["bands_dup"]) != id(patch.data["bands"])
+
+    patch.data["bands"] += 1
+    assert not np.array_equal(patch.data["bands_dup"], patch.data["bands"])
 
 
 def test_duplicate_feature_fails(patch: EOPatch) -> None:
-    duplicate_task = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup"))
-    patch = duplicate_task(patch)
-
     with pytest.raises(ValueError):
         # Expected a ValueError when creating an already exising feature.
-        patch = duplicate_task(patch)
+        DuplicateFeatureTask((FeatureType.DATA, "bands", "bands"))(patch)
 
 
 def test_initialize_feature(patch):
