@@ -234,7 +234,7 @@ class EOPatch:
     In addition to that other auxiliary information is also needed and can be stored in additional attributes of the
     EOPatch (thus extending the functionality of numpy ndarray). These attributes are listed in the FeatureType enum.
 
-    Currently, the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
+    Currently, the EOPatch object doesn't enforce that the length of timestamps be equal to n_times dimensions of numpy
     arrays in other attributes.
     """
 

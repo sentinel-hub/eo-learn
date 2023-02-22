@@ -329,7 +329,7 @@ def test_time_dependent_feature(test_eopatch):
     feature = FeatureType.DATA, "NDVI"
     filename_export = "relative-path/*.tiff"
     filename_import = [
-        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamp
+        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
     ]
 
     export_task = ExportToTiffTask(feature, folder=PATH_ON_BUCKET)
@@ -342,7 +342,7 @@ def test_time_dependent_feature(test_eopatch):
 
     test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
     filename_import = [
-        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamp
+        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
     ]
 
     with pytest.raises(ResourceNotFound):

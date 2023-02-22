@@ -16,7 +16,7 @@ from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproxi
 
 def test_double_logistic_approximation(example_eopatch):
     data = example_eopatch.data["NDVI"]
-    timestamps = example_eopatch.timestamp
+    timestamps = example_eopatch.timestamps
     mask = example_eopatch.mask["IS_VALID"]
     indices = list(np.nonzero([t.year == 2016 for t in timestamps])[0])
     start, stop = indices[0], indices[-1] + 2

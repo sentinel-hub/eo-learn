@@ -102,7 +102,7 @@ class BaseMeteoblueTask(EOTask):
             start_time, end_time = serialize_time(parse_time_interval(time_interval))
             return [f"{start_time}/{end_time}"]
 
-        timestamps = eopatch.timestamp
+        timestamps = eopatch.timestamps
         time_intervals = []
         for timestamp in timestamps:
             start_time = timestamp - self.time_difference
@@ -152,10 +152,10 @@ class BaseMeteoblueTask(EOTask):
             "timeIntervals": time_intervals,
             "queries": [query],
         }
-        result_data, result_timestamp = self._get_data(executable_query)
+        result_data, result_timestamps = self._get_data(executable_query)
 
-        if not eopatch.timestamps and result_timestamp:
-            eopatch.timestamps = result_timestamp
+        if not eopatch.timestamps and result_timestamps:
+            eopatch.timestamps = result_timestamps
 
         eopatch[self.feature] = result_data
         return eopatch
@@ -165,7 +165,7 @@ class MeteoblueVectorTask(BaseMeteoblueTask):
     """Obtains weather data from meteoblue services as a vector feature
 
     The data is obtained as a VECTOR feature in a ``geopandas.GeoDataFrame`` where columns include latitude, longitude,
-    timestamp and a columns for each weather variable. All data is downloaded from the
+    timestamp and a column for each weather variable. All data is downloaded from the
     meteoblue dataset API (<https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api>).
 
     A meteoblue API key is required to retrieve data.
