@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import copy
 import datetime
 import pickle
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Type, Union
 
 import numpy as np
 import pytest
@@ -75,7 +75,7 @@ def patch_fixture() -> EOPatch:
 
 
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
-def test_copy(task: CopyTask, patch: EOPatch) -> None:
+def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
     patch_copy = task().execute(patch)
     assert patch_copy == patch
 
@@ -94,7 +94,7 @@ def test_copy(task: CopyTask, patch: EOPatch) -> None:
     ],
 )
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
-def test_partial_copy(features: List[FeatureSpec], task: CopyTask, patch: EOPatch) -> None:
+def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: EOPatch) -> None:
     patch_copy = task(features=features)(patch)
     features.append((FeatureType.BBOX, None))
     features_not_in_copy = set(patch.get_features()) - set(features)
