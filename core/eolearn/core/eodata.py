@@ -29,7 +29,7 @@ from typing_extensions import Literal
 
 from sentinelhub import CRS, BBox
 
-from .constants import FeatureType, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
@@ -187,23 +187,11 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
             value = gpd.GeoDataFrame(geometry=value, crs=value.crs)
 
         if isinstance(value, gpd.GeoDataFrame):
-            if self.feature_type is FeatureType.VECTOR:
-                if "TIMESTAMP" in value:
-                    warn(
-                        (
-                            f"{self.feature_type} feature has to contain a column 'TIMESTAMPS' instead of 'TIMESTAMP'."
-                            " In the future the old name will no longer be supported."
-                        ),
-                        category=EODeprecationWarning,
-                        stacklevel=2,
-                    )
-                    value = value.rename(columns={"TIMESTAMP": FeatureType.TIMESTAMP.value.upper()})
-
-                if FeatureType.TIMESTAMP.value.upper() not in value:
-                    raise ValueError(
-                        f"{self.feature_type} feature has to contain a column 'TIMESTAMPS' with timestamps but "
-                        f"feature {feature_name} doesn't not have it."
-                    )
+            if self.feature_type is FeatureType.VECTOR and TIMESTAMP_COLUMN not in value:
+                raise ValueError(
+                    f"{self.feature_type} feature has to contain a column '{TIMESTAMP_COLUMN}' with timestamps but "
+                    f"feature {feature_name} does not not have it."
+                )
 
             return value
 

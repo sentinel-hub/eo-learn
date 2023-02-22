@@ -15,6 +15,8 @@ from typing import Optional
 
 from sentinelhub import BBox, MimeType
 
+TIMESTAMP_COLUMN = "TIMESTAMP"
+
 
 class FeatureType(Enum):
     """The Enum class of all possible feature types that can be included in EOPatch.

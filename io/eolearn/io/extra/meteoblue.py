@@ -22,6 +22,8 @@ import numpy as np
 import pandas as pd
 import shapely.geometry
 
+from eolearn.core.constants import TIMESTAMP_COLUMN
+
 try:
     import meteoblue_dataset_sdk
     from meteoblue_dataset_sdk.caching import FileCache
@@ -212,7 +214,7 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
     code_names = [f"{code.code}_{code.level}_{code.aggregation}" for code in geometry.codes]
 
     if not geometry.timeIntervals:
-        return pd.DataFrame(columns=["TIMESTAMP", "Longitude", "Latitude"] + code_names)
+        return pd.DataFrame(columns=[TIMESTAMP_COLUMN, "Longitude", "Latitude"] + code_names)
 
     dataframes = []
     for index, time_interval in enumerate(geometry.timeIntervals):
@@ -223,7 +225,7 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
 
         dataframe = pd.DataFrame(
             {
-                "TIMESTAMP": np.tile(timestamps, n_locations),
+                TIMESTAMP_COLUMN: np.tile(timestamps, n_locations),
                 "Longitude": np.repeat(geometry.lons, n_timesteps),
                 "Latitude": np.repeat(geometry.lats, n_timesteps),
             }

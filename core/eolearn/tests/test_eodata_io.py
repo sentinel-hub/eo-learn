@@ -24,6 +24,7 @@ from shapely.geometry import Point
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import (
     FeatureIO,
     FeatureIOBBox,
@@ -52,7 +53,7 @@ def eopatch_fixture():
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
-            "TIMESTAMP": [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+            TIMESTAMP_COLUMN: [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
             "geometry": [eopatch.bbox.geometry, eopatch.bbox.geometry],
         },
         crs=eopatch.bbox.crs.pyproj_crs(),
@@ -313,7 +314,10 @@ def assert_data_equal(data1: Any, data2: Any) -> None:
             gpd.GeoDataFrame(
                 {
                     "values": [1, 2],
-                    "TIMESTAMP": [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+                    TIMESTAMP_COLUMN: [
+                        datetime.datetime(2017, 1, 1, 10, 4, 7),
+                        datetime.datetime(2017, 1, 4, 10, 14, 5),
+                    ],
                     "geometry": [Point(1, 2), Point(2, 1)],
                 },
                 crs="EPSG:3857",

@@ -16,6 +16,7 @@ from geopandas import GeoDataFrame
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EORuntimeWarning
 
@@ -122,7 +123,7 @@ def test_vector_merge():
     df = GeoDataFrame(
         {
             "values": [1, 2],
-            "TIMESTAMP": [dt.datetime(2017, 1, 1, 10, 4, 7), dt.datetime(2017, 1, 4, 10, 14, 5)],
+            TIMESTAMP_COLUMN: [dt.datetime(2017, 1, 1, 10, 4, 7), dt.datetime(2017, 1, 4, 10, 14, 5)],
             "geometry": [bbox.geometry, bbox.geometry],
         },
         crs=bbox.crs.pyproj_crs(),

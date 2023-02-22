@@ -52,7 +52,7 @@ from fs.tempfs import TempFS
 from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 
-from .constants import FeatureType, FeatureTypeSet, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeaturesSpecification
 from .utils.parsing import FeatureParser
@@ -419,8 +419,8 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
                 warnings.simplefilter("ignore", category=SHUserWarning)
                 dataframe.crs = CRS(dataframe.crs).pyproj_crs()
 
-        if "TIMESTAMP" in dataframe:
-            dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
+        if TIMESTAMP_COLUMN in dataframe:
+            dataframe[TIMESTAMP_COLUMN] = pd.to_datetime(dataframe[TIMESTAMP_COLUMN])
 
         return dataframe
 

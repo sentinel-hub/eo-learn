@@ -32,6 +32,7 @@ from shapely.geometry.base import BaseGeometry
 from sentinelhub import CRS, BBox, bbox_to_dimensions, parse_time
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
@@ -154,7 +155,7 @@ class VectorToRasterTask(EOTask):
         vector_data = self._preprocess_vector_data(vector_data, cast(BBox, eopatch.bbox), eopatch.timestamps)
 
         if self._rasterize_per_timestamp:
-            for timestamp, vector_data_per_timestamp in vector_data.groupby("TIMESTAMP"):
+            for timestamp, vector_data_per_timestamp in vector_data.groupby(TIMESTAMP_COLUMN):
                 yield timestamp.to_pydatetime(), self._vector_data_to_shape_iterator(
                     vector_data_per_timestamp, join_per_value
                 )
@@ -174,13 +175,13 @@ class VectorToRasterTask(EOTask):
         """Applies preprocessing steps on a dataframe with geometries and potential values and timestamps"""
         columns_to_keep = ["geometry"]
         if self._rasterize_per_timestamp:
-            columns_to_keep.append("TIMESTAMP")
+            columns_to_keep.append(TIMESTAMP_COLUMN)
         if self.values_column is not None:
             columns_to_keep.append(self.values_column)
         vector_data = vector_data[columns_to_keep]
 
         if self._rasterize_per_timestamp:
-            vector_data["TIMESTAMP"] = vector_data.TIMESTAMP.apply(parse_time)
+            vector_data[TIMESTAMP_COLUMN] = vector_data.TIMESTAMP.apply(parse_time)
             vector_data = vector_data[vector_data.TIMESTAMP.isin(timestamps)]
 
         if self.values_column is not None and self.values is not None:
@@ -431,8 +432,8 @@ class RasterToVectorTask(EOTask):
                 value_list.append(value)
 
         series_dict = {self.values_column: pd.Series(value_list, dtype=self.raster_dtype)}
-        if timestamp is not None:
-            series_dict["TIMESTAMP"] = pd.to_datetime([timestamp] * len(geo_list))
+        if timestamps is not None:
+            series_dict[TIMESTAMP_COLUMN] = pd.to_datetime([timestamps] * len(geo_list))
 
         vector_data = GeoDataFrame(series_dict, geometry=geo_list, crs=crs.pyproj_crs())
 
@@ -488,7 +489,7 @@ def _is_geopandas_object(data: object) -> bool:
 def _vector_is_timeless(vector_input: Union[GeoDataFrame, Tuple[FeatureType, Any]]) -> bool:
     """Used to check if the vector input (either geopandas object EOPatch Feature) is time independent"""
     if _is_geopandas_object(vector_input):
-        return "TIMESTAMP" not in vector_input
+        return TIMESTAMP_COLUMN not in vector_input
 
     vector_type, _ = vector_input
     return vector_type.is_timeless()
