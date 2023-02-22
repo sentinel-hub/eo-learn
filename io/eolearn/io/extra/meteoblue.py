@@ -22,8 +22,6 @@ import numpy as np
 import pandas as pd
 import shapely.geometry
 
-from eolearn.core.constants import TIMESTAMP_COLUMN
-
 try:
     import meteoblue_dataset_sdk
     from meteoblue_dataset_sdk.caching import FileCache
@@ -33,6 +31,7 @@ except ImportError as exception:
 from sentinelhub import CRS, BBox, Geometry, parse_time_interval, serialize_time
 
 from eolearn.core import EOPatch, EOTask
+from eolearn.core.constants import TIMESTAMP_COLUMN
 
 
 class BaseMeteoblueTask(EOTask):
