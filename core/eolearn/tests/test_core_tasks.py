@@ -48,6 +48,8 @@ from eolearn.core import (
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureSpec
 
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+
 
 @pytest.fixture(name="patch")
 def patch_fixture():
@@ -153,13 +155,13 @@ def test_io_task_pickling(filesystem, task_class):
     "feature, feature_data",
     [
         ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
-        ((FeatureType.BBOX, None), BBox((24.54, 56.45, 95.4, 13.43), CRS(3857))),
+        ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
         ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
 def test_add_feature(feature: FeatureSpec, feature_data: np.ndarray) -> None:
     # this test should fail for bbox and timestamps after rework
-    patch = EOPatch()
+    patch = EOPatch(bbox=DUMMY_BBOX)
     assert feature not in patch
     patch = AddFeatureTask(feature)(patch, feature_data)
 
@@ -176,12 +178,10 @@ def test_rename_feature(patch: EOPatch) -> None:
 
     patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
     assert_array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
-    assert (f_type, f_name) not in patch
+    assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
 
-@pytest.mark.parametrize(
-    "feature", [(FeatureType.DATA, "bands"), (FeatureType.BBOX, None), (FeatureType.TIMESTAMP, None)]
-)
+@pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMP, None)])
 def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
     # this test should fail for bbox and timestamps after rework
     patch_copy = copy.deepcopy(patch)
@@ -192,6 +192,13 @@ def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
 
     del patch_copy[feature]
     assert patch == patch_copy
+
+
+@pytest.mark.skip
+def test_remove_fails(patch: EOPatch) -> None:
+    # this test should pass after rework for bbox
+    with pytest.raises(ValueError):
+        RemoveFeatureTask((FeatureType.BBOX, None))(patch)
 
 
 def test_duplicate_feature(patch):
