@@ -183,7 +183,6 @@ def test_rename_feature(patch: EOPatch) -> None:
 
 @pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMP, None)])
 def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
-    # this test should fail for bbox and timestamps after rework
     patch_copy = copy.deepcopy(patch)
     assert feature in patch
 
@@ -196,7 +195,6 @@ def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
 
 @pytest.mark.skip
 def test_remove_fails(patch: EOPatch) -> None:
-    # this test should pass after rework for bbox
     with pytest.raises(ValueError):
         RemoveFeatureTask((FeatureType.BBOX, None))(patch)
 
