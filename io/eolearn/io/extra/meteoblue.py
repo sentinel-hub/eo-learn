@@ -94,7 +94,7 @@ class BaseMeteoblueTask(EOTask):
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
         if not eopatch.timestamps and not time_interval:
             raise ValueError(
-                "Time interval should either be defined with eopatch.timestamps of time_interval parameter"
+                "Time interval should either be defined with `eopatch.timestamps` or `time_interval` parameter"
             )
 
         if time_interval:

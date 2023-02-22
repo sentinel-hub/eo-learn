@@ -191,8 +191,8 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
                 if "TIMESTAMP" in value:
                     warn(
                         (
-                            f"{self.feature_type} feature has to contain a column 'TIMESTAMPS' instead of 'TIMESTAMP'"
-                            " (deprecated)"
+                            f"{self.feature_type} feature has to contain a column 'TIMESTAMPS' instead of 'TIMESTAMP'."
+                            " In the future the old name will no longer be supported."
                         ),
                         category=EODeprecationWarning,
                         stacklevel=2,
