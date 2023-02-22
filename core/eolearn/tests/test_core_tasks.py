@@ -20,7 +20,7 @@ import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 from pytest import approx
 
 from sentinelhub import CRS, BBox
@@ -46,6 +46,7 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
+from eolearn.core.types import FeatureSpec
 
 
 @pytest.fixture(name="patch")
@@ -259,52 +260,25 @@ def test_initialize_feature(patch):
         InitializeFeatureTask({FeatureType.DATA: new_names}, 1234)
 
 
-def test_move_feature():
-    patch_src = EOPatch()
-    patch_dst = EOPatch()
+@pytest.mark.parametrize(
+    "features, deep",
+    [
+        ([(FeatureType.DATA, "bands")], False),
+        ([(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")], True),
+        ([(FeatureType.DATA, "bands"), (FeatureType.BBOX, None)], False),
+    ],
+)
+def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:
+    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch())
 
-    shape = (10, 5, 5, 3)
-    size = np.product(shape)
+    for feat in features:
+        assert feat in patch_dst
+        assert (id(patch[feat]) == id(patch_dst[feat])) != deep
 
-    shape_timeless = (5, 5, 3)
-    size_timeless = np.product(shape_timeless)
-
-    data = [np.random.randint(0, 100, size).reshape(*shape) for i in range(3)] + [
-        np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for i in range(2)
-    ]
-
-    features = [
-        (FeatureType.DATA, "D1"),
-        (FeatureType.DATA, "D2"),
-        (FeatureType.MASK, "M1"),
-        (FeatureType.MASK_TIMELESS, "MTless1"),
-        (FeatureType.MASK_TIMELESS, "MTless2"),
-    ]
-
-    for feat, dat in zip(features, data):
-        patch_src = AddFeatureTask(feat)(patch_src, dat)
-
-    patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
-
-    for i, feature in enumerate(features):
-        assert id(data[i]) == id(patch_dst[feature])
-        assert np.array_equal(data[i], patch_dst[feature])
-
-    patch_dst = EOPatch()
-    patch_dst = MoveFeatureTask(features, deep_copy=True)(patch_src, patch_dst)
-
-    for i, feature in enumerate(features):
-        assert id(data[i]) != id(patch_dst[feature])
-        assert np.array_equal(data[i], patch_dst[feature])
-
-    features = [(FeatureType.MASK_TIMELESS, ...)]
-    patch_dst = EOPatch()
-    patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
-
-    assert FeatureType.DATA not in patch_dst, "FeatureType.DATA features were moved but shouldn't be."
-
-    assert (FeatureType.MASK_TIMELESS, "MTless1") in patch_dst
-    assert (FeatureType.MASK_TIMELESS, "MTless2") in patch_dst
+        if isinstance(patch[feat], np.ndarray):
+            assert_array_equal(patch[feat], patch_dst[feat])
+        else:
+            assert patch[feat] == patch_dst[feat]
 
 
 @pytest.mark.parametrize("axis", (0, -1))
