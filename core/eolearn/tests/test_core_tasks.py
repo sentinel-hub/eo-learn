@@ -286,16 +286,17 @@ def test_initialize_feature(patch):
         InitializeFeatureTask({FeatureType.DATA: new_names}, 1234)
 
 
+@pytest.mark.parametrize("deep", [True, False])
 @pytest.mark.parametrize(
-    "features, deep",
+    "features",
     [
-        ([(FeatureType.DATA, "bands")], False),
-        ([(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")], True),
-        ([(FeatureType.DATA, "bands"), (FeatureType.BBOX, None)], False),
+        [(FeatureType.DATA, "bands")],
+        [(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")],
+        [(FeatureType.DATA, "bands"), (FeatureType.BBOX, None)],
     ],
 )
 def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:
-    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch())
+    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX))
 
     for feat in features:
         assert feat in patch_dst
