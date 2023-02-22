@@ -466,7 +466,7 @@ class FeatureIOJson(FeatureIO[_T]):
         file.write(json_data.encode())
 
 
-class FeatureIOTimestamp(FeatureIOJson[List[datetime.datetime]]):
+class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> List[datetime.datetime]:
@@ -505,7 +505,7 @@ def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
     if ftype is FeatureType.META_INFO:
         return FeatureIOJson
     if ftype is FeatureType.TIMESTAMPS:
-        return FeatureIOTimestamp
+        return FeatureIOTimestamps
     if ftype in FeatureTypeSet.VECTOR_TYPES:
         return FeatureIOGeoDf
     return FeatureIONumpy
