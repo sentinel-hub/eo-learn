@@ -184,9 +184,10 @@ def test_add_rename_remove_feature(patch):
 def test_duplicate_feature(feature_specification: List[FeaturesSpecification], patch: EOPatch) -> None:
     patch = DuplicateFeatureTask(feature_specification)(patch)
 
-    assert all([spec[2] in patch[spec[0]] for spec in feature_specification])
-    assert all([id(patch[spec[0]][spec[1]]) == id(patch[spec[0]][spec[2]]) for spec in feature_specification])
-    assert all([np.array_equal(patch[spec[0]][spec[1]], patch[spec[0]][spec[2]]) for spec in feature_specification])
+    for f_type, f_name, f_rename in feature_specification:
+        assert f_rename in patch[f_type]
+        assert id(patch[(f_type, f_name)]) == id(patch[(f_type, f_rename)])
+        assert_array_equal(patch[(f_type, f_name)], patch[(f_type, f_rename)])
 
 
 def test_duplicate_feature_deep(patch: EOPatch) -> None:
