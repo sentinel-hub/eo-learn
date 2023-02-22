@@ -102,7 +102,7 @@ class BaseMeteoblueTask(EOTask):
             start_time, end_time = serialize_time(parse_time_interval(time_interval))
             return [f"{start_time}/{end_time}"]
 
-        timestamps = eopatch.timestamp
+        timestamps = eopatch.timestamps
         time_intervals = []
         for timestamp in timestamps:
             start_time = timestamp - self.time_difference
