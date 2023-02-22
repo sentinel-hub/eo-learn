@@ -25,6 +25,7 @@ from typing_extensions import Literal
 from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
@@ -65,7 +66,7 @@ class SimpleFilterTask(EOTask):
     def _filter_vector_feature(gdf: GeoDataFrame, good_idxs: List[int], timestamps: List[dt.datetime]) -> GeoDataFrame:
         """Filters rows that don't match with the timestamps that will be kept."""
         timestamps_to_keep = {timestamps[idx] for idx in good_idxs}
-        return gdf[gdf.TIMESTAMP.isin(timestamps_to_keep)]
+        return gdf[gdf[TIMESTAMP_COLUMN].isin(timestamps_to_keep)]
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """

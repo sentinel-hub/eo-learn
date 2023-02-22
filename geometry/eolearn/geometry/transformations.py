@@ -181,8 +181,8 @@ class VectorToRasterTask(EOTask):
         vector_data = vector_data[columns_to_keep]
 
         if self._rasterize_per_timestamp:
-            vector_data[TIMESTAMP_COLUMN] = vector_data.TIMESTAMP.apply(parse_time)
-            vector_data = vector_data[vector_data.TIMESTAMP.isin(timestamps)]
+            vector_data[TIMESTAMP_COLUMN] = vector_data[TIMESTAMP_COLUMN].apply(parse_time)
+            vector_data = vector_data[vector_data[TIMESTAMP_COLUMN].isin(timestamps)]
 
         if self.values_column is not None and self.values is not None:
             values = [self.values] if isinstance(self.values, (int, float)) else self.values
