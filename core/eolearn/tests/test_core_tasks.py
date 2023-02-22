@@ -11,8 +11,8 @@ file in the root directory of this source tree.
 """
 
 import copy
-import datetime
 import pickle
+from datetime import datetime
 from typing import Dict, Iterable, Tuple, Union
 
 import numpy as np
@@ -48,6 +48,8 @@ from eolearn.core import (
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureSpec
 
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+
 
 @pytest.fixture(name="patch")
 def patch_fixture():
@@ -56,16 +58,16 @@ def patch_fixture():
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.timestamp = [
-        datetime.datetime(2017, 1, 1, 10, 4, 7),
-        datetime.datetime(2017, 1, 4, 10, 14, 5),
-        datetime.datetime(2017, 1, 11, 10, 3, 51),
-        datetime.datetime(2017, 1, 14, 10, 13, 46),
-        datetime.datetime(2017, 1, 24, 10, 14, 7),
-        datetime.datetime(2017, 2, 10, 10, 1, 32),
-        datetime.datetime(2017, 2, 20, 10, 6, 35),
-        datetime.datetime(2017, 3, 2, 10, 0, 20),
-        datetime.datetime(2017, 3, 12, 10, 7, 6),
-        datetime.datetime(2017, 3, 15, 10, 12, 14),
+        datetime(2017, 1, 1, 10, 4, 7),
+        datetime(2017, 1, 4, 10, 14, 5),
+        datetime(2017, 1, 11, 10, 3, 51),
+        datetime(2017, 1, 14, 10, 13, 46),
+        datetime(2017, 1, 24, 10, 14, 7),
+        datetime(2017, 2, 10, 10, 1, 32),
+        datetime(2017, 2, 20, 10, 6, 35),
+        datetime(2017, 3, 2, 10, 0, 20),
+        datetime(2017, 3, 12, 10, 7, 6),
+        datetime(2017, 3, 15, 10, 12, 14),
     ]
     patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
@@ -99,11 +101,11 @@ def test_deepcopy(patch):
 def test_partial_copy(patch):
     partial_copy = DeepCopyTask(features=[(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX]).execute(patch)
     expected_patch = EOPatch(mask_timeless=patch.mask_timeless, bbox=patch.bbox)
-    assert partial_copy == expected_patch, "Partial copying was not successful"
+    assert partial_copy == expected_patch
 
     partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
-    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp)
-    assert partial_deepcopy == expected_patch, "Partial deep copying was not successful"
+    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp, bbox=patch.bbox)
+    assert partial_deepcopy == expected_patch
 
 
 def test_load_task(test_eopatch_path):
@@ -149,28 +151,52 @@ def test_io_task_pickling(filesystem, task_class):
     assert isinstance(unpickled_task, task_class)
 
 
-def test_add_rename_remove_feature(patch):
-    cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
-    feature_name = "CLOUD MASK"
-    new_feature_name = "CLM"
+@pytest.mark.parametrize(
+    "feature, feature_data",
+    [
+        ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
+        ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
+        ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
+    ],
+)
+def test_add_feature(feature: FeatureSpec, feature_data: np.ndarray) -> None:
+    # this test should fail for bbox and timestamps after rework
+    patch = EOPatch(bbox=DUMMY_BBOX)
+    assert feature not in patch
+    patch = AddFeatureTask(feature)(patch, feature_data)
 
-    patch = copy.deepcopy(patch)
+    if isinstance(feature_data, np.ndarray):
+        assert_array_equal(patch[feature], feature_data)
+    else:
+        assert patch[feature] == feature_data
 
-    patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, cloud_mask)
-    assert np.array_equal(patch.mask[feature_name], cloud_mask), "Feature was not added"
 
-    patch = RenameFeatureTask((FeatureType.MASK, feature_name, new_feature_name))(patch)
-    assert np.array_equal(patch.mask[new_feature_name], cloud_mask), "Feature was not renamed"
-    assert feature_name not in patch[FeatureType.MASK], "Old feature still exists"
+def test_rename_feature(patch: EOPatch) -> None:
+    f_type, f_name, f_new_name = FeatureType.DATA, "bands", "new_bands"
+    assert (f_type, f_new_name) not in patch
+    patch_copy = copy.deepcopy(patch)
 
-    patch = RemoveFeatureTask((FeatureType.MASK, new_feature_name))(patch)
-    assert feature_name not in patch.mask, "Feature was not removed"
+    patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
+    assert_array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
+    assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
-    patch = RemoveFeatureTask((FeatureType.MASK_TIMELESS, ...))(patch)
-    assert len(patch.mask_timeless) == 0, "mask_timeless features were not removed"
 
-    patch = RemoveFeatureTask((FeatureType.MASK, ...))(patch)
-    assert len(patch.mask) == 0, "mask features were not removed"
+@pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMP, None)])
+def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
+    patch_copy = copy.deepcopy(patch)
+    assert feature in patch
+
+    patch = RemoveFeatureTask(feature)(patch)
+    assert feature not in patch
+
+    del patch_copy[feature]
+    assert patch == patch_copy
+
+
+@pytest.mark.skip
+def test_remove_fails(patch: EOPatch) -> None:
+    with pytest.raises(ValueError):
+        RemoveFeatureTask((FeatureType.BBOX, None))(patch)
 
 
 def test_duplicate_feature(patch):
