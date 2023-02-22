@@ -403,7 +403,7 @@ class RasterToVectorTask(EOTask):
         self.rasterio_params = rasterio_params
 
     def _vectorize_single_raster(
-        self, raster: np.ndarray, affine_transform: Affine, crs: CRS, timestamp: Optional[dt.datetime] = None
+        self, raster: np.ndarray, affine_transform: Affine, crs: CRS, timestamps: Optional[dt.datetime] = None
     ) -> GeoDataFrame:
         """Vectorizes a data slice of a single time component
 
@@ -469,7 +469,7 @@ class RasterToVectorTask(EOTask):
             else:
                 gpd_list = [
                     self._vectorize_single_raster(
-                        raster[time_idx, ...], affine_transform, crs, timestamp=eopatch.timestamps[time_idx]
+                        raster[time_idx, ...], affine_transform, crs, timestamps=eopatch.timestamps[time_idx]
                     )
                     for time_idx in range(raster.shape[0])
                 ]
