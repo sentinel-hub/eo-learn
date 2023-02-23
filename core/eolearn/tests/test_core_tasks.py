@@ -212,9 +212,9 @@ def test_duplicate_feature(feature_specification: List[FeaturesSpecification], d
     patch = DuplicateFeatureTask(feature_specification, deep)(patch)
 
     for f_type, f_name, f_dup_name in feature_specification:
-        assert f_dup_name in patch[f_type]
         original_feature = (f_type, f_name)
         duplicated_feature = (f_type, f_dup_name)
+        assert duplicated_feature in patch
 
         original_id = id(patch[original_feature])
         duplicated_id = id(patch[duplicated_feature])
