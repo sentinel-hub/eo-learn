@@ -230,32 +230,19 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "init_val, shape, feature",
-    [
-        (123, (5, 10, 10, 3), (FeatureType.MASK, "test")),
-        (123, (10, 10, 3), (FeatureType.MASK_TIMELESS, "test")),
-    ],
-)
-def test_initialize_feature(init_val: float, shape: Tuple[int, ...], feature: FeatureSpec, patch: EOPatch) -> None:
-    expected_data = np.ones(shape) * init_val
-
-    patch = InitializeFeatureTask(feature, shape=shape, init_value=init_val)(patch)
-    assert patch[feature].shape == shape
-    assert_array_equal(patch[feature], expected_data)
-
-
-@pytest.mark.parametrize(
     "init_val, shape, feature_type, names, case_feature_spec",
     [
+        (123, (5, 10, 10, 3), FeatureType.MASK, "test", False),
+        (123, (10, 10, 3), FeatureType.MASK_TIMELESS, "test", False),
         (123, (5, 10, 10, 3), FeatureType.MASK, ("F1", "F2", "F3"), False),
         (123, (FeatureType.DATA, "bands"), FeatureType.DATA, ("F1", "F2", "F3"), True),
     ],
 )
-def test_initialize_feature_rename(
+def test_initialize_feature(
     init_val: float,
     shape: Union[Tuple[int, ...], FeatureSpec],
     feature_type: FeatureType,
-    names: Tuple[str, ...],
+    names: Union[str, Tuple[str, ...]],
     patch: EOPatch,
     case_feature_spec: bool,
 ) -> None:
@@ -263,8 +250,6 @@ def test_initialize_feature_rename(
     expected_data = init_val * np.ones(result_shape)
 
     patch = InitializeFeatureTask({feature_type: names}, shape=shape, init_value=init_val)(patch)
-    assert set(names) <= set(patch[feature_type])
-    assert all(patch[feature_type][key].shape == result_shape for key in names)
     assert all([np.array_equal(patch[feature_type][key], expected_data) for key in names])
 
 
