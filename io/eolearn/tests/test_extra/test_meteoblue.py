@@ -68,7 +68,7 @@ def test_meteoblue_raster_task(mocker):
     eopatch = meteoblue_task.execute(bbox=BBOX, time_interval=TIME_INTERVAL)
 
     assert eopatch.bbox == BBOX
-    assert eopatch.timestamp == [dt.datetime(2020, 8, 1)]
+    assert eopatch.timestamps == [dt.datetime(2020, 8, 1)]
 
     data = eopatch[feature]
     assert data.shape == (1, 6, 10, 1)

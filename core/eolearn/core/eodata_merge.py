@@ -139,7 +139,7 @@ def _merge_timestamps(
     """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
-    timestamps_per_eopatch = [eopatch.timestamp for eopatch in eopatches]
+    timestamps_per_eopatch = [eopatch.timestamps for eopatch in eopatches]
     all_timestamps = [timestamp for eopatch_timestamps in timestamps_per_eopatch for timestamp in eopatch_timestamps]
 
     if not all_timestamps:
@@ -167,7 +167,7 @@ def _check_if_optimize(eopatches: Sequence[EOPatch], operation_input: OperationI
     """Checks whether optimisation of `_merge_time_dependent_raster_feature` is possible"""
     if operation_input not in [None, "mean", "median", "min", "max"]:
         return False
-    timestamp_list = [eopatch.timestamp for eopatch in eopatches]
+    timestamp_list = [eopatch.timestamps for eopatch in eopatches]
     return _all_equal(timestamp_list)
 
 

@@ -15,6 +15,8 @@ from typing import Optional
 
 from sentinelhub import BBox, MimeType
 
+TIMESTAMP_COLUMN = "TIMESTAMP"
+
 
 class FeatureType(Enum):
     """The Enum class of all possible feature types that can be included in EOPatch.
@@ -52,7 +54,7 @@ class FeatureType(Enum):
     VECTOR_TIMELESS = "vector_timeless"
     META_INFO = "meta_info"
     BBOX = "bbox"
-    TIMESTAMP = "timestamp"
+    TIMESTAMP = "timestamps"
 
     @classmethod
     def has_value(cls, value: str) -> bool:

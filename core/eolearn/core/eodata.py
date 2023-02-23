@@ -18,6 +18,7 @@ import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
+from warnings import warn
 
 import attr
 import dateutil.parser
@@ -28,9 +29,10 @@ from typing_extensions import Literal
 
 from sentinelhub import CRS, BBox
 
-from .constants import FeatureType, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch, save_eopatch
 from .eodata_merge import merge_eopatches
+from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
@@ -185,10 +187,10 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
             value = gpd.GeoDataFrame(geometry=value, crs=value.crs)
 
         if isinstance(value, gpd.GeoDataFrame):
-            if self.feature_type is FeatureType.VECTOR and FeatureType.TIMESTAMP.value.upper() not in value:
+            if self.feature_type is FeatureType.VECTOR and TIMESTAMP_COLUMN not in value:
                 raise ValueError(
-                    f"{self.feature_type} feature has to contain a column 'TIMESTAMP' with timestamps but "
-                    f"feature {feature_name} doesn't not have it."
+                    f"{self.feature_type} feature has to contain a column '{TIMESTAMP_COLUMN}' with timestamps but "
+                    f"feature {feature_name} does not not have it."
                 )
 
             return value
@@ -232,7 +234,7 @@ class EOPatch:
     In addition to that other auxiliary information is also needed and can be stored in additional attributes of the
     EOPatch (thus extending the functionality of numpy ndarray). These attributes are listed in the FeatureType enum.
 
-    Currently, the EOPatch object doesn't enforce that the length of timestamp be equal to n_times dimensions of numpy
+    Currently, the EOPatch object doesn't enforce that the length of timestamps be equal to n_times dimensions of numpy
     arrays in other attributes.
     """
 
@@ -248,7 +250,20 @@ class EOPatch:
     vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
     meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
     bbox: Optional[BBox] = attr.ib(default=None)
-    timestamp: List[dt.datetime] = attr.ib(factory=list)
+    timestamps: List[dt.datetime] = attr.ib(factory=list)
+
+    @property
+    def timestamp(self) -> List[dt.datetime]:
+        """A property for handling the deprecated timestamp attribute.
+
+        :return: A list of EOPatch timestamps
+        """
+        warn(
+            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
+            category=EODeprecationWarning,
+            stacklevel=2,
+        )
+        return self.timestamps
 
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
@@ -653,10 +668,10 @@ class EOPatch:
         :param timestamps: keep frames with date found in this list
         :return: set of removed frames' dates
         """
-        remove_from_patch = set(self.timestamp).difference(timestamps)
-        remove_from_patch_idxs = [self.timestamp.index(rm_date) for rm_date in remove_from_patch]
-        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
-        good_timestamps = [date for idx, date in enumerate(self.timestamp) if idx not in remove_from_patch_idxs]
+        remove_from_patch = set(self.timestamps).difference(timestamps)
+        remove_from_patch_idxs = [self.timestamps.index(rm_date) for rm_date in remove_from_patch]
+        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
+        good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
 
         for feature_type in [
             feature_type for feature_type in FeatureType if (feature_type.is_temporal() and feature_type.has_dict())
@@ -667,7 +682,7 @@ class EOPatch:
                 if isinstance(value, list):
                     self[feature_type][feature_name] = [value[idx] for idx in good_timestamp_idxs]
 
-        self.timestamp = good_timestamps
+        self.timestamps = good_timestamps
         return remove_from_patch
 
     def plot(

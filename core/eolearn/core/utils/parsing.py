@@ -45,7 +45,7 @@ class FeatureParser:
       appropriate point.
     - The user can provide ellipsis `...` as a way to specify all features. When combined with a feature type it is
       understood as all features of a given type. When using `...` an EOPatch must be provided when parsing features,
-      except when used only for BBox and timestamp features.
+      except when used only for `BBOX` and `TIMESTAMP` features.
     - The parser can output pairs `(feature_type, feature_name)` or triples `(feature_type, old_name, new_name)`, which
       come in hand in many cases. If the user does not provide an explicit new name, the `old_name` and `new_name` are
       equal.
