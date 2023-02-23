@@ -54,7 +54,7 @@ class FeatureParser:
 
     1. Ellipsis `...` signify that all features of all types should be parsed.
 
-    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMP` or a tuple where the
+    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMPS` or a tuple where the
        first element is a `FeatureType` element and the other (or two for renaming) is a string.
 
     3. Dictionary mapping `feature_type` keys to sequences of feature names. Feature names are either a sequence of
@@ -284,7 +284,7 @@ class FeatureParser:
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
-            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMP:
+            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMPS:
                 parsed_features.append((ftype, None, None))
 
             elif old_name is not None and new_name is not None:

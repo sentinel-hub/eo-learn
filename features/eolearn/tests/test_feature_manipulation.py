@@ -22,7 +22,7 @@ from eolearn.features.utils import ResizeParam
 
 
 @pytest.mark.parametrize(
-    "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMP, (FeatureType.LABEL, "IS_CLOUDLESS")]
+    "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMPS, (FeatureType.LABEL, "IS_CLOUDLESS")]
 )
 def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
     filter_all_task = SimpleFilterTask(feature, filter_func=lambda _: False)
@@ -37,7 +37,7 @@ def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
 
 
 @pytest.mark.parametrize(
-    "feature", [(FeatureType.MASK, "CLM"), FeatureType.TIMESTAMP, (FeatureType.SCALAR, "CLOUD_COVERAGE")]
+    "feature", [(FeatureType.MASK, "CLM"), FeatureType.TIMESTAMPS, (FeatureType.SCALAR, "CLOUD_COVERAGE")]
 )
 def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
     del example_eopatch.data["REFERENCE_SCENES"]  # Wrong size of time dimension

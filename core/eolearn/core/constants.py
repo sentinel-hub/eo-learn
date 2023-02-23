@@ -10,15 +10,42 @@ Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
-from enum import Enum
+import warnings
+from enum import Enum, EnumMeta
 from typing import Optional
 
 from sentinelhub import BBox, MimeType
 
+from .exceptions import EODeprecationWarning
+
 TIMESTAMP_COLUMN = "TIMESTAMP"
 
 
-class FeatureType(Enum):
+def _warn_and_adjust(name: str) -> str:
+    # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
+    deprecation_msg = None
+    if name in ("TIMESTAMP", "timestamp"):
+        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
+
+    if deprecation_msg:
+        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore
+    return name
+
+
+class EnumWithDeprecations(EnumMeta):
+    """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
+
+    def __getattribute__(cls, name):
+        return super().__getattribute__(_warn_and_adjust(name))
+
+    def __getitem__(cls, name):
+        return super().__getitem__(_warn_and_adjust(name))
+
+    def __call__(cls, value, *args, **kwargs):
+        return super().__call__(_warn_and_adjust(value), *args, **kwargs)
+
+
+class FeatureType(Enum, metaclass=EnumWithDeprecations):
     """The Enum class of all possible feature types that can be included in EOPatch.
 
     List of feature types:
@@ -54,7 +81,7 @@ class FeatureType(Enum):
     VECTOR_TIMELESS = "vector_timeless"
     META_INFO = "meta_info"
     BBOX = "bbox"
-    TIMESTAMP = "timestamps"
+    TIMESTAMPS = "timestamps"
 
     @classmethod
     def has_value(cls, value: str) -> bool:
@@ -114,7 +141,7 @@ class FeatureType(Enum):
 
     def type(self) -> type:
         """Returns type of the data for the given FeatureType."""
-        if self is FeatureType.TIMESTAMP:
+        if self is FeatureType.TIMESTAMPS:
             return list
         if self is FeatureType.BBOX:
             return BBox
@@ -151,7 +178,7 @@ class FeatureTypeSet:
             FeatureType.SCALAR,
             FeatureType.LABEL,
             FeatureType.VECTOR,
-            FeatureType.TIMESTAMP,
+            FeatureType.TIMESTAMPS,
         ]
     )
     TIMELESS_TYPES = frozenset(
@@ -166,7 +193,7 @@ class FeatureTypeSet:
     DISCRETE_TYPES = frozenset(
         [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
     )
-    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
+    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS])
     VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
     RASTER_TYPES = frozenset(
         [
