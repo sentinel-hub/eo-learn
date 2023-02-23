@@ -213,7 +213,9 @@ def test_duplicate_feature(feature_specification: List[FeaturesSpecification], d
 
     for f_type, f_name, f_dup_name in feature_specification:
         assert f_dup_name in patch[f_type]
-        assert (id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)])) != deep
+        original_id = id(patch[(f_type, f_name)])
+        duplicated_id = id(patch[(f_type, f_dup_name)])
+        assert original_id != duplicated_id if deep else original_id == duplicated_id
         assert_array_equal(patch[(f_type, f_name)], patch[(f_type, f_dup_name)])
 
 
