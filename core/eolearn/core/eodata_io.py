@@ -52,7 +52,8 @@ from fs.tempfs import TempFS
 from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
 
-from .constants import FeatureType, FeatureTypeSet, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
+from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeaturesSpecification
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
@@ -218,6 +219,17 @@ def walk_main_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[Feature
             ftype_str, fname = fs.path.split(raw_path)
         else:
             ftype_str, fname = raw_path, ...
+
+        if ftype_str == "timestamp":
+            warnings.warn(
+                (
+                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated `timestamp` feature."
+                    " The old name will no longer be valid in the future. You can re-save the `EOPatch` to update it."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=2,
+            )
+            ftype_str = FeatureType.TIMESTAMP.value
 
         if FeatureType.has_value(ftype_str):
             yield FeatureType(ftype_str), fname, fs.path.combine(folder_path, path)
@@ -407,8 +419,8 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
                 warnings.simplefilter("ignore", category=SHUserWarning)
                 dataframe.crs = CRS(dataframe.crs).pyproj_crs()
 
-        if "TIMESTAMP" in dataframe:
-            dataframe.TIMESTAMP = pd.to_datetime(dataframe.TIMESTAMP)
+        if TIMESTAMP_COLUMN in dataframe:
+            dataframe[TIMESTAMP_COLUMN] = pd.to_datetime(dataframe[TIMESTAMP_COLUMN])
 
         return dataframe
 

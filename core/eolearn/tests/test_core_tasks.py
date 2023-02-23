@@ -62,7 +62,7 @@ def patch_fixture():
     patch.mask_timeless["LULC"] = np.arange(3 * 3 * 1).reshape(3, 3, 1)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
-    patch.timestamp = [
+    patch.timestamps = [
         datetime(2017, 1, 1, 10, 4, 7),
         datetime(2017, 1, 4, 10, 14, 5),
         datetime(2017, 1, 11, 10, 3, 51),
@@ -109,7 +109,7 @@ def test_partial_copy(patch):
     assert partial_copy == expected_patch
 
     partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
-    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp, bbox=patch.bbox)
+    expected_patch = EOPatch(scalar=patch.scalar, timestamps=patch.timestamps, bbox=patch.bbox)
     assert partial_deepcopy == expected_patch
 
 

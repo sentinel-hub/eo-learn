@@ -174,7 +174,7 @@ def eopatch_fixture():
     return EOPatch(
         data=dict(data=np.zeros((2, 2, 2, 2)), CLP=np.zeros((2, 2, 2, 2))),  # name duplication intentional
         bbox=BBox((1, 2, 3, 4), CRS.WGS84),
-        timestamp=[dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)],
+        timestamps=[dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)],
         mask=dict(data=np.zeros((2, 2, 2, 2), dtype=int), IS_VALID=np.zeros((2, 2, 2, 2), dtype=int)),
         mask_timeless=dict(LULC=np.zeros((2, 2, 2), dtype=int)),
         meta_info={"something": "else"},

@@ -34,7 +34,7 @@ from eolearn.features import (
 
 @pytest.fixture(name="test_patch")
 def small_test_patch_fixture(example_eopatch):
-    test_patch = EOPatch(bbox=example_eopatch.bbox, timestamp=example_eopatch.timestamp)
+    test_patch = EOPatch(bbox=example_eopatch.bbox, timestamps=example_eopatch.timestamps)
     required_features = (
         (FeatureType.DATA, "NDVI"),
         (FeatureType.MASK, "IS_VALID"),
@@ -280,9 +280,9 @@ def test_interpolation(test_case: InterpolationTestCase, test_patch):
     delta = 1e-4 if isinstance(test_case.task, KrigingInterpolationTask) else 1e-5
 
     # Check types and shapes
-    assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
-    assert isinstance(eopatch.timestamp[0], datetime), "Expected timestamps of type datetime.datetime"
-    assert len(eopatch.timestamp) == test_case.result_len
+    assert isinstance(eopatch.timestamps, list), "Expected a list of timestamps"
+    assert isinstance(eopatch.timestamps[0], datetime), "Expected timestamps of type datetime.datetime"
+    assert len(eopatch.timestamps) == test_case.result_len
     assert eopatch.data["NDVI"].shape == (test_case.result_len, 20, 20, 1)
 
     # Check results

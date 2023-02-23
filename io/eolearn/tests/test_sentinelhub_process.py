@@ -106,7 +106,7 @@ class TestProcessingIO:
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
         assert is_data.shape == (4, height, width, 1)
-        assert len(eopatch.timestamp) == 4
+        assert len(eopatch.timestamps) == 4
         assert bands.dtype == np.float32
 
         assert os.path.exists(cache_folder)
@@ -317,7 +317,7 @@ class TestProcessingIO:
         width, height = self.size
         assert bands.shape == (1, height, width, 13)
         assert is_data.shape == (1, height, width, 1)
-        assert len(eopatch.timestamp) == 1
+        assert len(eopatch.timestamps) == 1
 
     def test_additional_data(self):
         task = SentinelHubInputTask(
@@ -369,7 +369,7 @@ class TestProcessingIO:
         assert view_azimuth_mean.shape == (4, height, width, 1)
         assert sun_azimuth_angles.shape == (4, height, width, 1)
         assert sun_zenith_angles.shape == (4, height, width, 1)
-        assert len(eopatch.timestamp) == 4
+        assert len(eopatch.timestamps) == 4
 
     def test_aux_request_args(self):
         """Download low resolution data with `PREVIEW` mode"""
@@ -821,7 +821,7 @@ class TestSentinelHubInputTaskDataCollections:
         data = eopatch[(test_case.feature_type, test_case.feature)]
         assert data.shape == (test_case.timestamp_length, height, width, test_case.data_size)
 
-        timestamps = eopatch.timestamp
+        timestamps = eopatch.timestamps
         assert all(timestamp.tzinfo is None for timestamp in timestamps), f"`tzinfo` present in timestamps {timestamps}"
         assert len(timestamps) == test_case.timestamp_length
 
