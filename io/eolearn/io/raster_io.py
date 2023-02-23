@@ -364,7 +364,7 @@ class ExportToTiffTask(BaseRasterIoTask):
                 "Given EOPatch is missing a bounding box and therefore no feature can be exported to GeoTIFF"
             )
 
-        image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamp, self.feature)
+        image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamps, self.feature)
 
         (
             (src_crs, src_transform),
@@ -372,7 +372,7 @@ class ExportToTiffTask(BaseRasterIoTask):
             (dst_height, dst_width),
         ) = self._get_source_and_destination_params(image_array, eopatch.bbox)
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamp)
+        filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
 
         with self.filesystem as filesystem:
             export_function = functools.partial(
@@ -388,7 +388,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
             channel_count = image_array.shape[0]
             if len(filename_paths) > 1:
-                single_channel_count = channel_count // len(eopatch.timestamp)
+                single_channel_count = channel_count // len(eopatch.timestamps)
                 for timestamp_index, path in enumerate(filename_paths):
                     time_slice_array = image_array[
                         timestamp_index * single_channel_count : (timestamp_index + 1) * single_channel_count, ...
@@ -547,7 +547,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         feature_type, feature_name = self.feature
         eopatch = eopatch or EOPatch()
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamp)
+        filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
 
         data, bbox = self._load_data(filename_paths, eopatch.bbox)
 
@@ -567,7 +567,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
             times = self.timestamp_size
             if times is None:
-                times = len(eopatch.timestamp) if eopatch.timestamp else 1
+                times = len(eopatch.timestamps) if eopatch.timestamps else 1
 
             if channels % times != 0:
                 raise ValueError(
