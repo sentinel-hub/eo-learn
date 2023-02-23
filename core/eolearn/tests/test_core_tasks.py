@@ -55,6 +55,7 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 def patch_fixture():
     patch = EOPatch()
     patch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    patch.data["CLP"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.timestamps = [
@@ -332,7 +333,7 @@ def test_merge_features(axis):
     assert np.array_equal(patch.mask["merged"], expected)
 
 
-def test_zip_features(test_eopatch):
+def test_zip_features(test_eopatch: EOPatch) -> None:
     merge = ZipFeatureTask(
         {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},  # input features
         (FeatureType.DATA, "MERGED"),  # output feature
@@ -344,9 +345,10 @@ def test_zip_features(test_eopatch):
     expected = np.concatenate([patch.data["CLP"], patch.data["NDVI"], patch.data["BANDS-S2-L1C"]], axis=-1)
     assert np.array_equal(patch.data["MERGED"], expected)
 
-    zip_fail = ZipFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, (FeatureType.DATA, "MERGED"))
+
+def test_zip_features_fails(patch: EOPatch) -> None:
     with pytest.raises(NotImplementedError):
-        zip_fail(patch)
+        ZipFeatureTask({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "MERGED"))(patch)
 
 
 def test_map_features(test_eopatch):
