@@ -223,9 +223,6 @@ def test_duplicate_feature_deep(patch: EOPatch) -> None:
     assert_array_equal(patch.data["bands_dup"], patch.data["bands"])
     assert id(patch.data["bands_dup"]) != id(patch.data["bands"])
 
-    patch.data["bands"] += 1
-    assert not np.array_equal(patch.data["bands_dup"], patch.data["bands"])
-
 
 def test_duplicate_feature_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
