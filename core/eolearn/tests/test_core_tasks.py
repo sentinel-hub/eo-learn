@@ -96,15 +96,10 @@ def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
 def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: EOPatch) -> None:
     patch_copy = task(features=features)(patch)
-    features.append((FeatureType.BBOX, None))
-    features_not_in_copy = set(patch.get_features()) - set(features)
 
-    for feature in features_not_in_copy:
-        assert feature not in patch_copy
+    assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
 
     for feature in features:
-        assert feature in patch_copy
-
         if isinstance(patch[feature], np.ndarray):
             assert_array_equal(patch_copy[feature], patch[feature])
         else:
