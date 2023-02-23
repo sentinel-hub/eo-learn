@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import copy
 import pickle
 from datetime import datetime
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Type, Union
 
 import numpy as np
 import pytest
@@ -52,11 +52,13 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 
 @pytest.fixture(name="patch")
-def patch_fixture():
+def patch_fixture() -> EOPatch:
     patch = EOPatch()
     patch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
+    patch.data["CLP"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
+    patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
     patch.timestamps = [
         datetime(2017, 1, 1, 10, 4, 7),
         datetime(2017, 1, 4, 10, 14, 5),
@@ -74,38 +76,36 @@ def patch_fixture():
     return patch
 
 
-def test_copy(patch):
-    patch_copy = CopyTask().execute(patch)
-
-    assert patch == patch_copy, "Copied patch is different"
-
-    patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
-    assert "new" not in patch.data, "Dictionary of features was not copied"
+@pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
+def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
+    patch_copy = task().execute(patch)
+    assert patch_copy == patch
 
     patch_copy.data["bands"][0, 0, 0, 0] += 1
-    assert np.array_equal(patch.data["bands"], patch_copy.data["bands"]), "Data should not be copied"
+    assert (patch_copy != patch) if task == DeepCopyTask else (patch_copy == patch)
+
+    patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
+    assert "new" not in patch.data
 
 
-def test_deepcopy(patch):
-    patch_deepcopy = DeepCopyTask().execute(patch)
+@pytest.mark.parametrize(
+    "features",
+    [
+        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.BBOX, None)],
+        [(FeatureType.TIMESTAMP, None), (FeatureType.SCALAR, "values")],
+    ],
+)
+@pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
+def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: EOPatch) -> None:
+    patch_copy = task(features=features)(patch)
 
-    assert patch == patch_deepcopy, "Deep copied patch is different"
+    assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
 
-    patch_deepcopy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
-    assert "new" not in patch.data, "Dictionary of features was not copied"
-
-    patch_deepcopy.data["bands"][0, 0, 0, 0] += 1
-    assert not np.array_equal(patch.data["bands"], patch_deepcopy.data["bands"]), "Data should be copied"
-
-
-def test_partial_copy(patch):
-    partial_copy = DeepCopyTask(features=[(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX]).execute(patch)
-    expected_patch = EOPatch(mask_timeless=patch.mask_timeless, bbox=patch.bbox)
-    assert partial_copy == expected_patch
-
-    partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
-    expected_patch = EOPatch(scalar=patch.scalar, timestamps=patch.timestamps, bbox=patch.bbox)
-    assert partial_deepcopy == expected_patch
+    for feature in features:
+        if isinstance(patch[feature], np.ndarray):
+            assert_array_equal(patch_copy[feature], patch[feature])
+        else:
+            assert patch_copy[feature] == patch[feature]
 
 
 def test_load_task(test_eopatch_path):
