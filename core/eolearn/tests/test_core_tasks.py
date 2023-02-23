@@ -284,7 +284,9 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
 
     for feat in features:
         assert feat in patch_dst
-        assert (id(patch[feat]) == id(patch_dst[feat])) != deep
+        original_id = id(patch[feat])
+        duplicated_id = id(patch_dst[feat])
+        assert original_id != duplicated_id if deep else original_id == duplicated_id
 
         if isinstance(patch[feat], np.ndarray):
             assert_array_equal(patch[feat], patch_dst[feat])
