@@ -213,10 +213,14 @@ def test_duplicate_feature(feature_specification: List[FeaturesSpecification], d
 
     for f_type, f_name, f_dup_name in feature_specification:
         assert f_dup_name in patch[f_type]
-        original_id = id(patch[(f_type, f_name)])
-        duplicated_id = id(patch[(f_type, f_dup_name)])
+        original_feature = (f_type, f_name)
+        duplicated_feature = (f_type, f_dup_name)
+
+        original_id = id(patch[original_feature])
+        duplicated_id = id(patch[duplicated_feature])
         assert original_id != duplicated_id if deep else original_id == duplicated_id
-        assert_array_equal(patch[(f_type, f_name)], patch[(f_type, f_dup_name)])
+
+        assert_array_equal(patch[original_feature], patch[duplicated_feature])
 
 
 def test_duplicate_feature_fails(patch: EOPatch) -> None:
@@ -284,6 +288,7 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
 
     for feat in features:
         assert feat in patch_dst
+
         original_id = id(patch[feat])
         duplicated_id = id(patch_dst[feat])
         assert original_id != duplicated_id if deep else original_id == duplicated_id
