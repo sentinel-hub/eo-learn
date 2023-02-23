@@ -212,7 +212,7 @@ def test_duplicate_feature(feature_specification: List[FeaturesSpecification], p
 
     for f_type, f_name, f_dup_name in feature_specification:
         assert f_dup_name in patch[f_type]
-        assert id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)]), "DuplicateFeatureTask used deep copy."
+        assert id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)]), "Data was deep-copied."
         assert_array_equal(patch[(f_type, f_name)], patch[(f_type, f_dup_name)])
 
 
