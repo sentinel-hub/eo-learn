@@ -160,6 +160,14 @@ def test_save_add_only_features(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+def test_bbox_always_saved(eopatch, fs_loader):
+    with fs_loader() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA])
+        assert temp_fs.exists("/bbox.geojson")
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_overwrite_failure(fs_loader):
     eopatch = EOPatch()
     mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
