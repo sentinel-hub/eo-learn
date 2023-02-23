@@ -25,14 +25,10 @@ def _warn_and_adjust(name: str) -> str:
     # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
     deprecation_msg = None
     if name in ("TIMESTAMP", "timestamp"):
-        deprecation_msg = (
-            "`FeatureType.TIMESTAMP` has been renamed to `FeatureType.TIMESTAMPS` and will be removed in a future"
-            " version. Please switch to using `FeatureType.TIMESTAMPS`."
-        )
         name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
 
     if deprecation_msg:
-        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)
+        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore
     return name
 
 
