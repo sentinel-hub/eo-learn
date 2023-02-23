@@ -230,12 +230,11 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "init_val, shape, feature_type, names, case_feature_spec",
+    "init_val, shape, feature_type, names",
     [
-        (123, (5, 10, 10, 3), FeatureType.MASK, "test", False),
-        (123, (10, 10, 3), FeatureType.MASK_TIMELESS, "test", False),
-        (123, (5, 10, 10, 3), FeatureType.MASK, ("F1", "F2", "F3"), False),
-        (123, (FeatureType.DATA, "bands"), FeatureType.DATA, ("F1", "F2", "F3"), True),
+        (123, (5, 10, 10, 3), FeatureType.MASK, "test"),
+        (123, (10, 10, 3), FeatureType.MASK_TIMELESS, "test"),
+        (123, (5, 10, 10, 3), FeatureType.MASK, ("F1", "F2", "F3")),
     ],
 )
 def test_initialize_feature(
@@ -244,10 +243,26 @@ def test_initialize_feature(
     feature_type: FeatureType,
     names: Union[str, Tuple[str, ...]],
     patch: EOPatch,
-    case_feature_spec: bool,
 ) -> None:
-    result_shape = patch[shape].shape if case_feature_spec else shape
-    expected_data = init_val * np.ones(result_shape)
+    expected_data = init_val * np.ones(shape)
+    patch = InitializeFeatureTask({feature_type: names}, shape=shape, init_value=init_val)(patch)
+    assert all([np.array_equal(patch[feature_type][key], expected_data) for key in names])
+
+
+@pytest.mark.parametrize(
+    "init_val, shape, feature_type, names",
+    [
+        (123, (FeatureType.DATA, "bands"), FeatureType.DATA, ("F1", "F2", "F3")),
+    ],
+)
+def test_initialize_feature_with_spec(
+    init_val: float,
+    shape: Union[Tuple[int, ...], FeatureSpec],
+    feature_type: FeatureType,
+    names: Union[str, Tuple[str, ...]],
+    patch: EOPatch,
+) -> None:
+    expected_data = init_val * np.ones(patch[shape].shape)
 
     patch = InitializeFeatureTask({feature_type: names}, shape=shape, init_value=init_val)(patch)
     assert all([np.array_equal(patch[feature_type][key], expected_data) for key in names])
@@ -257,9 +272,6 @@ def test_initialize_feature_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
         InitializeFeatureTask((FeatureType.MASK_TIMELESS, "wrong"), (5, 10, 10, 3), 123)(patch)
-
-    with pytest.raises(ValueError):
-        InitializeFeatureTask({FeatureType.DATA: ("F1", "F2", "F3")}, 1234), "Shape argument should be a shape tuple."
 
 
 @pytest.mark.parametrize("deep", [True, False])
