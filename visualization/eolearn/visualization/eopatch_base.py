@@ -19,6 +19,7 @@ import numpy as np
 from geopandas import GeoDataFrame
 
 from eolearn.core import EOPatch
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.common import is_discrete_type
 from eolearn.core.utils.parsing import parse_feature
@@ -35,7 +36,7 @@ class BasePlotConfig:
     """
 
     rgb_factor: Optional[float] = 3.5
-    timestamp_column: Optional[str] = "TIMESTAMP"
+    timestamp_column: Optional[str] = TIMESTAMP_COLUMN
     geometry_column: str = "geometry"
 
 
@@ -94,7 +95,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = self.eopatch[self.feature]
-        timestamps = self.eopatch.timestamp
+        timestamps = self.eopatch.timestamps
 
         if feature_type.is_raster():
             if self.times is not None:

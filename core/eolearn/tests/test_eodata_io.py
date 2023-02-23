@@ -24,6 +24,7 @@ from shapely.geometry import Point
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import (
     FeatureIO,
     FeatureIOBBox,
@@ -43,7 +44,7 @@ def eopatch_fixture():
     data = np.zeros((2, 3, 3, 2), dtype=np.int16)
     eopatch.data_timeless["mask"] = mask
     eopatch.data["data"] = data
-    eopatch.timestamp = [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]
+    eopatch.timestamps = [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]
     eopatch.meta_info["something"] = "nothing"
     eopatch.meta_info["something-else"] = "nothing"
     eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
@@ -52,7 +53,7 @@ def eopatch_fixture():
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
-            "TIMESTAMP": [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+            TIMESTAMP_COLUMN: [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
             "geometry": [eopatch.bbox.geometry, eopatch.bbox.geometry],
         },
         crs=eopatch.bbox.crs.pyproj_crs(),
@@ -156,6 +157,14 @@ def test_save_add_only_features(eopatch, fs_loader):
 
     with fs_loader() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, features=features, overwrite_permission=0)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+def test_bbox_always_saved(eopatch, fs_loader):
+    with fs_loader() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA])
+        assert temp_fs.exists("/bbox.geojson")
 
 
 @mock_s3
@@ -313,7 +322,10 @@ def assert_data_equal(data1: Any, data2: Any) -> None:
             gpd.GeoDataFrame(
                 {
                     "values": [1, 2],
-                    "TIMESTAMP": [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
+                    TIMESTAMP_COLUMN: [
+                        datetime.datetime(2017, 1, 1, 10, 4, 7),
+                        datetime.datetime(2017, 1, 4, 10, 14, 5),
+                    ],
                     "geometry": [Point(1, 2), Point(2, 1)],
                 },
                 crs="EPSG:3857",

@@ -132,8 +132,8 @@ def test_radiometric_normalization(eopatch, task, test_feature, expected_statist
     initial_patch = copy.deepcopy(eopatch)
     eopatch = task.execute(eopatch)
 
-    assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
-    assert isinstance(eopatch.timestamp[0], datetime), "Expected timestamps of type datetime.datetime"
+    assert isinstance(eopatch.timestamps, list), "Expected a list of timestamps"
+    assert isinstance(eopatch.timestamps[0], datetime), "Expected timestamps of type datetime.datetime"
 
     assert_statistics_match(eopatch[test_feature], **expected_statistics, abs_delta=1e-3)
 
