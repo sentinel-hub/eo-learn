@@ -207,21 +207,14 @@ def test_remove_fails(patch: EOPatch) -> None:
         [(FeatureType.DATA, "bands", f"bands{i}") for i in range(5)],
     ],
 )
-def test_duplicate_feature(feature_specification: List[FeaturesSpecification], patch: EOPatch) -> None:
-    patch = DuplicateFeatureTask(feature_specification)(patch)
+@pytest.mark.parametrize("deep", [True, False])
+def test_duplicate_feature(feature_specification: List[FeaturesSpecification], deep: bool, patch: EOPatch) -> None:
+    patch = DuplicateFeatureTask(feature_specification, deep)(patch)
 
     for f_type, f_name, f_dup_name in feature_specification:
         assert f_dup_name in patch[f_type]
-        assert id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)]), "Data was deep-copied."
+        assert (id(patch[(f_type, f_name)]) == id(patch[(f_type, f_dup_name)])) != deep
         assert_array_equal(patch[(f_type, f_name)], patch[(f_type, f_dup_name)])
-
-
-def test_duplicate_feature_deep(patch: EOPatch) -> None:
-    patch = DuplicateFeatureTask((FeatureType.DATA, "bands", "bands_dup"), deep_copy=True)(patch)
-
-    assert "bands_dup" in patch.data
-    assert_array_equal(patch.data["bands_dup"], patch.data["bands"])
-    assert id(patch.data["bands_dup"]) != id(patch.data["bands"])
 
 
 def test_duplicate_feature_fails(patch: EOPatch) -> None:
