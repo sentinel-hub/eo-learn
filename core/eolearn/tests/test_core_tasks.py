@@ -104,11 +104,15 @@ def test_deepcopy(patch):
 
 
 def test_partial_copy(patch):
-    partial_copy = DeepCopyTask(features=[(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX]).execute(patch)
+    partial_copy = DeepCopyTask(
+        features=[(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.MASK_TIMELESS, "LULC"), FeatureType.BBOX]
+    ).execute(patch)
     expected_patch = EOPatch(mask_timeless=patch.mask_timeless, bbox=patch.bbox)
     assert partial_copy == expected_patch
 
-    partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
+    partial_deepcopy = DeepCopyTask(
+        features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "CLOUD_COVERAGE"), (FeatureType.SCALAR, "values")]
+    ).execute(patch)
     expected_patch = EOPatch(scalar=patch.scalar, timestamps=patch.timestamps, bbox=patch.bbox)
     assert partial_deepcopy == expected_patch
 
