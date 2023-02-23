@@ -66,7 +66,7 @@ def merge_eopatches(
         - 'mean': Join arrays by taking mean values. Ignore NaN values.
         - 'median': Join arrays by taking median values. Ignore NaN values.
 
-    :return: Merged EOPatch
+    :return: Contents of a merged EOPatch
     """
     reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
@@ -100,8 +100,7 @@ def merge_eopatches(
             feature_name = cast(str, feature_name)  # parser makes sure of it
             eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
 
-        if feature_type is FeatureType.BBOX:
-            eopatch_content[feature] = _get_common_bbox(eopatches)
+    eopatch_content[(FeatureType.BBOX, None)] = _get_common_bbox(eopatches)
 
     return eopatch_content
 
