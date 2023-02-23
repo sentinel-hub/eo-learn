@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import copy
 import pickle
 from datetime import datetime
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 import pytest
@@ -56,6 +56,8 @@ def patch_fixture():
     patch = EOPatch()
     patch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     patch.data["CLP"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
+    patch.mask["CLM"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
+    patch.mask["CLM_S2C"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
     patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.timestamps = [
@@ -333,17 +335,21 @@ def test_merge_features(axis):
     assert np.array_equal(patch.mask["merged"], expected)
 
 
-def test_zip_features(test_eopatch: EOPatch) -> None:
-    merge = ZipFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},  # input features
-        (FeatureType.DATA, "MERGED"),  # output feature
-        lambda *f: np.concatenate(f, axis=-1),
-    )
+@pytest.mark.parametrize(
+    "features_to_zip, feature, function",
+    [
+        # ([(FeatureType.MASK, "CLM"), (FeatureType.MASK, "CLM_S2C")], (FeatureType.MASK, "ziped"), np.concatenate),
+        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), np.maximum),
+        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), lambda a, b: a + b),
+    ],
+)
+def test_zip_features(
+    features_to_zip: List[FeatureSpec], feature: FeatureSpec, function: Callable, patch: EOPatch
+) -> None:
+    expected = function(*[patch[f] for f in features_to_zip])
+    patch = ZipFeatureTask(features_to_zip, feature, function)(patch)
 
-    patch = merge(test_eopatch)
-
-    expected = np.concatenate([patch.data["CLP"], patch.data["NDVI"], patch.data["BANDS-S2-L1C"]], axis=-1)
-    assert np.array_equal(patch.data["MERGED"], expected)
+    assert np.array_equal(patch[feature], expected)
 
 
 def test_zip_features_fails(patch: EOPatch) -> None:
