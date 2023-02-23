@@ -58,11 +58,13 @@ from .types import EllipsisType, FeaturesSpecification
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
 
+if TYPE_CHECKING:
+    from .eodata import EOPatch
+
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
 
-if TYPE_CHECKING:
-    from .eodata import EOPatch
+BBOX_FILENAME = "bbox"
 
 
 def save_eopatch(
@@ -92,8 +94,16 @@ def save_eopatch(
     else:
         _check_letter_case_collisions(eopatch_features, [])
 
-    features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = []
+    features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
+        (FeatureIOBBox, eopatch.bbox, fs.path.combine(patch_location, BBOX_FILENAME))
+    ]
+
+    if eopatch.bbox is None:  # remove after BBox is never None
+        features_to_save = []
+
     for ftype, fname, feature_path in eopatch_features:
+        if ftype == FeatureType.BBOX:
+            continue
         # the paths here do not have file extensions, but FeatureIO.save takes care of that
         feature_io = _get_feature_io_constructor(ftype)
         data = eopatch[(ftype, fname)]
