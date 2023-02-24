@@ -46,7 +46,8 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
-from eolearn.core.types import FeatureRenameSpec, FeatureSpec
+from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_features
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
@@ -228,49 +229,42 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
         DuplicateFeatureTask((FeatureType.DATA, "bands", "bands"))(patch)
 
 
-def test_initialize_feature(patch):
-    patch = DeepCopyTask()(patch)
+@pytest.mark.parametrize(
+    "init_val, shape, feature_spec",
+    [
+        (8, (5, 2, 6, 3), (FeatureType.MASK, "test")),
+        (9, (1, 4, 3), (FeatureType.MASK_TIMELESS, "test")),
+        (7, (5, 2, 7, 4), {FeatureType.MASK: ["F1", "F2", "F3"]}),
+    ],
+)
+def test_initialize_feature(
+    init_val: float, shape: Tuple[int, ...], feature_spec: FeaturesSpecification, patch: EOPatch
+) -> None:
+    expected_data = init_val * np.ones(shape)
+    patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
 
-    init_val = 123
-    shape = (5, 10, 10, 3)
-    compare_data = np.ones(shape) * init_val
+    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
 
-    patch = InitializeFeatureTask((FeatureType.MASK, "test"), shape=shape, init_value=init_val)(patch)
-    assert patch.mask["test"].shape == shape
-    assert np.array_equal(patch.mask["test"], compare_data)
 
+@pytest.mark.parametrize(
+    "init_val, shape, feature_spec",
+    [
+        (3, (FeatureType.DATA, "bands"), {FeatureType.MASK: ["F1", "F2", "F3"]}),
+    ],
+)
+def test_initialize_feature_with_spec(
+    init_val: float, shape: FeatureSpec, feature_spec: FeaturesSpecification, patch: EOPatch
+) -> None:
+    expected_data = init_val * np.ones(patch[shape].shape)
+
+    patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
+    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
+
+
+def test_initialize_feature_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
-        patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, "wrong"), shape=shape, init_value=init_val)(patch)
-
-    init_val = 123
-    shape = (10, 10, 3)
-    compare_data = np.ones(shape) * init_val
-
-    patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, "test"), shape=shape, init_value=init_val)(patch)
-    assert patch.mask_timeless["test"].shape == shape
-    assert np.array_equal(patch.mask_timeless["test"], compare_data)
-
-    with pytest.raises(ValueError):
-        # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
-        patch = InitializeFeatureTask((FeatureType.MASK, "wrong"), shape=shape, init_value=init_val)(patch)
-
-    init_val = 123
-    shape = (5, 10, 10, 3)
-    compare_data = np.ones(shape) * init_val
-    new_names = ("F1", "F2", "F3")
-
-    patch = InitializeFeatureTask({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
-    assert set(new_names) < set(patch.mask), "Failed to initialize new features from a shape tuple."
-    assert all(patch.mask[key].shape == shape for key in new_names)
-    assert all(np.array_equal(patch.mask[key], compare_data) for key in new_names)
-
-    patch = InitializeFeatureTask({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, "bands"))(patch)
-    assert set(new_names) < set(patch.data), "Failed to initialize new features from an existing feature."
-    assert all(patch.data[key].shape == patch.data["bands"].shape for key in new_names)
-
-    with pytest.raises(ValueError):
-        InitializeFeatureTask({FeatureType.DATA: new_names}, 1234)
+        InitializeFeatureTask((FeatureType.MASK_TIMELESS, "wrong"), (5, 10, 10, 3), 123)(patch)
 
 
 @pytest.mark.parametrize("deep", [True, False])
