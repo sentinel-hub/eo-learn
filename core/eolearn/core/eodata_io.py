@@ -246,7 +246,7 @@ def walk_main_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[Feature
                 category=EODeprecationWarning,
                 stacklevel=2,
             )
-            ftype_str = FeatureType.TIMESTAMP.value
+            ftype_str = FeatureType.TIMESTAMPS.value
 
         if FeatureType.has_value(ftype_str):
             yield FeatureType(ftype_str), fname, fs.path.combine(folder_path, path)
@@ -483,7 +483,7 @@ class FeatureIOJson(FeatureIO[T]):
         file.write(json_data.encode())
 
 
-class FeatureIOTimestamp(FeatureIOJson[List[datetime.datetime]]):
+class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
     def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> List[datetime.datetime]:
@@ -521,8 +521,8 @@ def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
         return FeatureIOBBox
     if ftype is FeatureType.META_INFO:
         return FeatureIOJson
-    if ftype is FeatureType.TIMESTAMP:
-        return FeatureIOTimestamp
+    if ftype is FeatureType.TIMESTAMPS:
+        return FeatureIOTimestamps
     if ftype in FeatureTypeSet.VECTOR_TYPES:
         return FeatureIOGeoDf
     return FeatureIONumpy

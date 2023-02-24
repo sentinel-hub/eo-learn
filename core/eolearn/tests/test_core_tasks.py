@@ -119,11 +119,11 @@ def test_load_task(test_eopatch_path):
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
 
-    assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMP not in partial_patch
+    assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMPS not in partial_patch
 
-    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMP])
+    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMPS])
     upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
-    assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMP in upgraded_partial_patch
+    assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMPS in upgraded_partial_patch
     assert FeatureType.DATA not in upgraded_partial_patch
 
 
@@ -159,7 +159,7 @@ def test_io_task_pickling(filesystem, task_class):
     [
         ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
-        ((FeatureType.TIMESTAMP, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
+        ((FeatureType.TIMESTAMPS, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
 def test_add_feature(feature: FeatureSpec, feature_data: Any) -> None:
@@ -184,7 +184,7 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
 
-@pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMP, None)])
+@pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMPS, None)])
 def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
     patch_copy = copy.deepcopy(patch)
     assert feature in patch

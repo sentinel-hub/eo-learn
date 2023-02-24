@@ -80,7 +80,7 @@ class SimpleFilterTask(EOTask):
             feature_type, _ = feature
             data = eopatch[feature]
 
-            if feature_type is FeatureType.TIMESTAMP:
+            if feature_type is FeatureType.TIMESTAMPS:
                 data = [data[idx] for idx in good_idxs]
 
             elif feature_type.is_temporal():
@@ -114,7 +114,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         if not isinstance(start_date, dt.datetime) or not isinstance(end_date, dt.datetime):
             raise ValueError("Both start_date and end_date must be datetime.datetime objects.")
 
-        super().__init__((FeatureType.TIMESTAMP, None), self._filter_func, filter_features)
+        super().__init__((FeatureType.TIMESTAMPS, None), self._filter_func, filter_features)
 
 
 class ValueFilloutTask(EOTask):

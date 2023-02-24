@@ -31,7 +31,7 @@ from eolearn.core.eodata_io import (
     FeatureIOGeoDf,
     FeatureIOJson,
     FeatureIONumpy,
-    FeatureIOTimestamp,
+    FeatureIOTimestamps,
 )
 
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
@@ -135,7 +135,7 @@ def test_save_load(eopatch, fs_loader):
         eopatch2 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
         assert eopatch == eopatch2
 
-        features = {FeatureType.DATA_TIMELESS: ["mask"], FeatureType.TIMESTAMP: ...}
+        features = {FeatureType.DATA_TIMELESS: ["mask"], FeatureType.TIMESTAMPS: ...}
         eopatch2.save("/", filesystem=temp_fs, features=features, compress_level=3, overwrite_permission=1)
         eopatch2 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=True)
         assert eopatch == eopatch2
@@ -334,8 +334,8 @@ def assert_data_equal(data1: Any, data2: Any) -> None:
         (FeatureIOJson, {}),
         (FeatureIOJson, {"test": "test1", "test3": {"test": "test1"}}),
         (FeatureIOBBox, BBox((1, 2, 3, 4), CRS.WGS84)),
-        (FeatureIOTimestamp, []),
-        (FeatureIOTimestamp, [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]),
+        (FeatureIOTimestamps, []),
+        (FeatureIOTimestamps, [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]),
     ],
 )
 @pytest.mark.parametrize("compress_level", [0, 1])
