@@ -54,25 +54,20 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
     patch = EOPatch()
-    patch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    patch.data["CLP"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
-    patch.mask["CLM"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
-    patch.mask["CLM_S2C"] = np.arange(2 * 3 * 3 * 1).reshape(2, 3, 3, 1)
-    patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-    patch.mask_timeless["LULC"] = np.arange(3 * 3 * 1).reshape(3, 3, 1)
+    patch.data["bands"] = np.arange(5 * 3 * 4 * 2).reshape(5, 3, 4, 2)
+    patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
+    patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
+    patch.mask["CLM_S2C"] = np.arange(5 * 3 * 4 * 1).reshape(5, 3, 4, 1)
+    patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
+    patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.int8)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
     patch.timestamps = [
-        datetime(2017, 1, 1, 10, 4, 7),
-        datetime(2017, 1, 4, 10, 14, 5),
-        datetime(2017, 1, 11, 10, 3, 51),
         datetime(2017, 1, 14, 10, 13, 46),
-        datetime(2017, 1, 24, 10, 14, 7),
         datetime(2017, 2, 10, 10, 1, 32),
         datetime(2017, 2, 20, 10, 6, 35),
         datetime(2017, 3, 2, 10, 0, 20),
         datetime(2017, 3, 12, 10, 7, 6),
-        datetime(2017, 3, 15, 10, 12, 14),
     ]
     patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
