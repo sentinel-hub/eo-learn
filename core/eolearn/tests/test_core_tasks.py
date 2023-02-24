@@ -343,24 +343,46 @@ def test_zip_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "feat_spc_org, feat_spc_map, fun",
+    "feature_spcification_original, feature_spcification_mapped, map_function",
     [
-        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_max", "bands_max"]}, lambda x: x + 3),
+        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3),
         ({FeatureType.MASK_TIMELESS: ["mask", "LULC"]}, {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]}, copy.deepcopy),
-        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_round", "CLP_S2C_round"]}, np.ceil),
+        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_ceil", "CLP_S2C_ceil"]}, np.ceil),
     ],
 )
 def test_map_features(
-    feat_spc_org: FeaturesSpecification, feat_spc_map: FeaturesSpecification, fun: Callable, patch: EOPatch
+    feature_spcification_original: FeaturesSpecification,
+    feature_spcification_mapped: FeaturesSpecification,
+    map_function: Callable,
+    patch: EOPatch,
 ) -> None:
-    org_feat_par = parse_features(feat_spc_org)
-    map_feat_pars = parse_features(feat_spc_map)
-    expected = [fun(patch[feat]) for feat in org_feat_par]
+    original_feature_parsed = parse_features(feature_spcification_original)
+    mapped_feature_parsed = parse_features(feature_spcification_mapped)
 
-    patch = MapFeatureTask(feat_spc_org, feat_spc_map, fun)(patch)
+    patch = MapFeatureTask(feature_spcification_original, feature_spcification_mapped, map_function)(patch)
 
-    assert all([np.array_equal(patch[feat], expect) for feat, expect in zip(map_feat_pars, expected)])
-    assert all([(id(patch[f_map]) != id(patch[f_org])) for f_map, f_org in zip(map_feat_pars, org_feat_par)])
+    for feature_mapped, feature_original in zip(mapped_feature_parsed, original_feature_parsed):
+        expected = map_function(patch[feature_original])
+
+        assert_array_equal(patch[feature_mapped], expected)
+        assert id(patch[feature_mapped]) != id(patch[feature_original])
+
+
+@pytest.mark.parametrize(
+    "feature_spcification, map_function",
+    [
+        ({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3),
+    ],
+)
+def test_map_features_overwrit(
+    feature_spcification: FeaturesSpecification, map_function: Callable, patch: EOPatch
+) -> None:
+    feature_parsed = parse_features(feature_spcification)
+    expected = [map_function(patch[feat]) for feat in feature_parsed]
+    patch = MapFeatureTask(feature_spcification, feature_spcification, map_function)(patch)
+
+    for feature, expect in zip(feature_parsed, expected):
+        assert_array_equal(patch[feature], expect)
 
 
 def test_map_features_fails(patch: EOPatch) -> None:
