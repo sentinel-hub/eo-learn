@@ -47,6 +47,7 @@ from eolearn.core import (
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_features
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
@@ -230,42 +231,41 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "init_val, shape, feature_type, names",
+    "init_val, shape, feature_spec",
     [
-        (123, (5, 10, 10, 3), FeatureType.MASK, "test"),
-        (123, (10, 10, 3), FeatureType.MASK_TIMELESS, "test"),
-        (123, (5, 10, 10, 3), FeatureType.MASK, ("F1", "F2", "F3")),
+        (123, (5, 10, 10, 3), (FeatureType.MASK, "test")),
+        (123, (10, 10, 3), (FeatureType.MASK_TIMELESS, "test")),
+        (123, (5, 10, 10, 3), {FeatureType.MASK: ["F1", "F2", "F3"]}),
     ],
 )
 def test_initialize_feature(
     init_val: float,
     shape: Union[Tuple[int, ...], FeatureSpec],
-    feature_type: FeatureType,
-    names: Union[str, Tuple[str, ...]],
+    feature_spec: FeaturesSpecification,
     patch: EOPatch,
 ) -> None:
     expected_data = init_val * np.ones(shape)
-    patch = InitializeFeatureTask({feature_type: names}, shape=shape, init_value=init_val)(patch)
-    assert all([np.array_equal(patch[feature_type][key], expected_data) for key in names])
+    patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
+
+    assert all([np.array_equal(patch[f_type][names], expected_data) for f_type, names in parse_features(feature_spec)])
 
 
 @pytest.mark.parametrize(
-    "init_val, shape, feature_type, names",
+    "init_val, shape, feature_spec",
     [
-        (123, (FeatureType.DATA, "bands"), FeatureType.DATA, ("F1", "F2", "F3")),
+        (123, (FeatureType.DATA, "bands"), {FeatureType.MASK: ["F1", "F2", "F3"]}),
     ],
 )
 def test_initialize_feature_with_spec(
     init_val: float,
     shape: Union[Tuple[int, ...], FeatureSpec],
-    feature_type: FeatureType,
-    names: Union[str, Tuple[str, ...]],
+    feature_spec: FeaturesSpecification,
     patch: EOPatch,
 ) -> None:
     expected_data = init_val * np.ones(patch[shape].shape)
 
-    patch = InitializeFeatureTask({feature_type: names}, shape=shape, init_value=init_val)(patch)
-    assert all([np.array_equal(patch[feature_type][key], expected_data) for key in names])
+    patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
+    assert all([np.array_equal(patch[f_type][names], expected_data) for f_type, names in parse_features(feature_spec)])
 
 
 def test_initialize_feature_fails(patch: EOPatch) -> None:
