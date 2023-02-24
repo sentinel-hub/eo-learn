@@ -56,10 +56,11 @@ def patch_fixture() -> EOPatch:
     patch = EOPatch()
     patch.data["bands"] = np.arange(5 * 3 * 4 * 2).reshape(5, 3, 4, 2)
     patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
+    patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
     patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
-    patch.mask["CLM_S2C"] = np.arange(5 * 3 * 4 * 1).reshape(5, 3, 4, 1)
     patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
-    patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.int8)
+    patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.uint16)
+    patch.mask_timeless["RANDOM_UINT8"] = np.random.randint(0, 100, size=(3, 4, 1), dtype=np.int8)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
     patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
     patch.timestamps = [
@@ -302,9 +303,13 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
     [
         ([(FeatureType.DATA, "bands")], (FeatureType.DATA, "merged"), 0),
         ([(FeatureType.DATA, "bands"), (FeatureType.DATA, "CLP")], (FeatureType.DATA, "merged"), -1),
-        ([(FeatureType.MASK, "CLM"), (FeatureType.MASK, "CLM_S2C")], (FeatureType.MASK, "merged"), 0),
+        ([(FeatureType.DATA, "CLP_S2C"), (FeatureType.DATA, "CLP")], (FeatureType.DATA, "merged"), 0),
         (
-            [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.MASK_TIMELESS, "LULC")],
+            [
+                (FeatureType.MASK_TIMELESS, "RANDOM_UINT8"),
+                (FeatureType.MASK_TIMELESS, "mask"),
+                (FeatureType.MASK_TIMELESS, "LULC"),
+            ],
             (FeatureType.MASK_TIMELESS, "merged_timeless"),
             -1,
         ),
