@@ -233,9 +233,9 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
 @pytest.mark.parametrize(
     "init_val, shape, feature_spec",
     [
-        (123, (5, 10, 10, 3), (FeatureType.MASK, "test")),
-        (123, (10, 10, 3), (FeatureType.MASK_TIMELESS, "test")),
-        (123, (5, 10, 10, 3), {FeatureType.MASK: ["F1", "F2", "F3"]}),
+        (8, (5, 2, 6, 3), (FeatureType.MASK, "test")),
+        (9, (1, 4, 3), (FeatureType.MASK_TIMELESS, "test")),
+        (7, (5, 2, 7, 4), {FeatureType.MASK: ["F1", "F2", "F3"]}),
     ],
 )
 def test_initialize_feature(
@@ -253,7 +253,7 @@ def test_initialize_feature(
 @pytest.mark.parametrize(
     "init_val, shape, feature_spec",
     [
-        (123, (FeatureType.DATA, "bands"), {FeatureType.MASK: ["F1", "F2", "F3"]}),
+        (3, (FeatureType.DATA, "bands"), {FeatureType.MASK: ["F1", "F2", "F3"]}),
     ],
 )
 def test_initialize_feature_with_spec(
