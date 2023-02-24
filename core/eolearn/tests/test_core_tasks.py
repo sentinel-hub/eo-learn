@@ -319,15 +319,19 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
 @pytest.mark.parametrize(
     "features_to_zip, feature, function",
     [
-        # ([(FeatureType.MASK, "CLM"), (FeatureType.MASK, "CLM_S2C")], (FeatureType.MASK, "ziped"), np.concatenate),
         ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), np.maximum),
         ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), lambda a, b: a + b),
+        (
+            {FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"]},
+            (FeatureType.MASK_TIMELESS, "ziped"),
+            lambda a, b, c: a + b + c - 10,
+        ),
     ],
 )
 def test_zip_features(
-    features_to_zip: List[FeatureSpec], feature: FeatureSpec, function: Callable, patch: EOPatch
+    features_to_zip: FeaturesSpecification, feature: FeatureSpec, function: Callable, patch: EOPatch
 ) -> None:
-    expected = function(*[patch[f] for f in features_to_zip])
+    expected = function(*[patch[f] for f in parse_features(features_to_zip)])
     patch = ZipFeatureTask(features_to_zip, feature, function)(patch)
 
     assert np.array_equal(patch[feature], expected)
