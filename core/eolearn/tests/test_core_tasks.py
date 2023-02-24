@@ -239,15 +239,12 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
     ],
 )
 def test_initialize_feature(
-    init_val: float,
-    shape: Union[Tuple[int, ...], FeatureSpec],
-    feature_spec: FeaturesSpecification,
-    patch: EOPatch,
+    init_val: float, shape: Tuple[int, ...], feature_spec: FeaturesSpecification, patch: EOPatch
 ) -> None:
     expected_data = init_val * np.ones(shape)
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
 
-    assert all([np.array_equal(patch[f_type][names], expected_data) for f_type, names in parse_features(feature_spec)])
+    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
 
 
 @pytest.mark.parametrize(
@@ -257,15 +254,12 @@ def test_initialize_feature(
     ],
 )
 def test_initialize_feature_with_spec(
-    init_val: float,
-    shape: Union[Tuple[int, ...], FeatureSpec],
-    feature_spec: FeaturesSpecification,
-    patch: EOPatch,
+    init_val: float, shape: FeatureSpec, feature_spec: FeaturesSpecification, patch: EOPatch
 ) -> None:
     expected_data = init_val * np.ones(patch[shape].shape)
 
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
-    assert all([np.array_equal(patch[f_type][names], expected_data) for f_type, names in parse_features(feature_spec)])
+    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
 
 
 def test_initialize_feature_fails(patch: EOPatch) -> None:
