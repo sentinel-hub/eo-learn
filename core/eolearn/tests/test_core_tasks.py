@@ -342,22 +342,25 @@ def test_zip_features_fails(patch: EOPatch) -> None:
         ZipFeatureTask({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "MERGED"))(patch)
 
 
-def test_map_features(test_eopatch):
-    move = MapFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},
-        {FeatureType.DATA: ["CLP2", "NDVI2", "BANDS-S2-L1C2"]},
-        copy.deepcopy,
-    )
+@pytest.mark.parametrize(
+    "feat_spc_org, feat_spc_map, fun",
+    [
+        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_max", "bands_max"]}, lambda x: x + 3),
+        ({FeatureType.MASK_TIMELESS: ["mask", "LULC"]}, {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]}, copy.deepcopy),
+        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_round", "CLP_S2C_round"]}, np.ceil),
+    ],
+)
+def test_map_features(
+    feat_spc_org: FeaturesSpecification, feat_spc_map: FeaturesSpecification, fun: Callable, patch: EOPatch
+) -> None:
+    org_feat_par = parse_features(feat_spc_org)
+    map_feat_pars = parse_features(feat_spc_map)
+    expected = [fun(patch[feat]) for feat in org_feat_par]
 
-    patch = move(test_eopatch)
+    patch = MapFeatureTask(feat_spc_org, feat_spc_map, fun)(patch)
 
-    assert np.array_equal(patch.data["CLP"], patch.data["CLP2"])
-    assert np.array_equal(patch.data["NDVI"], patch.data["NDVI2"])
-    assert np.array_equal(patch.data["BANDS-S2-L1C"], patch.data["BANDS-S2-L1C2"])
-
-    assert id(patch.data["CLP"]) != id(patch.data["CLP2"])
-    assert id(patch.data["NDVI"]) != id(patch.data["NDVI2"])
-    assert id(patch.data["BANDS-S2-L1C"]) != id(patch.data["BANDS-S2-L1C2"])
+    assert all([np.array_equal(patch[feat], expect) for feat, expect in zip(map_feat_pars, expected)])
+    assert all([(id(patch[f_map]) != id(patch[f_org])) for f_map, f_org in zip(map_feat_pars, org_feat_par)])
 
 
 def test_map_features_fails(patch: EOPatch) -> None:
