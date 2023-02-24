@@ -93,7 +93,7 @@ def merge_eopatches(
         if feature_type.is_vector():
             eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
 
-        if feature_type is FeatureType.TIMESTAMP:
+        if feature_type is FeatureType.TIMESTAMPS:
             eopatch_content[feature] = timestamps
 
         if feature_type is FeatureType.META_INFO:

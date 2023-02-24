@@ -295,7 +295,7 @@ class EOPatch:
         if feature_type is FeatureType.BBOX and (value is None or isinstance(value, BBox)):
             return value
 
-        if feature_type is FeatureType.TIMESTAMP and isinstance(value, (tuple, list)):
+        if feature_type is FeatureType.TIMESTAMPS and isinstance(value, (tuple, list)):
             return [
                 timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp) for timestamp in value
             ]
@@ -328,7 +328,7 @@ class EOPatch:
 
     @overload
     def __getitem__(
-        self, feature_type: Union[Literal[FeatureType.TIMESTAMP], Tuple[Literal[FeatureType.TIMESTAMP], Any]]
+        self, feature_type: Union[Literal[FeatureType.TIMESTAMPS], Tuple[Literal[FeatureType.TIMESTAMPS], Any]]
     ) -> List[dt.datetime]:
         ...
 
@@ -372,7 +372,7 @@ class EOPatch:
         """
         self._check_tuple_key(feature)
         feature_type, feature_name = feature
-        if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMP]:
+        if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
             self.reset_feature_type(feature_type)
         else:
             del self[feature_type][feature_name]
@@ -561,7 +561,7 @@ class EOPatch:
         """
         feature_list: List[FeatureSpec] = []
         for feature_type in FeatureType:
-            if feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMP:
+            if feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMPS:
                 if feature_type in self:
                     feature_list.append((feature_type, None))
             else:

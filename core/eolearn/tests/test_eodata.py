@@ -251,7 +251,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
         [FeatureType.DATA, "BANDS-S2-L1C"],
         [FeatureType.MASK, "CLM"],
         [FeatureType.BBOX, ...],
-        [FeatureType.TIMESTAMP, None],
+        [FeatureType.TIMESTAMPS, None],
     ],
 )
 def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None:
