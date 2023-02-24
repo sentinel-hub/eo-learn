@@ -13,7 +13,7 @@ file in the root directory of this source tree.
 import copy
 import pickle
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union
 
 import numpy as np
 import pytest
@@ -316,21 +316,30 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
     assert_array_equal(patch[feature], expected)
 
 
-def test_zip_features(test_eopatch):
-    merge = ZipFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},  # input features
-        (FeatureType.DATA, "MERGED"),  # output feature
-        lambda *f: np.concatenate(f, axis=-1),
-    )
+@pytest.mark.parametrize(
+    "features_to_zip, feature, function",
+    [
+        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), np.maximum),
+        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), lambda a, b: a + b),
+        (
+            {FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"]},
+            (FeatureType.MASK_TIMELESS, "ziped"),
+            lambda a, b, c: a + b + c - 10,
+        ),
+    ],
+)
+def test_zip_features(
+    features_to_zip: FeaturesSpecification, feature: FeatureSpec, function: Callable, patch: EOPatch
+) -> None:
+    expected = function(*[patch[f] for f in parse_features(features_to_zip)])
+    patch = ZipFeatureTask(features_to_zip, feature, function)(patch)
 
-    patch = merge(test_eopatch)
+    assert np.array_equal(patch[feature], expected)
 
-    expected = np.concatenate([patch.data["CLP"], patch.data["NDVI"], patch.data["BANDS-S2-L1C"]], axis=-1)
-    assert np.array_equal(patch.data["MERGED"], expected)
 
-    zip_fail = ZipFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, (FeatureType.DATA, "MERGED"))
+def test_zip_features_fails(patch: EOPatch) -> None:
     with pytest.raises(NotImplementedError):
-        zip_fail(patch)
+        ZipFeatureTask({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "MERGED"))(patch)
 
 
 def test_map_features(test_eopatch):
