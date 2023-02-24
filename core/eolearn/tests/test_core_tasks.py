@@ -359,21 +359,13 @@ def test_map_features(test_eopatch):
     assert id(patch.data["NDVI"]) != id(patch.data["NDVI2"])
     assert id(patch.data["BANDS-S2-L1C"]) != id(patch.data["BANDS-S2-L1C2"])
 
-    map_fail = MapFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI"]},
-        {
-            FeatureType.DATA: [
-                "CLP2",
-                "NDVI2",
-            ]
-        },
-    )
-    with pytest.raises(NotImplementedError):
-        map_fail(patch)
 
-    f_in, f_out = {FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]}
+def test_map_features_fails(patch: EOPatch) -> None:
+    with pytest.raises(NotImplementedError):
+        MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2", "NDVI2"]})(patch)
+
     with pytest.raises(ValueError):
-        MapFeatureTask(f_in, f_out)
+        MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]})
 
 
 @pytest.mark.parametrize(
