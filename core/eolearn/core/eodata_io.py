@@ -240,8 +240,9 @@ def walk_main_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[Feature
         if ftype_str == "timestamp":
             warnings.warn(
                 (
-                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated `timestamp` feature."
-                    " The old name will no longer be valid in the future. You can re-save the `EOPatch` to update it."
+                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated naming `timestamp` for"
+                    " the `timestamps` feature. The old name will no longer be valid in the future. You can re-save"
+                    " the `EOPatch` to update it."
                 ),
                 category=EODeprecationWarning,
                 stacklevel=2,
