@@ -17,6 +17,7 @@ import copy
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
 from warnings import warn
 
@@ -24,7 +25,9 @@ import attr
 import dateutil.parser
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 from fs.base import FS
+from numpy.random import Generator
 from typing_extensions import Literal
 
 from sentinelhub import CRS, BBox
@@ -36,7 +39,7 @@ from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
-from .utils.parsing import parse_features
+from .utils.parsing import FeatureParser, parse_features
 
 _T = TypeVar("_T")
 _Self = TypeVar("_Self")
@@ -731,3 +734,91 @@ class EOPatch:
             config=config,
             **kwargs,
         )
+
+
+@dataclass
+class PatchGeneratorConfig:
+    """Dataclass containing a more complex setup of the PatchGenerator class."""
+
+    raster_shape: Tuple[int, int] = (300, 400)
+    bbox: BBox = field(init=False, repr=False)
+
+    timestamps_periods: int = 15
+    timestamps_range: Tuple[str, str] = "2019-01-01", "2019-12-31"
+    timestamps: List[dt.datetime] = field(init=False, repr=False)
+
+    num_random_features: int = 5
+    allowed_feature_types: List[FeatureType] = field(default_factory=list)
+    max_integer_value: int = 256
+
+    def __post_init__(self):
+        self.bbox = BBox((0, 0, *self.raster_shape), crs=CRS.UTM_33N)
+        self.timestamps = pd.date_range(*self.timestamps_range, periods=self.timestamps_periods)
+        if not self.allowed_feature_types:
+            self.allowed_feature_types = [ftype for ftype in FeatureType if ftype.is_raster()]
+
+
+class PatchGenerator:
+    """A class for generating EOPatches with dummy data."""
+
+    def __init__(
+        self,
+        features: Optional[List[Tuple[FeatureType, str]]] = None,
+        bbox: Optional[BBox] = None,
+        timestamps: Optional[List[dt.datetime]] = None,
+        seed: int = 42,
+        config: Optional[PatchGeneratorConfig] = None,
+    ):
+        """A class for generating EOPatches with dummy data.
+
+        :param features: List of features to be present in the generated EOPatch.
+        :param bbox: BBox to be used in the generated EOPatch. A generic bbox will be used if none is provided.
+        :param timestamps: Timestamps to be used in the generated EOPatch. A generic list of timestamps will be used if
+            none is provided.
+        :param seed: A random seed to initialize a RNG object. Defaults to 42.
+        :param config: A config for a more advanced setup of the PatchGenerator class
+        """
+        self.features = features if features is not None else []
+        self.bbox = bbox if bbox is not None else config.bbox
+        self.timestamps = timestamps if timestamps is not None else config.timestamps
+
+        self.rng: Generator = np.random.default_rng(seed)
+        self.config = config if config is not None else PatchGeneratorConfig()
+
+        FeatureParser(self.features, allowed_feature_types=config.allowed_feature_types)
+
+    def get_feature_shape(self, ftype: FeatureType, depth: int) -> List[int]:
+        """Get shape array of dimensions expected for this specific feature type"""
+        shape = [len(self.timestamps)] if ftype.is_temporal() else []  # timestamps
+        shape.extend(self.config.raster_shape if ftype.is_spatial() else [])  # height, width
+        shape.append(depth)  # bands/depth
+        return shape
+
+    def generate_patch_features(self) -> List[Tuple[FeatureType, str]]:
+        """Generate random features from the pool of allowed feature types in addition to the provided features."""
+        features = self.features.copy()
+        feature_types = [ftype for ftype, _ in features]
+        feature_types.extend(
+            self.rng.choice(np.array(self.config.allowed_feature_types), self.config.num_random_features)
+        )
+
+        for ftype in set(feature_types):
+            features.extend([(ftype, f"{ftype.value}{idx}") for idx in range(feature_types.count(ftype) + 1)])
+
+        return features
+
+    def generate_feature_data(self, ftype: FeatureType, depth: int) -> np.ndarray:
+        """Generate dummy data expected for this specific feature type"""
+        shape = self.get_feature_shape(ftype, depth)
+
+        if ftype.is_discrete():
+            return self.rng.integers(self.config.max_integer_value, size=shape)
+        return self.rng.normal(size=shape)
+
+    def generate_eopatch(self) -> EOPatch:
+        """Generate an EOPatch with dummy data according to the provided configuration."""
+        patch = EOPatch(bbox=self.bbox, timestamps=self.timestamps)
+        for ftype, fname in self.generate_patch_features():
+            patch[(ftype, fname)] = self.generate_feature_data(ftype, self.rng.integers(1, 5))
+
+        return patch
