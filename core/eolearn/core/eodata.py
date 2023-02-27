@@ -778,14 +778,15 @@ class PatchGenerator:
         :param seed: A random seed to initialize a RNG object. Defaults to 42.
         :param config: A config for a more advanced setup of the PatchGenerator class
         """
-        self.features = features if features is not None else []
-        self.bbox = bbox if bbox is not None else config.bbox
-        self.timestamps = timestamps if timestamps is not None else config.timestamps
-
-        self.rng: Generator = np.random.default_rng(seed)
         self.config = config if config is not None else PatchGeneratorConfig()
 
-        FeatureParser(self.features, allowed_feature_types=config.allowed_feature_types)
+        self.features = features if features is not None else []
+        self.bbox = bbox if bbox is not None else self.config.bbox
+        self.timestamps = timestamps if timestamps is not None else self.config.timestamps
+
+        self.rng: Generator = np.random.default_rng(seed)
+
+        FeatureParser(self.features, allowed_feature_types=self.config.allowed_feature_types)
 
     def get_feature_shape(self, ftype: FeatureType, depth: int) -> List[int]:
         """Get shape array of dimensions expected for this specific feature type"""
