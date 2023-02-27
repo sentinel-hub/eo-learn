@@ -356,16 +356,17 @@ def test_map_features(
     map_function: Callable,
     patch: EOPatch,
 ) -> None:
-    original_feature_parsed = parse_features(feature_specification_original)
-    mapped_feature_parsed = parse_features(feature_specification_mapped)
+    original_feature = parse_features(feature_specification_original)
+    mapped_feature = parse_features(feature_specification_mapped)
+    patch_copy = CopyTask(original_feature)(patch)
 
     patch = MapFeatureTask(feature_specification_original, feature_specification_mapped, map_function)(patch)
 
-    for feature_mapped, feature_original in zip(mapped_feature_parsed, original_feature_parsed):
+    for feature_mapped, feature_original in zip(mapped_feature, original_feature):
         expected = map_function(patch[feature_original])
 
         assert_array_equal(patch[feature_mapped], expected)
-        assert id(patch[feature_mapped]) != id(patch[feature_original])
+        assert_array_equal(patch[feature_original], patch_copy[feature_original])
 
 
 @pytest.mark.parametrize(
@@ -374,12 +375,12 @@ def test_map_features(
 def test_map_features_overwrite(
     feature_specification: FeaturesSpecification, map_function: Callable, patch: EOPatch
 ) -> None:
-    feature_parsed = parse_features(feature_specification)
-    expected = [map_function(patch[feat]) for feat in feature_parsed]
+    feature = parse_features(feature_specification)
+    expected = [map_function(patch[feat]) for feat in feature]
     patch = MapFeatureTask(feature_specification, feature_specification, map_function)(patch)
 
-    for feature, expect in zip(feature_parsed, expected):
-        assert_array_equal(patch[feature], expect)
+    for feat, expect in zip(feature, expected):
+        assert_array_equal(patch[feat], expect)
 
 
 def test_map_features_fails(patch: EOPatch) -> None:
