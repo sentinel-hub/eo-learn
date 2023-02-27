@@ -358,7 +358,7 @@ def test_map_features(
 ) -> None:
     original_feature = parse_features(feature_specification_original)
     mapped_feature = parse_features(feature_specification_mapped)
-    patch_copy = CopyTask(original_feature)(patch)
+    patch_copy = DeepCopyTask(original_feature)(patch)
 
     patch = MapFeatureTask(feature_specification_original, feature_specification_mapped, map_function)(patch)
 
