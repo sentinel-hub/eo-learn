@@ -744,7 +744,7 @@ class PatchGeneratorConfig:
     bbox: BBox = field(init=False, repr=False)
 
     timestamps_periods: int = 15
-    timestamps_range: Tuple[str, str] = "2019-01-01", "2019-12-31"
+    timestamps_range: Tuple[str, str] = ("2019-01-01", "2019-12-31")
     timestamps: List[dt.datetime] = field(init=False, repr=False)
 
     num_random_features: int = 5
