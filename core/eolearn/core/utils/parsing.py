@@ -45,7 +45,7 @@ class FeatureParser:
       appropriate point.
     - The user can provide ellipsis `...` as a way to specify all features. When combined with a feature type it is
       understood as all features of a given type. When using `...` an EOPatch must be provided when parsing features,
-      except when used only for BBox and timestamp features.
+      except when used only for `BBOX` and `TIMESTAMP` features.
     - The parser can output pairs `(feature_type, feature_name)` or triples `(feature_type, old_name, new_name)`, which
       come in hand in many cases. If the user does not provide an explicit new name, the `old_name` and `new_name` are
       equal.
@@ -54,7 +54,7 @@ class FeatureParser:
 
     1. Ellipsis `...` signify that all features of all types should be parsed.
 
-    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMP` or a tuple where the
+    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMPS` or a tuple where the
        first element is a `FeatureType` element and the other (or two for renaming) is a string.
 
     3. Dictionary mapping `feature_type` keys to sequences of feature names. Feature names are either a sequence of
@@ -284,7 +284,7 @@ class FeatureParser:
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
-            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMP:
+            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMPS:
                 parsed_features.append((ftype, None, None))
 
             elif old_name is not None and new_name is not None:

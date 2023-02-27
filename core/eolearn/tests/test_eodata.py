@@ -98,7 +98,7 @@ def test_bbox_feature_type(invalid_entry: Any) -> None:
 )
 def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
     eop = EOPatch()
-    eop.timestamp = valid_entry
+    eop.timestamps = valid_entry
 
 
 @pytest.mark.parametrize(
@@ -112,7 +112,7 @@ def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
 def test_timestamp_invalid_feature_type(invalid_entry: Any) -> None:
     eop = EOPatch()
     with pytest.raises((ValueError, TypeError)):
-        eop.timestamp = invalid_entry
+        eop.timestamps = invalid_entry
 
 
 def test_invalid_characters():
@@ -192,7 +192,7 @@ def test_shallow_copy(test_eopatch: EOPatch) -> None:
     assert test_eopatch == eopatch_copy
     assert test_eopatch.mask["CLM"] is eopatch_copy.mask["CLM"]
 
-    eopatch_copy.timestamp.pop()
+    eopatch_copy.timestamps.pop()
     assert test_eopatch != eopatch_copy
 
 
@@ -242,7 +242,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
     eopatch_copy = test_eopatch.copy(features=[feature])
     assert test_eopatch != eopatch_copy
     assert eopatch_copy[feature] is test_eopatch[feature]
-    assert eopatch_copy.timestamp == []
+    assert eopatch_copy.timestamps == []
 
 
 @pytest.mark.parametrize(
@@ -251,7 +251,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
         [FeatureType.DATA, "BANDS-S2-L1C"],
         [FeatureType.MASK, "CLM"],
         [FeatureType.BBOX, ...],
-        [FeatureType.TIMESTAMP, None],
+        [FeatureType.TIMESTAMPS, None],
     ],
 )
 def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None:
@@ -363,7 +363,7 @@ def test_timestamp_consolidation() -> None:
     scalar = np.random.rand(10, 1)
 
     eop = EOPatch(
-        timestamp=timestamps,
+        timestamps=timestamps,
         data={"DATA": data},
         mask={"MASK": mask},
         scalar={"SCALAR": scalar},
@@ -377,7 +377,7 @@ def test_timestamp_consolidation() -> None:
 
     removed_frames = eop.consolidate_timestamps(good_timestamps)
 
-    assert good_timestamps[:-1] == eop.timestamp
+    assert good_timestamps[:-1] == eop.timestamps
     assert len(removed_frames) == 2
     assert timestamps[0] in removed_frames
     assert timestamps[-1] in removed_frames

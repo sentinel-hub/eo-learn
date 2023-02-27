@@ -66,7 +66,7 @@ def merge_eopatches(
         - 'mean': Join arrays by taking mean values. Ignore NaN values.
         - 'median': Join arrays by taking median values. Ignore NaN values.
 
-    :return: Merged EOPatch
+    :return: Contents of a merged EOPatch
     """
     reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
@@ -93,15 +93,14 @@ def merge_eopatches(
         if feature_type.is_vector():
             eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
 
-        if feature_type is FeatureType.TIMESTAMP:
+        if feature_type is FeatureType.TIMESTAMPS:
             eopatch_content[feature] = timestamps
 
         if feature_type is FeatureType.META_INFO:
             feature_name = cast(str, feature_name)  # parser makes sure of it
             eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
 
-        if feature_type is FeatureType.BBOX:
-            eopatch_content[feature] = _get_common_bbox(eopatches)
+    eopatch_content[(FeatureType.BBOX, None)] = _get_common_bbox(eopatches)
 
     return eopatch_content
 
@@ -139,7 +138,7 @@ def _merge_timestamps(
     """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
-    timestamps_per_eopatch = [eopatch.timestamp for eopatch in eopatches]
+    timestamps_per_eopatch = [eopatch.timestamps for eopatch in eopatches]
     all_timestamps = [timestamp for eopatch_timestamps in timestamps_per_eopatch for timestamp in eopatch_timestamps]
 
     if not all_timestamps:
@@ -167,7 +166,7 @@ def _check_if_optimize(eopatches: Sequence[EOPatch], operation_input: OperationI
     """Checks whether optimisation of `_merge_time_dependent_raster_feature` is possible"""
     if operation_input not in [None, "mean", "median", "min", "max"]:
         return False
-    timestamp_list = [eopatch.timestamp for eopatch in eopatches]
+    timestamp_list = [eopatch.timestamps for eopatch in eopatches]
     return _all_equal(timestamp_list)
 
 

@@ -11,16 +11,16 @@ file in the root directory of this source tree.
 """
 
 import copy
-import datetime
 import pickle
-from typing import Dict, Iterable, Tuple, Union
+from datetime import datetime
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union
 
 import numpy as np
 import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_equal
+from numpy.testing import assert_array_equal, assert_equal
 from pytest import approx
 
 from sentinelhub import CRS, BBox
@@ -46,63 +46,66 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
+from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_features
+
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 
 @pytest.fixture(name="patch")
-def patch_fixture():
+def patch_fixture() -> EOPatch:
     patch = EOPatch()
-    patch.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    patch.mask_timeless["mask"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+    patch.data["bands"] = np.arange(5 * 3 * 4 * 2).reshape(5, 3, 4, 2)
+    patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
+    patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
+    patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
+    patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
+    patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.uint16)
+    patch.mask_timeless["RANDOM_UINT8"] = np.random.randint(0, 100, size=(3, 4, 1), dtype=np.int8)
     patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
-    patch.timestamp = [
-        datetime.datetime(2017, 1, 1, 10, 4, 7),
-        datetime.datetime(2017, 1, 4, 10, 14, 5),
-        datetime.datetime(2017, 1, 11, 10, 3, 51),
-        datetime.datetime(2017, 1, 14, 10, 13, 46),
-        datetime.datetime(2017, 1, 24, 10, 14, 7),
-        datetime.datetime(2017, 2, 10, 10, 1, 32),
-        datetime.datetime(2017, 2, 20, 10, 6, 35),
-        datetime.datetime(2017, 3, 2, 10, 0, 20),
-        datetime.datetime(2017, 3, 12, 10, 7, 6),
-        datetime.datetime(2017, 3, 15, 10, 12, 14),
+    patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
+    patch.timestamps = [
+        datetime(2017, 1, 14, 10, 13, 46),
+        datetime(2017, 2, 10, 10, 1, 32),
+        datetime(2017, 2, 20, 10, 6, 35),
+        datetime(2017, 3, 2, 10, 0, 20),
+        datetime(2017, 3, 12, 10, 7, 6),
     ]
     patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
 
 
-def test_copy(patch):
-    patch_copy = CopyTask().execute(patch)
-
-    assert patch == patch_copy, "Copied patch is different"
-
-    patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
-    assert "new" not in patch.data, "Dictionary of features was not copied"
+@pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
+def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
+    patch_copy = task().execute(patch)
+    assert patch_copy == patch
 
     patch_copy.data["bands"][0, 0, 0, 0] += 1
-    assert np.array_equal(patch.data["bands"], patch_copy.data["bands"]), "Data should not be copied"
+    assert (patch_copy != patch) if task == DeepCopyTask else (patch_copy == patch)
+
+    patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
+    assert "new" not in patch.data
 
 
-def test_deepcopy(patch):
-    patch_deepcopy = DeepCopyTask().execute(patch)
+@pytest.mark.parametrize(
+    "features",
+    [
+        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.BBOX, None)],
+        [(FeatureType.TIMESTAMP, None), (FeatureType.SCALAR, "values")],
+    ],
+)
+@pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
+def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: EOPatch) -> None:
+    patch_copy = task(features=features)(patch)
 
-    assert patch == patch_deepcopy, "Deep copied patch is different"
+    assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
 
-    patch_deepcopy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
-    assert "new" not in patch.data, "Dictionary of features was not copied"
-
-    patch_deepcopy.data["bands"][0, 0, 0, 0] += 1
-    assert not np.array_equal(patch.data["bands"], patch_deepcopy.data["bands"]), "Data should be copied"
-
-
-def test_partial_copy(patch):
-    partial_copy = DeepCopyTask(features=[(FeatureType.MASK_TIMELESS, "mask"), FeatureType.BBOX]).execute(patch)
-    expected_patch = EOPatch(mask_timeless=patch.mask_timeless, bbox=patch.bbox)
-    assert partial_copy == expected_patch, "Partial copying was not successful"
-
-    partial_deepcopy = DeepCopyTask(features=[FeatureType.TIMESTAMP, (FeatureType.SCALAR, "values")]).execute(patch)
-    expected_patch = EOPatch(scalar=patch.scalar, timestamp=patch.timestamp)
-    assert partial_deepcopy == expected_patch, "Partial deep copying was not successful"
+    for feature in features:
+        if isinstance(patch[feature], np.ndarray):
+            assert_array_equal(patch_copy[feature], patch[feature])
+        else:
+            assert patch_copy[feature] == patch[feature]
 
 
 def test_load_task(test_eopatch_path):
@@ -113,11 +116,11 @@ def test_load_task(test_eopatch_path):
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
 
-    assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMP not in partial_patch
+    assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMPS not in partial_patch
 
-    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMP])
+    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMPS])
     upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
-    assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMP in upgraded_partial_patch
+    assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMPS in upgraded_partial_patch
     assert FeatureType.DATA not in upgraded_partial_patch
 
 
@@ -148,213 +151,195 @@ def test_io_task_pickling(filesystem, task_class):
     assert isinstance(unpickled_task, task_class)
 
 
-def test_add_rename_remove_feature(patch):
-    cloud_mask = np.arange(10).reshape(5, 2, 1, 1)
-    feature_name = "CLOUD MASK"
-    new_feature_name = "CLM"
+@pytest.mark.parametrize(
+    "feature, feature_data",
+    [
+        ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
+        ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
+        ((FeatureType.TIMESTAMPS, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
+    ],
+)
+def test_add_feature(feature: FeatureSpec, feature_data: Any) -> None:
+    # this test should fail for bbox and timestamps after rework
+    patch = EOPatch(bbox=DUMMY_BBOX)
+    assert feature not in patch
+    patch = AddFeatureTask(feature)(patch, feature_data)
 
-    patch = copy.deepcopy(patch)
-
-    patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, cloud_mask)
-    assert np.array_equal(patch.mask[feature_name], cloud_mask), "Feature was not added"
-
-    patch = RenameFeatureTask((FeatureType.MASK, feature_name, new_feature_name))(patch)
-    assert np.array_equal(patch.mask[new_feature_name], cloud_mask), "Feature was not renamed"
-    assert feature_name not in patch[FeatureType.MASK], "Old feature still exists"
-
-    patch = RemoveFeatureTask((FeatureType.MASK, new_feature_name))(patch)
-    assert feature_name not in patch.mask, "Feature was not removed"
-
-    patch = RemoveFeatureTask((FeatureType.MASK_TIMELESS, ...))(patch)
-    assert len(patch.mask_timeless) == 0, "mask_timeless features were not removed"
-
-    patch = RemoveFeatureTask((FeatureType.MASK, ...))(patch)
-    assert len(patch.mask) == 0, "mask features were not removed"
+    if isinstance(feature_data, np.ndarray):
+        assert_array_equal(patch[feature], feature_data)
+    else:
+        assert patch[feature] == feature_data
 
 
-def test_duplicate_feature(patch):
-    mask_data = np.arange(10).reshape(5, 2, 1, 1)
-    feature_name = "MASK1"
-    duplicate_name = "MASK2"
+def test_rename_feature(patch: EOPatch) -> None:
+    f_type, f_name, f_new_name = FeatureType.DATA, "bands", "new_bands"
+    assert (f_type, f_new_name) not in patch
+    patch_copy = copy.deepcopy(patch)
 
-    patch = AddFeatureTask((FeatureType.MASK, feature_name))(patch, mask_data)
+    patch = RenameFeatureTask((f_type, f_name, f_new_name))(patch)
+    assert_array_equal(patch[(f_type, f_new_name)], patch_copy[(f_type, f_name)])
+    assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
-    duplicate_task = DuplicateFeatureTask((FeatureType.MASK, feature_name, duplicate_name))
-    patch = duplicate_task(patch)
 
-    assert duplicate_name in patch.mask, "Feature was not duplicated. Name not found."
-    assert id(patch.mask["MASK1"]) == id(patch.mask["MASK2"])
-    assert np.array_equal(
-        patch.mask[duplicate_name], mask_data
-    ), "Feature was not duplicated correctly. Data does not match."
+@pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMPS, None)])
+def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
+    patch_copy = copy.deepcopy(patch)
+    assert feature in patch
 
+    patch = RemoveFeatureTask(feature)(patch)
+    assert feature not in patch
+
+    del patch_copy[feature]
+    assert patch == patch_copy
+
+
+@pytest.mark.skip
+def test_remove_fails(patch: EOPatch) -> None:
+    with pytest.raises(ValueError):
+        RemoveFeatureTask((FeatureType.BBOX, None))(patch)
+
+
+@pytest.mark.parametrize(
+    "feature_specification",
+    [
+        [(FeatureType.DATA, "bands", "bands2")],
+        [(FeatureType.DATA, "bands", "bands2"), (FeatureType.MASK_TIMELESS, "mask", "mask2")],
+        [(FeatureType.DATA, "bands", f"bands{i}") for i in range(5)],
+    ],
+)
+@pytest.mark.parametrize("deep", [True, False])
+def test_duplicate_feature(feature_specification: List[FeatureRenameSpec], deep: bool, patch: EOPatch) -> None:
+    patch = DuplicateFeatureTask(feature_specification, deep)(patch)
+
+    for f_type, f_name, f_dup_name in feature_specification:
+        original_feature = (f_type, f_name)
+        duplicated_feature = (f_type, f_dup_name)
+        assert duplicated_feature in patch
+
+        original_id = id(patch[original_feature])
+        duplicated_id = id(patch[duplicated_feature])
+        assert original_id != duplicated_id if deep else original_id == duplicated_id
+
+        assert_array_equal(patch[original_feature], patch[duplicated_feature])
+
+
+def test_duplicate_feature_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         # Expected a ValueError when creating an already exising feature.
-        patch = duplicate_task(patch)
-
-    duplicate_names = {"D1", "D2"}
-    feature_list = [(FeatureType.MASK, "MASK1", "D1"), (FeatureType.MASK, "MASK2", "D2")]
-    patch = DuplicateFeatureTask(feature_list).execute(patch)
-
-    assert duplicate_names.issubset(patch.mask), "Duplicating multiple features failed."
-
-    patch = DuplicateFeatureTask((FeatureType.MASK, "MASK1", "DEEP"), deep_copy=True)(patch)
-    assert id(patch.mask["MASK1"]) != id(patch.mask["DEEP"])
-    assert np.array_equal(
-        patch.mask["MASK1"], patch.mask["DEEP"]
-    ), "Feature was not duplicated correctly. Data does not match."
-
-    # Duplicating MASK1 three times into D3, D4, D5 doesn't work, because EOTask.feature_gen
-    # returns a dict containing only ('MASK1', 'D5') duplication
-
-    duplicate_names = {"D3", "D4", "D5"}
-    feature_list = [(FeatureType.MASK, "MASK1", new) for new in duplicate_names]
-    patch = DuplicateFeatureTask(feature_list).execute(patch)
-
-    assert duplicate_names.issubset(patch.mask), "Duplicating single feature multiple times failed."
+        DuplicateFeatureTask((FeatureType.DATA, "bands", "bands"))(patch)
 
 
-def test_initialize_feature(patch):
-    patch = DeepCopyTask()(patch)
+@pytest.mark.parametrize(
+    "init_val, shape, feature_spec",
+    [
+        (8, (5, 2, 6, 3), (FeatureType.MASK, "test")),
+        (9, (1, 4, 3), (FeatureType.MASK_TIMELESS, "test")),
+        (7, (5, 2, 7, 4), {FeatureType.MASK: ["F1", "F2", "F3"]}),
+    ],
+)
+def test_initialize_feature(
+    init_val: float, shape: Tuple[int, ...], feature_spec: FeaturesSpecification, patch: EOPatch
+) -> None:
+    expected_data = init_val * np.ones(shape)
+    patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
 
-    init_val = 123
-    shape = (5, 10, 10, 3)
-    compare_data = np.ones(shape) * init_val
+    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
 
-    patch = InitializeFeatureTask((FeatureType.MASK, "test"), shape=shape, init_value=init_val)(patch)
-    assert patch.mask["test"].shape == shape
-    assert np.array_equal(patch.mask["test"], compare_data)
 
+@pytest.mark.parametrize(
+    "init_val, shape, feature_spec",
+    [
+        (3, (FeatureType.DATA, "bands"), {FeatureType.MASK: ["F1", "F2", "F3"]}),
+    ],
+)
+def test_initialize_feature_with_spec(
+    init_val: float, shape: FeatureSpec, feature_spec: FeaturesSpecification, patch: EOPatch
+) -> None:
+    expected_data = init_val * np.ones(patch[shape].shape)
+
+    patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
+    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
+
+
+def test_initialize_feature_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
-        patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, "wrong"), shape=shape, init_value=init_val)(patch)
-
-    init_val = 123
-    shape = (10, 10, 3)
-    compare_data = np.ones(shape) * init_val
-
-    patch = InitializeFeatureTask((FeatureType.MASK_TIMELESS, "test"), shape=shape, init_value=init_val)(patch)
-    assert patch.mask_timeless["test"].shape == shape
-    assert np.array_equal(patch.mask_timeless["test"], compare_data)
-
-    with pytest.raises(ValueError):
-        # Expected a ValueError when trying to initialize a feature with a wrong shape dimensions.
-        patch = InitializeFeatureTask((FeatureType.MASK, "wrong"), shape=shape, init_value=init_val)(patch)
-
-    init_val = 123
-    shape = (5, 10, 10, 3)
-    compare_data = np.ones(shape) * init_val
-    new_names = ("F1", "F2", "F3")
-
-    patch = InitializeFeatureTask({FeatureType.MASK: new_names}, shape=shape, init_value=init_val)(patch)
-    assert set(new_names) < set(patch.mask), "Failed to initialize new features from a shape tuple."
-    assert all(patch.mask[key].shape == shape for key in new_names)
-    assert all(np.array_equal(patch.mask[key], compare_data) for key in new_names)
-
-    patch = InitializeFeatureTask({FeatureType.DATA: new_names}, shape=(FeatureType.DATA, "bands"))(patch)
-    assert set(new_names) < set(patch.data), "Failed to initialize new features from an existing feature."
-    assert all(patch.data[key].shape == patch.data["bands"].shape for key in new_names)
-
-    with pytest.raises(ValueError):
-        InitializeFeatureTask({FeatureType.DATA: new_names}, 1234)
+        InitializeFeatureTask((FeatureType.MASK_TIMELESS, "wrong"), (5, 10, 10, 3), 123)(patch)
 
 
-def test_move_feature():
-    patch_src = EOPatch()
-    patch_dst = EOPatch()
+@pytest.mark.parametrize("deep", [True, False])
+@pytest.mark.parametrize(
+    "features",
+    [
+        [(FeatureType.DATA, "bands")],
+        [(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")],
+        [(FeatureType.DATA, "bands"), (FeatureType.BBOX, None)],
+    ],
+)
+def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:
+    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX))
 
-    shape = (10, 5, 5, 3)
-    size = np.product(shape)
+    for feat in features:
+        assert feat in patch_dst
 
-    shape_timeless = (5, 5, 3)
-    size_timeless = np.product(shape_timeless)
+        original_id = id(patch[feat])
+        duplicated_id = id(patch_dst[feat])
+        assert original_id != duplicated_id if deep else original_id == duplicated_id
 
-    data = [np.random.randint(0, 100, size).reshape(*shape) for i in range(3)] + [
-        np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for i in range(2)
-    ]
-
-    features = [
-        (FeatureType.DATA, "D1"),
-        (FeatureType.DATA, "D2"),
-        (FeatureType.MASK, "M1"),
-        (FeatureType.MASK_TIMELESS, "MTless1"),
-        (FeatureType.MASK_TIMELESS, "MTless2"),
-    ]
-
-    for feat, dat in zip(features, data):
-        patch_src = AddFeatureTask(feat)(patch_src, dat)
-
-    patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
-
-    for i, feature in enumerate(features):
-        assert id(data[i]) == id(patch_dst[feature])
-        assert np.array_equal(data[i], patch_dst[feature])
-
-    patch_dst = EOPatch()
-    patch_dst = MoveFeatureTask(features, deep_copy=True)(patch_src, patch_dst)
-
-    for i, feature in enumerate(features):
-        assert id(data[i]) != id(patch_dst[feature])
-        assert np.array_equal(data[i], patch_dst[feature])
-
-    features = [(FeatureType.MASK_TIMELESS, ...)]
-    patch_dst = EOPatch()
-    patch_dst = MoveFeatureTask(features)(patch_src, patch_dst)
-
-    assert FeatureType.DATA not in patch_dst, "FeatureType.DATA features were moved but shouldn't be."
-
-    assert (FeatureType.MASK_TIMELESS, "MTless1") in patch_dst
-    assert (FeatureType.MASK_TIMELESS, "MTless2") in patch_dst
+        if isinstance(patch[feat], np.ndarray):
+            assert_array_equal(patch[feat], patch_dst[feat])
+        else:
+            assert patch[feat] == patch_dst[feat]
 
 
-@pytest.mark.parametrize("axis", (0, -1))
-def test_merge_features(axis):
-    patch = EOPatch()
+@pytest.mark.parametrize(
+    "features_to_merge, feature, axis",
+    [
+        ([(FeatureType.DATA, "bands")], (FeatureType.DATA, "merged"), 0),
+        ([(FeatureType.DATA, "bands"), (FeatureType.DATA, "CLP")], (FeatureType.DATA, "merged"), -1),
+        ([(FeatureType.DATA, "CLP_S2C"), (FeatureType.DATA, "CLP")], (FeatureType.DATA, "merged"), 0),
+        (
+            [
+                (FeatureType.MASK_TIMELESS, "RANDOM_UINT8"),
+                (FeatureType.MASK_TIMELESS, "mask"),
+                (FeatureType.MASK_TIMELESS, "LULC"),
+            ],
+            (FeatureType.MASK_TIMELESS, "merged_timeless"),
+            -1,
+        ),
+    ],
+)
+def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature: FeatureSpec, patch: EOPatch) -> None:
+    patch = MergeFeatureTask(features_to_merge, feature, axis=axis)(patch)
+    expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
 
-    shape = (10, 5, 5, 3)
-    size = np.product(shape)
-
-    shape_timeless = (5, 5, 3)
-    size_timeless = np.product(shape_timeless)
-
-    data = [np.random.randint(0, 100, size).reshape(*shape) for _ in range(3)] + [
-        np.random.randint(0, 100, size_timeless).reshape(*shape_timeless) for _ in range(2)
-    ]
-
-    features = [
-        (FeatureType.DATA, "D1"),
-        (FeatureType.DATA, "D2"),
-        (FeatureType.MASK, "M1"),
-        (FeatureType.MASK_TIMELESS, "MTless1"),
-        (FeatureType.MASK_TIMELESS, "MTless2"),
-    ]
-
-    for feat, dat in zip(features, data):
-        patch = AddFeatureTask(feat)(patch, dat)
-
-    patch = MergeFeatureTask(features[:3], (FeatureType.MASK, "merged"), axis=axis)(patch)
-    patch = MergeFeatureTask(features[3:], (FeatureType.MASK_TIMELESS, "merged_timeless"), axis=axis)(patch)
-
-    expected = np.concatenate([patch[f] for f in features[:3]], axis=axis)
-
-    assert np.array_equal(patch.mask["merged"], expected)
+    assert_array_equal(patch[feature], expected)
 
 
-def test_zip_features(test_eopatch):
-    merge = ZipFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},  # input features
-        (FeatureType.DATA, "MERGED"),  # output feature
-        lambda *f: np.concatenate(f, axis=-1),
-    )
+@pytest.mark.parametrize(
+    "features_to_zip, feature, function",
+    [
+        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), np.maximum),
+        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), lambda a, b: a + b),
+        (
+            {FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"]},
+            (FeatureType.MASK_TIMELESS, "ziped"),
+            lambda a, b, c: a + b + c - 10,
+        ),
+    ],
+)
+def test_zip_features(
+    features_to_zip: FeaturesSpecification, feature: FeatureSpec, function: Callable, patch: EOPatch
+) -> None:
+    expected = function(*[patch[f] for f in parse_features(features_to_zip)])
+    patch = ZipFeatureTask(features_to_zip, feature, function)(patch)
 
-    patch = merge(test_eopatch)
+    assert np.array_equal(patch[feature], expected)
 
-    expected = np.concatenate([patch.data["CLP"], patch.data["NDVI"], patch.data["BANDS-S2-L1C"]], axis=-1)
-    assert np.array_equal(patch.data["MERGED"], expected)
 
-    zip_fail = ZipFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, (FeatureType.DATA, "MERGED"))
+def test_zip_features_fails(patch: EOPatch) -> None:
     with pytest.raises(NotImplementedError):
-        zip_fail(patch)
+        ZipFeatureTask({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "MERGED"))(patch)
 
 
 def test_map_features(test_eopatch):
