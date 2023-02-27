@@ -363,8 +363,8 @@ def test_map_features(
         assert_array_equal(original_patch[feature], mapped_patch[feature]), "Task changed input data."
 
     for in_feature, out_feature in zip(parse_features(input_features), parse_features(output_features)):
-        expected_output = map_function(patch[in_feature])
-        assert_array_equal(patch[out_feature], expected_output)
+        expected_output = map_function(mapped_patch[in_feature])
+        assert_array_equal(mapped_patch[out_feature], expected_output)
 
 
 @pytest.mark.parametrize("input_features, map_function", [({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3)])
