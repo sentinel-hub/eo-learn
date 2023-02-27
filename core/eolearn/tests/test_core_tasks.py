@@ -343,7 +343,7 @@ def test_zip_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "feature_spcification_original, feature_spcification_mapped, map_function",
+    "feature_specification_original, feature_specification_mapped, map_function",
     [
         ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3),
         ({FeatureType.MASK_TIMELESS: ["mask", "LULC"]}, {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]}, copy.deepcopy),
@@ -351,15 +351,15 @@ def test_zip_features_fails(patch: EOPatch) -> None:
     ],
 )
 def test_map_features(
-    feature_spcification_original: FeaturesSpecification,
-    feature_spcification_mapped: FeaturesSpecification,
+    feature_specification_original: FeaturesSpecification,
+    feature_specification_mapped: FeaturesSpecification,
     map_function: Callable,
     patch: EOPatch,
 ) -> None:
-    original_feature_parsed = parse_features(feature_spcification_original)
-    mapped_feature_parsed = parse_features(feature_spcification_mapped)
+    original_feature_parsed = parse_features(feature_specification_original)
+    mapped_feature_parsed = parse_features(feature_specification_mapped)
 
-    patch = MapFeatureTask(feature_spcification_original, feature_spcification_mapped, map_function)(patch)
+    patch = MapFeatureTask(feature_specification_original, feature_specification_mapped, map_function)(patch)
 
     for feature_mapped, feature_original in zip(mapped_feature_parsed, original_feature_parsed):
         expected = map_function(patch[feature_original])
@@ -369,17 +369,14 @@ def test_map_features(
 
 
 @pytest.mark.parametrize(
-    "feature_spcification, map_function",
-    [
-        ({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3),
-    ],
+    "feature_specification, map_function", [({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3)]
 )
-def test_map_features_overwrit(
-    feature_spcification: FeaturesSpecification, map_function: Callable, patch: EOPatch
+def test_map_features_overwrite(
+    feature_specification: FeaturesSpecification, map_function: Callable, patch: EOPatch
 ) -> None:
-    feature_parsed = parse_features(feature_spcification)
+    feature_parsed = parse_features(feature_specification)
     expected = [map_function(patch[feat]) for feat in feature_parsed]
-    patch = MapFeatureTask(feature_spcification, feature_spcification, map_function)(patch)
+    patch = MapFeatureTask(feature_specification, feature_specification, map_function)(patch)
 
     for feature, expect in zip(feature_parsed, expected):
         assert_array_equal(patch[feature], expect)
