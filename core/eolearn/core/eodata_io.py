@@ -81,52 +81,27 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    # if not patch_exists:
-    #     filesystem.makedirs(patch_location, recreate=True)
-
     eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
     fs_features = list(walk_filesystem(filesystem, patch_location)) if patch_exists else []
 
     _check_collisions(overwrite_permission, eopatch_features, fs_features)
 
-    features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
-        (FeatureIOBBox, eopatch.bbox, fs.path.combine(patch_location, BBOX_FILENAME))
-    ]
+    # Data must be collected before any tinkering with files due to lazy-loading
+    features_to_save = _prepare_features_to_save(eopatch, patch_location, eopatch_features)
 
-    if eopatch.bbox is None:  # remove after BBox is never None
-        features_to_save = []
-
-    for ftype, fname, feature_path in eopatch_features:
-        if ftype == FeatureType.BBOX:
-            continue
-        # the paths here do not have file extensions, but FeatureIO.save takes care of that
-        feature_io = _get_feature_io_constructor(ftype)
-        data = eopatch[(ftype, fname)]
-
-        features_to_save.append((feature_io, data, feature_path))
-
-    # Cannot be done before due to lazy loading (this would delete the files before the data is loaded)
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         _remove_old_eopatch(filesystem, patch_location)
 
-    # ftype_folders = {fs.path.dirname(path) for ftype, _, path in eopatch_features if not ftype.is_meta()}
     ftype_folders = {fs.path.dirname(path) for _, _, path in eopatch_features}
     for folder in ftype_folders:
         filesystem.makedirs(folder, recreate=True)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        # The following is intentionally wrapped in a list in order to get back potential exceptions
         save_function = partial(_save_single_feature, filesystem=filesystem, compress_level=compress_level)
-        list(executor.map(save_function, features_to_save))
+        list(executor.map(save_function, features_to_save))  # Wrapped in a list to get better exceptions
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
         remove_redundant_files(filesystem, eopatch_features, fs_features, compress_level)
-
-
-def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
-    filesystem.removetree(patch_location)
-    if patch_location != "/":  # avoid redundant filesystem.makedirs if the location is '/'
-        filesystem.makedirs(patch_location, recreate=True)
 
 
 def _check_collisions(
@@ -144,6 +119,33 @@ def _check_collisions(
 
     else:
         _check_letter_case_collisions(eopatch_features, [])
+
+
+def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
+    filesystem.removetree(patch_location)
+    if patch_location != "/":  # avoid redundant filesystem.makedirs if the location is '/'
+        filesystem.makedirs(patch_location, recreate=True)
+
+
+def _prepare_features_to_save(
+    eopatch: EOPatch, patch_location: str, eopatch_features: Sequence[FeatureInfo]
+) -> List[Tuple[Type[FeatureIO], Any, str]]:
+    """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
+    features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
+        (FeatureIOBBox, eopatch.bbox, fs.path.combine(patch_location, BBOX_FILENAME))
+    ]
+
+    if eopatch.bbox is None:  # remove after BBox is never None
+        features_to_save = []
+
+    for ftype, fname, feature_path in eopatch_features:
+        if ftype == FeatureType.BBOX:  # remove after BBOX is no longer a FeatureType
+            continue
+        feature_io = _get_feature_io_constructor(ftype)
+        data = eopatch[(ftype, fname)]
+
+        features_to_save.append((feature_io, data, feature_path))
+    return features_to_save
 
 
 def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
@@ -166,8 +168,7 @@ def remove_redundant_files(
             files_to_remove.append(path)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        # The following is intentionally wrapped in a list in order to get back potential exceptions
-        list(executor.map(filesystem.remove, files_to_remove))
+        list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
 def load_eopatch(
