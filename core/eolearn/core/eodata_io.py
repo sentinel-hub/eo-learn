@@ -123,8 +123,7 @@ def _check_collisions(
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
     filesystem.removetree(patch_location)
-    if patch_location != "/":  # avoid redundant filesystem.makedirs if the location is '/'
-        filesystem.makedirs(patch_location, recreate=True)
+    filesystem.makedirs(patch_location, recreate=True)
 
 
 def _prepare_features_to_save(
