@@ -406,9 +406,10 @@ def test_explode_bands(
 def test_extract_bands(patch: EOPatch) -> None:
     bands = [2, 4, 6]
     patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), bands)(patch)
-
     assert_array_equal(patch.data["MOVED_BANDS"], patch.data["bands"][..., bands])
-    assert all([(id(patch.data["MOVED_BANDS"][band]) != id(patch.data["bands"][band]) for band in bands)])
+
+    patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1
+    assert patch.data["MOVED_BANDS"][0, 0, 0, 0] != patch.data["bands"][0, 0, 0, bands[0]]
 
 
 def test_extract_bands_fails(patch: EOPatch) -> None:
