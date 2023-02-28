@@ -488,7 +488,10 @@ def test_merge_eopatches(
     patch = MergeEOPatchesTask(**merge_parameters)(*[patch for _ in range(number_of_patch)])
 
     for feature_spec, expected in test_expectation.items():
-        assert_array_equal(patch[feature_spec], expected)
+        if isinstance(expected, np.ndarray):
+            assert_array_equal(patch[feature_spec], expected)
+        else:
+            assert patch[feature_spec] == expected
 
 
 def test_merge_eopatches_fails() -> None:
