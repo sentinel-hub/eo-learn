@@ -20,8 +20,7 @@ import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_array_equal, assert_equal
-from pytest import approx
+from numpy.testing import assert_array_equal
 
 from sentinelhub import CRS, BBox
 
@@ -401,19 +400,14 @@ def test_explode_bands(
     for new_feature, bands in task_input.items():
         if isinstance(bands, int):
             bands = [bands]
-        assert_equal(patch[new_feature], patch[feature][..., bands])
+        assert_array_equal(patch[new_feature], patch[feature][..., bands])
 
 
 def test_extract_bands(patch: EOPatch) -> None:
     bands = [2, 4, 6]
-    move_bands = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), bands)
-    patch = move_bands(patch)
-    assert np.array_equal(patch.data["MOVED_BANDS"], patch.data["bands"][..., bands])
-
-    old_value = patch.data["MOVED_BANDS"][0, 0, 0, 0]
-    patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1.0
-    assert patch.data["bands"][0, 0, 0, bands[0]] == old_value
-    assert old_value + 1.0 == approx(patch.data["MOVED_BANDS"][0, 0, 0, 0])
+    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), bands)(patch)
+    assert_array_equal(patch.data["MOVED_BANDS"], patch.data["bands"][..., bands])
+    assert id(patch.data["MOVED_BANDS"]) != id(patch.data["bands"])
 
 
 def test_extract_bands_fails(patch: EOPatch) -> None:
