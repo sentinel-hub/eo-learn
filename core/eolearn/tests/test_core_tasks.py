@@ -62,8 +62,8 @@ def patch_fixture() -> EOPatch:
     patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
     patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.uint16)
     patch.mask_timeless["RANDOM_UINT8"] = np.random.randint(0, 100, size=(3, 4, 1), dtype=np.int8)
-    patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
-    patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
+    patch.scalar["values"] = np.arange(10 * 5).reshape(5, 10)
+    patch.scalar["CLOUD_COVERAGE"] = np.ones((5, 10))
     patch.timestamps = [
         datetime(2017, 1, 14, 10, 13, 46),
         datetime(2017, 2, 10, 10, 1, 32),
@@ -455,9 +455,7 @@ def test_kwargs():
     assert np.array_equal(patch[(FeatureType.DATA, "MAX2")], np.maximum(data1, data2))
 
 
-def test_merge_eopatches(test_eopatch):
+def test_merge_eopatches(patch: EOPatch) -> None:
     task = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")
 
-    del test_eopatch.data["REFERENCE_SCENES"]  # wrong time dimension
-
-    task.execute(test_eopatch, test_eopatch, test_eopatch)
+    task.execute(patch, patch, patch)
