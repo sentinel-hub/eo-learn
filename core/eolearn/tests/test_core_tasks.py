@@ -394,7 +394,7 @@ def test_explode_bands(
     test_eopatch: EOPatch,
     feature: FeatureType,
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
-):
+) -> None:
     move_bands = ExplodeBandsTask(feature, task_input)
     patch = move_bands(test_eopatch)
     assert all(new_feature in patch for new_feature in task_input)
@@ -405,7 +405,7 @@ def test_explode_bands(
         assert_equal(patch[new_feature], test_eopatch[feature][..., bands])
 
 
-def test_extract_bands(test_eopatch):
+def test_extract_bands(test_eopatch: EOPatch) -> None:
     bands = [2, 4, 8]
     move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
     patch = move_bands(test_eopatch)
@@ -416,10 +416,12 @@ def test_extract_bands(test_eopatch):
     assert patch.data["REFERENCE_SCENES"][0, 0, 0, bands[0]] == old_value
     assert old_value + 1.0 == approx(patch.data["MOVED_BANDS"][0, 0, 0, 0])
 
+
+def test_extract_bands_fails(test_eopatch: EOPatch) -> None:
     bands = [2, 4, 16]
     move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
     with pytest.raises(ValueError):
-        move_bands(patch)
+        move_bands(test_eopatch)
 
 
 def test_create_eopatch():
