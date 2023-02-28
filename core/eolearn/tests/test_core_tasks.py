@@ -349,7 +349,7 @@ def test_zip_features(
         ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "feat_sum_+3"), lambda x, y, a: x + y + a, {"a": 3}),
     ],
 )
-def test_zip_kwargs_passing(
+def test_zip_kwargs(
     input_features: FeaturesSpecification,
     output_feature: FeatureSpec,
     zip_function: Callable,
@@ -418,7 +418,7 @@ def test_map_features(test_eopatch):
         ),
     ],
 )
-def test_map_kwargs_passing(
+def test_map_kwargs(
     input_features: FeaturesSpecification,
     output_features: FeaturesSpecification,
     map_function: Callable,
@@ -430,6 +430,22 @@ def test_map_kwargs_passing(
     for in_feature, out_feature in zip(parse_features(input_features), parse_features(output_features)):
         expected_output = map_function(mapped_patch[in_feature], **kwargs)
         assert_array_equal(mapped_patch[out_feature], expected_output)
+
+
+@pytest.mark.parametrize(
+    "input_feature, kwargs",
+    [
+        ((FeatureType.DATA, "bands"), {"axis": -1, "name": "fun_name", "bands": [4, 3, 2]}),
+    ],
+)
+def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], patch: EOPatch) -> None:
+    def kwargs_map(data, *, some=3, **kwargs) -> tuple:
+        return some, kwargs
+
+    mapped_patch = MapFeatureTask(input_feature, (FeatureType.META_INFO, "kwargs"), kwargs_map, **kwargs)(patch)
+
+    expected_output = kwargs_map(mapped_patch[input_feature], **kwargs)
+    assert_array_equal(mapped_patch[(FeatureType.META_INFO, "kwargs")], expected_output)
 
 
 @pytest.mark.parametrize(
