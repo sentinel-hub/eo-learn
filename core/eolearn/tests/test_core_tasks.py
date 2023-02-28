@@ -55,7 +55,7 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
     patch = EOPatch()
-    patch.data["bands"] = np.arange(5 * 3 * 4 * 2).reshape(5, 3, 4, 2)
+    patch.data["bands"] = np.arange(5 * 3 * 4 * 8).reshape(5, 3, 4, 8)
     patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
     patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
     patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
@@ -405,23 +405,22 @@ def test_explode_bands(
         assert_equal(patch[new_feature], test_eopatch[feature][..., bands])
 
 
-def test_extract_bands(test_eopatch: EOPatch) -> None:
-    bands = [2, 4, 8]
-    move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
-    patch = move_bands(test_eopatch)
-    assert np.array_equal(patch.data["MOVED_BANDS"], patch.data["REFERENCE_SCENES"][..., bands])
+def test_extract_bands(patch: EOPatch) -> None:
+    bands = [2, 4, 6]
+    move_bands = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), bands)
+    patch = move_bands(patch)
+    assert np.array_equal(patch.data["MOVED_BANDS"], patch.data["bands"][..., bands])
 
     old_value = patch.data["MOVED_BANDS"][0, 0, 0, 0]
     patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1.0
-    assert patch.data["REFERENCE_SCENES"][0, 0, 0, bands[0]] == old_value
+    assert patch.data["bands"][0, 0, 0, bands[0]] == old_value
     assert old_value + 1.0 == approx(patch.data["MOVED_BANDS"][0, 0, 0, 0])
 
 
-def test_extract_bands_fails(test_eopatch: EOPatch) -> None:
-    bands = [2, 4, 16]
-    move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
+def test_extract_bands_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
-        move_bands(test_eopatch)
+        # fails because band 16 does not exist
+        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), [2, 4, 16])(patch)
 
 
 def test_create_eopatch():
