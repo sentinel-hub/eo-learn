@@ -81,44 +81,44 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    eopatch_features = list(walk_eopatch(eopatch, patch_location, features))
-    fs_features = list(walk_filesystem(filesystem, patch_location)) if patch_exists else []
+    files_to_save = list(walk_eopatch(eopatch, patch_location, features))
+    existing_files = list(walk_filesystem(filesystem, patch_location)) if patch_exists else []
 
-    _check_collisions(overwrite_permission, eopatch_features, fs_features)
+    _check_collisions(overwrite_permission, files_to_save, existing_files)
 
     # Data must be collected before any tinkering with files due to lazy-loading
-    features_to_save = _prepare_features_to_save(eopatch, patch_location, eopatch_features)
+    data_for_saving = _prepare_features_to_save(eopatch, patch_location, files_to_save)
 
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         _remove_old_eopatch(filesystem, patch_location)
 
-    ftype_folders = {fs.path.dirname(path) for _, _, path in eopatch_features}
+    ftype_folders = {fs.path.dirname(path) for _, _, path in files_to_save}
     for folder in ftype_folders:
         filesystem.makedirs(folder, recreate=True)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         save_function = partial(_save_single_feature, filesystem=filesystem, compress_level=compress_level)
-        list(executor.map(save_function, features_to_save))  # Wrapped in a list to get better exceptions
+        list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-        remove_redundant_files(filesystem, eopatch_features, fs_features, compress_level)
+        remove_redundant_files(filesystem, files_to_save, existing_files, compress_level)
 
 
 def _check_collisions(
     overwrite_permission: OverwritePermission,
-    eopatch_features: Sequence[FeatureInfo],
-    fs_features: Sequence[FeatureInfo],
+    files_to_save: Sequence[FeatureInfo],
+    existing_files: Sequence[FeatureInfo],
 ):
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
-        _check_letter_case_collisions(eopatch_features, fs_features)
-        _check_add_only_permission(eopatch_features, fs_features)
+        _check_letter_case_collisions(files_to_save, existing_files)
+        _check_add_only_permission(files_to_save, existing_files)
 
     elif platform.system() == "Windows" and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
-        _check_letter_case_collisions(eopatch_features, fs_features)
+        _check_letter_case_collisions(files_to_save, existing_files)
 
     else:
-        _check_letter_case_collisions(eopatch_features, [])
+        _check_letter_case_collisions(files_to_save, [])
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -127,7 +127,7 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 
 
 def _prepare_features_to_save(
-    eopatch: EOPatch, patch_location: str, eopatch_features: Sequence[FeatureInfo]
+    eopatch: EOPatch, patch_location: str, files_to_save: Sequence[FeatureInfo]
 ) -> List[Tuple[Type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
     features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
@@ -137,7 +137,7 @@ def _prepare_features_to_save(
     if eopatch.bbox is None:  # remove after BBox is never None
         features_to_save = []
 
-    for ftype, fname, feature_path in eopatch_features:
+    for ftype, fname, feature_path in files_to_save:
         if ftype == FeatureType.BBOX:  # remove after BBOX is no longer a FeatureType
             continue
         feature_io = _get_feature_io_constructor(ftype)
