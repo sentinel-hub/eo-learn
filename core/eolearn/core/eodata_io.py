@@ -20,6 +20,7 @@ import platform
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from dataclasses import dataclass
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -33,6 +34,7 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Type,
     TypeVar,
@@ -70,6 +72,40 @@ FeatureInfo = Tuple[FeatureType, Union[str, EllipsisType], str]
 BBOX_FILENAME = "bbox"
 
 
+@dataclass
+class FeatureFileInfo:
+    """Information container for data on where a feature is (to be) saved."""
+
+    feature: Tuple[FeatureType, str]
+    relative_file_path: str
+
+    def to_old(self) -> FeatureInfo:
+        """Reverts data to old representation."""
+        return (*self.feature, self.relative_file_path)
+
+
+@dataclass
+class MetaFeatureFileInfo:
+    """Information container for data on where a feature is (to be) saved."""
+
+    feature_type: FeatureType
+    relative_file_path: str
+
+    def to_old(self) -> FeatureInfo:
+        """Reverts data to old representation."""
+        return (self.feature_type, ..., self.relative_file_path)
+
+
+@dataclass
+class FilesystemDataInfo:
+    """Information about data that is present on the filesystem. Fields represent paths to relevant file."""
+
+    timestamps: Optional[str]
+    bbox: Optional[str]
+    meta_info: Optional[str]
+    features: Dict[FeatureType, Dict[str, str]]
+
+
 def save_eopatch(
     eopatch: EOPatch,
     filesystem: FS,
@@ -81,7 +117,8 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    files_to_save = list(walk_eopatch(eopatch, patch_location, features))
+    files_to_save_new = list(walk_eopatch(eopatch, patch_location, features))
+    files_to_save = [x.to_old() for x in files_to_save_new]
     existing_files = list(walk_filesystem(filesystem, patch_location)) if patch_exists else []
 
     _check_collisions(overwrite_permission, files_to_save, existing_files)
@@ -193,7 +230,72 @@ def load_eopatch(
     return eopatch
 
 
+def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature_types: Set[FeatureType]):
+    """Gets information about files that are part of the EOPatch. Skips features that are not relevant to reduce IO."""
+    result = FilesystemDataInfo(bbox=None, timestamps=None, meta_info=None, features=defaultdict(dict))
+
+    fname: Union[str, EllipsisType]
+    for path in filesystem.listdir(folder_path):
+        raw_path = path.split(".")[0].strip("/")
+
+        if "/" in raw_path:  # For cases where S3 does not have a regular folder structure
+            ftype_str, fname = fs.path.split(raw_path)
+            result.features[FeatureType(ftype_str)][fname] = path
+            continue
+
+        ftype_str = raw_path
+
+        if ftype_str == "timestamp":
+            warnings.warn(
+                (
+                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated naming `timestamp` for"
+                    " the `timestamps` feature. The old name will no longer be valid in the future. You can re-save"
+                    " the `EOPatch` to update it."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=2,
+            )
+            ftype_str = FeatureType.TIMESTAMPS.value
+
+        object_path = fs.path.combine(folder_path, path)
+        if ftype_str == FeatureType.TIMESTAMPS.value:
+            result.timestamps = object_path
+
+        elif ftype_str == BBOX_FILENAME:
+            result.bbox = object_path
+
+        elif ftype_str == FeatureType.META_INFO.value:
+            result.meta_info = object_path
+
+        elif FeatureType.has_value(ftype_str) and FeatureType(ftype_str) in relevant_feature_types:
+            result.features[FeatureType(ftype_str)] = dict(walk_feature_type_folder(filesystem, object_path))
+
+    return result
+
+
+def _filesystem_info_to_feature_info(fsinfo: FilesystemDataInfo) -> Iterator[FeatureInfo]:
+    if fsinfo.bbox:
+        yield (FeatureType.BBOX, ..., fsinfo.bbox)
+    if fsinfo.timestamps:
+        yield (FeatureType.TIMESTAMPS, ..., fsinfo.timestamps)
+    if fsinfo.meta_info:
+        yield (FeatureType.META_INFO, ..., fsinfo.meta_info)
+
+    for ftype, fnames in fsinfo.features.items():
+        yield from ((ftype, fname, fpath) for fname, fpath in fnames.items())
+
+
 def walk_filesystem(
+    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
+) -> Iterator[FeatureInfo]:
+    relevant_features = FeatureParser(features).get_feature_specifications()
+    relevant_feature_types = {ftype for ftype, _ in relevant_features}
+    fsinfo = _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
+
+    return _filesystem_info_to_feature_info(fsinfo)
+
+
+def old_walk_filesystem(
     filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
 ) -> Iterator[FeatureInfo]:
     """Recursively reads a patch_location and yields tuples of (feature_type, feature_name, file_path)."""
@@ -276,20 +378,22 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
             yield path.split(".")[0], fs.path.combine(folder_path, path)
 
 
-def walk_eopatch(eopatch: EOPatch, patch_location: str, features: FeaturesSpecification) -> Iterator[FeatureInfo]:
+def walk_eopatch(
+    eopatch: EOPatch, patch_location: str, features: FeaturesSpecification
+) -> Iterator[Union[FeatureFileInfo, MetaFeatureFileInfo]]:
     """Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path."""
     returned_meta_features = set()
     for ftype, fname in FeatureParser(features).get_features(eopatch):
-        name_basis = fs.path.combine(patch_location, ftype.value)
+        ftype_path = fs.path.combine(patch_location, ftype.value)
         if ftype.is_meta():
             # META_INFO features are yielded separately by FeatureParser. We only yield them once with `...`,
             # because all META_INFO is saved together
             if eopatch[ftype] and ftype not in returned_meta_features:
-                yield ftype, ..., name_basis
+                yield MetaFeatureFileInfo(ftype, ftype_path)
                 returned_meta_features.add(ftype)
         else:
             fname = cast(str, fname)  # name is not None for non-meta features
-            yield ftype, fname, fs.path.combine(name_basis, fname)
+            yield FeatureFileInfo((ftype, fname), fs.path.combine(ftype_path, fname))
 
 
 def _check_add_only_permission(
