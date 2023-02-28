@@ -456,6 +456,9 @@ def test_kwargs():
 
 
 def test_merge_eopatches(patch: EOPatch) -> None:
-    task = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")
+    patch = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")(patch, patch, patch)
 
-    task.execute(patch, patch, patch)
+
+def test_merge_eopatches_fails() -> None:
+    with pytest.raises(ValueError):
+        MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")()
