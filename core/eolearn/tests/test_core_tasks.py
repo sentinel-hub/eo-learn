@@ -395,8 +395,7 @@ def test_explode_bands(
     feature: Tuple[FeatureType, str],
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
 ) -> None:
-    move_bands = ExplodeBandsTask(feature, task_input)
-    patch = move_bands(patch)
+    patch = ExplodeBandsTask(feature, task_input)(patch)
     assert all(new_feature in patch for new_feature in task_input)
 
     for new_feature, bands in task_input.items():
