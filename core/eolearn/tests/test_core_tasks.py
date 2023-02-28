@@ -392,7 +392,7 @@ def test_map_features(test_eopatch):
 )
 def test_explode_bands(
     patch: EOPatch,
-    feature: FeatureType,
+    feature: Tuple[FeatureType, str],
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
 ) -> None:
     move_bands = ExplodeBandsTask(feature, task_input)
