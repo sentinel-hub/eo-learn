@@ -379,30 +379,30 @@ def test_map_features(test_eopatch):
 @pytest.mark.parametrize(
     "feature,  task_input",
     [
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): [2, 4, 8]}),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): [2]}),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): (2,)}),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): 2}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): [2, 4, 6]}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): [2]}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): (2,)}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): 2}),
         (
-            (FeatureType.DATA, "REFERENCE_SCENES"),
+            (FeatureType.DATA, "bands"),
             {(FeatureType.DATA, "B01"): [0], (FeatureType.DATA, "B02"): [1], (FeatureType.DATA, "B02 & B03"): [1, 2]},
         ),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): []}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): []}),
     ],
 )
 def test_explode_bands(
-    test_eopatch: EOPatch,
+    patch: EOPatch,
     feature: FeatureType,
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
 ) -> None:
     move_bands = ExplodeBandsTask(feature, task_input)
-    patch = move_bands(test_eopatch)
+    patch = move_bands(patch)
     assert all(new_feature in patch for new_feature in task_input)
 
     for new_feature, bands in task_input.items():
         if isinstance(bands, int):
             bands = [bands]
-        assert_equal(patch[new_feature], test_eopatch[feature][..., bands])
+        assert_equal(patch[new_feature], patch[feature][..., bands])
 
 
 def test_extract_bands(patch: EOPatch) -> None:
