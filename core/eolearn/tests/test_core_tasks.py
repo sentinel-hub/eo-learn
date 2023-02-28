@@ -486,7 +486,9 @@ def test_merge_eopatches(
     patch: EOPatch,
 ) -> None:
     patch = MergeEOPatchesTask(**merge_parameters)(*[patch for _ in range(number_of_patch)])
-    assert all([np.array_equal(patch[feat], val) for feat, val in test_expectation.items()])
+
+    for feature_spec, expected in test_expectation.items():
+        assert_array_equal(patch[feature_spec], expected)
 
 
 def test_merge_eopatches_fails() -> None:
