@@ -455,8 +455,29 @@ def test_kwargs():
     assert np.array_equal(patch[(FeatureType.DATA, "MAX2")], np.maximum(data1, data2))
 
 
-def test_merge_eopatches(patch: EOPatch) -> None:
-    patch = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")(patch, patch, patch)
+@pytest.mark.parametrize(
+    "merge_parameters, number_of_patch, test_expectation",
+    [
+        ({"time_dependent_op": "max"}, 3, {(FeatureType.MASK, "CLM"): np.full((5, 3, 4, 1), True)}),
+        (
+            {"time_dependent_op": "max", "timeless_op": "concatenate"},
+            5,
+            {
+                (FeatureType.MASK, "CLM"): np.full((5, 3, 4, 1), True),
+                (FeatureType.MASK_TIMELESS, "LULC"): np.zeros((3, 4, 5), dtype=np.uint16),
+            },
+        ),
+    ],
+)
+def test_merge_eopatches(
+    merge_parameters: Dict[str, Any],
+    number_of_patch: int,
+    test_expectation: Dict[FeatureSpec, np.ndarray],
+    patch: EOPatch,
+) -> None:
+    patch = MergeEOPatchesTask(**merge_parameters)(*[patch for _ in range(number_of_patch)])
+
+    assert all([np.array_equal(patch[feat], val) for feat, val in test_expectation.items()])
 
 
 def test_merge_eopatches_fails() -> None:
