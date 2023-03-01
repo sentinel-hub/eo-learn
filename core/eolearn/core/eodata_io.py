@@ -26,7 +26,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     BinaryIO,
-    DefaultDict,
     Dict,
     Generic,
     Iterable,
@@ -302,80 +301,6 @@ def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpeci
     relevant_features = FeatureParser(features).get_feature_specifications()
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
     return _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
-
-
-def old_walk_filesystem(
-    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> Iterator[FeatureInfo]:
-    """Recursively reads a patch_location and yields tuples of (feature_type, feature_name, file_path)."""
-    existing_features: DefaultDict[FeatureType, Dict[Union[str, EllipsisType], str]] = defaultdict(dict)
-    for ftype, fname, path in walk_main_folder(filesystem, patch_location):
-        existing_features[ftype][fname] = path
-
-    returned_meta_features = set()
-    queried_features = set()
-    feature_name: Union[str, EllipsisType]
-    for ftype, fname in FeatureParser(features).get_feature_specifications():
-        if fname is ... and not existing_features[ftype]:
-            continue
-
-        if ftype.is_meta():
-            if ftype in returned_meta_features:
-                # Resolves META_INFO that is yielded multiple times by FeatureParser but is saved in one file
-                continue
-            fname = ...
-            returned_meta_features.add(ftype)
-
-        elif ftype not in queried_features and (fname is ... or fname not in existing_features[ftype]):
-            # Either need to collect all features for ftype or there is a not-yet seen feature that could be collected
-            queried_features.add(ftype)
-            if ... not in existing_features[ftype]:
-                raise IOError(f"There are no features of type {ftype} in saved EOPatch")
-
-            for feature_name, path in walk_feature_type_folder(filesystem, existing_features[ftype][...]):
-                existing_features[ftype][feature_name] = path
-
-        if fname not in existing_features[ftype]:
-            # ftype has already been fully collected, but the feature not found
-            raise IOError(f"Feature {(ftype, fname)} does not exist in saved EOPatch")
-
-        if fname is ... and not ftype.is_meta():
-            for feature_name, path in existing_features[ftype].items():
-                if feature_name is not ...:
-                    yield ftype, feature_name, path
-        else:
-            yield ftype, fname, existing_features[ftype][fname]
-
-
-def walk_main_folder(filesystem: FS, folder_path: str) -> Iterator[FeatureInfo]:
-    """Walks the main EOPatch folders and yields tuples (feature type, feature name, path in filesystem).
-
-    The results depend on the implementation of `filesystem.listdir`. For each folder that coincides with a feature
-    type it returns (feature type, ..., path). If files in subfolders are also listed by `listdir` it returns
-    them as well, which allows `walk_filesystem` to skip such subfolders from further searches.
-    """
-    fname: Union[str, EllipsisType]
-    for path in filesystem.listdir(folder_path):
-        raw_path = path.split(".")[0].strip("/")
-
-        if "/" in raw_path:  # For cases where S3 does not have a regular folder structure
-            ftype_str, fname = fs.path.split(raw_path)
-        else:
-            ftype_str, fname = raw_path, ...
-
-        if ftype_str == "timestamp":
-            warnings.warn(
-                (
-                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated `timestamp` feature."
-                    " The old name will no longer be valid in the future. You can re-save the `EOPatch` to update it."
-                ),
-                category=EODeprecationWarning,
-                stacklevel=2,
-            )
-            ftype_str = FeatureType.TIMESTAMPS.value
-
-        if FeatureType.has_value(ftype_str):
-            yield FeatureType(ftype_str), fname, fs.path.combine(folder_path, path)
 
 
 def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[str, str]]:
