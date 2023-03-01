@@ -187,6 +187,7 @@ class VectorToRasterTask(EOTask):
         if self.values_column is not None and self.values is not None:
             values = [self.values] if isinstance(self.values, (int, float)) else self.values
             vector_data = vector_data[vector_data[self.values_column].isin(values)]
+            vector_data[self.values_column] = vector_data[self.values_column].astype(self.raster_dtype)
 
         gpd_crs = vector_data.crs
         # This special case has to be handled because of WGS84 and lat-lon order:
