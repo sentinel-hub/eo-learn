@@ -61,8 +61,8 @@ def patch_fixture() -> EOPatch:
     patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
     patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.uint16)
     patch.mask_timeless["RANDOM_UINT8"] = np.random.randint(0, 100, size=(3, 4, 1), dtype=np.int8)
-    patch.scalar["values"] = np.arange(10 * 5).reshape(10, 5)
-    patch.scalar["CLOUD_COVERAGE"] = np.ones((10, 5))
+    patch.scalar["values"] = np.arange(10 * 5).reshape(5, 10)
+    patch.scalar["CLOUD_COVERAGE"] = np.ones((5, 10))
     patch.timestamps = [
         datetime(2017, 1, 14, 10, 13, 46),
         datetime(2017, 2, 10, 10, 1, 32),
@@ -481,9 +481,34 @@ def test_create_eopatch():
     assert np.array_equal(patch.data["bands"], data)
 
 
-def test_merge_eopatches(test_eopatch):
-    task = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")
+def test_merge_eopatches() -> None:
+    dummy_timestamps = [datetime(2017, 1, 14, 10, 13, 46), datetime(2017, 2, 10, 10, 1, 32)]
 
-    del test_eopatch.data["REFERENCE_SCENES"]  # wrong time dimension
+    patch1 = EOPatch(
+        data={"bands": np.zeros((2, 4, 4, 3), dtype=np.float32)},
+        mask_timeless={"LULC": np.arange(0, 16).reshape(4, 4, 1)},
+        bbox=DUMMY_BBOX,
+        timestamps=dummy_timestamps,
+    )
+    patch2 = EOPatch(
+        data={"bands": np.ones((2, 4, 4, 3), dtype=np.float32)},
+        mask_timeless={"LULC": np.arange(16, 32).reshape(4, 4, 1)},
+        bbox=DUMMY_BBOX,
+        timestamps=dummy_timestamps,
+    )
 
-    task.execute(test_eopatch, test_eopatch, test_eopatch)
+    merged_patch = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")(patch1, patch2)
+
+    expected_patch = EOPatch(
+        data={"bands": np.ones((2, 4, 4, 3), dtype=np.float32)},
+        mask_timeless={"LULC": np.arange(0, 32).reshape((16, 2), order="F").reshape(4, 4, 2)},
+        bbox=DUMMY_BBOX,
+        timestamps=dummy_timestamps,
+    )
+
+    assert merged_patch == expected_patch
+
+
+def test_merge_eopatches_fails() -> None:
+    with pytest.raises(ValueError):
+        MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")()
