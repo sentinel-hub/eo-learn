@@ -382,7 +382,7 @@ def test_map_features_fails(patch: EOPatch) -> None:
         MapFeatureTask((FeatureType.DATA, "CLP"), (FeatureType.DATA, "CLP2"))(patch)
 
     with pytest.raises(ValueError):
-        MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]})
+        MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]}, map_function=lambda x: x)
 
 
 @pytest.mark.parametrize(
