@@ -506,43 +506,32 @@ def test_kwargs():
     assert np.array_equal(patch[(FeatureType.DATA, "MAX2")], np.maximum(data1, data2))
 
 
-@pytest.mark.parametrize(
-    "merge_parameters, number_of_patch, test_expectation",
-    [
-        ({"time_dependent_op": "mean"}, 3, {(FeatureType.MASK, "CLM"): np.full((5, 3, 4, 1), True)}),
-        (
-            {"time_dependent_op": "max", "timeless_op": "concatenate"},
-            5,
-            {
-                (FeatureType.MASK, "CLM"): np.full((5, 3, 4, 1), True),
-                (FeatureType.MASK_TIMELESS, "LULC"): np.zeros((3, 4, 5), dtype=np.uint16),
-                (FeatureType.BBOX, None): BBox((324.54, 546.45, 955.4, 63.43), CRS(3857)),
-            },
-        ),
-        (
-            {"time_dependent_op": "concatenate"},
-            4,
-            {
-                (FeatureType.MASK, "CLM"): np.full((20, 3, 4, 1), True),
-                (FeatureType.MASK_TIMELESS, "LULC"): np.zeros((3, 4, 1), dtype=np.uint16),
-                (FeatureType.BBOX, None): BBox((324.54, 546.45, 955.4, 63.43), CRS(3857)),
-            },
-        ),
-    ],
-)
-def test_merge_eopatches(
-    merge_parameters: Dict[str, Any],
-    number_of_patch: int,
-    test_expectation: Dict[FeatureSpec, np.ndarray],
-    patch: EOPatch,
-) -> None:
-    patch = MergeEOPatchesTask(**merge_parameters)(*[patch for _ in range(number_of_patch)])
+def test_merge_eopatches() -> None:
+    dummy_timestamps = [datetime(2017, 1, 14, 10, 13, 46), datetime(2017, 2, 10, 10, 1, 32)]
 
-    for feature_spec, expected in test_expectation.items():
-        if isinstance(expected, np.ndarray):
-            assert_array_equal(patch[feature_spec], expected)
-        else:
-            assert patch[feature_spec] == expected
+    patch1 = EOPatch(
+        data={"bands": np.zeros((2, 4, 4, 3), dtype=np.float32)},
+        mask_timeless={"LULC": np.arange(0, 16).reshape(4, 4, 1)},
+        bbox=DUMMY_BBOX,
+        timestamps=dummy_timestamps,
+    )
+    patch2 = EOPatch(
+        data={"bands": np.ones((2, 4, 4, 3), dtype=np.float32)},
+        mask_timeless={"LULC": np.arange(16, 32).reshape(4, 4, 1)},
+        bbox=DUMMY_BBOX,
+        timestamps=dummy_timestamps,
+    )
+
+    merged_patch = MergeEOPatchesTask(time_dependent_op="max", timeless_op="concatenate")(patch1, patch2)
+
+    expected_patch = EOPatch(
+        data={"bands": np.ones((2, 4, 4, 3), dtype=np.float32)},
+        mask_timeless={"LULC": np.arange(0, 32).reshape((16, 2), order="F").reshape(4, 4, 2)},
+        bbox=DUMMY_BBOX,
+        timestamps=dummy_timestamps,
+    )
+
+    assert merged_patch == expected_patch
 
 
 def test_merge_eopatches_fails() -> None:
