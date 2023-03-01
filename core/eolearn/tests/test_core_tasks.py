@@ -317,29 +317,16 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
 
 
 @pytest.mark.parametrize(
-    "input_features, output_feature, zip_function",
+    "input_features, output_feature, zip_function, kwargs",
     [
-        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), np.maximum),
-        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), lambda a, b: a + b),
+        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), np.maximum, {}),
+        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), lambda a, b: a + b, {}),
         (
             {FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"]},
             (FeatureType.MASK_TIMELESS, "ziped"),
             lambda a, b, c: a + b + c - 10,
+            {},
         ),
-    ],
-)
-def test_zip_features(
-    input_features: FeaturesSpecification, output_feature: FeatureSpec, zip_function: Callable, patch: EOPatch
-) -> None:
-    expected = zip_function(*[patch[feat] for feat in parse_features(input_features)])
-    patch = ZipFeatureTask(input_features, output_feature, zip_function)(patch)
-
-    assert_array_equal(patch[output_feature], expected)
-
-
-@pytest.mark.parametrize(
-    "input_features, output_feature, zip_function, kwargs",
-    [
         (
             {FeatureType.DATA: ["CLP", "CLP_S2C"]},
             (FeatureType.DATA, "feat_max"),
@@ -349,17 +336,17 @@ def test_zip_features(
         ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "feat_sum_+3"), lambda x, y, a: x + y + a, {"a": 3}),
     ],
 )
-def test_zip_kwargs(
+def test_zip_features(
     input_features: FeaturesSpecification,
     output_feature: FeatureSpec,
     zip_function: Callable,
-    kwargs: Dict[str, Any],
     patch: EOPatch,
+    kwargs: Dict[str, Any],
 ) -> None:
-    expected_output = zip_function(*[patch[feat] for feat in parse_features(input_features)], **kwargs)
-    mapped_patch = ZipFeatureTask(input_features, output_feature, zip_function, **kwargs)(patch)
+    expected = zip_function(*[patch[feat] for feat in parse_features(input_features)], **kwargs)
+    patch = ZipFeatureTask(input_features, output_feature, zip_function, **kwargs)(patch)
 
-    assert_array_equal(mapped_patch[output_feature], expected_output)
+    assert_array_equal(patch[output_feature], expected)
 
 
 def test_zip_features_fails(patch: EOPatch) -> None:
