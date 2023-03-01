@@ -24,7 +24,7 @@ from ..constants import FeatureType
 from ..eodata import EOPatch
 from ..utils.parsing import FeatureParser
 
-DEFAULT_BBOX = BBox((0, 0, 100, 100), crs=CRS.UTM_33N)
+DEFAULT_BBOX = BBox((0, 0, 100, 100), crs=CRS("EPSG:32633"))
 
 
 @dataclass
