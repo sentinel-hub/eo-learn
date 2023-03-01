@@ -28,7 +28,6 @@ from typing import (
     BinaryIO,
     Dict,
     Generic,
-    Iterable,
     Iterator,
     List,
     Optional,
@@ -191,28 +190,47 @@ def load_eopatch(
     fsinfo = walk_filesystem(filesystem, patch_location, features)
 
     for ftype, fname in FeatureParser(features).get_feature_specifications():
-        if fname is not ...:
-            if ftype == FeatureType.META_INFO and fsinfo.meta_info is None:
-                raise IOError("There are no META_INFO features in saved EOPatch")
-            if not ftype.is_meta() and fname not in fsinfo.features.get(ftype, {}):
-                raise IOError(f"Feature {(ftype, fname)} does not exist in saved EOPatch")
-
-    relevant_feature_types = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications()}
-    existing_features = list(_filesystem_info_to_feature_info(fsinfo, relevant_feature_types))
-
-    loading_data: Iterable[Any] = [
-        _get_feature_io_constructor(ftype)(path, filesystem) for ftype, _, path in existing_features
-    ]
+        if ftype.is_meta():
+            _load_meta_feature(filesystem, fsinfo, eopatch, patch_location, ftype)
+        elif fname is ...:
+            _load_whole_feature_type(filesystem, fsinfo, eopatch, ftype)
+        else:
+            if ftype not in fsinfo.features or fname not in fsinfo.features[ftype]:
+                raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
+            path = fsinfo.features[ftype][fname]
+            eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            loading_data = executor.map(lambda loader: loader.load(), loading_data)
+            executor.submit(lambda: eopatch.bbox)
+            executor.submit(lambda: eopatch.timestamps)
+            list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
 
-    for (ftype, fname, _), value in zip(existing_features, loading_data):
-        eopatch[(ftype, fname)] = value
-
-    # TODO: check that meta-info features are actually present
     return eopatch
+
+
+def _load_meta_feature(
+    filesystem: FS, fsinfo: FilesystemDataInfo, eopatch: EOPatch, patch_location: str, ftype: FeatureType
+) -> None:
+    if ftype == FeatureType.BBOX and fsinfo.bbox is not None:
+        eopatch.bbox = FeatureIOBBox(fsinfo.bbox, filesystem)
+    elif ftype == FeatureType.TIMESTAMPS and fsinfo.timestamps is not None:
+        eopatch.timestamps = FeatureIOTimestamps(fsinfo.timestamps, filesystem)
+    elif ftype == FeatureType.META_INFO and fsinfo.meta_info is not None:
+        eopatch.meta_info = FeatureIOJson(fsinfo.meta_info, filesystem)
+    else:
+        raise IOError(f"Feature {ftype} does not exist in eopatch at {patch_location}.")
+
+
+def _load_whole_feature_type(filesystem: FS, fsinfo: FilesystemDataInfo, eopatch: EOPatch, ftype: FeatureType) -> None:
+    for fname, path in fsinfo.features.get(ftype, {}).items():
+        eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+
+
+def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
+    relevant_features = FeatureParser(features).get_feature_specifications()
+    relevant_feature_types = {ftype for ftype, _ in relevant_features}
+    return _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
 
 
 def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature_types: Set[FeatureType]):
@@ -253,26 +271,6 @@ def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature
             result.features[FeatureType(object_name)] = dict(walk_feature_type_folder(filesystem, object_path))
 
     return result
-
-
-def _filesystem_info_to_feature_info(
-    fsinfo: FilesystemDataInfo, relevant_feature_types: Set[FeatureType]
-) -> Iterator[FeatureInfo]:
-    if fsinfo.bbox and FeatureType.BBOX in relevant_feature_types:
-        yield (FeatureType.BBOX, ..., fsinfo.bbox)
-    if fsinfo.timestamps and FeatureType.TIMESTAMPS in relevant_feature_types:
-        yield (FeatureType.TIMESTAMPS, ..., fsinfo.timestamps)
-    if fsinfo.meta_info and FeatureType.META_INFO in relevant_feature_types:
-        yield (FeatureType.META_INFO, ..., fsinfo.meta_info)
-
-    for ftype, fnames in fsinfo.features.items():
-        yield from ((ftype, fname, fpath) for fname, fpath in fnames.items())
-
-
-def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
-    relevant_features = FeatureParser(features).get_feature_specifications()
-    relevant_feature_types = {ftype for ftype, _ in relevant_features}
-    return _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
 
 
 def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[str, str]]:
