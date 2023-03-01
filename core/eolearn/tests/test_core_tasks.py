@@ -387,15 +387,15 @@ def test_map_features_fails(patch: EOPatch) -> None:
 @pytest.mark.parametrize(
     "feature,  task_input",
     [
-        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): [2, 4, 6]}),
-        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): [2]}),
-        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): (2,)}),
-        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): 2}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): [2, 4, 6]}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): [2]}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): (2,)}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): 2}),
         (
             (FeatureType.DATA, "bands"),
             {(FeatureType.DATA, "B01"): [0], (FeatureType.DATA, "B02"): [1], (FeatureType.DATA, "B02 & B03"): [1, 2]},
         ),
-        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "MOVED_BANDS"): []}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): []}),
     ],
 )
 def test_explode_bands(
@@ -414,17 +414,17 @@ def test_explode_bands(
 
 def test_extract_bands(patch: EOPatch) -> None:
     bands = [2, 4, 6]
-    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), bands)(patch)
-    assert_array_equal(patch.data["MOVED_BANDS"], patch.data["bands"][..., bands])
+    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), bands)(patch)
+    assert_array_equal(patch.data["EXTRACTED_BANDS"], patch.data["bands"][..., bands])
 
-    patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1
-    assert patch.data["MOVED_BANDS"][0, 0, 0, 0] != patch.data["bands"][0, 0, 0, bands[0]]
+    patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] += 1
+    assert patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] != patch.data["bands"][0, 0, 0, bands[0]]
 
 
 def test_extract_bands_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         # fails because band 16 does not exist
-        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "MOVED_BANDS"), [2, 4, 16])(patch)
+        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(patch)
 
 
 def test_create_eopatch():
