@@ -79,5 +79,5 @@ def _generate_feature_data(
 def _get_feature_shape(
     rng: np.random.Generator, ftype: FeatureType, timestamps: List[dt.datetime], config: PatchGeneratorConfig
 ) -> Tuple[int, ...]:
-    t, h, w, d = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
-    return (t, h, w, d) if ftype.is_temporal() else (h, w, d)
+    time, height, width, depth = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
+    return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
