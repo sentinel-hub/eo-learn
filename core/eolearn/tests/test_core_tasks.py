@@ -355,27 +355,45 @@ def test_zip_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_features, output_features, map_function",
+    "input_features, output_features, map_function, kwargs",
     [
-        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3),
-        ({FeatureType.MASK_TIMELESS: ["mask", "LULC"]}, {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]}, copy.deepcopy),
-        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_ceil", "CLP_S2C_ceil"]}, np.ceil),
+        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3, {}),
+        (
+            {FeatureType.MASK_TIMELESS: ["mask", "LULC"]},
+            {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]},
+            copy.deepcopy,
+            {},
+        ),
+        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_ceil", "CLP_S2C_ceil"]}, np.ceil, {}),
+        (
+            {FeatureType.DATA: ["CLP", "bands"]},
+            {FeatureType.DATA_TIMELESS: ["CLP_max", "bands_max"]},
+            np.max,
+            {"axis": -1},
+        ),
+        (
+            {FeatureType.DATA: ["CLP", "bands"]},
+            {FeatureType.DATA: ["CLP_+3", "bands_+3"]},
+            lambda x, a: x + a,
+            {"a": 3},
+        ),
     ],
 )
 def test_map_features(
     input_features: FeaturesSpecification,
     output_features: FeaturesSpecification,
     map_function: Callable,
+    kwargs: Dict[str, Any],
     patch: EOPatch,
 ) -> None:
     original_patch = patch.copy(deep=True, features=input_features)
-    mapped_patch = MapFeatureTask(input_features, output_features, map_function)(patch)
+    mapped_patch = MapFeatureTask(input_features, output_features, map_function, **kwargs)(patch)
 
     for feature in parse_features(input_features):
         assert_array_equal(original_patch[feature], mapped_patch[feature]), "Task changed input data."
 
     for in_feature, out_feature in zip(parse_features(input_features), parse_features(output_features)):
-        expected_output = map_function(mapped_patch[in_feature])
+        expected_output = map_function(mapped_patch[in_feature], **kwargs)
         assert_array_equal(mapped_patch[out_feature], expected_output)
 
 
@@ -395,37 +413,6 @@ def test_map_features_fails(patch: EOPatch) -> None:
 
     with pytest.raises(ValueError):
         MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]}, map_function=lambda x: x)
-
-
-@pytest.mark.parametrize(
-    "input_features, output_features, map_function, kwargs",
-    [
-        (
-            {FeatureType.DATA: ["CLP", "bands"]},
-            {FeatureType.DATA_TIMELESS: ["CLP_max", "bands_max"]},
-            np.max,
-            {"axis": -1},
-        ),
-        (
-            {FeatureType.DATA: ["CLP", "bands"]},
-            {FeatureType.DATA: ["CLP_+3", "bands_+3"]},
-            lambda x, a: x + a,
-            {"a": 3},
-        ),
-    ],
-)
-def test_map_kwargs(
-    input_features: FeaturesSpecification,
-    output_features: FeaturesSpecification,
-    map_function: Callable,
-    kwargs: Dict[str, Any],
-    patch: EOPatch,
-) -> None:
-    mapped_patch = MapFeatureTask(input_features, output_features, map_function, **kwargs)(patch)
-
-    for in_feature, out_feature in zip(parse_features(input_features), parse_features(output_features)):
-        expected_output = map_function(mapped_patch[in_feature], **kwargs)
-        assert_array_equal(mapped_patch[out_feature], expected_output)
 
 
 @pytest.mark.parametrize(
