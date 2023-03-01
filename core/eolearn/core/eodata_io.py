@@ -90,10 +90,10 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # TODO: consider using an EOPatch
-    fsinfo = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
+    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
+    file_information = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
-    _check_collisions(overwrite_permission, files_to_save, fsinfo)
+    _check_collisions(overwrite_permission, files_to_save, file_information)
 
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = _prepare_features_to_save(eopatch, patch_location, files_to_save)
@@ -110,7 +110,7 @@ def save_eopatch(
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-        remove_redundant_files(filesystem, files_to_save, fsinfo, compress_level)
+        remove_redundant_files(filesystem, files_to_save, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -186,54 +186,61 @@ def load_eopatch(
     lazy_loading: bool = False,
 ) -> EOPatch:
     """A utility function used by `EOPatch.load` method."""
-    fsinfo = walk_filesystem(filesystem, patch_location, features)
+    file_information = walk_filesystem(filesystem, patch_location, features)
 
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype.is_meta():
-            _load_meta_feature(filesystem, fsinfo, eopatch, patch_location, ftype)
+            _load_meta_feature(filesystem, file_information, eopatch, patch_location, ftype)
         elif fname is ...:
-            _load_whole_feature_type(filesystem, fsinfo, eopatch, ftype)
+            _load_whole_feature_type(filesystem, file_information, eopatch, ftype)
         else:
-            if ftype not in fsinfo.features or fname not in fsinfo.features[ftype]:
+            if ftype not in file_information.features or fname not in file_information.features[ftype]:
                 raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
-            path = fsinfo.features[ftype][fname]
+            path = file_information.features[ftype][fname]
             eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
     if not lazy_loading:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.submit(lambda: eopatch.bbox)
-            executor.submit(lambda: eopatch.timestamps)
-            list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
+        _trigger_loading_for_eopatch_features(eopatch)
 
     return eopatch
 
 
 def _load_meta_feature(
-    filesystem: FS, fsinfo: FilesystemDataInfo, eopatch: EOPatch, patch_location: str, ftype: FeatureType
+    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, patch_location: str, ftype: FeatureType
 ) -> None:
-    if ftype == FeatureType.BBOX and fsinfo.bbox is not None:
-        eopatch.bbox = FeatureIOBBox(fsinfo.bbox, filesystem)  # type: ignore[assignment]
-    elif ftype == FeatureType.TIMESTAMPS and fsinfo.timestamps is not None:
-        eopatch.timestamps = FeatureIOTimestamps(fsinfo.timestamps, filesystem)  # type: ignore[assignment]
-    elif ftype == FeatureType.META_INFO and fsinfo.meta_info is not None:
-        eopatch.meta_info = FeatureIOJson(fsinfo.meta_info, filesystem)  # type: ignore[assignment]
+    if ftype == FeatureType.BBOX and file_information.bbox is not None:
+        eopatch.bbox = FeatureIOBBox(file_information.bbox, filesystem)  # type: ignore[assignment]
+    elif ftype == FeatureType.TIMESTAMPS and file_information.timestamps is not None:
+        eopatch.timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem)  # type: ignore[assignment]
+    elif ftype == FeatureType.META_INFO and file_information.meta_info is not None:
+        eopatch.meta_info = FeatureIOJson(file_information.meta_info, filesystem)  # type: ignore[assignment]
     else:
         raise IOError(f"Feature {ftype} does not exist in eopatch at {patch_location}.")
 
 
-def _load_whole_feature_type(filesystem: FS, fsinfo: FilesystemDataInfo, eopatch: EOPatch, ftype: FeatureType) -> None:
-    for fname, path in fsinfo.features.get(ftype, {}).items():
+def _load_whole_feature_type(
+    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, ftype: FeatureType
+) -> None:
+    for fname, path in file_information.features.get(ftype, {}).items():
         eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
 
+def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(lambda: eopatch.bbox)
+        executor.submit(lambda: eopatch.timestamps)
+        list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
+
+
 def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
+    """Returns information on all eopatch files in the storage. Filters with `features` to reduce IO calls."""
     relevant_features = FeatureParser(features).get_feature_specifications()
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
 
     result = FilesystemDataInfo()
 
     for path in filesystem.listdir(patch_location):
-        object_name = _remove_file_extension(path).strip("/")  # TODO: does this work in the weird S3 case
+        object_name = _remove_file_extension(path).strip("/")
         object_path = fs.path.combine(patch_location, path)
 
         if object_name == "timestamp":
@@ -264,6 +271,7 @@ def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpeci
         elif FeatureType.has_value(object_name) and FeatureType(object_name) in relevant_feature_types:
             result.features[FeatureType(object_name)] = dict(walk_feature_type_folder(filesystem, object_path))
 
+    # Note: might simplify a few things if we filtered according to features here, especially loading stuff.
     return result
 
 
