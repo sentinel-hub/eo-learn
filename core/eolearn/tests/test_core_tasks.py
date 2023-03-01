@@ -428,7 +428,7 @@ def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], 
     mapped_patch = MapFeatureTask(input_feature, (FeatureType.META_INFO, "kwargs"), kwargs_map, **kwargs)(patch)
 
     expected_output = kwargs_map(mapped_patch[input_feature], **kwargs)
-    assert_array_equal(mapped_patch[(FeatureType.META_INFO, "kwargs")], expected_output)
+    assert mapped_patch[(FeatureType.META_INFO, "kwargs")] == expected_output
 
 
 @pytest.mark.parametrize(
