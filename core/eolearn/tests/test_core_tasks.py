@@ -354,38 +354,47 @@ def test_zip_features_fails(patch: EOPatch) -> None:
         ZipFeatureTask({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "MERGED"))(patch)
 
 
-def test_map_features(test_eopatch):
-    move = MapFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI", "BANDS-S2-L1C"]},
-        {FeatureType.DATA: ["CLP2", "NDVI2", "BANDS-S2-L1C2"]},
-        copy.deepcopy,
-    )
+@pytest.mark.parametrize(
+    "input_features, output_features, map_function",
+    [
+        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3),
+        ({FeatureType.MASK_TIMELESS: ["mask", "LULC"]}, {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]}, copy.deepcopy),
+        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_ceil", "CLP_S2C_ceil"]}, np.ceil),
+    ],
+)
+def test_map_features(
+    input_features: FeaturesSpecification,
+    output_features: FeaturesSpecification,
+    map_function: Callable,
+    patch: EOPatch,
+) -> None:
+    original_patch = patch.copy(deep=True, features=input_features)
+    mapped_patch = MapFeatureTask(input_features, output_features, map_function)(patch)
 
-    patch = move(test_eopatch)
+    for feature in parse_features(input_features):
+        assert_array_equal(original_patch[feature], mapped_patch[feature]), "Task changed input data."
 
-    assert np.array_equal(patch.data["CLP"], patch.data["CLP2"])
-    assert np.array_equal(patch.data["NDVI"], patch.data["NDVI2"])
-    assert np.array_equal(patch.data["BANDS-S2-L1C"], patch.data["BANDS-S2-L1C2"])
+    for in_feature, out_feature in zip(parse_features(input_features), parse_features(output_features)):
+        expected_output = map_function(mapped_patch[in_feature])
+        assert_array_equal(mapped_patch[out_feature], expected_output)
 
-    assert id(patch.data["CLP"]) != id(patch.data["CLP2"])
-    assert id(patch.data["NDVI"]) != id(patch.data["NDVI2"])
-    assert id(patch.data["BANDS-S2-L1C"]) != id(patch.data["BANDS-S2-L1C2"])
 
-    map_fail = MapFeatureTask(
-        {FeatureType.DATA: ["CLP", "NDVI"]},
-        {
-            FeatureType.DATA: [
-                "CLP2",
-                "NDVI2",
-            ]
-        },
-    )
+@pytest.mark.parametrize("input_features, map_function", [({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3)])
+def test_map_features_overwrite(input_features: FeaturesSpecification, map_function: Callable, patch: EOPatch) -> None:
+    original_patch = patch.copy(deep=True, features=input_features)
+    patch = MapFeatureTask(input_features, input_features, map_function)(patch)
+
+    for in_feature in parse_features(input_features):
+        expected_output = map_function(original_patch[in_feature])
+        assert_array_equal(patch[in_feature], expected_output)
+
+
+def test_map_features_fails(patch: EOPatch) -> None:
     with pytest.raises(NotImplementedError):
-        map_fail(patch)
+        MapFeatureTask((FeatureType.DATA, "CLP"), (FeatureType.DATA, "CLP2"))(patch)
 
-    f_in, f_out = {FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]}
     with pytest.raises(ValueError):
-        MapFeatureTask(f_in, f_out)
+        MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]}, map_function=lambda x: x)
 
 
 @pytest.mark.parametrize(
