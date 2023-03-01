@@ -35,7 +35,6 @@ class PatchGeneratorConfig:
     timestamps_range: Tuple[dt.datetime, dt.datetime] = (dt.datetime(2019, 1, 1), dt.datetime(2019, 12, 31))
     timestamps: List[dt.datetime] = field(init=False, repr=False)
 
-    num_random_features: int = 5
     max_integer_value: int = 256
     raster_shape: Tuple[int, int] = (98, 151)
     depth_range: Tuple[int, int] = (1, 3)
