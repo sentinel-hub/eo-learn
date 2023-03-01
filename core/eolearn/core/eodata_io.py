@@ -20,7 +20,7 @@ import platform
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -99,10 +99,10 @@ class MetaFeatureFileInfo:
 class FilesystemDataInfo:
     """Information about data that is present on the filesystem. Fields represent paths to relevant file."""
 
-    timestamps: Optional[str]
-    bbox: Optional[str]
-    meta_info: Optional[str]
-    features: Dict[FeatureType, Dict[str, str]]
+    timestamps: Optional[str] = None
+    bbox: Optional[str] = None
+    meta_info: Optional[str] = None
+    features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
 
 def save_eopatch(
@@ -118,11 +118,13 @@ def save_eopatch(
 
     files_to_save_new = list(walk_eopatch(eopatch, patch_location, features))  # TODO: consider using an EOPatch
     files_to_save = [x.to_old() for x in files_to_save_new]
-    fsinfo = walk_filesystem(filesystem, patch_location) if patch_exists else None
+    fsinfo = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
+
+    _check_collisions(overwrite_permission, files_to_save, fsinfo)
+
+    # PUSH DOWN
     relevant_feature_types = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications()}
     existing_files = list(_filesystem_info_to_feature_info(fsinfo, relevant_feature_types)) if fsinfo else []
-
-    _check_collisions(overwrite_permission, files_to_save, existing_files)
 
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = _prepare_features_to_save(eopatch, patch_location, files_to_save)
@@ -140,23 +142,6 @@ def save_eopatch(
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
         remove_redundant_files(filesystem, files_to_save, existing_files, compress_level)
-
-
-def _check_collisions(
-    overwrite_permission: OverwritePermission,
-    files_to_save: Sequence[FeatureInfo],
-    existing_files: Sequence[FeatureInfo],
-):
-    """Checks for possible name collisions to avoid unintentional overwriting."""
-    if overwrite_permission is OverwritePermission.ADD_ONLY:
-        _check_letter_case_collisions(files_to_save, existing_files)
-        _check_add_only_permission(files_to_save, existing_files)
-
-    elif platform.system() == "Windows" and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
-        _check_letter_case_collisions(files_to_save, existing_files)
-
-    else:
-        _check_letter_case_collisions(files_to_save, [])
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -245,7 +230,7 @@ def load_eopatch(
 
 def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature_types: Set[FeatureType]):
     """Gets information about files that are part of the EOPatch. Skips features that are not relevant to reduce IO."""
-    result = FilesystemDataInfo(bbox=None, timestamps=None, meta_info=None, features=defaultdict(dict))
+    result = FilesystemDataInfo()
 
     for path in filesystem.listdir(folder_path):
         object_name = _remove_file_extension(path).strip("/")  # TODO: does this work in the weird S3 case
@@ -330,11 +315,30 @@ def walk_eopatch(
             yield FeatureFileInfo((ftype, fname), fs.path.combine(ftype_path, fname))
 
 
+def _check_collisions(
+    overwrite_permission: OverwritePermission,
+    files_to_save: Sequence[FeatureInfo],
+    existing_files: FilesystemDataInfo,
+):
+    """Checks for possible name collisions to avoid unintentional overwriting."""
+    if overwrite_permission is OverwritePermission.ADD_ONLY:
+        _check_letter_case_collisions(files_to_save, existing_files)
+        _check_add_only_permission(files_to_save, existing_files)
+
+    elif platform.system() == "Windows" and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
+        _check_letter_case_collisions(files_to_save, existing_files)
+
+    else:
+        _check_letter_case_collisions(files_to_save, FilesystemDataInfo())
+
+
 def _check_add_only_permission(
-    eopatch_features: Sequence[FeatureInfo], filesystem_features: Sequence[FeatureInfo]
+    eopatch_features: Sequence[FeatureInfo], filesystem_features: FilesystemDataInfo
 ) -> None:
     """Checks that no existing feature will be overwritten."""
-    unique_filesystem_features = {_to_lowercase(*feature) for feature in filesystem_features}
+    unique_filesystem_features = {
+        (ftype, fname.lower()) for ftype, ftype_dict in filesystem_features.features.items() for fname in ftype_dict
+    }
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     intersection = unique_filesystem_features.intersection(unique_eopatch_features)
@@ -343,7 +347,7 @@ def _check_add_only_permission(
 
 
 def _check_letter_case_collisions(
-    eopatch_features: Sequence[FeatureInfo], filesystem_features: Sequence[FeatureInfo]
+    eopatch_features: Sequence[FeatureInfo], filesystem_features: FilesystemDataInfo
 ) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
@@ -353,12 +357,13 @@ def _check_letter_case_collisions(
 
     original_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
 
-    for ftype, fname, _ in filesystem_features:
-        if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
-            raise IOError(
-                f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
-                "casing from a feature that should be saved."
-            )
+    for ftype, ftype_dict in filesystem_features.features.items():
+        for fname in ftype_dict:
+            if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
+                raise IOError(
+                    f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
+                    "casing from a feature that should be saved."
+                )
 
 
 def _to_lowercase(
