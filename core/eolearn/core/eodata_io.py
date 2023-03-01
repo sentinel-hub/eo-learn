@@ -215,16 +215,17 @@ def load_eopatch(
     lazy_loading: bool = False,
 ) -> EOPatch:
     """A utility function used by `EOPatch.load` method."""
-    parsed_features = list(walk_filesystem(filesystem, patch_location, features))
+    existing_features = list(walk_filesystem(filesystem, patch_location, features))
+
     loading_data: Iterable[Any] = [
-        _get_feature_io_constructor(ftype)(path, filesystem) for ftype, _, path in parsed_features
+        _get_feature_io_constructor(ftype)(path, filesystem) for ftype, _, path in existing_features
     ]
 
     if not lazy_loading:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             loading_data = executor.map(lambda loader: loader.load(), loading_data)
 
-    for (ftype, fname, _), value in zip(parsed_features, loading_data):
+    for (ftype, fname, _), value in zip(existing_features, loading_data):
         eopatch[(ftype, fname)] = value
 
     return eopatch
@@ -236,16 +237,15 @@ def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature
 
     fname: Union[str, EllipsisType]
     for path in filesystem.listdir(folder_path):
-        raw_path = path.split(".")[0].strip("/")
+        object_name = path.split(".")[0].strip("/")
+        object_path = fs.path.combine(folder_path, path)
 
-        if "/" in raw_path:  # For cases where S3 does not have a regular folder structure
-            ftype_str, fname = fs.path.split(raw_path)
+        if "/" in object_name:  # For cases where S3 does not have a regular folder structure
+            ftype_str, fname = fs.path.split(object_name)
             result.features[FeatureType(ftype_str)][fname] = path
             continue
 
-        ftype_str = raw_path
-
-        if ftype_str == "timestamp":
+        if object_name == "timestamp":
             warnings.warn(
                 (
                     f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated naming `timestamp` for"
@@ -255,30 +255,31 @@ def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature
                 category=EODeprecationWarning,
                 stacklevel=2,
             )
-            ftype_str = FeatureType.TIMESTAMPS.value
+            object_name = FeatureType.TIMESTAMPS.value
 
-        object_path = fs.path.combine(folder_path, path)
-        if ftype_str == FeatureType.TIMESTAMPS.value:
-            result.timestamps = object_path
-
-        elif ftype_str == BBOX_FILENAME:
+        if object_name == BBOX_FILENAME:
             result.bbox = object_path
 
-        elif ftype_str == FeatureType.META_INFO.value:
+        elif object_name == FeatureType.TIMESTAMPS.value:
+            result.timestamps = object_path
+
+        elif object_name == FeatureType.META_INFO.value:
             result.meta_info = object_path
 
-        elif FeatureType.has_value(ftype_str) and FeatureType(ftype_str) in relevant_feature_types:
-            result.features[FeatureType(ftype_str)] = dict(walk_feature_type_folder(filesystem, object_path))
+        elif FeatureType.has_value(object_name) and FeatureType(object_name) in relevant_feature_types:
+            result.features[FeatureType(object_name)] = dict(walk_feature_type_folder(filesystem, object_path))
 
     return result
 
 
-def _filesystem_info_to_feature_info(fsinfo: FilesystemDataInfo) -> Iterator[FeatureInfo]:
-    if fsinfo.bbox:
+def _filesystem_info_to_feature_info(
+    fsinfo: FilesystemDataInfo, relevant_feature_types: Set[FeatureType]
+) -> Iterator[FeatureInfo]:
+    if fsinfo.bbox and FeatureType.BBOX in relevant_feature_types:
         yield (FeatureType.BBOX, ..., fsinfo.bbox)
-    if fsinfo.timestamps:
+    if fsinfo.timestamps and FeatureType.TIMESTAMPS in relevant_feature_types:
         yield (FeatureType.TIMESTAMPS, ..., fsinfo.timestamps)
-    if fsinfo.meta_info:
+    if fsinfo.meta_info and FeatureType.META_INFO in relevant_feature_types:
         yield (FeatureType.META_INFO, ..., fsinfo.meta_info)
 
     for ftype, fnames in fsinfo.features.items():
@@ -292,7 +293,14 @@ def walk_filesystem(
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
     fsinfo = _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
 
-    return _filesystem_info_to_feature_info(fsinfo)
+    for ftype, fname in FeatureParser(features).get_feature_specifications():
+        if fname is not ...:
+            if ftype == FeatureType.META_INFO and fsinfo.meta_info is None:
+                raise IOError("There are no META_INFO features in saved EOPatch")
+            if not ftype.is_meta() and fname not in fsinfo.features.get(ftype, {}):
+                raise IOError(f"Feature {(ftype, fname)} does not exist in saved EOPatch")
+
+    return _filesystem_info_to_feature_info(fsinfo, relevant_feature_types)
 
 
 def old_walk_filesystem(
