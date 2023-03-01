@@ -32,7 +32,6 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -230,26 +229,17 @@ def _load_whole_feature_type(filesystem: FS, fsinfo: FilesystemDataInfo, eopatch
 def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
     relevant_features = FeatureParser(features).get_feature_specifications()
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
-    return _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
 
-
-def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature_types: Set[FeatureType]):
-    """Gets information about files that are part of the EOPatch. Skips features that are not relevant to reduce IO."""
     result = FilesystemDataInfo()
 
-    for path in filesystem.listdir(folder_path):
+    for path in filesystem.listdir(patch_location):
         object_name = _remove_file_extension(path).strip("/")  # TODO: does this work in the weird S3 case
-        object_path = fs.path.combine(folder_path, path)
-
-        if "/" in object_name:  # For cases where S3 does not have a regular folder structure
-            ftype_str, fname = fs.path.split(object_name)
-            result.features[FeatureType(ftype_str)][fname] = path
-            continue
+        object_path = fs.path.combine(patch_location, path)
 
         if object_name == "timestamp":
             warnings.warn(
                 (
-                    f"EOPatch at {filesystem.getsyspath(folder_path)} contains the deprecated naming `timestamp` for"
+                    f"EOPatch at {filesystem.getsyspath(patch_location)} contains the deprecated naming `timestamp` for"
                     " the `timestamps` feature. The old name will no longer be valid in the future. You can re-save"
                     " the `EOPatch` to update it."
                 ),
@@ -258,7 +248,11 @@ def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature
             )
             object_name = FeatureType.TIMESTAMPS.value
 
-        if object_name == BBOX_FILENAME:
+        if "/" in object_name:  # For cases where S3 does not have a regular folder structure
+            ftype_str, fname = fs.path.split(object_name)
+            result.features[FeatureType(ftype_str)][fname] = path
+
+        elif object_name == BBOX_FILENAME:
             result.bbox = object_path
 
         elif object_name == FeatureType.TIMESTAMPS.value:
