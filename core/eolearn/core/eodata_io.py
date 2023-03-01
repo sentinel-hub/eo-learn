@@ -72,30 +72,6 @@ BBOX_FILENAME = "bbox"
 
 
 @dataclass
-class FeatureFileInfo:
-    """Information container for data on where a feature is (to be) saved."""
-
-    feature: Tuple[FeatureType, str]
-    relative_file_path: str
-
-    def to_old(self) -> FeatureInfo:
-        """Reverts data to old representation."""
-        return (*self.feature, self.relative_file_path)
-
-
-@dataclass
-class MetaFeatureFileInfo:
-    """Information container for data on where a feature is (to be) saved."""
-
-    feature_type: FeatureType
-    relative_file_path: str
-
-    def to_old(self) -> FeatureInfo:
-        """Reverts data to old representation."""
-        return (self.feature_type, ..., self.relative_file_path)
-
-
-@dataclass
 class FilesystemDataInfo:
     """Information about data that is present on the filesystem. Fields represent paths to relevant file."""
 
@@ -116,8 +92,7 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    files_to_save_new = list(walk_eopatch(eopatch, patch_location, features))  # TODO: consider using an EOPatch
-    files_to_save = [x.to_old() for x in files_to_save_new]
+    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # TODO: consider using an EOPatch
     fsinfo = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
     _check_collisions(overwrite_permission, files_to_save, fsinfo)
@@ -311,7 +286,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
 
 def walk_eopatch(
     eopatch: EOPatch, patch_location: str, features: FeaturesSpecification
-) -> Iterator[Union[FeatureFileInfo, MetaFeatureFileInfo]]:
+) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
     """Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path."""
     returned_meta_features = set()
     for ftype, fname in FeatureParser(features).get_features(eopatch):
@@ -320,11 +295,11 @@ def walk_eopatch(
             # META_INFO features are yielded separately by FeatureParser. We only yield them once with `...`,
             # because all META_INFO is saved together
             if eopatch[ftype] and ftype not in returned_meta_features:
-                yield MetaFeatureFileInfo(ftype, ftype_path)
+                yield (ftype, ..., ftype_path)
                 returned_meta_features.add(ftype)
         else:
             fname = cast(str, fname)  # name is not None for non-meta features
-            yield FeatureFileInfo((ftype, fname), fs.path.combine(ftype_path, fname))
+            yield (ftype, fname, fs.path.combine(ftype_path, fname))
 
 
 def _check_collisions(
