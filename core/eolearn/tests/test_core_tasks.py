@@ -340,8 +340,8 @@ def test_zip_features(
     input_features: FeaturesSpecification,
     output_feature: FeatureSpec,
     zip_function: Callable,
-    patch: EOPatch,
     kwargs: Dict[str, Any],
+    patch: EOPatch,
 ) -> None:
     expected = zip_function(*[patch[feat] for feat in parse_features(input_features)], **kwargs)
     patch = ZipFeatureTask(input_features, output_feature, zip_function, **kwargs)(patch)
