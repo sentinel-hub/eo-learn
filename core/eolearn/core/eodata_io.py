@@ -117,9 +117,11 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    files_to_save_new = list(walk_eopatch(eopatch, patch_location, features))
+    files_to_save_new = list(walk_eopatch(eopatch, patch_location, features))  # TODO: consider using an EOPatch
     files_to_save = [x.to_old() for x in files_to_save_new]
-    existing_files = list(walk_filesystem(filesystem, patch_location)) if patch_exists else []
+    fsinfo = walk_filesystem(filesystem, patch_location) if patch_exists else None
+    relevant_feature_types = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications()}
+    existing_files = list(_filesystem_info_to_feature_info(fsinfo, relevant_feature_types)) if fsinfo else []
 
     _check_collisions(overwrite_permission, files_to_save, existing_files)
 
@@ -215,7 +217,17 @@ def load_eopatch(
     lazy_loading: bool = False,
 ) -> EOPatch:
     """A utility function used by `EOPatch.load` method."""
-    existing_features = list(walk_filesystem(filesystem, patch_location, features))
+    fsinfo = walk_filesystem(filesystem, patch_location, features)
+
+    for ftype, fname in FeatureParser(features).get_feature_specifications():
+        if fname is not ...:
+            if ftype == FeatureType.META_INFO and fsinfo.meta_info is None:
+                raise IOError("There are no META_INFO features in saved EOPatch")
+            if not ftype.is_meta() and fname not in fsinfo.features.get(ftype, {}):
+                raise IOError(f"Feature {(ftype, fname)} does not exist in saved EOPatch")
+
+    relevant_feature_types = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications()}
+    existing_features = list(_filesystem_info_to_feature_info(fsinfo, relevant_feature_types))
 
     loading_data: Iterable[Any] = [
         _get_feature_io_constructor(ftype)(path, filesystem) for ftype, _, path in existing_features
@@ -228,6 +240,7 @@ def load_eopatch(
     for (ftype, fname, _), value in zip(existing_features, loading_data):
         eopatch[(ftype, fname)] = value
 
+    # TODO: check that meta-info features are actually present
     return eopatch
 
 
@@ -235,9 +248,8 @@ def _get_filesystem_data_info(filesystem: FS, folder_path: str, relevant_feature
     """Gets information about files that are part of the EOPatch. Skips features that are not relevant to reduce IO."""
     result = FilesystemDataInfo(bbox=None, timestamps=None, meta_info=None, features=defaultdict(dict))
 
-    fname: Union[str, EllipsisType]
     for path in filesystem.listdir(folder_path):
-        object_name = path.split(".")[0].strip("/")
+        object_name = _remove_file_extension(path).strip("/")  # TODO: does this work in the weird S3 case
         object_path = fs.path.combine(folder_path, path)
 
         if "/" in object_name:  # For cases where S3 does not have a regular folder structure
@@ -286,21 +298,10 @@ def _filesystem_info_to_feature_info(
         yield from ((ftype, fname, fpath) for fname, fpath in fnames.items())
 
 
-def walk_filesystem(
-    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> Iterator[FeatureInfo]:
+def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
     relevant_features = FeatureParser(features).get_feature_specifications()
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
-    fsinfo = _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
-
-    for ftype, fname in FeatureParser(features).get_feature_specifications():
-        if fname is not ...:
-            if ftype == FeatureType.META_INFO and fsinfo.meta_info is None:
-                raise IOError("There are no META_INFO features in saved EOPatch")
-            if not ftype.is_meta() and fname not in fsinfo.features.get(ftype, {}):
-                raise IOError(f"Feature {(ftype, fname)} does not exist in saved EOPatch")
-
-    return _filesystem_info_to_feature_info(fsinfo, relevant_feature_types)
+    return _get_filesystem_data_info(filesystem, patch_location, relevant_feature_types)
 
 
 def old_walk_filesystem(
@@ -383,7 +384,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
     """
     for path in filesystem.listdir(folder_path):
         if "/" not in path and "." in path:
-            yield path.split(".")[0], fs.path.combine(folder_path, path)
+            yield _remove_file_extension(path), fs.path.combine(folder_path, path)
 
 
 def walk_eopatch(
@@ -440,6 +441,11 @@ def _to_lowercase(
 ) -> Tuple[FeatureType, Union[str, EllipsisType]]:
     """Transforms a feature to it's lowercase representation."""
     return ftype, fname if fname is ... else fname.lower()
+
+
+def _remove_file_extension(path: str) -> str:
+    """This also removes file extensions of form `.geojson.gz` unlike `fs.path.splitext`."""
+    return path.split(".")[0]
 
 
 class FeatureIO(Generic[T], metaclass=ABCMeta):
