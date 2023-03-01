@@ -20,8 +20,7 @@ import pytest
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from numpy.testing import assert_array_equal, assert_equal
-from pytest import approx
+from numpy.testing import assert_array_equal
 
 from sentinelhub import CRS, BBox
 
@@ -55,7 +54,7 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
     patch = EOPatch()
-    patch.data["bands"] = np.arange(5 * 3 * 4 * 2).reshape(5, 3, 4, 2)
+    patch.data["bands"] = np.arange(5 * 3 * 4 * 8).reshape(5, 3, 4, 8)
     patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
     patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
     patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
@@ -317,24 +316,36 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
 
 
 @pytest.mark.parametrize(
-    "features_to_zip, feature, function",
+    "input_features, output_feature, zip_function, kwargs",
     [
-        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), np.maximum),
-        ([(FeatureType.DATA, "CLP"), (FeatureType.DATA, "bands")], (FeatureType.DATA, "ziped"), lambda a, b: a + b),
+        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), np.maximum, {}),
+        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), lambda a, b: a + b, {}),
         (
             {FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"]},
             (FeatureType.MASK_TIMELESS, "ziped"),
             lambda a, b, c: a + b + c - 10,
+            {},
         ),
+        (
+            {FeatureType.DATA: ["CLP", "CLP_S2C"]},
+            (FeatureType.DATA, "feat_max"),
+            np.floor_divide,
+            {"dtype": np.float32},
+        ),
+        ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "feat_sum_+3"), lambda x, y, a: x + y + a, {"a": 3}),
     ],
 )
 def test_zip_features(
-    features_to_zip: FeaturesSpecification, feature: FeatureSpec, function: Callable, patch: EOPatch
+    input_features: FeaturesSpecification,
+    output_feature: FeatureSpec,
+    zip_function: Callable,
+    kwargs: Dict[str, Any],
+    patch: EOPatch,
 ) -> None:
-    expected = function(*[patch[f] for f in parse_features(features_to_zip)])
-    patch = ZipFeatureTask(features_to_zip, feature, function)(patch)
+    expected = zip_function(*[patch[feat] for feat in parse_features(input_features)], **kwargs)
+    patch = ZipFeatureTask(input_features, output_feature, zip_function, **kwargs)(patch)
 
-    assert np.array_equal(patch[feature], expected)
+    assert_array_equal(patch[output_feature], expected)
 
 
 def test_zip_features_fails(patch: EOPatch) -> None:
@@ -343,27 +354,45 @@ def test_zip_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_features, output_features, map_function",
+    "input_features, output_features, map_function, kwargs",
     [
-        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3),
-        ({FeatureType.MASK_TIMELESS: ["mask", "LULC"]}, {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]}, copy.deepcopy),
-        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_ceil", "CLP_S2C_ceil"]}, np.ceil),
+        ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3, {}),
+        (
+            {FeatureType.MASK_TIMELESS: ["mask", "LULC"]},
+            {FeatureType.MASK_TIMELESS: ["mask2", "LULC2"]},
+            copy.deepcopy,
+            {},
+        ),
+        ({FeatureType.DATA: ["CLP", "CLP_S2C"]}, {FeatureType.DATA: ["CLP_ceil", "CLP_S2C_ceil"]}, np.ceil, {}),
+        (
+            {FeatureType.DATA: ["CLP", "bands"]},
+            {FeatureType.DATA_TIMELESS: ["CLP_max", "bands_max"]},
+            np.max,
+            {"axis": -1},
+        ),
+        (
+            {FeatureType.DATA: ["CLP", "bands"]},
+            {FeatureType.DATA: ["CLP_+3", "bands_+3"]},
+            lambda x, a: x + a,
+            {"a": 3},
+        ),
     ],
 )
 def test_map_features(
     input_features: FeaturesSpecification,
     output_features: FeaturesSpecification,
     map_function: Callable,
+    kwargs: Dict[str, Any],
     patch: EOPatch,
 ) -> None:
     original_patch = patch.copy(deep=True, features=input_features)
-    mapped_patch = MapFeatureTask(input_features, output_features, map_function)(patch)
+    mapped_patch = MapFeatureTask(input_features, output_features, map_function, **kwargs)(patch)
 
     for feature in parse_features(input_features):
         assert_array_equal(original_patch[feature], mapped_patch[feature]), "Task changed input data."
 
     for in_feature, out_feature in zip(parse_features(input_features), parse_features(output_features)):
-        expected_output = map_function(mapped_patch[in_feature])
+        expected_output = map_function(mapped_patch[in_feature], **kwargs)
         assert_array_equal(mapped_patch[out_feature], expected_output)
 
 
@@ -386,49 +415,62 @@ def test_map_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
+    "input_feature, kwargs",
+    [
+        ((FeatureType.DATA, "bands"), {"axis": -1, "name": "fun_name", "bands": [4, 3, 2]}),
+    ],
+)
+def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], patch: EOPatch) -> None:
+    def kwargs_map(data, *, some=3, **kwargs) -> tuple:
+        return some, kwargs
+
+    mapped_patch = MapFeatureTask(input_feature, (FeatureType.META_INFO, "kwargs"), kwargs_map, **kwargs)(patch)
+
+    expected_output = kwargs_map(mapped_patch[input_feature], **kwargs)
+    assert mapped_patch[(FeatureType.META_INFO, "kwargs")] == expected_output
+
+
+@pytest.mark.parametrize(
     "feature,  task_input",
     [
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): [2, 4, 8]}),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): [2]}),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): (2,)}),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): 2}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): [2, 4, 6]}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): [2]}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): (2,)}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): 2}),
         (
-            (FeatureType.DATA, "REFERENCE_SCENES"),
+            (FeatureType.DATA, "bands"),
             {(FeatureType.DATA, "B01"): [0], (FeatureType.DATA, "B02"): [1], (FeatureType.DATA, "B02 & B03"): [1, 2]},
         ),
-        ((FeatureType.DATA, "REFERENCE_SCENES"), {(FeatureType.DATA, "MOVED_BANDS"): []}),
+        ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): []}),
     ],
 )
 def test_explode_bands(
-    test_eopatch: EOPatch,
-    feature: FeatureType,
+    patch: EOPatch,
+    feature: Tuple[FeatureType, str],
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
-):
-    move_bands = ExplodeBandsTask(feature, task_input)
-    patch = move_bands(test_eopatch)
+) -> None:
+    patch = ExplodeBandsTask(feature, task_input)(patch)
     assert all(new_feature in patch for new_feature in task_input)
 
     for new_feature, bands in task_input.items():
         if isinstance(bands, int):
             bands = [bands]
-        assert_equal(patch[new_feature], test_eopatch[feature][..., bands])
+        assert_array_equal(patch[new_feature], patch[feature][..., bands])
 
 
-def test_extract_bands(test_eopatch):
-    bands = [2, 4, 8]
-    move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
-    patch = move_bands(test_eopatch)
-    assert np.array_equal(patch.data["MOVED_BANDS"], patch.data["REFERENCE_SCENES"][..., bands])
+def test_extract_bands(patch: EOPatch) -> None:
+    bands = [2, 4, 6]
+    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), bands)(patch)
+    assert_array_equal(patch.data["EXTRACTED_BANDS"], patch.data["bands"][..., bands])
 
-    old_value = patch.data["MOVED_BANDS"][0, 0, 0, 0]
-    patch.data["MOVED_BANDS"][0, 0, 0, 0] += 1.0
-    assert patch.data["REFERENCE_SCENES"][0, 0, 0, bands[0]] == old_value
-    assert old_value + 1.0 == approx(patch.data["MOVED_BANDS"][0, 0, 0, 0])
+    patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] += 1
+    assert patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] != patch.data["bands"][0, 0, 0, bands[0]]
 
-    bands = [2, 4, 16]
-    move_bands = ExtractBandsTask((FeatureType.DATA, "REFERENCE_SCENES"), (FeatureType.DATA, "MOVED_BANDS"), bands)
+
+def test_extract_bands_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
-        move_bands(patch)
+        # fails because band 16 does not exist
+        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(patch)
 
 
 def test_create_eopatch():
