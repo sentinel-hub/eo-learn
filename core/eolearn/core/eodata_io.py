@@ -212,11 +212,11 @@ def _load_meta_feature(
     filesystem: FS, fsinfo: FilesystemDataInfo, eopatch: EOPatch, patch_location: str, ftype: FeatureType
 ) -> None:
     if ftype == FeatureType.BBOX and fsinfo.bbox is not None:
-        eopatch.bbox = FeatureIOBBox(fsinfo.bbox, filesystem)
+        eopatch.bbox = FeatureIOBBox(fsinfo.bbox, filesystem)  # type: ignore[assignment]
     elif ftype == FeatureType.TIMESTAMPS and fsinfo.timestamps is not None:
-        eopatch.timestamps = FeatureIOTimestamps(fsinfo.timestamps, filesystem)
+        eopatch.timestamps = FeatureIOTimestamps(fsinfo.timestamps, filesystem)  # type: ignore[assignment]
     elif ftype == FeatureType.META_INFO and fsinfo.meta_info is not None:
-        eopatch.meta_info = FeatureIOJson(fsinfo.meta_info, filesystem)
+        eopatch.meta_info = FeatureIOJson(fsinfo.meta_info, filesystem)  # type: ignore[assignment]
     else:
         raise IOError(f"Feature {ftype} does not exist in eopatch at {patch_location}.")
 
