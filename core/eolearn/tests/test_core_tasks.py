@@ -379,7 +379,7 @@ def test_map_features_overwrite(input_features: FeaturesSpecification, map_funct
 
 def test_map_features_fails(patch: EOPatch) -> None:
     with pytest.raises(NotImplementedError):
-        MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2", "NDVI2"]})(patch)
+        MapFeatureTask((FeatureType.DATA, "CLP"), (FeatureType.DATA, "CLP2"))(patch)
 
     with pytest.raises(ValueError):
         MapFeatureTask({FeatureType.DATA: ["CLP", "NDVI"]}, {FeatureType.DATA: ["CLP2"]})
