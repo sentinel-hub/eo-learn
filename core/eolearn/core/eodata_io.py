@@ -103,7 +103,7 @@ def save_eopatch(
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
     # Data must be collected before any tinkering with files due to lazy-loading
-    data_for_saving = _prepare_features_to_save(eopatch, eopatch_features, patch_location)
+    data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
 
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         _remove_old_eopatch(filesystem, patch_location)
@@ -126,38 +126,25 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
     filesystem.makedirs(patch_location, recreate=True)
 
 
-def _prepare_features_to_save(
+def _yield_features_to_save(
     eopatch: EOPatch, eopatch_features: List[FeatureSpec], patch_location: str
-) -> List[Tuple[Type[FeatureIO], Any, str]]:
+) -> Iterator[Tuple[Type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
     get_file_path = partial(fs.path.join, patch_location)
+    meta_features = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
 
-    features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
-        (FeatureIOBBox, eopatch.bbox, get_file_path(BBOX_FILENAME))
-    ]
+    if eopatch.bbox is not None:  # remove after BBox is never None
+        yield (FeatureIOBBox, eopatch.bbox, get_file_path(BBOX_FILENAME))
 
-    if eopatch.bbox is None:  # remove after BBox is never None
-        features_to_save = []
+    if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features:
+        yield (FeatureIOTimestamps, eopatch.timestamps, get_file_path(TIMESTAMPS_FILENAME))
 
-    meta_info_saved = False
+    if eopatch.meta_info and FeatureType.META_INFO in meta_features:
+        yield (FeatureIOJson, eopatch.meta_info, get_file_path(FeatureType.META_INFO.value))
+
     for ftype, fname in eopatch_features:
-        if ftype == FeatureType.BBOX:  # remove after BBOX is no longer a FeatureType
-            pass
-        elif ftype == FeatureType.META_INFO:
-            if eopatch.meta_info and not meta_info_saved:
-                meta_info_saved = True
-                features_to_save.append((FeatureIOJson, eopatch.meta_info, get_file_path(ftype.value)))
-        elif ftype == FeatureType.TIMESTAMPS:
-            if eopatch.timestamps:
-                features_to_save.append((FeatureIOTimestamps, eopatch.timestamps, get_file_path(TIMESTAMPS_FILENAME)))
-        else:
-            feature_io = _get_feature_io_constructor(ftype)
-            data = eopatch[(ftype, fname)]
-            feature_path = get_file_path(ftype.value, fname)
-
-            features_to_save.append((feature_io, data, feature_path))
-
-    return features_to_save
+        if not ftype.is_meta():
+            yield (_get_feature_io_constructor(ftype), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
 
 
 def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
