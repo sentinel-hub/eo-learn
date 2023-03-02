@@ -67,6 +67,7 @@ Self = TypeVar("Self", bound="FeatureIO")
 FeatureInfo = Tuple[FeatureType, Union[str, EllipsisType], str]
 
 BBOX_FILENAME = "bbox"
+TIMESTAMPS_FILENAME = "timestamps"
 
 
 @dataclass
@@ -77,6 +78,7 @@ class FilesystemDataInfo:
     bbox: Optional[str] = None
     meta_info: Optional[str] = None
     features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
+    # Note: add a flat iterator for features
 
 
 def save_eopatch(
@@ -253,7 +255,7 @@ def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpeci
                 category=EODeprecationWarning,
                 stacklevel=2,
             )
-            object_name = FeatureType.TIMESTAMPS.value
+            object_name = TIMESTAMPS_FILENAME
 
         if "/" in object_name:  # For cases where S3 does not have a regular folder structure
             ftype_str, fname = fs.path.split(object_name)
@@ -262,7 +264,7 @@ def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpeci
         elif object_name == BBOX_FILENAME:
             result.bbox = object_path
 
-        elif object_name == FeatureType.TIMESTAMPS.value:
+        elif object_name == TIMESTAMPS_FILENAME:
             result.timestamps = object_path
 
         elif object_name == FeatureType.META_INFO.value:
