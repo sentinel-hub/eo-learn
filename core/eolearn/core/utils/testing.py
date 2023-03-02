@@ -79,4 +79,5 @@ def _get_feature_shape(
     rng: np.random.Generator, ftype: FeatureType, timestamps: List[dt.datetime], config: PatchGeneratorConfig
 ) -> Tuple[int, ...]:
     time, height, width, depth = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
-    return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
+    shape_dict = {4: (time, height, width, depth), 3: (height, width, depth), 2: (time, depth), 1: (depth,)}
+    return shape_dict[ftype.ndim()]
