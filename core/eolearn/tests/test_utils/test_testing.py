@@ -5,6 +5,12 @@ from eolearn.core.types import FeatureSpec
 from eolearn.core.utils.testing import patch_generator
 
 
+def test_patch_generator_default() -> None:
+    patch = patch_generator()
+    assert hasattr(patch, "bbox")
+    assert hasattr(patch, "timestamps")
+
+
 @pytest.mark.parametrize(
     "feature",
     [
