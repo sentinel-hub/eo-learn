@@ -109,7 +109,7 @@ def save_eopatch(
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         _remove_old_eopatch(filesystem, patch_location)
 
-    ftype_folders = {fs.path.dirname(path) for _, _, path in files_to_save}
+    ftype_folders = {fs.path.dirname(path) for _, _, path in data_for_saving}
     for folder in ftype_folders:
         filesystem.makedirs(folder, recreate=True)
 
