@@ -294,7 +294,7 @@ def _check_collisions(
 def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {
-        (ftype, fname.lower()) for (ftype, fname), _ in filesystem_features.iterate_features()
+        _to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()
     }
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -310,10 +310,10 @@ def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesyste
     if len(lowercase_features) != len(eopatch_features):
         raise IOError("Some features differ only in casing and cannot be saved in separate files.")
 
-    for (ftype, fname), _ in filesystem_features.iterate_features():
-        if (ftype, fname) not in eopatch_features and _to_lowercase(ftype, fname) in lowercase_features:
+    for feature, _ in filesystem_features.iterate_features():
+        if feature not in eopatch_features and _to_lowercase(*feature) in lowercase_features:
             raise IOError(
-                f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
+                f"There already exists a feature {feature} in the filesystem that only differs in "
                 "casing from a feature that should be saved."
             )
 
