@@ -17,6 +17,7 @@ from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union
 
 import numpy as np
 import pytest
+from fs.base import FS
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
@@ -31,6 +32,7 @@ from eolearn.core import (
     DeepCopyTask,
     DuplicateFeatureTask,
     EOPatch,
+    EOTask,
     ExtractBandsTask,
     FeatureType,
     InitializeFeatureTask,
@@ -107,14 +109,12 @@ def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: 
             assert patch_copy[feature] == patch[feature]
 
 
-def test_load_task(test_eopatch_path):
-    full_load = LoadTask(test_eopatch_path)
-    full_patch = full_load.execute(eopatch_folder=".")
+def test_load_task(test_eopatch_path: str) -> None:
+    full_patch = LoadTask(test_eopatch_path)(eopatch_folder=".")
     assert len(full_patch.get_features()) == 30
 
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
-
     assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMPS not in partial_patch
 
     load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMPS])
@@ -123,14 +123,14 @@ def test_load_task(test_eopatch_path):
     assert FeatureType.DATA not in upgraded_partial_patch
 
 
-def test_load_nothing():
+def test_load_nothing() -> None:
     load = LoadTask("./some/fake/path")
     eopatch = load.execute(eopatch_folder=None)
 
     assert eopatch == EOPatch()
 
 
-def test_save_nothing(patch):
+def test_save_nothing(patch: EOPatch) -> None:
     temp_path = "/some/fake/path"
     with TempFS() as temp_fs:
         save = SaveTask(temp_path, filesystem=temp_fs)
@@ -142,7 +142,7 @@ def test_save_nothing(patch):
 
 @pytest.mark.parametrize("filesystem", [OSFS("."), S3FS("s3://fake-bucket/"), TempFS()])
 @pytest.mark.parametrize("task_class", [LoadTask, SaveTask])
-def test_io_task_pickling(filesystem, task_class):
+def test_io_task_pickling(filesystem: FS, task_class: Type[EOTask]) -> None:
     task = task_class("/", filesystem=filesystem)
 
     pickled_task = pickle.dumps(task)
@@ -473,12 +473,16 @@ def test_extract_bands_fails(patch: EOPatch) -> None:
         ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(patch)
 
 
-def test_create_eopatch():
-    data = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    bbox = BBox((5.60, 52.68, 5.75, 52.63), CRS.WGS84)
-
-    patch = CreateEOPatchTask()(data={"bands": data}, bbox=bbox)
-    assert np.array_equal(patch.data["bands"], data)
+@pytest.mark.parametrize(
+    "features",
+    [
+        {},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
+    ],
+)
+def test_create_eopatch(features: Dict[str, Any]) -> None:
+    assert CreateEOPatchTask()(**features) == EOPatch(**features)
 
 
 def test_merge_eopatches() -> None:
