@@ -102,9 +102,8 @@ def save_eopatch(
 
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
-    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
     # Data must be collected before any tinkering with files due to lazy-loading
-    data_for_saving = _prepare_features_to_save(eopatch, patch_location, files_to_save)
+    data_for_saving = _prepare_features_to_save(eopatch, eopatch_features, patch_location)
 
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         _remove_old_eopatch(filesystem, patch_location)
@@ -118,6 +117,7 @@ def save_eopatch(
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
+        files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
         remove_redundant_files(filesystem, files_to_save, file_information, compress_level)
 
 
@@ -127,23 +127,36 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 
 
 def _prepare_features_to_save(
-    eopatch: EOPatch, patch_location: str, files_to_save: Sequence[FeatureInfo]
+    eopatch: EOPatch, eopatch_features: List[FeatureSpec], patch_location: str
 ) -> List[Tuple[Type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
+    get_file_path = partial(fs.path.join, patch_location)
+
     features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
-        (FeatureIOBBox, eopatch.bbox, fs.path.combine(patch_location, BBOX_FILENAME))
+        (FeatureIOBBox, eopatch.bbox, get_file_path(BBOX_FILENAME))
     ]
 
     if eopatch.bbox is None:  # remove after BBox is never None
         features_to_save = []
 
-    for ftype, fname, feature_path in files_to_save:
+    meta_info_saved = False
+    for ftype, fname in eopatch_features:
         if ftype == FeatureType.BBOX:  # remove after BBOX is no longer a FeatureType
-            continue
-        feature_io = _get_feature_io_constructor(ftype)
-        data = eopatch[(ftype, fname)]
+            pass
+        elif ftype == FeatureType.META_INFO:
+            if eopatch.meta_info and not meta_info_saved:
+                meta_info_saved = True
+                features_to_save.append((FeatureIOJson, eopatch.meta_info, get_file_path(ftype.value)))
+        elif ftype == FeatureType.TIMESTAMPS:
+            if eopatch.timestamps:
+                features_to_save.append((FeatureIOTimestamps, eopatch.timestamps, get_file_path(TIMESTAMPS_FILENAME)))
+        else:
+            feature_io = _get_feature_io_constructor(ftype)
+            data = eopatch[(ftype, fname)]
+            feature_path = get_file_path(ftype.value, fname)
 
-        features_to_save.append((feature_io, data, feature_path))
+            features_to_save.append((feature_io, data, feature_path))
+
     return features_to_save
 
 
