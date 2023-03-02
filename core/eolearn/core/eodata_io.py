@@ -195,9 +195,7 @@ def load_eopatch(
             _load_whole_feature_type(filesystem, file_information, eopatch, ftype)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
-                raise IOError(
-                    f"Feature {(ftype, fname)} does not exist in eopatch at {filesystem.getsyspath(patch_location)}."
-                )
+                raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
             path = file_information.features[ftype][fname]
             eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
@@ -217,7 +215,7 @@ def _load_meta_feature(
     elif ftype == FeatureType.META_INFO and file_information.meta_info is not None:
         eopatch.meta_info = FeatureIOJson(file_information.meta_info, filesystem)  # type: ignore[assignment]
     else:
-        raise IOError(f"Feature {ftype} does not exist in eopatch at {filesystem.getsyspath(patch_location)}.")
+        raise IOError(f"Feature {ftype} does not exist in eopatch at {patch_location}.")
 
 
 def _load_whole_feature_type(
@@ -248,9 +246,9 @@ def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpeci
         if object_name == "timestamp":
             warnings.warn(
                 (
-                    f"EOPatch at {filesystem.getsyspath(patch_location)} contains the deprecated naming `timestamp` for"
-                    " the `timestamps` feature. The old name will no longer be valid in the future. You can re-save"
-                    " the `EOPatch` to update it."
+                    f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
+                    " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
+                    " update it."
                 ),
                 category=EODeprecationWarning,
                 stacklevel=2,
