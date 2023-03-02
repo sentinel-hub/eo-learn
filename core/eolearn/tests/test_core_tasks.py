@@ -474,26 +474,15 @@ def test_extract_bands_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "features, expected",
+    "features",
     [
-        ({}, 0),
-        ({"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}}, 1),
-        (
-            {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
-            3,
-        ),
+        {},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
     ],
 )
-def test_create_eopatch(features: Dict[str, Any], expected: int) -> None:
-    created_patch = CreateEOPatchTask()(**features)
-    assert len(created_patch.get_features()) == expected
-
-    for feature in created_patch.get_features():
-        type, name = feature
-        if isinstance(created_patch[feature], np.ndarray):
-            assert_array_equal(created_patch[feature], features[type.value][name])
-        else:
-            assert features[type.value] == created_patch[feature]
+def test_create_eopatch(features: Dict[str, Any]) -> None:
+    assert CreateEOPatchTask()(**features) == EOPatch(**features)
 
 
 def test_merge_eopatches() -> None:
