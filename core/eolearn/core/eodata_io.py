@@ -22,22 +22,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    BinaryIO,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, BinaryIO, Dict, Generic, Iterator, List, Optional, Tuple, Type, TypeVar, Union
 
 import dateutil.parser
 import fs
@@ -117,8 +102,7 @@ def save_eopatch(
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-        files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
-        remove_redundant_files(filesystem, files_to_save, file_information, compress_level)
+        remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -154,7 +138,7 @@ def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesy
 
 def remove_redundant_files(
     filesystem: FS,
-    eopatch_features: Sequence[FeatureInfo],
+    eopatch_features: List[FeatureSpec],
     preexisting_files: FilesystemDataInfo,
     current_compress_level: int,
 ) -> None:
@@ -164,22 +148,22 @@ def remove_redundant_files(
         return path is not None and MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
 
     files_to_remove = []
-    saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
+    saved_meta_types = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
 
-    for ftype, fname in saved_features:
+    for ftype, fname in eopatch_features:
         if ftype.is_meta():
             continue
         path = preexisting_files.features.get(ftype, {}).get(fname)  # type: ignore[arg-type]
         if has_different_compression(path):
             files_to_remove.append(path)
 
-    if (FeatureType.BBOX, ...) in saved_features and has_different_compression(preexisting_files.bbox):
+    if FeatureType.BBOX in saved_meta_types and has_different_compression(preexisting_files.bbox):
         files_to_remove.append(preexisting_files.bbox)
 
-    if (FeatureType.TIMESTAMPS, ...) in saved_features and has_different_compression(preexisting_files.timestamps):
+    if FeatureType.TIMESTAMPS in saved_meta_types and has_different_compression(preexisting_files.timestamps):
         files_to_remove.append(preexisting_files.timestamps)
 
-    if (FeatureType.META_INFO, ...) in saved_features and has_different_compression(preexisting_files.meta_info):
+    if FeatureType.META_INFO in saved_meta_types and has_different_compression(preexisting_files.meta_info):
         files_to_remove.append(preexisting_files.meta_info)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -290,24 +274,6 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
     for path in filesystem.listdir(folder_path):
         if "/" not in path and "." in path:
             yield _remove_file_extension(path), fs.path.combine(folder_path, path)
-
-
-def walk_eopatch(
-    eopatch: EOPatch, patch_location: str, features: FeaturesSpecification
-) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
-    """Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path."""
-    returned_meta_features = set()
-    for ftype, fname in FeatureParser(features).get_features(eopatch):
-        ftype_path = fs.path.combine(patch_location, ftype.value)
-        if ftype.is_meta():
-            # META_INFO features are yielded separately by FeatureParser. We only yield them once with `...`,
-            # because all META_INFO is saved together
-            if eopatch[ftype] and ftype not in returned_meta_features:
-                yield (ftype, ..., ftype_path)
-                returned_meta_features.add(ftype)
-        else:
-            fname = cast(str, fname)  # name is not None for non-meta features
-            yield (ftype, fname, fs.path.combine(ftype_path, fname))
 
 
 def _check_collisions(
