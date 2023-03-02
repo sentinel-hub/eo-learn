@@ -1,4 +1,8 @@
+import datetime as dt
+
 import pytest
+
+from sentinelhub import CRS, BBox
 
 from eolearn.core.constants import FeatureType
 from eolearn.core.types import FeatureSpec
@@ -9,6 +13,15 @@ def test_patch_generator_default() -> None:
     patch = patch_generator()
     assert hasattr(patch, "bbox")
     assert hasattr(patch, "timestamps")
+
+
+def test_patch_generator_not_default() -> None:
+    bbox = BBox((0, 0, 10, 10), crs=CRS("EPSG:32633"))
+    timestamps = [dt.datetime(2019, 1, 1)]
+    patch = patch_generator(bbox=bbox, timestamps=timestamps)
+
+    assert patch.bbox == bbox
+    assert patch.timestamps == timestamps
 
 
 @pytest.mark.parametrize(
