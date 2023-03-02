@@ -78,7 +78,12 @@ class FilesystemDataInfo:
     bbox: Optional[str] = None
     meta_info: Optional[str] = None
     features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
-    # Note: add a flat iterator for features
+
+    def iterate_features(self) -> Iterator[Tuple[Tuple[FeatureType, str], str]]:
+        """Yields `(ftype, fname), path` tuples from `features`."""
+        for ftype, ftype_dict in self.features.items():
+            for fname, path in ftype_dict.items():
+                yield (ftype, fname), path
 
 
 def save_eopatch(
@@ -326,7 +331,7 @@ def _check_add_only_permission(
 ) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {
-        (ftype, fname.lower()) for ftype, ftype_dict in filesystem_features.features.items() for fname in ftype_dict
+        (ftype, fname.lower()) for (ftype, fname), _ in filesystem_features.iterate_features()
     }
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -346,13 +351,12 @@ def _check_letter_case_collisions(
 
     original_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
 
-    for ftype, ftype_dict in filesystem_features.features.items():
-        for fname in ftype_dict:
-            if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
-                raise IOError(
-                    f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
-                    "casing from a feature that should be saved."
-                )
+    for (ftype, fname), _ in filesystem_features.iterate_features():
+        if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
+            raise IOError(
+                f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
+                "casing from a feature that should be saved."
+            )
 
 
 def _to_lowercase(
