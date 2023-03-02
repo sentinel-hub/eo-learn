@@ -293,9 +293,7 @@ def _check_collisions(
 
 def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
-    unique_filesystem_features = {
-        _to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()
-    }
+    unique_filesystem_features = {_to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()}
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     intersection = unique_filesystem_features.intersection(unique_eopatch_features)
