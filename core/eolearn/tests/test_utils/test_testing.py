@@ -27,14 +27,14 @@ def test_patch_generator_not_default() -> None:
 @pytest.mark.parametrize(
     "feature",
     [
-        (FeatureType.DATA, "neki"),
-        (FeatureType.MASK, "neki"),
-        (FeatureType.SCALAR, "neki"),
-        (FeatureType.LABEL, "neki"),
-        (FeatureType.DATA_TIMELESS, "neki"),
-        (FeatureType.MASK_TIMELESS, "neki"),
-        (FeatureType.SCALAR_TIMELESS, "neki"),
-        (FeatureType.LABEL_TIMELESS, "neki"),
+        (FeatureType.DATA, "data"),
+        (FeatureType.MASK, "mask"),
+        (FeatureType.SCALAR, "scalar"),
+        (FeatureType.LABEL, "label"),
+        (FeatureType.DATA_TIMELESS, "data_timeless"),
+        (FeatureType.MASK_TIMELESS, "mask_timeless"),
+        (FeatureType.SCALAR_TIMELESS, "scalar_timeless"),
+        (FeatureType.LABEL_TIMELESS, "label_timeless"),
     ],
 )
 def test_patch_generator_dim(feature: FeatureSpec) -> None:
