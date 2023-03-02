@@ -54,7 +54,7 @@ from sentinelhub.exceptions import SHUserWarning
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeaturesSpecification
+from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
 
@@ -97,11 +97,12 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
+    eopatch_features = FeatureParser(features).get_features(eopatch)
     file_information = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
-    _check_collisions(overwrite_permission, files_to_save, file_information)
+    _check_collisions(overwrite_permission, eopatch_features, file_information)
 
+    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = _prepare_features_to_save(eopatch, patch_location, files_to_save)
 
@@ -310,25 +311,21 @@ def walk_eopatch(
 
 
 def _check_collisions(
-    overwrite_permission: OverwritePermission,
-    files_to_save: Sequence[FeatureInfo],
-    existing_files: FilesystemDataInfo,
+    overwrite_permission: OverwritePermission, eopatch_features: List[FeatureSpec], existing_files: FilesystemDataInfo
 ):
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
-        _check_letter_case_collisions(files_to_save, existing_files)
-        _check_add_only_permission(files_to_save, existing_files)
+        _check_letter_case_collisions(eopatch_features, existing_files)
+        _check_add_only_permission(eopatch_features, existing_files)
 
     elif platform.system() == "Windows" and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
-        _check_letter_case_collisions(files_to_save, existing_files)
+        _check_letter_case_collisions(eopatch_features, existing_files)
 
     else:
-        _check_letter_case_collisions(files_to_save, FilesystemDataInfo())
+        _check_letter_case_collisions(eopatch_features, FilesystemDataInfo())
 
 
-def _check_add_only_permission(
-    eopatch_features: Sequence[FeatureInfo], filesystem_features: FilesystemDataInfo
-) -> None:
+def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {
         (ftype, fname.lower()) for (ftype, fname), _ in filesystem_features.iterate_features()
@@ -340,30 +337,24 @@ def _check_add_only_permission(
         raise ValueError(f"Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY")
 
 
-def _check_letter_case_collisions(
-    eopatch_features: Sequence[FeatureInfo], filesystem_features: FilesystemDataInfo
-) -> None:
+def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     if len(lowercase_features) != len(eopatch_features):
         raise IOError("Some features differ only in casing and cannot be saved in separate files.")
 
-    original_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
-
     for (ftype, fname), _ in filesystem_features.iterate_features():
-        if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
+        if (ftype, fname) not in eopatch_features and _to_lowercase(ftype, fname) in lowercase_features:
             raise IOError(
                 f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
                 "casing from a feature that should be saved."
             )
 
 
-def _to_lowercase(
-    ftype: FeatureType, fname: Union[str, EllipsisType], *_: Any
-) -> Tuple[FeatureType, Union[str, EllipsisType]]:
+def _to_lowercase(ftype: FeatureType, fname: Optional[str], *_: Any) -> Tuple[FeatureType, Optional[str]]:
     """Transforms a feature to it's lowercase representation."""
-    return ftype, fname if fname is ... else fname.lower()
+    return ftype, fname if fname is None else fname.lower()
 
 
 def _remove_file_extension(path: str) -> str:
