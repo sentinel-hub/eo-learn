@@ -6,13 +6,13 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core.constants import FeatureType
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.testing import patch_generator
+from eolearn.core.utils.testing import generate_eopatch
 
 
 def test_patch_generator_set_bbox_timestamps() -> None:
     bbox = BBox((0, 0, 10, 10), crs=CRS("EPSG:32633"))
     timestamps = [dt.datetime(2019, 1, 1)]
-    patch = patch_generator(bbox=bbox, timestamps=timestamps)
+    patch = generate_eopatch(bbox=bbox, timestamps=timestamps)
 
     assert patch.bbox == bbox
     assert patch.timestamps == timestamps
@@ -33,7 +33,7 @@ def test_patch_generator_set_bbox_timestamps() -> None:
 def test_patch_generator_fails(feature: FeatureSpec) -> None:
     with pytest.raises(ValueError):
         # fails because it is not `raster` and only raster features are supported
-        patch_generator(feature)
+        generate_eopatch(feature)
 
 
 @pytest.mark.parametrize("seed", [0, 1, 42, 100])
@@ -42,6 +42,6 @@ def test_patch_generator_fails(feature: FeatureSpec) -> None:
     [{}, {FeatureType.DATA: ["bands, CLP"]}, {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"}],
 )
 def test_patch_generator_seed(seed: int, features: FeaturesSpecification) -> None:
-    patch1 = patch_generator(features)
-    patch2 = patch_generator(features)
+    patch1 = generate_eopatch(features)
+    patch2 = generate_eopatch(features)
     assert patch1 == patch2

@@ -43,7 +43,7 @@ class PatchGeneratorConfig:
         self.timestamps = list(pd.date_range(*self.timestamps_range, periods=self.num_timestamps).to_pydatetime())
 
 
-def patch_generator(
+def generate_eopatch(
     features: Optional[List[Tuple[FeatureType, str]]] = None,
     bbox: BBox = DEFAULT_BBOX,
     timestamps: Optional[List[dt.datetime]] = None,
