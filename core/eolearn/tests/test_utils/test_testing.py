@@ -23,10 +23,6 @@ def test_patch_generator_set_bbox_timestamps() -> None:
     [
         (FeatureType.META_INFO, "meta_info"),
         (FeatureType.VECTOR, "vector"),
-        (FeatureType.SCALAR, "scalar"),
-        (FeatureType.LABEL, "label"),
-        (FeatureType.SCALAR_TIMELESS, "scalar_timeless"),
-        (FeatureType.LABEL_TIMELESS, "label_timeless"),
         (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
     ],
 )
