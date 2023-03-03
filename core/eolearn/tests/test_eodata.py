@@ -399,3 +399,4 @@ def test_timestamps_deprecation():
 
     # wont raise warning a second time
     assert eop.timestamp == [datetime.datetime(4321, 5, 6)]
+    assert eop.timestamp == eop.timestamps
