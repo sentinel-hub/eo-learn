@@ -331,52 +331,50 @@ class EOPatch:
         return value
 
     @overload
-    def __getitem__(
-        self, feature_type: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]
-    ) -> BBox:
+    def __getitem__(self, key: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]) -> BBox:
         ...
 
     @overload
     def __getitem__(
-        self, feature_type: Union[Literal[FeatureType.TIMESTAMPS], Tuple[Literal[FeatureType.TIMESTAMPS], Any]]
+        self, key: Union[Literal[FeatureType.TIMESTAMPS], Tuple[Literal[FeatureType.TIMESTAMPS], Any]]
     ) -> List[dt.datetime]:
         ...
 
     @overload
-    def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+    def __getitem__(self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
         ...
 
-    def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+    def __getitem__(self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
         """Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name).
 
-        :param feature_type: Type of EOPatch feature
+        :param key: Feature type or a (feature_type, feature_name) pair.
         """
-        feature_name = None
-        if isinstance(feature_type, tuple):
-            self._check_tuple_key(feature_type)
-            feature_type, feature_name = feature_type
+        if isinstance(key, tuple):
+            feature_type, feature_name = key
+        else:
+            feature_type, feature_name = key, None
 
         ftype = FeatureType(feature_type).value
         return self.__getattribute__(ftype, feature_name=feature_name)  # type: ignore[call-arg]
 
     def __setitem__(
-        self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
+        self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
     ) -> None:
         """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
         (feature_type, feature_name).
 
-        :param feature_type: Type of EOPatch feature
+        :param key: Type of EOPatch feature
         :param value: New dictionary or list
         """
-        feature_name = None
-        if isinstance(feature_type, tuple):
-            self._check_tuple_key(feature_type)
-            feature_type, feature_name = feature_type
+        if isinstance(key, tuple):
+            feature_type, feature_name = key
+        else:
+            feature_type, feature_name = key, None
 
         return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
 
     def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
-        """Deletes the selected feature.
+        """Deletes the selected feature type or feature.
 
         :param feature: EOPatch feature
         """
@@ -395,12 +393,6 @@ class EOPatch:
             raise ValueError("The BBox of an EOPatch should never be undefined.")
         elif feature_type == FeatureType.TIMESTAMPS:
             self[feature_type] = []
-
-    @staticmethod
-    def _check_tuple_key(key: tuple) -> None:
-        """A helper function that checks a tuple, which should hold (feature_type, feature_name)."""
-        if not isinstance(key, (tuple, list)) or len(key) != 2:
-            raise ValueError(f"Given element should be a tuple of (feature_type, feature_name), but {key} found.")
 
     def __eq__(self, other: object) -> bool:
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""
