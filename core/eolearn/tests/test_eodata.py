@@ -163,7 +163,7 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.MASK, "ones"),
         (FeatureType.MASK_TIMELESS, "threes"),
         (FeatureType.META_INFO, "beep"),
-        (FeatureType.BBOX, None),
+        (FeatureType.TIMESTAMPS, None),
     ],
 )
 def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) -> None:
@@ -176,6 +176,18 @@ def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) ->
         if old_feature != feature:
             # this also works for BBox :D
             assert_array_equal(old[old_feature], mini_eopatch[old_feature])
+
+
+@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.TIMESTAMPS])
+def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
+    old = mini_eopatch.copy(deep=True)
+
+    del mini_eopatch[feature_type]
+    assert feature_type not in mini_eopatch
+
+    for ftype, fname in old.get_features():
+        if ftype != feature_type:
+            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
 def test_delete_fail_on_nonexisting_feature(mini_eopatch: EOPatch) -> None:
@@ -292,18 +304,6 @@ def test_equals() -> None:
 
     eop1.data_timeless["dem"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     assert eop1 != eop2
-
-
-@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.MASK_TIMELESS, FeatureType.BBOX])
-def test_reset_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
-    old = mini_eopatch.copy(deep=True)
-
-    mini_eopatch.reset_feature_type(feature_type)
-    assert mini_eopatch[feature_type] == ({} if feature_type.has_dict() else None)
-
-    for ftype, fname in old.get_features():
-        if ftype != feature_type:
-            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
 @pytest.mark.parametrize(
