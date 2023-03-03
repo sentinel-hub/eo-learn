@@ -52,7 +52,7 @@ def generate_eopatch(
 ):
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
-    supported_feature_types = [FeatureType.DATA, FeatureType.MASK, FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS]
+    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_raster()]
     parsed_features = FeatureParser(features or [], supported_feature_types).get_features()
     rng = np.random.default_rng(seed)
 
