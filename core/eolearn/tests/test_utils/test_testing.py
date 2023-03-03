@@ -5,7 +5,7 @@ import pytest
 from sentinelhub import CRS, BBox
 
 from eolearn.core.constants import FeatureType
-from eolearn.core.types import FeatureSpec
+from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import patch_generator
 
 
@@ -40,3 +40,15 @@ def test_patch_generator_not_default() -> None:
 def test_patch_generator_dim(feature: FeatureSpec) -> None:
     patch = patch_generator(feature)
     assert patch[feature].ndim == feature[0].ndim()
+
+
+@pytest.mark.parametrize("seed", [0, 1, 42, 100])
+@pytest.mark.parametrize(
+    "featurs",
+    [{}, {FeatureType.DATA: ["bands, CLP"]}, {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"}],
+)
+def test_patch_generator_seed(seed: int, featurs: FeaturesSpecification) -> None:
+    data_feature = (FeatureType.DATA, "neki")
+    patch1 = patch_generator(data_feature)
+    patch2 = patch_generator(data_feature)
+    assert patch1 == patch2
