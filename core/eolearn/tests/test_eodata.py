@@ -10,7 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import datetime
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 import numpy as np
 import pytest
@@ -174,7 +174,6 @@ def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) ->
 
     for old_feature in old.get_features():
         if old_feature != feature:
-            # this also works for BBox :D
             assert_array_equal(old[old_feature], mini_eopatch[old_feature])
 
 
@@ -190,9 +189,10 @@ def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: E
             assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
-def test_cannot_delete_bbox(mini_eopatch: EOPatch) -> None:
+@pytest.mark.parametrize("bbox_feature", [FeatureType.BBOX, (FeatureType.BBOX, None)])
+def test_cannot_delete_bbox(bbox_feature: Union[FeatureType, FeatureSpec], mini_eopatch: EOPatch) -> None:
     with pytest.raises(ValueError):
-        del mini_eopatch[FeatureType.BBOX]
+        del mini_eopatch[bbox_feature]
 
 
 def test_delete_fail_on_nonexisting_feature(mini_eopatch: EOPatch) -> None:
