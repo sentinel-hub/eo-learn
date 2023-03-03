@@ -28,7 +28,6 @@ def test_generate_eopatch_set_bbox_timestamps() -> None:
 )
 def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
     with pytest.raises(ValueError):
-        # fails because it is not `raster` and only raster features are supported
         generate_eopatch(feature)
 
 
