@@ -28,6 +28,7 @@ from fs.base import FS
 from typing_extensions import Literal
 
 from sentinelhub import CRS, BBox
+from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch, save_eopatch
@@ -365,17 +366,26 @@ class EOPatch:
 
         return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
 
-    def __delitem__(self, feature: FeatureSpec) -> None:
+    def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
         """Deletes the selected feature.
 
         :param feature: EOPatch feature
         """
-        self._check_tuple_key(feature)
-        feature_type, feature_name = feature
-        if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
-            self.reset_feature_type(feature_type)
-        else:
-            del self[feature_type][feature_name]
+        if isinstance(feature, tuple):
+            feature_type, feature_name = feature
+            if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
+                feature = feature_type
+            else:
+                del self[feature_type][feature_name]
+                return
+
+        feature_type = FeatureType(feature)
+        if feature_type.has_dict():
+            self[feature_type] = {}
+        elif feature_type == FeatureType.BBOX:
+            raise ValueError("The BBox of an EOPatch should never be undefined.")
+        elif feature_type == FeatureType.TIMESTAMPS:
+            self[feature_type] = []
 
     @staticmethod
     def _check_tuple_key(key: tuple) -> None:
@@ -524,6 +534,7 @@ class EOPatch:
             return self.__deepcopy__(features=features)  # pylint: disable=unnecessary-dunder-call
         return self.__copy__(features=features)  # pylint: disable=unnecessary-dunder-call
 
+    @deprecated_function(EODeprecationWarning, "Use `del eopatch[feature_type]` or `del eopatch[feature]` instead.")
     def reset_feature_type(self, feature_type: FeatureType) -> None:
         """Resets the values of the given feature type.
 
@@ -533,7 +544,7 @@ class EOPatch:
         if feature_type.has_dict():
             self[feature_type] = {}
         elif feature_type is FeatureType.BBOX:
-            self[feature_type] = None
+            raise ValueError("The BBox of an EOPatch should never be undefined.")
         else:
             self[feature_type] = []
 

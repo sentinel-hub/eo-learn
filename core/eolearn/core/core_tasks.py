@@ -196,11 +196,8 @@ class RemoveFeatureTask(EOTask):
         :param eopatch: input EOPatch
         :return: input EOPatch without the specified feature
         """
-        for feature_type, feature_name in self.feature_parser.get_features(eopatch):
-            if feature_name is None:
-                eopatch.reset_feature_type(feature_type)
-            else:
-                del eopatch[feature_type][feature_name]
+        for feature in self.feature_parser.get_features(eopatch):
+            del eopatch[feature]
 
         return eopatch
 
