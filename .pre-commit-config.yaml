@@ -13,7 +13,7 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/psf/black
-    rev: 22.12.0
+    rev: 23.1.0
     hooks:
       - id: black
         language_version: python3
@@ -25,7 +25,7 @@ repos:
         name: isort (python)
 
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.0.0
+    rev: v2.0.1
     hooks:
       - id: autoflake
         args:
@@ -40,13 +40,13 @@ repos:
     hooks:
       - id: flake8
         additional_dependencies:
-          - flake8-bugbear
-          - flake8-comprehensions
-          - flake8-simplify
-          - flake8-typing-imports
+          - flake8-bugbear==23.2.13
+          - flake8-comprehensions==3.10.1
+          - flake8-simplify==0.19.3
+          - flake8-typing-imports==1.14.0
 
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.6.1
+    rev: 1.6.3
     hooks:
       - id: nbqa-black
       - id: nbqa-isort
