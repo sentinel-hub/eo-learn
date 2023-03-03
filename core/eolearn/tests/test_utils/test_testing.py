@@ -56,7 +56,7 @@ def test_patch_generator_fails(feature: FeatureSpec) -> None:
     [{}, {FeatureType.DATA: ["bands, CLP"]}, {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"}],
 )
 def test_patch_generator_seed(seed: int, featurs: FeaturesSpecification) -> None:
-    data_feature = (FeatureType.DATA, "neki")
+    data_feature = (FeatureType.DATA, "data")
     patch1 = patch_generator(data_feature)
     patch2 = patch_generator(data_feature)
     assert patch1 == patch2
