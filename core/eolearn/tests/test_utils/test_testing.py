@@ -21,26 +21,12 @@ def test_patch_generator_set_bbox_timestamps() -> None:
 @pytest.mark.parametrize(
     "feature",
     [
-        (FeatureType.DATA, "data"),
-        (FeatureType.MASK, "mask"),
-        (FeatureType.SCALAR, "scalar"),
-        (FeatureType.LABEL, "label"),
-        (FeatureType.DATA_TIMELESS, "data_timeless"),
-        (FeatureType.MASK_TIMELESS, "mask_timeless"),
-        (FeatureType.SCALAR_TIMELESS, "scalar_timeless"),
-        (FeatureType.LABEL_TIMELESS, "label_timeless"),
-    ],
-)
-def test_patch_generator_dim(feature: FeatureSpec) -> None:
-    patch = patch_generator(feature)
-    assert patch[feature].ndim == feature[0].ndim()
-
-
-@pytest.mark.parametrize(
-    "feature",
-    [
         (FeatureType.META_INFO, "meta_info"),
         (FeatureType.VECTOR, "vector"),
+        (FeatureType.SCALAR, "scalar"),
+        (FeatureType.LABEL, "label"),
+        (FeatureType.SCALAR_TIMELESS, "scalar_timeless"),
+        (FeatureType.LABEL_TIMELESS, "label_timeless"),
         (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
     ],
 )
