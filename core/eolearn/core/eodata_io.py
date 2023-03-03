@@ -22,22 +22,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    BinaryIO,
-    Dict,
-    Generic,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, BinaryIO, Dict, Generic, Iterator, List, Optional, Tuple, Type, TypeVar, Union
 
 import dateutil.parser
 import fs
@@ -54,7 +39,7 @@ from sentinelhub.exceptions import SHUserWarning
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeaturesSpecification
+from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
 from .utils.vector_io import infer_schema
 
@@ -78,7 +63,12 @@ class FilesystemDataInfo:
     bbox: Optional[str] = None
     meta_info: Optional[str] = None
     features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
-    # Note: add a flat iterator for features
+
+    def iterate_features(self) -> Iterator[Tuple[Tuple[FeatureType, str], str]]:
+        """Yields `(ftype, fname), path` tuples from `features`."""
+        for ftype, ftype_dict in self.features.items():
+            for fname, path in ftype_dict.items():
+                yield (ftype, fname), path
 
 
 def save_eopatch(
@@ -92,18 +82,18 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
-    files_to_save = list(walk_eopatch(eopatch, patch_location, features))  # Note: consider using an EOPatch
+    eopatch_features = FeatureParser(features).get_features(eopatch)
     file_information = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
-    _check_collisions(overwrite_permission, files_to_save, file_information)
+    _check_collisions(overwrite_permission, eopatch_features, file_information)
 
     # Data must be collected before any tinkering with files due to lazy-loading
-    data_for_saving = _prepare_features_to_save(eopatch, patch_location, files_to_save)
+    data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
 
     if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
         _remove_old_eopatch(filesystem, patch_location)
 
-    ftype_folders = {fs.path.dirname(path) for _, _, path in files_to_save}
+    ftype_folders = {fs.path.dirname(path) for _, _, path in data_for_saving}
     for folder in ftype_folders:
         filesystem.makedirs(folder, recreate=True)
 
@@ -112,7 +102,7 @@ def save_eopatch(
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
     if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-        remove_redundant_files(filesystem, files_to_save, file_information, compress_level)
+        remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -120,25 +110,25 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
     filesystem.makedirs(patch_location, recreate=True)
 
 
-def _prepare_features_to_save(
-    eopatch: EOPatch, patch_location: str, files_to_save: Sequence[FeatureInfo]
-) -> List[Tuple[Type[FeatureIO], Any, str]]:
+def _yield_features_to_save(
+    eopatch: EOPatch, eopatch_features: List[FeatureSpec], patch_location: str
+) -> Iterator[Tuple[Type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
-    features_to_save: List[Tuple[Type[FeatureIO], Any, str]] = [
-        (FeatureIOBBox, eopatch.bbox, fs.path.combine(patch_location, BBOX_FILENAME))
-    ]
+    get_file_path = partial(fs.path.join, patch_location)
+    meta_features = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
 
-    if eopatch.bbox is None:  # remove after BBox is never None
-        features_to_save = []
+    if eopatch.bbox is not None:  # remove after BBox is never None
+        yield (FeatureIOBBox, eopatch.bbox, get_file_path(BBOX_FILENAME))
 
-    for ftype, fname, feature_path in files_to_save:
-        if ftype == FeatureType.BBOX:  # remove after BBOX is no longer a FeatureType
-            continue
-        feature_io = _get_feature_io_constructor(ftype)
-        data = eopatch[(ftype, fname)]
+    if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features:
+        yield (FeatureIOTimestamps, eopatch.timestamps, get_file_path(TIMESTAMPS_FILENAME))
 
-        features_to_save.append((feature_io, data, feature_path))
-    return features_to_save
+    if eopatch.meta_info and FeatureType.META_INFO in meta_features:
+        yield (FeatureIOJson, eopatch.meta_info, get_file_path(FeatureType.META_INFO.value))
+
+    for ftype, fname in eopatch_features:
+        if not ftype.is_meta():
+            yield (_get_feature_io_constructor(ftype), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
 
 
 def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
@@ -148,7 +138,7 @@ def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesy
 
 def remove_redundant_files(
     filesystem: FS,
-    eopatch_features: Sequence[FeatureInfo],
+    eopatch_features: List[FeatureSpec],
     preexisting_files: FilesystemDataInfo,
     current_compress_level: int,
 ) -> None:
@@ -158,22 +148,22 @@ def remove_redundant_files(
         return path is not None and MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
 
     files_to_remove = []
-    saved_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
+    saved_meta_types = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
 
-    for ftype, fname in saved_features:
+    for ftype, fname in eopatch_features:
         if ftype.is_meta():
             continue
         path = preexisting_files.features.get(ftype, {}).get(fname)  # type: ignore[arg-type]
         if has_different_compression(path):
             files_to_remove.append(path)
 
-    if (FeatureType.BBOX, ...) in saved_features and has_different_compression(preexisting_files.bbox):
+    if FeatureType.BBOX in saved_meta_types and has_different_compression(preexisting_files.bbox):
         files_to_remove.append(preexisting_files.bbox)
 
-    if (FeatureType.TIMESTAMPS, ...) in saved_features and has_different_compression(preexisting_files.timestamps):
+    if FeatureType.TIMESTAMPS in saved_meta_types and has_different_compression(preexisting_files.timestamps):
         files_to_remove.append(preexisting_files.timestamps)
 
-    if (FeatureType.META_INFO, ...) in saved_features and has_different_compression(preexisting_files.meta_info):
+    if FeatureType.META_INFO in saved_meta_types and has_different_compression(preexisting_files.meta_info):
         files_to_remove.append(preexisting_files.meta_info)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -286,48 +276,24 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
             yield _remove_file_extension(path), fs.path.combine(folder_path, path)
 
 
-def walk_eopatch(
-    eopatch: EOPatch, patch_location: str, features: FeaturesSpecification
-) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
-    """Yields tuples of (feature_type, feature_name, file_path), with file_path being the expected file path."""
-    returned_meta_features = set()
-    for ftype, fname in FeatureParser(features).get_features(eopatch):
-        ftype_path = fs.path.combine(patch_location, ftype.value)
-        if ftype.is_meta():
-            # META_INFO features are yielded separately by FeatureParser. We only yield them once with `...`,
-            # because all META_INFO is saved together
-            if eopatch[ftype] and ftype not in returned_meta_features:
-                yield (ftype, ..., ftype_path)
-                returned_meta_features.add(ftype)
-        else:
-            fname = cast(str, fname)  # name is not None for non-meta features
-            yield (ftype, fname, fs.path.combine(ftype_path, fname))
-
-
 def _check_collisions(
-    overwrite_permission: OverwritePermission,
-    files_to_save: Sequence[FeatureInfo],
-    existing_files: FilesystemDataInfo,
+    overwrite_permission: OverwritePermission, eopatch_features: List[FeatureSpec], existing_files: FilesystemDataInfo
 ):
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
-        _check_letter_case_collisions(files_to_save, existing_files)
-        _check_add_only_permission(files_to_save, existing_files)
+        _check_letter_case_collisions(eopatch_features, existing_files)
+        _check_add_only_permission(eopatch_features, existing_files)
 
     elif platform.system() == "Windows" and overwrite_permission is OverwritePermission.OVERWRITE_FEATURES:
-        _check_letter_case_collisions(files_to_save, existing_files)
+        _check_letter_case_collisions(eopatch_features, existing_files)
 
     else:
-        _check_letter_case_collisions(files_to_save, FilesystemDataInfo())
+        _check_letter_case_collisions(eopatch_features, FilesystemDataInfo())
 
 
-def _check_add_only_permission(
-    eopatch_features: Sequence[FeatureInfo], filesystem_features: FilesystemDataInfo
-) -> None:
+def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
-    unique_filesystem_features = {
-        (ftype, fname.lower()) for ftype, ftype_dict in filesystem_features.features.items() for fname in ftype_dict
-    }
+    unique_filesystem_features = {_to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()}
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     intersection = unique_filesystem_features.intersection(unique_eopatch_features)
@@ -335,31 +301,24 @@ def _check_add_only_permission(
         raise ValueError(f"Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY")
 
 
-def _check_letter_case_collisions(
-    eopatch_features: Sequence[FeatureInfo], filesystem_features: FilesystemDataInfo
-) -> None:
+def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     if len(lowercase_features) != len(eopatch_features):
         raise IOError("Some features differ only in casing and cannot be saved in separate files.")
 
-    original_features = {(ftype, fname) for ftype, fname, _ in eopatch_features}
-
-    for ftype, ftype_dict in filesystem_features.features.items():
-        for fname in ftype_dict:
-            if (ftype, fname) not in original_features and _to_lowercase(ftype, fname) in lowercase_features:
-                raise IOError(
-                    f"There already exists a feature {(ftype, fname)} in the filesystem that only differs in "
-                    "casing from a feature that should be saved."
-                )
+    for feature, _ in filesystem_features.iterate_features():
+        if feature not in eopatch_features and _to_lowercase(*feature) in lowercase_features:
+            raise IOError(
+                f"There already exists a feature {feature} in the filesystem that only differs in "
+                "casing from a feature that should be saved."
+            )
 
 
-def _to_lowercase(
-    ftype: FeatureType, fname: Union[str, EllipsisType], *_: Any
-) -> Tuple[FeatureType, Union[str, EllipsisType]]:
+def _to_lowercase(ftype: FeatureType, fname: Optional[str], *_: Any) -> Tuple[FeatureType, Optional[str]]:
     """Transforms a feature to it's lowercase representation."""
-    return ftype, fname if fname is ... else fname.lower()
+    return ftype, fname if fname is None else fname.lower()
 
 
 def _remove_file_extension(path: str) -> str:
