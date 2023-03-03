@@ -9,7 +9,7 @@ from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import generate_eopatch
 
 
-def test_patch_generator_set_bbox_timestamps() -> None:
+def test_generate_eopatch_set_bbox_timestamps() -> None:
     bbox = BBox((0, 0, 10, 10), crs=CRS("EPSG:32633"))
     timestamps = [dt.datetime(2019, 1, 1)]
     patch = generate_eopatch(bbox=bbox, timestamps=timestamps)
@@ -26,7 +26,7 @@ def test_patch_generator_set_bbox_timestamps() -> None:
         (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
     ],
 )
-def test_patch_generator_fails(feature: FeatureSpec) -> None:
+def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
     with pytest.raises(ValueError):
         # fails because it is not `raster` and only raster features are supported
         generate_eopatch(feature)
@@ -37,7 +37,7 @@ def test_patch_generator_fails(feature: FeatureSpec) -> None:
     "features",
     [{}, {FeatureType.DATA: ["bands, CLP"]}, {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"}],
 )
-def test_patch_generator_seed(seed: int, features: FeaturesSpecification) -> None:
+def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> None:
     patch1 = generate_eopatch(features)
     patch2 = generate_eopatch(features)
     assert patch1 == patch2
