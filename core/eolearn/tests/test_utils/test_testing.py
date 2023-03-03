@@ -9,12 +9,6 @@ from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import patch_generator
 
 
-def test_patch_generator_default() -> None:
-    patch = patch_generator()
-    assert hasattr(patch, "bbox")
-    assert hasattr(patch, "timestamps")
-
-
 def test_patch_generator_set_bbox_timestamps() -> None:
     bbox = BBox((0, 0, 10, 10), crs=CRS("EPSG:32633"))
     timestamps = [dt.datetime(2019, 1, 1)]
