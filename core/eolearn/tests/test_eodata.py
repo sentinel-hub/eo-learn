@@ -157,7 +157,7 @@ def test_simplified_feature_operations() -> None:
 
 
 @pytest.mark.parametrize(
-    "feature",
+    "feature_to_delete",
     [
         (FeatureType.DATA, "zeros"),
         (FeatureType.MASK, "ones"),
@@ -166,15 +166,18 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.TIMESTAMPS, None),
     ],
 )
-def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) -> None:
+def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
-    del mini_eopatch[feature]
-    assert feature not in mini_eopatch
+    del mini_eopatch[feature_to_delete]
+    assert feature_to_delete not in mini_eopatch
 
-    for old_feature in old.get_features():
-        if old_feature != feature:
-            assert_array_equal(old[old_feature], mini_eopatch[old_feature])
+    for feature in old.get_features():
+        if feature != feature_to_delete:
+            if isinstance(mini_eopatch[feature], np.ndarray):
+                assert_array_equal(old[feature], mini_eopatch[feature])
+            else:
+                assert old[feature] == mini_eopatch[feature]
 
 
 @pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.TIMESTAMPS])
