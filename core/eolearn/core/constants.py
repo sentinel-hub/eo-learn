@@ -65,7 +65,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
      - VECTOR_TIMELESS: time-independent vector shapes in shapely.geometry classes
      - META_INFO: dictionary of additional info (e.g. resolution, time difference)
      - BBOX: bounding box of the patch which is an instance of sentinelhub.BBox
-     - TIMESTAMP: list of dates which are instances of datetime.datetime
+     - TIMESTAMPS: list of dates which are instances of datetime.datetime
     """
 
     # IMPORTANT: these feature names must exactly match those in EOPatch constructor
