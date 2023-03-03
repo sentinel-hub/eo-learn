@@ -36,10 +36,18 @@ def test_patch_generator_dim(feature: FeatureSpec) -> None:
     assert patch[feature].ndim == feature[0].ndim()
 
 
-def test_patch_generator_fails() -> None:
+@pytest.mark.parametrize(
+    "feature",
+    [
+        (FeatureType.META_INFO, "meta_info"),
+        (FeatureType.VECTOR, "vector"),
+        (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
+    ],
+)
+def test_patch_generator_fails(feature: FeatureSpec) -> None:
     with pytest.raises(ValueError):
         # fails because it is not `raster` and only raster features are supported
-        patch_generator((FeatureType.META_INFO, "meta_info"))
+        patch_generator(feature)
 
 
 @pytest.mark.parametrize("seed", [0, 1, 42, 100])
