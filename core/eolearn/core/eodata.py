@@ -266,6 +266,15 @@ class EOPatch:
         )
         return self.timestamps
 
+    @timestamp.setter
+    def timestamp(self, value: List[dt.datetime]) -> None:
+        warn(
+            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
+            category=EODeprecationWarning,
+            stacklevel=2,
+        )
+        self.timestamps = value
+
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
 
@@ -527,7 +536,7 @@ class EOPatch:
         :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied. Note that
             `BBOX` is always copied.
         :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
-            of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMP` will be copied even with a shallow copy.
+            of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMPS` will be copied even with a shallow copy.
         :return: An EOPatch copy.
         """
         if deep:
