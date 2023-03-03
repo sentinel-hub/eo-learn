@@ -68,7 +68,7 @@ def patch_generator(
 
 
 def _generate_feature_data(
-    rng: np.random.Generator, ftype: FeatureType, shape: List[int], config: PatchGeneratorConfig
+    rng: np.random.Generator, ftype: FeatureType, shape: Tuple[int, ...], config: PatchGeneratorConfig
 ) -> np.ndarray:
     if ftype.is_discrete():
         return rng.integers(config.max_integer_value, size=shape)
@@ -77,9 +77,6 @@ def _generate_feature_data(
 
 def _get_feature_shape(
     rng: np.random.Generator, ftype: FeatureType, timestamps: List[dt.datetime], config: PatchGeneratorConfig
-) -> List[int]:
-    shape = [len(timestamps)] if ftype.is_temporal() else []  # time
-    f_dim: int = ftype.ndim() or 0
-    shape.extend(config.raster_shape if f_dim >= 3 else [])  # height, width
-    shape.append(rng.integers(*config.depth_range))  # depth
-    return shape
+) -> Tuple[int, ...]:
+    time, height, width, depth = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
+    return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
