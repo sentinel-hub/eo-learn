@@ -424,12 +424,11 @@ class EOPatch:
             if not content:
                 continue
 
-            if isinstance(content, dict) and content:
-                content_str = (
-                    "{\n    "
-                    + "\n    ".join([f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())])
-                    + "\n  }"
+            if isinstance(content, dict):
+                inner_content_repr = "\n    ".join(
+                    [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
                 )
+                content_str = "{\n    " + inner_content_repr + "\n  }"
             else:
                 content_str = self._repr_value(content)
             feature_repr_list.append(f"{feature_type.value}={content_str}")
@@ -552,18 +551,14 @@ class EOPatch:
         """
         Returns a tuple of spatial dimension (height, width) of a feature.
 
-        The feature has to be spatial or time dependent.
-
         :param feature_type: Type of the feature
         :param feature_name: Name of the feature
         """
-        if feature_type.is_temporal() or feature_type.is_spatial():
+        if feature_type.is_raster() and feature_type.is_spatial():
             shape = self[feature_type][feature_name].shape
             return shape[1:3] if feature_type.is_temporal() else shape[0:2]
 
-        raise ValueError(
-            "FeatureType used to determine the width and height of raster must be time dependent or spatial."
-        )
+        raise ValueError(f"Features of type {feature_type} do not have a spatial dimension or are not arrays.")
 
     def get_features(self) -> List[FeatureSpec]:
         """Returns a list of all non-empty features of EOPatch.
