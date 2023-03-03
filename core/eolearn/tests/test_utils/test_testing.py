@@ -38,6 +38,6 @@ def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
     [{}, {FeatureType.DATA: ["bands, CLP"]}, {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"}],
 )
 def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> None:
-    patch1 = generate_eopatch(features)
-    patch2 = generate_eopatch(features)
+    patch1 = generate_eopatch(features, seed=seed)
+    patch2 = generate_eopatch(features, seed=seed)
     assert patch1 == patch2
