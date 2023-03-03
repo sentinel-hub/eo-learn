@@ -180,19 +180,19 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
 
-@pytest.mark.parametrize("feature", [(FeatureType.DATA, "bands"), (FeatureType.TIMESTAMPS, None)])
-def test_remove_feature(feature: FeatureSpec, patch: EOPatch) -> None:
-    patch_copy = copy.deepcopy(patch)
-    assert feature in patch
+@pytest.mark.parametrize(
+    "features", [(FeatureType.DATA, "bands"), [FeatureType.TIMESTAMPS, FeatureType.DATA, (FeatureType.MASK, "CLM")]]
+)
+def test_remove_feature(features: FeaturesSpecification, patch: EOPatch) -> None:
+    original_patch = copy.deepcopy(patch)
+    features_to_remove = parse_features(features, patch)
+    assert all(feature in patch for feature in features_to_remove)
 
-    patch = RemoveFeatureTask(feature)(patch)
-    assert feature not in patch
-
-    del patch_copy[feature]
-    assert patch == patch_copy
+    patch = RemoveFeatureTask(features)(patch)
+    for feature in original_patch.get_features():
+        assert (feature not in patch) if feature in features_to_remove else (feature in patch)
 
 
-@pytest.mark.skip
 def test_remove_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         RemoveFeatureTask((FeatureType.BBOX, None))(patch)

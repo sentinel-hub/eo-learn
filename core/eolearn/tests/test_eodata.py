@@ -10,7 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import datetime
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 import numpy as np
 import pytest
@@ -157,25 +157,45 @@ def test_simplified_feature_operations() -> None:
 
 
 @pytest.mark.parametrize(
-    "feature",
+    "feature_to_delete",
     [
         (FeatureType.DATA, "zeros"),
         (FeatureType.MASK, "ones"),
         (FeatureType.MASK_TIMELESS, "threes"),
         (FeatureType.META_INFO, "beep"),
-        (FeatureType.BBOX, None),
+        (FeatureType.TIMESTAMPS, None),
     ],
 )
-def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) -> None:
+def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
-    del mini_eopatch[feature]
-    assert feature not in mini_eopatch
+    del mini_eopatch[feature_to_delete]
+    assert feature_to_delete not in mini_eopatch
 
-    for old_feature in old.get_features():
-        if old_feature != feature:
-            # this also works for BBox :D
-            assert_array_equal(old[old_feature], mini_eopatch[old_feature])
+    for feature in old.get_features():
+        if feature != feature_to_delete:
+            if isinstance(mini_eopatch[feature], np.ndarray):
+                assert_array_equal(old[feature], mini_eopatch[feature])
+            else:
+                assert old[feature] == mini_eopatch[feature]
+
+
+@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.TIMESTAMPS])
+def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
+    old = mini_eopatch.copy(deep=True)
+
+    del mini_eopatch[feature_type]
+    assert feature_type not in mini_eopatch
+
+    for ftype, fname in old.get_features():
+        if ftype != feature_type:
+            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
+
+
+@pytest.mark.parametrize("bbox_feature", [FeatureType.BBOX, (FeatureType.BBOX, None)])
+def test_cannot_delete_bbox(bbox_feature: Union[FeatureType, FeatureSpec], mini_eopatch: EOPatch) -> None:
+    with pytest.raises(ValueError):
+        del mini_eopatch[bbox_feature]
 
 
 def test_delete_fail_on_nonexisting_feature(mini_eopatch: EOPatch) -> None:
@@ -292,18 +312,6 @@ def test_equals() -> None:
 
     eop1.data_timeless["dem"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     assert eop1 != eop2
-
-
-@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.MASK_TIMELESS, FeatureType.BBOX])
-def test_reset_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
-    old = mini_eopatch.copy(deep=True)
-
-    mini_eopatch.reset_feature_type(feature_type)
-    assert mini_eopatch[feature_type] == ({} if feature_type.has_dict() else None)
-
-    for ftype, fname in old.get_features():
-        if ftype != feature_type:
-            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
 @pytest.mark.parametrize(
