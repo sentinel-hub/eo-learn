@@ -45,7 +45,7 @@ class FeatureParser:
       appropriate point.
     - The user can provide ellipsis `...` as a way to specify all features. When combined with a feature type it is
       understood as all features of a given type. When using `...` an EOPatch must be provided when parsing features,
-      except when used only for `BBOX` and `TIMESTAMP` features.
+      except when used only for `BBOX` and `TIMESTAMPS` features.
     - The parser can output pairs `(feature_type, feature_name)` or triples `(feature_type, old_name, new_name)`, which
       come in hand in many cases. If the user does not provide an explicit new name, the `old_name` and `new_name` are
       equal.
@@ -112,7 +112,7 @@ class FeatureParser:
         """This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
 
         Due to typing issues the all-features requests are transformed from `(ftype, ...)` to `(ftype, None, None)`.
-        This is a correct schema for BBOX and TIMESTAMP while for other features this is corrected when outputting,
+        This is a correct schema for BBOX and TIMESTAMPS while for other features this is corrected when outputting,
         either by processing the request or by substituting ellipses back (case of `get_feature_specifications`).
         """
 

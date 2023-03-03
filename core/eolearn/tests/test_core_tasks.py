@@ -93,7 +93,7 @@ def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
     "features",
     [
         [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.BBOX, None)],
-        [(FeatureType.TIMESTAMP, None), (FeatureType.SCALAR, "values")],
+        [(FeatureType.TIMESTAMPS, None), (FeatureType.SCALAR, "values")],
     ],
 )
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
