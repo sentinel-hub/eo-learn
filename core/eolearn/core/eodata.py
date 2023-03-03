@@ -311,8 +311,7 @@ class EOPatch:
             ]
 
         raise TypeError(
-            f"Attribute {feature_type} requires value of type {feature_type.type()} - "
-            f"failed to parse given value {value}"
+            f"Attribute {feature_type} requires values of type {feature_type.type()}, cannot parse given value {value}"
         )
 
     def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
@@ -401,17 +400,17 @@ class EOPatch:
 
         return all(deep_eq(self[feature_type], other[feature_type]) for feature_type in FeatureType)
 
-    def __contains__(self, feature: object) -> bool:
-        if isinstance(feature, FeatureType):
-            return bool(self[feature])
-        if isinstance(feature, tuple) and len(feature) == 2:
-            ftype, fname = FeatureType(feature[0]), feature[1]
-            if ftype.has_dict():
-                return fname in self[ftype]
-            return bool(self[ftype])
+    def __contains__(self, key: object) -> bool:
+        # `key` does not have a precise type, because otherwise `mypy` defaults to inclusion using `__iter__` and
+        # the error message is incomprehensible.
+        if isinstance(key, FeatureType):
+            return bool(self[key])
+        if isinstance(key, tuple) and len(key) == 2:
+            ftype, fname = key
+            return fname in self[ftype]
         raise ValueError(
-            f"Membership checking is only implemented elements of type `{FeatureType.__name__}` and for "
-            "`(feature_type, feature_name)` tuples."
+            f"Membership checking is only implemented for elements of type `{FeatureType.__name__}` and for "
+            "`(feature_type, feature_name)` pairs."
         )
 
     def __add__(self, other: EOPatch) -> EOPatch:
