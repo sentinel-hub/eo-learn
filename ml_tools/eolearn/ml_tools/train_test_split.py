@@ -74,7 +74,7 @@ class TrainTestSplitTask(EOTask):
     ):
         """
         :param input_feature: The input feature to guide the split.
-        :param input_feature: The output feature where to save the mask.
+        :param output_feature: The output feature where to save the mask.
         :param bins: Cumulative probabilities of all value classes or a single float, representing a fraction.
         :param split_type: Value split type, either 'PER_PIXEL', 'PER_CLASS' or 'PER_VALUE'.
         :param ignore_values: A list of values in input_feature to ignore and not assign them to any subsets.
