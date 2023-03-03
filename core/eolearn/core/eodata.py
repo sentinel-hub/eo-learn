@@ -265,6 +265,15 @@ class EOPatch:
         )
         return self.timestamps
 
+    @timestamp.setter
+    def timestamp(self, value: List[dt.datetime]) -> None:
+        warn(
+            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
+            category=EODeprecationWarning,
+            stacklevel=2,
+        )
+        self.timestamps = value
+
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
 

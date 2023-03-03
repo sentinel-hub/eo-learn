@@ -21,6 +21,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
+from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
 
 
@@ -385,3 +386,16 @@ def test_timestamp_consolidation() -> None:
     assert np.array_equal(mask[1:-1, ...], eop.mask["MASK"])
     assert np.array_equal(scalar[1:-1, ...], eop.scalar["SCALAR"])
     assert np.array_equal(mask_timeless, eop.mask_timeless["MASK_TIMELESS"])
+
+
+def test_timestamps_deprecation():
+    eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.POP_WEB), timestamps=[datetime.datetime(1234, 5, 6)])
+
+    with pytest.warns(EODeprecationWarning):
+        assert eop.timestamp == [datetime.datetime(1234, 5, 6)]
+
+    with pytest.warns(EODeprecationWarning):
+        eop.timestamp = [datetime.datetime(4321, 5, 6)]
+
+    # wont raise warning a second time
+    assert eop.timestamp == [datetime.datetime(4321, 5, 6)]
