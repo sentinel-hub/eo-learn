@@ -407,7 +407,9 @@ class EOPatch:
             return bool(self[key])
         if isinstance(key, tuple) and len(key) == 2:
             ftype, fname = key
-            return (fname in self[ftype]) if isinstance(fname, str) else bool(self[ftype])
+            if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
+                return bool(self[ftype])
+            return fname in self[ftype]
         raise ValueError(
             f"Membership checking is only implemented for elements of type `{FeatureType.__name__}` and for "
             "`(feature_type, feature_name)` pairs."
