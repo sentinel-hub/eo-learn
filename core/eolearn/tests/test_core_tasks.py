@@ -193,7 +193,6 @@ def test_remove_feature(features: FeaturesSpecification, patch: EOPatch) -> None
         assert (feature not in patch) if feature in features_to_remove else (feature in patch)
 
 
-@pytest.mark.skip
 def test_remove_fails(patch: EOPatch) -> None:
     with pytest.raises(ValueError):
         RemoveFeatureTask((FeatureType.BBOX, None))(patch)

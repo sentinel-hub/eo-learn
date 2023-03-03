@@ -190,6 +190,11 @@ def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: E
             assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
+def test_cannot_delete_bbox(mini_eopatch: EOPatch) -> None:
+    with pytest.raises(ValueError):
+        del mini_eopatch[FeatureType.BBOX]
+
+
 def test_delete_fail_on_nonexisting_feature(mini_eopatch: EOPatch) -> None:
     with pytest.raises(KeyError):
         del mini_eopatch[(FeatureType.DATA, "not_here")]
