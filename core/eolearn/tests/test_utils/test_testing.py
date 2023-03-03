@@ -1,12 +1,14 @@
 import datetime as dt
 
+import numpy as np
 import pytest
+from numpy.testing import assert_array_equal
 
 from sentinelhub import CRS, BBox
 
 from eolearn.core.constants import FeatureType
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.testing import generate_eopatch
+from eolearn.core.utils.testing import PatchGeneratorConfig, generate_eopatch
 
 
 def test_generate_eopatch_set_bbox_timestamps() -> None:
@@ -40,3 +42,15 @@ def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> No
     patch1 = generate_eopatch(features, seed=seed)
     patch2 = generate_eopatch(features, seed=seed)
     assert patch1 == patch2
+
+
+def test_generate_eopatch_config() -> None:
+    test_config = {
+        "num_timestamps": 3,
+        "timestamps_range": (dt.datetime(2022, 1, 1), dt.datetime(2022, 12, 31)),
+        "max_integer_value": 1,
+        "raster_shape": (1, 1),
+        "depth_range": (1, 2),
+    }
+    patch = generate_eopatch((FeatureType.MASK, "CLM"), config=PatchGeneratorConfig(**test_config))
+    assert_array_equal(patch[(FeatureType.MASK, "CLM")], np.zeros((3, 1, 1, 1)))
