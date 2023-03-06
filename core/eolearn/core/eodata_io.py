@@ -83,7 +83,7 @@ def save_eopatch(
     patch_exists = filesystem.exists(patch_location)
 
     eopatch_features = FeatureParser(features).get_features(eopatch)
-    file_information = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
+    file_information = get_filesystem_data_info(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
@@ -178,7 +178,7 @@ def load_eopatch(
     lazy_loading: bool = False,
 ) -> EOPatch:
     """A utility function used by `EOPatch.load` method."""
-    file_information = walk_filesystem(filesystem, patch_location, features)
+    file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
     _load_meta_features(filesystem, file_information, eopatch, features)
 
@@ -242,7 +242,9 @@ def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
         list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
 
 
-def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
+def get_filesystem_data_info(
+    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
+) -> FilesystemDataInfo:
     """Returns information on all eopatch files in the storage. Filters with `features` to reduce IO calls."""
     relevant_features = FeatureParser(features).get_feature_specifications()
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
