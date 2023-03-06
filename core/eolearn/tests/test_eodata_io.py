@@ -33,7 +33,7 @@ from eolearn.core.eodata_io import (
     FeatureIONumpy,
     FeatureIOTimestamps,
 )
-from eolearn.core.utils.testing import assert_feature_match
+from eolearn.core.utils.testing import assert_feature_data_equal
 
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
@@ -343,8 +343,8 @@ def test_feature_io(constructor: Type[FeatureIO], data: Any, compress_level: int
         feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
         constructor.save(data, temp_fs, file_name, compress_level)
         loaded_data = feat_io.load()
-        assert_feature_match(loaded_data, data)
+        assert_feature_data_equal(loaded_data, data)
 
         temp_fs.remove(file_name + file_extension)
         cache_data = feat_io.load()
-        assert_feature_match(loaded_data, cache_data)
+        assert_feature_data_equal(loaded_data, cache_data)

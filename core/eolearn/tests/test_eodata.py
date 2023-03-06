@@ -22,7 +22,7 @@ from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.testing import assert_feature_match
+from eolearn.core.utils.testing import assert_feature_data_equal
 
 
 @pytest.fixture(name="mini_eopatch")
@@ -175,7 +175,7 @@ def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: E
 
     for feature in old.get_features():
         if feature != feature_to_delete:
-            assert_feature_match(mini_eopatch[feature], old[feature])
+            assert_feature_data_equal(mini_eopatch[feature], old[feature])
 
 
 @pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.TIMESTAMPS])
@@ -187,7 +187,7 @@ def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: E
 
     for ftype, fname in old.get_features():
         if ftype != feature_type:
-            assert_feature_match(old[ftype, fname], mini_eopatch[ftype, fname])
+            assert_feature_data_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
 @pytest.mark.parametrize("bbox_feature", [FeatureType.BBOX, (FeatureType.BBOX, None)])

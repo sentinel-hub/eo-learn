@@ -85,7 +85,7 @@ def _get_feature_shape(
     return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
 
 
-def assert_feature_match(tested_feature: Any, expected_feature: Any) -> None:
+def assert_feature_data_equal(tested_feature: Any, expected_feature: Any) -> None:
     """A test util function for checking if two features are equal."""
     if isinstance(tested_feature, np.ndarray) and isinstance(expected_feature, np.ndarray):
         assert_array_equal(tested_feature, expected_feature)
