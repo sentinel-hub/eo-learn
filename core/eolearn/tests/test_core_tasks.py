@@ -49,6 +49,7 @@ from eolearn.core import (
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_features
+from eolearn.core.utils.testing import assert_feature_match
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
@@ -101,12 +102,8 @@ def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: 
     patch_copy = task(features=features)(patch)
 
     assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
-
     for feature in features:
-        if isinstance(patch[feature], np.ndarray):
-            assert_array_equal(patch_copy[feature], patch[feature])
-        else:
-            assert patch_copy[feature] == patch[feature]
+        assert_feature_match(patch[feature], patch_copy[feature])
 
 
 def test_load_task(test_eopatch_path: str) -> None:
@@ -164,10 +161,7 @@ def test_add_feature(feature: FeatureSpec, feature_data: Any) -> None:
     assert feature not in patch
     patch = AddFeatureTask(feature)(patch, feature_data)
 
-    if isinstance(feature_data, np.ndarray):
-        assert_array_equal(patch[feature], feature_data)
-    else:
-        assert patch[feature] == feature_data
+    assert_feature_match(patch[feature], feature_data)
 
 
 def test_rename_feature(patch: EOPatch) -> None:
@@ -285,10 +279,7 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
         duplicated_id = id(patch_dst[feat])
         assert original_id != duplicated_id if deep else original_id == duplicated_id
 
-        if isinstance(patch[feat], np.ndarray):
-            assert_array_equal(patch[feat], patch_dst[feat])
-        else:
-            assert patch[feat] == patch_dst[feat]
+        assert_feature_match(patch[feat], patch_dst[feat])
 
 
 @pytest.mark.parametrize(
