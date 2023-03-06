@@ -180,10 +180,13 @@ def load_eopatch(
     """A utility function used by `EOPatch.load` method."""
     file_information = walk_filesystem(filesystem, patch_location, features)
 
+    _load_meta_features(filesystem, file_information, eopatch, features)
+
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype.is_meta():
-            _load_meta_feature(filesystem, file_information, eopatch, patch_location, ftype)
-        elif fname is ...:
+            continue
+
+        if fname is ...:
             _load_whole_feature_type(filesystem, file_information, eopatch, ftype)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
@@ -197,17 +200,32 @@ def load_eopatch(
     return eopatch
 
 
-def _load_meta_feature(
-    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, patch_location: str, ftype: FeatureType
+def _load_meta_features(
+    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, features: FeaturesSpecification
 ) -> None:
-    if ftype == FeatureType.BBOX and file_information.bbox is not None:
+    requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
+
+    err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
+
+    if file_information.bbox is not None:
         eopatch.bbox = FeatureIOBBox(file_information.bbox, filesystem)  # type: ignore[assignment]
-    elif ftype == FeatureType.TIMESTAMPS and file_information.timestamps is not None:
-        eopatch.timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem)  # type: ignore[assignment]
-    elif ftype == FeatureType.META_INFO and file_information.meta_info is not None:
-        eopatch.meta_info = FeatureIOJson(file_information.meta_info, filesystem)  # type: ignore[assignment]
-    else:
-        raise IOError(f"Feature {ftype} does not exist in eopatch at {patch_location}.")
+    elif FeatureType.BBOX in requested and features is not Ellipsis:
+        raise IOError(err_msg.format(FeatureType.BBOX))
+
+    if FeatureType.TIMESTAMPS in requested:
+        if file_information.timestamps is not None:
+            eopatch.timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem)  # type: ignore
+        elif features is not Ellipsis:
+            raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
+
+    if FeatureType.META_INFO in requested:
+        if file_information.meta_info is not None:
+            eopatch.meta_info = FeatureIOJson(file_information.meta_info, filesystem)  # type: ignore[assignment]
+        elif any(
+            ftype == FeatureType.META_INFO and isinstance(fname, str)
+            for ftype, fname in FeatureParser(features).get_feature_specifications()
+        ):
+            raise IOError(err_msg.format(FeatureType.META_INFO))
 
 
 def _load_whole_feature_type(
