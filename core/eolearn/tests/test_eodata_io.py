@@ -9,7 +9,7 @@ file in the root directory of this source tree.
 import datetime
 import os
 import tempfile
-from typing import Any, Type
+from typing import Any, Dict, Type
 
 import fs
 import geopandas as gpd
@@ -33,6 +33,8 @@ from eolearn.core.eodata_io import (
     FeatureIONumpy,
     FeatureIOTimestamps,
 )
+from eolearn.core.types import FeaturesSpecification
+from eolearn.core.utils.parsing import FeatureParser
 
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
@@ -121,26 +123,47 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_save_load(eopatch, fs_loader):
+@pytest.mark.parametrize(
+    "save_kwargs, load_kwargs",
+    [
+        ({"path": "/random_path"}, {"path": "/random_path"}),
+        (
+            {"path": "/", "overwrite_permission": OverwritePermission.OVERWRITE_FEATURES},
+            {"path": "/", "lazy_loading": False},
+        ),
+    ],
+)
+def test_save_load(eopatch: EOPatch, fs_loader, save_kwargs: Dict[str, Any], load_kwargs: Dict[str, Any]):
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs)
-        eopatch2 = EOPatch.load("/", filesystem=temp_fs)
-        assert eopatch == eopatch2
+        eopatch.save(**save_kwargs, filesystem=temp_fs)
+        loaded_eopatch = EOPatch.load(**load_kwargs, filesystem=temp_fs)
+        assert eopatch == loaded_eopatch
 
-        eopatch2.save("/", filesystem=temp_fs, overwrite_permission=1)
-        eopatch2 = EOPatch.load("/", filesystem=temp_fs)
-        assert eopatch == eopatch2
 
-        eopatch2.save("/", filesystem=temp_fs, overwrite_permission=1)
-        eopatch2 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
-        assert eopatch == eopatch2
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize(
+    "save_features, load_features",
+    [
+        (..., ...),
+        (..., ...),
+        ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
+        ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...)]),
+        ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], ...),
+    ],
+)
+def test_save_load_partial(
+    eopatch: EOPatch, fs_loader, save_features: FeaturesSpecification, load_features: FeaturesSpecification
+):
+    with fs_loader() as temp_fs:
+        eopatch.save("/", features=save_features, filesystem=temp_fs)
+        loaded_eopatch = EOPatch.load("/", features=load_features, filesystem=temp_fs)
 
-        features = {FeatureType.DATA_TIMELESS: ["mask"], FeatureType.TIMESTAMPS: ...}
-        eopatch2.save("/", filesystem=temp_fs, features=features, compress_level=3, overwrite_permission=1)
-        eopatch2 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=True)
-        assert eopatch == eopatch2
-        eopatch3 = EOPatch.load("/", filesystem=temp_fs, lazy_loading=True, features=features)
-        assert eopatch != eopatch3
+        # have to check features that have been saved and then loaded (double filtering)
+        features_to_load = FeatureParser(load_features).get_features(eopatch)
+        for feature in FeatureParser(save_features).get_features(eopatch):
+            if feature in features_to_load:
+                assert feature in loaded_eopatch
 
 
 @mock_s3
