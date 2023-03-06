@@ -371,5 +371,5 @@ def test_walk_filesystem_interface(fs_loader, features, eopatch):
         loaded_eopatch = EOPatch.load(**io_kwargs)
 
         for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
-            feature_key = ftype if ftype.is_meta() else (ftype, fname) 
+            feature_key = ftype if ftype.is_meta() else (ftype, fname)
             assert feature_key in loaded_eopatch
