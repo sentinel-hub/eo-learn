@@ -19,7 +19,7 @@ def test_generate_eopatch_set_bbox_timestamps() -> None:
     assert patch.bbox == bbox
     assert patch.timestamps == timestamps
 
-    assert patch[(FeatureType.DATA, "bands")][0] == len(timestamps)
+    assert patch[(FeatureType.DATA, "bands")].shape[0] == len(timestamps)
 
 
 @pytest.mark.parametrize(
