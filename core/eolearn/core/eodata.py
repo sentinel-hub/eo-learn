@@ -402,7 +402,7 @@ class EOPatch:
 
     def __contains__(self, key: object) -> bool:
         # `key` does not have a precise type, because otherwise `mypy` defaults to inclusion using `__iter__` and
-        # the error message is incomprehensible.
+        # the error message becomes incomprehensible.
         if isinstance(key, FeatureType):
             return bool(self[key])
         if isinstance(key, tuple) and len(key) == 2:
@@ -551,7 +551,7 @@ class EOPatch:
 
     def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
         """
-        Returns a tuple of spatial dimension (height, width) of a feature.
+        Returns a tuple of spatial dimensions (height, width) of a feature.
 
         :param feature_type: Type of the feature
         :param feature_name: Name of the feature
