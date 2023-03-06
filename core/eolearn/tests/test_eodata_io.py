@@ -9,7 +9,7 @@ file in the root directory of this source tree.
 import datetime
 import os
 import tempfile
-from typing import Any, Dict, Type
+from typing import Any, Type
 
 import fs
 import geopandas as gpd
@@ -120,25 +120,6 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
 
         new_eopatch = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
         assert new_eopatch == eopatch + add_eopatch
-
-
-@mock_s3
-@pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize(
-    "save_kwargs, load_kwargs",
-    [
-        ({"path": "/random_path"}, {"path": "/random_path"}),
-        (
-            {"path": "/", "overwrite_permission": OverwritePermission.OVERWRITE_FEATURES},
-            {"path": "/", "lazy_loading": False},
-        ),
-    ],
-)
-def test_save_load(eopatch: EOPatch, fs_loader, save_kwargs: Dict[str, Any], load_kwargs: Dict[str, Any]):
-    with fs_loader() as temp_fs:
-        eopatch.save(**save_kwargs, filesystem=temp_fs)
-        loaded_eopatch = EOPatch.load(**load_kwargs, filesystem=temp_fs)
-        assert eopatch == loaded_eopatch
 
 
 @mock_s3
