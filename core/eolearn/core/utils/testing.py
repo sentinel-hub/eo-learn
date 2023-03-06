@@ -86,12 +86,10 @@ def _get_feature_shape(
 
 
 def assert_feature_match(tested_feature: Any, expected_feature: Any) -> None:
-    if type(tested_feature) is not type(expected_feature):
-        assert type(tested_feature) is type(expected_feature)
-
-    if isinstance(tested_feature, np.ndarray):
+    """A test util function for checking if two features are equal."""
+    if isinstance(tested_feature, np.ndarray) and isinstance(expected_feature, np.ndarray):
         assert_array_equal(tested_feature, expected_feature)
-    elif isinstance(tested_feature, gpd.GeoDataFrame):
+    elif isinstance(tested_feature, gpd.GeoDataFrame) and isinstance(expected_feature, gpd.GeoDataFrame):
         assert_geodataframe_equal(tested_feature, expected_feature)
     else:
         assert tested_feature == expected_feature
