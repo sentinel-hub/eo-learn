@@ -95,7 +95,7 @@ class DoublyLogisticApproximationTask(EOTask):
         """
         data = eopatch[self.feature].squeeze(axis=3)
 
-        times = np.asarray([time.toordinal() for time in eopatch.timestamp])
+        times = np.asarray([time.toordinal() for time in eopatch.timestamps])
         times = (times - times[0]) / (times[-1] - times[0])
 
         time, height, width = data.shape

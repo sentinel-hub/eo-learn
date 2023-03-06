@@ -28,9 +28,10 @@ try:
 except ImportError as exception:
     raise ImportError("This module requires an installation of meteoblue_dataset_sdk package") from exception
 
-from sentinelhub import CRS, Geometry, parse_time_interval, serialize_time
+from sentinelhub import CRS, BBox, Geometry, parse_time_interval, serialize_time
 
 from eolearn.core import EOPatch, EOTask
+from eolearn.core.constants import TIMESTAMP_COLUMN
 
 
 class BaseMeteoblueTask(EOTask):
@@ -76,25 +77,32 @@ class BaseMeteoblueTask(EOTask):
         self.time_difference = time_difference
 
     @staticmethod
-    def _prepare_bbox(eopatch, bbox):
-        """Prepares a bbox from input parameters"""
-        if not eopatch.bbox and not bbox:
-            raise ValueError("Bounding box is not provided")
-        if eopatch.bbox and bbox and eopatch.bbox != bbox:
-            raise ValueError("Provided eopatch.bbox and bbox are not the same")
+    def _get_modified_eopatch(eopatch: Optional[EOPatch], bbox: Optional[BBox]) -> EOPatch:
+        if bbox is not None:
+            if eopatch is None:
+                eopatch = EOPatch(bbox=bbox)
+            elif eopatch.bbox is None:
+                eopatch.bbox = bbox
+            elif eopatch.bbox != bbox:
+                raise ValueError("Provided eopatch.bbox and bbox are not the same")
+            return eopatch
 
-        return bbox or eopatch.bbox
+        if eopatch is None or eopatch.bbox is None:
+            raise ValueError("Bounding box is not provided")
+        return eopatch
 
     def _prepare_time_intervals(self, eopatch, time_interval):
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
-        if not eopatch.timestamp and not time_interval:
-            raise ValueError("Time interval should either be defined with eopatch.timestamp of time_interval parameter")
+        if not eopatch.timestamps and not time_interval:
+            raise ValueError(
+                "Time interval should either be defined with `eopatch.timestamps` or `time_interval` parameter"
+            )
 
         if time_interval:
             start_time, end_time = serialize_time(parse_time_interval(time_interval))
             return [f"{start_time}/{end_time}"]
 
-        timestamps = eopatch.timestamp
+        timestamps = eopatch.timestamps
         time_intervals = []
         for timestamp in timestamps:
             start_time = timestamp - self.time_difference
@@ -125,8 +133,8 @@ class BaseMeteoblueTask(EOTask):
         :type time_interval: (dt.datetime, dt.datetime) or (str, str) or None
         :raises ValueError: Raises an exception when no query is set during Task initialization or the execute method.
         """
-        eopatch = eopatch or EOPatch()
-        eopatch.bbox = self._prepare_bbox(eopatch, bbox)
+        eopatch = self._get_modified_eopatch(eopatch, bbox)
+
         time_intervals = self._prepare_time_intervals(eopatch, time_interval)
 
         bbox = eopatch.bbox
@@ -144,10 +152,10 @@ class BaseMeteoblueTask(EOTask):
             "timeIntervals": time_intervals,
             "queries": [query],
         }
-        result_data, result_timestamp = self._get_data(executable_query)
+        result_data, result_timestamps = self._get_data(executable_query)
 
-        if not eopatch.timestamp and result_timestamp:
-            eopatch.timestamp = result_timestamp
+        if not eopatch.timestamps and result_timestamps:
+            eopatch.timestamps = result_timestamps
 
         eopatch[self.feature] = result_data
         return eopatch
@@ -157,7 +165,7 @@ class MeteoblueVectorTask(BaseMeteoblueTask):
     """Obtains weather data from meteoblue services as a vector feature
 
     The data is obtained as a VECTOR feature in a ``geopandas.GeoDataFrame`` where columns include latitude, longitude,
-    timestamp and a columns for each weather variable. All data is downloaded from the
+    timestamp and a column for each weather variable. All data is downloaded from the
     meteoblue dataset API (<https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api>).
 
     A meteoblue API key is required to retrieve data.
@@ -205,7 +213,7 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
     code_names = [f"{code.code}_{code.level}_{code.aggregation}" for code in geometry.codes]
 
     if not geometry.timeIntervals:
-        return pd.DataFrame(columns=["TIMESTAMP", "Longitude", "Latitude"] + code_names)
+        return pd.DataFrame(columns=[TIMESTAMP_COLUMN, "Longitude", "Latitude"] + code_names)
 
     dataframes = []
     for index, time_interval in enumerate(geometry.timeIntervals):
@@ -216,7 +224,7 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
 
         dataframe = pd.DataFrame(
             {
-                "TIMESTAMP": np.tile(timestamps, n_locations),
+                TIMESTAMP_COLUMN: np.tile(timestamps, n_locations),
                 "Longitude": np.repeat(geometry.lons, n_timesteps),
                 "Latitude": np.repeat(geometry.lats, n_timesteps),
             }

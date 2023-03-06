@@ -275,6 +275,7 @@ def process_readme():
         readme = file.read()
 
     readme = readme.replace("# eo-learn", "# Introduction").replace("docs/source/", "")
+    readme = readme.replace("[`", "[").replace("`]", "]")
     readme = readme.replace("**`", "**").replace("`**", "**")
 
     chapters = [[]]

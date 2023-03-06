@@ -62,13 +62,15 @@ jobs:
 
       - name: Run mypy
         run: |
-          mypy core/eolearn/core
-          mypy coregistration/eolearn/coregistration
-          mypy geometry/eolearn/geometry
-          mypy features/eolearn/features
-          mypy mask/eolearn/mask
-          mypy ml_tools/eolearn/ml_tools
-          mypy visualization/eolearn/visualization
+          mypy \
+            core/eolearn/core \
+            coregistration/eolearn/coregistration \
+            geometry/eolearn/geometry \
+            features/eolearn/features \
+            io/eolearn/io \
+            mask/eolearn/mask \
+            ml_tools/eolearn/ml_tools \
+            visualization/eolearn/visualization
 
   test-on-github:
     runs-on: ubuntu-latest
@@ -116,7 +118,7 @@ jobs:
           pytest -m "not sh_integration"
 
       - name: Upload code coverage
-        if: ${{ matrix.full_test_suite }}
+        if: ${{ matrix.full_test_suite && github.event_name == 'push' }}
         uses: codecov/codecov-action@v2
         with:
           files: coverage.xml

@@ -68,7 +68,10 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
-        self.feature = self.parse_feature(feature)
+        ftype, fname = self.parse_feature(feature)
+        if fname is None:
+            raise ValueError(f"Feature {feature} is not eligible for this task.")
+        self.feature = ftype, fname
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
@@ -240,14 +243,13 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         if isinstance(self.date_indices, tuple):
             dates = np.array(timestamps)
-            if tuple(map(type, self.date_indices)) == (int, int):
-                start_date = dates[self.date_indices[0]]
-                end_date = dates[self.date_indices[1]]
-            elif tuple(map(type, self.date_indices)) == (str, str):
-                start_date, end_date = parse_time_interval(self.date_indices)
-            elif tuple(map(type, self.date_indices)) == (dt.datetime, dt.datetime):
-                start_date = self.date_indices[0]
-                end_date = self.date_indices[1]
+            start_idx, end_idx = self.date_indices
+            if isinstance(start_idx, int) and isinstance(end_idx, int):
+                start_date, end_date = dates[start_idx], dates[end_idx]
+            elif isinstance(start_idx, str) and isinstance(end_idx, str):
+                start_date, end_date = parse_time_interval((start_idx, end_idx))
+            elif isinstance(start_idx, dt.datetime) and isinstance(end_idx, dt.datetime):
+                start_date, end_date = start_idx, end_idx
             else:
                 raise ValueError(f"Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes")
             return array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
@@ -275,7 +277,8 @@ class ExportToTiffTask(BaseRasterIoTask):
     def _get_source_and_destination_params(
         self, data_array: np.ndarray, bbox: BBox
     ) -> Tuple[Tuple[str, Affine], Tuple[str, Affine], Tuple[int, int]]:
-        """Calculates source and destination CRS and transforms. Additionally, it returns destination height and width
+        """
+        Calculates source and destination CRS and transforms. Additionally, it returns destination height and width
         """
         _, height, width = data_array.shape
 
@@ -362,7 +365,7 @@ class ExportToTiffTask(BaseRasterIoTask):
                 "Given EOPatch is missing a bounding box and therefore no feature can be exported to GeoTIFF"
             )
 
-        image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamp, self.feature)
+        image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamps, self.feature)
 
         (
             (src_crs, src_transform),
@@ -370,7 +373,7 @@ class ExportToTiffTask(BaseRasterIoTask):
             (dst_height, dst_width),
         ) = self._get_source_and_destination_params(image_array, eopatch.bbox)
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamp)
+        filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
 
         with self.filesystem as filesystem:
             export_function = functools.partial(
@@ -386,7 +389,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
             channel_count = image_array.shape[0]
             if len(filename_paths) > 1:
-                single_channel_count = channel_count // len(eopatch.timestamp)
+                single_channel_count = channel_count // len(eopatch.timestamps)
                 for timestamp_index, path in enumerate(filename_paths):
                     time_slice_array = image_array[
                         timestamp_index * single_channel_count : (timestamp_index + 1) * single_channel_count, ...
@@ -421,8 +424,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
             smaller chunk of a larger image, especially if it is a Cloud-optimized GeoTIFF (COG). In other cases the
             reading might be faster if the flag remains set to `False`.
         :param timestamp_size: In case data will be imported into a time-dependant feature this parameter can be used to
-            specify time dimension. If not specified, time dimension will be the same as size of `FeatureType.TIMESTAMP`
-            feature. If `FeatureType.TIMESTAMP` does not exist it will be set to 1.
+            specify time dimension. If not specified, time dimension will be the same as size of the
+            `FeatureType.TIMESTAMPS` feature. If `FeatureType.TIMESTAMPS` does not exist this value will be set to 1.
             When converting data into a feature channels of given tiff image should be in order
             T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
             where T and B are the time and band indices.
@@ -471,9 +474,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
     def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
         """Reads data from the image."""
+        src: DatasetReader
         with rasterio.open(file_object) as src:
-            src: DatasetReader
-
             read_window, read_bbox = self._get_reading_window_and_bbox(src, bbox)
             boundless_reading = read_window is not None
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
@@ -492,7 +494,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
         if image_crs is None or image_transform is None or image_bounds is None:
             return None, bbox
 
-        image_bbox = BBox(list(image_bounds), crs=image_crs.to_epsg())
+        min_x, min_y, max_x, max_y = reader.bounds
+        image_bbox = BBox((min_x, min_y, max_x, max_y), crs=image_crs.to_epsg())
         if bbox is None:
             return None, image_bbox
 
@@ -545,7 +548,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         feature_type, feature_name = self.feature
         eopatch = eopatch or EOPatch()
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamp)
+        filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
 
         data, bbox = self._load_data(filename_paths, eopatch.bbox)
 
@@ -565,7 +568,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
             times = self.timestamp_size
             if times is None:
-                times = len(eopatch.timestamp) if eopatch.timestamp else 1
+                times = len(eopatch.timestamps) if eopatch.timestamps else 1
 
             if channels % times != 0:
                 raise ValueError(

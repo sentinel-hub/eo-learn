@@ -16,6 +16,7 @@ import logging
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
+from typing_extensions import Literal
 
 from sentinelhub import (
     BBox,
@@ -36,7 +37,7 @@ from sentinelhub import (
 from sentinelhub.types import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
-from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification, Literal
+from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 
 LOGGER = logging.getLogger(__name__)
 
@@ -92,27 +93,29 @@ class SentinelHubInputBaseTask(EOTask):
         """Main execute method for the Process API tasks.
         The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
 
-        eopatch = eopatch or EOPatch()
+        eopatch_bbox = eopatch.bbox if eopatch is not None else None
+        area_bbox = self._consolidate_bbox(bbox, eopatch_bbox)
 
-        eopatch.bbox = self._extract_bbox(bbox, eopatch)
-        size_x, size_y = self._get_size(eopatch)
+        eopatch = eopatch or EOPatch(bbox=area_bbox)
+        eopatch.bbox = area_bbox
+        size_x, size_y = self._get_size(area_bbox)
 
         if time_interval:
             time_interval = parse_time_interval(time_interval)
-            timestamp = self._get_timestamp(time_interval, eopatch.bbox)
-            timestamp = [time_point.replace(tzinfo=None) for time_point in timestamp]
+            timestamps = self._get_timestamps(time_interval, area_bbox)
+            timestamps = [time_point.replace(tzinfo=None) for time_point in timestamps]
         elif self.data_collection.is_timeless:
-            timestamp = None  # should this be [] to match next branch in case of a fresh eopatch?
+            timestamps = None  # should this be [] to match next branch in case of a fresh eopatch?
         else:
-            timestamp = eopatch.timestamp
+            timestamps = eopatch.timestamps
 
-        if timestamp is not None:
-            if not eopatch.timestamp:
-                eopatch.timestamp = timestamp
-            elif timestamp != eopatch.timestamp:
+        if timestamps is not None:
+            if not eopatch.timestamps:
+                eopatch.timestamps = timestamps
+            elif timestamps != eopatch.timestamps:
                 raise ValueError("Trying to write data to an existing EOPatch with a different timestamp.")
 
-        sh_requests = self._build_requests(eopatch.bbox, size_x, size_y, timestamp, time_interval, geometry)
+        sh_requests = self._build_requests(area_bbox, size_x, size_y, timestamps, time_interval, geometry)
         requests = [request.download_list[0] for request in sh_requests]
 
         LOGGER.debug("Downloading %d requests of type %s", len(requests), str(self.data_collection))
@@ -121,31 +124,31 @@ class SentinelHubInputBaseTask(EOTask):
         responses = client.download(requests, max_threads=self.max_threads)
         LOGGER.debug("Downloads complete")
 
-        temporal_dim = 1 if timestamp is None else len(timestamp)
+        temporal_dim = 1 if timestamps is None else len(timestamps)
         shape = temporal_dim, size_y, size_x
         self._extract_data(eopatch, responses, shape)
 
         return eopatch
 
-    def _get_size(self, eopatch: EOPatch) -> Tuple[int, int]:
+    def _get_size(self, bbox: BBox) -> Tuple[int, int]:
         """Get the size (width, height) for the request either from inputs, or from the (existing) eopatch"""
         if self.size is not None:
             return self.size
 
         if self.resolution is not None:
-            return bbox_to_dimensions(eopatch.bbox, self.resolution)
+            return bbox_to_dimensions(bbox, self.resolution)
 
         raise ValueError("Size or resolution for the requests should be provided!")
 
     @staticmethod
-    def _extract_bbox(bbox: Optional[BBox], eopatch: EOPatch) -> BBox:
-        if eopatch.bbox is None:
+    def _consolidate_bbox(bbox: Optional[BBox], eopatch_bbox: Optional[BBox]) -> BBox:
+        if eopatch_bbox is None:
             if bbox is None:
                 raise ValueError("Either the eopatch or the task must provide valid bbox.")
             return bbox
 
-        if bbox is None or eopatch.bbox == bbox:
-            return eopatch.bbox
+        if bbox is None or eopatch_bbox == bbox:
+            return eopatch_bbox
         raise ValueError("Either the eopatch or the task must provide bbox, or they must be the same.")
 
     def _extract_data(self, eopatch, images, shape):
@@ -157,16 +160,16 @@ class SentinelHubInputBaseTask(EOTask):
         bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: Optional[List[dt.datetime]],
+        timestamps: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
         raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
-    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
-        raise NotImplementedError("The _get_timestamp method should be implemented by the subclass.")
+        raise NotImplementedError("The _get_timestamps method should be implemented by the subclass.")
 
 
 class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
@@ -264,7 +267,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         return responses
 
-    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
             return []
@@ -284,15 +287,16 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: Optional[List[dt.datetime]],
+        timestamps: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
-    ):
-        """Defines request timestamps and builds requests. In case `timestamp` is either `None` or an empty list it
+    ) -> List[SentinelHubRequest]:
+        """Defines request timestamps and builds requests. In case `timestamps` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
-        if timestamp:
-            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
-        elif timestamp is None:
+        dates: List[Optional[Tuple[Optional[dt.datetime], Optional[dt.datetime]]]]
+        if timestamps:
+            dates = [(date - self.time_difference, date + self.time_difference) for date in timestamps]
+        elif timestamps is None:
             dates = [None]
         else:
             dates = [parse_time_interval(time_interval, allow_undefined=True)]
@@ -441,13 +445,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
                 self.requested_bands = list(self.data_collection.bands)
 
         self.requested_additional_bands = []
+        self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            additional_data = self.parse_renamed_features(additional_data)
-            additional_bands = [band for _, band, _ in additional_data]
+            parsed_additional_data = self.parse_renamed_features(additional_data)
+            additional_bands = [band for _, band, _ in parsed_additional_data]
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands
-
-        self.additional_data = additional_data
+            self.additional_data = parsed_additional_data
 
     def _parse_requested_bands(self, bands, available_bands):
         """Checks that all requested bands are available and returns the band information for further processing"""
@@ -510,10 +514,10 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         return evalscript
 
-    def _get_timestamp(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
-            return [time_interval[0]]
+            return [time_interval[0]]  # type: ignore[index, list-item]
 
         return get_available_timestamps(
             bbox=bbox,
@@ -530,17 +534,17 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         bbox: Optional[BBox],
         size_x: int,
         size_y: int,
-        timestamp: Optional[List[dt.datetime]],
+        timestamps: Optional[List[dt.datetime]],
         time_interval: Optional[RawTimeIntervalType],
         geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
-        if timestamp is None:
+        if timestamps is None:
             intervals: List[Optional[RawTimeIntervalType]] = [None]
         elif self.single_scene:
             intervals = [parse_time_interval(time_interval)]
         else:
-            intervals = [(date - self.time_difference, date + self.time_difference) for date in timestamp]
+            intervals = [(date - self.time_difference, date + self.time_difference) for date in timestamps]
 
         return [self._create_sh_request(time_interval, bbox, size_x, size_y, geometry) for time_interval in intervals]
 

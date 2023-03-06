@@ -12,6 +12,8 @@ import sys
 # pylint: disable=unused-import
 from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
+from typing_extensions import Literal
+
 from .constants import FeatureType
 
 if sys.version_info >= (3, 10):
@@ -24,19 +26,14 @@ else:
 
     EllipsisType: TypeAlias = "builtins.ellipsis"
 
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal  # pylint: disable=ungrouped-imports # noqa: F401
-
 
 # DEVELOPER NOTE: the #: comments are applied as docstrings
 
 #: Specification describing a single feature
-FeatureSpec: TypeAlias = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None], Tuple[FeatureType, str]]
+FeatureSpec: TypeAlias = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMPS], None], Tuple[FeatureType, str]]
 #: Specification describing a feature with its current and desired new name
 FeatureRenameSpec: TypeAlias = Union[
-    Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMP], None, None], Tuple[FeatureType, str, str]
+    Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMPS], None, None], Tuple[FeatureType, str, str]
 ]
 SingleFeatureSpec: TypeAlias = Union[FeatureSpec, FeatureRenameSpec]
 

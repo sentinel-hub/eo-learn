@@ -57,8 +57,8 @@ def test_temporal_indices():
 
 
 def test_ndvi_slope_indices():
-    timestamp = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
-    eopatch = EOPatch(timestamp=list(timestamp))
+    timestamps = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
+    eopatch = EOPatch(timestamps=list(timestamps))
 
     t, h, w = (10, 3, 3)
     ndvi_shape = (t, h, w, 1)
@@ -98,8 +98,8 @@ def test_ndvi_slope_indices():
 
 
 def test_stf_task():
-    timestamp = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
-    eopatch = EOPatch(timestamp=list(timestamp))
+    timestamps = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
+    eopatch = EOPatch(timestamps=list(timestamps))
 
     t, h, w, c = 10, 3, 3, 2
 

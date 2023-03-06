@@ -138,7 +138,7 @@ class ECCRegistrationTask(EOTask):
 
         reference_image = eopatch[self.reference_feature][..., self.channel]
 
-        new_eopatch = EOPatch(bbox=eopatch.bbox, timestamp=eopatch.timestamp)
+        new_eopatch = EOPatch(bbox=eopatch.bbox, timestamps=eopatch.timestamps)
         for feature_type, feature_name in self.apply_features_parser.get_features(eopatch):
             new_eopatch[feature_type][feature_name] = np.zeros_like(eopatch[feature_type][feature_name])
 

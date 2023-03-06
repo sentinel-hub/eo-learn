@@ -22,7 +22,7 @@ from eolearn.features.utils import ResizeParam
 
 
 @pytest.mark.parametrize(
-    "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMP, (FeatureType.LABEL, "IS_CLOUDLESS")]
+    "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMPS, (FeatureType.LABEL, "IS_CLOUDLESS")]
 )
 def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
     filter_all_task = SimpleFilterTask(feature, filter_func=lambda _: False)
@@ -33,11 +33,11 @@ def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
     assert filtered_eopatch.scalar["CLOUD_COVERAGE"].shape == (0, 1)
     assert len(filtered_eopatch.vector["CLM_VECTOR"]) == 0
     assert np.array_equal(filtered_eopatch.mask_timeless["LULC"], example_eopatch.mask_timeless["LULC"])
-    assert filtered_eopatch.timestamp == []
+    assert filtered_eopatch.timestamps == []
 
 
 @pytest.mark.parametrize(
-    "feature", [(FeatureType.MASK, "CLM"), FeatureType.TIMESTAMP, (FeatureType.SCALAR, "CLOUD_COVERAGE")]
+    "feature", [(FeatureType.MASK, "CLM"), FeatureType.TIMESTAMPS, (FeatureType.SCALAR, "CLOUD_COVERAGE")]
 )
 def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
     del example_eopatch.data["REFERENCE_SCENES"]  # Wrong size of time dimension
@@ -66,13 +66,13 @@ def test_content_after_time_filter():
 
     new_start, new_end = 4, -3
 
-    eop = EOPatch(timestamp=timestamps, data={"data": data})
+    eop = EOPatch(timestamps=timestamps, data={"data": data})
 
     filter_task = FilterTimeSeriesTask(start_date=timestamps[new_start], end_date=timestamps[new_end])
     filtered_eop = filter_task.execute(eop)
 
     assert filtered_eop is not eop
-    assert filtered_eop.timestamp == timestamps[new_start : new_end + 1]
+    assert filtered_eop.timestamps == timestamps[new_start : new_end + 1]
     assert np.array_equal(filtered_eop.data["data"], data[new_start : new_end + 1, ...])
 
 

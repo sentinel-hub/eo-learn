@@ -12,8 +12,8 @@ from typing import Optional, Tuple
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
+from typing_extensions import Literal
 
-from eolearn.core.types import Literal
 from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
 
 

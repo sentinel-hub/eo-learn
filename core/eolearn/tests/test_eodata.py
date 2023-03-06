@@ -10,7 +10,7 @@ This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
 import datetime
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 import numpy as np
 import pytest
@@ -21,6 +21,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
 from eolearn.core.eodata_io import FeatureIO
+from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
 
 
@@ -98,7 +99,7 @@ def test_bbox_feature_type(invalid_entry: Any) -> None:
 )
 def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
     eop = EOPatch()
-    eop.timestamp = valid_entry
+    eop.timestamps = valid_entry
 
 
 @pytest.mark.parametrize(
@@ -112,7 +113,7 @@ def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
 def test_timestamp_invalid_feature_type(invalid_entry: Any) -> None:
     eop = EOPatch()
     with pytest.raises((ValueError, TypeError)):
-        eop.timestamp = invalid_entry
+        eop.timestamps = invalid_entry
 
 
 def test_invalid_characters():
@@ -157,25 +158,45 @@ def test_simplified_feature_operations() -> None:
 
 
 @pytest.mark.parametrize(
-    "feature",
+    "feature_to_delete",
     [
         (FeatureType.DATA, "zeros"),
         (FeatureType.MASK, "ones"),
         (FeatureType.MASK_TIMELESS, "threes"),
         (FeatureType.META_INFO, "beep"),
-        (FeatureType.BBOX, None),
+        (FeatureType.TIMESTAMPS, None),
     ],
 )
-def test_delete_existing_feature(feature: FeatureSpec, mini_eopatch: EOPatch) -> None:
+def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
-    del mini_eopatch[feature]
-    assert feature not in mini_eopatch
+    del mini_eopatch[feature_to_delete]
+    assert feature_to_delete not in mini_eopatch
 
-    for old_feature in old.get_features():
-        if old_feature != feature:
-            # this also works for BBox :D
-            assert_array_equal(old[old_feature], mini_eopatch[old_feature])
+    for feature in old.get_features():
+        if feature != feature_to_delete:
+            if isinstance(mini_eopatch[feature], np.ndarray):
+                assert_array_equal(old[feature], mini_eopatch[feature])
+            else:
+                assert old[feature] == mini_eopatch[feature]
+
+
+@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.TIMESTAMPS])
+def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
+    old = mini_eopatch.copy(deep=True)
+
+    del mini_eopatch[feature_type]
+    assert feature_type not in mini_eopatch
+
+    for ftype, fname in old.get_features():
+        if ftype != feature_type:
+            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
+
+
+@pytest.mark.parametrize("bbox_feature", [FeatureType.BBOX, (FeatureType.BBOX, None)])
+def test_cannot_delete_bbox(bbox_feature: Union[FeatureType, FeatureSpec], mini_eopatch: EOPatch) -> None:
+    with pytest.raises(ValueError):
+        del mini_eopatch[bbox_feature]
 
 
 def test_delete_fail_on_nonexisting_feature(mini_eopatch: EOPatch) -> None:
@@ -192,7 +213,7 @@ def test_shallow_copy(test_eopatch: EOPatch) -> None:
     assert test_eopatch == eopatch_copy
     assert test_eopatch.mask["CLM"] is eopatch_copy.mask["CLM"]
 
-    eopatch_copy.timestamp.pop()
+    eopatch_copy.timestamps.pop()
     assert test_eopatch != eopatch_copy
 
 
@@ -242,7 +263,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
     eopatch_copy = test_eopatch.copy(features=[feature])
     assert test_eopatch != eopatch_copy
     assert eopatch_copy[feature] is test_eopatch[feature]
-    assert eopatch_copy.timestamp == []
+    assert eopatch_copy.timestamps == []
 
 
 @pytest.mark.parametrize(
@@ -251,7 +272,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
         [FeatureType.DATA, "BANDS-S2-L1C"],
         [FeatureType.MASK, "CLM"],
         [FeatureType.BBOX, ...],
-        [FeatureType.TIMESTAMP, None],
+        [FeatureType.TIMESTAMPS, None],
     ],
 )
 def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None:
@@ -292,18 +313,6 @@ def test_equals() -> None:
 
     eop1.data_timeless["dem"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     assert eop1 != eop2
-
-
-@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.MASK_TIMELESS, FeatureType.BBOX])
-def test_reset_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
-    old = mini_eopatch.copy(deep=True)
-
-    mini_eopatch.reset_feature_type(feature_type)
-    assert mini_eopatch[feature_type] == ({} if feature_type.has_dict() else None)
-
-    for ftype, fname in old.get_features():
-        if ftype != feature_type:
-            assert_array_equal(old[ftype, fname], mini_eopatch[ftype, fname])
 
 
 @pytest.mark.parametrize(
@@ -363,7 +372,7 @@ def test_timestamp_consolidation() -> None:
     scalar = np.random.rand(10, 1)
 
     eop = EOPatch(
-        timestamp=timestamps,
+        timestamps=timestamps,
         data={"DATA": data},
         mask={"MASK": mask},
         scalar={"SCALAR": scalar},
@@ -377,7 +386,7 @@ def test_timestamp_consolidation() -> None:
 
     removed_frames = eop.consolidate_timestamps(good_timestamps)
 
-    assert good_timestamps[:-1] == eop.timestamp
+    assert good_timestamps[:-1] == eop.timestamps
     assert len(removed_frames) == 2
     assert timestamps[0] in removed_frames
     assert timestamps[-1] in removed_frames
@@ -385,3 +394,17 @@ def test_timestamp_consolidation() -> None:
     assert np.array_equal(mask[1:-1, ...], eop.mask["MASK"])
     assert np.array_equal(scalar[1:-1, ...], eop.scalar["SCALAR"])
     assert np.array_equal(mask_timeless, eop.mask_timeless["MASK_TIMELESS"])
+
+
+def test_timestamps_deprecation():
+    eop = EOPatch(bbox=BBox((0, 0, 1, 1), CRS.POP_WEB), timestamps=[datetime.datetime(1234, 5, 6)])
+
+    with pytest.warns(EODeprecationWarning):
+        assert eop.timestamp == [datetime.datetime(1234, 5, 6)]
+
+    with pytest.warns(EODeprecationWarning):
+        eop.timestamp = [datetime.datetime(4321, 5, 6)]
+
+    # wont raise warning a second time
+    assert eop.timestamp == [datetime.datetime(4321, 5, 6)]
+    assert eop.timestamp == eop.timestamps

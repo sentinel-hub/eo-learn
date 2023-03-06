@@ -20,7 +20,8 @@ disable = [
     "unsubscriptable-object",
     "invalid-unary-operand-type",
     "unspecified-encoding",
-    "unnecessary-ellipsis"
+    "unnecessary-ellipsis",
+    "use-dict-literal"
 ]
 
 [tool.pylint.design]
