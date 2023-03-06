@@ -38,7 +38,21 @@ def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
 @pytest.mark.parametrize("seed", [0, 1, 42, 100])
 @pytest.mark.parametrize(
     "features",
-    [{}, {FeatureType.DATA: ["bands, CLP"]}, {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"}],
+    [
+        {},
+        {FeatureType.DATA: ["bands, CLP"]},
+        {FeatureType.DATA: ["bands, CLP"], FeatureType.MASK_TIMELESS: "LULC"},
+        {
+            FeatureType.DATA: "data",
+            FeatureType.MASK: "mask",
+            FeatureType.SCALAR: "scalar",
+            FeatureType.LABEL: "label",
+            FeatureType.DATA_TIMELESS: "data_timeless",
+            FeatureType.MASK_TIMELESS: "mask_timeless",
+            FeatureType.SCALAR_TIMELESS: "scalar_timeless",
+            FeatureType.LABEL_TIMELESS: "label_timeless",
+        },
+    ],
 )
 def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> None:
     patch1 = generate_eopatch(features, seed=seed)
