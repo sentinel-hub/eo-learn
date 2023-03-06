@@ -287,6 +287,25 @@ def get_filesystem_data_info(
     return result
 
 
+def walk_filesystem(
+    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
+) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
+    """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
+    file_information = get_filesystem_data_info(filesystem, patch_location, features)
+
+    if file_information.bbox is not None:  # remove after BBox is never None
+        yield (FeatureType.BBOX, ..., file_information.bbox)
+
+    if file_information.timestamps is not None:
+        yield (FeatureType.TIMESTAMPS, ..., file_information.timestamps)
+
+    if file_information.meta_info is not None:
+        yield (FeatureType.META_INFO, ..., file_information.meta_info)
+
+    for feature, path in file_information.iterate_features():
+        yield (*feature, path)
+
+
 def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[str, str]]:
     """Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem).
     Skips folders and files in subfolders.
