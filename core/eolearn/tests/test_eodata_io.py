@@ -32,6 +32,7 @@ from eolearn.core.eodata_io import (
     FeatureIOJson,
     FeatureIONumpy,
     FeatureIOTimestamps,
+    walk_filesystem,
 )
 from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import FeatureParser
@@ -351,3 +352,24 @@ def test_feature_io(constructor: Type[FeatureIO], data: Any, compress_level: int
         temp_fs.remove(file_name + file_extension)
         cache_data = feat_io.load()
         assert_feature_data_equal(loaded_data, cache_data)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize(
+    "features",
+    [
+        ...,
+        [(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS],
+        [(FeatureType.META_INFO, "something"), (FeatureType.SCALAR_TIMELESS, ...)],
+    ],
+)
+def test_walk_filesystem_interface(fs_loader, features, eopatch):
+    with fs_loader() as temp_fs:
+        io_kwargs = dict(path="./", filesystem=temp_fs, features=features)
+        eopatch.save(**io_kwargs)
+        loaded_eopatch = EOPatch.load(**io_kwargs)
+
+        for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
+            feature_key = ftype if ftype.is_meta() else (ftype, fname)
+            assert feature_key in loaded_eopatch

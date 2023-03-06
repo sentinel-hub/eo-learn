@@ -83,7 +83,7 @@ def save_eopatch(
     patch_exists = filesystem.exists(patch_location)
 
     eopatch_features = FeatureParser(features).get_features(eopatch)
-    file_information = walk_filesystem(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
+    file_information = get_filesystem_data_info(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
@@ -178,7 +178,7 @@ def load_eopatch(
     lazy_loading: bool = False,
 ) -> EOPatch:
     """A utility function used by `EOPatch.load` method."""
-    file_information = walk_filesystem(filesystem, patch_location, features)
+    file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
     _load_meta_features(filesystem, file_information, eopatch, features)
 
@@ -242,7 +242,9 @@ def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
         list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
 
 
-def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> FilesystemDataInfo:
+def get_filesystem_data_info(
+    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
+) -> FilesystemDataInfo:
     """Returns information on all eopatch files in the storage. Filters with `features` to reduce IO calls."""
     relevant_features = FeatureParser(features).get_feature_specifications()
     relevant_feature_types = {ftype for ftype, _ in relevant_features}
@@ -283,6 +285,33 @@ def walk_filesystem(filesystem: FS, patch_location: str, features: FeaturesSpeci
 
     # Note: might simplify a few things if we filtered according to features here, especially loading stuff.
     return result
+
+
+def walk_filesystem(
+    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
+) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
+    """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
+    warnings.warn(
+        (
+            "The `walk_filesystem` function is marked for deprecation, check the EOPatch load/save methods to find a"
+            " suitable alternative."
+        ),
+        category=EODeprecationWarning,
+        stacklevel=2,
+    )
+    file_information = get_filesystem_data_info(filesystem, patch_location, features)
+
+    if file_information.bbox is not None:  # remove after BBox is never None
+        yield (FeatureType.BBOX, ..., file_information.bbox)
+
+    if file_information.timestamps is not None:
+        yield (FeatureType.TIMESTAMPS, ..., file_information.timestamps)
+
+    if file_information.meta_info is not None:
+        yield (FeatureType.META_INFO, ..., file_information.meta_info)
+
+    for feature, path in file_information.iterate_features():
+        yield (*feature, path)
 
 
 def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[str, str]]:
