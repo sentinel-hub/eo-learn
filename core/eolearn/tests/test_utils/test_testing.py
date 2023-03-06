@@ -14,10 +14,12 @@ from eolearn.core.utils.testing import PatchGeneratorConfig, generate_eopatch
 def test_generate_eopatch_set_bbox_timestamps() -> None:
     bbox = BBox((0, 0, 10, 10), crs=CRS("EPSG:32633"))
     timestamps = [dt.datetime(2019, 1, 1)]
-    patch = generate_eopatch(bbox=bbox, timestamps=timestamps)
+    patch = generate_eopatch((FeatureType.DATA, "bands"), bbox=bbox, timestamps=timestamps)
 
     assert patch.bbox == bbox
     assert patch.timestamps == timestamps
+
+    assert patch[(FeatureType.DATA, "bands")][0] == len(timestamps)
 
 
 @pytest.mark.parametrize(
