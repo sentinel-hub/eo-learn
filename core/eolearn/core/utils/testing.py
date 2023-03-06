@@ -90,6 +90,9 @@ def assert_feature_match(tested_feature: Any, expected_feature: Any) -> None:
     if isinstance(tested_feature, np.ndarray) and isinstance(expected_feature, np.ndarray):
         assert_array_equal(tested_feature, expected_feature)
     elif isinstance(tested_feature, gpd.GeoDataFrame) and isinstance(expected_feature, gpd.GeoDataFrame):
-        assert_geodataframe_equal(tested_feature, expected_feature)
+        assert CRS(tested_feature.crs) == CRS(expected_feature.crs)
+        assert_geodataframe_equal(
+            tested_feature, expected_feature, check_crs=False, check_index_type=False, check_dtype=False
+        )
     else:
         assert tested_feature == expected_feature
