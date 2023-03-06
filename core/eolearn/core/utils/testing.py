@@ -13,10 +13,13 @@ file in the root directory of this source tree.
 """
 import datetime as dt
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
+from geopandas.testing import assert_geodataframe_equal
+from numpy.testing import assert_array_equal
 
 from sentinelhub import CRS, BBox
 
@@ -80,3 +83,16 @@ def _get_feature_shape(
 ) -> Tuple[int, ...]:
     time, height, width, depth = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
     return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
+
+
+def assert_feature_data_equal(tested_feature: Any, expected_feature: Any) -> None:
+    """Asserts that the data of two features is equal. Cases are specialized for common data found in EOPatches."""
+    if isinstance(tested_feature, np.ndarray) and isinstance(expected_feature, np.ndarray):
+        assert_array_equal(tested_feature, expected_feature)
+    elif isinstance(tested_feature, gpd.GeoDataFrame) and isinstance(expected_feature, gpd.GeoDataFrame):
+        assert CRS(tested_feature.crs) == CRS(expected_feature.crs)
+        assert_geodataframe_equal(
+            tested_feature, expected_feature, check_crs=False, check_index_type=False, check_dtype=False
+        )
+    else:
+        assert tested_feature == expected_feature
