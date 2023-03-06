@@ -146,7 +146,6 @@ def test_save_load(eopatch: EOPatch, fs_loader, save_kwargs: Dict[str, Any], loa
     "save_features, load_features",
     [
         (..., ...),
-        (..., ...),
         ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...)]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], ...),
