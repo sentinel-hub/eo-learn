@@ -311,8 +311,7 @@ class EOPatch:
             ]
 
         raise TypeError(
-            f"Attribute {feature_type} requires value of type {feature_type.type()} - "
-            f"failed to parse given value {value}"
+            f"Attribute {feature_type} requires values of type {feature_type.type()}, cannot parse given value {value}"
         )
 
     def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
@@ -331,52 +330,50 @@ class EOPatch:
         return value
 
     @overload
-    def __getitem__(
-        self, feature_type: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]
-    ) -> BBox:
+    def __getitem__(self, key: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]) -> BBox:
         ...
 
     @overload
     def __getitem__(
-        self, feature_type: Union[Literal[FeatureType.TIMESTAMPS], Tuple[Literal[FeatureType.TIMESTAMPS], Any]]
+        self, key: Union[Literal[FeatureType.TIMESTAMPS], Tuple[Literal[FeatureType.TIMESTAMPS], Any]]
     ) -> List[dt.datetime]:
         ...
 
     @overload
-    def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+    def __getitem__(self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
         ...
 
-    def __getitem__(self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+    def __getitem__(self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
         """Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name).
 
-        :param feature_type: Type of EOPatch feature
+        :param key: Feature type or a (feature_type, feature_name) pair.
         """
-        feature_name = None
-        if isinstance(feature_type, tuple):
-            self._check_tuple_key(feature_type)
-            feature_type, feature_name = feature_type
+        if isinstance(key, tuple):
+            feature_type, feature_name = key
+        else:
+            feature_type, feature_name = key, None
 
         ftype = FeatureType(feature_type).value
         return self.__getattribute__(ftype, feature_name=feature_name)  # type: ignore[call-arg]
 
     def __setitem__(
-        self, feature_type: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
+        self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
     ) -> None:
         """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
         (feature_type, feature_name).
 
-        :param feature_type: Type of EOPatch feature
+        :param key: Type of EOPatch feature
         :param value: New dictionary or list
         """
-        feature_name = None
-        if isinstance(feature_type, tuple):
-            self._check_tuple_key(feature_type)
-            feature_type, feature_name = feature_type
+        if isinstance(key, tuple):
+            feature_type, feature_name = key
+        else:
+            feature_type, feature_name = key, None
 
         return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
 
     def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
-        """Deletes the selected feature.
+        """Deletes the selected feature type or feature.
 
         :param feature: EOPatch feature
         """
@@ -396,12 +393,6 @@ class EOPatch:
         elif feature_type == FeatureType.TIMESTAMPS:
             self[feature_type] = []
 
-    @staticmethod
-    def _check_tuple_key(key: tuple) -> None:
-        """A helper function that checks a tuple, which should hold (feature_type, feature_name)."""
-        if not isinstance(key, (tuple, list)) or len(key) != 2:
-            raise ValueError(f"Given element should be a tuple of (feature_type, feature_name), but {key} found.")
-
     def __eq__(self, other: object) -> bool:
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""
         if not isinstance(other, type(self)):
@@ -409,17 +400,19 @@ class EOPatch:
 
         return all(deep_eq(self[feature_type], other[feature_type]) for feature_type in FeatureType)
 
-    def __contains__(self, feature: object) -> bool:
-        if isinstance(feature, FeatureType):
-            return bool(self[feature])
-        if isinstance(feature, tuple) and len(feature) == 2:
-            ftype, fname = FeatureType(feature[0]), feature[1]
-            if ftype.has_dict():
-                return fname in self[ftype]
-            return bool(self[ftype])
+    def __contains__(self, key: object) -> bool:
+        # `key` does not have a precise type, because otherwise `mypy` defaults to inclusion using `__iter__` and
+        # the error message becomes incomprehensible.
+        if isinstance(key, FeatureType):
+            return bool(self[key])
+        if isinstance(key, tuple) and len(key) == 2:
+            ftype, fname = key
+            if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
+                return bool(self[ftype])
+            return fname in self[ftype]
         raise ValueError(
-            f"Membership checking is only implemented elements of type `{FeatureType.__name__}` and for "
-            "`(feature_type, feature_name)` tuples."
+            f"Membership checking is only implemented for elements of type `{FeatureType.__name__}` and for "
+            "`(feature_type, feature_name)` pairs."
         )
 
     def __add__(self, other: EOPatch) -> EOPatch:
@@ -433,12 +426,11 @@ class EOPatch:
             if not content:
                 continue
 
-            if isinstance(content, dict) and content:
-                content_str = (
-                    "{\n    "
-                    + "\n    ".join([f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())])
-                    + "\n  }"
+            if isinstance(content, dict):
+                inner_content_repr = "\n    ".join(
+                    [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
                 )
+                content_str = "{\n    " + inner_content_repr + "\n  }"
             else:
                 content_str = self._repr_value(content)
             feature_repr_list.append(f"{feature_type.value}={content_str}")
@@ -559,20 +551,16 @@ class EOPatch:
 
     def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
         """
-        Returns a tuple of spatial dimension (height, width) of a feature.
-
-        The feature has to be spatial or time dependent.
+        Returns a tuple of spatial dimensions (height, width) of a feature.
 
         :param feature_type: Type of the feature
         :param feature_name: Name of the feature
         """
-        if feature_type.is_temporal() or feature_type.is_spatial():
+        if feature_type.is_raster() and feature_type.is_spatial():
             shape = self[feature_type][feature_name].shape
             return shape[1:3] if feature_type.is_temporal() else shape[0:2]
 
-        raise ValueError(
-            "FeatureType used to determine the width and height of raster must be time dependent or spatial."
-        )
+        raise ValueError(f"Features of type {feature_type} do not have a spatial dimension or are not arrays.")
 
     def get_features(self) -> List[FeatureSpec]:
         """Returns a list of all non-empty features of EOPatch.
