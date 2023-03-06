@@ -1,13 +1,15 @@
 import datetime as dt
+from dataclasses import dataclass
+from typing import Any, Dict
 
-import numpy as np
 import pytest
-from numpy.testing import assert_array_equal
 
 from sentinelhub import CRS, BBox
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core.constants import FeatureType
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, generate_eopatch
 
 
@@ -60,13 +62,75 @@ def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> No
     assert patch1 == patch2
 
 
-def test_generate_eopatch_config() -> None:
-    test_config = {
-        "num_timestamps": 3,
-        "timestamps_range": (dt.datetime(2022, 1, 1), dt.datetime(2022, 12, 31)),
-        "max_integer_value": 1,
-        "raster_shape": (1, 1),
-        "depth_range": (1, 2),
-    }
-    patch = generate_eopatch((FeatureType.MASK, "CLM"), config=PatchGeneratorConfig(**test_config))
-    assert_array_equal(patch[(FeatureType.MASK, "CLM")], np.zeros((3, 1, 1, 1)))
+@dataclass
+class ConfigTestCase:
+    config: PatchGeneratorConfig
+    data_features: FeaturesSpecification
+    expected_statistics: Dict[FeatureSpec, Dict[str, Any]]
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    [
+        ConfigTestCase(
+            config=PatchGeneratorConfig(
+                num_timestamps=3,
+                timestamps_range=(dt.datetime(2022, 1, 1), dt.datetime(2022, 12, 31)),
+                max_integer_value=1,
+                raster_shape=(1, 1),
+                depth_range=(1, 2),
+            ),
+            data_features=(FeatureType.MASK, "CLM"),
+            expected_statistics={
+                (FeatureType.MASK, "CLM"): {
+                    "exp_shape": (3, 1, 1),
+                    "exp_min": 0,
+                    "exp_max": 0,
+                    "exp_mean": 0,
+                    "rel_delta": 0.1,
+                }
+            },
+        ),
+        ConfigTestCase(
+            config=PatchGeneratorConfig(
+                max_integer_value=7,
+                raster_shape=(3, 4),
+                depth_range=(1, 4),
+            ),
+            data_features={FeatureType.MASK: ["CLM"], FeatureType.MASK_TIMELESS: ["LULC", "IS_VALUE"]},
+            expected_statistics={
+                (FeatureType.MASK, "CLM"): {
+                    "exp_shape": (5, 3, 4),
+                    "exp_min": 0,
+                    "exp_max": 6,
+                    "exp_mean": 3,
+                    "abs_delta": 1,
+                },
+                (FeatureType.MASK_TIMELESS, "LULC"): {
+                    "exp_shape": (3, 4),
+                    "exp_min": 0,
+                    "exp_max": 6,
+                    "exp_mean": 3,
+                    "abs_delta": 1,
+                },
+                (FeatureType.MASK_TIMELESS, "IS_VALUE"): {
+                    "exp_shape": (3, 4),
+                    "exp_min": 0,
+                    "exp_max": 6,
+                    "exp_mean": 3,
+                    "abs_delta": 1,
+                },
+            },
+        ),
+    ],
+)
+def test_generate_eopatch_config(test_case: ConfigTestCase) -> None:
+    patch = generate_eopatch(test_case.data_features, config=test_case.config)
+    for feature in parse_features(test_case.data_features):
+        assert test_case.config.depth_range[0] <= patch[feature].shape[-1] <= test_case.config.depth_range[1]
+        test_case.expected_statistics[feature]["exp_shape"] = (
+            *test_case.expected_statistics[feature]["exp_shape"],
+            patch[feature].shape[-1],
+        )
+
+        assert_statistics_match(patch[feature], **test_case.expected_statistics[feature])
