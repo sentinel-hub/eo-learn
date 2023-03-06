@@ -86,7 +86,7 @@ def _get_feature_shape(
 
 
 def assert_feature_data_equal(tested_feature: Any, expected_feature: Any) -> None:
-    """A test util function for checking if two features are equal."""
+    """Asserts that the data of two features is equal. Cases are specialized for common data found in EOPatches."""
     if isinstance(tested_feature, np.ndarray) and isinstance(expected_feature, np.ndarray):
         assert_array_equal(tested_feature, expected_feature)
     elif isinstance(tested_feature, gpd.GeoDataFrame) and isinstance(expected_feature, gpd.GeoDataFrame):
