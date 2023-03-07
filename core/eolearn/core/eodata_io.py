@@ -33,6 +33,7 @@ import pandas as pd
 from fs.base import FS
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
+from typing_extensions import TypeAlias
 
 from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning
@@ -48,8 +49,13 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
+PatchContentType: TypeAlias = Tuple[
+    Optional["FeatureIOBBox"],
+    Optional["FeatureIOTimestamps"],
+    Optional["FeatureIOJson"],
+    Dict[Tuple[FeatureType, str], "FeatureIO"],
+]
 
-FeatureInfo = Tuple[FeatureType, Union[str, EllipsisType], str]
 
 BBOX_FILENAME = "bbox"
 TIMESTAMPS_FILENAME = "timestamps"
@@ -170,17 +176,11 @@ def remove_redundant_files(
         list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
-def load_eopatch(
-    eopatch: EOPatch,
-    filesystem: FS,
-    patch_location: str,
-    features: FeaturesSpecification = ...,
-    lazy_loading: bool = False,
-) -> EOPatch:
+def load_eopatch(filesystem: FS, patch_location: str, features: FeaturesSpecification = ...) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
-    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, eopatch, features)
+    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
 
     features_dict: Dict[Tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
@@ -195,30 +195,11 @@ def load_eopatch(
             path = file_information.features[ftype][fname]
             features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
-    _transfer_features_to_eopatch(eopatch, bbox, timestamps, meta_info, features_dict)
-
-    return eopatch
-
-
-def _transfer_features_to_eopatch(
-    eopatch: EOPatch,
-    bbox: Optional[FeatureIOBBox],
-    timestamps: Optional[FeatureIOTimestamps],
-    meta_info: Optional[FeatureIOJson],
-    features: Dict[Tuple[FeatureType, str], FeatureIO],
-) -> None:
-    if bbox is not None:
-        eopatch.bbox = bbox  # type: ignore[assignment]
-    if timestamps is not None:
-        eopatch.timestamps = timestamps  # type: ignore[assignment]
-    if meta_info is not None:
-        eopatch.meta_info = meta_info  # type: ignore[assignment]
-    for feature, feature_io in features.items():
-        eopatch[feature] = feature_io
+    return bbox, timestamps, meta_info, features_dict
 
 
 def _load_meta_features(
-    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, features: FeaturesSpecification
+    filesystem: FS, file_information: FilesystemDataInfo, features: FeaturesSpecification
 ) -> Tuple[Optional[FeatureIOBBox], Optional[FeatureIOTimestamps], Optional[FeatureIOJson]]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 

@@ -627,10 +627,21 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        loaded_patch = load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
+        eopatch = EOPatch()
+        bbox, timestamps, meta_info, features_dict = load_eopatch(filesystem, path, features=features)
+
+        if bbox is not None:
+            eopatch.bbox = bbox  # type: ignore[assignment]
+        if timestamps is not None:
+            eopatch.timestamps = timestamps  # type: ignore[assignment]
+        if meta_info is not None:
+            eopatch.meta_info = meta_info  # type: ignore[assignment]
+        for feature, feature_io in features_dict.items():
+            eopatch[feature] = feature_io
+
         if not lazy_loading:
-            _trigger_loading_for_eopatch_features(loaded_patch)
-        return loaded_patch
+            _trigger_loading_for_eopatch_features(eopatch)
+        return eopatch
 
     def merge(
         self,
