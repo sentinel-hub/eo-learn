@@ -13,6 +13,7 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import copy
 import datetime as dt
 import logging
@@ -31,7 +32,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, load_eopatch, save_eopatch
+from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
@@ -39,8 +40,8 @@ from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
 
-_T = TypeVar("_T")
-_Self = TypeVar("_Self")
+T = TypeVar("T")
+Self = TypeVar("Self")
 
 LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ if TYPE_CHECKING:
         pass
 
 
-class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
+class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
     """A dictionary structure that holds features of certain feature type.
 
     It checks that features have a correct and dimension. It also supports lazy loading by accepting a function as a
@@ -63,7 +64,7 @@ class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
 
     FORBIDDEN_CHARS = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
 
-    def __init__(self, feature_dict: Dict[str, Union[_T, FeatureIO[_T]]], feature_type: FeatureType):
+    def __init__(self, feature_dict: Dict[str, Union[T, FeatureIO[T]]], feature_type: FeatureType):
         """
         :param feature_dict: A dictionary of feature names and values
         :param feature_type: Type of features
@@ -76,15 +77,15 @@ class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
             self[feature_name] = value
 
     @classmethod
-    def empty_factory(cls: Type[_Self], feature_type: FeatureType) -> Callable[[], _Self]:
+    def empty_factory(cls: Type[Self], feature_type: FeatureType) -> Callable[[], Self]:
         """Returns a factory function for creating empty feature dictionaries with an appropriate feature type."""
 
-        def factory() -> _Self:
+        def factory() -> Self:
             return cls(feature_dict={}, feature_type=feature_type)  # type: ignore[call-arg]
 
         return factory
 
-    def __setitem__(self, feature_name: str, value: Union[_T, FeatureIO[_T]]) -> None:
+    def __setitem__(self, feature_name: str, value: Union[T, FeatureIO[T]]) -> None:
         """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
         transform value in correct form.
         """
@@ -108,14 +109,14 @@ class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
             raise ValueError("Feature name cannot be an empty string.")
 
     @overload
-    def __getitem__(self, feature_name: str, load: Literal[True] = ...) -> _T:
+    def __getitem__(self, feature_name: str, load: Literal[True] = ...) -> T:
         ...
 
     @overload
-    def __getitem__(self, feature_name: str, load: Literal[False] = ...) -> Union[_T, FeatureIO[_T]]:
+    def __getitem__(self, feature_name: str, load: Literal[False] = ...) -> Union[T, FeatureIO[T]]:
         ...
 
-    def __getitem__(self, feature_name: str, load: bool = True) -> Union[_T, FeatureIO[_T]]:
+    def __getitem__(self, feature_name: str, load: bool = True) -> Union[T, FeatureIO[T]]:
         """Implements lazy loading."""
         value = super().__getitem__(feature_name)
 
@@ -133,12 +134,12 @@ class _FeatureDict(Dict[str, Union[_T, FeatureIO[_T]]], metaclass=ABCMeta):
         """Compares its content against a content of another feature type dictionary."""
         return not self.__eq__(other)
 
-    def get_dict(self) -> Dict[str, _T]:
+    def get_dict(self) -> Dict[str, T]:
         """Returns a Python dictionary of features and value."""
         return dict(self)
 
     @abstractmethod
-    def _parse_feature_value(self, value: object, feature_name: str) -> _T:
+    def _parse_feature_value(self, value: object, feature_name: str) -> T:
         """Checks if value fits the feature type. If not it tries to fix it or raise an error.
 
         :raises: ValueError
@@ -626,7 +627,19 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
+        bbox, timestamps, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
+        eopatch = EOPatch(bbox=bbox)  # type: ignore[arg-type]
+
+        if timestamps is not None:
+            eopatch.timestamps = timestamps  # type: ignore[assignment]
+        if meta_info is not None:
+            eopatch.meta_info = meta_info  # type: ignore[assignment]
+        for feature, feature_io in features_dict.items():
+            eopatch[feature] = feature_io
+
+        if not lazy_loading:
+            _trigger_loading_for_eopatch_features(eopatch)
+        return eopatch
 
     def merge(
         self,
@@ -739,3 +752,10 @@ class EOPatch:
             config=config,
             **kwargs,
         )
+
+
+def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(lambda: eopatch.bbox)
+        executor.submit(lambda: eopatch.timestamps)
+        list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
