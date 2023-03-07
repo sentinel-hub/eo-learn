@@ -32,7 +32,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, load_eopatch, save_eopatch
+from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
@@ -627,11 +627,9 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        eopatch = EOPatch()
-        bbox, timestamps, meta_info, features_dict = load_eopatch(filesystem, path, features=features)
+        bbox, timestamps, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
+        eopatch = EOPatch(bbox=bbox)  # type: ignore[arg-type]
 
-        if bbox is not None:
-            eopatch.bbox = bbox  # type: ignore[assignment]
         if timestamps is not None:
             eopatch.timestamps = timestamps  # type: ignore[assignment]
         if meta_info is not None:
