@@ -181,20 +181,21 @@ def load_eopatch(
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
     bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, eopatch, features)
-    _transfer_features_to_eopatch(eopatch, bbox, timestamps, meta_info, {})
 
+    features_dict: Dict[Tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype.is_meta():
             continue
 
         if fname is ...:
-            _load_whole_feature_type(filesystem, file_information, eopatch, ftype)
+            features_dict.update(_load_whole_feature_type(filesystem, file_information, ftype))
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
                 raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
             path = file_information.features[ftype][fname]
-            eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+            features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
+    _transfer_features_to_eopatch(eopatch, bbox, timestamps, meta_info, features_dict)
     if not lazy_loading:
         _trigger_loading_for_eopatch_features(eopatch)
 
@@ -252,10 +253,12 @@ def _load_meta_features(
 
 
 def _load_whole_feature_type(
-    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, ftype: FeatureType
-) -> None:
+    filesystem: FS, file_information: FilesystemDataInfo, ftype: FeatureType
+) -> Dict[Tuple[FeatureType, str], FeatureIO]:
+    features = {}
     for fname, path in file_information.features.get(ftype, {}).items():
-        eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+        features[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+    return features
 
 
 def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
