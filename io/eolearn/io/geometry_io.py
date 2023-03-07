@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 
 import abc
 import logging
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import boto3
 import fiona
@@ -82,8 +82,8 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
             bbox = eopatch.bbox
 
         vectors = self._load_vector_data(bbox)
-        total_bounds: Tuple[int, int, int, int] = vectors.total_bounds
-        final_bbox = bbox or BBox(total_bounds, crs=CRS(vectors.crs))
+        minx, miny, maxx, maxy = vectors.total_bounds
+        final_bbox = bbox or BBox((minx, miny, maxx, maxy), crs=CRS(vectors.crs))
 
         eopatch = eopatch or EOPatch(bbox=final_bbox)
         if eopatch.bbox is None:
