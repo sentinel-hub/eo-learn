@@ -46,7 +46,7 @@ class PatchGeneratorConfig:
         self.timestamps = list(pd.date_range(*self.timestamps_range, periods=self.num_timestamps).to_pydatetime())
 
 
-def patch_generator(
+def generate_eopatch(
     features: Optional[List[Tuple[FeatureType, str]]] = None,
     bbox: BBox = DEFAULT_BBOX,
     timestamps: Optional[List[dt.datetime]] = None,
@@ -82,7 +82,10 @@ def _get_feature_shape(
     rng: np.random.Generator, ftype: FeatureType, timestamps: List[dt.datetime], config: PatchGeneratorConfig
 ) -> Tuple[int, ...]:
     time, height, width, depth = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
-    return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
+
+    if ftype.is_spatial() and not ftype.is_vector():
+        return (time, height, width, depth) if ftype.is_temporal() else (height, width, depth)
+    return (time, depth) if ftype.is_temporal() else (depth,)
 
 
 def assert_feature_data_equal(tested_feature: Any, expected_feature: Any) -> None:
