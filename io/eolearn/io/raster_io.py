@@ -450,7 +450,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         )
 
     def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
-        """The method decides in what way data will be loaded the image.
+        """The method decides in what way data will be loaded from the image.
 
         The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
         benchmarks show that without `filesystem.openbin` in some cases `rasterio` can read much faster. Otherwise,
@@ -530,15 +530,11 @@ class ImportFromTiffTask(BaseRasterIoTask):
         return np.concatenate(data_per_path, axis=0), final_bbox
 
     def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Optional[str] = "") -> EOPatch:
-        """Execute method which adds a new feature to the EOPatch
+        """Execute method which adds a new feature to the EOPatch.
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created
-        :type eopatch: EOPatch or None
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
-        :type filename: str, list of str or None
-        :return: New EOPatch with added raster layer
-        :rtype: EOPatch
         """
         if filename is None:
             if eopatch is None:
