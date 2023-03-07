@@ -13,6 +13,7 @@ file in the root directory of this source tree.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import copy
 import datetime as dt
 import logging
@@ -626,7 +627,10 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        return load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
+        loaded_patch = load_eopatch(EOPatch(), filesystem, path, features=features, lazy_loading=lazy_loading)
+        if not lazy_loading:
+            _trigger_loading_for_eopatch_features(loaded_patch)
+        return loaded_patch
 
     def merge(
         self,
@@ -739,3 +743,10 @@ class EOPatch:
             config=config,
             **kwargs,
         )
+
+
+def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.submit(lambda: eopatch.bbox)
+        executor.submit(lambda: eopatch.timestamps)
+        list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))

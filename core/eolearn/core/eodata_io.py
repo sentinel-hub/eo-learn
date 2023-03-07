@@ -196,8 +196,6 @@ def load_eopatch(
             features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
     _transfer_features_to_eopatch(eopatch, bbox, timestamps, meta_info, features_dict)
-    if not lazy_loading:
-        _trigger_loading_for_eopatch_features(eopatch)
 
     return eopatch
 
@@ -259,13 +257,6 @@ def _load_whole_feature_type(
     for fname, path in file_information.features.get(ftype, {}).items():
         features[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
     return features
-
-
-def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.submit(lambda: eopatch.bbox)
-        executor.submit(lambda: eopatch.timestamps)
-        list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
 
 
 def get_filesystem_data_info(
