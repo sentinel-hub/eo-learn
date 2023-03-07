@@ -189,7 +189,8 @@ def load_eopatch_content(
             continue
 
         if fname is ...:
-            features_dict.update(_load_whole_feature_type(filesystem, file_information, ftype))
+            for fname, path in file_information.features.get(ftype, {}).items():
+                features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
                 raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
@@ -230,15 +231,6 @@ def _load_meta_features(
             raise IOError(err_msg.format(FeatureType.META_INFO))
 
     return bbox, timestamps, meta_info
-
-
-def _load_whole_feature_type(
-    filesystem: FS, file_information: FilesystemDataInfo, ftype: FeatureType
-) -> Dict[Tuple[FeatureType, str], FeatureIO]:
-    features = {}
-    for fname, path in file_information.features.get(ftype, {}).items():
-        features[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
-    return features
 
 
 def get_filesystem_data_info(
