@@ -10,7 +10,7 @@ file in the root directory of this source tree.
 
 import abc
 import logging
-from typing import Any, Optional, Union
+from typing import Any, Optional, Tuple, Union
 
 import boto3
 import fiona
@@ -78,13 +78,17 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
             of given EOPatch. If given EOPatch is not provided it will load the entire dataset.
         :return: An EOPatch with an additional vector feature
         """
-        eopatch = eopatch or EOPatch()
-        bbox = bbox or eopatch.bbox
-
-        if not eopatch.bbox:
-            eopatch.bbox = bbox
+        if bbox is None and eopatch is not None:
+            bbox = eopatch.bbox
 
         vectors = self._load_vector_data(bbox)
+        total_bounds: Tuple[int, int, int, int] = vectors.total_bounds
+        final_bbox = bbox or BBox(total_bounds, crs=CRS(vectors.crs))
+
+        eopatch = eopatch or EOPatch(bbox=final_bbox)
+        if not eopatch.bbox:
+            eopatch.bbox = final_bbox
+
         eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
 
         return eopatch
