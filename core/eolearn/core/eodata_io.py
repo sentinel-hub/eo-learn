@@ -36,7 +36,7 @@ from fs.tempfs import TempFS
 from typing_extensions import TypeAlias
 
 from sentinelhub import CRS, BBox, Geometry, MimeType
-from sentinelhub.exceptions import SHUserWarning
+from sentinelhub.exceptions import SHUserWarning, deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
 from .exceptions import EODeprecationWarning
@@ -278,18 +278,11 @@ def get_filesystem_data_info(
     return result
 
 
+@deprecated_function(category=EODeprecationWarning)
 def walk_filesystem(
     filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
 ) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
     """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
-    warnings.warn(
-        (
-            "The `walk_filesystem` function is marked for deprecation, check the EOPatch load/save methods to find a"
-            " suitable alternative."
-        ),
-        category=EODeprecationWarning,
-        stacklevel=2,
-    )
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
     if file_information.bbox is not None:  # remove after BBox is never None

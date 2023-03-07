@@ -34,6 +34,7 @@ from eolearn.core.eodata_io import (
     FeatureIOTimestamps,
     walk_filesystem,
 )
+from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import FeatureParser
 from eolearn.core.utils.testing import assert_feature_data_equal
@@ -370,6 +371,7 @@ def test_walk_filesystem_interface(fs_loader, features, eopatch):
         eopatch.save(**io_kwargs)
         loaded_eopatch = EOPatch.load(**io_kwargs)
 
-        for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
-            feature_key = ftype if ftype.is_meta() else (ftype, fname)
-            assert feature_key in loaded_eopatch
+        with pytest.warns(EODeprecationWarning):
+            for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
+                feature_key = ftype if ftype.is_meta() else (ftype, fname)
+                assert feature_key in loaded_eopatch
