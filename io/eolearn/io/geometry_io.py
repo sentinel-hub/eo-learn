@@ -86,7 +86,7 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
         final_bbox = bbox or BBox(total_bounds, crs=CRS(vectors.crs))
 
         eopatch = eopatch or EOPatch(bbox=final_bbox)
-        if not eopatch.bbox:
+        if eopatch.bbox is None:
             eopatch.bbox = final_bbox
 
         eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
