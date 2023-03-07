@@ -542,11 +542,14 @@ class ImportFromTiffTask(BaseRasterIoTask):
             return eopatch
 
         feature_type, feature_name = self.feature
-        eopatch = eopatch or EOPatch()
+        loading_bbox = eopatch.bbox if eopatch is not None else None
+        loading_timestamps = eopatch.timestamps if eopatch is not None else []
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
+        filename_paths = self._get_filename_paths(filename, loading_timestamps)
+        data, bbox = self._load_data(filename_paths, loading_bbox)
 
-        data, bbox = self._load_data(filename_paths, eopatch.bbox)
+        if eopatch is None:
+            eopatch = EOPatch(bbox=bbox)
 
         if eopatch.bbox is None:
             eopatch.bbox = bbox
