@@ -449,8 +449,8 @@ def test_extract_bands_fails(patch: EOPatch) -> None:
 @pytest.mark.parametrize(
     "features",
     [
-        {},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}},
+        {"bbox": DUMMY_BBOX},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}, "bbox": DUMMY_BBOX},
         {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
     ],
 )
