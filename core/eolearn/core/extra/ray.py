@@ -3,11 +3,10 @@ Module containing integrations with Ray framework
 
 In order to use this module you have to install `ray` Python package.
 
-Credits:
-Copyright (c) 2021-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from typing import Any, Callable, Collection, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
 

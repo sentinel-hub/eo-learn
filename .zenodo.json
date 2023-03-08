@@ -1,0 +1,210 @@
+{
+    "title": "eo-learn",
+    "description": "eo-learn makes extraction of valuable information from satellite imagery easy.\\nThe availability of open Earth observation (EO) data through the Copernicus and Landsat programs represents an unprecedented resource for many EO applications, ranging from ocean and land use and land cover monitoring, disaster control, emergency services and humanitarian relief. Given the large amount of high spatial resolution data at high revisit frequency, techniques able to automatically extract complex patterns in such spatio-temporaldata are needed.\\neo-learn is a collection of Python packages that have been developed to seamlessly access and process spatio-temporal image sequences acquired by any satellite fleet in a timely and automatic manner. eo-learn is easy to use, it's design modular, and encourages collaboration -- sharing and reusing of specific tasks in a typical EO-value-extraction workflows, such as cloud masking, image co-registration, feature extraction, classification, etc. Everyone is free to use any of the available tasks and is encouraged to improve the, develop new ones and share them with the rest of the community.",
+    "keywords": [
+        "Earth Observation",
+        "Python",
+        "Workflows",
+        "Remote sensing",
+        "Data Processing",
+        "Machine Learning"
+    ],
+    "creators": [
+        {
+            "affiliation": "Sinergise",
+            "name": "EO Research Team"
+        }
+    ],
+    "contributors": [
+        {
+            "name": "Matej Batič",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Sabina Dolenc",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Jan Geršak",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Chung-Xiang Hong",
+            "affiliation": "Sentinel Hub",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Domagoj Korais",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Matic Lubej",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Žiga Lukšič",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Grega Milčinski",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Nika Oman Kadunc",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Devis Peressutti",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Tomi Sljepčević",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Tamara Šuligoj",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Jovan Višnjić",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Anže Zupanc",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Matej Aleksandrov",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Andrej Burja",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Eva Erzin",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Jernej Puc",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Blaž Sovdat",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Lojze Žust",
+            "affiliation": "Sinergise",
+            "type": "ProjectMember"
+        },
+        {
+            "name": "Drew Bollinger",
+            "affiliation": "DevelopmentSeed",
+            "type": "Other"
+        },
+        {
+            "name": "Peter Fogh",
+            "type": "Other"
+        },
+        {
+            "name": "Hugo Fournier",
+            "affiliation": "Magellium",
+            "type": "Other"
+        },
+        {
+            "name": "Ben Huff",
+            "type": "Other"
+        },
+        {
+            "name": "Filip Koprivec",
+            "affiliation": "Jožef Stefan Institute",
+            "type": "Other"
+        },
+        {
+            "name": "Colin Moldenhauer",
+            "type": "Other"
+        },
+        {
+            "name": "William Ouellette",
+            "affiliation": "TomTom",
+            "type": "Other"
+        },
+        {
+            "name": "Radoslav Pitoňák",
+            "type": "Other"
+        },
+        {
+            "name": "Johannes Schmid",
+            "affiliation": "GeoVille",
+            "type": "Other"
+        },
+        {
+            "name": "Nour Soltani",
+            "type": "Other"
+        },
+        {
+            "name": "Beno Šircelj",
+            "affiliation": "Jožef Stefan Institute",
+            "type": "Other"
+        },
+        {
+            "name": "Andrew Tedstone",
+            "type": "Other"
+        },
+        {
+            "name": "Raaj Tilak Sarma",
+            "type": "Other"
+        },
+        {
+            "name": "Zhuangfang Yi 依庄防",
+            "type": "Other"
+        },
+        {
+            "name": "Patrick Zippenfenig",
+            "affiliation": "meteoblue",
+            "type": "Other"
+        },
+        {
+            "name": "fred-sch",
+            "type": "Other"
+        },
+        {
+            "name": "Gnilliw",
+            "type": "Other"
+        },
+        {
+            "name": "theirix",
+            "type": "Other"
+        }
+    ],
+    "license": {
+        "id": "MIT"
+    },
+    "grants": [
+        {
+            "id": "776115"
+        },
+        {
+            "id": "101004112"
+        }
+    ]
+}
