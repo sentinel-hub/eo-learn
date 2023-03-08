@@ -285,7 +285,9 @@ def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None
     if ftype.has_dict():
         del test_eopatch[ftype, fname]
     else:
-        test_eopatch[ftype] = None if ftype is FeatureType.BBOX else []
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", EODeprecationWarning)
+            test_eopatch[ftype] = None if ftype is FeatureType.BBOX else []
 
     assert ftype, fname not in test_eopatch
 
@@ -414,3 +416,16 @@ def test_timestamps_deprecation():
         # so the warnings get ignored in pytest summary
         assert eop.timestamp == [datetime.datetime(4321, 5, 6)]
         assert eop.timestamp == eop.timestamps
+
+
+def test_bbox_none_deprecation():
+    with pytest.warns(EODeprecationWarning):
+        EOPatch()
+
+    eop = EOPatch(bbox=DUMMY_BBOX)
+    assert eop.bbox == DUMMY_BBOX
+
+    with pytest.warns(EODeprecationWarning):
+        eop.bbox = None
+
+    assert eop.bbox is None

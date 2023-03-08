@@ -20,23 +20,29 @@ from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EORuntimeWarning
 
+DUMMY_BBOX = BBox((1, 2, 3, 4), CRS.WGS84)
+
 
 def test_time_dependent_merge():
     all_timestamps = [dt.datetime(2020, month, 1) for month in range(1, 7)]
     eop1 = EOPatch(
-        data={"bands": np.ones((3, 4, 5, 2))}, timestamps=[all_timestamps[0], all_timestamps[5], all_timestamps[4]]
+        bbox=DUMMY_BBOX,
+        data={"bands": np.ones((3, 4, 5, 2))},
+        timestamps=[all_timestamps[0], all_timestamps[5], all_timestamps[4]],
     )
     eop2 = EOPatch(
+        bbox=DUMMY_BBOX,
         data={"bands": np.ones((5, 4, 5, 2))},
         timestamps=[all_timestamps[3], all_timestamps[1], all_timestamps[2], all_timestamps[4], all_timestamps[3]],
     )
 
     eop = eop1.merge(eop2)
-    expected_eop = EOPatch(data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
+    expected_eop = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
     assert eop == expected_eop
 
     eop = eop1.merge(eop2, time_dependent_op="concatenate")
     expected_eop = EOPatch(
+        bbox=DUMMY_BBOX,
         data={"bands": np.ones((8, 4, 5, 2))},
         timestamps=all_timestamps[:4] + [all_timestamps[3], all_timestamps[4]] + all_timestamps[4:],
     )
@@ -51,7 +57,7 @@ def test_time_dependent_merge():
         eop1.merge(eop2)
 
     eop = eop1.merge(eop2, time_dependent_op="mean")
-    expected_eop = EOPatch(data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
+    expected_eop = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
     expected_eop.data["bands"][1, ...] = 4
     expected_eop.data["bands"][3, ...] = 3
     expected_eop.data["bands"][4, ...] = 2
@@ -62,9 +68,12 @@ def test_time_dependent_merge():
 def test_time_dependent_merge_with_missing_features():
     timestamps = [dt.datetime(2020, month, 1) for month in range(1, 7)]
     eop1 = EOPatch(
-        data={"bands": np.ones((6, 4, 5, 2))}, label={"label": np.ones((6, 7), dtype=np.uint8)}, timestamps=timestamps
+        bbox=DUMMY_BBOX,
+        data={"bands": np.ones((6, 4, 5, 2))},
+        label={"label": np.ones((6, 7), dtype=np.uint8)},
+        timestamps=timestamps,
     )
-    eop2 = EOPatch(timestamps=timestamps[:4])
+    eop2 = EOPatch(bbox=DUMMY_BBOX, timestamps=timestamps[:4])
 
     eop = eop1.merge(eop2)
     assert eop == eop1
@@ -77,20 +86,22 @@ def test_time_dependent_merge_with_missing_features():
 
 
 def test_failed_time_dependent_merge():
-    eop1 = EOPatch(data={"bands": np.ones((6, 4, 5, 2))})
+    eop1 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))})
     with pytest.raises(ValueError):
         eop1.merge()
-    eop2 = EOPatch(data={"bands": np.ones((1, 4, 5, 2))}, timestamps=[dt.datetime(2020, 1, 1)])
+    eop2 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((1, 4, 5, 2))}, timestamps=[dt.datetime(2020, 1, 1)])
     with pytest.raises(ValueError):
         eop2.merge(eop1)
 
 
 def test_timeless_merge():
     eop1 = EOPatch(
-        mask_timeless={"mask": np.ones((3, 4, 5), dtype=np.int16), "mask1": np.ones((5, 4, 3), dtype=np.int16)}
+        bbox=DUMMY_BBOX,
+        mask_timeless={"mask": np.ones((3, 4, 5), dtype=np.int16), "mask1": np.ones((5, 4, 3), dtype=np.int16)},
     )
     eop2 = EOPatch(
-        mask_timeless={"mask": 4 * np.ones((3, 4, 5), dtype=np.int16), "mask2": np.ones((4, 5, 3), dtype=np.int16)}
+        bbox=DUMMY_BBOX,
+        mask_timeless={"mask": 4 * np.ones((3, 4, 5), dtype=np.int16), "mask2": np.ones((4, 5, 3), dtype=np.int16)},
     )
 
     with pytest.raises(ValueError):
@@ -98,22 +109,24 @@ def test_timeless_merge():
 
     eop = eop1.merge(eop2, timeless_op="concatenate")
     expected_eop = EOPatch(
+        bbox=DUMMY_BBOX,
         mask_timeless={
             "mask": np.ones((3, 4, 10), dtype=np.int16),
             "mask1": eop1.mask_timeless["mask1"],
             "mask2": eop2.mask_timeless["mask2"],
-        }
+        },
     )
     expected_eop.mask_timeless["mask"][..., 5:] = 4
     assert eop == expected_eop
 
     eop = eop1.merge(eop2, eop2, timeless_op="min")
     expected_eop = EOPatch(
+        bbox=DUMMY_BBOX,
         mask_timeless={
             "mask": eop1.mask_timeless["mask"],
             "mask1": eop1.mask_timeless["mask1"],
             "mask2": eop2.mask_timeless["mask2"],
-        }
+        },
     )
     assert eop == expected_eop
 
@@ -129,7 +142,7 @@ def test_vector_merge():
         crs=bbox.crs.pyproj_crs(),
     )
 
-    eop1 = EOPatch(vector_timeless={"vectors": df})
+    eop1 = EOPatch(bbox=bbox, vector_timeless={"vectors": df})
 
     for eop in [eop1.merge(eop1), eop1 + eop1]:
         assert eop == eop1
@@ -141,11 +154,11 @@ def test_vector_merge():
 
 
 def test_meta_info_merge():
-    eop1 = EOPatch(meta_info={"a": 1, "b": 2})
-    eop2 = EOPatch(meta_info={"a": 1, "c": 5})
+    eop1 = EOPatch(bbox=DUMMY_BBOX, meta_info={"a": 1, "b": 2})
+    eop2 = EOPatch(bbox=DUMMY_BBOX, meta_info={"a": 1, "c": 5})
 
     eop = eop1.merge(eop2)
-    expected_eop = EOPatch(meta_info={"a": 1, "b": 2, "c": 5})
+    expected_eop = EOPatch(bbox=DUMMY_BBOX, meta_info={"a": 1, "b": 2, "c": 5})
     assert eop == expected_eop
 
     eop2.meta_info["a"] = 3
