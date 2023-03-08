@@ -66,10 +66,10 @@ def test_numpy_feature_types() -> None:
 def test_vector_feature_types() -> None:
     eop = EOPatch(bbox=DUMMY_BBOX)
 
-    invalid_entries = [{}, [], 0, None]
+    invalid_vector_input = [{}, [], 0, None]
 
     for feature_type in FeatureTypeSet.VECTOR_TYPES:
-        for entry in invalid_entries:
+        for entry in invalid_vector_input:
             with pytest.raises(ValueError):
                 # Invalid entry for feature_type should raise an error
                 eop[feature_type]["TEST"] = entry
@@ -87,16 +87,14 @@ def test_vector_feature_types() -> None:
         eop.vector["TEST"] = geo_test
 
 
-@pytest.mark.parametrize(
-    "invalid_entry", [0, list(range(4)), tuple(range(5)), {}, set(), [1, 2, 4, 3, 4326, 3], "BBox"]
-)
-def test_bbox_feature_type(invalid_entry: Any) -> None:
+@pytest.mark.parametrize("invalid_bbox", [0, list(range(4)), tuple(range(5)), {}, set(), [1, 2, 4, 3, 4326, 3], "BBox"])
+def test_bbox_feature_type(invalid_bbox: Any) -> None:
     with pytest.raises((TypeError, ValueError)):
-        EOPatch(bbox=invalid_entry)
+        EOPatch(bbox=invalid_bbox)
 
     eop = EOPatch(bbox=DUMMY_BBOX)
     with pytest.raises((TypeError, ValueError)):
-        eop.bbox = invalid_entry
+        eop.bbox = invalid_bbox
 
 
 @pytest.mark.parametrize(
@@ -108,20 +106,20 @@ def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
 
 
 @pytest.mark.parametrize(
-    "invalid_entry",
+    "invalid_timestamps",
     [
         [datetime.datetime(2017, 1, 1, 10, 4, 7), None, datetime.datetime(2017, 1, 11, 10, 3, 51)],
         "something",
         datetime.datetime(2017, 1, 1, 10, 4, 7),
     ],
 )
-def test_timestamp_invalid_feature_type(invalid_entry: Any) -> None:
+def test_timestamps_invalid_feature_type(invalid_timestamps: Any) -> None:
     with pytest.raises((ValueError, TypeError)):
-        EOPatch(bbox=DUMMY_BBOX, timestamps=invalid_entry)
+        EOPatch(bbox=DUMMY_BBOX, timestamps=invalid_timestamps)
 
     eop = EOPatch(bbox=DUMMY_BBOX)
     with pytest.raises((ValueError, TypeError)):
-        eop.timestamps = invalid_entry
+        eop.timestamps = invalid_timestamps
 
 
 def test_invalid_characters():
