@@ -17,6 +17,8 @@ from numpy.testing import assert_array_equal
 from pytest import approx
 from shapely.geometry import Point, Polygon
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.ml_tools import BlockSamplingTask, FractionSamplingTask, GridSamplingTask, sample_by_values
 from eolearn.ml_tools.sampling import expand_to_grids, get_mask_of_samples, random_point_in_triangle
@@ -136,7 +138,7 @@ def test_get_mask_of_samples(small_image: np.ndarray, n_samples: Dict[int, int])
 @pytest.fixture(name="eopatch")
 def eopatch_fixture(small_image: np.ndarray) -> EOPatch:
     t, h, w, d = 10, *small_image.shape, 5
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
     eopatch.data["bands"] = np.arange(t * h * w * d).reshape(t, h, w, d)
     eopatch.mask_timeless["raster"] = small_image.reshape(small_image.shape + (1,))
     return eopatch

@@ -365,8 +365,7 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
 @pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
-    eopatch = EOPatch()
-    eopatch.bbox = BBox((0, 0, 1, 1), crs=CRS.WGS84)
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))
     feature = (FeatureType.DATA_TIMELESS, "DATA")
 
     np_arr = np.zeros((10, 10, 1), dtype=data_type)

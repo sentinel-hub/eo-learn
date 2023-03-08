@@ -41,27 +41,28 @@ from eolearn.core.utils.testing import assert_feature_data_equal
 
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS.WGS84)
+
 
 @pytest.fixture(name="eopatch")
 def eopatch_fixture():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
     mask = np.zeros((3, 3, 2), dtype=np.int16)
     data = np.zeros((2, 3, 3, 2), dtype=np.int16)
-    eopatch.data_timeless["mask"] = mask
+    eopatch.mask_timeless["mask"] = mask
     eopatch.data["data"] = data
     eopatch.timestamps = [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]
     eopatch.meta_info["something"] = "nothing"
     eopatch.meta_info["something-else"] = "nothing"
-    eopatch.bbox = BBox((1, 2, 3, 4), CRS.WGS84)
     eopatch.scalar["my scalar with spaces"] = np.array([[1, 2, 3], [1, 2, 3]])
     eopatch.scalar_timeless["my timeless scalar with spaces"] = np.array([1, 2, 3])
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
             TIMESTAMP_COLUMN: [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)],
-            "geometry": [eopatch.bbox.geometry, eopatch.bbox.geometry],
+            "geometry": [DUMMY_BBOX.geometry, DUMMY_BBOX.geometry],
         },
-        crs=eopatch.bbox.crs.pyproj_crs(),
+        crs=DUMMY_BBOX.crs.pyproj_crs(),
     )
     eopatch.vector_timeless["empty-vector"] = GeoDataFrame(
         {"values": [], "geometry": []}, crs=eopatch.bbox.crs.pyproj_crs()
@@ -83,7 +84,7 @@ def test_saving_in_empty_folder(eopatch, fs_loader):
             eopatch.save(temp_fs.root_path)
         else:
             eopatch.save("/", filesystem=temp_fs)
-        assert temp_fs.exists("/data_timeless/mask.npy")
+        assert temp_fs.exists("/mask_timeless/mask.npy")
 
         subfolder = "new-subfolder"
         eopatch.save("new-subfolder", filesystem=temp_fs)
@@ -114,7 +115,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
         eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
         eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
-        add_eopatch = EOPatch()
+        add_eopatch = EOPatch(bbox=DUMMY_BBOX)
         add_eopatch.data_timeless["some data"] = np.empty((3, 3, 2))
         add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
         with pytest.raises(ValueError):
@@ -153,7 +154,7 @@ def test_save_load_partial(
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_save_add_only_features(eopatch, fs_loader):
     features = [
-        (FeatureType.DATA_TIMELESS, "mask"),
+        (FeatureType.MASK_TIMELESS, "mask"),
         FeatureType.MASK,
         FeatureType.VECTOR,
         (FeatureType.SCALAR, ...),
@@ -176,20 +177,20 @@ def test_bbox_always_saved(eopatch, fs_loader):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_overwrite_failure(fs_loader):
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
     mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
-    eopatch.data_timeless["mask"] = mask
-    eopatch.data_timeless["Mask"] = mask
+    eopatch.mask_timeless["mask"] = mask
+    eopatch.mask_timeless["Mask"] = mask
 
     with fs_loader() as temp_fs, pytest.raises(IOError):
         eopatch.save("/", filesystem=temp_fs)
 
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=[(FeatureType.DATA_TIMELESS, "mask")], overwrite_permission=2)
+        eopatch.save("/", filesystem=temp_fs, features=[(FeatureType.MASK_TIMELESS, "mask")], overwrite_permission=2)
 
         with pytest.raises(IOError):
             eopatch.save(
-                "/", filesystem=temp_fs, features=[(FeatureType.DATA_TIMELESS, "Mask")], overwrite_permission=0
+                "/", filesystem=temp_fs, features=[(FeatureType.MASK_TIMELESS, "Mask")], overwrite_permission=0
             )
 
 
@@ -232,15 +233,18 @@ def test_fail_loading_nonexistent_feature(fs_loader):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_nonexistent_location(fs_loader):
+    """In the event of a path not existing all save actions should create the path, and loads should fail."""
     path = "./folder/subfolder/new-eopatch/"
-    empty_eop = EOPatch()
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
 
+    # IO on nonexistent path inside a temporary FS
     with fs_loader() as temp_fs:
         with pytest.raises(ResourceNotFound):
             EOPatch.load(path, filesystem=temp_fs)
 
-        empty_eop.save(path, filesystem=temp_fs)
+        eopatch.save(path, filesystem=temp_fs)
 
+    # IO on nonexistent path (no fs specified)
     with TempFS() as temp_fs:
         full_path = os.path.join(temp_fs.root_path, path)
         with pytest.raises(CreateFailed):
@@ -250,13 +254,13 @@ def test_nonexistent_location(fs_loader):
         with pytest.raises(CreateFailed):
             load_task.execute()
 
-        empty_eop.save(full_path)
+        eopatch.save(full_path)
         assert os.path.exists(full_path)
 
+    # SaveTask on nonexistent path (no fs specified)
     with TempFS() as temp_fs:
         full_path = os.path.join(temp_fs.root_path, path)
-        save_task = SaveTask(full_path)
-        save_task.execute(empty_eop)
+        SaveTask(full_path).execute(eopatch)
         assert os.path.exists(full_path)
 
 
@@ -272,21 +276,21 @@ def test_cleanup_different_compression(fs_loader, eopatch):
         save_noncompressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=0, overwrite_permission=1)
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
         compressed_bbox_path = bbox_path + ".gz"
-        data_timeless_path = fs.path.join(folder, patch_folder, "data_timeless", "mask.npy")
-        compressed_data_timeless_path = data_timeless_path + ".gz"
+        mask_timeless_path = fs.path.join(folder, patch_folder, "mask_timeless", "mask.npy")
+        compressed_mask_timeless_path = mask_timeless_path + ".gz"
 
         save_compressed_task(eopatch, eopatch_folder=patch_folder)
         save_noncompressed_task(eopatch, eopatch_folder=patch_folder)
         assert temp_fs.exists(bbox_path)
-        assert temp_fs.exists(data_timeless_path)
+        assert temp_fs.exists(mask_timeless_path)
         assert not temp_fs.exists(compressed_bbox_path)
-        assert not temp_fs.exists(compressed_data_timeless_path)
+        assert not temp_fs.exists(compressed_mask_timeless_path)
 
         save_compressed_task(eopatch, eopatch_folder=patch_folder)
         assert not temp_fs.exists(bbox_path)
-        assert not temp_fs.exists(data_timeless_path)
+        assert not temp_fs.exists(mask_timeless_path)
         assert temp_fs.exists(compressed_bbox_path)
-        assert temp_fs.exists(compressed_data_timeless_path)
+        assert temp_fs.exists(compressed_mask_timeless_path)
 
 
 @mock_s3
@@ -298,11 +302,11 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
 
         lazy_eopatch = EOPatch.load(folder_name, filesystem=temp_fs, lazy_loading=True)
         lazy_eopatch.data["whatever"] = np.empty((2, 3, 3, 2))
-        del lazy_eopatch[FeatureType.DATA_TIMELESS, "mask"]
+        del lazy_eopatch[FeatureType.MASK_TIMELESS, "mask"]
 
         lazy_eopatch.save(folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
         assert temp_fs.exists(fs.path.join(folder_name, "data", "whatever.npy"))
-        assert not temp_fs.exists(fs.path.join(folder_name, "data_timeless", "mask.npy"))
+        assert not temp_fs.exists(fs.path.join(folder_name, "mask_timeless", "mask.npy"))
 
 
 @pytest.mark.parametrize(

@@ -106,16 +106,13 @@ class SaveTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
-    def execute(self, eopatch: EOPatch, *, eopatch_folder: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, eopatch_folder: str = "") -> EOPatch:
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
-        :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it won't save anything.
+        :param eopatch_folder: Name of EOPatch folder containing data.
         :return: The same EOPatch
         """
-        if eopatch_folder is None:
-            return eopatch
-
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
         eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
@@ -138,18 +135,14 @@ class LoadTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, eopatch_folder: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: Optional[EOPatch] = None, *, eopatch_folder: str = "") -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch: Optional input EOPatch. If given the loaded features are merged onto it, otherwise a new EOPatch
             is created.
-        :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it will return an empty
-            or modified `EOPatch` (depending on the task input).
+        :param eopatch_folder: Name of EOPatch folder containing data.
         :return: EOPatch loaded from disk
         """
-        if eopatch_folder is None:
-            return eopatch or EOPatch()
-
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
         loaded_patch = EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
         if eopatch is None:

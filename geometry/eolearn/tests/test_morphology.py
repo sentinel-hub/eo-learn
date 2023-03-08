@@ -12,6 +12,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.geometry import ErosionTask, MorphologicalFilterTask, MorphologicalOperations, MorphologicalStructFactory
 
@@ -71,7 +73,7 @@ def test_erosion_partial(test_eopatch):
     "struct_element", [None, MorphologicalStructFactory.get_disk(5), MorphologicalStructFactory.get_rectangle(5, 6)]
 )
 def test_morphological_filter(morph_operation, struct_element):
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
     eopatch[MASK_FEATURE] = np.random.randint(20, size=(10, 100, 100, 3), dtype=np.uint8)
     eopatch[MASK_TIMELESS_FEATURE] = np.random.randint(20, 50, size=(100, 100, 5), dtype=np.uint8)
 
