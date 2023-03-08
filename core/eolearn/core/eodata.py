@@ -254,6 +254,18 @@ class EOPatch:
     bbox: Optional[BBox] = attr.ib(default=None)
     timestamps: List[dt.datetime] = attr.ib(factory=list)
 
+    def __attrs_post_init__(self) -> None:
+        if self.bbox is None:
+            warn(
+                (
+                    "Initializing an EOPatch without providing a BBox will no longer be possible in the future."
+                    " EOPatches represent geolocated data and so any EOPatch without a BBox is ill-formed. Consider"
+                    " using a different data structure for non-geolocated data."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=2,
+            )
+
     @property
     def timestamp(self) -> List[dt.datetime]:
         """A property for handling the deprecated timestamp attribute.
