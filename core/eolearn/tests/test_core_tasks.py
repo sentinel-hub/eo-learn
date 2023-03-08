@@ -300,7 +300,7 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
             {},
         ),
         (
-            {FeatureType.DATA: ["CLP", "CLP_S2C"]},
+            {FeatureType.DATA: ["bands", "CLP"]},
             (FeatureType.DATA, "feat_max"),
             np.floor_divide,
             {"dtype": np.float32},
