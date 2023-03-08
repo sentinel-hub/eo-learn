@@ -233,15 +233,18 @@ def test_fail_loading_nonexistent_feature(fs_loader):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_nonexistent_location(fs_loader):
+    """In the event of a path not existing all save actions should create the path, and loads should fail."""
     path = "./folder/subfolder/new-eopatch/"
-    empty_eop = EOPatch()
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
 
+    # IO on nonexistent path inside a temporary FS
     with fs_loader() as temp_fs:
         with pytest.raises(ResourceNotFound):
             EOPatch.load(path, filesystem=temp_fs)
 
-        empty_eop.save(path, filesystem=temp_fs)
+        eopatch.save(path, filesystem=temp_fs)
 
+    # IO on nonexistent path (no fs specified)
     with TempFS() as temp_fs:
         full_path = os.path.join(temp_fs.root_path, path)
         with pytest.raises(CreateFailed):
@@ -251,13 +254,13 @@ def test_nonexistent_location(fs_loader):
         with pytest.raises(CreateFailed):
             load_task.execute()
 
-        empty_eop.save(full_path)
+        eopatch.save(full_path)
         assert os.path.exists(full_path)
 
+    # SaveTask on nonexistent path (no fs specified)
     with TempFS() as temp_fs:
         full_path = os.path.join(temp_fs.root_path, path)
-        save_task = SaveTask(full_path)
-        save_task.execute(empty_eop)
+        SaveTask(full_path).execute(eopatch)
         assert os.path.exists(full_path)
 
 
