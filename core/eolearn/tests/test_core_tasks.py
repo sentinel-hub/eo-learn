@@ -56,7 +56,7 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
-    patch = EOPatch()
+    patch = EOPatch(bbox=BBox((324.54, 546.45, 955.4, 63.43), CRS(3857)))
     patch.data["bands"] = np.arange(5 * 3 * 4 * 8).reshape(5, 3, 4, 8)
     patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
     patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
@@ -73,7 +73,6 @@ def patch_fixture() -> EOPatch:
         datetime(2017, 3, 2, 10, 0, 20),
         datetime(2017, 3, 12, 10, 7, 6),
     ]
-    patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
 

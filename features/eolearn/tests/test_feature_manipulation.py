@@ -15,6 +15,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from eolearn.features.feature_manipulation import SpatialResizeTask
@@ -186,7 +188,7 @@ def test_value_fillout():
 
 
 def test_linear_function_task():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
 
     data_feature = (FeatureType.DATA, "DATA_TEST")
     data_result_feature = (FeatureType.DATA, "DATA_TRANSFORMED")

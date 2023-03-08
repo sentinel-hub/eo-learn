@@ -14,12 +14,14 @@ from datetime import date, timedelta
 import numpy as np
 from numpy.testing import assert_array_equal
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask, AddSpatioTemporalFeaturesTask
 
 
 def test_temporal_indices():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
     t, h, w, c = 5, 3, 3, 2
 
     ndvi_shape = (t, h, w, 1)

@@ -10,6 +10,8 @@ file in the root directory of this source tree.
 import numpy as np
 import pytest
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.mask import JoinMasksTask, MaskFeatureTask
 
@@ -72,7 +74,7 @@ def test_wrong_arguments():
 
 
 def test_join_masks():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
 
     mask1 = (FeatureType.MASK_TIMELESS, "Mask1")
     mask_data1 = np.zeros((10, 10, 1), dtype=np.uint8)
