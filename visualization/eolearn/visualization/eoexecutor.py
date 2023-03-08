@@ -182,7 +182,7 @@ class EOExecutorVisualization:
                 try:
                     source = inspect.getsource(task.__class__)
                     source = pygments.highlight(source, lexer, formatter)
-                except TypeError:
+                except (TypeError, OSError):
                     # Jupyter notebook does not have __file__ method to collect source code
                     # StackOverflow provides no solutions
                     # Could be investigated further by looking into Jupyter Notebook source code
