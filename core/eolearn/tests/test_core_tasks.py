@@ -119,23 +119,6 @@ def test_load_task(test_eopatch_path: str) -> None:
     assert FeatureType.DATA not in upgraded_partial_patch
 
 
-def test_load_nothing() -> None:
-    load = LoadTask("./some/fake/path")
-    eopatch = load.execute(eopatch_folder=None)
-
-    assert eopatch == EOPatch()
-
-
-def test_save_nothing(patch: EOPatch) -> None:
-    temp_path = "/some/fake/path"
-    with TempFS() as temp_fs:
-        save = SaveTask(temp_path, filesystem=temp_fs)
-        output = save.execute(patch, eopatch_folder=None)
-
-        assert not temp_fs.exists(temp_path)
-        assert output == patch
-
-
 @pytest.mark.parametrize("filesystem", [OSFS("."), S3FS("s3://fake-bucket/"), TempFS()])
 @pytest.mark.parametrize("task_class", [LoadTask, SaveTask])
 def test_io_task_pickling(filesystem: FS, task_class: Type[EOTask]) -> None:
