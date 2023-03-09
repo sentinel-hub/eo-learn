@@ -284,7 +284,7 @@ def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None
     else:
         del test_eopatch[ftype, fname]
 
-    assert ftype, fname not in test_eopatch
+    assert (ftype, fname) not in test_eopatch
 
 
 def test_equals() -> None:
