@@ -107,6 +107,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
     def is_vector(self) -> bool:
         """True if FeatureType is vector feature type. False otherwise."""
+        return self in FeatureTypeSet.VECTOR_TYPES
 
     def is_array(self) -> bool:
         """True if FeatureType stores a dictionary with array data. False otherwise."""

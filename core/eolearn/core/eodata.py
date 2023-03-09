@@ -383,7 +383,7 @@ class EOPatch:
         feature_type = FeatureType(feature)
         if feature_type == FeatureType.BBOX:
             raise ValueError("The BBox of an EOPatch should never be undefined.")
-        elif feature_type == FeatureType.TIMESTAMPS:
+        if feature_type == FeatureType.TIMESTAMPS:
             self[feature_type] = []
         else:
             self[feature_type] = {}
