@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 from shapely.geometry import Point, Polygon
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 _FractionType = Union[float, Dict[int, float]]
@@ -142,7 +142,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         """
         self.features_parser = self.get_feature_parser(
             features_to_sample,
-            allowed_feature_types=FeatureTypeSet.SPATIAL_TYPES & FeatureTypeSet.RASTER_TYPES,
+            allowed_feature_types=lambda fty: fty.is_spatial() and fty.is_raster(),
         )
 
         self.mask_of_samples = mask_of_samples

@@ -20,7 +20,7 @@ from typing_extensions import Literal
 
 from sentinelhub import bbox_to_dimensions
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
+from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
@@ -48,9 +48,8 @@ class SimpleFilterTask(EOTask):
         :param filter_func: A callable that takes a numpy evaluates to bool.
         :param filter_features: A collection of features which will be filtered into a new EOPatch
         """
-        self.feature = self.parse_feature(
-            feature, allowed_feature_types=FeatureTypeSet.TEMPORAL_TYPES.difference([FeatureType.VECTOR])
-        )
+
+        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_temporal())
         self.filter_func = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
 

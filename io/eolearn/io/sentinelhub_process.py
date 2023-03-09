@@ -33,7 +33,7 @@ from sentinelhub import (
 )
 from sentinelhub.types import RawTimeIntervalType
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 
 LOGGER = logging.getLogger(__name__)
@@ -241,7 +241,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.aux_request_args = aux_request_args
 
     def _parse_and_validate_features(self, features: FeaturesSpecification) -> List[FeatureRenameSpec]:
-        allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
+        allowed_features = [fty for fty in FeatureType if fty.is_raster()] + [FeatureType.META_INFO]
         _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
 
         ftr_data_types = {ft for ft, _, _ in _features if not ft.is_meta()}

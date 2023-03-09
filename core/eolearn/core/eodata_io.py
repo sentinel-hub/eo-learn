@@ -35,7 +35,7 @@ from typing_extensions import TypeAlias
 from sentinelhub import CRS, BBox, Geometry, MimeType
 from sentinelhub.exceptions import SHUserWarning, deprecated_function
 
-from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
@@ -558,6 +558,6 @@ def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
         return FeatureIOJson
     if ftype is FeatureType.TIMESTAMPS:
         return FeatureIOTimestamps
-    if ftype in FeatureTypeSet.VECTOR_TYPES:
+    if ftype.is_vector():
         return FeatureIOGeoDf
     return FeatureIONumpy
