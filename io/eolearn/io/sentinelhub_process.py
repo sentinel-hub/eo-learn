@@ -254,7 +254,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         """Construct SentinelHubRequest output_responses from features"""
         responses = []
         for feat_type, feat_name, _ in self.features:
-            if feat_type.is_raster():
+            if feat_type.is_array():
                 responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
             elif feat_type.is_meta():
                 responses.append(SentinelHubRequest.output_response("userdata", MimeType.JSON))
@@ -266,7 +266,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
-        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
+        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_array()):
             return []
 
         return get_available_timestamps(

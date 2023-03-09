@@ -11,6 +11,7 @@ from enum import Enum, EnumMeta
 from typing import Optional
 
 from sentinelhub import BBox, MimeType
+from sentinelhub.exceptions import deprecated_function
 
 from .exceptions import EODeprecationWarning
 
@@ -108,21 +109,34 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
         """True if FeatureType is vector feature type. False otherwise."""
         return self in FeatureTypeSet.VECTOR_TYPES
 
+    def is_array(self) -> bool:
+        """True if FeatureType stores a dictionary with array data. False otherwise."""
+        return self in FeatureTypeSet.RASTER_TYPES
+
+    def is_image(self) -> bool:
+        """True if FeatureType stores a dictionary with arrays that represent images. False otherwise."""
+        return self.is_array() and self.is_spatial()
+
+    @deprecated_function(
+        EODeprecationWarning, "Use the equivalent `is_array` method, or consider if `is_image` fits better."
+    )
+    def is_raster(self) -> bool:
+        """True if FeatureType stores a dictionary with raster data. False otherwise."""
+        return self.is_array()
+
+    @deprecated_function(EODeprecationWarning)
     def has_dict(self) -> bool:
         """True if FeatureType stores a dictionary. False otherwise."""
         return self in FeatureTypeSet.DICT_TYPES
 
-    def is_raster(self) -> bool:
-        """True if FeatureType stores a dictionary with raster data. False otherwise."""
-        return self in FeatureTypeSet.RASTER_TYPES
-
+    @deprecated_function(EODeprecationWarning)
     def contains_ndarrays(self) -> bool:
         """True if FeatureType stores a dictionary of numpy.ndarrays. False otherwise."""
         return self in FeatureTypeSet.RASTER_TYPES
 
     def ndim(self) -> Optional[int]:
         """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays."""
-        if self.is_raster():
+        if self.is_array():
             return {
                 FeatureType.DATA: 4,
                 FeatureType.MASK: 4,
@@ -135,6 +149,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
             }[self]
         return None
 
+    @deprecated_function(EODeprecationWarning)
     def type(self) -> type:
         """Returns type of the data for the given FeatureType."""
         if self is FeatureType.TIMESTAMPS:
@@ -143,9 +158,10 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
             return BBox
         return dict
 
+    @deprecated_function(EODeprecationWarning)
     def file_format(self) -> MimeType:
         """Returns a mime type enum of a file format into which data of the feature type will be serialized"""
-        if self.is_raster():
+        if self.is_array():
             return MimeType.NPY
         if self.is_vector():
             return MimeType.GPKG
