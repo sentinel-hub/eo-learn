@@ -277,10 +277,12 @@ def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None
     assert ftype in test_eopatch
     assert (ftype, fname) in test_eopatch
 
-    if ftype.has_dict():
-        del test_eopatch[ftype, fname]
+    if ftype == FeatureType.BBOX:
+        test_eopatch[ftype] = None
+    elif ftype == FeatureType.TIMESTAMPS:
+        test_eopatch[ftype] = []
     else:
-        test_eopatch[ftype] = None if ftype is FeatureType.BBOX else []
+        del test_eopatch[ftype, fname]
 
     assert ftype, fname not in test_eopatch
 
