@@ -35,6 +35,7 @@ from sentinelhub.types import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
@@ -241,7 +242,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.aux_request_args = aux_request_args
 
     def _parse_and_validate_features(self, features: FeaturesSpecification) -> List[FeatureRenameSpec]:
-        _features = self.parse_renamed_features(
+        _features = parse_renamed_features(
             features, allowed_feature_types=lambda fty: fty.is_array() or fty == FeatureType.META_INFO
         )
 
@@ -445,7 +446,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_additional_bands = []
         self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            parsed_additional_data = self.parse_renamed_features(additional_data)
+            parsed_additional_data = parse_renamed_features(additional_data)
             additional_bands = [band for _, band, _ in parsed_additional_data]
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands

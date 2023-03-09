@@ -15,6 +15,7 @@ from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType, ZipFeatureTask
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_feature
 
 
 class JoinMasksTask(ZipFeatureTask):
@@ -80,7 +81,7 @@ class MaskFeatureTask(EOTask):
         :param no_data_value: Value that replaces masked values in `feature`. Default is `NaN`
         :return: The same `eopatch` instance with a masked array
         """
-        self.renamed_feature = self.parse_renamed_feature(feature)
+        self.renamed_feature = parse_renamed_feature(feature)
         self.mask_feature = self.parse_feature(mask_feature)
         self.mask_values = mask_values
         self.no_data_value = no_data_value

@@ -23,6 +23,7 @@ from sentinelhub import bbox_to_dimensions
 from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_features
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 
@@ -290,7 +291,7 @@ class SpatialResizeTask(EOTask):
         else:
             resize_fun_kwargs = {self.resize_type.value: (self.height_param, self.width_param)}
 
-        for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
+        for ftype, fname, new_name in parse_renamed_features(self.features, eopatch=eopatch):
             if ftype.is_spatial() and ftype.is_array():
                 eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_fun_kwargs)
         return eopatch

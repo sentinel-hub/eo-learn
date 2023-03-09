@@ -19,9 +19,10 @@ import numpy as np
 import scipy.interpolate
 from sklearn.gaussian_process import GaussianProcessRegressor
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EOUserWarning
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_feature
 
 try:
     import numba
@@ -128,7 +129,9 @@ class InterpolationTask(EOTask):
         interpolate_pixel_wise: bool = False,
         **interpolation_parameters: Any,
     ):
-        self.renamed_feature = self.parse_renamed_feature(feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
+        self.renamed_feature = parse_renamed_feature(
+            feature, allowed_feature_types=[FeatureType.MASK, FeatureType.DATA]
+        )
 
         self.interpolation_object = interpolation_object
         self.resample_range = resample_range
