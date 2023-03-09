@@ -15,9 +15,11 @@ from sentinelhub import CRS, BBox
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import AddMaxMinNDVISlopeIndicesTask, AddMaxMinTemporalIndicesTask, AddSpatioTemporalFeaturesTask
 
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+
 
 def test_temporal_indices():
-    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
     t, h, w, c = 5, 3, 3, 2
 
     ndvi_shape = (t, h, w, 1)
@@ -56,7 +58,7 @@ def test_temporal_indices():
 
 def test_ndvi_slope_indices():
     timestamps = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
-    eopatch = EOPatch(timestamps=list(timestamps))
+    eopatch = EOPatch(bbox=DUMMY_BBOX, timestamps=list(timestamps))
 
     t, h, w = (10, 3, 3)
     ndvi_shape = (t, h, w, 1)
@@ -97,7 +99,7 @@ def test_ndvi_slope_indices():
 
 def test_stf_task():
     timestamps = [date(2018, 3, 1) + timedelta(days=x) for x in range(11)]
-    eopatch = EOPatch(timestamps=list(timestamps))
+    eopatch = EOPatch(bbox=DUMMY_BBOX, timestamps=list(timestamps))
 
     t, h, w, c = 10, 3, 3, 2
 

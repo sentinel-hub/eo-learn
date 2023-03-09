@@ -18,6 +18,8 @@ from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, SimpleFil
 from eolearn.features.feature_manipulation import SpatialResizeTask
 from eolearn.features.utils import ResizeParam
 
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+
 
 @pytest.mark.parametrize(
     "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMPS, (FeatureType.LABEL, "IS_CLOUDLESS")]
@@ -64,7 +66,7 @@ def test_content_after_time_filter():
 
     new_start, new_end = 4, -3
 
-    eop = EOPatch(timestamps=timestamps, data={"data": data})
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=timestamps, data={"data": data})
 
     filter_task = FilterTimeSeriesTask(start_date=timestamps[new_start], end_date=timestamps[new_end])
     filtered_eop = filter_task.execute(eop)
@@ -133,7 +135,7 @@ def test_value_fillout():
     feature = (FeatureType.DATA, "TEST")
     shape = (8, 10, 10, 5)
     data = np.random.randint(0, 100, size=shape).astype(float)
-    eopatch = EOPatch(data={"TEST": data})
+    eopatch = EOPatch(bbox=DUMMY_BBOX, data={"TEST": data})
 
     # nothing to be filled, return the same eopatch object immediately
     eopatch_new = ValueFilloutTask(feature, operations="fb", axis=0)(eopatch)
@@ -184,7 +186,7 @@ def test_value_fillout():
 
 
 def test_linear_function_task():
-    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
 
     data_feature = (FeatureType.DATA, "DATA_TEST")
     data_result_feature = (FeatureType.DATA, "DATA_TRANSFORMED")

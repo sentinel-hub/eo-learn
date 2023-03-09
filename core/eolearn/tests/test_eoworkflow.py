@@ -10,6 +10,8 @@ import datetime as dt
 import numpy as np
 import pytest
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import (
     CreateEOPatchTask,
     EONode,
@@ -174,6 +176,7 @@ def test_multiedge_workflow():
 def test_workflow_copying_eopatches():
     feature1 = FeatureType.DATA, "data1"
     feature2 = FeatureType.DATA, "data2"
+    bbox = BBox((0, 0, 1, 1), CRS(3857))
 
     create_node = EONode(CreateEOPatchTask())
     init_node = EONode(
@@ -186,13 +189,13 @@ def test_workflow_copying_eopatches():
     output_node2 = EONode(OutputTask(name="out2"), inputs=[remove_node2])
 
     workflow = EOWorkflow([create_node, init_node, remove_node1, remove_node2, output_node1, output_node2])
-    results = workflow.execute()
+    results = workflow.execute({create_node: {"bbox": bbox}})
 
     eop1 = results.outputs["out1"]
     eop2 = results.outputs["out2"]
 
-    assert eop1 == EOPatch(data={"data2": np.ones((2, 4, 4, 3), dtype=np.uint8)})
-    assert eop2 == EOPatch(data={"data1": np.ones((2, 4, 4, 3), dtype=np.uint8)})
+    assert eop1 == EOPatch(bbox=bbox, data={"data2": np.ones((2, 4, 4, 3), dtype=np.uint8)})
+    assert eop2 == EOPatch(bbox=bbox, data={"data1": np.ones((2, 4, 4, 3), dtype=np.uint8)})
 
 
 def test_workflows_reusing_nodes():
