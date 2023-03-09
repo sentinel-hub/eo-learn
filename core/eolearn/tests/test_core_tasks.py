@@ -295,7 +295,7 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
             {},
         ),
         (
-            {FeatureType.DATA: ["CLP", "CLP_S2C"]},
+            {FeatureType.DATA: ["bands", "CLP"]},
             (FeatureType.DATA, "feat_max"),
             np.floor_divide,
             {"dtype": np.float32},
@@ -444,8 +444,8 @@ def test_extract_bands_fails(patch: EOPatch) -> None:
 @pytest.mark.parametrize(
     "features",
     [
-        {},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}},
+        {"bbox": DUMMY_BBOX},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}, "bbox": DUMMY_BBOX},
         {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
     ],
 )

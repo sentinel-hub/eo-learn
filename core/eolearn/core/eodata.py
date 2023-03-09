@@ -39,6 +39,11 @@ T = TypeVar("T")
 Self = TypeVar("Self")
 
 LOGGER = logging.getLogger(__name__)
+MISSING_BBOX_WARNING = (
+    "Initializing an EOPatch without providing a BBox will no longer be possible in the future."
+    " EOPatches represent geolocated data and so any EOPatch without a BBox is ill-formed. Consider"
+    " using a different data structure for non-geolocated data."
+)
 
 MAX_DATA_REPR_LEN = 100
 
@@ -249,6 +254,10 @@ class EOPatch:
     bbox: Optional[BBox] = attr.ib(default=None)
     timestamps: List[dt.datetime] = attr.ib(factory=list)
 
+    def __attrs_post_init__(self) -> None:
+        if self.bbox is None:
+            warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
+
     @property
     def timestamp(self) -> List[dt.datetime]:
         """A property for handling the deprecated timestamp attribute.
@@ -297,6 +306,8 @@ class EOPatch:
         """
 
         if feature_type is FeatureType.BBOX and (value is None or isinstance(value, BBox)):
+            if value is None:
+                warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
             return value
 
         if feature_type is FeatureType.TIMESTAMPS and isinstance(value, (tuple, list)):
