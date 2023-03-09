@@ -2,14 +2,10 @@
 Module for basic feature manipulations, i.e. removing a feature from EOPatch, or removing a slice (time-frame) from
 the time-dependent features.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -84,7 +80,7 @@ class SimpleFilterTask(EOTask):
                 data = [data[idx] for idx in good_idxs]
 
             elif feature_type.is_temporal():
-                if feature_type.is_raster():
+                if feature_type.is_array():
                     data = data[good_idxs]
                 else:
                     data = self._filter_vector_feature(data, good_idxs, eopatch.timestamps)
@@ -296,6 +292,6 @@ class SpatialResizeTask(EOTask):
             resize_fun_kwargs = {self.resize_type.value: (self.height_param, self.width_param)}
 
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
-            if ftype.is_spatial() and ftype.is_raster():
+            if ftype.is_spatial() and ftype.is_array():
                 eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_fun_kwargs)
         return eopatch

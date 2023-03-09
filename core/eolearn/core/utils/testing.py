@@ -1,15 +1,10 @@
 """
 The eodata module provides core objects for handling remote sensing multi-temporal data (such as satellite imagery).
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
 from dataclasses import dataclass, field
@@ -55,7 +50,7 @@ def generate_eopatch(
 ):
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
-    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_raster()]
+    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()]
     parsed_features = FeatureParser(features or [], supported_feature_types).get_features()
     rng = np.random.default_rng(seed)
 

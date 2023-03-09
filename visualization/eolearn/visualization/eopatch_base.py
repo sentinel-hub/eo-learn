@@ -1,12 +1,10 @@
 """
 This module implements base objects for `EOPatch` visualizations.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -80,7 +78,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
 
         if rgb and len(rgb) != 3:
             raise ValueError(f"Parameter rgb should be a list of 3 indices but got {rgb}")
-        if rgb and not (feature_type.is_spatial() and feature_type.is_raster()):
+        if rgb and not (feature_type.is_spatial() and feature_type.is_array()):
             raise ValueError("Parameter rgb can only be provided for plotting spatial raster features.")
         self.rgb = rgb
 
@@ -97,7 +95,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         data = self.eopatch[self.feature]
         timestamps = self.eopatch.timestamps
 
-        if feature_type.is_raster():
+        if feature_type.is_array():
             if self.times is not None:
                 data = data[self.times, ...]
                 if timestamps:

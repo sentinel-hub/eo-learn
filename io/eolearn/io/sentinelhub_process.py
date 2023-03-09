@@ -1,13 +1,10 @@
 """ Input tasks that collect data from `Sentinel-Hub Process API
 <https://docs.sentinel-hub.com/api/latest/api/process/>`__
 
-Credits:
-Copyright (c) 2019-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2019-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2021 Beno Šircelj
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -257,7 +254,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         """Construct SentinelHubRequest output_responses from features"""
         responses = []
         for feat_type, feat_name, _ in self.features:
-            if feat_type.is_raster():
+            if feat_type.is_array():
                 responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
             elif feat_type.is_meta():
                 responses.append(SentinelHubRequest.output_response("userdata", MimeType.JSON))
@@ -269,7 +266,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
-        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
+        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_array()):
             return []
 
         return get_available_timestamps(
