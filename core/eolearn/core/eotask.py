@@ -88,12 +88,12 @@ class EOTask(metaclass=ABCMeta):
 
     @staticmethod
     def parse_features(
-        feature: FeaturesSpecification,
+        features: FeaturesSpecification,
         eopatch: Optional[EOPatch] = None,
         allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
     ) -> List[FeatureSpec]:
         """See `eolearn.core.utils.parse_features`."""
-        return parse_features(feature, eopatch, allowed_feature_types)
+        return parse_features(features, eopatch, allowed_feature_types)
 
     @staticmethod
     def get_feature_parser(
