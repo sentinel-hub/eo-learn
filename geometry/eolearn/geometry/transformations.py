@@ -133,9 +133,7 @@ class VectorToRasterTask(EOTask):
         if not _is_geopandas_object(vector_input):
             vector_input = self.parse_feature(vector_input, allowed_feature_types=lambda fty: fty.is_vector())
 
-        parsed_raster_feature = self.parse_feature(
-            raster_feature, allowed_feature_types=lambda fty: fty.is_raster() and fty.ndim() in (3, 4)
-        )
+        parsed_raster_feature = self.parse_feature(raster_feature, allowed_feature_types=lambda fty: fty.is_image())
         return vector_input, parsed_raster_feature  # type: ignore[return-value]
 
     def _get_vector_data_iterator(
@@ -249,7 +247,7 @@ class VectorToRasterTask(EOTask):
                 return self.raster_shape
 
             feature_type, feature_name = self.parse_feature(
-                self.raster_shape, allowed_feature_types=lambda fty: fty.is_raster()
+                self.raster_shape, allowed_feature_types=lambda fty: fty.is_array()
             )
             return eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))  # cast verified in parser
 

@@ -141,8 +141,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
         self.features_parser = self.get_feature_parser(
-            features_to_sample,
-            allowed_feature_types=lambda fty: fty.is_spatial() and fty.is_raster(),
+            features_to_sample, allowed_feature_types=lambda fty: fty.is_image()
         )
 
         self.mask_of_samples = mask_of_samples
