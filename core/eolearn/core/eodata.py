@@ -295,8 +295,6 @@ class EOPatch:
 
         :raises: TypeError, ValueError
         """
-        if feature_type.has_dict() and isinstance(value, dict):
-            return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
 
         if feature_type is FeatureType.BBOX and (value is None or isinstance(value, BBox)):
             return value
@@ -306,9 +304,10 @@ class EOPatch:
                 timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp) for timestamp in value
             ]
 
-        raise TypeError(
-            f"Attribute {feature_type} requires values of type {feature_type.type()}, cannot parse given value {value}"
-        )
+        if isinstance(value, dict):
+            return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
+
+        raise TypeError(f"Cannot parse given value {value} for feature type {feature_type}. Possible type missmatch.")
 
     def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
         """Handles lazy loading and can even provide a single feature from _FeatureDict."""
@@ -382,12 +381,12 @@ class EOPatch:
                 return
 
         feature_type = FeatureType(feature)
-        if feature_type.has_dict():
-            self[feature_type] = {}
-        elif feature_type == FeatureType.BBOX:
+        if feature_type == FeatureType.BBOX:
             raise ValueError("The BBox of an EOPatch should never be undefined.")
-        elif feature_type == FeatureType.TIMESTAMPS:
+        if feature_type == FeatureType.TIMESTAMPS:
             self[feature_type] = []
+        else:
+            self[feature_type] = {}
 
     def __eq__(self, other: object) -> bool:
         """True if FeatureType attributes, bbox, and timestamps of both EOPatches are equal by value."""
@@ -485,10 +484,10 @@ class EOPatch:
 
         new_eopatch = EOPatch(bbox=copy.copy(self.bbox))
         for feature_type, feature_name in parse_features(features, eopatch=self):
-            if feature_type.has_dict():
-                new_eopatch[feature_type][feature_name] = self[feature_type].__getitem__(feature_name, load=False)
-            else:
+            if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 new_eopatch[feature_type] = copy.copy(self[feature_type])
+            else:
+                new_eopatch[feature_type][feature_name] = self[feature_type].__getitem__(feature_name, load=False)
         return new_eopatch
 
     def __deepcopy__(self, memo: Optional[dict] = None, features: FeaturesSpecification = ...) -> EOPatch:
@@ -502,7 +501,9 @@ class EOPatch:
 
         new_eopatch = EOPatch(bbox=copy.deepcopy(self.bbox))
         for feature_type, feature_name in parse_features(features, eopatch=self):
-            if feature_type.has_dict():
+            if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
+                new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
+            else:
                 value = self[feature_type].__getitem__(feature_name, load=False)
 
                 if isinstance(value, FeatureIO):
@@ -513,8 +514,6 @@ class EOPatch:
                     value = copy.deepcopy(value, memo=memo)
 
                 new_eopatch[feature_type][feature_name] = value
-            else:
-                new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
 
         return new_eopatch
 
@@ -538,12 +537,12 @@ class EOPatch:
         :param feature_type: Type of feature
         """
         feature_type = FeatureType(feature_type)
-        if feature_type.has_dict():
-            self[feature_type] = {}
-        elif feature_type is FeatureType.BBOX:
+        if feature_type is FeatureType.BBOX:
             raise ValueError("The BBox of an EOPatch should never be undefined.")
-        else:
+        if feature_type is FeatureType.TIMESTAMPS:
             self[feature_type] = []
+        else:
+            self[feature_type] = {}
 
     def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
         """
@@ -552,7 +551,7 @@ class EOPatch:
         :param feature_type: Type of the feature
         :param feature_name: Name of the feature
         """
-        if feature_type.is_raster() and feature_type.is_spatial():
+        if feature_type.is_array() and feature_type.is_spatial():
             shape = self[feature_type][feature_name].shape
             return shape[1:3] if feature_type.is_temporal() else shape[0:2]
 
@@ -692,10 +691,7 @@ class EOPatch:
         relevant_features = filter(lambda ftype: ftype.is_temporal() and ftype != FeatureType.TIMESTAMPS, FeatureType)
         for feature_type in relevant_features:
             for feature_name, value in self[feature_type].items():
-                if isinstance(value, np.ndarray):
-                    self[feature_type][feature_name] = value[good_timestamp_idxs, ...]
-                if isinstance(value, list):
-                    self[feature_type][feature_name] = [value[idx] for idx in good_timestamp_idxs]
+                self[feature_type][feature_name] = value[good_timestamp_idxs, ...]
 
         self.timestamps = good_timestamps
         return remove_from_patch

@@ -241,7 +241,7 @@ class FeatureParser:
 
         Should only be used after the viable names `...` and `None` have already been handled.
         """
-        if not feature_type.has_dict():
+        if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
             raise ValueError(
                 f"For features of type {feature_type} the only acceptable specification is `...` or `None`, got"
                 f" {specification} instead."
