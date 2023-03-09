@@ -277,7 +277,7 @@ class InitializeFeatureTask(EOTask):
         self.shape: Union[None, Tuple[int, int, int], Tuple[int, int, int, int]]
 
         try:
-            self.shape_feature = self.parse_feature(shape)
+            self.shape_feature = self.parse_feature(shape)  # type: ignore[arg-type]
         except ValueError:
             self.shape_feature = None
 

@@ -14,7 +14,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import SingleFeatureSpec
 
 
 class TrainTestSplitType(Enum):
@@ -63,8 +63,8 @@ class TrainTestSplitTask(EOTask):
 
     def __init__(
         self,
-        input_feature: FeaturesSpecification,
-        output_feature: FeaturesSpecification,
+        input_feature: SingleFeatureSpec,
+        output_feature: SingleFeatureSpec,
         bins: Union[float, List[Any]],
         split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
         ignore_values: Optional[List[int]] = None,

@@ -147,7 +147,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         self.mask_of_samples = mask_of_samples
         if mask_of_samples is not None:
             self.mask_of_samples = self.parse_feature(  # type: ignore[assignment]
-                self.mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
+                mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
             )
 
     def _apply_sampling(self, eopatch: EOPatch, row_grid: np.ndarray, column_grid: np.ndarray) -> EOPatch:
