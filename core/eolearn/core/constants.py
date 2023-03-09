@@ -87,31 +87,54 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
     def is_spatial(self) -> bool:
         """True if FeatureType has a spatial component. False otherwise."""
-        return self in FeatureTypeSet.SPATIAL_TYPES
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.VECTOR,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+        ]
 
     def is_temporal(self) -> bool:
         """True if FeatureType has a time component. False otherwise."""
-        return self in FeatureTypeSet.TEMPORAL_TYPES
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.VECTOR,
+            FeatureType.TIMESTAMPS,
+        ]
 
     def is_timeless(self) -> bool:
         """True if FeatureType doesn't have a time component and is not a meta feature. False otherwise."""
-        return self in FeatureTypeSet.TIMELESS_TYPES
+        return not (self.is_temporal() or self.is_meta())
 
     def is_discrete(self) -> bool:
         """True if FeatureType should have discrete (integer) values. False otherwise."""
-        return self in FeatureTypeSet.DISCRETE_TYPES
+        return self in [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
 
     def is_meta(self) -> bool:
         """True if FeatureType is for storing metadata info and False otherwise."""
-        return self in FeatureTypeSet.META_TYPES
+        return self in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS]
 
     def is_vector(self) -> bool:
         """True if FeatureType is vector feature type. False otherwise."""
-        return self in FeatureTypeSet.VECTOR_TYPES
+        return self in [FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS]
 
     def is_array(self) -> bool:
         """True if FeatureType stores a dictionary with array data. False otherwise."""
-        return self in FeatureTypeSet.RASTER_TYPES
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+        ]
 
     def is_image(self) -> bool:
         """True if FeatureType stores a dictionary with arrays that represent images. False otherwise."""
@@ -127,12 +150,24 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
     @deprecated_function(EODeprecationWarning)
     def has_dict(self) -> bool:
         """True if FeatureType stores a dictionary. False otherwise."""
-        return self in FeatureTypeSet.DICT_TYPES
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.VECTOR,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+            FeatureType.META_INFO,
+        ]
 
     @deprecated_function(EODeprecationWarning)
     def contains_ndarrays(self) -> bool:
         """True if FeatureType stores a dictionary of numpy.ndarrays. False otherwise."""
-        return self in FeatureTypeSet.RASTER_TYPES
+        return self.is_array()
 
     def ndim(self) -> Optional[int]:
         """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays."""
@@ -170,7 +205,23 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
         return MimeType.JSON
 
 
-class FeatureTypeSet:
+class DeprecatedCollectionClass(type):
+    """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
+
+    def __getattribute__(cls, name):
+        warnings.warn(
+            (
+                "The `FeatureTypeSet` collections are deprecated. The argument `allowed_feature_types` of feature"
+                " parsers can now be a callable, so you can use `lambda ftype: ftype.is_spatial()` instead of"
+                " `FeatureTypeSet.SPATIAL_TYPES` in such cases."
+            ),
+            category=EODeprecationWarning,
+            stacklevel=3,
+        )
+        return super().__getattribute__(name)
+
+
+class FeatureTypeSet(metaclass=DeprecatedCollectionClass):
     """A collection of immutable sets of feature types, grouped together by certain properties."""
 
     SPATIAL_TYPES = frozenset(

@@ -14,7 +14,7 @@ from geopandas import GeoDataFrame, GeoSeries
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import EOPatch, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
@@ -44,7 +44,7 @@ def test_numpy_feature_types() -> None:
         for dtype in [np.float32, np.float64, float, np.uint8, np.int64, bool]:
             data_examples.append(np.zeros((2,) * size, dtype=dtype))
 
-    for feature_type in FeatureTypeSet.RASTER_TYPES:
+    for feature_type in filter(lambda fty: fty.is_array(), FeatureType):
         valid_count = 0
 
         for data in data_examples:
@@ -63,7 +63,7 @@ def test_vector_feature_types() -> None:
 
     invalid_vector_input = [{}, [], 0, None]
 
-    for feature_type in FeatureTypeSet.VECTOR_TYPES:
+    for feature_type in filter(lambda fty: fty.is_vector(), FeatureType):
         for entry in invalid_vector_input:
             with pytest.raises(ValueError):
                 # Invalid entry for feature_type should raise an error
