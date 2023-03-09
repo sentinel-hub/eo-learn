@@ -551,7 +551,7 @@ class EOPatch:
         :param feature_type: Type of the feature
         :param feature_name: Name of the feature
         """
-        if feature_type.is_raster() and feature_type.is_spatial():
+        if feature_type.is_array() and feature_type.is_spatial():
             shape = self[feature_type][feature_name].shape
             return shape[1:3] if feature_type.is_temporal() else shape[0:2]
 

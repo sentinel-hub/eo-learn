@@ -80,7 +80,7 @@ class SimpleFilterTask(EOTask):
                 data = [data[idx] for idx in good_idxs]
 
             elif feature_type.is_temporal():
-                if feature_type.is_raster():
+                if feature_type.is_array():
                     data = data[good_idxs]
                 else:
                     data = self._filter_vector_feature(data, good_idxs, eopatch.timestamps)
@@ -292,6 +292,6 @@ class SpatialResizeTask(EOTask):
             resize_fun_kwargs = {self.resize_type.value: (self.height_param, self.width_param)}
 
         for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
-            if ftype.is_spatial() and ftype.is_raster():
+            if ftype.is_spatial() and ftype.is_array():
                 eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_fun_kwargs)
         return eopatch

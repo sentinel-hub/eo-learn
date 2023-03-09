@@ -79,7 +79,7 @@ def merge_eopatches(
     for feature in all_features:
         feature_type, feature_name = feature
 
-        if feature_type.is_raster():
+        if feature_type.is_array():
             if feature_type.is_temporal():
                 eopatch_content[feature] = _merge_time_dependent_raster_feature(
                     eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize_raster_temporal

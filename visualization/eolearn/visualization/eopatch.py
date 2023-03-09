@@ -114,7 +114,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
                 title=feature_name,
             )
 
-        if not feature_type.is_raster():
+        if not feature_type.is_array():
             raise ValueError(f"Plotting of {feature_type} is not supported")
 
         if feature_type.is_spatial():

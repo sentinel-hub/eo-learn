@@ -78,7 +78,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
 
         if rgb and len(rgb) != 3:
             raise ValueError(f"Parameter rgb should be a list of 3 indices but got {rgb}")
-        if rgb and not (feature_type.is_spatial() and feature_type.is_raster()):
+        if rgb and not (feature_type.is_spatial() and feature_type.is_array()):
             raise ValueError("Parameter rgb can only be provided for plotting spatial raster features.")
         self.rgb = rgb
 
@@ -95,7 +95,7 @@ class BaseEOPatchVisualization(metaclass=abc.ABCMeta):
         data = self.eopatch[self.feature]
         timestamps = self.eopatch.timestamps
 
-        if feature_type.is_raster():
+        if feature_type.is_array():
             if self.times is not None:
                 data = data[self.times, ...]
                 if timestamps:
