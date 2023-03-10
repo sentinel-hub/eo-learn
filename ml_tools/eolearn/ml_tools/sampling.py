@@ -1,13 +1,10 @@
 """
 Tasks for spatial sampling of points for building training/validation samples for example.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -18,7 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 from shapely.geometry import Point, Polygon
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
 _FractionType = Union[float, Dict[int, float]]
@@ -144,14 +141,13 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
         self.features_parser = self.get_feature_parser(
-            features_to_sample,
-            allowed_feature_types=FeatureTypeSet.SPATIAL_TYPES & FeatureTypeSet.RASTER_TYPES,
+            features_to_sample, allowed_feature_types=lambda fty: fty.is_image()
         )
 
         self.mask_of_samples = mask_of_samples
         if mask_of_samples is not None:
             self.mask_of_samples = self.parse_feature(  # type: ignore[assignment]
-                self.mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
+                mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
             )
 
     def _apply_sampling(self, eopatch: EOPatch, row_grid: np.ndarray, column_grid: np.ndarray) -> EOPatch:

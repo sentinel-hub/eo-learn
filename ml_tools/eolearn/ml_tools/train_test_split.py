@@ -1,13 +1,10 @@
 """
 Tasks used for train set preparation
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -17,7 +14,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import SingleFeatureSpec
 
 
 class TrainTestSplitType(Enum):
@@ -66,8 +63,8 @@ class TrainTestSplitTask(EOTask):
 
     def __init__(
         self,
-        input_feature: FeaturesSpecification,
-        output_feature: FeaturesSpecification,
+        input_feature: SingleFeatureSpec,
+        output_feature: SingleFeatureSpec,
         bins: Union[float, List[Any]],
         split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
         ignore_values: Optional[List[int]] = None,

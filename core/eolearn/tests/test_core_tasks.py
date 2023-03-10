@@ -1,13 +1,8 @@
 """
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import copy
@@ -56,7 +51,7 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
-    patch = EOPatch()
+    patch = EOPatch(bbox=BBox((324.54, 546.45, 955.4, 63.43), CRS(3857)))
     patch.data["bands"] = np.arange(5 * 3 * 4 * 8).reshape(5, 3, 4, 8)
     patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
     patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
@@ -73,7 +68,6 @@ def patch_fixture() -> EOPatch:
         datetime(2017, 3, 2, 10, 0, 20),
         datetime(2017, 3, 12, 10, 7, 6),
     ]
-    patch.bbox = BBox((324.54, 546.45, 955.4, 63.43), CRS(3857))
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
 
@@ -118,23 +112,6 @@ def test_load_task(test_eopatch_path: str) -> None:
     upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
     assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMPS in upgraded_partial_patch
     assert FeatureType.DATA not in upgraded_partial_patch
-
-
-def test_load_nothing() -> None:
-    load = LoadTask("./some/fake/path")
-    eopatch = load.execute(eopatch_folder=None)
-
-    assert eopatch == EOPatch()
-
-
-def test_save_nothing(patch: EOPatch) -> None:
-    temp_path = "/some/fake/path"
-    with TempFS() as temp_fs:
-        save = SaveTask(temp_path, filesystem=temp_fs)
-        output = save.execute(patch, eopatch_folder=None)
-
-        assert not temp_fs.exists(temp_path)
-        assert output == patch
 
 
 @pytest.mark.parametrize("filesystem", [OSFS("."), S3FS("s3://fake-bucket/"), TempFS()])
@@ -318,7 +295,7 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
             {},
         ),
         (
-            {FeatureType.DATA: ["CLP", "CLP_S2C"]},
+            {FeatureType.DATA: ["bands", "CLP"]},
             (FeatureType.DATA, "feat_max"),
             np.floor_divide,
             {"dtype": np.float32},
@@ -467,8 +444,8 @@ def test_extract_bands_fails(patch: EOPatch) -> None:
 @pytest.mark.parametrize(
     "features",
     [
-        {},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}},
+        {"bbox": DUMMY_BBOX},
+        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}, "bbox": DUMMY_BBOX},
         {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
     ],
 )

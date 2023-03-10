@@ -1,13 +1,10 @@
 """
 A module implementing utilities for working with saving and loading EOPatch data
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -33,11 +30,12 @@ import pandas as pd
 from fs.base import FS
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
+from typing_extensions import TypeAlias
 
 from sentinelhub import CRS, BBox, Geometry, MimeType
-from sentinelhub.exceptions import SHUserWarning
+from sentinelhub.exceptions import SHUserWarning, deprecated_function
 
-from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
@@ -48,8 +46,13 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
+PatchContentType: TypeAlias = Tuple[
+    Optional["FeatureIOBBox"],
+    Optional["FeatureIOTimestamps"],
+    Optional["FeatureIOJson"],
+    Dict[Tuple[FeatureType, str], "FeatureIO"],
+]
 
-FeatureInfo = Tuple[FeatureType, Union[str, EllipsisType], str]
 
 BBOX_FILENAME = "bbox"
 TIMESTAMPS_FILENAME = "timestamps"
@@ -170,76 +173,61 @@ def remove_redundant_files(
         list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
-def load_eopatch(
-    eopatch: EOPatch,
-    filesystem: FS,
-    patch_location: str,
-    features: FeaturesSpecification = ...,
-    lazy_loading: bool = False,
-) -> EOPatch:
+def load_eopatch_content(
+    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
+) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
+    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
 
-    _load_meta_features(filesystem, file_information, eopatch, features)
-
+    features_dict: Dict[Tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype.is_meta():
             continue
 
         if fname is ...:
-            _load_whole_feature_type(filesystem, file_information, eopatch, ftype)
+            for fname, path in file_information.features.get(ftype, {}).items():
+                features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
                 raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
             path = file_information.features[ftype][fname]
-            eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+            features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
 
-    if not lazy_loading:
-        _trigger_loading_for_eopatch_features(eopatch)
-
-    return eopatch
+    return bbox, timestamps, meta_info, features_dict
 
 
 def _load_meta_features(
-    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, features: FeaturesSpecification
-) -> None:
+    filesystem: FS, file_information: FilesystemDataInfo, features: FeaturesSpecification
+) -> Tuple[Optional[FeatureIOBBox], Optional[FeatureIOTimestamps], Optional[FeatureIOJson]]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
 
+    bbox = None
     if file_information.bbox is not None:
-        eopatch.bbox = FeatureIOBBox(file_information.bbox, filesystem)  # type: ignore[assignment]
+        bbox = FeatureIOBBox(file_information.bbox, filesystem)
     elif FeatureType.BBOX in requested and features is not Ellipsis:
         raise IOError(err_msg.format(FeatureType.BBOX))
 
+    timestamps = None
     if FeatureType.TIMESTAMPS in requested:
         if file_information.timestamps is not None:
-            eopatch.timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem)  # type: ignore
+            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem)
         elif features is not Ellipsis:
             raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
+    meta_info = None
     if FeatureType.META_INFO in requested:
         if file_information.meta_info is not None:
-            eopatch.meta_info = FeatureIOJson(file_information.meta_info, filesystem)  # type: ignore[assignment]
+            meta_info = FeatureIOJson(file_information.meta_info, filesystem)
         elif any(
             ftype == FeatureType.META_INFO and isinstance(fname, str)
             for ftype, fname in FeatureParser(features).get_feature_specifications()
         ):
             raise IOError(err_msg.format(FeatureType.META_INFO))
 
-
-def _load_whole_feature_type(
-    filesystem: FS, file_information: FilesystemDataInfo, eopatch: EOPatch, ftype: FeatureType
-) -> None:
-    for fname, path in file_information.features.get(ftype, {}).items():
-        eopatch[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
-
-
-def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.submit(lambda: eopatch.bbox)
-        executor.submit(lambda: eopatch.timestamps)
-        list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
+    return bbox, timestamps, meta_info
 
 
 def get_filesystem_data_info(
@@ -287,18 +275,11 @@ def get_filesystem_data_info(
     return result
 
 
+@deprecated_function(category=EODeprecationWarning)
 def walk_filesystem(
     filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
 ) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
     """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
-    warnings.warn(
-        (
-            "The `walk_filesystem` function is marked for deprecation, check the EOPatch load/save methods to find a"
-            " suitable alternative."
-        ),
-        category=EODeprecationWarning,
-        stacklevel=2,
-    )
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
     if file_information.bbox is not None:  # remove after BBox is never None
@@ -577,6 +558,6 @@ def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
         return FeatureIOJson
     if ftype is FeatureType.TIMESTAMPS:
         return FeatureIOTimestamps
-    if ftype in FeatureTypeSet.VECTOR_TYPES:
+    if ftype.is_vector():
         return FeatureIOGeoDf
     return FeatureIONumpy

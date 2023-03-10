@@ -2,5 +2,4 @@ eo-learn-core
 graphviz>=0.10.1
 jinja2
 matplotlib
-pydot
 pygments

@@ -1,9 +1,8 @@
 """
-Credits:
-Copyright (c) 2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import itertools as it
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor

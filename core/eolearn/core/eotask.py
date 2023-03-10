@@ -6,13 +6,10 @@ instance invokes the execute method. EO tasks are meant primarily to operate on 
 EO task classes are generally lightweight (i.e. not too complicated), short, and do one thing well. For example, an
 EO task might take as input an EOPatch containing cloud mask and return as a result the cloud coverage for that mask.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -20,24 +17,34 @@ import inspect
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+
+from sentinelhub.exceptions import deprecated_function
 
 from .constants import FeatureType
-from .types import EllipsisType, FeaturesSpecification
+from .eodata import EOPatch
+from .exceptions import EODeprecationWarning
+from .types import EllipsisType, FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
 Self = TypeVar("Self")
 
+PARSE_RENAMED_DEPRECATE_MSG = (
+    "It will no longer be a method of the `EOTask`, but can be imported from `eolearn.core.utils.parsing`."
+)
+
 
 class EOTask(metaclass=ABCMeta):
     """Base class for EOTask."""
 
-    parse_feature = staticmethod(parse_feature)
-    parse_renamed_feature = staticmethod(parse_renamed_feature)
-    parse_features = staticmethod(parse_features)
-    parse_renamed_features = staticmethod(parse_renamed_features)
+    parse_renamed_feature = staticmethod(
+        deprecated_function(EODeprecationWarning, PARSE_RENAMED_DEPRECATE_MSG)(parse_renamed_feature)
+    )
+    parse_renamed_features = staticmethod(
+        deprecated_function(EODeprecationWarning, PARSE_RENAMED_DEPRECATE_MSG)(parse_renamed_features)
+    )
 
     def __new__(cls: Type[Self], *args: Any, **kwargs: Any) -> Self:
         """Stores initialization parameters and the order to the instance attribute `init_args`."""
@@ -55,7 +62,7 @@ class EOTask(metaclass=ABCMeta):
         return self
 
     @property
-    def private_task_config(self) -> "_PrivateTaskConfig":
+    def private_task_config(self) -> _PrivateTaskConfig:
         """Keeps track of the arguments for which the task was initialized for better logging.
 
         :return: The initial configuration arguments of the task
@@ -71,10 +78,29 @@ class EOTask(metaclass=ABCMeta):
         """Override to specify action performed by task."""
 
     @staticmethod
+    def parse_feature(
+        feature: SingleFeatureSpec,
+        eopatch: Optional[EOPatch] = None,
+        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+    ) -> Tuple[FeatureType, Optional[str]]:
+        """See `eolearn.core.utils.parse_feature`."""
+        return parse_feature(feature, eopatch, allowed_feature_types)
+
+    @staticmethod
+    def parse_features(
+        features: FeaturesSpecification,
+        eopatch: Optional[EOPatch] = None,
+        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+    ) -> List[FeatureSpec]:
+        """See `eolearn.core.utils.parse_features`."""
+        return parse_features(features, eopatch, allowed_feature_types)
+
+    @staticmethod
     def get_feature_parser(
-        features: FeaturesSpecification, allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...
+        features: FeaturesSpecification,
+        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
     ) -> FeatureParser:
-        """See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>`."""
+        """See :class:`FeatureParser<eolearn.core.utils.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
 
 

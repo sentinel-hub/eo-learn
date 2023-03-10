@@ -1,13 +1,10 @@
 """ Input tasks that collect data from `Sentinel-Hub Process API
 <https://docs.sentinel-hub.com/api/latest/api/process/>`__
 
-Credits:
-Copyright (c) 2019-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2019-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2021 Beno Šircelj
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -36,8 +33,9 @@ from sentinelhub import (
 )
 from sentinelhub.types import RawTimeIntervalType
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
@@ -244,8 +242,9 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.aux_request_args = aux_request_args
 
     def _parse_and_validate_features(self, features: FeaturesSpecification) -> List[FeatureRenameSpec]:
-        allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
-        _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
+        _features = parse_renamed_features(
+            features, allowed_feature_types=lambda fty: fty.is_array() or fty == FeatureType.META_INFO
+        )
 
         ftr_data_types = {ft for ft, _, _ in _features if not ft.is_meta()}
         if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_temporal() for ft in ftr_data_types):
@@ -257,7 +256,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         """Construct SentinelHubRequest output_responses from features"""
         responses = []
         for feat_type, feat_name, _ in self.features:
-            if feat_type.is_raster():
+            if feat_type.is_array():
                 responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
             elif feat_type.is_meta():
                 responses.append(SentinelHubRequest.output_response("userdata", MimeType.JSON))
@@ -269,7 +268,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
-        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_raster()):
+        if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_array()):
             return []
 
         return get_available_timestamps(
@@ -447,7 +446,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_additional_bands = []
         self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            parsed_additional_data = self.parse_renamed_features(additional_data)
+            parsed_additional_data = parse_renamed_features(additional_data)
             additional_bands = [band for _, band, _ in parsed_additional_data]
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands
