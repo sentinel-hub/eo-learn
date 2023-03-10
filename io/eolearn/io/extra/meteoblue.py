@@ -13,6 +13,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
+from abc import ABCMeta, abstractmethod
 from typing import Any, List, Optional, Tuple
 
 import dateutil.parser
@@ -27,7 +28,6 @@ try:
 except ImportError as exception:
     raise ImportError("This module requires an installation of meteoblue_dataset_sdk package") from exception
 
-from abc import ABCMeta, abstractmethod
 
 from sentinelhub import CRS, BBox, Geometry, parse_time_interval, serialize_time
 from sentinelhub.types import RawTimeIntervalType
