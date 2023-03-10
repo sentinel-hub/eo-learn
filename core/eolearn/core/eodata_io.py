@@ -306,7 +306,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
 
 def _check_collisions(
     overwrite_permission: OverwritePermission, eopatch_features: List[FeatureSpec], existing_files: FilesystemDataInfo
-):
+) -> None:
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
         _check_letter_case_collisions(eopatch_features, existing_files)

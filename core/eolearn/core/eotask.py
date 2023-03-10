@@ -69,12 +69,14 @@ class EOTask(metaclass=ABCMeta):
         """
         return self._private_task_config  # type: ignore[attr-defined]
 
-    def __call__(self, *eopatches, **kwargs):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Syntactic sugar for task execution"""
-        return self.execute(*eopatches, **kwargs)
+        # The type cannot be more precise unless we know the type of `execute`. Possible improvement with generics +
+        # the use of ParamSpec.
+        return self.execute(*args, **kwargs)
 
     @abstractmethod
-    def execute(self, *eopatches, **kwargs):
+    def execute(self, *eopatches, **kwargs):  # type: ignore[no-untyped-def] # must be ignored so subclasses can change
         """Override to specify action performed by task."""
 
     @staticmethod

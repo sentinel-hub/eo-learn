@@ -41,7 +41,7 @@ def map_over_axis(data: np.ndarray, func: Callable[[np.ndarray], np.ndarray], ax
     return mapped_data
 
 
-def resize_images(
+def resize_images(  # type: ignore[no-untyped-def]
     data,
     new_size=None,
     scale_factors=None,

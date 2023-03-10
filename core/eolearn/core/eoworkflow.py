@@ -310,7 +310,7 @@ class EOWorkflow:
             raise KeyError(f"No {EONode.__name__} with uid {uid} found in workflow.")
         return None
 
-    def get_dot(self):
+    def get_dot(self):  # type: ignore[no-untyped-def] # cannot type without extra dependency
         """Generates the DOT description of the underlying computational graph.
 
         :return: The DOT representation of the computational graph
@@ -319,7 +319,7 @@ class EOWorkflow:
         visualization = self._get_visualization()
         return visualization.get_dot()
 
-    def dependency_graph(self, filename: Optional[str] = None):
+    def dependency_graph(self, filename: Optional[str] = None):  # type: ignore[no-untyped-def] # same as get_dot
         """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
@@ -330,7 +330,7 @@ class EOWorkflow:
         visualization = self._get_visualization()
         return visualization.dependency_graph(filename=filename)
 
-    def _get_visualization(self):
+    def _get_visualization(self):  # type: ignore[no-untyped-def] # cannot type without extra dependency
         """Helper method which provides EOWorkflowVisualization object."""
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:
