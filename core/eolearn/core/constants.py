@@ -206,7 +206,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
 
 class DeprecatedCollectionClass(type):
-    """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
+    """A custom meta class for raising a warning when collections of the deprecated FeatureTypeSet class are used."""
 
     def __getattribute__(cls, name):
         warnings.warn(
