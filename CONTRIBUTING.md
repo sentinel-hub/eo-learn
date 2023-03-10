@@ -64,6 +64,8 @@ The following guidelines should be observed when creating a PR.
   * Required testing;
   * Link to issue/feature request.
 
+* Do not forget to add yourself as a contributor to the `CREDITS.md` file, found in the root of the repository.
+
 * When submitting the PR, a member of the development team has to approve the CI run (notify us if we forget). If it returns any errors, try to fix the issues causing failure. For information on how to run the tests locally, see Section on *Running formatters, linters, and tests*.
 
 * Your contribution should include unit tests, to test correct behaviour of the new feature and to lower the maintenance effort. This applies to both bug fixes and new features.
@@ -133,7 +135,7 @@ Most of the automated code-checking is packaged into [pre-commit hooks](https://
 - checking and formatting any Jupyter notebooks with `nbqa`
 - various other helpful things (correcting line-endings etc.)
 
-The code is also checked using `pylint` and `mypy`. Because of the project structure invoking these two checkers is a bit trickier:
+The code is also checked using `pylint` and `mypy`. Because of the project structure invoking these two checkers is a bit trickier and has to be performed on each module separately. If your contribution is in core, you could do the following:
 ```bash
 # to check the 'core' subpackage
 mypy core/eolearn/core
