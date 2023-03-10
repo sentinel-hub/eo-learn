@@ -118,7 +118,7 @@ class FooTask(EOTask):
 
 When creating a new task, bear in mind the following:
 
-* Tasks should be useful for multiple use-cases or solve a common problem i.e. other users would benefit from it.
+* Tasks should be useful for multiple use-cases or solve a common problem, i.e., other users should benefit from it.
 * In cases of large monolithic tasks you might want to try and split them into multiple ones, where each does just part of the computation. For instance a task for detecting foliage from S2 imagery could perhaps be split into a task for calculating NDVI and a separate task for thresholding the NDVI values. In many cases you'll find that some of these smaller tasks already exist in `eo-learn`.
 * When multiple tasks share a large part of the implementation, consider extracting parts of it into functions or use inheritance to reduce boilerplate.
 * Only hard-code parameters that shouldn't be adjusted by the users. Hard-coding things like feature names should be avoided.
