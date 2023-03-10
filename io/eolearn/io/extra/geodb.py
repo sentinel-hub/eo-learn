@@ -9,7 +9,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
-from sentinelhub import CRS
+from typing import Any, Optional
+
+from sentinelhub import CRS, BBox
+
+from eolearn.core.types import FeatureSpec
 
 from ..geometry_io import _BaseVectorImportTask
 
@@ -19,20 +23,23 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
     into EOPatch
     """
 
-    def __init__(self, feature, geodb_client, geodb_collection, geodb_db, reproject=True, clip=False, **kwargs):
+    def __init__(
+        self,
+        feature: FeatureSpec,
+        geodb_client: Any,
+        geodb_collection: str,
+        geodb_db: str,
+        reproject: bool = True,
+        clip: bool = False,
+        **kwargs: Any,
+    ):
         """
         :param feature: A vector feature into which to import data
-        :type feature: (FeatureType, str)
         :param geodb_client: an instance of GeoDBClient
-        :type geodb_client: xcube_geodb.core.geodb.GeoDBClient
         :param geodb_collection: The name of the collection to be queried
-        :type geodb_collection: str
         :param geodb_db: The name of the database the collection resides in [current database]
-        :type geodb_db: str
         :param reproject: Should the geometries be transformed to coordinate reference system of the requested bbox?
-        :type reproject: bool, default = True
         :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
-        :type clip: bool, default = False
         :param kwargs: Additional args that will be passed to `geodb_client.get_collection_by_bbox` call
             (e.g. where="id>-1", operator="and")
         """
@@ -40,16 +47,15 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
         self.geodb_db = geodb_db
         self.geodb_collection = geodb_collection
         self.geodb_kwargs = kwargs
-        self._dataset_crs = None
+        self._dataset_crs: Optional[CRS] = None
 
         super().__init__(feature=feature, reproject=reproject, clip=clip)
 
     @property
-    def dataset_crs(self):
+    def dataset_crs(self) -> CRS:
         """Provides a "crs" of dataset, loads it lazily (i.e. the first time it is needed)
 
         :return: Dataset's CRS
-        :rtype: CRS
         """
         if self._dataset_crs is None:
             srid = self.geodb_client.get_collection_srid(collection=self.geodb_collection, database=self.geodb_db)
@@ -57,7 +63,7 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
 
         return self._dataset_crs
 
-    def _load_vector_data(self, bbox):
+    def _load_vector_data(self, bbox: Optional[BBox]) -> Any:
         """Loads vector data from geoDB table"""
         prepared_bbox = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 

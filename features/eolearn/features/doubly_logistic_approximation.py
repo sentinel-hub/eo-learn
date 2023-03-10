@@ -18,7 +18,7 @@ from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import SingleFeatureSpec
 
 
-def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5) -> np.ndarray:
+def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5) -> np.ndarray:  # type: ignore[no-untyped-def]
     # pylint: disable=invalid-name
     """Function passed to `scipy.optimize`"""
     funclist = [lambda y: np.exp(-(((a1 - y) / a4) ** a5)), lambda y: np.exp(-(((y - a1) / a2) ** a3))]
