@@ -50,7 +50,9 @@ class SimpleFilterTask(EOTask):
         :param filter_features: A collection of features which will be filtered into a new EOPatch
         """
 
-        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_temporal())
+        self.feature = self.parse_feature(
+            feature, allowed_feature_types=lambda fty: fty.is_temporal() and not fty.is_vector()
+        )
         self.filter_func = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
 
