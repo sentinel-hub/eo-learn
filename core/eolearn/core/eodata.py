@@ -26,7 +26,7 @@ from typing_extensions import Literal
 from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
-from .constants import TIMESTAMP_COLUMN, FeatureType, FeatureTypeSet, OverwritePermission
+from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
@@ -699,7 +699,7 @@ class EOPatch:
         good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
         good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
 
-        relevant_features = set(FeatureTypeSet.TEMPORAL_TYPES) - {FeatureType.TIMESTAMPS}
+        relevant_features = filter(lambda ftype: ftype.is_temporal() and not ftype.is_meta(), FeatureType)
         for feature_type in relevant_features:
             for feature_name, value in self[feature_type].items():
                 self[feature_type][feature_name] = value[good_timestamp_idxs, ...]

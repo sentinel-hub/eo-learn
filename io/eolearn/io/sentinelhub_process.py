@@ -33,8 +33,9 @@ from sentinelhub import (
 )
 from sentinelhub.types import RawTimeIntervalType
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.utils.parsing import parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
@@ -241,8 +242,9 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.aux_request_args = aux_request_args
 
     def _parse_and_validate_features(self, features: FeaturesSpecification) -> List[FeatureRenameSpec]:
-        allowed_features = FeatureTypeSet.RASTER_TYPES.union({FeatureType.META_INFO})
-        _features = self.parse_renamed_features(features, allowed_feature_types=allowed_features)
+        _features = parse_renamed_features(
+            features, allowed_feature_types=lambda fty: fty.is_array() or fty == FeatureType.META_INFO
+        )
 
         ftr_data_types = {ft for ft, _, _ in _features if not ft.is_meta()}
         if all(ft.is_timeless() for ft in ftr_data_types) or all(ft.is_temporal() for ft in ftr_data_types):
@@ -444,7 +446,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_additional_bands = []
         self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            parsed_additional_data = self.parse_renamed_features(additional_data)
+            parsed_additional_data = parse_renamed_features(additional_data)
             additional_bands = [band for _, band, _ in parsed_additional_data]
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands

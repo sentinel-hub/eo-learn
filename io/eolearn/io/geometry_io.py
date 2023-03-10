@@ -20,7 +20,7 @@ from fs_s3fs import S3FS
 
 from sentinelhub import CRS, BBox, GeopediaFeatureIterator, SHConfig
 
-from eolearn.core import EOPatch, EOTask, FeatureTypeSet, pickle_fs, unpickle_fs
+from eolearn.core import EOPatch, EOTask, pickle_fs, unpickle_fs
 from eolearn.core.types import FeatureSpec
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
@@ -39,7 +39,7 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
         :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
         :param config: A configuration object with credentials
         """
-        self.feature = self.parse_feature(feature, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)
+        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_vector())
         self.config = config or SHConfig()
         self.reproject = reproject
         self.clip = clip

@@ -28,7 +28,7 @@ from shapely.geometry.base import BaseGeometry
 
 from sentinelhub import CRS, BBox, bbox_to_dimensions, parse_time
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
@@ -131,11 +131,9 @@ class VectorToRasterTask(EOTask):
     ) -> Tuple[Union[GeoDataFrame, Tuple[FeatureType, str]], Tuple[FeatureType, str]]:
         """Parsing first 2 parameters - what vector data will be used and in which raster feature it will be saved"""
         if not _is_geopandas_object(vector_input):
-            vector_input = self.parse_feature(vector_input, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)
+            vector_input = self.parse_feature(vector_input, allowed_feature_types=lambda fty: fty.is_vector())
 
-        parsed_raster_feature = self.parse_feature(
-            raster_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_3D.union(FeatureTypeSet.RASTER_TYPES_4D)
-        )
+        parsed_raster_feature = self.parse_feature(raster_feature, allowed_feature_types=lambda fty: fty.is_image())
         return vector_input, parsed_raster_feature  # type: ignore[return-value]
 
     def _get_vector_data_iterator(
@@ -249,7 +247,7 @@ class VectorToRasterTask(EOTask):
                 return self.raster_shape
 
             feature_type, feature_name = self.parse_feature(
-                self.raster_shape, allowed_feature_types=FeatureTypeSet.RASTER_TYPES
+                self.raster_shape, allowed_feature_types=lambda fty: fty.is_array()
             )
             return eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))  # cast verified in parser
 
@@ -393,7 +391,7 @@ class RasterToVectorTask(EOTask):
         :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently,
             available is parameter `connectivity`.
         """
-        self.feature_parser = self.get_feature_parser(features, allowed_feature_types=FeatureTypeSet.DISCRETE_TYPES)
+        self.feature_parser = self.get_feature_parser(features, allowed_feature_types=lambda fty: fty.is_discrete())
         self.values = values
         self.values_column = values_column
         self.raster_dtype = raster_dtype

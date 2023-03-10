@@ -15,7 +15,7 @@ from typing import Any, Callable
 import numpy as np
 import skimage.segmentation
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.types import SingleFeatureSpec
 
@@ -44,7 +44,7 @@ class SuperpixelSegmentationTask(EOTask):
             `skimage.segmentation.felzenszwalb`
         :param segmentation_params: Additional parameters which will be passed to segmentation_object function
         """
-        self.feature = self.parse_feature(feature, allowed_feature_types=FeatureTypeSet.SPATIAL_TYPES)
+        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_spatial())
         self.superpixel_feature = self.parse_feature(
             superpixel_feature, allowed_feature_types={FeatureType.MASK_TIMELESS}
         )

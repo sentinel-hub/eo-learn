@@ -6,6 +6,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 
 import datetime
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -47,6 +48,15 @@ def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
 
     assert filtered_eopatch is not example_eopatch
     assert filtered_eopatch == example_eopatch
+
+
+@pytest.mark.parametrize(
+    "invalid_feature",
+    [(FeatureType.VECTOR, "foo"), (FeatureType.VECTOR_TIMELESS, "bar"), (FeatureType.MASK_TIMELESS, "foobar")],
+)
+def test_simple_filter_invalid_feature(invalid_feature: Tuple[FeatureType, str]):
+    with pytest.raises(ValueError):
+        SimpleFilterTask(invalid_feature, filter_func=lambda _: True)
 
 
 def test_content_after_time_filter():

@@ -16,8 +16,9 @@ import numpy as np
 import skimage.filters.rank
 import skimage.morphology
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
+from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_feature
 
 
 class ErosionTask(EOTask):
@@ -42,7 +43,7 @@ class ErosionTask(EOTask):
 
         parsed_mask_feature = cast(
             Tuple[FeatureType, str, str],
-            self.parse_renamed_feature(mask_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES),
+            parse_renamed_feature(mask_feature, allowed_feature_types=lambda fty: fty.is_array()),
         )
         self.mask_type, self.mask_name, self.new_mask_name = parsed_mask_feature
         self.disk = skimage.morphology.disk(disk_radius)
