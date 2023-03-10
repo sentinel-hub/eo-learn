@@ -110,11 +110,9 @@ class CloudMaskTask(EOTask):
         :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
             the mono classifier. The probabilities are added as a data feature, while masks are added as a mask
             feature. By default, none of them are added.
-        :type mono_features: (str or None, str or None)
         :param multi_features: Tuple of keys used for storing cloud probabilities and masks of the multi classifier.
             The probabilities are added as a data feature, while masks are added as a mask feature. By default,
             none of them are added.
-        :type multi_features: (str or None, str or None)
         :param mask_feature: Name of the output intersection feature. Default value: `'CLM_INTERSSIM'`. If `None` the
             intersection feature is not computed.
         :param mono_threshold: Cloud probability threshold for the mono classifier.
@@ -127,7 +125,6 @@ class CloudMaskTask(EOTask):
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
             Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
             "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
-        :type mono_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         :param multi_classifier: Classifier used for multi-temporal cloud detection.
             Must work on the 90 multi-temporal features:
 
@@ -139,7 +136,6 @@ class CloudMaskTask(EOTask):
             - maximum and mean difference in reflectances between the target frame and every other.
 
             Default value: None (SSIM-based model is used)
-        :type multi_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         """
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
@@ -289,9 +285,7 @@ class CloudMaskTask(EOTask):
         Returns a new array with the combined results.
 
         :param data: input array
-        :type data: array of shape (timestamps, rows, columns, channels)
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
-        :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
 
         # Map over channel dimension on 3d tensor

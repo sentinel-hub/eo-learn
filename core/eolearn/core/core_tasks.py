@@ -91,10 +91,8 @@ class SaveTask(IOTask):
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
-        :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
-        :type compress_level: int
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
@@ -123,7 +121,6 @@ class LoadTask(IOTask):
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :param features: A collection of features to be loaded. By default, all features will be loaded.
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
-        :type lazy_loading: bool
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """

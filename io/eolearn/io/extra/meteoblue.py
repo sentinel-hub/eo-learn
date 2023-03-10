@@ -52,20 +52,14 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         """
         :param feature: A feature in which meteoblue data will be stored
         :param apikey: meteoblue API key
-        :type apikey: str
         :param query: meteoblue dataset API query definition. If set to None (default) the query has to be set
             in the execute method instead.
-        :type query: dict
         :param units: meteoblue dataset API units definition. If set to None (default) request will use default units
             as specified in https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api#units
-        :type units: dict
         :param time_difference: The size of a time interval around each timestamp for which data will be collected. It
             is used only in a combination with ``time_interval`` parameter from ``execute`` method.
-        :type time_difference: datetime.timedelta
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
-        :type cache_folder: str
         :param cache_max_age: Maximum age in seconds to use a cached result. Default 1 week.
-        :type cache_max_age: int
         """
         self.feature = self.parse_feature(feature)
         cache = None
