@@ -1,7 +1,6 @@
 # Contributing to **eo-learn**
 
-First of all, thank you for contributing to **eo-learn**. Any effort in contributing
-to the library is very much appreciated.
+First of all, thank you for contributing to **eo-learn**. Any effort in contributing to the library is very much appreciated.
 
 Here is how you can contribute:
 
@@ -11,10 +10,7 @@ Here is how you can contribute:
 
 All contributors agree to follow our [Code of Conduct][code-of-conduct].
 
-**eo-learn** is distributed under the [MIT license][license]. When contributing
-code to the library, you agree to its terms and conditions. If you would like to
-keep parts of your contribution private, you can contact us to discuss about
-the best solution.
+**eo-learn** is distributed under the [MIT license][license]. When contributing code to the library, you agree to its terms and conditions. If you would like to keep parts of your contribution private, you can contact us to discuss about the best solution.
 
 For any question, feel free to contact us at [eoresearch@sinergise.com](eoresearch@sinergise.com) or through our [Forum][sh-forum].
 
@@ -26,9 +22,7 @@ For any question, feel free to contact us at [eoresearch@sinergise.com](eoresear
 
 We strive to provide high-quality working code, but bugs happen nevertheless.
 
-When reporting a bug, please check [here][open-bug-list] whether
-the bug was already reported. If not, open an issue with the **bug** label and
-report the following information:
+When reporting a bug, please check [here][open-bug-list] whether the bug was already reported. If not, open an issue with the **bug** label and report the following information:
 
 * Issue description
 * How to reproduce the issue
@@ -125,13 +119,9 @@ pip install -r requirements-dev.txt -r requirements-docs.txt
 
 ### Contribute an `EOTask`
 
-`EOTask`s allow to apply **eo-learn** workflows to different use-cases, adapting to imaging sources and
-processing chain. If you think a task is general enough to be useful to the community, then we would
-be delighted to include it into the library.
+`EOTask`s allow to apply **eo-learn** workflows to different use-cases, adapting to imaging sources and processing chain. If you think a task is general enough to be useful to the community, then we would be delighted to include it into the library.
 
-`EOTask`s are currently grouped by scope, e.g. core, IO, masks, and so on. A list of implemented
-tasks can be found in the [documentation][existing-eo-tasks]. The following code snippet shows how
-to create your own `EOTask`
+`EOTask`s are currently grouped by scope, e.g. core, IO, masks, and so on. A list of implemented tasks can be found in the [documentation][existing-eo-tasks]. The following code snippet shows how to create your own `EOTask`
 
 ```python
 class FooTask(EOTask):
