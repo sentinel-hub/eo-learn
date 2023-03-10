@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import logging
 import os
 from functools import partial
-from typing import Optional, Tuple, Union, cast
+from typing import Callable, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -230,7 +230,20 @@ class CloudMaskTask(EOTask):
 
         return rescale, sigma
 
-    def _red_ssim(self, *, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5, sigma):
+    def _red_ssim(
+        self,
+        *,
+        data_x: np.ndarray,
+        data_y: np.ndarray,
+        valid_mask: np.ndarray,
+        mu1: np.ndarray,
+        mu2: np.ndarray,
+        sigma1_2: np.ndarray,
+        sigma2_2: np.ndarray,
+        sigma: float,
+        const1: float = 1e-6,
+        const2: float = 1e-5,
+    ) -> np.ndarray:
         """Slightly reduced (pre-computed) SSIM computation"""
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
@@ -256,22 +269,22 @@ class CloudMaskTask(EOTask):
 
         return np.divide(num, den)
 
-    def _win_avg(self, data, sigma):
+    def _win_avg(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Spatial window average"""
         return cv2.GaussianBlur(data.astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _win_prevar(self, data, sigma):
+    def _win_prevar(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Incomplete spatial window variance"""
         return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _average(self, data):
+    def _average(self, data: np.ndarray) -> np.ndarray:
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
 
-    def _dilate(self, data):
+    def _dilate(self, data: np.ndarray) -> np.ndarray:
         return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
 
     @staticmethod
-    def _map_sequence(data, func2d):
+    def _map_sequence(data: np.ndarray, func2d: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Iterate over time and band dimensions and apply a function to each slice.
         Returns a new array with the combined results.
 
@@ -282,25 +295,24 @@ class CloudMaskTask(EOTask):
         """
 
         # Map over channel dimension on 3d tensor
-        def func3d(dim):
-            return map_over_axis(dim, func2d, axis=2)
+        def func3d(data_slice: np.ndarray) -> np.ndarray:
+            return map_over_axis(data_slice, func2d, axis=2)
 
         # Map over time dimension on 4d tensor
-        def func4d(dim):
-            return map_over_axis(dim, func3d, axis=0)
+        def func4d(data_slice: np.ndarray) -> np.ndarray:
+            return map_over_axis(data_slice, func3d, axis=0)
 
         output = func4d(data)
-
         return output
 
-    def _average_all(self, data):
+    def _average_all(self, data: np.ndarray) -> np.ndarray:
         """Average over each spatial slice of data"""
         if self.avg_kernel is not None:
             return self._map_sequence(data, self._average)
 
         return data
 
-    def _dilate_all(self, data):
+    def _dilate_all(self, data: np.ndarray) -> np.ndarray:
         """Dilate over each spatial slice of data"""
         if self.dil_kernel is not None:
             return self._map_sequence(data, self._dilate)
@@ -355,10 +367,10 @@ class CloudMaskTask(EOTask):
 
         return ssim_max, ssim_mean, ssim_std
 
-    def _do_single_temporal_cloud_detection(self, bands):
+    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
         """Performs a cloud detection process on each scene separately"""
         mono_proba = np.empty(np.prod(bands.shape[:-1]))
-        img_size = np.prod(bands.shape[1:-1])
+        img_size = np.prod(bands.shape[1:-1]).astype(int)
 
         n_times = bands.shape[0]
 
@@ -537,8 +549,6 @@ class CloudMaskTask(EOTask):
             bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
             is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
-        mono_proba = None
-        multi_proba = None
         mono_proba_feature, mono_mask_feature = self.mono_features
         multi_proba_feature, multi_mask_feature = self.multi_features
 
