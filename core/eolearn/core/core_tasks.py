@@ -405,10 +405,8 @@ class MapFeatureTask(EOTask):
 
         return eopatch
 
-    def map_method(self, feature):
-        """
-        A function that will be applied to the input features.
-        """
+    def map_method(self, feature: Any) -> Any:
+        """A function that will be applied to the input features."""
         raise NotImplementedError("map_method should be overridden.")
 
 
@@ -484,7 +482,7 @@ class ZipFeatureTask(EOTask):
 
         return eopatch
 
-    def zip_method(self, *f):
+    def zip_method(self, *features: Any) -> Any:
         """A function that will be applied to the input features if overridden."""
         raise NotImplementedError("zip_method should be overridden.")
 
@@ -509,7 +507,7 @@ class ExtractBandsTask(MapFeatureTask):
         super().__init__(input_feature, output_feature)
         self.bands = bands
 
-    def map_method(self, feature):
+    def map_method(self, feature: np.ndarray) -> np.ndarray:
         if not all(band < feature.shape[-1] for band in self.bands):
             raise ValueError("Band index out of feature's dimensions.")
 

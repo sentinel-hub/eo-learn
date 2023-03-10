@@ -9,7 +9,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
-from sentinelhub import CRS
+from typing import Any, Optional
+
+from sentinelhub import CRS, BBox
+
+from eolearn.core.types import FeatureSpec
 
 from ..geometry_io import _BaseVectorImportTask
 
@@ -19,7 +23,16 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
     into EOPatch
     """
 
-    def __init__(self, feature, geodb_client, geodb_collection, geodb_db, reproject=True, clip=False, **kwargs):
+    def __init__(
+        self,
+        feature: FeatureSpec,
+        geodb_client: Any,
+        geodb_collection: str,
+        geodb_db: str,
+        reproject: bool = True,
+        clip: bool = False,
+        **kwargs: Any,
+    ):
         """
         :param feature: A vector feature into which to import data
         :param geodb_client: an instance of GeoDBClient
@@ -34,12 +47,12 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
         self.geodb_db = geodb_db
         self.geodb_collection = geodb_collection
         self.geodb_kwargs = kwargs
-        self._dataset_crs = None
+        self._dataset_crs: Optional[CRS] = None
 
         super().__init__(feature=feature, reproject=reproject, clip=clip)
 
     @property
-    def dataset_crs(self):
+    def dataset_crs(self) -> CRS:
         """Provides a "crs" of dataset, loads it lazily (i.e. the first time it is needed)
 
         :return: Dataset's CRS
@@ -50,7 +63,7 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
 
         return self._dataset_crs
 
-    def _load_vector_data(self, bbox):
+    def _load_vector_data(self, bbox: Optional[BBox]) -> Any:
         """Loads vector data from geoDB table"""
         prepared_bbox = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
