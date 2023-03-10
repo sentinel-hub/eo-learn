@@ -123,7 +123,7 @@ When creating a new task, bear in mind the following:
 * When multiple tasks share a large part of the implementation, consider extracting parts of it into functions or use inheritance to reduce boilerplate.
 * Only hard-code parameters that shouldn't be adjusted by the users. Hard-coding things like feature names should be avoided.
 * Use feature-parsers in order to support a wider range of possible input (and perhaps validate inputs). You can find them in `eolearn.core.utils.parsing`, or use `EOTask.parse_features` as a shortcut.
-* If in doubt on whether a task is general enough to be of interest to the community, or you are not sure to which sub-package to contribute your task to, send us an email or open a [feature request](#feature-requests).
+* If in doubt on whether a task is general enough to be of interest to the community, or you are not sure to which sub-package to contribute your task to, feel free to open up a [feature request](#feature-requests).
 
 ### Running formatters, linters, and tests
 
@@ -143,7 +143,7 @@ pylint core/eolearn/core
 ```
 You can also use the utilities provided in the MAKEFILE to check the entire package with `make pylint` and `make mypy`. Due to the size of the codebase this might take a while.
 
-The last bit to check are the unit tests. We again reiterate that you should include unit-tests of your contributions. If you are not well versed with unit-testing you can ask us for help (either via e-mail or in the PR). To run the tests simply use the command `pytest` from the main folder. Since `eolearn.io` also test integration with SentinelHub you can either skip them with `pylint -m "not sh_integration"` or see the [examples/README.md](examples/README.md) for how to setup you SentinelHub account and local config for testing.
+The last bit to check are the unit tests. We again reiterate that you should include unit-tests of your contributions. If you are not well versed with unit-testing you can ask us for help in the pull-request or by issuing a [ticket](https://github.com/sentinel-hub/eo-learn/issues) instead. To run the tests simply use the command `pytest` from the main folder. Since `eolearn.io` also test integration with SentinelHub you can either skip them with `pylint -m "not sh_integration"` or see the [examples/README.md](examples/README.md) for how to setup you SentinelHub account and local config for testing.
 
 
 Looking forward to include your contributions into **eo-learn**.
