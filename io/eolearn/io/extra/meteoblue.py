@@ -292,7 +292,7 @@ def _meteoblue_timestamps_from_time_interval(timestamp_pb: Any) -> List[dt.datet
     # Regular time intervals return `start, end and stride` as a time axis
     # We convert it into an array of daytime
     time_range = range(timestamp_pb.start, timestamp_pb.end, timestamp_pb.stride)
-    return list(map(dt.date.fromtimestamp, time_range))  # type:ignore[arg-type]
+    return list(map(dt.datetime.fromtimestamp, time_range))
 
 
 def _parse_timestring(timestring: str) -> dt.datetime:
