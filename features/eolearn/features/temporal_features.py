@@ -184,11 +184,8 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         """Task constructor
 
         :param data_feature: Name of data feature with NDVI values. Default is `'NDVI'`
-        :type data_feature: str
         :param argmax_feature: Name of feature with computed argmax values of the NDVI slope
-        :type argmax_feature: str
         :param argmin_feature: Name of feature with computed argmin values of the NDVI slope
-        :type argmin_feature: str
         :param mask_data: Flag for masking NDVI data. Default is `True`
         """
         self.data_feature = data_feature

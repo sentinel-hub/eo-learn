@@ -314,7 +314,6 @@ class EOWorkflow:
         """Generates the DOT description of the underlying computational graph.
 
         :return: The DOT representation of the computational graph
-        :rtype: Digraph
         """
         visualization = self._get_visualization()
         return visualization.get_dot()
@@ -325,7 +324,6 @@ class EOWorkflow:
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
             `pdf`, ... . Check `graphviz` Python package for more options
         :return: The DOT representation of the computational graph, with some more formatting
-        :rtype: Digraph
         """
         visualization = self._get_visualization()
         return visualization.dependency_graph(filename=filename)

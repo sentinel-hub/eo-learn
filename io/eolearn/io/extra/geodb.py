@@ -22,17 +22,11 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
     def __init__(self, feature, geodb_client, geodb_collection, geodb_db, reproject=True, clip=False, **kwargs):
         """
         :param feature: A vector feature into which to import data
-        :type feature: (FeatureType, str)
         :param geodb_client: an instance of GeoDBClient
-        :type geodb_client: xcube_geodb.core.geodb.GeoDBClient
         :param geodb_collection: The name of the collection to be queried
-        :type geodb_collection: str
         :param geodb_db: The name of the database the collection resides in [current database]
-        :type geodb_db: str
         :param reproject: Should the geometries be transformed to coordinate reference system of the requested bbox?
-        :type reproject: bool, default = True
         :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
-        :type clip: bool, default = False
         :param kwargs: Additional args that will be passed to `geodb_client.get_collection_by_bbox` call
             (e.g. where="id>-1", operator="and")
         """
@@ -49,7 +43,6 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
         """Provides a "crs" of dataset, loads it lazily (i.e. the first time it is needed)
 
         :return: Dataset's CRS
-        :rtype: CRS
         """
         if self._dataset_crs is None:
             srid = self.geodb_client.get_collection_srid(collection=self.geodb_collection, database=self.geodb_db)

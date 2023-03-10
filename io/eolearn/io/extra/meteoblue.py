@@ -48,22 +48,15 @@ class BaseMeteoblueTask(EOTask):
     ):
         """
         :param feature: A feature in which meteoblue data will be stored
-        :type feature: (FeatureType, str)
         :param apikey: meteoblue API key
-        :type apikey: str
         :param query: meteoblue dataset API query definition. If set to None (default) the query has to be set
             in the execute method instead.
-        :type query: dict
         :param units: meteoblue dataset API units definition. If set to None (default) request will use default units
             as specified in https://docs.meteoblue.com/en/weather-apis/dataset-api/dataset-api#units
-        :type units: dict
         :param time_difference: The size of a time interval around each timestamp for which data will be collected. It
             is used only in a combination with ``time_interval`` parameter from ``execute`` method.
-        :type time_difference: datetime.timedelta
         :param cache_folder: Path to cache_folder. If set to None (default) requests will not be cached.
-        :type cache_folder: str
         :param cache_max_age: Maximum age in seconds to use a cached result. Default 1 week.
-        :type cache_max_age: int
         """
         self.feature = self.parse_feature(feature)
         cache = None
@@ -122,14 +115,10 @@ class BaseMeteoblueTask(EOTask):
         """Execute method that adds new meteoblue data into an EOPatch
 
         :param eopatch: An EOPatch in which data will be added. If not provided a new EOPatch will be created.
-        :type eopatch: EOPatch or None
         :param bbox: A bounding box of a request. Should be provided if eopatch parameter is not provided.
-        :type bbox: BBox or None
         :param query: meteoblue dataset API query definition. This query takes precedence over one defined in __init__.
-        :type query: dict
         :param time_interval: An interval for which data should be downloaded. If not provided then timestamps from
             provided eopatch will be used.
-        :type time_interval: (dt.datetime, dt.datetime) or (str, str) or None
         :raises ValueError: Raises an exception when no query is set during Task initialization or the execute method.
         """
         eopatch = self._get_modified_eopatch(eopatch, bbox)
@@ -205,7 +194,6 @@ def meteoblue_to_dataframe(result) -> pd.DataFrame:
     """Transform a meteoblue dataset API result to a dataframe
 
     :param result: A response of meteoblue API
-    :type result: Dataset_pb2.DatasetApiProtobuf
     :returns: A dataframe with columns TIMESTAMP, Longitude, Latitude and aggregation columns
     """
     geometry = result.geometries[0]
@@ -241,7 +229,6 @@ def meteoblue_to_numpy(result) -> np.ndarray:
     """Transform a meteoblue dataset API result to a dataframe
 
     :param result: A response of meteoblue API
-    :type result: Dataset_pb2.DatasetApiProtobuf
     :returns: A 4D numpy array with shape (time, height, width, weather variables)
     """
     geometry = result.geometries[0]
