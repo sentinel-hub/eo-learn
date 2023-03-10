@@ -78,7 +78,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         self.time_difference = time_difference
 
     @staticmethod
-    def _get_modified_eopatch(eopatch: Optional[EOPatch], bbox: Optional[BBox]) -> Tuple[BBox, EOPatch]:
+    def _get_modified_eopatch(eopatch: Optional[EOPatch], bbox: Optional[BBox]) -> Tuple[EOPatch, BBox]:
         if bbox is not None:
             if eopatch is None:
                 eopatch = EOPatch(bbox=bbox)
@@ -86,11 +86,11 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
                 eopatch.bbox = bbox
             elif eopatch.bbox != bbox:
                 raise ValueError("Provided eopatch.bbox and bbox are not the same")
-            return bbox, eopatch
+            return eopatch, bbox
 
         if eopatch is None or eopatch.bbox is None:
             raise ValueError("Bounding box is not provided")
-        return eopatch.bbox, eopatch
+        return eopatch, eopatch.bbox
 
     def _prepare_time_intervals(self, eopatch: EOPatch, time_interval: Optional[RawTimeIntervalType]) -> List[str]:
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
@@ -136,7 +136,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
             provided eopatch will be used.
         :raises ValueError: Raises an exception when no query is set during Task initialization or the execute method.
         """
-        bbox, eopatch = self._get_modified_eopatch(eopatch, bbox)
+        eopatch, bbox = self._get_modified_eopatch(eopatch, bbox)
 
         time_intervals = self._prepare_time_intervals(eopatch, time_interval)
 
