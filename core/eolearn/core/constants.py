@@ -209,15 +209,16 @@ class DeprecatedCollectionClass(type):
     """A custom meta class for raising a warning when collections of the deprecated FeatureTypeSet class are used."""
 
     def __getattribute__(cls, name: str) -> Any:
-        warnings.warn(
-            (
-                "The `FeatureTypeSet` collections are deprecated. The argument `allowed_feature_types` of feature"
-                " parsers can now be a callable, so you can use `lambda ftype: ftype.is_spatial()` instead of"
-                " `FeatureTypeSet.SPATIAL_TYPES` in such cases."
-            ),
-            category=EODeprecationWarning,
-            stacklevel=3,
-        )
+        if not name.startswith("_"):
+            warnings.warn(
+                (
+                    "The `FeatureTypeSet` collections are deprecated. The argument `allowed_feature_types` of feature"
+                    " parsers can now be a callable, so you can use `lambda ftype: ftype.is_spatial()` instead of"
+                    " `FeatureTypeSet.SPATIAL_TYPES` in such cases."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=3,
+            )
         return super().__getattribute__(name)
 
 
