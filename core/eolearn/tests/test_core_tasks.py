@@ -59,14 +59,14 @@ def patch_fixture() -> EOPatch:
             FeatureType.SCALAR: ["values", "CLOUD_COVERAGE"],
         }
     )
-    patch.data["CLP_S2C"] = np.zeros((5, 98, 151, patch.data["CLP"].shape[3]), dtype=np.int64)
+    patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"], shape=(1, *patch.data["CLP"].shape[1:]))
 
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
 
 
-@pytest.fixture(name="patch_bands")
-def patch_bands_fixture() -> EOPatch:
+@pytest.fixture(name="eopatch_to_explode")
+def eopatch_to_explode_fixture() -> EOPatch:
     return generate_eopatch((FeatureType.DATA, "bands"), config=PatchGeneratorConfig(depth_range=(8, 9)))
 
 
@@ -411,11 +411,11 @@ def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], 
     ],
 )
 def test_explode_bands(
-    patch_bands: EOPatch,
+    eopatch_to_explode: EOPatch,
     feature: Tuple[FeatureType, str],
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
 ) -> None:
-    patch = ExplodeBandsTask(feature, task_input)(patch_bands)
+    patch = ExplodeBandsTask(feature, task_input)(eopatch_to_explode)
     assert all(new_feature in patch for new_feature in task_input)
 
     for new_feature, bands in task_input.items():
@@ -424,19 +424,23 @@ def test_explode_bands(
         assert_array_equal(patch[new_feature], patch[feature][..., bands])
 
 
-def test_extract_bands(patch_bands: EOPatch) -> None:
+def test_extract_bands(eopatch_to_explode: EOPatch) -> None:
     bands = [2, 4, 6]
-    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), bands)(patch_bands)
+    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), bands)(
+        eopatch_to_explode
+    )
     assert_array_equal(patch.data["EXTRACTED_BANDS"], patch.data["bands"][..., bands])
 
     patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] += 1
     assert patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] != patch.data["bands"][0, 0, 0, bands[0]]
 
 
-def test_extract_bands_fails(patch_bands: EOPatch) -> None:
+def test_extract_bands_fails(eopatch_to_explode: EOPatch) -> None:
     with pytest.raises(ValueError):
         # fails because band 16 does not exist
-        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(patch_bands)
+        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(
+            eopatch_to_explode
+        )
 
 
 @pytest.mark.parametrize(
