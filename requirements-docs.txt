@@ -10,5 +10,5 @@
 jupyter
 nbsphinx
 sphinx
-sphinx_rtd_theme
 sphinx_mdinclude
+sphinx_rtd_theme
