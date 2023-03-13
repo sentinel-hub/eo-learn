@@ -34,7 +34,7 @@ from eolearn.core import EOTask
 
 # General information about the project.
 project = "eo-learn"
-copyright = "2018, eo-learn"
+copyright = "2017-, Sinergise"
 author = "Sinergise EO research team"
 doc_title = "eo-learn Documentation"
 
@@ -64,10 +64,10 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "sphinx.ext.viewcode",
+    "sphinx_mdinclude",
     "nbsphinx",
     "sphinx_rtd_theme",
     "IPython.sphinxext.ipython_console_highlighting",
-    "m2r2",
 ]
 
 # Include typehints in descriptions
@@ -228,7 +228,7 @@ intersphinx_mapping = {"https://docs.python.org/3.8/": None}
 # -- Custom settings ----------------------------------------------
 
 # When Sphinx documents class signature it prioritizes __new__ method over __init__ method. The following hack puts
-# EOTask.__new__ method the the blacklist so that __init__ method signature will be taken instead. This seems the
+# EOTask.__new__ method to the blacklist so that __init__ method signature will be taken instead. This seems the
 # cleanest way even though a private object is accessed.
 sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append("{0.__module__}.{0.__qualname__}".format(EOTask.__new__))
 
@@ -467,4 +467,4 @@ def create_github_url(
 def setup(app):
     app.connect("builder-inited", run_apidoc)
     app.connect("html-page-context", configure_github_link)
-    app.connect("autodoc-process-docstring", sphinx.ext.autodoc.between("Credits:", what=["module"], exclude=True))
+    app.connect("autodoc-process-docstring", sphinx.ext.autodoc.between("Copyright", what=["module"], exclude=True))
