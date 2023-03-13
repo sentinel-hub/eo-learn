@@ -72,10 +72,7 @@ class TDigestTask(EOTask):
                 FeatureType.MASK,
                 FeatureType.MASK_TIMELESS,
             ]
-            if self.pixelwise:
-                allowed_out_types = [FeatureType.DATA_TIMELESS]
-            else:
-                allowed_out_types = [FeatureType.SCALAR_TIMELESS]
+            allowed_out_types = [FeatureType.DATA_TIMELESS] if pixelwise else [FeatureType.SCALAR_TIMELESS]
 
         elif mode == "timewise" or mode == "monthly":
             allowed_in_types = [FeatureType.DATA, FeatureType.MASK]
