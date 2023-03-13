@@ -59,7 +59,7 @@ def patch_fixture() -> EOPatch:
             FeatureType.SCALAR: ["values", "CLOUD_COVERAGE"],
         }
     )
-    patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"], shape=(1, *patch.data["CLP"].shape[1:]))
+    patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"])
 
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
