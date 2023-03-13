@@ -79,10 +79,7 @@ class TDigestTask(EOTask):
 
         elif mode == "timewise" or mode == "monthly":
             allowed_in_types = [FeatureType.DATA, FeatureType.MASK]
-            if self.pixelwise:
-                allowed_out_types = [FeatureType.DATA]
-            else:
-                allowed_out_types = [FeatureType.SCALAR]
+            allowed_out_types = [FeatureType.DATA] if pixelwise else [FeatureType.SCALAR]
 
         elif mode == "total":
             allowed_in_types = None
