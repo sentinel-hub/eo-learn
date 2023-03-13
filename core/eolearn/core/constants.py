@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 import warnings
 from enum import Enum, EnumMeta
-from typing import Optional
+from typing import Any, Optional
 
 from sentinelhub import BBox, MimeType
 from sentinelhub.exceptions import deprecated_function
@@ -32,13 +32,13 @@ def _warn_and_adjust(name: str) -> str:
 class EnumWithDeprecations(EnumMeta):
     """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
 
-    def __getattribute__(cls, name):
+    def __getattribute__(cls, name: str) -> Any:
         return super().__getattribute__(_warn_and_adjust(name))
 
-    def __getitem__(cls, name):
+    def __getitem__(cls, name: str) -> Any:
         return super().__getitem__(_warn_and_adjust(name))
 
-    def __call__(cls, value, *args, **kwargs):
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:
         return super().__call__(_warn_and_adjust(value), *args, **kwargs)
 
 
@@ -208,16 +208,17 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 class DeprecatedCollectionClass(type):
     """A custom meta class for raising a warning when collections of the deprecated FeatureTypeSet class are used."""
 
-    def __getattribute__(cls, name):
-        warnings.warn(
-            (
-                "The `FeatureTypeSet` collections are deprecated. The argument `allowed_feature_types` of feature"
-                " parsers can now be a callable, so you can use `lambda ftype: ftype.is_spatial()` instead of"
-                " `FeatureTypeSet.SPATIAL_TYPES` in such cases."
-            ),
-            category=EODeprecationWarning,
-            stacklevel=3,
-        )
+    def __getattribute__(cls, name: str) -> Any:
+        if not name.startswith("_"):
+            warnings.warn(
+                (
+                    "The `FeatureTypeSet` collections are deprecated. The argument `allowed_feature_types` of feature"
+                    " parsers can now be a callable, so you can use `lambda ftype: ftype.is_spatial()` instead of"
+                    " `FeatureTypeSet.SPATIAL_TYPES` in such cases."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=3,
+            )
         return super().__getattribute__(name)
 
 

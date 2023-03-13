@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
-from typing import Any, Callable, List, Optional, Tuple, Union
+from abc import ABCMeta, abstractmethod
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import numpy as np
 from typing_extensions import Literal
@@ -31,7 +32,8 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
 )
-from sentinelhub.types import RawTimeIntervalType
+from sentinelhub.data_collections_bands import Band
+from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
@@ -40,7 +42,7 @@ from eolearn.core.utils.parsing import parse_renamed_features
 LOGGER = logging.getLogger(__name__)
 
 
-class SentinelHubInputBaseTask(EOTask):
+class SentinelHubInputBaseTask(EOTask, metaclass=ABCMeta):
     """Base class for Processing API input tasks"""
 
     def __init__(
@@ -149,10 +151,11 @@ class SentinelHubInputBaseTask(EOTask):
             return eopatch_bbox
         raise ValueError("Either the eopatch or the task must provide bbox, or they must be the same.")
 
-    def _extract_data(self, eopatch, images, shape):
+    @abstractmethod
+    def _extract_data(self, eopatch: EOPatch, responses: List[Any], shape: Tuple[int, ...]) -> EOPatch:
         """Extract data from the received images and assign them to eopatch features"""
-        raise NotImplementedError("The _extract_data method should be implemented by the subclass.")
 
+    @abstractmethod
     def _build_requests(
         self,
         bbox: Optional[BBox],
@@ -163,11 +166,10 @@ class SentinelHubInputBaseTask(EOTask):
         geometry: Optional[Geometry],
     ) -> List[SentinelHubRequest]:
         """Build requests"""
-        raise NotImplementedError("The _build_requests method should be implemented by the subclass.")
 
+    @abstractmethod
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
-        raise NotImplementedError("The _get_timestamps method should be implemented by the subclass.")
 
 
 class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
@@ -252,11 +254,12 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         raise ValueError("Cannot mix time dependent and timeless requests!")
 
-    def _create_response_objects(self):
+    def _create_response_objects(self) -> List[JsonDict]:
         """Construct SentinelHubRequest output_responses from features"""
         responses = []
         for feat_type, feat_name, _ in self.features:
             if feat_type.is_array():
+                feat_name = cast(str, feat_name)  # can only be string since it's an array type
                 responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
             elif feat_type.is_meta():
                 responses.append(SentinelHubRequest.output_response("userdata", MimeType.JSON))
@@ -302,7 +305,14 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         return [self._create_sh_request(date, bbox, size_x, size_y, geometry) for date in dates]
 
-    def _create_sh_request(self, time_interval, bbox, size_x, size_y, geometry):
+    def _create_sh_request(
+        self,
+        time_interval: Optional[RawTimeIntervalType],
+        bbox: Optional[BBox],
+        size_x: int,
+        size_y: int,
+        geometry: Optional[Geometry],
+    ) -> SentinelHubRequest:
         """Create an instance of SentinelHubRequest"""
         return SentinelHubRequest(
             evalscript=self.evalscript,
@@ -325,28 +335,26 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
             config=self.config,
         )
 
-    def _extract_data(self, eopatch, data_responses, shape):
+    def _extract_data(self, eopatch: EOPatch, responses: List[Any], shape: Tuple[int, ...]) -> EOPatch:
         """Extract data from the received images and assign them to eopatch features"""
         # pylint: disable=arguments-renamed
         if len(self.features) == 1:
             ftype, fname, _ = self.features[0]
             extension = "json" if ftype.is_meta() else "tif"
-            data_responses = [{f"{fname}.{extension}": data} for data in data_responses]
+            responses = [{f"{fname}.{extension}": data} for data in responses]
 
         for ftype, fname, new_fname in self.features:
             if ftype.is_meta():
-                data = [data["userdata.json"] for data in data_responses]
+                eopatch[ftype][new_fname] = [data["userdata.json"] for data in responses]
 
             elif ftype.is_temporal():
-                data = np.asarray([data[f"{fname}.tif"] for data in data_responses])
+                data = np.asarray([data[f"{fname}.tif"] for data in responses])
                 data = data[..., np.newaxis] if data.ndim == 3 else data
                 time_dim = shape[0]
-                data = data[:time_dim] if time_dim != data.shape[0] else data
+                eopatch[ftype][new_fname] = data[:time_dim] if time_dim != data.shape[0] else data
 
             else:
-                data = np.asarray(data_responses[0][f"{fname}.tif"])[..., np.newaxis]
-
-            eopatch[ftype][new_fname] = data
+                eopatch[ftype][new_fname] = np.asarray(responses[0][f"{fname}.tif"])[..., np.newaxis]
 
         return eopatch
 
@@ -355,7 +363,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     """Process API input task that loads 16bit integer data and converts it to a 32bit float feature."""
 
     # pylint: disable=too-many-arguments
-    DTYPE_TO_SAMPLE_TYPE = {
+    DTYPE_TO_SAMPLE_TYPE: Dict[type, str] = {
         bool: "SampleType.UINT8",
         np.uint8: "SampleType.UINT8",
         np.uint16: "SampleType.UINT16",
@@ -446,13 +454,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_additional_bands = []
         self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            parsed_additional_data = parse_renamed_features(additional_data)
-            additional_bands = [band for _, band, _ in parsed_additional_data]
+            parsed_additional_data = parse_renamed_features(additional_data)  # parser gives too general type
+            additional_bands = cast(List[str], [band for _, band, _ in parsed_additional_data])
             parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
             self.requested_additional_bands = parsed_bands
             self.additional_data = parsed_additional_data
 
-    def _parse_requested_bands(self, bands, available_bands):
+    def _parse_requested_bands(self, bands: List[str], available_bands: Tuple[Band, ...]) -> List[Band]:
         """Checks that all requested bands are available and returns the band information for further processing"""
         requested_bands = []
         band_info_dict = {band_info.name: band_info for band_info in available_bands}
@@ -547,7 +555,14 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
         return [self._create_sh_request(time_interval, bbox, size_x, size_y, geometry) for time_interval in intervals]
 
-    def _create_sh_request(self, time_interval, bbox, size_x, size_y, geometry):
+    def _create_sh_request(
+        self,
+        time_interval: Optional[RawTimeIntervalType],
+        bbox: Optional[BBox],
+        size_x: int,
+        size_y: int,
+        geometry: Optional[Geometry],
+    ) -> SentinelHubRequest:
         """Create an instance of SentinelHubRequest"""
         responses = [
             SentinelHubRequest.output_response(band.name, MimeType.TIFF)
@@ -575,28 +590,31 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             config=self.config,
         )
 
-    def _extract_data(self, eopatch, images, shape):
+    def _extract_data(self, eopatch: EOPatch, responses: List[Any], shape: Tuple[int, ...]) -> EOPatch:
         """Extract data from the received images and assign them to eopatch features"""
         if len(self.requested_bands) + len(self.requested_additional_bands) == 1:
             # if only one band is requested the response is not a tar so we reshape it
             only_band = (self.requested_bands + self.requested_additional_bands)[0]
-            images = [{only_band.name + ".tif": image} for image in images]
+            responses = [{only_band.name + ".tif": image} for image in responses]
 
         if self.additional_data:
-            self._extract_additional_features(eopatch, images, shape)
+            self._extract_additional_features(eopatch, responses, shape)
 
         if self.bands_feature:
-            self._extract_bands_feature(eopatch, images, shape)
+            self._extract_bands_feature(eopatch, responses, shape)
 
         return eopatch
 
-    def _extract_additional_features(self, eopatch, images, shape):
+    def _extract_additional_features(
+        self, eopatch: EOPatch, images: Iterable[np.ndarray], shape: Tuple[int, ...]
+    ) -> None:
         """Extracts additional features from response into an EOPatch"""
-        for (ftype, _, new_name), band_info in zip(self.additional_data, self.requested_additional_bands):
+        additional_data = cast(List[FeatureRenameSpec], self.additional_data)  # verified by `if` in _extract_data
+        for (ftype, _, new_name), band_info in zip(additional_data, self.requested_additional_bands):
             tiffs = [tar[band_info.name + ".tif"] for tar in images]
             eopatch[ftype, new_name] = self._extract_array(tiffs, 0, shape, band_info.output_types[0])
 
-    def _extract_bands_feature(self, eopatch, images, shape):
+    def _extract_bands_feature(self, eopatch: EOPatch, images: Iterable[np.ndarray], shape: Tuple[int, ...]) -> None:
         """Extract the bands feature arrays and concatenate them along the last axis"""
         processed_bands = []
         for band_info in self.requested_bands:
@@ -604,10 +622,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             dtype = self.bands_dtype or band_info.output_types[0]
             processed_bands.append(self._extract_array(tiffs, 0, shape, dtype))
 
-        eopatch[self.bands_feature] = np.concatenate(processed_bands, axis=-1)
+        bands_feature = cast(Tuple[FeatureType, str], self.bands_feature)  # verified by `if` in _extract_data
+        eopatch[bands_feature] = np.concatenate(processed_bands, axis=-1)
 
     @staticmethod
-    def _extract_array(tiffs, idx, shape, dtype):
+    def _extract_array(
+        tiffs: List[np.ndarray], idx: int, shape: Tuple[int, ...], dtype: Union[type, np.dtype]
+    ) -> np.ndarray:
         """Extract a numpy array from the received tiffs"""
         feature_arrays = (np.atleast_3d(img)[..., idx] for img in tiffs)
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
