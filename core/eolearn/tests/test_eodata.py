@@ -27,9 +27,9 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 def mini_eopatch_fixture() -> EOPatch:
     eop = generate_eopatch(
         {
-            FeatureType.DATA: ["bands", "zeros"],
-            FeatureType.MASK: ["ones", "twos"],
-            FeatureType.MASK_TIMELESS: ["threes"],
+            FeatureType.DATA: ["A", "B"],
+            FeatureType.MASK: ["C", "D"],
+            FeatureType.MASK_TIMELESS: ["E"],
         }
     )
     eop.meta_info["beep"] = "boop"
@@ -162,9 +162,9 @@ def test_simplified_feature_operations() -> None:
 @pytest.mark.parametrize(
     "feature_to_delete",
     [
-        (FeatureType.DATA, "zeros"),
-        (FeatureType.MASK, "ones"),
-        (FeatureType.MASK_TIMELESS, "threes"),
+        (FeatureType.DATA, "A"),
+        (FeatureType.MASK, "C"),
+        (FeatureType.MASK_TIMELESS, "E"),
         (FeatureType.META_INFO, "beep"),
         (FeatureType.TIMESTAMPS, None),
     ],
@@ -321,9 +321,9 @@ def test_equals() -> None:
 @pytest.mark.parametrize(
     "feature, expected_dim",
     [
-        [(FeatureType.DATA, "zeros"), (98, 151)],
-        [(FeatureType.MASK, "ones"), (98, 151)],
-        [(FeatureType.MASK_TIMELESS, "threes"), (98, 151)],
+        [(FeatureType.DATA, "A"), (98, 151)],
+        [(FeatureType.MASK, "C"), (98, 151)],
+        [(FeatureType.MASK_TIMELESS, "E"), (98, 151)],
     ],
 )
 def test_get_spatial_dimension(
@@ -338,11 +338,11 @@ def test_get_spatial_dimension(
         (
             pytest.lazy_fixture("mini_eopatch"),
             [
-                (FeatureType.DATA, "bands"),
-                (FeatureType.DATA, "zeros"),
-                (FeatureType.MASK, "ones"),
-                (FeatureType.MASK, "twos"),
-                (FeatureType.MASK_TIMELESS, "threes"),
+                (FeatureType.DATA, "A"),
+                (FeatureType.DATA, "B"),
+                (FeatureType.MASK, "C"),
+                (FeatureType.MASK, "D"),
+                (FeatureType.MASK_TIMELESS, "E"),
                 (FeatureType.META_INFO, "beep"),
                 (FeatureType.BBOX, None),
                 (FeatureType.TIMESTAMPS, None),
