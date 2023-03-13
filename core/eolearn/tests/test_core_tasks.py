@@ -44,30 +44,25 @@ from eolearn.core import (
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_features
-from eolearn.core.utils.testing import assert_feature_data_equal
+from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
-    patch = EOPatch(bbox=BBox((324.54, 546.45, 955.4, 63.43), CRS(3857)))
-    patch.data["bands"] = np.arange(5 * 3 * 4 * 8).reshape(5, 3, 4, 8)
-    patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
-    patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
-    patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
-    patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
-    patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.uint16)
-    patch.mask_timeless["RANDOM_UINT8"] = np.random.randint(0, 100, size=(3, 4, 1), dtype=np.int8)
-    patch.scalar["values"] = np.arange(10 * 5).reshape(5, 10)
-    patch.scalar["CLOUD_COVERAGE"] = np.ones((5, 10))
-    patch.timestamps = [
-        datetime(2017, 1, 14, 10, 13, 46),
-        datetime(2017, 2, 10, 10, 1, 32),
-        datetime(2017, 2, 20, 10, 6, 35),
-        datetime(2017, 3, 2, 10, 0, 20),
-        datetime(2017, 3, 12, 10, 7, 6),
-    ]
+    patch = generate_eopatch(
+        {
+            FeatureType.DATA: ["CLP"],
+            FeatureType.MASK: ["CLM"],
+            FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"],
+            FeatureType.SCALAR: ["values", "CLOUD_COVERAGE"],
+        }
+    )
+    bands_config = PatchGeneratorConfig(depth_range=(8, 9))
+    patch.data["bands"] = generate_eopatch((FeatureType.DATA, "bands"), config=bands_config).data["bands"]
+    patch.data["CLP_S2C"] = np.zeros((5, 98, 151, patch.data["CLP"].shape[3]), dtype=np.int64)
+
     patch.meta_info["something"] = np.random.rand(10, 1)
     return patch
 
