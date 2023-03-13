@@ -67,8 +67,9 @@ docs/_build/
 # PyBuilder
 target/
 
-# Jupyter Notebook
+# Jupyter Notebook, Jupyter Lab
 .ipynb_checkpoints
+.jupyter
 
 # pyenv
 .python-version

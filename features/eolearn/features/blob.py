@@ -1,12 +1,10 @@
 """
 Module for computing blobs in EOPatch
 
-Credits:
-Copyright (c) 2018-2019 Hugo Fournier (Magellium)
-Copyright (c) 2017-2022 Matej Aleksandrov, Devis Peressutti, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -43,27 +41,19 @@ class BlobTask(EOTask):
                     Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'blob')
 
     :param blob_object: Name of the blob method to use
-    :type blob_object: skimage.feature.blob_*
     :param blob_parameters: List of parameters to be passed to the blob function. Below is a list of such parameters.
     :param min_sigma: The minimum standard deviation for Gaussian Kernel. Keep this low to detect smaller blobs
-    :type min_sigma: float
     :param max_sigma: The maximum standard deviation for Gaussian Kernel. Keep this high to detect larger blobs
-    :type max_sigma: float
     :param threshold: The absolute lower bound for scale space maxima. Local maxima smaller than thresh are ignored.
                         Reduce this to detect blobs with less intensity
-    :type threshold: float
     :param overlap: A value between 0 and 1. If the area of two blobs overlaps by a fraction greater than threshold,
                     the smaller blob is eliminated
-    :type overlap: float
     :param num_sigma: For ‘Log’ and ‘DoH’: The number of intermediate values of standard deviations to consider between
                         min_sigma and max_sigma
-    :type num_sigma: int
     :param log_scale: For ‘Log’ and ‘DoH’: If set intermediate values of standard deviations are interpolated using a
                         logarithmic scale to the base 10. If not, linear interpolation is used
-    :type log_scale: bool
     :param sigma_ratio: For ‘DoG’: The ratio between the standard deviation of Gaussian Kernels used for computing the
                         Difference of Gaussians
-    :type sigma_ratio: float
     """
 
     def __init__(self, feature: SingleFeatureSpec, blob_object: Callable, **blob_parameters: Any):

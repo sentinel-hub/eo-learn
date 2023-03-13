@@ -1,6 +1,6 @@
 import datetime as dt
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 import pytest
@@ -9,6 +9,18 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureParser, FeatureType
 from eolearn.core.types import EllipsisType, FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+
+
+@pytest.fixture(name="eopatch", scope="module")
+def eopatch_fixture():
+    return EOPatch(
+        data=dict(data=np.zeros((2, 2, 2, 2)), CLP=np.zeros((2, 2, 2, 2))),  # name duplication intentional
+        bbox=BBox((1, 2, 3, 4), CRS.WGS84),
+        timestamps=[dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)],
+        mask=dict(data=np.zeros((2, 2, 2, 2), dtype=int), IS_VALID=np.zeros((2, 2, 2, 2), dtype=int)),
+        mask_timeless=dict(LULC=np.zeros((2, 2, 2), dtype=int)),
+        meta_info={"something": "else"},
+    )
 
 
 @dataclass
@@ -163,22 +175,55 @@ def test_feature_parser_no_eopatch_failure(
         ],
     ],
 )
-def test_allowed_feature_types(test_input: FeaturesSpecification, allowed_types: Iterable[FeatureType]):
+def test_allowed_feature_types_iterable(test_input: FeaturesSpecification, allowed_types: Iterable[FeatureType]):
     """Ensure that the parser raises an error if features don't comply with allowed feature types."""
     with pytest.raises(ValueError):
         FeatureParser(features=test_input, allowed_feature_types=allowed_types)
 
 
-@pytest.fixture(name="eopatch", scope="module")
-def eopatch_fixture():
-    return EOPatch(
-        data=dict(data=np.zeros((2, 2, 2, 2)), CLP=np.zeros((2, 2, 2, 2))),  # name duplication intentional
-        bbox=BBox((1, 2, 3, 4), CRS.WGS84),
-        timestamps=[dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)],
-        mask=dict(data=np.zeros((2, 2, 2, 2), dtype=int), IS_VALID=np.zeros((2, 2, 2, 2), dtype=int)),
-        mask_timeless=dict(LULC=np.zeros((2, 2, 2), dtype=int)),
-        meta_info={"something": "else"},
-    )
+@pytest.mark.parametrize(
+    "test_input, allowed_types",
+    [
+        [
+            (
+                (FeatureType.DATA, "bands", "new_bands"),
+                (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
+                (FeatureType.MASK, "CLM", "new_CLM"),
+            ),
+            lambda x: x == FeatureType.MASK,
+        ],
+        [
+            {
+                FeatureType.META_INFO: ["something"],
+                FeatureType.DATA: [("bands", "new_bands")],
+            },
+            lambda ftype: not ftype.is_meta(),
+        ],
+    ],
+)
+def test_allowed_feature_types_callable(
+    test_input: FeaturesSpecification, allowed_types: Callable[[FeatureType], bool]
+):
+    """Ensure that the parser raises an error if features don't comply with allowed feature types."""
+    with pytest.raises(ValueError):
+        FeatureParser(features=test_input, allowed_feature_types=allowed_types)
+
+
+@pytest.mark.parametrize(
+    "allowed_types",
+    [
+        (FeatureType.MASK_TIMELESS, FeatureType.DATA_TIMELESS),
+        lambda ftype: ftype.is_timeless() and ftype.ndim() == 3,
+    ],
+)
+def test_all_features_allowed_feature_types(
+    eopatch: EOPatch, allowed_types: Union[Iterable[FeatureType], Callable[[FeatureType], bool]]
+):
+    """Ensure that allowed_feature_types is respected when requesting all features."""
+    parser = FeatureParser(..., allowed_feature_types=allowed_types)
+    assert parser.get_feature_specifications() == [(FeatureType.DATA_TIMELESS, ...), (FeatureType.MASK_TIMELESS, ...)]
+    assert parser.get_features(eopatch) == [(FeatureType.MASK_TIMELESS, "LULC")]
+    assert parser.get_renamed_features(eopatch) == [(FeatureType.MASK_TIMELESS, "LULC", "LULC")]
 
 
 @pytest.mark.parametrize(
@@ -278,19 +323,3 @@ def test_feature_parser_with_eopatch_failure(test_input: FeaturesSpecification, 
         parser.get_features(eopatch)
     with pytest.raises(ValueError):
         parser.get_renamed_features(eopatch)
-
-
-def test_all_features_allowed_feature_types(eopatch: EOPatch):
-    """Ensure that allowed_feature_types is respected when requesting all features."""
-    parser = FeatureParser(..., allowed_feature_types=(FeatureType.DATA, FeatureType.BBOX))
-    assert parser.get_feature_specifications() == [(FeatureType.BBOX, ...), (FeatureType.DATA, ...)]
-    assert parser.get_features(eopatch) == [
-        (FeatureType.BBOX, None),
-        (FeatureType.DATA, "data"),
-        (FeatureType.DATA, "CLP"),
-    ]
-    assert parser.get_renamed_features(eopatch) == [
-        (FeatureType.BBOX, None, None),
-        (FeatureType.DATA, "data", "data"),
-        (FeatureType.DATA, "CLP", "CLP"),
-    ]

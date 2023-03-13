@@ -1,13 +1,10 @@
 """
 A module implementing EOPatch merging utility
 
-Credits:
-Copyright (c) 2018-2020 William Ouellette
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -82,7 +79,7 @@ def merge_eopatches(
     for feature in all_features:
         feature_type, feature_name = feature
 
-        if feature_type.is_raster():
+        if feature_type.is_array():
             if feature_type.is_temporal():
                 eopatch_content[feature] = _merge_time_dependent_raster_feature(
                     eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize_raster_temporal

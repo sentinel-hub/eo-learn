@@ -8,6 +8,7 @@
 [![Last month downloads](https://pepy.tech/badge/eo-learn/month)](https://pepy.tech/project/eo-learn)
 [![Docker pulls](https://img.shields.io/docker/pulls/sentinelhub/eolearn.svg)](https://hub.docker.com/r/sentinelhub/eolearn)
 [![Code coverage](https://codecov.io/gh/sentinel-hub/eo-learn/branch/master/graph/badge.svg)](https://codecov.io/gh/sentinel-hub/eo-learn)
+[![DOI](https://zenodo.org/badge/135559956.svg)](https://zenodo.org/badge/latestdoi/135559956)
 <img align="right" src="docs/source/figures/eo-learn-logo.png" alt="" width="300"/>
 
 # eo-learn

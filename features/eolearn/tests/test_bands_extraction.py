@@ -1,16 +1,16 @@
 """
 A collection of bands extraction EOTasks
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import numpy as np
 import pytest
+
+from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import EuclideanNormTask, NormalizedDifferenceIndexTask
@@ -19,7 +19,7 @@ INPUT_FEATURE = (FeatureType.DATA, "TEST")
 
 
 def test_euclidean_norm():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
 
     data = np.zeros(5 * 10 * 10 * 7).reshape(5, 10, 10, 7)
     bands = [0, 1, 2, 4, 6]
@@ -38,7 +38,7 @@ def test_bad_input(bad_input):
 
 
 def test_ndi():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
     eopatch[INPUT_FEATURE] = np.zeros((4, 3, 3, 9))
 
     band_a, band_b = 4.123, 3.321

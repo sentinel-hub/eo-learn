@@ -1,12 +1,8 @@
 """
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2018-2019 William Ouellette (TomTom)
-Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import copy
 import dataclasses
@@ -365,8 +361,7 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
 @pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
-    eopatch = EOPatch()
-    eopatch.bbox = BBox((0, 0, 1, 1), crs=CRS.WGS84)
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))
     feature = (FeatureType.DATA_TIMELESS, "DATA")
 
     np_arr = np.zeros((10, 10, 1), dtype=data_type)

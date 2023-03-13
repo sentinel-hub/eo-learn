@@ -1,24 +1,25 @@
 """
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import datetime
+from typing import Tuple
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
+from sentinelhub import CRS, BBox
+
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from eolearn.features.feature_manipulation import SpatialResizeTask
 from eolearn.features.utils import ResizeParam
+
+DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 
 @pytest.mark.parametrize(
@@ -49,6 +50,15 @@ def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
     assert filtered_eopatch == example_eopatch
 
 
+@pytest.mark.parametrize(
+    "invalid_feature",
+    [(FeatureType.VECTOR, "foo"), (FeatureType.VECTOR_TIMELESS, "bar"), (FeatureType.MASK_TIMELESS, "foobar")],
+)
+def test_simple_filter_invalid_feature(invalid_feature: Tuple[FeatureType, str]):
+    with pytest.raises(ValueError):
+        SimpleFilterTask(invalid_feature, filter_func=lambda _: True)
+
+
 def test_content_after_time_filter():
     timestamps = [
         datetime.datetime(2017, 1, 1, 10, 4, 7),
@@ -66,7 +76,7 @@ def test_content_after_time_filter():
 
     new_start, new_end = 4, -3
 
-    eop = EOPatch(timestamps=timestamps, data={"data": data})
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=timestamps, data={"data": data})
 
     filter_task = FilterTimeSeriesTask(start_date=timestamps[new_start], end_date=timestamps[new_end])
     filtered_eop = filter_task.execute(eop)
@@ -135,7 +145,7 @@ def test_value_fillout():
     feature = (FeatureType.DATA, "TEST")
     shape = (8, 10, 10, 5)
     data = np.random.randint(0, 100, size=shape).astype(float)
-    eopatch = EOPatch(data={"TEST": data})
+    eopatch = EOPatch(bbox=DUMMY_BBOX, data={"TEST": data})
 
     # nothing to be filled, return the same eopatch object immediately
     eopatch_new = ValueFilloutTask(feature, operations="fb", axis=0)(eopatch)
@@ -186,7 +196,7 @@ def test_value_fillout():
 
 
 def test_linear_function_task():
-    eopatch = EOPatch()
+    eopatch = EOPatch(bbox=DUMMY_BBOX)
 
     data_feature = (FeatureType.DATA, "DATA_TEST")
     data_result_feature = (FeatureType.DATA, "DATA_TRANSFORMED")

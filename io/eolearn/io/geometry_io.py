@@ -1,11 +1,10 @@
 """
 Module for adding vector data from various sources
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import abc
@@ -21,7 +20,7 @@ from fs_s3fs import S3FS
 
 from sentinelhub import CRS, BBox, GeopediaFeatureIterator, SHConfig
 
-from eolearn.core import EOPatch, EOTask, FeatureTypeSet, pickle_fs, unpickle_fs
+from eolearn.core import EOPatch, EOTask, pickle_fs, unpickle_fs
 from eolearn.core.types import FeatureSpec
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
@@ -40,7 +39,7 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
         :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
         :param config: A configuration object with credentials
         """
-        self.feature = self.parse_feature(feature, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)
+        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_vector())
         self.config = config or SHConfig()
         self.reproject = reproject
         self.clip = clip
@@ -78,13 +77,17 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
             of given EOPatch. If given EOPatch is not provided it will load the entire dataset.
         :return: An EOPatch with an additional vector feature
         """
-        eopatch = eopatch or EOPatch()
-        bbox = bbox or eopatch.bbox
-
-        if not eopatch.bbox:
-            eopatch.bbox = bbox
+        if bbox is None and eopatch is not None:
+            bbox = eopatch.bbox
 
         vectors = self._load_vector_data(bbox)
+        minx, miny, maxx, maxy = vectors.total_bounds
+        final_bbox = bbox or BBox((minx, miny, maxx, maxy), crs=CRS(vectors.crs))
+
+        eopatch = eopatch or EOPatch(bbox=final_bbox)
+        if eopatch.bbox is None:
+            eopatch.bbox = final_bbox
+
         eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
 
         return eopatch

@@ -1,14 +1,10 @@
 """
 Module containing tasks used for reading and writing to disk
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2018-2019 William Ouellette (TomTom)
-Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
 import functools
@@ -35,6 +31,7 @@ from sentinelhub import CRS, BBox, SHConfig, parse_time_interval
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.core_tasks import IOTask
 from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
@@ -45,7 +42,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
 
     def __init__(
         self,
-        feature,
+        feature: SingleFeatureSpec,
         folder: str,
         *,
         filesystem: Optional[FS] = None,
@@ -151,7 +148,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature,
+        feature: SingleFeatureSpec,
         folder: str,
         *,
         date_indices: Union[List[int], Tuple[int, int], Tuple[dt.datetime, dt.datetime], Tuple[str, str], None] = None,
@@ -413,7 +410,13 @@ class ImportFromTiffTask(BaseRasterIoTask):
     """
 
     def __init__(
-        self, feature, folder: str, *, use_vsi: bool = False, timestamp_size: Optional[int] = None, **kwargs: Any
+        self,
+        feature: SingleFeatureSpec,
+        folder: str,
+        *,
+        use_vsi: bool = False,
+        timestamp_size: Optional[int] = None,
+        **kwargs: Any,
     ):
         """
         :param feature: EOPatch feature into which data will be imported
@@ -450,7 +453,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         )
 
     def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
-        """The method decides in what way data will be loaded the image.
+        """The method decides in what way data will be loaded from the image.
 
         The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
         benchmarks show that without `filesystem.openbin` in some cases `rasterio` can read much faster. Otherwise,
@@ -530,15 +533,11 @@ class ImportFromTiffTask(BaseRasterIoTask):
         return np.concatenate(data_per_path, axis=0), final_bbox
 
     def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Optional[str] = "") -> EOPatch:
-        """Execute method which adds a new feature to the EOPatch
+        """Execute method which adds a new feature to the EOPatch.
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created
-        :type eopatch: EOPatch or None
         :param filename: filename of tiff file or None if entire path has already been specified in `folder` parameter
             of task initialization.
-        :type filename: str, list of str or None
-        :return: New EOPatch with added raster layer
-        :rtype: EOPatch
         """
         if filename is None:
             if eopatch is None:
@@ -546,11 +545,14 @@ class ImportFromTiffTask(BaseRasterIoTask):
             return eopatch
 
         feature_type, feature_name = self.feature
-        eopatch = eopatch or EOPatch()
+        loading_bbox = eopatch.bbox if eopatch is not None else None
+        loading_timestamps = eopatch.timestamps if eopatch is not None else []
 
-        filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
+        filename_paths = self._get_filename_paths(filename, loading_timestamps)
+        data, bbox = self._load_data(filename_paths, loading_bbox)
 
-        data, bbox = self._load_data(filename_paths, eopatch.bbox)
+        if eopatch is None:
+            eopatch = EOPatch(bbox=bbox)
 
         if eopatch.bbox is None:
             eopatch.bbox = bbox

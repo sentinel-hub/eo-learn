@@ -1,19 +1,15 @@
 """
 Module for cloud masking
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import logging
 import os
 from functools import partial
-from typing import Optional, Tuple, Union, cast
+from typing import Callable, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -114,11 +110,9 @@ class CloudMaskTask(EOTask):
         :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
             the mono classifier. The probabilities are added as a data feature, while masks are added as a mask
             feature. By default, none of them are added.
-        :type mono_features: (str or None, str or None)
         :param multi_features: Tuple of keys used for storing cloud probabilities and masks of the multi classifier.
             The probabilities are added as a data feature, while masks are added as a mask feature. By default,
             none of them are added.
-        :type multi_features: (str or None, str or None)
         :param mask_feature: Name of the output intersection feature. Default value: `'CLM_INTERSSIM'`. If `None` the
             intersection feature is not computed.
         :param mono_threshold: Cloud probability threshold for the mono classifier.
@@ -131,7 +125,6 @@ class CloudMaskTask(EOTask):
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
             Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
             "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
-        :type mono_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         :param multi_classifier: Classifier used for multi-temporal cloud detection.
             Must work on the 90 multi-temporal features:
 
@@ -143,7 +136,6 @@ class CloudMaskTask(EOTask):
             - maximum and mean difference in reflectances between the target frame and every other.
 
             Default value: None (SSIM-based model is used)
-        :type multi_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         """
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
@@ -234,7 +226,20 @@ class CloudMaskTask(EOTask):
 
         return rescale, sigma
 
-    def _red_ssim(self, *, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5, sigma):
+    def _red_ssim(
+        self,
+        *,
+        data_x: np.ndarray,
+        data_y: np.ndarray,
+        valid_mask: np.ndarray,
+        mu1: np.ndarray,
+        mu2: np.ndarray,
+        sigma1_2: np.ndarray,
+        sigma2_2: np.ndarray,
+        sigma: float,
+        const1: float = 1e-6,
+        const2: float = 1e-5,
+    ) -> np.ndarray:
         """Slightly reduced (pre-computed) SSIM computation"""
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
@@ -260,51 +265,48 @@ class CloudMaskTask(EOTask):
 
         return np.divide(num, den)
 
-    def _win_avg(self, data, sigma):
+    def _win_avg(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Spatial window average"""
         return cv2.GaussianBlur(data.astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _win_prevar(self, data, sigma):
+    def _win_prevar(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Incomplete spatial window variance"""
         return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _average(self, data):
+    def _average(self, data: np.ndarray) -> np.ndarray:
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
 
-    def _dilate(self, data):
+    def _dilate(self, data: np.ndarray) -> np.ndarray:
         return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
 
     @staticmethod
-    def _map_sequence(data, func2d):
+    def _map_sequence(data: np.ndarray, func2d: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Iterate over time and band dimensions and apply a function to each slice.
         Returns a new array with the combined results.
 
         :param data: input array
-        :type data: array of shape (timestamps, rows, columns, channels)
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
-        :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
 
         # Map over channel dimension on 3d tensor
-        def func3d(dim):
-            return map_over_axis(dim, func2d, axis=2)
+        def func3d(data_slice: np.ndarray) -> np.ndarray:
+            return map_over_axis(data_slice, func2d, axis=2)
 
         # Map over time dimension on 4d tensor
-        def func4d(dim):
-            return map_over_axis(dim, func3d, axis=0)
+        def func4d(data_slice: np.ndarray) -> np.ndarray:
+            return map_over_axis(data_slice, func3d, axis=0)
 
         output = func4d(data)
-
         return output
 
-    def _average_all(self, data):
+    def _average_all(self, data: np.ndarray) -> np.ndarray:
         """Average over each spatial slice of data"""
         if self.avg_kernel is not None:
             return self._map_sequence(data, self._average)
 
         return data
 
-    def _dilate_all(self, data):
+    def _dilate_all(self, data: np.ndarray) -> np.ndarray:
         """Dilate over each spatial slice of data"""
         if self.dil_kernel is not None:
             return self._map_sequence(data, self._dilate)
@@ -359,10 +361,10 @@ class CloudMaskTask(EOTask):
 
         return ssim_max, ssim_mean, ssim_std
 
-    def _do_single_temporal_cloud_detection(self, bands):
+    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
         """Performs a cloud detection process on each scene separately"""
         mono_proba = np.empty(np.prod(bands.shape[:-1]))
-        img_size = np.prod(bands.shape[1:-1])
+        img_size = np.prod(bands.shape[1:-1]).astype(int)
 
         n_times = bands.shape[0]
 
@@ -541,8 +543,6 @@ class CloudMaskTask(EOTask):
             bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
             is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
-        mono_proba = None
-        multi_proba = None
         mono_proba_feature, mono_mask_feature = self.mono_features
         multi_proba_feature, multi_mask_feature = self.multi_features
 

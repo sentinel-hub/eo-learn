@@ -1,14 +1,10 @@
 """
 Module containing tasks for morphological operations
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -20,8 +16,9 @@ import numpy as np
 import skimage.filters.rank
 import skimage.morphology
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
+from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_feature
 
 
 class ErosionTask(EOTask):
@@ -46,7 +43,7 @@ class ErosionTask(EOTask):
 
         parsed_mask_feature = cast(
             Tuple[FeatureType, str, str],
-            self.parse_renamed_feature(mask_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES),
+            parse_renamed_feature(mask_feature, allowed_feature_types=lambda fty: fty.is_array()),
         )
         self.mask_type, self.mask_name, self.new_mask_name = parsed_mask_feature
         self.disk = skimage.morphology.disk(disk_radius)
