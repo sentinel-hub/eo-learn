@@ -18,19 +18,20 @@ from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.testing import assert_feature_data_equal
+from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 
 @pytest.fixture(name="mini_eopatch")
 def mini_eopatch_fixture() -> EOPatch:
-    eop = EOPatch(bbox=DUMMY_BBOX)
-    eop.data["bands"] = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
-    eop.data["zeros"] = np.zeros((2, 3, 3, 2), dtype=float)
-    eop.mask["ones"] = np.ones((2, 6, 6, 1), dtype=int)
-    eop.mask["twos"] = np.ones((2, 3, 3, 2), dtype=int) * 2
-    eop.mask_timeless["threes"] = np.ones((3, 3, 1), dtype=np.uint8) * 3
+    eop = generate_eopatch(
+        {
+            FeatureType.DATA: ["bands", "zeros"],
+            FeatureType.MASK: ["ones", "twos"],
+            FeatureType.MASK_TIMELESS: ["threes"],
+        }
+    )
     eop.meta_info["beep"] = "boop"
 
     return eop
@@ -320,9 +321,9 @@ def test_equals() -> None:
 @pytest.mark.parametrize(
     "feature, expected_dim",
     [
-        [(FeatureType.DATA, "zeros"), (3, 3)],
-        [(FeatureType.MASK, "ones"), (6, 6)],
-        [(FeatureType.MASK_TIMELESS, "threes"), (3, 3)],
+        [(FeatureType.DATA, "zeros"), (98, 151)],
+        [(FeatureType.MASK, "ones"), (98, 151)],
+        [(FeatureType.MASK_TIMELESS, "threes"), (98, 151)],
     ],
 )
 def test_get_spatial_dimension(
@@ -344,6 +345,7 @@ def test_get_spatial_dimension(
                 (FeatureType.MASK_TIMELESS, "threes"),
                 (FeatureType.META_INFO, "beep"),
                 (FeatureType.BBOX, None),
+                (FeatureType.TIMESTAMPS, None),
             ],
         ),
         (EOPatch(bbox=DUMMY_BBOX), [(FeatureType.BBOX, None)]),
