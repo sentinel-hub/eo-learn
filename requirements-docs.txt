@@ -7,7 +7,7 @@
 -e ./mask
 -e ./ml_tools
 -e ./visualization
-jinja2
+jinja2==3.0.3
 jupyter
 nbsphinx
 sphinx
