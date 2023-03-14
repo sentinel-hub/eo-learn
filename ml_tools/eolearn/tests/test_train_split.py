@@ -1,11 +1,8 @@
 """
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 from typing import Any
@@ -15,10 +12,12 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.utils.testing import PatchGeneratorConfig, generate_eopatch
 from eolearn.ml_tools.train_test_split import TrainTestSplitTask, TrainTestSplitType
 
 INPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST")
 OUTPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST_TRAIN_MASK")
+INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(1000, 1000), depth_range=(3, 4))
 
 
 @pytest.mark.parametrize(
@@ -36,25 +35,14 @@ def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
         TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 
 
-SEED = 1
-
-
 @pytest.fixture(name="eopatch1", scope="function")
 def eopatch1_fixture() -> EOPatch:
-    eopatch = EOPatch()
-    rng = np.random.default_rng(SEED)
-    eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3))
-
-    return eopatch
+    return generate_eopatch(INPUT_FEATURE, config=INPUT_FEATURE_CONFIG)
 
 
 @pytest.fixture(name="eopatch2")
 def eopatch2_fixture() -> EOPatch:
-    eopatch = EOPatch()
-    rng = np.random.default_rng(SEED)
-    eopatch[INPUT_FEATURE] = rng.integers(0, 10, size=(1000, 1000, 3), dtype=int)
-
-    return eopatch
+    return generate_eopatch(INPUT_FEATURE, seed=69, config=INPUT_FEATURE_CONFIG)
 
 
 def test_train_split(eopatch1: EOPatch) -> None:

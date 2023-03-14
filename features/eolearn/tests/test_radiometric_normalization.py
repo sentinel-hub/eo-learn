@@ -1,10 +1,8 @@
 """
-Credits:
-Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
-Copyright (c) 2017-2022 Matej Aleksandrov, Matic Lubej, Devis Peressutti, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import copy
 from datetime import datetime
@@ -132,8 +130,8 @@ def test_radiometric_normalization(eopatch, task, test_feature, expected_statist
     initial_patch = copy.deepcopy(eopatch)
     eopatch = task.execute(eopatch)
 
-    assert isinstance(eopatch.timestamp, list), "Expected a list of timestamps"
-    assert isinstance(eopatch.timestamp[0], datetime), "Expected timestamps of type datetime.datetime"
+    assert isinstance(eopatch.timestamps, list), "Expected a list of timestamps"
+    assert isinstance(eopatch.timestamps[0], datetime), "Expected timestamps of type datetime.datetime"
 
     assert_statistics_match(eopatch[test_feature], **expected_statistics, abs_delta=1e-3)
 

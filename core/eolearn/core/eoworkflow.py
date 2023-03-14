@@ -12,13 +12,10 @@ was marked as output through the use of `OutputTask` objects.
 
 The workflow can be exported to a DOT description language and visualized.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
 import logging
@@ -313,27 +310,25 @@ class EOWorkflow:
             raise KeyError(f"No {EONode.__name__} with uid {uid} found in workflow.")
         return None
 
-    def get_dot(self):
+    def get_dot(self):  # type: ignore[no-untyped-def] # cannot type without extra dependency
         """Generates the DOT description of the underlying computational graph.
 
         :return: The DOT representation of the computational graph
-        :rtype: Digraph
         """
         visualization = self._get_visualization()
         return visualization.get_dot()
 
-    def dependency_graph(self, filename: Optional[str] = None):
+    def dependency_graph(self, filename: Optional[str] = None):  # type: ignore[no-untyped-def] # same as get_dot
         """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
             `pdf`, ... . Check `graphviz` Python package for more options
         :return: The DOT representation of the computational graph, with some more formatting
-        :rtype: Digraph
         """
         visualization = self._get_visualization()
         return visualization.dependency_graph(filename=filename)
 
-    def _get_visualization(self):
+    def _get_visualization(self):  # type: ignore[no-untyped-def] # cannot type without extra dependency
         """Helper method which provides EOWorkflowVisualization object."""
         # pylint: disable=import-outside-toplevel,raise-missing-from
         try:

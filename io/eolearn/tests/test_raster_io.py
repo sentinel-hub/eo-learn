@@ -1,12 +1,8 @@
 """
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2018-2019 William Ouellette (TomTom)
-Copyright (c) 2019 Drew Bollinger (DevelopmentSeed)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import copy
 import dataclasses
@@ -87,7 +83,7 @@ class TiffTestCase:
         return self.get_expected().shape[0]
 
 
-DATES = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True).timestamp
+DATES = EOPatch.load(TEST_EOPATCH_PATH, lazy_loading=True).timestamps
 SCALAR_ARRAY = np.arange(10 * 6, dtype=np.float32).reshape(10, 6)
 MASK_ARRAY = np.arange(5 * 3 * 2 * 1, dtype=np.uint16).reshape(5, 3, 2, 1)
 DATA_TIMELESS_ARRAY = np.arange(3 * 2 * 5, dtype=np.float64).reshape(3, 2, 5)
@@ -233,7 +229,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
     test_case = TIFF_TEST_CASES[-1]
     eopatch = copy.deepcopy(test_eopatch)
     eopatch[test_case.feature_type][test_case.name] = test_case.data
-    eopatch.timestamp = test_eopatch.timestamp[: test_case.data.shape[0]]
+    eopatch.timestamps = test_eopatch.timestamps[: test_case.data.shape[0]]
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         tmp_file_name = "temp_file_*"
@@ -245,7 +241,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
         )
         export_task(eopatch, filename=tmp_file_name)
 
-        for timestamp in eopatch.timestamp:
+        for timestamp in eopatch.timestamps:
             expected_path = os.path.join(tmp_dir_name, timestamp.strftime("temp_file_%Y%m%dT%H%M%S.tif"))
             assert os.path.exists(expected_path), f"Path {expected_path} does not exist"
 
@@ -260,7 +256,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
         )
         export_task(eopatch)
 
-        for timestamp in eopatch.timestamp:
+        for timestamp in eopatch.timestamps:
             expected_path = os.path.join(tmp_dir_name, timestamp.strftime(tmp_file_name_reproject))
             assert os.path.exists(expected_path), f"Path {expected_path} does not exist"
 
@@ -329,7 +325,7 @@ def test_time_dependent_feature(test_eopatch):
     feature = FeatureType.DATA, "NDVI"
     filename_export = "relative-path/*.tiff"
     filename_import = [
-        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamp
+        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
     ]
 
     export_task = ExportToTiffTask(feature, folder=PATH_ON_BUCKET)
@@ -340,9 +336,9 @@ def test_time_dependent_feature(test_eopatch):
 
     assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
-    test_eopatch.timestamp[-1] = datetime.datetime(2020, 10, 10)
+    test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
     filename_import = [
-        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamp
+        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
     ]
 
     with pytest.raises(ResourceNotFound):
@@ -365,8 +361,7 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
 @pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
-    eopatch = EOPatch()
-    eopatch.bbox = BBox((0, 0, 1, 1), crs=CRS.WGS84)
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))
     feature = (FeatureType.DATA_TIMELESS, "DATA")
 
     np_arr = np.zeros((10, 10, 1), dtype=data_type)

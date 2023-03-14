@@ -6,11 +6,11 @@ dependencies:
 - pip
 - python=3.10
 - pip:
-  - Sphinx~=4.0
-  - sphinx_rtd_theme>=1.0.0
+  - Sphinx
+  - sphinx_rtd_theme
   - nbsphinx
   - jupyter
-  - m2r2
+  - sphinx_mdinclude
 
   - ./../core
   - ./../coregistration

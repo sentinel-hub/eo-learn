@@ -1,31 +1,39 @@
 """
 Module for cloud masking
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-
 import logging
 import os
+from functools import partial
+from typing import Callable, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
 from lightgbm import Booster
 from skimage.morphology import disk
+from typing_extensions import Protocol
 
-from sentinelhub import bbox_to_resolution
+from sentinelhub import BBox, bbox_to_resolution
 
-from eolearn.core import EOTask, FeatureType, execute_with_mp_lock
+from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
 
 from .utils import map_over_axis, resize_images
 
 LOGGER = logging.getLogger(__name__)
+
+
+class ClassifierType(Protocol):
+    """Defines the necessary classifier interface."""
+
+    def predict(self, X: np.ndarray) -> np.ndarray:  # pylint: disable=missing-function-docstring,invalid-name
+        ...
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # pylint: disable=missing-function-docstring,invalid-name
+        ...
 
 
 class CloudMaskTask(EOTask):
@@ -71,65 +79,52 @@ class CloudMaskTask(EOTask):
 
     def __init__(
         self,
-        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature=(FeatureType.MASK, "IS_DATA"),
-        all_bands=True,
-        processing_resolution=None,
-        max_proc_frames=11,
-        mono_features=None,
-        multi_features=None,
-        mask_feature=(FeatureType.MASK, "CLM_INTERSSIM"),
-        mono_threshold=0.4,
-        multi_threshold=0.5,
-        average_over=4,
-        dilation_size=2,
-        mono_classifier=None,
-        multi_classifier=None,
+        data_feature: Tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature: Tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
+        all_bands: bool = True,
+        processing_resolution: Union[None, float, Tuple[float, float]] = None,
+        max_proc_frames: int = 11,
+        mono_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
+        multi_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
+        mask_feature: Optional[Tuple[FeatureType, str]] = (FeatureType.MASK, "CLM_INTERSSIM"),
+        mono_threshold: float = 0.4,
+        multi_threshold: float = 0.5,
+        average_over: Optional[int] = 4,
+        dilation_size: Optional[int] = 2,
+        mono_classifier: Optional[ClassifierType] = None,
+        multi_classifier: Optional[ClassifierType] = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
             Default value: `'BANDS-S2-L1C'`.
-        :type data_feature: str
         :param is_data_feature: A mask feature which indicates whether data is valid.
             Default value: `'IS_DATA'`.
-        :type is_data_feature: str
         :param all_bands: Flag, which indicates whether images will consist of all 13 Sentinel-2 bands or only
-            the required 10. Default value:  `True`.
-        :type all_bands: bool
+            the required 10.
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
             expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
-            it is used for both dimensions. Default is `None` (source resolution).
-        :type processing_resolution: int or (int, int)
+            it is used for both dimensions. Default `None` represents source resolution.
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
             considered in a single batch iteration (To keep memory usage at agreeable levels, the task operates on
-            smaller batches of time frames). Default value:  `11`.
-        :type max_proc_frames: int
+            smaller batches of time frames).
         :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
             the mono classifier. The probabilities are added as a data feature, while masks are added as a mask
             feature. By default, none of them are added.
-        :type mono_features: (str or None, str or None)
         :param multi_features: Tuple of keys used for storing cloud probabilities and masks of the multi classifier.
             The probabilities are added as a data feature, while masks are added as a mask feature. By default,
             none of them are added.
-        :type multi_features: (str or None, str or None)
-        :param mask_feature: Name of the output intersection feature. The masks are added to the `eopatch.mask`
-            attribute dictionary. Default value: `'CLM_INTERSSIM'`. If None, the intersection feature is not computed.
-        :type mask_feature: str or None
-        :param mono_threshold: Cloud probability threshold for the mono classifier. Default value: `0.4`.
-        :type mono_threshold: float
-        :param multi_threshold: Cloud probability threshold for the multi classifier. Default value: `0.5`.
-        :type multi_threshold: float
+        :param mask_feature: Name of the output intersection feature. Default value: `'CLM_INTERSSIM'`. If `None` the
+            intersection feature is not computed.
+        :param mono_threshold: Cloud probability threshold for the mono classifier.
+        :param multi_threshold: Cloud probability threshold for the multi classifier.
         :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
-            A value of `0` or `None` skips this post-processing step. Default value mimics the default for
+            A value of `0` skips this post-processing step. Default value mimics the default for
             s2cloudless: `4`.
-        :type average_over: int or None
         :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
             post-processing step. Default value mimics the default for s2cloudless: `2`.
-        :type dilation_size: int or None
         :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
             Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
             "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
-        :type mono_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         :param multi_classifier: Classifier used for multi-temporal cloud detection.
             Must work on the 90 multi-temporal features:
 
@@ -141,7 +136,6 @@ class CloudMaskTask(EOTask):
             - maximum and mean difference in reflectances between the target frame and every other.
 
             Default value: None (SSIM-based model is used)
-        :type multi_classifier: lightgbm.Booster or sklearn.base.BaseEstimator
         """
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
@@ -179,25 +173,16 @@ class CloudMaskTask(EOTask):
         else:
             self.dil_kernel = None
 
-        # Because the real sigma is calculated only later in execute method this task is not thread safe!
-        self.sigma = 1.0
-
     @staticmethod
-    def _parse_resolution_arg(res):
+    def _parse_resolution_arg(resolution: Union[None, float, Tuple[float, float]]) -> Optional[Tuple[float, float]]:
         """Parses initialization resolution argument"""
-        if res is None:
-            return None
+        if isinstance(resolution, (int, float)):
+            resolution = resolution, resolution
 
-        if isinstance(res, (int, float, str)):
-            res = res, res
-
-        if isinstance(res, tuple) and len(res) == 2:
-            return tuple(float(rs.strip("m")) if isinstance(rs, str) else rs for rs in res)
-
-        raise ValueError("Wrong resolution parameter passed as an argument.")
+        return resolution
 
     @property
-    def mono_classifier(self):
+    def mono_classifier(self) -> ClassifierType:
         """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
         if self._mono_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
@@ -206,7 +191,7 @@ class CloudMaskTask(EOTask):
         return self._mono_classifier
 
     @property
-    def multi_classifier(self):
+    def multi_classifier(self) -> ClassifierType:
         """An instance of pre-trained multi-temporal cloud classifier. Loaded only the first time it is required."""
         if self._multi_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
@@ -215,63 +200,46 @@ class CloudMaskTask(EOTask):
         return self._multi_classifier
 
     @staticmethod
-    def _run_prediction(classifier, features):
+    def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
         """Uses classifier object on given data"""
         is_booster = isinstance(classifier, Booster)
 
-        if is_booster:
-            predict_method = classifier.predict
-        else:
-            # We assume it is a scikit-learn Estimator model
-            predict_method = classifier.predict_proba
-
+        predict_method = classifier.predict if is_booster else classifier.predict_proba
         prediction = execute_with_mp_lock(predict_method, features)
 
-        if is_booster:
-            return prediction
-        return prediction[..., 1]
+        return prediction if is_booster else prediction[..., 1]
 
-    def _scale_factors(self, reference_shape, bbox):
+    def _scale_factors(self, reference_shape: Tuple[int, int], bbox: BBox) -> Tuple[Tuple[float, float], float]:
         """Compute the resampling factors for height and width of the input array and sigma
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
-        :type reference_shape: (int, int)
         :param bbox: An EOPatch bounding box
-        :type bbox: sentinelhub.BBox
         :return: Rescale factor for rows and columns
-        :rtype: ((float, float), float)
         """
-        res_x, res_y = bbox_to_resolution(bbox, width=reference_shape[1], height=reference_shape[0])
+        height, width = reference_shape
+        res_x, res_y = bbox_to_resolution(bbox, width=width, height=height)
 
-        if self.proc_resolution is None:
-            pres_x, pres_y = res_x, res_y
-        else:
-            pres_x, pres_y = self.proc_resolution
+        process_res_x, process_res_y = (res_x, res_y) if self.proc_resolution is None else self.proc_resolution
 
-        rescale = res_y / pres_y, res_x / pres_x
-        sigma = 200 / (pres_x + pres_y)
+        rescale = res_y / process_res_y, res_x / process_res_x
+        sigma = 200 / (process_res_x + process_res_y)
 
         return rescale, sigma
 
-    def _frame_indices(self, num_of_frames, target_idx):
-        """Returns frame indices within a given time window, with the target index relative to it"""
-        # Get reach
-        nt_min = target_idx - self.max_proc_frames // 2
-        nt_max = target_idx + self.max_proc_frames - self.max_proc_frames // 2
-
-        # Shift reach
-        shift = max(0, -nt_min) - max(0, nt_max - num_of_frames)
-        nt_min += shift
-        nt_max += shift
-
-        # Get indices within range
-        nt_min = max(0, nt_min)
-        nt_max = min(num_of_frames, nt_max)
-        nt_rel = target_idx - nt_min
-
-        return nt_min, nt_max, nt_rel
-
-    def _red_ssim(self, data_x, data_y, valid_mask, mu1, mu2, sigma1_2, sigma2_2, const1=1e-6, const2=1e-5):
+    def _red_ssim(
+        self,
+        *,
+        data_x: np.ndarray,
+        data_y: np.ndarray,
+        valid_mask: np.ndarray,
+        mu1: np.ndarray,
+        mu2: np.ndarray,
+        sigma1_2: np.ndarray,
+        sigma2_2: np.ndarray,
+        sigma: float,
+        const1: float = 1e-6,
+        const2: float = 1e-5,
+    ) -> np.ndarray:
         """Slightly reduced (pre-computed) SSIM computation"""
         # Increase precision and mask invalid regions
         valid_mask = valid_mask.astype(np.float64)
@@ -283,9 +251,7 @@ class CloudMaskTask(EOTask):
         mu2_2 = mu2 * mu2
         mu1_mu2 = mu1 * mu2
 
-        sigma12 = cv2.GaussianBlur(
-            (data_x * data_y).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT
-        )
+        sigma12 = cv2.GaussianBlur((data_x * data_y).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
         sigma12 -= mu1_mu2
 
         # Formula
@@ -299,84 +265,90 @@ class CloudMaskTask(EOTask):
 
         return np.divide(num, den)
 
-    def _win_avg(self, data):
+    def _win_avg(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Spatial window average"""
-        return cv2.GaussianBlur(data.astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        return cv2.GaussianBlur(data.astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _win_prevar(self, data):
+    def _win_prevar(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Incomplete spatial window variance"""
-        return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), self.sigma, borderType=cv2.BORDER_REFLECT)
+        return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
 
-    def _average(self, data):
+    def _average(self, data: np.ndarray) -> np.ndarray:
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
 
-    def _dilate(self, data):
+    def _dilate(self, data: np.ndarray) -> np.ndarray:
         return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
 
     @staticmethod
-    def _map_sequence(data, func2d):
+    def _map_sequence(data: np.ndarray, func2d: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Iterate over time and band dimensions and apply a function to each slice.
         Returns a new array with the combined results.
 
         :param data: input array
-        :type data: array of shape (timestamps, rows, columns, channels)
         :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
-        :type func2d: function (rows, columns) -> (new_rows, new_columns)
         """
 
         # Map over channel dimension on 3d tensor
-        def func3d(dim):
-            return map_over_axis(dim, func2d, axis=2)
+        def func3d(data_slice: np.ndarray) -> np.ndarray:
+            return map_over_axis(data_slice, func2d, axis=2)
 
         # Map over time dimension on 4d tensor
-        def func4d(dim):
-            return map_over_axis(dim, func3d, axis=0)
+        def func4d(data_slice: np.ndarray) -> np.ndarray:
+            return map_over_axis(data_slice, func3d, axis=0)
 
         output = func4d(data)
-
         return output
 
-    def _average_all(self, data):
+    def _average_all(self, data: np.ndarray) -> np.ndarray:
         """Average over each spatial slice of data"""
         if self.avg_kernel is not None:
             return self._map_sequence(data, self._average)
 
         return data
 
-    def _dilate_all(self, data):
+    def _dilate_all(self, data: np.ndarray) -> np.ndarray:
         """Dilate over each spatial slice of data"""
         if self.dil_kernel is not None:
             return self._map_sequence(data, self._dilate)
 
         return data
 
-    def _ssim_stats(self, bands, is_data, win_avg, var, nt_rel):
+    def _ssim_stats(
+        self,
+        bands: np.ndarray,
+        is_data: np.ndarray,
+        local_avg: np.ndarray,
+        local_var: np.ndarray,
+        rel_tdx: int,
+        sigma: float,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate SSIM stats"""
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
         ssim_std = np.empty_like(ssim_max)
 
-        bands_r = np.delete(bands, nt_rel, axis=0)
-        win_avg_r = np.delete(win_avg, nt_rel, axis=0)
-        var_r = np.delete(var, nt_rel, axis=0)
+        bands_r = np.delete(bands, rel_tdx, axis=0)
+        win_avg_r = np.delete(local_avg, rel_tdx, axis=0)
+        var_r = np.delete(local_var, rel_tdx, axis=0)
 
         n_frames = bands_r.shape[0]
         n_bands = bands_r.shape[-1]
 
-        valid_mask = np.delete(is_data, nt_rel, axis=0) & is_data[nt_rel, ..., 0].reshape(1, *is_data.shape[1:-1], 1)
+        valid_mask = np.delete(is_data, rel_tdx, axis=0) & is_data[rel_tdx, ..., 0].reshape(1, *is_data.shape[1:-1], 1)
 
         for b_i in range(n_bands):
             local_ssim = []
 
             for t_j in range(n_frames):
                 ssim_ij = self._red_ssim(
-                    bands[nt_rel, ..., b_i],
-                    bands_r[t_j, ..., b_i],
-                    valid_mask[t_j, ..., 0],
-                    win_avg[nt_rel, ..., b_i],
-                    win_avg_r[t_j, ..., b_i],
-                    var[nt_rel, ..., b_i],
-                    var_r[t_j, ..., b_i],
+                    data_x=bands[rel_tdx, ..., b_i],
+                    data_y=bands_r[t_j, ..., b_i],
+                    valid_mask=valid_mask[t_j, ..., 0],
+                    mu1=local_avg[rel_tdx, ..., b_i],
+                    mu2=win_avg_r[t_j, ..., b_i],
+                    sigma1_2=local_var[rel_tdx, ..., b_i],
+                    sigma2_2=var_r[t_j, ..., b_i],
+                    sigma=sigma,
                 )
 
                 local_ssim.append(ssim_ij)
@@ -389,10 +361,10 @@ class CloudMaskTask(EOTask):
 
         return ssim_max, ssim_mean, ssim_std
 
-    def _do_single_temporal_cloud_detection(self, bands):
+    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
         """Performs a cloud detection process on each scene separately"""
         mono_proba = np.empty(np.prod(bands.shape[:-1]))
-        img_size = np.prod(bands.shape[1:-1])
+        img_size = np.prod(bands.shape[1:-1]).astype(int)
 
         n_times = bands.shape[0]
 
@@ -409,93 +381,115 @@ class CloudMaskTask(EOTask):
                 self.mono_classifier, mono_features
             )
 
-        return mono_proba[..., np.newaxis]
+        return mono_proba[..., None]
 
-    def _do_multi_temporal_cloud_detection(self, bands, is_data):
+    def _do_multi_temporal_cloud_detection(self, bands: np.ndarray, is_data: np.ndarray, sigma: float) -> np.ndarray:
         """Performs a cloud detection process on multiple scenes at once"""
         multi_proba = np.empty(np.prod(bands.shape[:-1]))
-        img_size = np.prod(bands.shape[1:-1])
+        img_size = int(np.prod(bands.shape[1:-1]))
 
         n_times = bands.shape[0]
 
-        loc_mu = None
-        loc_var = None
+        local_avg: Optional[np.ndarray] = None
+        local_var: Optional[np.ndarray] = None
+        prev_left: Optional[int] = None
+        prev_right: Optional[int] = None
 
-        prev_nt_min = None
-        prev_nt_max = None
-
-        for t_i in range(n_times):
+        for t_idx in range(n_times):
             # Extract temporal window indices
-            nt_min, nt_max, nt_rel = self._frame_indices(n_times, t_i)
+            left, right = _get_window_indices(n_times, t_idx, self.max_proc_frames)
 
-            bands_t = bands[nt_min:nt_max]
-            is_data_t = is_data[nt_min:nt_max]
+            bands_slice = bands[left:right]
+            is_data_slice = is_data[left:right]
+            masked_bands = np.ma.array(bands_slice, mask=~is_data_slice.repeat(bands_slice.shape[-1], axis=-1))
 
-            masked_bands = np.ma.array(bands_t, mask=~is_data_t.repeat(bands_t.shape[-1], axis=-1))
+            # Calculate the averages/variances for the local (windowed) streaming data
+            if local_avg is None or (left, right) != (prev_left, prev_right):
+                local_avg, local_var = self._update_batches(local_avg, local_var, bands_slice, is_data_slice, sigma)
 
-            # Add window averages and variances to local data
-            if loc_mu is None or prev_nt_min != nt_min or prev_nt_max != nt_max:
-                loc_mu, loc_var = self._update_batches(loc_mu, loc_var, bands_t, is_data_t)
+            local_var = cast(np.ndarray, local_var)
 
             # Interweave and concatenate
-            multi_features = self._extract_multi_features(bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands)
+            multi_features = self._extract_multi_features(
+                bands_slice, is_data_slice, local_avg, local_var, t_idx - left, masked_bands, sigma
+            )
 
-            multi_proba[t_i * img_size : (t_i + 1) * img_size] = self._run_prediction(
+            multi_proba[t_idx * img_size : (t_idx + 1) * img_size] = self._run_prediction(
                 self.multi_classifier, multi_features
             )
 
-            prev_nt_min = nt_min
-            prev_nt_max = nt_max
+            prev_left = left
+            prev_right = right
 
-        return multi_proba[..., np.newaxis]
+        return multi_proba[..., None]
 
-    def _update_batches(self, loc_mu, loc_var, bands_t, is_data_t):
-        """Updates window variance and mean values for a batch"""
-        # Add window averages and variances to local data
-        if loc_mu is None:
-            win_avg_bands = self._map_sequence(bands_t, self._win_avg)
-            win_avg_is_data = self._map_sequence(is_data_t, self._win_avg)
+    def _update_batches(
+        self,
+        local_avg: Optional[np.ndarray],
+        local_var: Optional[np.ndarray],
+        bands: np.ndarray,
+        is_data: np.ndarray,
+        sigma: float,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Calculates or updates the window average and variance.
+        The calculation is done per 2D image along the temporal and band axes.
+        """
+        local_avg_func = partial(self._win_avg, sigma=sigma)
+        local_var_func = partial(self._win_prevar, sigma=sigma)
 
-            win_avg_is_data[win_avg_is_data == 0.0] = 1.0
+        # take full batch if avg/var don't exist, otherwise take only last index slice
+        data = bands if local_avg is None else bands[-1][None, ...]
+        data_mask = is_data if local_avg is None else is_data[-1][None, ...]
 
-            loc_mu = win_avg_bands / win_avg_is_data
+        avg_data = self._map_sequence(data, local_avg_func)
+        avg_data_mask = self._map_sequence(data_mask, local_avg_func)
+        avg_data_mask[avg_data_mask == 0.0] = 1.0
 
-            win_prevars = self._map_sequence(bands_t, self._win_prevar)
-            win_prevars -= loc_mu * loc_mu
+        var_data = self._map_sequence(data, local_var_func)
 
-            loc_var = win_prevars
+        if local_avg is None or local_var is None:
+            local_avg = avg_data / avg_data_mask
+            local_avg = cast(np.ndarray, local_avg)
+            local_var = var_data - local_avg**2
+            local_var = cast(np.ndarray, local_var)
+            return local_avg, local_var
 
-        else:
-            win_avg_bands = self._map_sequence(bands_t[-1][None, ...], self._win_avg)
-            win_avg_is_data = self._map_sequence(is_data_t[-1][None, ...], self._win_avg)
+        # shift back, drop first element
+        local_avg[:-1] = local_avg[1:]
+        local_var[:-1] = local_var[1:]
 
-            win_avg_is_data[win_avg_is_data == 0.0] = 1.0
+        # set new element
+        local_avg[-1] = (avg_data / avg_data_mask)[0]
+        local_var[-1] = var_data[0] - local_avg[-1] ** 2
 
-            loc_mu[:-1] = loc_mu[1:]
-            loc_mu[-1] = (win_avg_bands / win_avg_is_data)[0]
+        return local_avg, local_var
 
-            win_prevars = self._map_sequence(bands_t[-1][None, ...], self._win_prevar)
-            win_prevars[0] -= loc_mu[-1] * loc_mu[-1]
-
-            loc_var[:-1] = loc_var[1:]
-            loc_var[-1] = win_prevars[0]
-
-        return loc_mu, loc_var
-
-    def _extract_multi_features(self, bands_t, is_data_t, loc_mu, loc_var, nt_rel, masked_bands):
+    def _extract_multi_features(
+        self,
+        bands: np.ndarray,
+        is_data: np.ndarray,
+        local_avg: np.ndarray,
+        local_var: np.ndarray,
+        local_t_idx: int,
+        masked_bands: np.ndarray,
+        sigma: float,
+    ) -> np.ndarray:
         """Extracts features for a batch"""
         # Compute SSIM stats
-        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands_t, is_data_t, loc_mu, loc_var, nt_rel)
+        ssim_max, ssim_mean, ssim_std = self._ssim_stats(bands, is_data, local_avg, local_var, local_t_idx, sigma)
 
         # Compute temporal stats
         temp_min = np.ma.min(masked_bands, axis=0).data[None, ...]
         temp_mean = np.ma.mean(masked_bands, axis=0).data[None, ...]
 
         # Compute difference stats
-        t_all = len(bands_t)
+        t_all = len(bands)
 
-        diff_max = (masked_bands[nt_rel][None, ...] - temp_min).data
-        diff_mean = (masked_bands[nt_rel][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)).data
+        diff_max = (masked_bands[local_t_idx][None, ...] - temp_min).data
+        diff_mean = (
+            masked_bands[local_t_idx][None, ...] * (1.0 + 1.0 / (t_all - 1)) - t_all * temp_mean / (t_all - 1)
+        ).data
 
         # Interweave
         ssim_interweaved = np.empty((*ssim_max.shape[:-1], 3 * ssim_max.shape[-1]))
@@ -514,8 +508,8 @@ class CloudMaskTask(EOTask):
         # Put it all together
         multi_features = np.concatenate(
             (
-                bands_t[nt_rel][None, ...],
-                loc_mu[nt_rel][None, ...],
+                bands[local_t_idx][None, ...],
+                local_avg[local_t_idx][None, ...],
                 ssim_interweaved,
                 temp_interweaved,
                 diff_interweaved,
@@ -527,7 +521,7 @@ class CloudMaskTask(EOTask):
 
         return multi_features
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance
@@ -538,7 +532,10 @@ class CloudMaskTask(EOTask):
         is_data = eopatch[self.is_data_feature].astype(bool)
 
         original_shape = bands.shape[1:-1]
-        scale_factors, self.sigma = self._scale_factors(original_shape, eopatch.bbox)
+        patch_bbox = eopatch.bbox
+        if patch_bbox is None:
+            raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
+        scale_factors, sigma = self._scale_factors(original_shape, patch_bbox)
 
         is_data_sm = is_data
         # Downscale if specified
@@ -546,8 +543,6 @@ class CloudMaskTask(EOTask):
             bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
             is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
-        mono_proba = None
-        multi_proba = None
         mono_proba_feature, mono_mask_feature = self.mono_features
         multi_proba_feature, multi_mask_feature = self.multi_features
 
@@ -565,7 +560,7 @@ class CloudMaskTask(EOTask):
 
         # Run SSIM-based multi-temporal classifier if needed
         if any([self.mask_feature, multi_mask_feature, multi_proba_feature]):
-            multi_proba = self._do_multi_temporal_cloud_detection(bands, is_data_sm)
+            multi_proba = self._do_multi_temporal_cloud_detection(bands, is_data_sm, sigma)
             multi_proba = multi_proba.reshape(*bands.shape[:-1], 1)
 
             # Upscale if necessary
@@ -596,3 +591,28 @@ class CloudMaskTask(EOTask):
             eopatch.data[multi_proba_feature] = (multi_proba * is_data).astype(np.float32)
 
         return eopatch
+
+
+def _get_window_indices(num_of_elements: int, middle_idx: int, window_size: int) -> Tuple[int, int]:
+    """
+    Returns the minimum and maximum indices to be used for indexing, lower inclusive and upper exclusive.
+    The window has the following properties:
+        1. total size is `window_size` (unless there are not enough frames)
+        2. centered around `middle_idx` if possible, otherwise shifted so that the window is contained without reducing
+            it's size.
+    """
+    if window_size >= num_of_elements:
+        return 0, num_of_elements
+
+    # Construct window (is not necessarily contained)
+    min_frame = middle_idx - window_size // 2
+    max_frame = min_frame + window_size
+
+    # Shift window so that it is inside [0, num_all_frames].
+    # Only one of the following can happen because `window_size < num_of_elements`
+    if min_frame < 0:
+        return 0, window_size
+    if max_frame >= num_of_elements:
+        return num_of_elements - window_size, num_of_elements
+
+    return min_frame, max_frame

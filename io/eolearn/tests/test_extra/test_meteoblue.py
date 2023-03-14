@@ -1,11 +1,10 @@
 """
 Module containing tests for Meteoblue tasks
 
-Credits:
-Copyright (c) 2021-2022 Patrick Zippenfenig (Meteoblue), Matej Aleksandrov (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
 import os
@@ -68,7 +67,7 @@ def test_meteoblue_raster_task(mocker):
     eopatch = meteoblue_task.execute(bbox=BBOX, time_interval=TIME_INTERVAL)
 
     assert eopatch.bbox == BBOX
-    assert eopatch.timestamp == [dt.datetime(2020, 8, 1)]
+    assert eopatch.timestamps == [dt.datetime(2020, 8, 1)]
 
     data = eopatch[feature]
     assert data.shape == (1, 6, 10, 1)

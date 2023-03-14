@@ -1,23 +1,23 @@
 """
 Module for adding data obtained from sentinelhub package to existing EOPatches
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import logging
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import rasterio.transform
 import rasterio.warp
 
-from sentinelhub import CRS, GeopediaWmsRequest, MimeType
+from sentinelhub import CRS, BBox, GeopediaWmsRequest, MimeType
 
-from eolearn.core import EOTask, FeatureType
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.types import FeatureSpec
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,14 +37,14 @@ class AddGeopediaFeatureTask(EOTask):
 
     def __init__(
         self,
-        feature,
-        layer,
-        theme,
-        raster_value,
-        raster_dtype=np.uint8,
-        no_data_val=0,
-        image_format=MimeType.PNG,
-        mean_abs_difference=2,
+        feature: FeatureSpec,
+        layer: Union[str, int],
+        theme: str,
+        raster_value: Union[Dict[str, Tuple[float, List[float]]], float],
+        raster_dtype: Union[np.dtype, type] = np.uint8,
+        no_data_val: float = 0,
+        image_format: MimeType = MimeType.PNG,
+        mean_abs_difference: float = 2,
     ):
         self.feature_type, self.feature_name = self.parse_feature(feature)
 
@@ -58,10 +58,13 @@ class AddGeopediaFeatureTask(EOTask):
 
         self.image_format = image_format
 
-    def _get_wms_request(self, bbox, size_x, size_y):
+    def _get_wms_request(self, bbox: Optional[BBox], size_x: int, size_y: int) -> GeopediaWmsRequest:
         """
         Returns WMS request.
         """
+        if bbox is None:
+            raise ValueError("Bbox has to be defined!")
+
         bbox_3857 = bbox.transform(CRS.POP_WEB)
 
         return GeopediaWmsRequest(
@@ -73,10 +76,13 @@ class AddGeopediaFeatureTask(EOTask):
             image_format=self.image_format,
         )
 
-    def _reproject(self, eopatch, src_raster):
+    def _reproject(self, eopatch: EOPatch, src_raster: np.ndarray) -> np.ndarray:
         """
         Re-projects the raster data from Geopedia's CRS (POP_WEB) to EOPatch's CRS.
         """
+        if not eopatch.bbox:
+            raise ValueError("To reproject raster data, eopatch.bbox has to be defined!")
+
         height, width = src_raster.shape
 
         dst_raster = np.ones((height, width), dtype=self.raster_dtype)
@@ -100,14 +106,20 @@ class AddGeopediaFeatureTask(EOTask):
 
         return dst_raster
 
-    def _to_binary_mask(self, array):
+    def _to_binary_mask(self, array: np.ndarray, binaries_raster_value: float) -> np.ndarray:
         """
         Returns binary mask (0 and raster_value)
         """
         # check where the transparency is not zero
-        return (array[..., -1] > 0).astype(self.raster_dtype) * self.raster_value
+        return (array[..., -1] > 0).astype(self.raster_dtype) * binaries_raster_value
 
-    def _map_from_binaries(self, eopatch, dst_shape, request_data):
+    def _map_from_binaries(
+        self,
+        eopatch: EOPatch,
+        dst_shape: Union[int, Tuple[int, int]],
+        request_data: np.ndarray,
+        binaries_raster_value: float,
+    ) -> np.ndarray:
         """
         Each request represents a binary class which will be mapped to the scalar `raster_value`
         """
@@ -116,14 +128,20 @@ class AddGeopediaFeatureTask(EOTask):
         else:
             raster = np.ones(dst_shape, dtype=self.raster_dtype) * self.no_data_val
 
-        new_raster = self._reproject(eopatch, self._to_binary_mask(request_data))
+        new_raster = self._reproject(eopatch, self._to_binary_mask(request_data, binaries_raster_value))
 
         # update raster
         raster[new_raster != 0] = new_raster[new_raster != 0]
 
         return raster
 
-    def _map_from_multiclass(self, eopatch, dst_shape, request_data):
+    def _map_from_multiclass(
+        self,
+        eopatch: EOPatch,
+        dst_shape: Union[int, Tuple[int, int]],
+        request_data: np.ndarray,
+        multiclass_raster_value: Dict[str, Tuple[float, List[float]]],
+    ) -> np.ndarray:
         """
         `raster_value` is a dictionary specifying the intensity values for each class and the corresponding label value.
 
@@ -142,13 +160,12 @@ class AddGeopediaFeatureTask(EOTask):
         """
         raster = np.ones(dst_shape, dtype=self.raster_dtype) * self.no_data_val
 
-        for key in self.raster_value.keys():
-            value, intensities = self.raster_value[key]
+        for value, intensities in multiclass_raster_value.values():
             raster[np.mean(np.abs(request_data - intensities), axis=-1) < self.mean_abs_difference] = value
 
         return self._reproject(eopatch, raster)
 
-    def execute(self, eopatch):
+    def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         Add requested feature to this existing EOPatch.
         """
@@ -160,9 +177,9 @@ class AddGeopediaFeatureTask(EOTask):
         (request_data,) = np.asarray(request.get_data())
 
         if isinstance(self.raster_value, dict):
-            raster = self._map_from_multiclass(eopatch, (height, width), request_data)
+            raster = self._map_from_multiclass(eopatch, (height, width), request_data, self.raster_value)
         elif isinstance(self.raster_value, (int, float)):
-            raster = self._map_from_binaries(eopatch, (height, width), request_data)
+            raster = self._map_from_binaries(eopatch, (height, width), request_data, self.raster_value)
         else:
             raise ValueError("Unsupported raster value type")
 

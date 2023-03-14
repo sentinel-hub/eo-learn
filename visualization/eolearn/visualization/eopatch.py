@@ -1,12 +1,10 @@
 """
 This module implements visualizations for `EOPatch`
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -116,7 +114,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
                 title=feature_name,
             )
 
-        if not feature_type.is_raster():
+        if not feature_type.is_array():
             raise ValueError(f"Plotting of {feature_type} is not supported")
 
         if feature_type.is_spatial():

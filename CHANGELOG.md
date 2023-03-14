@@ -1,3 +1,17 @@
+## [Version 1.4.1] - 2023-3-14
+
+- The codebase is now fully annotated and type annotations are mandatory for all new code.
+- In the future `EOPatch` objects will **require** a valid `bbox`. For now the users are warned when no such value is provided.
+- `SaveTask` and `LoadTask` now automatically save/load the bounding box whenever possible, even if not specified in `features` parameter. `CopyTask` and `MergeEOPatchesTask` also always include the bounding box when possible.
+- The `EOPatch` attribute `bbox` can no longer be deleted via the `del` command.
+- The `EOPatch` attribute `timestamp` was renamed into `timestamps`. The old name still works, but the users are notified. Similarly for `FeatureType.TIMESTAMP` which was renamed to `FeatureType.TIMESTAMPS`.
+- Feature parsers from `eolearn.core.utils.parsers` now support callables as input for `allowed_feature_types`, which are used for filtration over all feature types. Due to this improvement the class `FeatureTypeSet` was deprecated.
+- Certain rarely used methods of `FeatureType` were deprecated. Method `is_raster` has been renamed to `is_array` and designates feature types that contain numpy arrays. We also added `is_image` for types that denote temporal and timeless imagery.
+- Contributors are no longer listed in file headers, but are instead listed in the `CREDITS.md` file in the root of the repository.
+- Updated `CONTRIBUTING.md` instructions.
+- Various other minor improvements and deprecations.
+
+
 ## [Version 1.4.0] - 2023-1-20
 
 - (**codebreaking**) Complete overhaul of `eolearn.coregistration`. See documentation for details.
@@ -15,7 +29,7 @@
 
 ## [Version 1.3.1] - 2022-11-23
 
-- Sentinel Hub IO tasks now support a custom timestamp filtration via `timestamp_filter` parameter.
+- Sentinel Hub IO tasks now support a custom timestamp filtration via `timestamp_filter` parameter, contributed by @ColinMoldenhauer.
 - `MergeFeatureTask` now supports the `axis` parameter.
 - Fix minor issues with the coregistration module.
 - Prepare for future removal of `sentinelhub.os_utils`.

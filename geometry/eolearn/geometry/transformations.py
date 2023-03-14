@@ -1,13 +1,10 @@
 """
 Transformations between vector and raster formats of data
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -31,7 +28,8 @@ from shapely.geometry.base import BaseGeometry
 
 from sentinelhub import CRS, BBox, bbox_to_dimensions, parse_time
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 
@@ -133,11 +131,9 @@ class VectorToRasterTask(EOTask):
     ) -> Tuple[Union[GeoDataFrame, Tuple[FeatureType, str]], Tuple[FeatureType, str]]:
         """Parsing first 2 parameters - what vector data will be used and in which raster feature it will be saved"""
         if not _is_geopandas_object(vector_input):
-            vector_input = self.parse_feature(vector_input, allowed_feature_types=FeatureTypeSet.VECTOR_TYPES)
+            vector_input = self.parse_feature(vector_input, allowed_feature_types=lambda fty: fty.is_vector())
 
-        parsed_raster_feature = self.parse_feature(
-            raster_feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_3D.union(FeatureTypeSet.RASTER_TYPES_4D)
-        )
+        parsed_raster_feature = self.parse_feature(raster_feature, allowed_feature_types=lambda fty: fty.is_image())
         return vector_input, parsed_raster_feature  # type: ignore[return-value]
 
     def _get_vector_data_iterator(
@@ -151,10 +147,10 @@ class VectorToRasterTask(EOTask):
         """
         vector_data = self._get_vector_data_from_eopatch(eopatch)
         # EOPatch has a bbox, verified in execute
-        vector_data = self._preprocess_vector_data(vector_data, cast(BBox, eopatch.bbox), eopatch.timestamp)
+        vector_data = self._preprocess_vector_data(vector_data, cast(BBox, eopatch.bbox), eopatch.timestamps)
 
         if self._rasterize_per_timestamp:
-            for timestamp, vector_data_per_timestamp in vector_data.groupby("TIMESTAMP"):
+            for timestamp, vector_data_per_timestamp in vector_data.groupby(TIMESTAMP_COLUMN):
                 yield timestamp.to_pydatetime(), self._vector_data_to_shape_iterator(
                     vector_data_per_timestamp, join_per_value
                 )
@@ -174,14 +170,14 @@ class VectorToRasterTask(EOTask):
         """Applies preprocessing steps on a dataframe with geometries and potential values and timestamps"""
         columns_to_keep = ["geometry"]
         if self._rasterize_per_timestamp:
-            columns_to_keep.append("TIMESTAMP")
+            columns_to_keep.append(TIMESTAMP_COLUMN)
         if self.values_column is not None:
             columns_to_keep.append(self.values_column)
         vector_data = vector_data[columns_to_keep]
 
         if self._rasterize_per_timestamp:
-            vector_data["TIMESTAMP"] = vector_data.TIMESTAMP.apply(parse_time)
-            vector_data = vector_data[vector_data.TIMESTAMP.isin(timestamps)]
+            vector_data[TIMESTAMP_COLUMN] = vector_data[TIMESTAMP_COLUMN].apply(parse_time)
+            vector_data = vector_data[vector_data[TIMESTAMP_COLUMN].isin(timestamps)]
 
         if self.values_column is not None and self.values is not None:
             values = [self.values] if isinstance(self.values, (int, float)) else self.values
@@ -251,7 +247,7 @@ class VectorToRasterTask(EOTask):
                 return self.raster_shape
 
             feature_type, feature_name = self.parse_feature(
-                self.raster_shape, allowed_feature_types=FeatureTypeSet.RASTER_TYPES
+                self.raster_shape, allowed_feature_types=lambda fty: fty.is_array()
             )
             return eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))  # cast verified in parser
 
@@ -268,7 +264,7 @@ class VectorToRasterTask(EOTask):
     def _get_raster(self, eopatch: EOPatch, height: int, width: int) -> np.ndarray:
         """Provides raster into which data will be written"""
         feature_type, feature_name = self.raster_feature
-        raster_shape = (len(eopatch.timestamp), height, width) if self._rasterize_per_timestamp else (height, width)
+        raster_shape = (len(eopatch.timestamps), height, width) if self._rasterize_per_timestamp else (height, width)
 
         if self.write_to_existing and feature_name in eopatch[feature_type]:
             raster = eopatch[self.raster_feature]
@@ -336,7 +332,7 @@ class VectorToRasterTask(EOTask):
             rasterio_dtype = self._RASTERIO_DTYPES_MAP[original_dtype]
             raster = raster.astype(rasterio_dtype)
 
-        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamp)}
+        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamps)}
 
         for timestamp, shape_iterator in vector_data_iterator:
             if shape_iterator is None:
@@ -395,14 +391,14 @@ class RasterToVectorTask(EOTask):
         :param: rasterio_params: Additional parameters to be passed to `rasterio.features.shapes`. Currently,
             available is parameter `connectivity`.
         """
-        self.feature_parser = self.get_feature_parser(features, allowed_feature_types=FeatureTypeSet.DISCRETE_TYPES)
+        self.feature_parser = self.get_feature_parser(features, allowed_feature_types=lambda fty: fty.is_discrete())
         self.values = values
         self.values_column = values_column
         self.raster_dtype = raster_dtype
         self.rasterio_params = rasterio_params
 
     def _vectorize_single_raster(
-        self, raster: np.ndarray, affine_transform: Affine, crs: CRS, timestamp: Optional[dt.datetime] = None
+        self, raster: np.ndarray, affine_transform: Affine, crs: CRS, timestamps: Optional[dt.datetime] = None
     ) -> GeoDataFrame:
         """Vectorizes a data slice of a single time component
 
@@ -431,8 +427,8 @@ class RasterToVectorTask(EOTask):
                 value_list.append(value)
 
         series_dict = {self.values_column: pd.Series(value_list, dtype=self.raster_dtype)}
-        if timestamp is not None:
-            series_dict["TIMESTAMP"] = pd.to_datetime([timestamp] * len(geo_list))
+        if timestamps is not None:
+            series_dict[TIMESTAMP_COLUMN] = pd.to_datetime([timestamps] * len(geo_list))
 
         vector_data = GeoDataFrame(series_dict, geometry=geo_list, crs=crs.pyproj_crs())
 
@@ -468,7 +464,7 @@ class RasterToVectorTask(EOTask):
             else:
                 gpd_list = [
                     self._vectorize_single_raster(
-                        raster[time_idx, ...], affine_transform, crs, timestamp=eopatch.timestamp[time_idx]
+                        raster[time_idx, ...], affine_transform, crs, timestamps=eopatch.timestamps[time_idx]
                     )
                     for time_idx in range(raster.shape[0])
                 ]
@@ -488,7 +484,7 @@ def _is_geopandas_object(data: object) -> bool:
 def _vector_is_timeless(vector_input: Union[GeoDataFrame, Tuple[FeatureType, Any]]) -> bool:
     """Used to check if the vector input (either geopandas object EOPatch Feature) is time independent"""
     if _is_geopandas_object(vector_input):
-        return "TIMESTAMP" not in vector_input
+        return TIMESTAMP_COLUMN not in vector_input
 
     vector_type, _ = vector_input
     return vector_type.is_timeless()

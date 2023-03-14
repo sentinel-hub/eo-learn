@@ -1,14 +1,14 @@
 """
-Credits:
-Copyright (c) 2020 Beno Šircelj (Josef Stefan Institute)
-Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import numpy as np
 from pytest import approx
+
+from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproximationTask
@@ -16,13 +16,13 @@ from eolearn.features.doubly_logistic_approximation import DoublyLogisticApproxi
 
 def test_double_logistic_approximation(example_eopatch):
     data = example_eopatch.data["NDVI"]
-    timestamps = example_eopatch.timestamp
+    timestamps = example_eopatch.timestamps
     mask = example_eopatch.mask["IS_VALID"]
     indices = list(np.nonzero([t.year == 2016 for t in timestamps])[0])
     start, stop = indices[0], indices[-1] + 2
 
-    eopatch = EOPatch()
-    eopatch.timestamp = timestamps[start:stop]
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
+    eopatch.timestamps = timestamps[start:stop]
     eopatch.data["TEST"] = np.reshape(data[start:stop, 0, 0, 0], (-1, 1, 1, 1))
     eopatch.mask["IS_VALID"] = np.reshape(mask[start:stop, 0, 0, 0], (-1, 1, 1, 1))
     eopatch = DoublyLogisticApproximationTask(

@@ -2,14 +2,10 @@
 Module for basic feature manipulations, i.e. removing a feature from EOPatch, or removing a slice (time-frame) from
 the time-dependent features.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -20,11 +16,14 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Union, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
+from typing_extensions import Literal
 
 from sentinelhub import bbox_to_dimensions
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet, MapFeatureTask
-from eolearn.core.types import FeaturesSpecification, Literal, SingleFeatureSpec
+from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
+from eolearn.core.constants import TIMESTAMP_COLUMN
+from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_features
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
 
@@ -50,8 +49,9 @@ class SimpleFilterTask(EOTask):
         :param filter_func: A callable that takes a numpy evaluates to bool.
         :param filter_features: A collection of features which will be filtered into a new EOPatch
         """
+
         self.feature = self.parse_feature(
-            feature, allowed_feature_types=FeatureTypeSet.TEMPORAL_TYPES.difference([FeatureType.VECTOR])
+            feature, allowed_feature_types=lambda fty: fty.is_temporal() and not fty.is_vector()
         )
         self.filter_func = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
@@ -64,28 +64,28 @@ class SimpleFilterTask(EOTask):
     def _filter_vector_feature(gdf: GeoDataFrame, good_idxs: List[int], timestamps: List[dt.datetime]) -> GeoDataFrame:
         """Filters rows that don't match with the timestamps that will be kept."""
         timestamps_to_keep = {timestamps[idx] for idx in good_idxs}
-        return gdf[gdf.TIMESTAMP.isin(timestamps_to_keep)]
+        return gdf[gdf[TIMESTAMP_COLUMN].isin(timestamps_to_keep)]
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """
         :param eopatch: An input EOPatch.
         :return: A new EOPatch with filtered features.
         """
-        filtered_eopatch = EOPatch()
+        filtered_eopatch = EOPatch(bbox=eopatch.bbox)
         good_idxs = self._get_filtered_indices(eopatch[self.feature])
 
         for feature in self.filter_features_parser.get_features(eopatch):
             feature_type, _ = feature
             data = eopatch[feature]
 
-            if feature_type is FeatureType.TIMESTAMP:
+            if feature_type is FeatureType.TIMESTAMPS:
                 data = [data[idx] for idx in good_idxs]
 
             elif feature_type.is_temporal():
-                if feature_type.is_raster():
+                if feature_type.is_array():
                     data = data[good_idxs]
                 else:
-                    data = self._filter_vector_feature(data, good_idxs, eopatch.timestamp)
+                    data = self._filter_vector_feature(data, good_idxs, eopatch.timestamps)
 
             filtered_eopatch[feature] = data
 
@@ -112,7 +112,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         if not isinstance(start_date, dt.datetime) or not isinstance(end_date, dt.datetime):
             raise ValueError("Both start_date and end_date must be datetime.datetime objects.")
 
-        super().__init__((FeatureType.TIMESTAMP, None), self._filter_func, filter_features)
+        super().__init__((FeatureType.TIMESTAMPS, None), self._filter_func, filter_features)
 
 
 class ValueFilloutTask(EOTask):
@@ -293,7 +293,7 @@ class SpatialResizeTask(EOTask):
         else:
             resize_fun_kwargs = {self.resize_type.value: (self.height_param, self.width_param)}
 
-        for ftype, fname, new_name in self.parse_renamed_features(self.features, eopatch=eopatch):
-            if ftype.is_spatial() and ftype.is_raster():
+        for ftype, fname, new_name in parse_renamed_features(self.features, eopatch=eopatch):
+            if ftype.is_spatial() and ftype.is_array():
                 eopatch[ftype, new_name] = self.resize_function(eopatch[ftype, fname], **resize_fun_kwargs)
         return eopatch

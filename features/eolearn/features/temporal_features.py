@@ -1,14 +1,10 @@
 """
 Module handling processing of temporal features
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
 import itertools as it
@@ -188,11 +184,8 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
         """Task constructor
 
         :param data_feature: Name of data feature with NDVI values. Default is `'NDVI'`
-        :type data_feature: str
         :param argmax_feature: Name of feature with computed argmax values of the NDVI slope
-        :type argmax_feature: str
         :param argmin_feature: Name of feature with computed argmin values of the NDVI slope
-        :type argmin_feature: str
         :param mask_data: Flag for masking NDVI data. Default is `True`
         """
         self.data_feature = data_feature
@@ -219,7 +212,7 @@ class AddMaxMinNDVISlopeIndicesTask(EOTask):
 
         ndvi = np.ma.array(eopatch.data[self.data_feature], dtype=np.float32, mask=~valid_data_mask.astype(bool))
 
-        all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
+        all_dates = np.asarray([x.toordinal() for x in eopatch.timestamps])
 
         if ndvi.ndim == 4:
             h, w = ndvi.shape[1:3]

@@ -11,6 +11,17 @@ help:
 	@echo "Use 'make upload-<package>' to upload the package to PyPi"
 	@echo "Use 'make pylint' to run pylint on the code of all subpackages"
 
+mypy:
+	mypy \
+	core/eolearn/core \
+	coregistration/eolearn/coregistration \
+	geometry/eolearn/geometry \
+	features/eolearn/features \
+	io/eolearn/io \
+	mask/eolearn/mask \
+	ml_tools/eolearn/ml_tools \
+	visualization/eolearn/visualization
+
 pylint:
 	# Runs pylint on all subpackages consecutively and makes sure any error status code gets propagated.
 	export PYLINT_STATUS=0

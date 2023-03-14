@@ -5,28 +5,24 @@ report which contains summary of the workflow and process of execution.
 
 All this is implemented in EOExecutor class.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import concurrent.futures
 import datetime as dt
 import inspect
 import logging
-import sys
 import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
+from typing_extensions import Protocol
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
@@ -34,14 +30,6 @@ from .exceptions import EORuntimeWarning
 from .utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, unpickle_fs
 from .utils.logging import LogFileFilter
 from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
-
-if sys.version_info < (3, 8):
-    from typing_extensions import Protocol
-else:
-    from typing import Protocol  # pylint: disable=ungrouped-imports
-
-if TYPE_CHECKING:
-    from eolearn.visualization.eoexecutor import EOExecutorVisualization
 
 
 class _HandlerWithFsFactoryType(Protocol):
@@ -357,7 +345,7 @@ class EOExecutor:
             return get_full_path(self.filesystem, report_path)
         return report_path
 
-    def make_report(self, include_logs: bool = True) -> "EOExecutorVisualization":
+    def make_report(self, include_logs: bool = True) -> None:
         """Makes a html report and saves it into the same folder where logs are stored.
 
         :param include_logs: If `True` log files will be loaded into the report file. If `False` they will be just

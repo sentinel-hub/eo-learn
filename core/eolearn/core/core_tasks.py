@@ -1,15 +1,10 @@
 """
 A collection of most basic EOTasks
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -96,26 +91,21 @@ class SaveTask(IOTask):
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
-        :type overwrite_permission: OverwritePermission or int
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
-        :type compress_level: int
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
-    def execute(self, eopatch: EOPatch, *, eopatch_folder: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, eopatch_folder: str = "") -> EOPatch:
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
-        :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it won't save anything.
+        :param eopatch_folder: Name of EOPatch folder containing data.
         :return: The same EOPatch
         """
-        if eopatch_folder is None:
-            return eopatch
-
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
         eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
         return eopatch
@@ -131,25 +121,20 @@ class LoadTask(IOTask):
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
         :param features: A collection of features to be loaded. By default, all features will be loaded.
         :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
-        :type lazy_loading: bool
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, eopatch_folder: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: Optional[EOPatch] = None, *, eopatch_folder: str = "") -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch: Optional input EOPatch. If given the loaded features are merged onto it, otherwise a new EOPatch
             is created.
-        :param eopatch_folder: Name of EOPatch folder containing data. If `None` is given it will return an empty
-            or modified `EOPatch` (depending on the task input).
+        :param eopatch_folder: Name of EOPatch folder containing data.
         :return: EOPatch loaded from disk
         """
-        if eopatch_folder is None:
-            return eopatch or EOPatch()
-
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
         loaded_patch = EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
         if eopatch is None:
@@ -196,11 +181,8 @@ class RemoveFeatureTask(EOTask):
         :param eopatch: input EOPatch
         :return: input EOPatch without the specified feature
         """
-        for feature_type, feature_name in self.feature_parser.get_features(eopatch):
-            if feature_name is None:
-                eopatch.reset_feature_type(feature_type)
-            else:
-                del eopatch[feature_type][feature_name]
+        for feature in self.feature_parser.get_features(eopatch):
+            del eopatch[feature]
 
         return eopatch
 
@@ -292,7 +274,7 @@ class InitializeFeatureTask(EOTask):
         self.shape: Union[None, Tuple[int, int, int], Tuple[int, int, int, int]]
 
         try:
-            self.shape_feature = self.parse_feature(shape)
+            self.shape_feature = self.parse_feature(shape)  # type: ignore[arg-type]
         except ValueError:
             self.shape_feature = None
 
@@ -423,10 +405,8 @@ class MapFeatureTask(EOTask):
 
         return eopatch
 
-    def map_method(self, feature):
-        """
-        A function that will be applied to the input features.
-        """
+    def map_method(self, feature: Any) -> Any:
+        """A function that will be applied to the input features."""
         raise NotImplementedError("map_method should be overridden.")
 
 
@@ -502,7 +482,7 @@ class ZipFeatureTask(EOTask):
 
         return eopatch
 
-    def zip_method(self, *f):
+    def zip_method(self, *features: Any) -> Any:
         """A function that will be applied to the input features if overridden."""
         raise NotImplementedError("zip_method should be overridden.")
 
@@ -527,7 +507,7 @@ class ExtractBandsTask(MapFeatureTask):
         super().__init__(input_feature, output_feature)
         self.bands = bands
 
-    def map_method(self, feature):
+    def map_method(self, feature: np.ndarray) -> np.ndarray:
         if not all(band < feature.shape[-1] for band in self.bands):
             raise ValueError("Band index out of feature's dimensions.")
 

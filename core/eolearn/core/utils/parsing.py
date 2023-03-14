@@ -1,20 +1,15 @@
 """
 A module implementing the FeatureParser class that simplifies specifying features.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
 from ..types import (
@@ -45,7 +40,7 @@ class FeatureParser:
       appropriate point.
     - The user can provide ellipsis `...` as a way to specify all features. When combined with a feature type it is
       understood as all features of a given type. When using `...` an EOPatch must be provided when parsing features,
-      except when used only for BBox and timestamp features.
+      except when used only for `BBOX` and `TIMESTAMPS` features.
     - The parser can output pairs `(feature_type, feature_name)` or triples `(feature_type, old_name, new_name)`, which
       come in hand in many cases. If the user does not provide an explicit new name, the `old_name` and `new_name` are
       equal.
@@ -54,7 +49,7 @@ class FeatureParser:
 
     1. Ellipsis `...` signify that all features of all types should be parsed.
 
-    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMP` or a tuple where the
+    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMPS` or a tuple where the
        first element is a `FeatureType` element and the other (or two for renaming) is a string.
 
     3. Dictionary mapping `feature_type` keys to sequences of feature names. Feature names are either a sequence of
@@ -95,7 +90,7 @@ class FeatureParser:
     def __init__(
         self,
         features: FeaturesSpecification,
-        allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...,
+        allowed_feature_types: Union[Iterable[FeatureType], Callable[[FeatureType], bool], EllipsisType] = ...,
     ):
         """
         :param features: A collection of features in one of the supported formats
@@ -103,16 +98,19 @@ class FeatureParser:
             an error is raised
         :raises: ValueError
         """
-        self.allowed_feature_types = (
-            set(allowed_feature_types) if isinstance(allowed_feature_types, Iterable) else set(FeatureType)
-        )
+        if callable(allowed_feature_types):
+            self.allowed_feature_types = set(filter(allowed_feature_types, FeatureType))
+        else:
+            self.allowed_feature_types = (
+                set(allowed_feature_types) if isinstance(allowed_feature_types, Iterable) else set(FeatureType)
+            )
         self._feature_specs = self._parse_features(features)
 
     def _parse_features(self, features: FeaturesSpecification) -> List[_ParserFeaturesSpec]:
         """This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
 
         Due to typing issues the all-features requests are transformed from `(ftype, ...)` to `(ftype, None, None)`.
-        This is a correct schema for BBOX and TIMESTAMP while for other features this is corrected when outputting,
+        This is a correct schema for BBOX and TIMESTAMPS while for other features this is corrected when outputting,
         either by processing the request or by substituting ellipses back (case of `get_feature_specifications`).
         """
 
@@ -243,7 +241,7 @@ class FeatureParser:
 
         Should only be used after the viable names `...` and `None` have already been handled.
         """
-        if not feature_type.has_dict():
+        if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
             raise ValueError(
                 f"For features of type {feature_type} the only acceptable specification is `...` or `None`, got"
                 f" {specification} instead."
@@ -284,7 +282,7 @@ class FeatureParser:
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
-            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMP:
+            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMPS:
                 parsed_features.append((ftype, None, None))
 
             elif old_name is not None and new_name is not None:
@@ -306,7 +304,7 @@ class FeatureParser:
 def parse_feature(
     feature: SingleFeatureSpec,
     eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...,
+    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
 ) -> Tuple[FeatureType, Optional[str]]:
     """Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
@@ -322,7 +320,7 @@ def parse_feature(
 def parse_renamed_feature(
     feature: SingleFeatureSpec,
     eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...,
+    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
 ) -> FeatureRenameSpec:
     """Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
 
@@ -338,7 +336,7 @@ def parse_renamed_feature(
 def parse_features(
     features: FeaturesSpecification,
     eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...,
+    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
 ) -> List[FeatureSpec]:
     """Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
@@ -350,7 +348,7 @@ def parse_features(
 def parse_renamed_features(
     features: FeaturesSpecification,
     eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[Iterable[FeatureType], EllipsisType] = ...,
+    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
 ) -> List[FeatureRenameSpec]:
     """Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 

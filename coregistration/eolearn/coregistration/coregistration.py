@@ -1,14 +1,10 @@
 """
 This module implements the co-registration transformers.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2019-2020 Jernej Puc, Lojze Žust (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -138,7 +134,7 @@ class ECCRegistrationTask(EOTask):
 
         reference_image = eopatch[self.reference_feature][..., self.channel]
 
-        new_eopatch = EOPatch(bbox=eopatch.bbox, timestamp=eopatch.timestamp)
+        new_eopatch = EOPatch(bbox=eopatch.bbox, timestamps=eopatch.timestamps)
         for feature_type, feature_name in self.apply_features_parser.get_features(eopatch):
             new_eopatch[feature_type][feature_name] = np.zeros_like(eopatch[feature_type][feature_name])
 

@@ -20,7 +20,8 @@ disable = [
     "unsubscriptable-object",
     "invalid-unary-operand-type",
     "unspecified-encoding",
-    "unnecessary-ellipsis"
+    "unnecessary-ellipsis",
+    "use-dict-literal"
 ]
 
 [tool.pylint.design]
@@ -82,8 +83,8 @@ show_error_codes = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-# disallow_untyped_defs = true
-# disallow_untyped_decorators = true
+disallow_untyped_defs = true
+disallow_untyped_decorators = true
 warn_unreachable = true
 strict_equality = true
 pretty = true

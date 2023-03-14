@@ -1,12 +1,10 @@
 """
 Module for radiometric normalization
 
-Credits:
-Copyright (c) 2018-2019 Johannes Schmid (GeoVille)
-Copyright (c) 2017-2022 Matej Aleksandrov, Matic Lubej, Devis Peressutti, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -17,6 +15,7 @@ import numpy as np
 
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.types import SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_feature
 
 
 class ReferenceScenesTask(EOTask):
@@ -40,7 +39,7 @@ class ReferenceScenesTask(EOTask):
         valid_fraction_feature: SingleFeatureSpec,
         max_scene_number: Optional[int] = None,
     ):
-        self.renamed_feature = self.parse_renamed_feature(feature)
+        self.renamed_feature = parse_renamed_feature(feature)
         self.valid_fraction_feature = self.parse_feature(valid_fraction_feature)
         self.number = max_scene_number
 
@@ -375,7 +374,7 @@ class HistogramMatchingTask(EOTask):
     """
 
     def __init__(self, feature: SingleFeatureSpec, reference: SingleFeatureSpec):
-        self.renamed_feature = self.parse_renamed_feature(feature)
+        self.renamed_feature = parse_renamed_feature(feature)
         self.reference = self.parse_feature(reference)
 
     def execute(self, eopatch: EOPatch) -> EOPatch:

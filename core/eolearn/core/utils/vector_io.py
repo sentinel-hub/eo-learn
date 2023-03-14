@@ -1,18 +1,17 @@
 """
 A module implementing utilities for working with geopackage files
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Žiga Lukšič (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 # pylint: skip-file
 import numpy as np
 from geopandas.io.file import _geometry_types
 
 
-def infer_schema(df):
+def infer_schema(df):  # type: ignore[no-untyped-def]
     """This function is copied over from GeoPandas, part of geopandas.io.file module, with the sole purpose of
     disabling the `if df.empty` check that prevents saving an empty dataframe. Will be removed after GeoPandas
     version 0.11 fixes the problem.
@@ -23,7 +22,7 @@ def infer_schema(df):
     # TODO: test pandas string type and boolean type once released
     types = {"Int64": "int", "string": "str", "boolean": "bool"}
 
-    def convert_type(column, in_type):
+    def convert_type(column, in_type):  # type: ignore[no-untyped-def]
         if in_type == object:
             return "str"
         if in_type.name.startswith("datetime64"):

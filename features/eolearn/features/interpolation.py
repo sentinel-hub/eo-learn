@@ -1,15 +1,10 @@
 """
 Module for interpolating, smoothing and re-sampling features in EOPatch
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
-Copyright (c) 2018-2019 Filip Koprivec (Jožef Stefan Institute)
-Copyright (c) 2018-2019 William Ouellette
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from __future__ import annotations
 
@@ -24,9 +19,10 @@ import numpy as np
 import scipy.interpolate
 from sklearn.gaussian_process import GaussianProcessRegressor
 
-from eolearn.core import EOPatch, EOTask, FeatureType, FeatureTypeSet
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EOUserWarning
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.utils.parsing import parse_renamed_feature
 
 try:
     import numba
@@ -133,7 +129,9 @@ class InterpolationTask(EOTask):
         interpolate_pixel_wise: bool = False,
         **interpolation_parameters: Any,
     ):
-        self.renamed_feature = self.parse_renamed_feature(feature, allowed_feature_types=FeatureTypeSet.RASTER_TYPES_4D)
+        self.renamed_feature = parse_renamed_feature(
+            feature, allowed_feature_types=[FeatureType.MASK, FeatureType.DATA]
+        )
 
         self.interpolation_object = interpolation_object
         self.resample_range = resample_range
@@ -319,9 +317,11 @@ class InterpolationTask(EOTask):
         # array defining index correspondence between reference times and resampled times
         ori2res = np.array(
             [
-                np.abs(resampled_times - o).argmin()
-                if np.min(resampled_times) <= o <= np.max(resampled_times)
-                else None
+                (
+                    np.abs(resampled_times - o).argmin()
+                    if np.min(resampled_times) <= o <= np.max(resampled_times)
+                    else None
+                )
                 for o in times
             ]
         )
@@ -363,7 +363,7 @@ class InterpolationTask(EOTask):
             return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
-    def get_resampled_timestamp(self, timestamp: List[dt.datetime]) -> List[dt.datetime]:
+    def get_resampled_timestamp(self, timestamps: List[dt.datetime]) -> List[dt.datetime]:
         """Takes a list of timestamps and generates new list of timestamps according to ``resample_range``
 
         :param timestamp: list of timestamps
@@ -371,7 +371,7 @@ class InterpolationTask(EOTask):
         """
         days: List[dt.datetime]
         if self.resample_range is None:
-            return timestamp
+            return timestamps
 
         if not isinstance(self.resample_range, (tuple, list)):
             raise ValueError(f"Invalid resample_range {self.resample_range}, expected tuple")
@@ -401,21 +401,21 @@ class InterpolationTask(EOTask):
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
 
         An array is constructed as time_series[i] = (timestamp[i] - ref_date).total_seconds().
-        If reference date is None the first date in the EOPatch's timestamp is taken.
-        If EOPatch timestamp attribute is empty the method returns None.
+        If reference date is None the first date in the EOPatch's timestamp array is taken.
+        If EOPatch `timestamps` attribute is empty the method returns None.
 
         :param eopatch: the EOPatch whose timestamps are used to construct the time series
         :param ref_date: reference date relative to which the time is measured
         :param scale_time: scale seconds by factor. If `60`, time will be in minutes, if `3600` hours
         """
-        if not eopatch.timestamp:
+        if not eopatch.timestamps:
             return np.zeros(0, dtype=np.int64)
 
         if ref_date is None:
-            ref_date = eopatch.timestamp[0]
+            ref_date = eopatch.timestamps[0]
 
         return np.asarray(
-            [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in eopatch.timestamp],
+            [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in eopatch.timestamps],
             dtype=np.int64,
         )
 
@@ -443,19 +443,15 @@ class InterpolationTask(EOTask):
         feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
 
         # If resampling create new EOPatch
-        new_eopatch = EOPatch() if self.resample_range else eopatch
+        new_eopatch = EOPatch(bbox=eopatch.bbox) if self.resample_range else eopatch
 
         # Resample times
         times = self._get_eopatch_time_series(eopatch, scale_time=self.scale_time)
-        new_eopatch.timestamp = self.get_resampled_timestamp(eopatch.timestamp)
-        total_diff = int((new_eopatch.timestamp[0].date() - eopatch.timestamp[0].date()).total_seconds())
+        new_eopatch.timestamps = self.get_resampled_timestamp(eopatch.timestamps)
+        total_diff = int((new_eopatch.timestamps[0].date() - eopatch.timestamps[0].date()).total_seconds())
         resampled_times = (
             self._get_eopatch_time_series(new_eopatch, scale_time=self.scale_time) + total_diff // self.scale_time
         )
-
-        # Add BBox to eopatch if it was created anew
-        if new_eopatch.bbox is None:
-            new_eopatch.bbox = eopatch.bbox
 
         # Replace duplicate acquisitions which have same values on the chosen timescale with their average
         feature_data, times = self._get_unique_times(feature_data, times)

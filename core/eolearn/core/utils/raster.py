@@ -1,19 +1,15 @@
 """
 Useful utilities for working with raster data, typically `numpy` arrays.
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Domagoj Korais, Matic Lubej, Žiga Lukšič (Sinergise)
-Copyright (c) 2017-2022 Devis Peressutti, Nejc Vesel, Jovan Višnjić, Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from typing import Tuple
 
 import numpy as np
-
-from ..types import Literal
+from typing_extensions import Literal
 
 
 def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "linear") -> np.ndarray:

@@ -1,22 +1,48 @@
 """
 This module implements feature types used in EOPatch objects
 
-Credits:
-Copyright (c) 2017-2022 Matej Aleksandrov, Matej Batič, Grega Milčinski, Domagoj Korais, Matic Lubej (Sinergise)
-Copyright (c) 2017-2022 Žiga Lukšič, Devis Peressutti, Tomislav Slijepčević, Nejc Vesel, Jovan Višnjić (Sinergise)
-Copyright (c) 2017-2022 Anže Zupanc (Sinergise)
-Copyright (c) 2017-2019 Blaž Sovdat, Andrej Burja (Sinergise)
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-from enum import Enum
-from typing import Optional
+import warnings
+from enum import Enum, EnumMeta
+from typing import Any, Optional
 
 from sentinelhub import BBox, MimeType
+from sentinelhub.exceptions import deprecated_function
+
+from .exceptions import EODeprecationWarning
+
+TIMESTAMP_COLUMN = "TIMESTAMP"
 
 
-class FeatureType(Enum):
+def _warn_and_adjust(name: str) -> str:
+    # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
+    deprecation_msg = None
+    if name in ("TIMESTAMP", "timestamp"):
+        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
+
+    if deprecation_msg:
+        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore
+    return name
+
+
+class EnumWithDeprecations(EnumMeta):
+    """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
+
+    def __getattribute__(cls, name: str) -> Any:
+        return super().__getattribute__(_warn_and_adjust(name))
+
+    def __getitem__(cls, name: str) -> Any:
+        return super().__getitem__(_warn_and_adjust(name))
+
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:
+        return super().__call__(_warn_and_adjust(value), *args, **kwargs)
+
+
+class FeatureType(Enum, metaclass=EnumWithDeprecations):
     """The Enum class of all possible feature types that can be included in EOPatch.
 
     List of feature types:
@@ -36,7 +62,7 @@ class FeatureType(Enum):
      - VECTOR_TIMELESS: time-independent vector shapes in shapely.geometry classes
      - META_INFO: dictionary of additional info (e.g. resolution, time difference)
      - BBOX: bounding box of the patch which is an instance of sentinelhub.BBox
-     - TIMESTAMP: list of dates which are instances of datetime.datetime
+     - TIMESTAMPS: list of dates which are instances of datetime.datetime
     """
 
     # IMPORTANT: these feature names must exactly match those in EOPatch constructor
@@ -52,7 +78,7 @@ class FeatureType(Enum):
     VECTOR_TIMELESS = "vector_timeless"
     META_INFO = "meta_info"
     BBOX = "bbox"
-    TIMESTAMP = "timestamp"
+    TIMESTAMPS = "timestamps"
 
     @classmethod
     def has_value(cls, value: str) -> bool:
@@ -61,43 +87,91 @@ class FeatureType(Enum):
 
     def is_spatial(self) -> bool:
         """True if FeatureType has a spatial component. False otherwise."""
-        return self in FeatureTypeSet.SPATIAL_TYPES
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.VECTOR,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+        ]
 
     def is_temporal(self) -> bool:
         """True if FeatureType has a time component. False otherwise."""
-        return self in FeatureTypeSet.TEMPORAL_TYPES
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.VECTOR,
+            FeatureType.TIMESTAMPS,
+        ]
 
     def is_timeless(self) -> bool:
         """True if FeatureType doesn't have a time component and is not a meta feature. False otherwise."""
-        return self in FeatureTypeSet.TIMELESS_TYPES
+        return not (self.is_temporal() or self.is_meta())
 
     def is_discrete(self) -> bool:
         """True if FeatureType should have discrete (integer) values. False otherwise."""
-        return self in FeatureTypeSet.DISCRETE_TYPES
+        return self in [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
 
     def is_meta(self) -> bool:
         """True if FeatureType is for storing metadata info and False otherwise."""
-        return self in FeatureTypeSet.META_TYPES
+        return self in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS]
 
     def is_vector(self) -> bool:
         """True if FeatureType is vector feature type. False otherwise."""
-        return self in FeatureTypeSet.VECTOR_TYPES
+        return self in [FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS]
 
-    def has_dict(self) -> bool:
-        """True if FeatureType stores a dictionary. False otherwise."""
-        return self in FeatureTypeSet.DICT_TYPES
+    def is_array(self) -> bool:
+        """True if FeatureType stores a dictionary with array data. False otherwise."""
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+        ]
 
+    def is_image(self) -> bool:
+        """True if FeatureType stores a dictionary with arrays that represent images. False otherwise."""
+        return self.is_array() and self.is_spatial()
+
+    @deprecated_function(
+        EODeprecationWarning, "Use the equivalent `is_array` method, or consider if `is_image` fits better."
+    )
     def is_raster(self) -> bool:
         """True if FeatureType stores a dictionary with raster data. False otherwise."""
-        return self in FeatureTypeSet.RASTER_TYPES
+        return self.is_array()
 
+    @deprecated_function(EODeprecationWarning)
+    def has_dict(self) -> bool:
+        """True if FeatureType stores a dictionary. False otherwise."""
+        return self in [
+            FeatureType.DATA,
+            FeatureType.MASK,
+            FeatureType.SCALAR,
+            FeatureType.LABEL,
+            FeatureType.VECTOR,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK_TIMELESS,
+            FeatureType.SCALAR_TIMELESS,
+            FeatureType.LABEL_TIMELESS,
+            FeatureType.VECTOR_TIMELESS,
+            FeatureType.META_INFO,
+        ]
+
+    @deprecated_function(EODeprecationWarning)
     def contains_ndarrays(self) -> bool:
         """True if FeatureType stores a dictionary of numpy.ndarrays. False otherwise."""
-        return self in FeatureTypeSet.RASTER_TYPES
+        return self.is_array()
 
     def ndim(self) -> Optional[int]:
         """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays."""
-        if self.is_raster():
+        if self.is_array():
             return {
                 FeatureType.DATA: 4,
                 FeatureType.MASK: 4,
@@ -110,17 +184,19 @@ class FeatureType(Enum):
             }[self]
         return None
 
+    @deprecated_function(EODeprecationWarning)
     def type(self) -> type:
         """Returns type of the data for the given FeatureType."""
-        if self is FeatureType.TIMESTAMP:
+        if self is FeatureType.TIMESTAMPS:
             return list
         if self is FeatureType.BBOX:
             return BBox
         return dict
 
+    @deprecated_function(EODeprecationWarning)
     def file_format(self) -> MimeType:
         """Returns a mime type enum of a file format into which data of the feature type will be serialized"""
-        if self.is_raster():
+        if self.is_array():
             return MimeType.NPY
         if self.is_vector():
             return MimeType.GPKG
@@ -129,7 +205,24 @@ class FeatureType(Enum):
         return MimeType.JSON
 
 
-class FeatureTypeSet:
+class DeprecatedCollectionClass(type):
+    """A custom meta class for raising a warning when collections of the deprecated FeatureTypeSet class are used."""
+
+    def __getattribute__(cls, name: str) -> Any:
+        if not name.startswith("_"):
+            warnings.warn(
+                (
+                    "The `FeatureTypeSet` collections are deprecated. The argument `allowed_feature_types` of feature"
+                    " parsers can now be a callable, so you can use `lambda ftype: ftype.is_spatial()` instead of"
+                    " `FeatureTypeSet.SPATIAL_TYPES` in such cases."
+                ),
+                category=EODeprecationWarning,
+                stacklevel=3,
+            )
+        return super().__getattribute__(name)
+
+
+class FeatureTypeSet(metaclass=DeprecatedCollectionClass):
     """A collection of immutable sets of feature types, grouped together by certain properties."""
 
     SPATIAL_TYPES = frozenset(
@@ -149,7 +242,7 @@ class FeatureTypeSet:
             FeatureType.SCALAR,
             FeatureType.LABEL,
             FeatureType.VECTOR,
-            FeatureType.TIMESTAMP,
+            FeatureType.TIMESTAMPS,
         ]
     )
     TIMELESS_TYPES = frozenset(
@@ -164,7 +257,7 @@ class FeatureTypeSet:
     DISCRETE_TYPES = frozenset(
         [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
     )
-    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMP])
+    META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS])
     VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
     RASTER_TYPES = frozenset(
         [

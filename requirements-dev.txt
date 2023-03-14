@@ -2,13 +2,11 @@ codecov
 hypothesis
 moto
 mypy>=0.990
-nbval
 pylint>=2.14.0
 pytest>=7.0.0
 pytest-cov
 pytest-lazy-fixture
 pytest-mock
 ray[default]
-responses
 twine
 types-python-dateutil
