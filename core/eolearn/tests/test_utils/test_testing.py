@@ -145,7 +145,6 @@ def test_generate_eopatch_data(test_case: GenerateTestCase) -> None:
 @pytest.mark.parametrize(
     "feature",
     [
-        (FeatureType.META_INFO, "meta_info"),
         (FeatureType.VECTOR, "vector"),
         (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
     ],
@@ -156,6 +155,5 @@ def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
 
 
 def test_generate_meta_data() -> None:
-    meta_config = PatchGeneratorConfig(additional_types=FeatureType.META_INFO)
-    patch = generate_eopatch((FeatureType.META_INFO, "test_meta"), config=meta_config)
+    patch = generate_eopatch((FeatureType.META_INFO, "test_meta"))
     assert isinstance(patch.meta_info["test_meta"], str)

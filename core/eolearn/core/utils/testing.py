@@ -38,7 +38,6 @@ class PatchGeneratorConfig:
     max_integer_value: int = 256
     raster_shape: Tuple[int, int] = (98, 151)
     depth_range: Tuple[int, int] = (1, 3)
-    additional_types: Optional[FeatureType] = None
 
     def __post_init__(self) -> None:
         self.timestamps = list(pd.date_range(*self.timestamps_range, periods=self.num_timestamps).to_pydatetime())
@@ -53,11 +52,7 @@ def generate_eopatch(
 ) -> EOPatch:
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
-    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()]
-
-    if config.additional_types:
-        supported_feature_types.append(config.additional_types)
-
+    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()].append(FeatureType.META_INFO)
     parsed_features = FeatureParser(features or [], supported_feature_types).get_features()
     rng = np.random.default_rng(seed)
 
