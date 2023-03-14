@@ -53,7 +53,7 @@ def generate_eopatch(
     config = config if config is not None else PatchGeneratorConfig()
     try:
         parsed_features = FeatureParser(
-            features or [], lambda fty: fty.is_array() or fty == FeatureType.META_INFO
+            features or [], lambda feature_type: feature_type.is_array() or feature_type == FeatureType.META_INFO
         ).get_features()
     except ValueError:
         raise NotImplementedError
