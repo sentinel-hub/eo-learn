@@ -3,7 +3,7 @@
 - The codebase is now fully annotated and type annotations are mandatory for all new code.
 - In the future `EOPatch` objects will **require** a valid `bbox`. For now the users are warned when no such value is provided.
 - `SaveTask` and `LoadTask` now automatically save/load the bounding box whenever possible, even if not specified in `features` parameter. `CopyTask` and `MergeEOPatchesTask` also always include the bounding box when possible.
-- The `EOPatch` attribute `bbpx` can no longer be deleted via the `del` command.
+- The `EOPatch` attribute `bbox` can no longer be deleted via the `del` command.
 - The `EOPatch` attribute `timestamp` was renamed into `timestamps`. The old name still works, but the users are notified. Similarly for `FeatureType.TIMESTAMP` which was renamed to `FeatureType.TIMESTAMPS`.
 - Feature parsers from `eolearn.core.utils.parsers` now support callables as input for `allowed_feature_types`, which are used for filtration over all feature types. Due to this improvement the class `FeatureTypeSet` was deprecated.
 - Certain rarely used methods of `FeatureType` were deprecated. Method `is_raster` has been renamed to `is_array` and designates feature types that contain numpy arrays. We also added `is_image` for types that denote temporal and timeless imagery.
