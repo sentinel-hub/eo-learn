@@ -319,7 +319,7 @@ def test_equals() -> None:
 
 
 @pytest.fixture(scope="function", name="eopatch_spatial_dim")
-def eopatch_spatial_dim_fixtuer() -> EOPatch:
+def eopatch_spatial_dim_fixture() -> EOPatch:
     patch = EOPatch(bbox=DUMMY_BBOX)
     patch.data["A"] = np.zeros((1, 2, 3, 4))
     patch.mask["B"] = np.ones((4, 3, 2, 1), dtype=np.uint8)
