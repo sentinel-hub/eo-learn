@@ -52,7 +52,8 @@ def generate_eopatch(
 ) -> EOPatch:
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
-    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()].append(FeatureType.META_INFO)
+    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()]
+    supported_feature_types.append(FeatureType.META_INFO)
     parsed_features = FeatureParser(features or [], supported_feature_types).get_features()
     rng = np.random.default_rng(seed)
 
