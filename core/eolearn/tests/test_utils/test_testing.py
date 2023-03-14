@@ -152,7 +152,7 @@ def test_generate_eopatch_data(test_case: GenerateTestCase) -> None:
     ],
 )
 def test_generate_eopatch_fails(feature: FeaturesSpecification) -> None:
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         generate_eopatch(feature)
 
 
