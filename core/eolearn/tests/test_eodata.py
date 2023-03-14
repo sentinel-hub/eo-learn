@@ -318,18 +318,27 @@ def test_equals() -> None:
     assert eop1 != eop2
 
 
+@pytest.fixture(scope="function", name="eopatch_spatial_dim")
+def eopatch_spatial_dim_fixtuer() -> EOPatch:
+    patch = EOPatch(bbox=DUMMY_BBOX)
+    patch.data["A"] = np.zeros((1, 2, 3, 4))
+    patch.mask["B"] = np.ones((4, 3, 2, 1), dtype=np.uint8)
+    patch.mask_timeless["C"] = np.zeros((4, 5, 1), dtype=np.uint8)
+    return patch
+
+
 @pytest.mark.parametrize(
     "feature, expected_dim",
     [
-        [(FeatureType.DATA, "A"), (98, 151)],
-        [(FeatureType.MASK, "C"), (98, 151)],
-        [(FeatureType.MASK_TIMELESS, "E"), (98, 151)],
+        [(FeatureType.DATA, "A"), (2, 3)],
+        [(FeatureType.MASK, "B"), (3, 2)],
+        [(FeatureType.MASK_TIMELESS, "C"), (4, 5)],
     ],
 )
 def test_get_spatial_dimension(
-    feature: Tuple[FeatureType, str], expected_dim: Tuple[int, int], mini_eopatch: EOPatch
+    feature: Tuple[FeatureType, str], expected_dim: Tuple[int, int], eopatch_spatial_dim: EOPatch
 ) -> None:
-    assert mini_eopatch.get_spatial_dimension(*feature) == expected_dim
+    assert eopatch_spatial_dim.get_spatial_dimension(*feature) == expected_dim
 
 
 @pytest.mark.parametrize(
