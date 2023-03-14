@@ -7,6 +7,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
+import string
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple
 
@@ -50,18 +51,24 @@ def generate_eopatch(
 ) -> EOPatch:
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
-    supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()]
-    parsed_features = FeatureParser(features or [], supported_feature_types).get_features()
-    rng = np.random.default_rng(seed)
 
+    parsed_features = FeatureParser(
+        features or [], lambda feature_type: feature_type.is_array() or feature_type == FeatureType.META_INFO
+    ).get_features()
+
+    rng = np.random.default_rng(seed)
     timestamps = timestamps if timestamps is not None else config.timestamps
     patch = EOPatch(bbox=bbox, timestamps=timestamps)
 
     # fill eopatch with random data
     # note: the patch generation functionality could be extended by generating extra random features
     for ftype, fname in parsed_features:
-        shape = _get_feature_shape(rng, ftype, timestamps, config)
-        patch[(ftype, fname)] = _generate_feature_data(rng, ftype, shape, config)
+        if ftype == FeatureType.META_INFO:
+            patch[(ftype, fname)] = "".join(rng.choice(list(string.ascii_letters), 20))
+        else:
+            shape = _get_feature_shape(rng, ftype, timestamps, config)
+            patch[(ftype, fname)] = _generate_feature_data(rng, ftype, shape, config)
+
     return patch
 
 

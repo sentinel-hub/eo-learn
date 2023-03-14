@@ -50,10 +50,9 @@ def eopatch_fixture():
             FeatureType.MASK_TIMELESS: ["mask"],
             FeatureType.SCALAR: ["my scalar with spaces"],
             FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
+            FeatureType.META_INFO: ["something", "something-else"],
         }
     )
-    eopatch.meta_info["something"] = "nothing"
-    eopatch.meta_info["something-else"] = "nothing"
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],

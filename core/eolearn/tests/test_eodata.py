@@ -25,16 +25,14 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 @pytest.fixture(name="mini_eopatch")
 def mini_eopatch_fixture() -> EOPatch:
-    eop = generate_eopatch(
+    return generate_eopatch(
         {
             FeatureType.DATA: ["A", "B"],
             FeatureType.MASK: ["C", "D"],
             FeatureType.MASK_TIMELESS: ["E"],
+            FeatureType.META_INFO: ["beep"],
         }
     )
-    eop.meta_info["beep"] = "boop"
-
-    return eop
 
 
 def test_numpy_feature_types() -> None:
