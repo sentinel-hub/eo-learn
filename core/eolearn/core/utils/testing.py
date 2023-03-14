@@ -51,14 +51,15 @@ def generate_eopatch(
 ) -> EOPatch:
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
+
     try:
         parsed_features = FeatureParser(
             features or [], lambda feature_type: feature_type.is_array() or feature_type == FeatureType.META_INFO
         ).get_features()
-    except ValueError:
-        raise NotImplementedError
-    rng = np.random.default_rng(seed)
+    except ValueError as exc:
+        raise NotImplementedError("Generate eopatch can not generate that feature type.") from exc
 
+    rng = np.random.default_rng(seed)
     timestamps = timestamps if timestamps is not None else config.timestamps
     patch = EOPatch(bbox=bbox, timestamps=timestamps)
 
