@@ -61,7 +61,7 @@ def patch_fixture() -> EOPatch:
     )
     patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"])
 
-    patch.meta_info["something"] = np.random.rand(10, 1)
+    patch.meta_info["something"] = "beep boop"
     return patch
 
 
