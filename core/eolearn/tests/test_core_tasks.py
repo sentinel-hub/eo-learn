@@ -57,11 +57,10 @@ def patch_fixture() -> EOPatch:
             FeatureType.MASK: ["CLM"],
             FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"],
             FeatureType.SCALAR: ["values", "CLOUD_COVERAGE"],
+            FeatureType.META_INFO: ["something"],
         }
     )
     patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"])
-
-    patch.meta_info["something"] = "beep boop"
     return patch
 
 
