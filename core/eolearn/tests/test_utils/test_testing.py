@@ -147,10 +147,11 @@ def test_generate_eopatch_data(test_case: GenerateTestCase) -> None:
     [
         (FeatureType.VECTOR, "vector"),
         (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
+        {FeatureType.VECTOR_TIMELESS: ["vector_timeless"], FeatureType.META_INFO: ["test_meta"]},
     ],
 )
-def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
-    with pytest.raises(ValueError):
+def test_generate_eopatch_fails(feature: FeaturesSpecification) -> None:
+    with pytest.raises(NotImplementedError):
         generate_eopatch(feature)
 
 
