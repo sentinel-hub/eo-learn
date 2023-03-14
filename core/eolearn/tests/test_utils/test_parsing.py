@@ -168,7 +168,7 @@ def test_allowed_feature_types_iterable(test_input: FeaturesSpecification, allow
 
 @pytest.fixture(name="eopatch", scope="module")
 def eopatch_fixture():
-    patch = generate_eopatch(
+    return generate_eopatch(
         {
             FeatureType.DATA: ["data", "CLP"],
             FeatureType.MASK: ["data", "IS_VALID"],
@@ -176,7 +176,6 @@ def eopatch_fixture():
             FeatureType.META_INFO: ["something"],
         }
     )
-    return patch
 
 
 @pytest.mark.parametrize(
