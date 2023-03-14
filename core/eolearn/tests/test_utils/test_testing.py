@@ -61,6 +61,7 @@ def test_generate_eopatch_config(config: Dict[str, Any]) -> None:
             FeatureType.MASK_TIMELESS: "mask_timeless",
             FeatureType.SCALAR_TIMELESS: "scalar_timeless",
             FeatureType.LABEL_TIMELESS: "label_timeless",
+            FeatureType.META_INFO: "meta_info",
         },
     ],
 )
