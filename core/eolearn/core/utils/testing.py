@@ -7,6 +7,8 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import datetime as dt
+import random
+import string
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple
 
@@ -36,6 +38,7 @@ class PatchGeneratorConfig:
     max_integer_value: int = 256
     raster_shape: Tuple[int, int] = (98, 151)
     depth_range: Tuple[int, int] = (1, 3)
+    additional_types: Optional[FeatureType] = None
 
     def __post_init__(self) -> None:
         self.timestamps = list(pd.date_range(*self.timestamps_range, periods=self.num_timestamps).to_pydatetime())
@@ -51,6 +54,10 @@ def generate_eopatch(
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
     supported_feature_types = [ftype for ftype in FeatureType if ftype.is_array()]
+
+    if config.additional_types:
+        supported_feature_types.append(config.additional_types)
+
     parsed_features = FeatureParser(features or [], supported_feature_types).get_features()
     rng = np.random.default_rng(seed)
 
@@ -60,6 +67,9 @@ def generate_eopatch(
     # fill eopatch with random data
     # note: the patch generation functionality could be extended by generating extra random features
     for ftype, fname in parsed_features:
+        if ftype == FeatureType.META_INFO:
+            patch[(ftype, fname)] = "".join(random.choices(string.ascii_letters, k=20))
+            continue
         shape = _get_feature_shape(rng, ftype, timestamps, config)
         patch[(ftype, fname)] = _generate_feature_data(rng, ftype, shape, config)
     return patch

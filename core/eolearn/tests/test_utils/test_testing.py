@@ -153,3 +153,9 @@ def test_generate_eopatch_data(test_case: GenerateTestCase) -> None:
 def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
     with pytest.raises(ValueError):
         generate_eopatch(feature)
+
+
+def test_generate_meta_data() -> None:
+    meta_config = PatchGeneratorConfig(additional_types=FeatureType.META_INFO)
+    patch = generate_eopatch((FeatureType.META_INFO, "test_meta"), config=meta_config)
+    assert isinstance(patch.meta_info["test_meta"], str)
