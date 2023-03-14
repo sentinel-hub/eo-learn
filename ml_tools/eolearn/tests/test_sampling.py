@@ -14,9 +14,8 @@ from numpy.testing import assert_array_equal
 from pytest import approx
 from shapely.geometry import Point, Polygon
 
-from sentinelhub import CRS, BBox
-
 from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.utils.testing import PatchGeneratorConfig, generate_eopatch
 from eolearn.ml_tools import BlockSamplingTask, FractionSamplingTask, GridSamplingTask, sample_by_values
 from eolearn.ml_tools.sampling import expand_to_grids, get_mask_of_samples, random_point_in_triangle
 
@@ -134,11 +133,10 @@ def test_get_mask_of_samples(small_image: np.ndarray, n_samples: Dict[int, int])
 
 @pytest.fixture(name="eopatch")
 def eopatch_fixture(small_image: np.ndarray) -> EOPatch:
-    t, h, w, d = 10, *small_image.shape, 5
-    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
-    eopatch.data["bands"] = np.arange(t * h * w * d).reshape(t, h, w, d)
-    eopatch.mask_timeless["raster"] = small_image.reshape(small_image.shape + (1,))
-    return eopatch
+    config = PatchGeneratorConfig(raster_shape=small_image.shape, depth_range=(5, 6), num_timestamps=10)
+    patch = generate_eopatch([(FeatureType.DATA, "bands")], config=config)
+    patch.mask_timeless["raster"] = small_image.reshape(small_image.shape + (1,))
+    return patch
 
 
 SAMPLING_MASK = FeatureType.MASK_TIMELESS, "sampling_mask"
@@ -159,14 +157,15 @@ def block_task_fixture(request) -> EOTask:
 def test_object_sampling_task_mask(
     eopatch: EOPatch, small_image: np.ndarray, seed: int, block_task: BlockSamplingTask
 ) -> None:
-    t, h, w, d = 10, *small_image.shape, 5
+    t, h, w, d = eopatch.data["bands"].shape
+    dr = eopatch.mask_timeless["raster"].shape[2]
     amount = block_task.amount
 
     block_task.execute(eopatch, seed=seed)
     expected_amount = amount if isinstance(amount, int) else round(np.prod(small_image.shape) * amount)
 
     assert eopatch.data["SAMPLED_DATA"].shape == (t, expected_amount, 1, d)
-    assert eopatch.mask_timeless["SAMPLED_LABELS"].shape == (expected_amount, 1, 1)
+    assert eopatch.mask_timeless["SAMPLED_LABELS"].shape == (expected_amount, 1, dr)
     assert eopatch.mask_timeless["sampling_mask"].shape == (h, w, 1)
 
     sampled_uniques, sampled_counts = np.unique(eopatch.data["SAMPLED_DATA"], return_counts=True)

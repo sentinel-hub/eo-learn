@@ -44,32 +44,30 @@ from eolearn.core import (
 from eolearn.core.core_tasks import ExplodeBandsTask
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_features
-from eolearn.core.utils.testing import assert_feature_data_equal
+from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 
 
 @pytest.fixture(name="patch")
 def patch_fixture() -> EOPatch:
-    patch = EOPatch(bbox=BBox((324.54, 546.45, 955.4, 63.43), CRS(3857)))
-    patch.data["bands"] = np.arange(5 * 3 * 4 * 8).reshape(5, 3, 4, 8)
-    patch.data["CLP"] = np.full((5, 3, 4, 1), 0.7)
-    patch.data["CLP_S2C"] = np.zeros((5, 3, 4, 1), dtype=np.int64)
-    patch.mask["CLM"] = np.full((5, 3, 4, 1), True)
-    patch.mask_timeless["mask"] = np.arange(3 * 4 * 2).reshape(3, 4, 2)
-    patch.mask_timeless["LULC"] = np.zeros((3, 4, 1), dtype=np.uint16)
-    patch.mask_timeless["RANDOM_UINT8"] = np.random.randint(0, 100, size=(3, 4, 1), dtype=np.int8)
-    patch.scalar["values"] = np.arange(10 * 5).reshape(5, 10)
-    patch.scalar["CLOUD_COVERAGE"] = np.ones((5, 10))
-    patch.timestamps = [
-        datetime(2017, 1, 14, 10, 13, 46),
-        datetime(2017, 2, 10, 10, 1, 32),
-        datetime(2017, 2, 20, 10, 6, 35),
-        datetime(2017, 3, 2, 10, 0, 20),
-        datetime(2017, 3, 12, 10, 7, 6),
-    ]
-    patch.meta_info["something"] = np.random.rand(10, 1)
+    patch = generate_eopatch(
+        {
+            FeatureType.DATA: ["bands", "CLP"],
+            FeatureType.MASK: ["CLM"],
+            FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"],
+            FeatureType.SCALAR: ["values", "CLOUD_COVERAGE"],
+        }
+    )
+    patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"])
+
+    patch.meta_info["something"] = "beep boop"
     return patch
+
+
+@pytest.fixture(name="eopatch_to_explode")
+def eopatch_to_explode_fixture() -> EOPatch:
+    return generate_eopatch((FeatureType.DATA, "bands"), config=PatchGeneratorConfig(depth_range=(8, 9)))
 
 
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
@@ -413,11 +411,11 @@ def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], 
     ],
 )
 def test_explode_bands(
-    patch: EOPatch,
+    eopatch_to_explode: EOPatch,
     feature: Tuple[FeatureType, str],
     task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
 ) -> None:
-    patch = ExplodeBandsTask(feature, task_input)(patch)
+    patch = ExplodeBandsTask(feature, task_input)(eopatch_to_explode)
     assert all(new_feature in patch for new_feature in task_input)
 
     for new_feature, bands in task_input.items():
@@ -426,19 +424,23 @@ def test_explode_bands(
         assert_array_equal(patch[new_feature], patch[feature][..., bands])
 
 
-def test_extract_bands(patch: EOPatch) -> None:
+def test_extract_bands(eopatch_to_explode: EOPatch) -> None:
     bands = [2, 4, 6]
-    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), bands)(patch)
+    patch = ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), bands)(
+        eopatch_to_explode
+    )
     assert_array_equal(patch.data["EXTRACTED_BANDS"], patch.data["bands"][..., bands])
 
     patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] += 1
     assert patch.data["EXTRACTED_BANDS"][0, 0, 0, 0] != patch.data["bands"][0, 0, 0, bands[0]]
 
 
-def test_extract_bands_fails(patch: EOPatch) -> None:
+def test_extract_bands_fails(eopatch_to_explode: EOPatch) -> None:
     with pytest.raises(ValueError):
         # fails because band 16 does not exist
-        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(patch)
+        ExtractBandsTask((FeatureType.DATA, "bands"), (FeatureType.DATA, "EXTRACTED_BANDS"), [2, 4, 16])(
+            eopatch_to_explode
+        )
 
 
 @pytest.mark.parametrize(

@@ -35,7 +35,7 @@ from eolearn.core.eodata_io import (
 from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import FeatureParser
-from eolearn.core.utils.testing import assert_feature_data_equal
+from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
@@ -44,16 +44,16 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS.WGS84)
 
 @pytest.fixture(name="eopatch")
 def eopatch_fixture():
-    eopatch = EOPatch(bbox=DUMMY_BBOX)
-    mask = np.zeros((3, 3, 2), dtype=np.int16)
-    data = np.zeros((2, 3, 3, 2), dtype=np.int16)
-    eopatch.mask_timeless["mask"] = mask
-    eopatch.data["data"] = data
-    eopatch.timestamps = [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]
+    eopatch = generate_eopatch(
+        {
+            FeatureType.DATA: ["data"],
+            FeatureType.MASK_TIMELESS: ["mask"],
+            FeatureType.SCALAR: ["my scalar with spaces"],
+            FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
+        }
+    )
     eopatch.meta_info["something"] = "nothing"
     eopatch.meta_info["something-else"] = "nothing"
-    eopatch.scalar["my scalar with spaces"] = np.array([[1, 2, 3], [1, 2, 3]])
-    eopatch.scalar_timeless["my timeless scalar with spaces"] = np.array([1, 2, 3])
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
@@ -113,7 +113,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
         eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
         eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
-        add_eopatch = EOPatch(bbox=DUMMY_BBOX)
+        add_eopatch = EOPatch(bbox=eopatch.bbox)
         add_eopatch.data_timeless["some data"] = np.empty((3, 3, 2))
         add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
         with pytest.raises(ValueError):

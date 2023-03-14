@@ -1,26 +1,11 @@
-import datetime as dt
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Tuple, Union
 
-import numpy as np
 import pytest
-
-from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureParser, FeatureType
 from eolearn.core.types import EllipsisType, FeatureRenameSpec, FeatureSpec, FeaturesSpecification
-
-
-@pytest.fixture(name="eopatch", scope="module")
-def eopatch_fixture():
-    return EOPatch(
-        data=dict(data=np.zeros((2, 2, 2, 2)), CLP=np.zeros((2, 2, 2, 2))),  # name duplication intentional
-        bbox=BBox((1, 2, 3, 4), CRS.WGS84),
-        timestamps=[dt.datetime(2020, 5, 1), dt.datetime(2020, 5, 25)],
-        mask=dict(data=np.zeros((2, 2, 2, 2), dtype=int), IS_VALID=np.zeros((2, 2, 2, 2), dtype=int)),
-        mask_timeless=dict(LULC=np.zeros((2, 2, 2), dtype=int)),
-        meta_info={"something": "else"},
-    )
+from eolearn.core.utils.testing import generate_eopatch
 
 
 @dataclass
@@ -179,6 +164,15 @@ def test_allowed_feature_types_iterable(test_input: FeaturesSpecification, allow
     """Ensure that the parser raises an error if features don't comply with allowed feature types."""
     with pytest.raises(ValueError):
         FeatureParser(features=test_input, allowed_feature_types=allowed_types)
+
+
+@pytest.fixture(name="eopatch", scope="module")
+def eopatch_fixture():
+    patch = generate_eopatch(
+        {FeatureType.DATA: ["data", "CLP"], FeatureType.MASK: ["data", "IS_VALID"], FeatureType.MASK_TIMELESS: ["LULC"]}
+    )
+    patch.meta_info = {"something": "else"}
+    return patch
 
 
 @pytest.mark.parametrize(
