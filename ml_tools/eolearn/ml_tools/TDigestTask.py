@@ -7,11 +7,12 @@ Copyright (c) 2023 Michael Engel
 This source code is licensed under the MIT license found in the LICENSE
 file in the root directory of this source tree.
 """
+from functools import partial
 from itertools import product
-from typing import Optional
 
 import numpy as np
 import tdigest as td
+from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeaturesSpecification
@@ -30,8 +31,8 @@ class TDigestTask(EOTask):
         self,
         in_feature: FeaturesSpecification,
         out_feature: FeaturesSpecification,
-        mode: Optional[str] = None,
-        pixelwise: Optional[bool] = None,
+        mode: Literal["standard", "timewise", "monthly", "total"] = "standard",
+        pixelwise: bool = False,
     ):
         """
         :param in_feature: The input feature to compute the T-Digest representation for.
@@ -49,45 +50,22 @@ class TDigestTask(EOTask):
         :param pixelwise: Decider whether to compute the T-Digest representation accumulating pixels or per pixel. \
             Cannot be used with mode='total'.
         """
+        # set mode
+        self.mode = mode
 
         # check pixelwise parameter
-        if not pixelwise:
-            self.pixelwise = False
-        elif pixelwise and self.mode == "total":
+        self.pixelwise = pixelwise
+
+        if self.pixelwise and self.mode == "total":
             raise ValueError("Total mode does not support pixelwise=True.")
-        else:
-            self.pixelwise = pixelwise
-
-        # set mode
-        if not mode:
-            self.mode = "standard"
-        else:
-            self.mode = mode
-
-        # set feature types
-        if mode == "standard":
-            allowed_in_types = [
-                FeatureType.DATA,
-                FeatureType.DATA_TIMELESS,
-                FeatureType.MASK,
-                FeatureType.MASK_TIMELESS,
-            ]
-            allowed_out_types = [FeatureType.DATA_TIMELESS] if pixelwise else [FeatureType.SCALAR_TIMELESS]
-
-        elif mode == "timewise" or mode == "monthly":
-            allowed_in_types = [FeatureType.DATA, FeatureType.MASK]
-            allowed_out_types = [FeatureType.DATA] if pixelwise else [FeatureType.SCALAR]
-
-        elif mode == "total":
-            allowed_in_types = None
-            allowed_out_types = [FeatureType.SCALAR_TIMELESS]
-
-        else:
-            raise ValueError(f"The mode {mode} is not allowed.")
 
         # check input and output features
-        self.in_feature = self.parse_features(in_feature, allowed_feature_types=allowed_in_types)
-        self.out_feature = self.parse_features(out_feature, allowed_feature_types=allowed_out_types)
+        self.in_feature = self.parse_features(
+            in_feature, allowed_feature_types=partial(_get_allowed_ftypes, ifin=True, mode=mode, pixelwise=pixelwise)
+        )
+        self.out_feature = self.parse_features(
+            out_feature, allowed_feature_types=partial(_get_allowed_ftypes, ifin=False, mode=mode, pixelwise=pixelwise)
+        )
 
         if len(self.in_feature) != len(self.out_feature):
             raise ValueError(
@@ -102,7 +80,6 @@ class TDigestTask(EOTask):
         :param eopatch: EOPatch which the chosen input feature already exists
         """
 
-        # standard mode
         if self.mode == "standard":
             for in_feature, out_feature in zip(self.in_feature, self.out_feature):
                 shape = np.array(eopatch[in_feature].shape)
@@ -118,7 +95,6 @@ class TDigestTask(EOTask):
                         eopatch[out_feature][k] = td.TDigest()
                         eopatch[out_feature][k].batch_update(eopatch[in_feature][..., k].flatten())
 
-        # timewise mode
         elif self.mode == "timewise":
             for in_feature, out_feature in zip(self.in_feature, self.out_feature):
                 shape = np.array(eopatch[in_feature].shape)
@@ -134,7 +110,6 @@ class TDigestTask(EOTask):
                         eopatch[out_feature][time_, k] = td.TDigest()
                         eopatch[out_feature][time_, k].batch_update(eopatch[in_feature][time_, ..., k].flatten())
 
-        # monthly mode
         elif self.mode == "monthly":
             midx = []
             for month_ in range(12):
@@ -158,15 +133,36 @@ class TDigestTask(EOTask):
                             eopatch[in_feature][midx[month_], ..., k].flatten()
                         )
 
-        # total mode
         elif self.mode == "total":
             for in_feature, out_feature in zip(self.in_feature, self.out_feature):
                 eopatch[out_feature] = td.TDigest()
                 eopatch[out_feature].batch_update(eopatch[in_feature].flatten())
 
-        # errorneous modes
         else:
             raise RuntimeError(f"TDigestTask: mode {self.mode} not implemented!")
 
-        # return
         return eopatch
+
+
+def _get_allowed_ftypes(featuretype, ifin=True, mode="standard", pixelwise=False):
+    if mode == "standard":
+        allowed_in_types = [
+            FeatureType.DATA,
+            FeatureType.DATA_TIMELESS,
+            FeatureType.MASK,
+            FeatureType.MASK_TIMELESS,
+        ]
+        allowed_out_types = [FeatureType.DATA_TIMELESS] if pixelwise else [FeatureType.SCALAR_TIMELESS]
+
+    elif mode == "timewise" or mode == "monthly":
+        allowed_in_types = [FeatureType.DATA, FeatureType.MASK]
+        allowed_out_types = [FeatureType.DATA] if pixelwise else [FeatureType.SCALAR]
+
+    elif mode == "total":
+        allowed_in_types = ...
+        allowed_out_types = [FeatureType.SCALAR_TIMELESS]
+
+    if ifin:
+        return True if allowed_in_types is Ellipsis else featuretype in allowed_in_types
+    else:
+        return True if allowed_out_types is Ellipsis else featuretype in allowed_out_types
