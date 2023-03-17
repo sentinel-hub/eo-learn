@@ -50,21 +50,17 @@ class TDigestTask(EOTask):
         :param pixelwise: Decider whether to compute the T-Digest representation accumulating pixels or per pixel. \
             Cannot be used with mode='total'.
         """
-        # set mode
+
         self.mode = mode
 
-        # check pixelwise parameter
         self.pixelwise = pixelwise
 
         if self.pixelwise and self.mode == "total":
             raise ValueError("Total mode does not support pixelwise=True.")
 
-        # check input and output features
-        self.in_feature = self.parse_features(
-            in_feature, allowed_feature_types=partial(_get_allowed_ftypes, ifin=True, mode=mode, pixelwise=pixelwise)
-        )
+        self.in_feature = self.parse_features(in_feature, allowed_feature_types=partial(_is_input_ftype, mode=mode))
         self.out_feature = self.parse_features(
-            out_feature, allowed_feature_types=partial(_get_allowed_ftypes, ifin=False, mode=mode, pixelwise=pixelwise)
+            out_feature, allowed_feature_types=partial(_is_output_ftype, mode=mode, pixelwise=pixelwise)
         )
 
         if len(self.in_feature) != len(self.out_feature):
@@ -81,69 +77,27 @@ class TDigestTask(EOTask):
         """
 
         if self.mode == "standard":
-            for in_feature, out_feature in zip(self.in_feature, self.out_feature):
-                shape = np.array(eopatch[in_feature].shape)
-                if self.pixelwise:
-                    eopatch[out_feature] = np.empty(shape[-3:], dtype=object)
-                    for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
-                        eopatch[out_feature][i, j, k] = td.TDigest()
-                        eopatch[out_feature][i, j, k].batch_update(eopatch[in_feature][..., i, j, k].flatten())
-
-                else:
-                    eopatch[out_feature] = np.empty(shape[-1], dtype=object)
-                    for k in range(shape[-1]):
-                        eopatch[out_feature][k] = td.TDigest()
-                        eopatch[out_feature][k].batch_update(eopatch[in_feature][..., k].flatten())
+            _process_standard(
+                in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch, pixelwise=self.pixelwise
+            )
 
         elif self.mode == "timewise":
-            for in_feature, out_feature in zip(self.in_feature, self.out_feature):
-                shape = np.array(eopatch[in_feature].shape)
-                if self.pixelwise:
-                    eopatch[out_feature] = np.empty(shape, dtype=object)
-                    for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
-                        eopatch[out_feature][time_, i, j, k] = td.TDigest()
-                        eopatch[out_feature][time_, i, j, k].batch_update(eopatch[in_feature][time_, i, j, k].flatten())
-
-                else:
-                    eopatch[out_feature] = np.empty(shape[[0, -1]], dtype=object)
-                    for k in range(shape[-1]):
-                        eopatch[out_feature][time_, k] = td.TDigest()
-                        eopatch[out_feature][time_, k].batch_update(eopatch[in_feature][time_, ..., k].flatten())
+            _process_timewise(
+                in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch, pixelwise=self.pixelwise
+            )
 
         elif self.mode == "monthly":
-            midx = []
-            for month_ in range(12):
-                midx.append(np.array([timestamp.month == month_ + 1 for timestamp in eopatch["timestamp"]]))
-
-            for in_feature, out_feature in zip(self.in_feature, self.out_feature):
-                shape = np.array(eopatch[in_feature].shape)
-                if self.pixelwise:
-                    eopatch[out_feature] = np.empty([12, *shape[1:]], dtype=object)
-                    for month_, i, j, k in product(range(12), range(shape[1]), range(shape[2]), range(shape[3])):
-                        eopatch[out_feature][month_, i, j, k] = td.TDigest()
-                        eopatch[out_feature][month_, i, j, k].batch_update(
-                            eopatch[in_feature][midx[month_], i, j, k].flatten()
-                        )
-
-                else:
-                    eopatch[out_feature] = np.empty([12, shape[-1]], dtype=object)
-                    for month_, k in product(range(12), range(shape[-1])):
-                        eopatch[out_feature][month_, k] = td.TDigest()
-                        eopatch[out_feature][month_, k].batch_update(
-                            eopatch[in_feature][midx[month_], ..., k].flatten()
-                        )
+            _process_monthly(
+                in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch, pixelwise=self.pixelwise
+            )
 
         elif self.mode == "total":
-            for in_feature, out_feature in zip(self.in_feature, self.out_feature):
-                eopatch[out_feature] = td.TDigest()
-                eopatch[out_feature].batch_update(eopatch[in_feature].flatten())
-
-        else:
-            raise RuntimeError(f"TDigestTask: mode {self.mode} not implemented!")
+            _process_total(in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch)
 
         return eopatch
 
 
+# auxiliary
 ModeTypes = Literal["standard", "timewise", "monthly", "total"]
 
 
@@ -163,3 +117,72 @@ def _is_output_ftype(feature_type: FeatureType, mode: ModeTypes, pixelwise: bool
         return feature_type == (FeatureType.DATA if pixelwise else FeatureType.SCALAR)
 
     return feature_type == FeatureType.SCALAR_TIMELESS
+
+
+def _looper(in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch) -> tuple:
+    for in_feature_, out_feature_ in zip(in_feature, out_feature):
+        shape = np.array(eopatch[in_feature_].shape)
+        yield in_feature_, out_feature_, shape
+
+
+def _process_standard(
+    in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch, pixelwise: bool
+) -> None:
+    for in_feature_, out_feature_, shape in _looper(in_feature=in_feature, out_feature=out_feature, eopatch=eopatch):
+        if pixelwise:
+            eopatch[out_feature_] = np.empty(shape[-3:], dtype=object)
+            for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
+                eopatch[out_feature_][i, j, k] = td.TDigest()
+                eopatch[out_feature_][i, j, k].batch_update(eopatch[in_feature_][..., i, j, k].flatten())
+
+        else:
+            eopatch[out_feature_] = np.empty(shape[-1], dtype=object)
+            for k in range(shape[-1]):
+                eopatch[out_feature_][k] = td.TDigest()
+                eopatch[out_feature_][k].batch_update(eopatch[in_feature_][..., k].flatten())
+
+
+def _process_timewise(
+    in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch, pixelwise: bool
+) -> None:
+    for in_feature_, out_feature_, shape in _looper(in_feature=in_feature, out_feature=out_feature, eopatch=eopatch):
+        if pixelwise:
+            eopatch[out_feature_] = np.empty(shape, dtype=object)
+            for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
+                eopatch[out_feature_][time_, i, j, k] = td.TDigest()
+                eopatch[out_feature_][time_, i, j, k].batch_update(eopatch[in_feature_][time_, i, j, k].flatten())
+
+        else:
+            eopatch[out_feature_] = np.empty(shape[[0, -1]], dtype=object)
+            for time_, k in product(range(shape[0]), range(shape[-1])):
+                eopatch[out_feature_][time_, k] = td.TDigest()
+                eopatch[out_feature_][time_, k].batch_update(eopatch[in_feature_][time_, ..., k].flatten())
+
+
+def _process_monthly(
+    in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch, pixelwise: bool
+) -> None:
+    midx = []
+    for month_ in range(12):
+        midx.append(np.array([timestamp.month == month_ + 1 for timestamp in eopatch["timestamp"]]))
+
+    for in_feature_, out_feature_, shape in _looper(in_feature=in_feature, out_feature=out_feature, eopatch=eopatch):
+        if pixelwise:
+            eopatch[out_feature_] = np.empty([12, *shape[1:]], dtype=object)
+            for month_, i, j, k in product(range(12), range(shape[1]), range(shape[2]), range(shape[3])):
+                eopatch[out_feature_][month_, i, j, k] = td.TDigest()
+                eopatch[out_feature_][month_, i, j, k].batch_update(
+                    eopatch[in_feature_][midx[month_], i, j, k].flatten()
+                )
+
+        else:
+            eopatch[out_feature_] = np.empty([12, shape[-1]], dtype=object)
+            for month_, k in product(range(12), range(shape[-1])):
+                eopatch[out_feature_][month_, k] = td.TDigest()
+                eopatch[out_feature_][month_, k].batch_update(eopatch[in_feature_][midx[month_], ..., k].flatten())
+
+
+def _process_total(in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch) -> None:
+    for in_feature_, out_feature_ in zip(in_feature, out_feature):
+        eopatch[out_feature_] = td.TDigest()
+        eopatch[out_feature_].batch_update(eopatch[in_feature_].flatten())
