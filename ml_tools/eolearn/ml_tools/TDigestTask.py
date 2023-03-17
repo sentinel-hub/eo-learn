@@ -144,25 +144,22 @@ class TDigestTask(EOTask):
         return eopatch
 
 
-def _get_allowed_ftypes(featuretype, ifin=True, mode="standard", pixelwise=False):
+ModeTypes = Literal["standard", "timewise", "monthly", "total"]
+
+
+def _is_input_ftype(feature_type: FeatureType, mode: ModeTypes) -> bool:
     if mode == "standard":
-        allowed_in_types = [
-            FeatureType.DATA,
-            FeatureType.DATA_TIMELESS,
-            FeatureType.MASK,
-            FeatureType.MASK_TIMELESS,
-        ]
-        allowed_out_types = [FeatureType.DATA_TIMELESS] if pixelwise else [FeatureType.SCALAR_TIMELESS]
+        return feature_type.is_image()
+    if mode in ("timewise", "monthly"):
+        return feature_type in [FeatureType.DATA, FeatureType.MASK]
+    return True
 
-    elif mode == "timewise" or mode == "monthly":
-        allowed_in_types = [FeatureType.DATA, FeatureType.MASK]
-        allowed_out_types = [FeatureType.DATA] if pixelwise else [FeatureType.SCALAR]
 
-    elif mode == "total":
-        allowed_in_types = ...
-        allowed_out_types = [FeatureType.SCALAR_TIMELESS]
+def _is_output_ftype(feature_type: FeatureType, mode: ModeTypes, pixelwise: bool) -> bool:
+    if mode == "standard":
+        return feature_type == (FeatureType.DATA_TIMELESS if pixelwise else FeatureType.SCALAR_TIMELESS)
 
-    if ifin:
-        return True if allowed_in_types is Ellipsis else featuretype in allowed_in_types
-    else:
-        return True if allowed_out_types is Ellipsis else featuretype in allowed_out_types
+    if mode in ("timewise", "monthly"):
+        return feature_type == (FeatureType.DATA if pixelwise else FeatureType.SCALAR)
+
+    return feature_type == FeatureType.SCALAR_TIMELESS
