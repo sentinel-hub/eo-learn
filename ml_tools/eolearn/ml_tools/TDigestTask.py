@@ -12,11 +12,14 @@ from itertools import product
 
 import numpy as np
 import tdigest as td
+
+from typing import Iterable
 from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeaturesSpecification
 
+ModeTypes = Literal["standard", "timewise", "monthly", "total"]
 
 class TDigestTask(EOTask):
     """
@@ -75,32 +78,19 @@ class TDigestTask(EOTask):
 
         :param eopatch: EOPatch which the chosen input feature already exists
         """
-
-        if self.mode == "standard":
-            _process_standard(
-                in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch, pixelwise=self.pixelwise
+        
+        for in_feature_, out_feature_, shape in _looper(in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch):
+            eopatch[out_feature_] = _processing_function[self.mode](
+                input_array = eopatch[in_feature_],
+                timestamps = eopatch["timestamp"],
+                shape = shape,
+                pixelwise = self.pixelwise
             )
-
-        elif self.mode == "timewise":
-            _process_timewise(
-                in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch, pixelwise=self.pixelwise
-            )
-
-        elif self.mode == "monthly":
-            _process_monthly(
-                in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch, pixelwise=self.pixelwise
-            )
-
-        elif self.mode == "total":
-            _process_total(in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch)
 
         return eopatch
 
 
 # auxiliary
-ModeTypes = Literal["standard", "timewise", "monthly", "total"]
-
-
 def _is_input_ftype(feature_type: FeatureType, mode: ModeTypes) -> bool:
     if mode == "standard":
         return feature_type.is_image()
@@ -126,63 +116,71 @@ def _looper(in_feature: FeaturesSpecification, out_feature: FeaturesSpecificatio
 
 
 def _process_standard(
-    in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch, pixelwise: bool
-) -> None:
-    for in_feature_, out_feature_, shape in _looper(in_feature=in_feature, out_feature=out_feature, eopatch=eopatch):
-        if pixelwise:
-            eopatch[out_feature_] = np.empty(shape[-3:], dtype=object)
-            for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
-                eopatch[out_feature_][i, j, k] = td.TDigest()
-                eopatch[out_feature_][i, j, k].batch_update(eopatch[in_feature_][..., i, j, k].flatten())
+    input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **kwargs
+) -> np.ndarray:
+    if pixelwise:
+        array = np.empty(shape[-3:], dtype=object)
+        for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
+            array[i, j, k] = get_tdigest(input_array[..., i, j, k].flatten())
 
-        else:
-            eopatch[out_feature_] = np.empty(shape[-1], dtype=object)
-            for k in range(shape[-1]):
-                eopatch[out_feature_][k] = td.TDigest()
-                eopatch[out_feature_][k].batch_update(eopatch[in_feature_][..., k].flatten())
+    else:
+        array = np.empty(shape[-1], dtype=object)
+        for k in range(shape[-1]):
+            array[k] = get_tdigest(input_array[..., k].flatten())
+
+    return array
 
 
 def _process_timewise(
-    in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch, pixelwise: bool
-) -> None:
-    for in_feature_, out_feature_, shape in _looper(in_feature=in_feature, out_feature=out_feature, eopatch=eopatch):
-        if pixelwise:
-            eopatch[out_feature_] = np.empty(shape, dtype=object)
-            for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
-                eopatch[out_feature_][time_, i, j, k] = td.TDigest()
-                eopatch[out_feature_][time_, i, j, k].batch_update(eopatch[in_feature_][time_, i, j, k].flatten())
+    input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **kwargs
+) -> np.ndarray:
+    if pixelwise:
+        array = np.empty(shape, dtype=object)
+        for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
+            array[time_, i, j, k] = get_tdigest(input_array[time_, i, j, k].flatten())
 
-        else:
-            eopatch[out_feature_] = np.empty(shape[[0, -1]], dtype=object)
-            for time_, k in product(range(shape[0]), range(shape[-1])):
-                eopatch[out_feature_][time_, k] = td.TDigest()
-                eopatch[out_feature_][time_, k].batch_update(eopatch[in_feature_][time_, ..., k].flatten())
+    else:
+        array = np.empty(shape[[0, -1]], dtype=object)
+        for time_, k in product(range(shape[0]), range(shape[-1])):
+            array[time_, k] = get_tdigest(input_array[time_, ..., k].flatten())
+
+    return array
 
 
 def _process_monthly(
-    in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch, pixelwise: bool
-) -> None:
+    input_array: np.ndarray, timestamps: Iterable, shape: np.ndarray, pixelwise: bool, **kwargs
+) -> np.ndarray:
     midx = []
     for month_ in range(12):
-        midx.append(np.array([timestamp.month == month_ + 1 for timestamp in eopatch["timestamp"]]))
+        midx.append(np.array([timestamp.month == month_ + 1 for timestamp in timestamps]))
 
-    for in_feature_, out_feature_, shape in _looper(in_feature=in_feature, out_feature=out_feature, eopatch=eopatch):
-        if pixelwise:
-            eopatch[out_feature_] = np.empty([12, *shape[1:]], dtype=object)
-            for month_, i, j, k in product(range(12), range(shape[1]), range(shape[2]), range(shape[3])):
-                eopatch[out_feature_][month_, i, j, k] = td.TDigest()
-                eopatch[out_feature_][month_, i, j, k].batch_update(
-                    eopatch[in_feature_][midx[month_], i, j, k].flatten()
-                )
+    if pixelwise:
+        array = np.empty([12, *shape[1:]], dtype=object)
+        for month_, i, j, k in product(range(12), range(shape[1]), range(shape[2]), range(shape[3])):
+            array[month_, i, j, k] = get_tdigest(
+                input_array[midx[month_], i, j, k].flatten()
+            )
 
-        else:
-            eopatch[out_feature_] = np.empty([12, shape[-1]], dtype=object)
-            for month_, k in product(range(12), range(shape[-1])):
-                eopatch[out_feature_][month_, k] = td.TDigest()
-                eopatch[out_feature_][month_, k].batch_update(eopatch[in_feature_][midx[month_], ..., k].flatten())
+    else:
+        array = np.empty([12, shape[-1]], dtype=object)
+        for month_, k in product(range(12), range(shape[-1])):
+            array[month_, k] = get_tdigest(input_array[midx[month_], ..., k].flatten())
 
+    return array
 
-def _process_total(in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch) -> None:
-    for in_feature_, out_feature_ in zip(in_feature, out_feature):
-        eopatch[out_feature_] = td.TDigest()
-        eopatch[out_feature_].batch_update(eopatch[in_feature_].flatten())
+def _process_total(
+    input_array: np.ndarray, **kwargs
+) -> np.ndarray:
+    return get_tdigest(input_array.flatten())
+
+_processing_function = {
+    "standard": _process_standard,
+    "timewise": _process_timewise,
+    "monthly": _process_monthly,
+    "total": _process_total
+}
+
+def get_tdigest(values: np.ndarray) -> td.TDigest:
+    result = td.TDigest()
+    result.batch_update(values.flatten())
+    return result
