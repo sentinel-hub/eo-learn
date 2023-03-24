@@ -9,17 +9,17 @@ file in the root directory of this source tree.
 """
 from functools import partial
 from itertools import product
+from typing import Iterable
 
 import numpy as np
 import tdigest as td
-
-from typing import Iterable
 from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeaturesSpecification
 
 ModeTypes = Literal["standard", "timewise", "monthly", "total"]
+
 
 class TDigestTask(EOTask):
     """
@@ -78,13 +78,12 @@ class TDigestTask(EOTask):
 
         :param eopatch: EOPatch which the chosen input feature already exists
         """
-        
-        for in_feature_, out_feature_, shape in _looper(in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch):
+
+        for in_feature_, out_feature_, shape in _looper(
+            in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch
+        ):
             eopatch[out_feature_] = _processing_function[self.mode](
-                input_array = eopatch[in_feature_],
-                timestamps = eopatch["timestamp"],
-                shape = shape,
-                pixelwise = self.pixelwise
+                input_array=eopatch[in_feature_], timestamps=eopatch["timestamp"], shape=shape, pixelwise=self.pixelwise
             )
 
         return eopatch
@@ -115,9 +114,7 @@ def _looper(in_feature: FeaturesSpecification, out_feature: FeaturesSpecificatio
         yield in_feature_, out_feature_, shape
 
 
-def _process_standard(
-    input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **kwargs
-) -> np.ndarray:
+def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **kwargs) -> np.ndarray:
     if pixelwise:
         array = np.empty(shape[-3:], dtype=object)
         for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
@@ -131,9 +128,7 @@ def _process_standard(
     return array
 
 
-def _process_timewise(
-    input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **kwargs
-) -> np.ndarray:
+def _process_timewise(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **kwargs) -> np.ndarray:
     if pixelwise:
         array = np.empty(shape, dtype=object)
         for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
@@ -157,9 +152,7 @@ def _process_monthly(
     if pixelwise:
         array = np.empty([12, *shape[1:]], dtype=object)
         for month_, i, j, k in product(range(12), range(shape[1]), range(shape[2]), range(shape[3])):
-            array[month_, i, j, k] = get_tdigest(
-                input_array[midx[month_], i, j, k].flatten()
-            )
+            array[month_, i, j, k] = get_tdigest(input_array[midx[month_], i, j, k].flatten())
 
     else:
         array = np.empty([12, shape[-1]], dtype=object)
@@ -168,17 +161,18 @@ def _process_monthly(
 
     return array
 
-def _process_total(
-    input_array: np.ndarray, **kwargs
-) -> np.ndarray:
+
+def _process_total(input_array: np.ndarray, **kwargs) -> np.ndarray:
     return get_tdigest(input_array.flatten())
+
 
 _processing_function = {
     "standard": _process_standard,
     "timewise": _process_timewise,
     "monthly": _process_monthly,
-    "total": _process_total
+    "total": _process_total,
 }
+
 
 def get_tdigest(values: np.ndarray) -> td.TDigest:
     result = td.TDigest()
