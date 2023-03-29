@@ -508,9 +508,15 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             SentinelHubRequest.output_response(band.name, MimeType.TIFF)
             for band in self.requested_bands + self.requested_additional_bands
         ]
+        evalscript = generate_evalscript(
+            data_collection=self.data_collection,
+            bands=[band.name for band in self.requested_bands],
+            meta_bands=[band.name for band in self.requested_additional_bands],
+            use_dn=not np.issubdtype(self.bands_dtype, np.floating),
+        )
 
         return SentinelHubRequest(
-            evalscript=self.evalscript or self._generate_evalscript(),
+            evalscript=self.evalscript or evalscript,
             input_data=[
                 SentinelHubRequest.input_data(
                     data_collection=self.data_collection,
