@@ -37,7 +37,7 @@ from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.parsing import parse_renamed_features
+from eolearn.core.utils.parsing import parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
@@ -579,40 +579,19 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         data_collection: DataCollection = DataCollection.DEM,
         **kwargs: Any,
     ):
+        dem_band = data_collection.bands[0].name
         if feature is None:
-            feature = (FeatureType.DATA_TIMELESS, "dem")
+            renamed_feature: Tuple[FeatureType, str, str] = (FeatureType.DATA_TIMELESS, dem_band, dem_band)
         elif isinstance(feature, str):
-            feature = (FeatureType.DATA_TIMELESS, feature)
+            renamed_feature = (FeatureType.DATA_TIMELESS, dem_band, feature)
+        else:
+            ftype, _, new_fname = parse_renamed_feature(feature)
+            if ftype.is_temporal():
+                raise ValueError("DEM feature should be timeless!")
+            renamed_feature = (ftype, dem_band, new_fname or dem_band)
 
-        feature_type, feature_name = feature
-        if feature_type.is_temporal():
-            raise ValueError("DEM feature should be timeless!")
-
-        band = data_collection.bands[0]
-
-        evalscript = f"""
-            //VERSION=3
-
-            function setup() {{
-                return {{
-                    input: [{{
-                        bands: ["{band.name}"],
-                        units: ["{band.units[0].value}"]
-                    }}],
-                    output: {{
-                        id: "{feature_name}",
-                        bands: 1,
-                        sampleType: SampleType.UINT16
-                    }}
-                }}
-            }}
-
-            function evaluatePixel(sample) {{
-                return {{ {feature_name}: [sample.{band.name}] }}
-            }}
-        """
-
-        super().__init__(evalscript=evalscript, features=[feature], data_collection=data_collection, **kwargs)
+        evalscript = generate_evalscript(data_collection=data_collection, bands=[dem_band])
+        super().__init__(evalscript=evalscript, features=[renamed_feature], data_collection=data_collection, **kwargs)
 
 
 class SentinelHubSen2corTask(SentinelHubInputTask):
