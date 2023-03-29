@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
 
 import numpy as np
 from typing_extensions import Literal
@@ -32,7 +32,7 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
 )
-from sentinelhub.data_collections_bands import Band
+from sentinelhub.evalscript import generate_evalscript
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -362,14 +362,6 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 class SentinelHubInputTask(SentinelHubInputBaseTask):
     """Process API input task that loads 16bit integer data and converts it to a 32bit float feature."""
 
-    # pylint: disable=too-many-arguments
-    DTYPE_TO_SAMPLE_TYPE: Dict[type, str] = {
-        bool: "SampleType.UINT8",
-        np.uint8: "SampleType.UINT8",
-        np.uint16: "SampleType.UINT16",
-        np.float32: "SampleType.FLOAT32",
-    }
-
     # pylint: disable=too-many-locals
     def __init__(
         self,
@@ -460,66 +452,14 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             self.requested_additional_bands = parsed_bands
             self.additional_data = parsed_additional_data
 
-    def _parse_requested_bands(self, bands: List[str], available_bands: Tuple[Band, ...]) -> List[Band]:
-        """Checks that all requested bands are available and returns the band information for further processing"""
-        requested_bands = []
-        band_info_dict = {band_info.name: band_info for band_info in available_bands}
-        for band_name in bands:
-            if band_name in band_info_dict:
-                requested_bands.append(band_info_dict[band_name])
-            else:
-                raise ValueError(
-                    f"Data collection {self.data_collection} does not have specifications for {band_name}."
-                    f"Available bands are {[band.name for band in self.data_collection.bands]} and meta-bands"
-                    f"{[band.name for band in self.data_collection.metabands]}"
-                )
-        return requested_bands
-
-    def generate_evalscript(self) -> str:
+    def _generate_evalscript(self) -> str:
         """Generate the evalscript to be passed with the request, based on chosen bands"""
-        evalscript = """
-            //VERSION=3
-
-            function setup() {{
-                return {{
-                    input: [{{
-                        bands: [{bands}],
-                        units: [{units}]
-                    }}],
-                    output: [
-                        {outputs}
-                    ]
-                }}
-            }}
-
-            function evaluatePixel(sample) {{
-                return {{ {samples} }}
-            }}
-        """
-
-        bands, units, outputs, samples = [], [], [], []
-        for band in self.requested_bands + self.requested_additional_bands:
-            unit_choice = 0  # use default units
-            if band in self.requested_bands and self.bands_dtype is not None:
-                if self.bands_dtype not in band.output_types:
-                    raise ValueError(
-                        f"Band {band.name} only supports output types {band.output_types} but `bands_dtype` is set to "
-                        f"{self.bands_dtype}. To use default types set `bands_dtype` to None."
-                    )
-                unit_choice = band.output_types.index(self.bands_dtype)
-
-            sample_type = SentinelHubInputTask.DTYPE_TO_SAMPLE_TYPE[band.output_types[unit_choice]]
-
-            bands.append(f'"{band.name}"')
-            units.append(f'"{band.units[unit_choice].value}"')
-            samples.append(f"{band.name}: [sample.{band.name}]")
-            outputs.append(f'{{ id: "{band.name}", bands: 1, sampleType: {sample_type} }}')
-
-        evalscript = evalscript.format(
-            bands=", ".join(bands), units=", ".join(units), outputs=", ".join(outputs), samples=", ".join(samples)
+        return generate_evalscript(
+            data_collection=self.data_collection,
+            bands=[band.name for band in self.requested_bands],
+            meta_bands=[band.name for band in self.requested_additional_bands],
+            use_dn=not np.issubdtype(self.bands_dtype, np.floating),
         )
-
-        return evalscript
 
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
@@ -570,7 +510,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         ]
 
         return SentinelHubRequest(
-            evalscript=self.evalscript or self.generate_evalscript(),
+            evalscript=self.evalscript or self._generate_evalscript(),
             input_data=[
                 SentinelHubRequest.input_data(
                     data_collection=self.data_collection,
