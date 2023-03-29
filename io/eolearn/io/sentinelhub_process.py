@@ -32,7 +32,7 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
 )
-from sentinelhub.evalscript import generate_evalscript
+from sentinelhub.evalscript import generate_evalscript, parse_data_collection_bands
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -438,28 +438,15 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_bands = []
         if bands_feature:
             self.bands_feature = self.parse_feature(bands_feature, allowed_feature_types=[FeatureType.DATA])
-            if bands is not None:
-                self.requested_bands = self._parse_requested_bands(bands, self.data_collection.bands)
-            else:
-                self.requested_bands = list(self.data_collection.bands)
+            bands = bands if bands is not None else [band.name for band in data_collection.bands]
+            self.requested_bands = parse_data_collection_bands(data_collection, bands)
 
         self.requested_additional_bands = []
         self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            parsed_additional_data = parse_renamed_features(additional_data)  # parser gives too general type
-            additional_bands = cast(List[str], [band for _, band, _ in parsed_additional_data])
-            parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
-            self.requested_additional_bands = parsed_bands
-            self.additional_data = parsed_additional_data
-
-    def _generate_evalscript(self) -> str:
-        """Generate the evalscript to be passed with the request, based on chosen bands"""
-        return generate_evalscript(
-            data_collection=self.data_collection,
-            bands=[band.name for band in self.requested_bands],
-            meta_bands=[band.name for band in self.requested_additional_bands],
-            use_dn=not np.issubdtype(self.bands_dtype, np.floating),
-        )
+            self.additional_data = parse_renamed_features(additional_data)  # parser gives too general type
+            additional_bands = cast(List[str], [band for _, band, _ in self.additional_data])
+            self.requested_additional_bands = parse_data_collection_bands(data_collection, additional_bands)
 
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
