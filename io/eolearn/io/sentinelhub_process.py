@@ -362,6 +362,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 class SentinelHubInputTask(SentinelHubInputBaseTask):
     """Process API input task that loads 16bit integer data and converts it to a 32bit float feature."""
 
+    # pylint: disable=too-many-arguments
     # pylint: disable=too-many-locals
     def __init__(
         self,
@@ -499,7 +500,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             data_collection=self.data_collection,
             bands=[band.name for band in self.requested_bands],
             meta_bands=[band.name for band in self.requested_additional_bands],
-            use_dn=not np.issubdtype(self.bands_dtype, np.floating),
+            prioritize_dn=not np.issubdtype(self.bands_dtype, np.floating),
         )
 
         return SentinelHubRequest(
