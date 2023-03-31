@@ -118,12 +118,12 @@ def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: boo
     if pixelwise:
         array = np.empty(shape[-3:], dtype=object)
         for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
-            array[i, j, k] = get_tdigest(input_array[..., i, j, k].flatten())
+            array[i, j, k] = get_tdigest(input_array[..., i, j, k])
 
     else:
         array = np.empty(shape[-1], dtype=object)
         for k in range(shape[-1]):
-            array[k] = get_tdigest(input_array[..., k].flatten())
+            array[k] = get_tdigest(input_array[..., k])
 
     return array
 
@@ -132,12 +132,12 @@ def _process_timewise(input_array: np.ndarray, shape: np.ndarray, pixelwise: boo
     if pixelwise:
         array = np.empty(shape, dtype=object)
         for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
-            array[time_, i, j, k] = get_tdigest(input_array[time_, i, j, k].flatten())
+            array[time_, i, j, k] = get_tdigest(input_array[time_, i, j, k])
 
     else:
         array = np.empty(shape[[0, -1]], dtype=object)
         for time_, k in product(range(shape[0]), range(shape[-1])):
-            array[time_, k] = get_tdigest(input_array[time_, ..., k].flatten())
+            array[time_, k] = get_tdigest(input_array[time_, ..., k])
 
     return array
 
@@ -152,18 +152,18 @@ def _process_monthly(
     if pixelwise:
         array = np.empty([12, *shape[1:]], dtype=object)
         for month_, i, j, k in product(range(12), range(shape[1]), range(shape[2]), range(shape[3])):
-            array[month_, i, j, k] = get_tdigest(input_array[midx[month_], i, j, k].flatten())
+            array[month_, i, j, k] = get_tdigest(input_array[midx[month_], i, j, k])
 
     else:
         array = np.empty([12, shape[-1]], dtype=object)
         for month_, k in product(range(12), range(shape[-1])):
-            array[month_, k] = get_tdigest(input_array[midx[month_], ..., k].flatten())
+            array[month_, k] = get_tdigest(input_array[midx[month_], ..., k])
 
     return array
 
 
 def _process_total(input_array: np.ndarray, **kwargs) -> np.ndarray:
-    return get_tdigest(input_array.flatten())
+    return get_tdigest(input_array)
 
 
 _processing_function = {
