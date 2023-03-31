@@ -581,8 +581,10 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         **kwargs: Any,
     ):
         dem_band = data_collection.bands[0].name
+        renamed_feature: Tuple[FeatureType, str, str]
+
         if feature is None:
-            renamed_feature: Tuple[FeatureType, str, str] = (FeatureType.DATA_TIMELESS, dem_band, dem_band)
+            renamed_feature = (FeatureType.DATA_TIMELESS, dem_band, dem_band)
         elif isinstance(feature, str):
             renamed_feature = (FeatureType.DATA_TIMELESS, dem_band, feature)
         else:
