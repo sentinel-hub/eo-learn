@@ -15,16 +15,10 @@ import numpy as np
 import pytest
 from pytest import approx
 
-from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, SHConfig, Unit
+from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, Unit
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.io import (
-    SentinelHubDemTask,
-    SentinelHubEvalscriptTask,
-    SentinelHubInputTask,
-    SentinelHubSen2corTask,
-    get_available_timestamps,
-)
+from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask
 
 
 @pytest.fixture(name="cache_folder")
@@ -506,42 +500,6 @@ class TestProcessingIO:
 
         width, height = self.size
         assert array.shape == (13, height, width, 2)
-
-    def test_get_available_timestamps_with_missing_data_collection_service_url(self):
-        collection = DataCollection.SENTINEL2_L1C.define_from("COLLECTION_WITHOUT_URL", service_url=None)
-        timestamps = get_available_timestamps(
-            bbox=self.bbox,
-            config=SHConfig(),
-            data_collection=collection,
-            time_difference=self.time_difference,
-            time_interval=self.time_interval,
-            maxcc=self.maxcc,
-        )
-
-        assert len(timestamps) == 4
-        assert all(timestamp.tzinfo is not None for timestamp in timestamps)
-
-    def test_get_available_timestamps_custom_filtration(self):
-        """Checks that the custom filtration works as intended."""
-        timestamps1 = get_available_timestamps(
-            bbox=self.bbox,
-            config=SHConfig(),
-            data_collection=DataCollection.SENTINEL2_L1C,
-            time_interval=self.time_interval,
-            timestamp_filter=lambda stamps, diff: stamps[:3],
-        )
-
-        assert len(timestamps1) == 3
-
-        timestamps2 = get_available_timestamps(
-            bbox=self.bbox,
-            config=SHConfig(),
-            data_collection=DataCollection.SENTINEL2_L1C,
-            time_interval=self.time_interval,
-            timestamp_filter=lambda stamps, diff: stamps[:5],
-        )
-
-        assert len(timestamps2) == 5
 
     def test_no_data_input_task_request(self):
         task = SentinelHubInputTask(
