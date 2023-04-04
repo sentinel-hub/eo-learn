@@ -1,11 +1,10 @@
 """
 The module provides an EOTask for the computation of a T-Digest representation of an EOPatch.
 
-Credits:
-Copyright (c) 2023 Michael Engel
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from functools import partial
 from itertools import product
