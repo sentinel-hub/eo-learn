@@ -1,22 +1,21 @@
 """
 The module provides an EOTask for the computation of a T-Digest representation of an EOPatch.
 
-Credits:
-Copyright (c) 2023 Michael Engel
+Copyright (c) 2017- Sinergise and contributors
+For the full list of contributors, see the CREDITS file in the root directory of this source tree.
 
-This source code is licensed under the MIT license found in the LICENSE
-file in the root directory of this source tree.
+This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 from functools import partial
 from itertools import product
-from typing import Iterable
+from typing import Any, Callable, Dict, Generator, Iterable, List, Tuple
 
 import numpy as np
 import tdigest as td
 from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import FeatureSpec, FeaturesSpecification
 
 ModeTypes = Literal["standard", "timewise", "monthly", "total"]
 
@@ -83,7 +82,7 @@ class TDigestTask(EOTask):
             in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch
         ):
             eopatch[out_feature_] = _processing_function[self.mode](
-                input_array=eopatch[in_feature_], timestamps=eopatch["timestamp"], shape=shape, pixelwise=self.pixelwise
+                input_array=eopatch[in_feature_], timestamps=eopatch.timestamps, shape=shape, pixelwise=self.pixelwise
             )
 
         return eopatch
@@ -108,13 +107,15 @@ def _is_output_ftype(feature_type: FeatureType, mode: ModeTypes, pixelwise: bool
     return feature_type == FeatureType.SCALAR_TIMELESS
 
 
-def _looper(in_feature: FeaturesSpecification, out_feature: FeaturesSpecification, eopatch: EOPatch) -> tuple:
+def _looper(
+    in_feature: List[FeatureSpec], out_feature: List[FeatureSpec], eopatch: EOPatch
+) -> Generator[Tuple[FeatureSpec, FeatureSpec, np.ndarray], None, None]:
     for in_feature_, out_feature_ in zip(in_feature, out_feature):
         shape = np.array(eopatch[in_feature_].shape)
         yield in_feature_, out_feature_, shape
 
 
-def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **_) -> np.ndarray:
+def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **_: Any) -> np.ndarray:
     if pixelwise:
         array = np.empty(shape[-3:], dtype=object)
         for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
@@ -128,7 +129,7 @@ def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: boo
     return array
 
 
-def _process_timewise(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **_) -> np.ndarray:
+def _process_timewise(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, **_: Any) -> np.ndarray:
     if pixelwise:
         array = np.empty(shape, dtype=object)
         for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
@@ -143,7 +144,7 @@ def _process_timewise(input_array: np.ndarray, shape: np.ndarray, pixelwise: boo
 
 
 def _process_monthly(
-    input_array: np.ndarray, timestamps: Iterable, shape: np.ndarray, pixelwise: bool, **_
+    input_array: np.ndarray, timestamps: Iterable, shape: np.ndarray, pixelwise: bool, **_: Any
 ) -> np.ndarray:
     midx = []
     for month_ in range(12):
@@ -162,11 +163,11 @@ def _process_monthly(
     return array
 
 
-def _process_total(input_array: np.ndarray, **_) -> np.ndarray:
+def _process_total(input_array: np.ndarray, **_: Any) -> np.ndarray:
     return _get_tdigest(input_array)
 
 
-_processing_function = {
+_processing_function: Dict[str, Callable] = {
     "standard": _process_standard,
     "timewise": _process_timewise,
     "monthly": _process_monthly,

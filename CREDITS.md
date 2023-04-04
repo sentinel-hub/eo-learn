@@ -37,6 +37,7 @@ page or mine the [commit history](https://github.com/sentinel-hub/eo-learn/commi
 ## Other contributors
 
 * Drew Bollinger (DevelopmentSeed)
+* Michael Engel (Technical University of Munich)
 * Peter Fogh
 * Hugo Fournier (Magellium)
 * Ben Huff
