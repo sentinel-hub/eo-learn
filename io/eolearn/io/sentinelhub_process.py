@@ -23,7 +23,6 @@ from sentinelhub import (
     MimeType,
     MosaickingOrder,
     ResamplingType,
-    SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
     SentinelHubSession,
@@ -32,6 +31,7 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
 )
+from sentinelhub.api.catalog import get_available_timestamps
 from sentinelhub.evalscript import generate_evalscript, parse_data_collection_bands
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
@@ -274,15 +274,15 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_array()):
             return []
 
-        return get_available_timestamps(
+        timestamps = get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
-            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
-            time_difference=self.time_difference,
             config=self.config,
         )
+
+        return self.timestamp_filter(timestamps, self.time_difference)
 
     def _build_requests(
         self,
@@ -454,15 +454,15 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         if self.single_scene:
             return [time_interval[0]]  # type: ignore[index, list-item]
 
-        return get_available_timestamps(
+        timestamps = get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
-            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
-            time_difference=self.time_difference,
             config=self.config,
         )
+
+        return self.timestamp_filter(timestamps, self.time_difference)
 
     def _build_requests(
         self,
@@ -645,48 +645,3 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
 
         features: List[Tuple[FeatureType, str]] = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
         super().__init__(additional_data=features, data_collection=data_collection, **kwargs)
-
-
-def get_available_timestamps(
-    bbox: BBox,
-    data_collection: DataCollection,
-    *,
-    time_interval: Optional[RawTimeIntervalType] = None,
-    time_difference: dt.timedelta = dt.timedelta(seconds=-1),  # noqa: B008
-    timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
-    maxcc: Optional[float] = None,
-    config: Optional[SHConfig] = None,
-) -> List[dt.datetime]:
-    """Helper function to search for all available timestamps, based on query parameters.
-
-    :param bbox: A bounding box of the search area.
-    :param data_collection: A data collection for which to find available timestamps.
-    :param time_interval: A time interval from which to provide the timestamps.
-    :param time_difference: Minimum allowed time difference, used when filtering dates.
-    :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
-        occurrences within the time_difference window. The filtration is performed after all suitable timestamps for
-        the given region are obtained (with maxcc filtering already done by SH). By default only keeps the oldest
-        timestamp when multiple occur within `time_difference`.
-    :param maxcc: Maximum cloud coverage filter from interval [0, 1], default is None.
-    :param config: A configuration object.
-    :return: A list of timestamps of available observations.
-    """
-    query_filter = None
-    if maxcc is not None and data_collection.has_cloud_coverage:
-        if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
-            raise ValueError('Maximum cloud coverage "maxcc" parameter should be a float on an interval [0, 1]')
-        query_filter = f"eo:cloud_cover < {int(maxcc * 100)}"
-
-    fields = {"include": ["properties.datetime"], "exclude": []}
-
-    if data_collection.service_url:
-        config = config.copy() if config else SHConfig()
-        config.sh_base_url = data_collection.service_url
-
-    catalog = SentinelHubCatalog(config=config)
-    search_iterator = catalog.search(
-        collection=data_collection, bbox=bbox, time=time_interval, filter=query_filter, fields=fields
-    )
-
-    all_timestamps = search_iterator.get_timestamps()
-    return timestamp_filter(all_timestamps, time_difference)
