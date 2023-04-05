@@ -39,7 +39,6 @@ from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
-from .utils.vector_io import infer_schema
 
 if TYPE_CHECKING:
     from .eodata import EOPatch
@@ -479,20 +478,13 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
     @classmethod
     def _write_to_file(cls, data: gpd.GeoDataFrame, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
         layer = fs.path.basename(path)
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="You are attempting to write an empty DataFrame to file*",
-                    category=UserWarning,
-                )
-                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
-        except ValueError as err:
-            # This workaround is only required for geopandas<0.11.0 and will be removed in the future.
-            if data.empty:
-                schema = infer_schema(data)
-                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, schema=schema)
-            raise err
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="You are attempting to write an empty DataFrame to file*",
+                category=UserWarning,
+            )
+            return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
 
 
 class FeatureIOJson(FeatureIO[T]):

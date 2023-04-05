@@ -12,12 +12,11 @@ import datetime as dt
 import functools
 import itertools as it
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
-from typing_extensions import Literal
 
 from sentinelhub import BBox
 

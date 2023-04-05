@@ -29,7 +29,7 @@ def get_version():
 
 setup(
     name="eo-learn-core",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     version=get_version(),
     description="Core Machine Learning Framework at Sinergise",
     long_description=get_long_description(),
@@ -61,7 +61,6 @@ setup(
         "Operating System :: Unix",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",

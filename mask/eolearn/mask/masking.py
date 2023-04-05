@@ -8,10 +8,9 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, Union
+from typing import Callable, Dict, Iterable, Literal, Union
 
 import numpy as np
-from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType, ZipFeatureTask
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec

@@ -11,10 +11,9 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Literal, Optional, Tuple, Union, cast
 
 import numpy as np
-from typing_extensions import Literal
 
 from sentinelhub import (
     BBox,
