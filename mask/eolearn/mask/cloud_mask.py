@@ -9,13 +9,12 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import logging
 import os
 from functools import partial
-from typing import Callable, Optional, Tuple, Union, cast
+from typing import Callable, Optional, Protocol, Tuple, Union, cast
 
 import cv2
 import numpy as np
 from lightgbm import Booster
 from skimage.morphology import disk
-from typing_extensions import Protocol
 
 from sentinelhub import BBox, bbox_to_resolution
 

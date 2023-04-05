@@ -8,11 +8,10 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from functools import partial
 from itertools import product
-from typing import Any, Callable, Dict, Generator, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Generator, Iterable, List, Literal, Tuple
 
 import numpy as np
 import tdigest as td
-from typing_extensions import Literal
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureSpec, FeaturesSpecification

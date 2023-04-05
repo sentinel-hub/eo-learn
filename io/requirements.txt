@@ -4,6 +4,5 @@ eo-learn-core
 fiona>=1.8.18
 geopandas>=0.8.1
 rasterio>=1.2.7
-rtree # might be redundant after 3.7 is dropped due to new geopandas version
 sentinelhub>=3.8.0
 typing-extensions

@@ -13,7 +13,22 @@ import copy
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 from warnings import warn
 
 import attr
@@ -21,7 +36,6 @@ import dateutil.parser
 import geopandas as gpd
 import numpy as np
 from fs.base import FS
-from typing_extensions import Literal
 
 from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
