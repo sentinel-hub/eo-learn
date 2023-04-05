@@ -9,9 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import sys
 
 # pylint: disable=unused-import
-from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
-
-from typing_extensions import Literal
+from typing import Dict, Iterable, Literal, Optional, Sequence, Tuple, Union
 
 from .constants import FeatureType
 

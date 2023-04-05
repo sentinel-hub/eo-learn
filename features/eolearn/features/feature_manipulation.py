@@ -12,11 +12,10 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
-from typing_extensions import Literal
 
 from sentinelhub import bbox_to_dimensions
 

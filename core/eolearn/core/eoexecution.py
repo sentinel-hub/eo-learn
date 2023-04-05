@@ -18,11 +18,10 @@ import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
-from typing_extensions import Protocol
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
