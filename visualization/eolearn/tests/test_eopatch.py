@@ -45,7 +45,7 @@ def eopatch_fixture():
         (FeatureType.BBOX, {}),
     ],
 )
-@pytest.mark.sh_integration  # python 3.7 dose not support matpotlib 3.6
+@pytest.mark.sh_integration
 def test_eopatch_plot(eopatch, feature, params):
     """A simple test of EOPatch plotting for different features."""
     # We reduce width and height otherwise running matplotlib.pyplot.subplots in combination with pytest would

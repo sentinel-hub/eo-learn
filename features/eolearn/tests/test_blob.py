@@ -7,7 +7,6 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import copy
-import sys
 
 import pytest
 from pytest import approx
@@ -31,20 +30,15 @@ def test_dog_blob_task(small_ndvi_eopatch):
 
 BLOB_TESTS = [
     (DoGBlobTask(FEATURE, threshold=0), {"exp_min": 0.0, "exp_max": 37.9625, "exp_mean": 0.08545, "exp_median": 0.0}),
+    (
+        DoHBlobTask(FEATURE, num_sigma=5, threshold=0),
+        {"exp_min": 0.0, "exp_max": 21.9203, "exp_mean": 0.05807, "exp_median": 0.0},
+    ),
+    (
+        LoGBlobTask(FEATURE, log_scale=True, threshold=0),
+        {"exp_min": 0, "exp_max": 42.4264, "exp_mean": 0.09767, "exp_median": 0.0},
+    ),
 ]
-if sys.version_info >= (3, 8):  # For Python 3.7 scikit-image returns less accurate result for this test
-    BLOB_TESTS.extend(
-        [
-            (
-                DoHBlobTask(FEATURE, num_sigma=5, threshold=0),
-                {"exp_min": 0.0, "exp_max": 21.9203, "exp_mean": 0.05807, "exp_median": 0.0},
-            ),
-            (
-                LoGBlobTask(FEATURE, log_scale=True, threshold=0),
-                {"exp_min": 0, "exp_max": 42.4264, "exp_mean": 0.09767, "exp_median": 0.0},
-            ),
-        ]
-    )
 
 
 @pytest.mark.parametrize("task, expected_statistics", BLOB_TESTS)
