@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Literal, Optional, Tuple, Union, cast
 
 import numpy as np
 
@@ -22,7 +22,6 @@ from sentinelhub import (
     MimeType,
     MosaickingOrder,
     ResamplingType,
-    SentinelHubCatalog,
     SentinelHubDownloadClient,
     SentinelHubRequest,
     SentinelHubSession,
@@ -31,12 +30,13 @@ from sentinelhub import (
     filter_times,
     parse_time_interval,
 )
-from sentinelhub.data_collections_bands import Band
+from sentinelhub.api.catalog import get_available_timestamps
+from sentinelhub.evalscript import generate_evalscript, parse_data_collection_bands
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
-from eolearn.core.utils.parsing import parse_renamed_features
+from eolearn.core.utils.parsing import parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
 
@@ -273,15 +273,15 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_array()):
             return []
 
-        return get_available_timestamps(
+        timestamps = get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
-            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
-            time_difference=self.time_difference,
             config=self.config,
         )
+
+        return self.timestamp_filter(timestamps, self.time_difference)
 
     def _build_requests(
         self,
@@ -362,13 +362,6 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     """Process API input task that loads 16bit integer data and converts it to a 32bit float feature."""
 
     # pylint: disable=too-many-arguments
-    DTYPE_TO_SAMPLE_TYPE: Dict[type, str] = {
-        bool: "SampleType.UINT8",
-        np.uint8: "SampleType.UINT8",
-        np.uint16: "SampleType.UINT16",
-        np.float32: "SampleType.FLOAT32",
-    }
-
     # pylint: disable=too-many-locals
     def __init__(
         self,
@@ -445,95 +438,30 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self.requested_bands = []
         if bands_feature:
             self.bands_feature = self.parse_feature(bands_feature, allowed_feature_types=[FeatureType.DATA])
-            if bands is not None:
-                self.requested_bands = self._parse_requested_bands(bands, self.data_collection.bands)
-            else:
-                self.requested_bands = list(self.data_collection.bands)
+            bands = bands if bands is not None else [band.name for band in data_collection.bands]
+            self.requested_bands = parse_data_collection_bands(data_collection, bands)
 
         self.requested_additional_bands = []
         self.additional_data: Optional[List[FeatureRenameSpec]] = None
         if additional_data is not None:
-            parsed_additional_data = parse_renamed_features(additional_data)  # parser gives too general type
-            additional_bands = cast(List[str], [band for _, band, _ in parsed_additional_data])
-            parsed_bands = self._parse_requested_bands(additional_bands, self.data_collection.metabands)
-            self.requested_additional_bands = parsed_bands
-            self.additional_data = parsed_additional_data
-
-    def _parse_requested_bands(self, bands: List[str], available_bands: Tuple[Band, ...]) -> List[Band]:
-        """Checks that all requested bands are available and returns the band information for further processing"""
-        requested_bands = []
-        band_info_dict = {band_info.name: band_info for band_info in available_bands}
-        for band_name in bands:
-            if band_name in band_info_dict:
-                requested_bands.append(band_info_dict[band_name])
-            else:
-                raise ValueError(
-                    f"Data collection {self.data_collection} does not have specifications for {band_name}."
-                    f"Available bands are {[band.name for band in self.data_collection.bands]} and meta-bands"
-                    f"{[band.name for band in self.data_collection.metabands]}"
-                )
-        return requested_bands
-
-    def generate_evalscript(self) -> str:
-        """Generate the evalscript to be passed with the request, based on chosen bands"""
-        evalscript = """
-            //VERSION=3
-
-            function setup() {{
-                return {{
-                    input: [{{
-                        bands: [{bands}],
-                        units: [{units}]
-                    }}],
-                    output: [
-                        {outputs}
-                    ]
-                }}
-            }}
-
-            function evaluatePixel(sample) {{
-                return {{ {samples} }}
-            }}
-        """
-
-        bands, units, outputs, samples = [], [], [], []
-        for band in self.requested_bands + self.requested_additional_bands:
-            unit_choice = 0  # use default units
-            if band in self.requested_bands and self.bands_dtype is not None:
-                if self.bands_dtype not in band.output_types:
-                    raise ValueError(
-                        f"Band {band.name} only supports output types {band.output_types} but `bands_dtype` is set to "
-                        f"{self.bands_dtype}. To use default types set `bands_dtype` to None."
-                    )
-                unit_choice = band.output_types.index(self.bands_dtype)
-
-            sample_type = SentinelHubInputTask.DTYPE_TO_SAMPLE_TYPE[band.output_types[unit_choice]]
-
-            bands.append(f'"{band.name}"')
-            units.append(f'"{band.units[unit_choice].value}"')
-            samples.append(f"{band.name}: [sample.{band.name}]")
-            outputs.append(f'{{ id: "{band.name}", bands: 1, sampleType: {sample_type} }}')
-
-        evalscript = evalscript.format(
-            bands=", ".join(bands), units=", ".join(units), outputs=", ".join(outputs), samples=", ".join(samples)
-        )
-
-        return evalscript
+            self.additional_data = parse_renamed_features(additional_data)  # parser gives too general type
+            additional_bands = cast(List[str], [band for _, band, _ in self.additional_data])
+            self.requested_additional_bands = parse_data_collection_bands(data_collection, additional_bands)
 
     def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
             return [time_interval[0]]  # type: ignore[index, list-item]
 
-        return get_available_timestamps(
+        timestamps = get_available_timestamps(
             bbox=bbox,
             time_interval=time_interval,
-            timestamp_filter=self.timestamp_filter,
             data_collection=self.data_collection,
             maxcc=self.maxcc,
-            time_difference=self.time_difference,
             config=self.config,
         )
+
+        return self.timestamp_filter(timestamps, self.time_difference)
 
     def _build_requests(
         self,
@@ -567,9 +495,15 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             SentinelHubRequest.output_response(band.name, MimeType.TIFF)
             for band in self.requested_bands + self.requested_additional_bands
         ]
+        evalscript = generate_evalscript(
+            data_collection=self.data_collection,
+            bands=[band.name for band in self.requested_bands],
+            meta_bands=[band.name for band in self.requested_additional_bands],
+            prioritize_dn=not np.issubdtype(self.bands_dtype, np.floating),
+        )
 
         return SentinelHubRequest(
-            evalscript=self.evalscript or self.generate_evalscript(),
+            evalscript=self.evalscript or evalscript,
             input_data=[
                 SentinelHubRequest.input_data(
                     data_collection=self.data_collection,
@@ -645,40 +579,19 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         data_collection: DataCollection = DataCollection.DEM,
         **kwargs: Any,
     ):
+        dem_band = data_collection.bands[0].name
+        renamed_feature: Tuple[FeatureType, str, str]
+
         if feature is None:
-            feature = (FeatureType.DATA_TIMELESS, "dem")
+            renamed_feature = (FeatureType.DATA_TIMELESS, dem_band, dem_band)
         elif isinstance(feature, str):
-            feature = (FeatureType.DATA_TIMELESS, feature)
+            renamed_feature = (FeatureType.DATA_TIMELESS, dem_band, feature)
+        else:
+            ftype, _, fname = parse_renamed_feature(feature, allowed_feature_types=lambda ftype: ftype.is_timeless())
+            renamed_feature = (ftype, dem_band, fname or dem_band)
 
-        feature_type, feature_name = feature
-        if feature_type.is_temporal():
-            raise ValueError("DEM feature should be timeless!")
-
-        band = data_collection.bands[0]
-
-        evalscript = f"""
-            //VERSION=3
-
-            function setup() {{
-                return {{
-                    input: [{{
-                        bands: ["{band.name}"],
-                        units: ["{band.units[0].value}"]
-                    }}],
-                    output: {{
-                        id: "{feature_name}",
-                        bands: 1,
-                        sampleType: SampleType.UINT16
-                    }}
-                }}
-            }}
-
-            function evaluatePixel(sample) {{
-                return {{ {feature_name}: [sample.{band.name}] }}
-            }}
-        """
-
-        super().__init__(evalscript=evalscript, features=[feature], data_collection=data_collection, **kwargs)
+        evalscript = generate_evalscript(data_collection=data_collection, bands=[dem_band])
+        super().__init__(evalscript=evalscript, features=[renamed_feature], data_collection=data_collection, **kwargs)
 
 
 class SentinelHubSen2corTask(SentinelHubInputTask):
@@ -729,48 +642,3 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
 
         features: List[Tuple[FeatureType, str]] = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
         super().__init__(additional_data=features, data_collection=data_collection, **kwargs)
-
-
-def get_available_timestamps(
-    bbox: BBox,
-    data_collection: DataCollection,
-    *,
-    time_interval: Optional[RawTimeIntervalType] = None,
-    time_difference: dt.timedelta = dt.timedelta(seconds=-1),  # noqa: B008
-    timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
-    maxcc: Optional[float] = None,
-    config: Optional[SHConfig] = None,
-) -> List[dt.datetime]:
-    """Helper function to search for all available timestamps, based on query parameters.
-
-    :param bbox: A bounding box of the search area.
-    :param data_collection: A data collection for which to find available timestamps.
-    :param time_interval: A time interval from which to provide the timestamps.
-    :param time_difference: Minimum allowed time difference, used when filtering dates.
-    :param timestamp_filter: A function that performs the final filtering of timestamps, usually to remove multiple
-        occurrences within the time_difference window. The filtration is performed after all suitable timestamps for
-        the given region are obtained (with maxcc filtering already done by SH). By default only keeps the oldest
-        timestamp when multiple occur within `time_difference`.
-    :param maxcc: Maximum cloud coverage filter from interval [0, 1], default is None.
-    :param config: A configuration object.
-    :return: A list of timestamps of available observations.
-    """
-    query_filter = None
-    if maxcc is not None and data_collection.has_cloud_coverage:
-        if isinstance(maxcc, (int, float)) and (maxcc < 0 or maxcc > 1):
-            raise ValueError('Maximum cloud coverage "maxcc" parameter should be a float on an interval [0, 1]')
-        query_filter = f"eo:cloud_cover < {int(maxcc * 100)}"
-
-    fields = {"include": ["properties.datetime"], "exclude": []}
-
-    if data_collection.service_url:
-        config = config.copy() if config else SHConfig()
-        config.sh_base_url = data_collection.service_url
-
-    catalog = SentinelHubCatalog(config=config)
-    search_iterator = catalog.search(
-        collection=data_collection, bbox=bbox, time=time_interval, filter=query_filter, fields=fields
-    )
-
-    all_timestamps = search_iterator.get_timestamps()
-    return timestamp_filter(all_timestamps, time_difference)
