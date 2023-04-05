@@ -587,10 +587,8 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
         elif isinstance(feature, str):
             renamed_feature = (FeatureType.DATA_TIMELESS, dem_band, feature)
         else:
-            ftype, _, new_fname = parse_renamed_feature(feature)
-            if ftype.is_temporal():
-                raise ValueError("DEM feature should be timeless!")
-            renamed_feature = (ftype, dem_band, new_fname or dem_band)
+            ftype, _, fname = parse_renamed_feature(feature, allowed_feature_types=lambda ftype: ftype.is_timeless())
+            renamed_feature = (ftype, dem_band, fname or dem_band)
 
         evalscript = generate_evalscript(data_collection=data_collection, bands=[dem_band])
         super().__init__(evalscript=evalscript, features=[renamed_feature], data_collection=data_collection, **kwargs)
