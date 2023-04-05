@@ -1,3 +1,4 @@
 eo-learn-core
 numpy
 shapely
+tdigest==0.5.2.2
