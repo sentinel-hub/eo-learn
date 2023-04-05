@@ -30,16 +30,6 @@ def example_data_path_fixture():
     return EXAMPLE_DATA_PATH
 
 
-@pytest.fixture(name="config")
-def config_fixture():
-    config = SHConfig()
-    # for param in config.get_params():
-    #     env_variable = param.upper()
-    #     if os.environ.get(env_variable):
-    #         setattr(config, param, os.environ.get(env_variable))
-    return config
-
-
 @pytest.fixture(name="gpkg_file")
 def local_gpkg_example_file_fixture():
     """A pytest fixture to retrieve a gpkg example file"""
@@ -48,8 +38,9 @@ def local_gpkg_example_file_fixture():
 
 
 @pytest.fixture(name="s3_gpkg_file")
-def s3_gpkg_example_file_fixture(config):
+def s3_gpkg_example_file_fixture():
     """A pytest fixture to retrieve a gpkg example file"""
+    config = SHConfig()
     aws_config = {
         "region_name": "eu-central-1",
     }
