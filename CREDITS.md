@@ -42,7 +42,7 @@ page or mine the [commit history](https://github.com/sentinel-hub/eo-learn/commi
 * Hugo Fournier (Magellium)
 * Ben Huff
 * Filip Koprivec (Jožef Stefan Institute)
-* Colin Moldenhauer
+* Colin Moldenhauer (Technical University of Munich)
 * William Ouellette (TomTom)
 * Radoslav Pitoňák
 * Johannes Schmid (GeoVille)
