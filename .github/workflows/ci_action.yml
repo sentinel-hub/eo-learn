@@ -52,9 +52,8 @@ jobs:
 
       - name: Install packages
         run: |
-          pip install pip --upgrade
           pip install -r requirements-dev.txt --upgrade
-          python install_all.py -e
+          python install_all.py
 
       - name: Run pylint
         run: make pylint
