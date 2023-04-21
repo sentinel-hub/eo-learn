@@ -38,7 +38,7 @@ min-similarity-lines = 5
 valid-metaclass-classmethod-first-arg = "mcs"
 
 [tool.pylint.exceptions]
-overgeneral-exceptions = "Exception"
+overgeneral-exceptions = "builtins.Exception"
 
 [tool.pylint.refactoring]
 max-nested-blocks = 7
