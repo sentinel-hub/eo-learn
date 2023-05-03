@@ -101,31 +101,39 @@ class HaralickTask(EOTask):
         elif self.texture_feature == "sum_average":
             # Slow
             tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-            index = np.array([list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)])
-            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
+            index = [
+                np.array([tuple(x) for x in tuple_array[tuple_array.sum(axis=1) == x]]) for x in range(self.levels)
+            ]
+            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
             res = np.array(p_x_y * np.array(range(len(index)))).sum()
         elif self.texture_feature == "sum_variance":
             # Slow
             tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-            index = np.array([list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)])
-            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
+            index = [
+                np.array([tuple(x) for x in tuple_array[tuple_array.sum(axis=1) == x]]) for x in range(self.levels)
+            ]
+            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
             sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
             res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
         elif self.texture_feature == "sum_entropy":
             # Slow
             tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-            index = np.array([list(map(tuple, tuple_array[tuple_array.sum(axis=1) == x])) for x in range(self.levels)])
-            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
+            index = [
+                np.array([tuple(x) for x in tuple_array[tuple_array.sum(axis=1) == x]]) for x in range(self.levels)
+            ]
+            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
             res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
         elif self.texture_feature == "difference_variance":
             # Slow
             tuple_array = np.array(
                 list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))), dtype=(int, 2)
             )
-            index = np.array(
-                [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in range(self.levels)]
-            )
-            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
+            index = [
+                np.array([tuple(x) for x in tuple_array[np.abs(tuple_array.sum(axis=1)) == x]])
+                for x in range(self.levels)
+            ]
+
+            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
             sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
             res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
         else:
@@ -134,10 +142,12 @@ class HaralickTask(EOTask):
             tuple_array = np.array(
                 list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))), dtype=(int, 2)
             )
-            index = np.array(
-                [list(map(tuple, tuple_array[np.abs(tuple_array.sum(axis=1)) == x])) for x in range(self.levels)]
-            )
-            p_x_y = np.array([glcm[tuple(np.moveaxis(index[y], -1, 0))].sum() for y in range(len(index))])
+            index = [
+                np.array([tuple(x) for x in tuple_array[np.abs(tuple_array.sum(axis=1)) == x]])
+                for x in range(self.levels)
+            ]
+
+            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
             res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
         return res
 
