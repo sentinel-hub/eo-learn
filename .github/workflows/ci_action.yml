@@ -59,6 +59,7 @@ jobs:
         run: make pylint
 
       - name: Run mypy
+        if: success() || failure()
         run: |
           mypy \
             core/eolearn/core \
