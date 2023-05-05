@@ -99,7 +99,7 @@ jobs:
       - name: Install packages
         run: |
           pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
-          python install_all.py -e
+          python install_all.py
 
       - name: Run full tests and code coverage
         if: ${{ matrix.full_test_suite }}
