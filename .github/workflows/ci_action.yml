@@ -106,16 +106,11 @@ jobs:
 
       - name: Run full tests and code coverage
         if: ${{ matrix.full_test_suite }}
-        run: |
-          sentinelhub.config \
-            --sh_client_id "${{ secrets.SH_CLIENT_ID }}" \
-            --sh_client_secret "${{ secrets.SH_CLIENT_SECRET }}"
-          pytest --cov --cov-report=term --cov-report=xml
+        run: pytest --cov --cov-report=term --cov-report=xml
 
       - name: Run reduced tests
         if: ${{ !matrix.full_test_suite }}
-        run: |
-          pytest -m "not sh_integration"
+        run: pytest -m "not sh_integration"
 
       - name: Upload code coverage
         if: ${{ matrix.full_test_suite && github.event_name == 'push' }}
