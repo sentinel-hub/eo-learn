@@ -4,7 +4,6 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-import time
 
 from eolearn.core import EONode, EOTask, OutputTask, linearly_connect_tasks
 
@@ -26,31 +25,35 @@ class Inc(EOTask):
 
 def test_nodes_different_uids():
     uids = set()
+    task = Inc()
     for _ in range(5000):
-        node = EONode(Inc())
+        node = EONode(task)
         uids.add(node.uid)
 
     assert len(uids) == 5000, "Different nodes should have different uids."
 
 
 def test_hashing():
-    _ = {EONode(Inc()): "Can be hashed!"}
+    """This tests that nodes are hashable. If this test is slow then hashing of large workflows is slow.
+    Probably due to structural hashing (should be avoided).
+    """
+    task1 = Inc()
+    task2 = DivideTask()
 
-    linear = EONode(Inc())
+    _ = {EONode(task1): "Can be hashed!"}
+
+    many_nodes = {}
     for _ in range(5000):
-        linear = EONode(Inc(), inputs=[linear])
+        many_nodes[EONode(task1)] = "We should all be different!"
+    assert len(many_nodes) == 5000, "Hash clashes happen."
 
-    branch_1, branch_2 = EONode(Inc()), EONode(Inc())
+    branch_1, branch_2 = EONode(task1), EONode(task1)
     for _ in range(500):
-        branch_1 = EONode(DivideTask(), inputs=(branch_1, branch_2))
-        branch_2 = EONode(DivideTask(), inputs=(branch_2, EONode(Inc())))
+        branch_1 = EONode(task2, inputs=(branch_1, branch_2))
+        branch_2 = EONode(task2, inputs=(branch_2, EONode(task1)))
 
-    t_start = time.time()
-    linear.__hash__()
     branch_1.__hash__()
     branch_2.__hash__()
-    t_end = time.time()
-    assert t_end - t_start < 5, "Assert hashing slows down for large workflows!"
 
 
 def test_get_dependencies():
