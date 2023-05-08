@@ -65,6 +65,7 @@ class InterpolationTestCase:
         return result
 
 
+# Some of these might be very randomly slow, but that is due to the JIT of numba
 INTERPOLATION_TEST_CASES = [
     InterpolationTestCase(
         "linear",
