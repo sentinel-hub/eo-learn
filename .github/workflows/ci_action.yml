@@ -50,6 +50,7 @@ jobs:
         with:
           python-version: "3.8"
           # cache: pip # uncomment when all requirements are in `pyproject.toml`
+          # caching the entire environment is faster when cache exists but slower for cache creation
 
       - name: Install packages
         run: |
