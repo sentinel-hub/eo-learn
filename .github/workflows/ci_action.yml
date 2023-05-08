@@ -49,6 +49,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.8"
+          # cache: pip # uncomment when all requirements are in `pyproject.toml`
 
       - name: Install packages
         run: |
@@ -93,11 +94,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      # - uses: actions/cache@v2  # enable (and add to other workflows) when requirements are no longer in subprojects
-      #   with:
-      #     path: ${{ env.pythonLocation }}
-      #     key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }} }}
+          # cache: pip # uncomment when all requirements are in `pyproject.toml`
 
       - name: Install packages
         run: |
