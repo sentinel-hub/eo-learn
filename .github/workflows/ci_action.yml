@@ -10,6 +10,11 @@ on:
     # Schedule events are triggered by whoever last changed the cron schedule
     - cron: "5 0 * * *"
 
+concurrency:
+  # This will cancel outdated runs on the same pull-request, but not runs for other triggers
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 env:
   # The only way to simulate if-else statement
   CHECKOUT_BRANCH: ${{ github.event_name == 'schedule' && 'develop' || github.ref }}
@@ -19,40 +24,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
-          architecture: x64
 
-      - name: Prepare pre-commit validators
-        run: |
-          pip install pre-commit
-
-      - name: Check code compliance with pre-commit validators
-        run: pre-commit run --all-files
+      - uses: pre-commit/action@v3.0.0
+        with:
+          extra_args: --all-files --verbose
 
   check-code-pylint-and-mypy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: "3.8"
-          architecture: x64
+          # cache: pip # uncomment when all requirements are in `pyproject.toml`
+          # caching the entire environment is faster when cache exists but slower for cache creation
 
       - name: Install packages
         run: |
-          pip install -r requirements-dev.txt --upgrade
+          pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
           python install_all.py
 
       - name: Run pylint
@@ -85,21 +87,19 @@ jobs:
             full_test_suite: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ env.CHECKOUT_BRANCH }}
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: x64
+          # cache: pip # uncomment when all requirements are in `pyproject.toml`
 
       - name: Install packages
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libgdal-dev graphviz proj-bin gcc libproj-dev libspatialindex-dev
-          pip install -r requirements-dev.txt --upgrade
+          pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
           python install_all.py -e
 
       - name: Run full tests and code coverage
@@ -112,8 +112,7 @@ jobs:
 
       - name: Run reduced tests
         if: ${{ !matrix.full_test_suite }}
-        run: |
-          pytest -m "not sh_integration"
+        run: pytest -m "not sh_integration"
 
       - name: Upload code coverage
         if: ${{ matrix.full_test_suite && github.event_name == 'push' }}
