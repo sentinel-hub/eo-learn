@@ -17,7 +17,7 @@ from eolearn.ml_tools.train_test_split import TrainTestSplitTask, TrainTestSplit
 
 INPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST")
 OUTPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST_TRAIN_MASK")
-INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(1000, 1000), depth_range=(3, 4))
+INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(300, 300), depth_range=(3, 4))
 
 
 @pytest.mark.parametrize(
