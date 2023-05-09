@@ -220,7 +220,7 @@ class InterpolationTask(EOTask):
         """Replace duplicate acquisitions which have same values on the chosen timescale with their average.
         The average is calculated with numpy.nanmean, meaning that NaN values are ignored when calculating the average.
 
-        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :param data: Array in a shape of t x num_obs, where num_obs = h x w x n
         :param times: Array of reference times relative to the first timestamp
         :return: cleaned versions of data input
         """
@@ -259,21 +259,22 @@ class InterpolationTask(EOTask):
     def interpolate_data(self, data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
         """Interpolates data feature
 
-        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :param data: Array in a shape of t x num_obs, where num_obs = h x w x n
         :param times: Array of reference times relative to the first timestamp
         :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
         :return: Array of interpolated values
         """
         # pylint: disable=too-many-locals
-        nobs = data.shape[-1]
+        num_obs = data.shape[-1]
         if self.interpolate_pixel_wise:
             # initialise array of interpolated values
-            new_data = (
-                data if self.resample_range is None else np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
-            )
+            if self.resample_range is None:
+                new_data = data
+            else:
+                new_data = np.full((len(resampled_times), num_obs), np.nan, dtype=data.dtype)
 
             # Interpolate for each pixel, could be easily parallelized
-            for obs in range(nobs):
+            for obs in range(num_obs):
                 valid = ~np.isnan(data[:, obs])
 
                 obs_interpolating_func = self.get_interpolation_function(times[valid], data[valid, obs])
@@ -288,23 +289,20 @@ class InterpolationTask(EOTask):
 
         # define time values as linear monotonically increasing over the observations
         const = int(self.filling_factor * (np.max(times) - np.min(times)))
-        temp_values = times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :].astype(np.float64)
-        res_temp_values = resampled_times[:, np.newaxis] + const * np.arange(nobs)[np.newaxis, :].astype(np.float64)
+        temp_values = times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
+        res_temp_values = resampled_times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
 
         # initialise array of interpolated values
-        new_data = np.full((len(resampled_times), nobs), np.nan, dtype=data.dtype)
+        new_data = np.full((len(resampled_times), num_obs), np.nan, dtype=data.dtype)
 
         # array defining index correspondence between reference times and resampled times
-        ori2res = np.array(
-            [
-                (
-                    np.abs(resampled_times - o).argmin()
-                    if np.min(resampled_times) <= o <= np.max(resampled_times)
-                    else None
-                )
-                for o in times
-            ]
-        )
+        temp = []
+        for orig_time in times:
+            if np.min(resampled_times) <= orig_time <= np.max(resampled_times):
+                temp.append(np.abs(resampled_times - orig_time).argmin())
+            else:
+                temp.append(None)
+        ori2res = np.array(temp)
 
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
@@ -471,7 +469,7 @@ class LinearInterpolationTask(InterpolationTask):
     def interpolate_data(self, data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
         """Interpolates data feature
 
-        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :param data: Array in a shape of t x num_obs, where num_obs = h x w x n
         :param times: Array of reference times in second relative to the first timestamp
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
             array.
@@ -575,7 +573,7 @@ class ResamplingTask(InterpolationTask):
     def interpolate_data(self, data: np.ndarray, times: np.ndarray, resampled_times: np.ndarray) -> np.ndarray:
         """Interpolates data feature
 
-        :param data: Array in a shape of t x nobs, where nobs = h x w x n
+        :param data: Array in a shape of t x num_obs, where num_obs = h x w x n
         :param times: Array of reference times in second relative to the first timestamp
         :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
             array.
