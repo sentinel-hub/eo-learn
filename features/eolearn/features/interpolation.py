@@ -265,7 +265,6 @@ class InterpolationTask(EOTask):
         :return: Array of interpolated values
         """
         # pylint: disable=too-many-locals
-        # get size of 2d array t x nobs
         nobs = data.shape[-1]
         if self.interpolate_pixel_wise:
             # initialise array of interpolated values
@@ -330,7 +329,6 @@ class InterpolationTask(EOTask):
             # interpolate non-NaN values in resampled time values
             new_data[~np.isnan(res_temp_values)] = interp_func(res_temp_values[~np.isnan(res_temp_values)])
 
-        # return interpolated values
         return new_data
 
     def get_interpolation_function(self, times: np.ndarray, series: np.ndarray) -> Callable:
@@ -406,12 +404,11 @@ class InterpolationTask(EOTask):
         feature_type, feature_name, new_feature_name = self.renamed_feature
 
         # Make a copy not to change original numpy array
-        feature_data = eopatch[feature_type][feature_name].copy()
+        feature_data = eopatch[feature_type, feature_name].copy()
         time_num, height, width, band_num = feature_data.shape
         if time_num <= 1:
             raise ValueError(
-                f"Feature {(feature_type, feature_name)} has time dimension of size {time_num}, "
-                "required at least size 2"
+                f"Feature {(feature_type, feature_name)} has temporal dimension {time_num}, required at least size 2"
             )
 
         # Apply a mask on data
@@ -419,9 +416,6 @@ class InterpolationTask(EOTask):
             for mask_type, mask_name in self.mask_feature_parser.get_features(eopatch):
                 negated_mask = ~eopatch[mask_type][mask_name].astype(bool)
                 feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
-
-        # Flatten array
-        feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
 
         # If resampling create new EOPatch
         new_eopatch = EOPatch(bbox=eopatch.bbox) if self.resample_range else eopatch
@@ -433,6 +427,9 @@ class InterpolationTask(EOTask):
         resampled_times = (
             self._get_eopatch_time_series(new_eopatch, scale_time=self.scale_time) + total_diff // self.scale_time
         )
+
+        # Flatten array
+        feature_data = np.reshape(feature_data, (time_num, height * width * band_num))
 
         # Replace duplicate acquisitions which have same values on the chosen timescale with their average
         feature_data, times = self._get_unique_times(feature_data, times)
@@ -451,9 +448,7 @@ class InterpolationTask(EOTask):
             feature_data[np.isnan(feature_data)] = self.unknown_value
 
         # Reshape back
-        new_eopatch[feature_type][new_feature_name] = np.reshape(
-            feature_data, (feature_data.shape[0], height, width, band_num)
-        )
+        new_eopatch[feature_type, new_feature_name] = np.reshape(feature_data, (-1, height, width, band_num))
 
         # append features from old patch
         new_eopatch = self._copy_old_features(new_eopatch, eopatch)
@@ -586,13 +581,13 @@ class ResamplingTask(InterpolationTask):
             array.
         :return: Array of interpolated values
         """
-        if True in np.unique(np.isnan(data)):
+        if np.isnan(data).any():
             raise ValueError("Data must not contain any masked/invalid pixels or NaN values")
 
         interp_func = self.get_interpolation_function(times, data)
 
-        time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
-        new_data = np.full((resampled_times.size,) + data.shape[1:], np.nan, dtype=data.dtype)
+        time_mask = (np.min(times) <= resampled_times) & (resampled_times <= np.max(times))
+        new_data = np.full((resampled_times.size, *data.shape[1:]), np.nan, dtype=data.dtype)
         new_data[time_mask] = interp_func(resampled_times[time_mask])
         return new_data
 
