@@ -12,7 +12,7 @@ import datetime as dt
 import inspect
 import warnings
 from functools import partial
-from typing import Any, Callable, List, Optional, Set, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Tuple, Union, cast
 
 import dateutil
 import numpy as np
@@ -246,28 +246,13 @@ class InterpolationTask(EOTask):
         return data, times
 
     def _copy_old_features(self, new_eopatch: EOPatch, old_eopatch: EOPatch) -> EOPatch:
-        """Copy features from old EOPatch
+        """Copy features from old EOPatch into new_eopatch"""
+        if self.copy_features_parser is not None:
+            for ftype, fname, new_fname in self.copy_features_parser.get_renamed_features(old_eopatch):
+                if (ftype, new_fname) in new_eopatch:
+                    raise ValueError(f"Feature {new_fname} of {ftype} already exists in the new EOPatch!")
 
-        :param new_eopatch: New EOPatch container where the old features will be copied to
-        :param old_eopatch: Old EOPatch container where the old features are located
-        """
-        if self.copy_features_parser is None:
-            return new_eopatch
-
-        existing_features: Set[Tuple[FeatureType, Optional[str]]] = set(self.parse_features(..., new_eopatch))
-
-        renamed_features = self.copy_features_parser.get_renamed_features(old_eopatch)
-        for copy_feature_type, copy_feature_name, copy_new_feature_name in renamed_features:
-            new_feature = copy_feature_type, copy_new_feature_name
-
-            if new_feature in existing_features:
-                raise ValueError(
-                    f"Feature {copy_new_feature_name} of {copy_feature_type} already exists in the "
-                    "new EOPatch! Use a different name!"
-                )
-            existing_features.add(new_feature)
-
-            new_eopatch[copy_feature_type][copy_new_feature_name] = old_eopatch[copy_feature_type][copy_feature_name]
+                new_eopatch[ftype, new_fname] = old_eopatch[ftype, fname]
 
         return new_eopatch
 
