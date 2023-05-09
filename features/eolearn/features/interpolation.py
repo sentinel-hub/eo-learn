@@ -137,13 +137,11 @@ class InterpolationTask(EOTask):
         self.resample_range = resample_range
         self.result_interval = result_interval
 
-        self.mask_feature_parser = (
-            None
-            if mask_feature is None
-            else self.get_feature_parser(
+        self.mask_feature_parser = None
+        if mask_feature is not None:
+            self.mask_feature_parser = self.get_feature_parser(
                 mask_feature, allowed_feature_types={FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL}
             )
-        )
 
         if resample_range is None and copy_features is not None:
             self.copy_features = None
@@ -158,8 +156,6 @@ class InterpolationTask(EOTask):
         self.scale_time = scale_time
         self.filling_factor = filling_factor
         self.interpolate_pixel_wise = interpolate_pixel_wise
-
-        self._resampled_times = None
 
     @staticmethod
     def _mask_feature_data(feature_data: np.ndarray, mask: np.ndarray, mask_type: FeatureType) -> np.ndarray:
@@ -255,23 +251,23 @@ class InterpolationTask(EOTask):
         :param new_eopatch: New EOPatch container where the old features will be copied to
         :param old_eopatch: Old EOPatch container where the old features are located
         """
-        if self.copy_features_parser is not None:
-            existing_features: Set[Tuple[FeatureType, Optional[str]]] = set(self.parse_features(..., new_eopatch))
+        if self.copy_features_parser is None:
+            return new_eopatch
 
-            renamed_features = self.copy_features_parser.get_renamed_features(old_eopatch)
-            for copy_feature_type, copy_feature_name, copy_new_feature_name in renamed_features:
-                new_feature = copy_feature_type, copy_new_feature_name
+        existing_features: Set[Tuple[FeatureType, Optional[str]]] = set(self.parse_features(..., new_eopatch))
 
-                if new_feature in existing_features:
-                    raise ValueError(
-                        f"Feature {copy_new_feature_name} of {copy_feature_type} already exists in the "
-                        "new EOPatch! Use a different name!"
-                    )
-                existing_features.add(new_feature)
+        renamed_features = self.copy_features_parser.get_renamed_features(old_eopatch)
+        for copy_feature_type, copy_feature_name, copy_new_feature_name in renamed_features:
+            new_feature = copy_feature_type, copy_new_feature_name
 
-                new_eopatch[copy_feature_type][copy_new_feature_name] = old_eopatch[copy_feature_type][
-                    copy_feature_name
-                ]
+            if new_feature in existing_features:
+                raise ValueError(
+                    f"Feature {copy_new_feature_name} of {copy_feature_type} already exists in the "
+                    "new EOPatch! Use a different name!"
+                )
+            existing_features.add(new_feature)
+
+            new_eopatch[copy_feature_type][copy_new_feature_name] = old_eopatch[copy_feature_type][copy_feature_name]
 
         return new_eopatch
 
