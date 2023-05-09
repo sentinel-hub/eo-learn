@@ -66,6 +66,7 @@ class InterpolationTestCase:
 
 
 # Some of these might be very randomly slow, but that is due to the JIT of numba
+# It is hard to trigger it before the tests reliably.
 INTERPOLATION_TEST_CASES = [
     InterpolationTestCase(
         "linear",
@@ -270,7 +271,7 @@ COPY_FEATURE_CASES = [
 ]
 
 
-@pytest.mark.parametrize("test_case", INTERPOLATION_TEST_CASES)
+@pytest.mark.parametrize("test_case", INTERPOLATION_TEST_CASES, ids=lambda x: x.name)
 def test_interpolation(test_case: InterpolationTestCase, test_patch):
     eopatch = test_case.execute(test_patch)
     delta = 1e-4 if isinstance(test_case.task, KrigingInterpolationTask) else 1e-5
@@ -287,7 +288,7 @@ def test_interpolation(test_case: InterpolationTestCase, test_patch):
     assert_statistics_match(data, **test_case.expected_statistics, abs_delta=delta)
 
 
-@pytest.mark.parametrize("test_case", COPY_FEATURE_CASES)
+@pytest.mark.parametrize("test_case", COPY_FEATURE_CASES, ids=lambda x: x.name)
 def test_copied_fields(test_case, test_patch):
     try:
         eopatch = test_case.execute(test_patch)

@@ -127,7 +127,7 @@ TIFF_TEST_CASES = [
 ]
 
 
-@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=[test_case.name for test_case in TIFF_TEST_CASES])
+@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=lambda x: x.name)
 def test_export_import(test_case, test_eopatch):
     test_eopatch[test_case.feature_type][test_case.name] = test_case.data
 
