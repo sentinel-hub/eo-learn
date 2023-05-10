@@ -161,14 +161,11 @@ class InterpolationTask(EOTask):
     def _mask_feature_data(feature_data: np.ndarray, mask: np.ndarray, mask_type: FeatureType) -> np.ndarray:
         """Masks values of data feature (in-place) with a given mask by assigning `numpy.nan` value to masked fields."""
 
-        if mask_type.is_spatial() and feature_data.shape[1:3] != mask.shape[-3:-1]:
+        spatial_dim_wrong = mask_type.is_spatial() and feature_data.shape[1:3] != mask.shape[-3:-1]
+        temporal_dim_wrong = mask_type.is_temporal() and feature_data.shape[0] != mask.shape[0]
+        if spatial_dim_wrong or temporal_dim_wrong:
             raise ValueError(
-                f"Spatial dimensions of interpolation and mask feature do not match: {feature_data.shape} {mask.shape}"
-            )
-
-        if mask_type.is_temporal() and feature_data.shape[0] != mask.shape[0]:
-            raise ValueError(
-                f"Time dimension of interpolation and mask feature do not match: {feature_data.shape} {mask.shape}"
+                f"Dimensions of interpolation data {feature_data.shape} and mask {mask.shape} do not match."
             )
 
         # This allows masking each channel differently but causes some complications while masking with label
