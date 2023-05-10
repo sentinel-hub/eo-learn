@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import inspect
 import warnings
+from collections import defaultdict
 from functools import partial
 from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
 
@@ -215,26 +216,19 @@ class InterpolationTask(EOTask):
         :param times: Array of reference times relative to the first timestamp
         :return: cleaned versions of data input
         """
-        seen = set()
-        duplication_list = []
-        for idx, item in enumerate(times):
-            if item in seen:
-                duplication_list.append(idx)
-            else:
-                seen.add(item)
-        duplicated_indices = np.array(duplication_list, dtype=int)
+        time_groups = defaultdict(list)
+        for idx, time in enumerate(times):
+            time_groups[time].append(data[idx])
 
-        duplicated_times = np.unique(times[duplicated_indices])
+        clean_times = np.array(sorted(time_groups))
+        clean_data = np.full((len(clean_times), *data.shape[1:]), np.nan)
+        for idx, time in enumerate(clean_times):
+            # np.nanmean complains about rows of full nans, so we have to use masking, makes more complicated
+            data_for_time = np.array(time_groups[time])
+            nan_mask = np.all(np.isnan(data_for_time), axis=0)
+            clean_data[idx, ~nan_mask] = np.nanmean(data_for_time[:, ~nan_mask], axis=0)
 
-        for time in duplicated_times:
-            indices = np.where(times == time)[0]
-            nan_mask = np.all(np.isnan(data[indices]), axis=0)
-            data[indices[0], ~nan_mask] = np.nanmean(data[indices][:, ~nan_mask], axis=0)
-
-        times = np.delete(times, duplicated_indices, axis=0)
-        data = np.delete(data, duplicated_indices, axis=0)
-
-        return data, times
+        return clean_data, clean_times
 
     def _copy_old_features(self, new_eopatch: EOPatch, old_eopatch: EOPatch) -> EOPatch:
         """Copy features from old EOPatch into new_eopatch"""
