@@ -80,25 +80,28 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
     def _get_filename_paths(self, filename_template: Union[str, List[str]], timestamps: List[dt.datetime]) -> List[str]:
         """From a filename "template" and base path on the filesystem it generates full paths to tiff files. The paths
         are still relative to the filesystem object.
+
+        If the file extension is not provided, it will default to `.tif`. If a "*" wildcard or a datetime format
+        substring (e.g. "%Y%m%dT%H%M%S") is provided in the template, it returns multiple GeoTIFF paths where each one
+        will correspond to a single timestamp. Alternatively, a list of paths can be provided, one for each timestamp.
         """
         if isinstance(filename_template, str):
             filename_path = fs.path.join(self.filesystem_path, filename_template)
             filename_paths = self._generate_paths(filename_path, timestamps)
 
         elif isinstance(filename_template, list):
-            filename_paths = []
-            for timestamp_index, path in enumerate(filename_template):
-                filename_path = fs.path.join(self.filesystem_path, path)
-                if len(filename_template) == len(timestamps):
-                    filename_paths.extend(self._generate_paths(filename_path, [timestamps[timestamp_index]]))
-                elif not timestamps:
-                    filename_paths.extend(self._generate_paths(filename_path, timestamps))
-                else:
-                    raise ValueError(
-                        "The number of provided timestamps does not match the number of provided filenames."
-                    )
+            if timestamps and len(filename_template) != len(timestamps):
+                raise ValueError("The number of provided timestamps does not match the number of provided filenames.")
+
+            filenames = []
+            for idx, path in enumerate(filename_template):
+                timestamps = [] if not timestamps else [timestamps[idx]]
+                filenames.extend(self._generate_paths(path, timestamps))
+
+            filename_paths = [fs.path.join(self.filesystem_path, path) for path in filenames]
+
         else:
-            raise TypeError(f"The 'filename' parameter must be a list or a string, but {filename_template} found")
+            raise TypeError(f"The `filename` parameter must be a list or a string, but {filename_template} found")
 
         if self._create_path:
             unique_folder_paths = {fs.path.dirname(filename_path) for filename_path in filename_paths}
