@@ -257,22 +257,16 @@ class InterpolationTask(EOTask):
         """
         # pylint: disable=too-many-locals
         num_obs = data.shape[-1]
+        new_data = np.full((len(resampled_times), num_obs), np.nan, dtype=data.dtype)
+
         if self.interpolate_pixel_wise:
-            # initialise array of interpolated values
-            if self.resample_range is None:
-                new_data = data
-            else:
-                new_data = np.full((len(resampled_times), num_obs), np.nan, dtype=data.dtype)
+            for idx in range(num_obs):
+                tseries = data[:, idx]
+                valid = ~np.isnan(tseries)
+                obs_interpolating_func = self.get_interpolation_function(times[valid], tseries[valid])
 
-            # Interpolate for each pixel, could be easily parallelized
-            for obs in range(num_obs):
-                valid = ~np.isnan(data[:, obs])
+                new_data[:, idx] = obs_interpolating_func(resampled_times[:, np.newaxis])
 
-                obs_interpolating_func = self.get_interpolation_function(times[valid], data[valid, obs])
-
-                new_data[:, obs] = obs_interpolating_func(resampled_times[:, np.newaxis])
-
-            # return interpolated values
             return new_data
 
         # mask representing overlap between reference and resampled times
@@ -282,9 +276,6 @@ class InterpolationTask(EOTask):
         const = int(self.filling_factor * (np.max(times) - np.min(times)))
         temp_values = times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
         res_temp_values = resampled_times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
-
-        # initialise array of interpolated values
-        new_data = np.full((len(resampled_times), num_obs), np.nan, dtype=data.dtype)
 
         # array defining index correspondence between reference times and resampled times
         temp = []
@@ -306,8 +297,7 @@ class InterpolationTask(EOTask):
         # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
         res_temp_values[~time_mask, :] = np.nan
 
-        # build 1d array for interpolation. Spline functions require monotonically increasing values of x,
-        # so .T is used
+        # build 1d array for interpolation. Spline functions require monotonically increasing values of x, so .T is used
         input_x = temp_values.T[~np.isnan(data).T]
         input_y = data.T[~np.isnan(data).T]
 
