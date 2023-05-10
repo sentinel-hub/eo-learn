@@ -146,7 +146,7 @@ class InterpolationTask(EOTask):
         if resample_range is None and copy_features is not None:
             self.copy_features = None
             warnings.warn(
-                'Argument "copy_features" will be ignored if "resample_range" is None. Nothing to copy.', EOUserWarning
+                "If `resample_range` is None the task is done in-place. Ignoring `copy_features`.", EOUserWarning
             )
         else:
             self.copy_features_parser = None if copy_features is None else self.get_feature_parser(copy_features)
@@ -159,13 +159,7 @@ class InterpolationTask(EOTask):
 
     @staticmethod
     def _mask_feature_data(feature_data: np.ndarray, mask: np.ndarray, mask_type: FeatureType) -> np.ndarray:
-        """Masks values of data feature with a given mask of given mask type. The masking is done by assigning
-        `numpy.nan` value.
-
-        :param feature_data: Data array which will be masked
-        :param mask: Mask array
-        :return: Masked data array
-        """
+        """Masks values of data feature (in-place) with a given mask by assigning `numpy.nan` value to masked fields."""
 
         if mask_type.is_spatial() and feature_data.shape[1:3] != mask.shape[-3:-1]:
             raise ValueError(
@@ -198,11 +192,11 @@ class InterpolationTask(EOTask):
     def _get_start_end_nans(data: np.ndarray) -> np.ndarray:
         """Find NaN values in data that either start or end the time-series
 
-        Function to return a binary array of same size as data where `True` values correspond to NaN values present at
+        Function returns a array of same size as data where `True` corresponds to NaN values present at
         beginning or end of time-series. NaNs internal to the time-series are not included in the binary mask.
 
-        :param data: Array of observations of size TxNOBS
-        :return: Binary array of shape TxNOBS. `True` values indicate NaNs present at beginning or end of time-series
+        :param data: Array of observations of size t x num_obs
+        :return: Array of shape t x num_obs. `True` values indicate NaNs present at beginning or end of time-series
         """
         # find NaNs that start a time-series
         start_nan = np.isnan(data)
@@ -341,11 +335,7 @@ class InterpolationTask(EOTask):
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
     def get_resampled_timestamp(self, timestamps: List[dt.datetime]) -> List[dt.datetime]:
-        """Takes a list of timestamps and generates new list of timestamps according to ``resample_range``
-
-        :param timestamp: list of timestamps
-        :return: new list of timestamps
-        """
+        """Takes a list of timestamps and generates new list of timestamps according to `resample_range`"""
         days: List[dt.datetime]
         if self.resample_range is None:
             return timestamps
@@ -457,8 +447,7 @@ class InterpolationTask(EOTask):
 class LinearInterpolationTask(InterpolationTask):
     """Implements `eolearn.features.InterpolationTask` by using `numpy.interp` and `@numba.jit(nopython=True)`
 
-    :param parallel: interpolation is calculated in parallel using as many CPUs as detected
-        by the multiprocessing module.
+    :param parallel: interpolation is calculated in parallel by numba.
     :param kwargs: parameters of InterpolationTask(EOTask)
     """
 
@@ -471,8 +460,7 @@ class LinearInterpolationTask(InterpolationTask):
 
         :param data: Array in a shape of t x num_obs, where num_obs = h x w x n
         :param times: Array of reference times in second relative to the first timestamp
-        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-            array.
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
         :return: Array of interpolated values
         """
         if self.parallel:
@@ -575,8 +563,7 @@ class ResamplingTask(InterpolationTask):
 
         :param data: Array in a shape of t x num_obs, where num_obs = h x w x n
         :param times: Array of reference times in second relative to the first timestamp
-        :param resampled_times: Array of reference times in second relative to the first timestamp in initial timestamp
-            array.
+        :param resampled_times: Array of reference times relative to the first timestamp in initial timestamp array.
         :return: Array of interpolated values
         """
         if np.isnan(data).any():
@@ -600,27 +587,21 @@ class ResamplingTask(InterpolationTask):
 
 
 class NearestResamplingTask(ResamplingTask):
-    """
-    Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
-    """
+    """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`"""
 
     def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="nearest", **kwargs)
 
 
 class LinearResamplingTask(ResamplingTask):
-    """
-    Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`
-    """
+    """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`"""
 
     def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="linear", **kwargs)
 
 
 class CubicResamplingTask(ResamplingTask):
-    """
-    Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`
-    """
+    """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
 
     def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="cubic", **kwargs)
