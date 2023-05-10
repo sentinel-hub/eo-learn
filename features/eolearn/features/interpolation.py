@@ -12,7 +12,7 @@ import datetime as dt
 import inspect
 import warnings
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
 
 import dateutil
 import numpy as np
@@ -320,7 +320,6 @@ class InterpolationTask(EOTask):
 
     def get_resampled_timestamp(self, timestamps: List[dt.datetime]) -> List[dt.datetime]:
         """Takes a list of timestamps and generates new list of timestamps according to `resample_range`"""
-        days: List[dt.datetime]
         if self.resample_range is None:
             return timestamps
 
@@ -328,22 +327,20 @@ class InterpolationTask(EOTask):
             raise ValueError(f"Invalid resample_range {self.resample_range}, expected tuple")
 
         if tuple(map(type, self.resample_range)) == (str, str, int):
-            resample_range = cast(Tuple[str, str, int], self.resample_range)
-            start_date = dateutil.parser.parse(resample_range[0])
-            end_date = dateutil.parser.parse(resample_range[1])
-            step = dt.timedelta(days=resample_range[2])
+            start_str, end_str, step_size = cast(Tuple[str, str, int], self.resample_range)
+            start_date, end_date = dateutil.parser.parse(start_str), dateutil.parser.parse(end_str)
+            step = dt.timedelta(days=step_size)
             days = [start_date]
             while days[-1] + step < end_date:
                 days.append(days[-1] + step)
 
-        elif np.all([isinstance(date, str) for date in self.resample_range]):
-            days = [dateutil.parser.parse(date) for date in cast(List[str], self.resample_range)]
-        elif np.all([isinstance(date, dt.datetime) for date in self.resample_range]):
-            days = list(cast(List[dt.datetime], self.resample_range))
-        else:
-            raise ValueError("Invalid format in {self.resample_range}, expected strings or datetimes")
+            return days
 
-        return days
+        if isinstance(self.resample_range, (list, tuple)):
+            dates = cast(Iterable[Union[str, dt.datetime]], self.resample_range)
+            return [dateutil.parser.parse(date) if isinstance(date, str) else date for date in dates]
+
+        raise ValueError(f"Invalid format in {self.resample_range}, expected {ResampleRangeType}")
 
     @staticmethod
     def _get_eopatch_time_series(
