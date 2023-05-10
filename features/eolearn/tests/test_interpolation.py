@@ -350,3 +350,32 @@ def test_interpolation_exact2(test_patch):
         + [0.09893011, 0.2601632, 5.0]
     )
     np.testing.assert_array_almost_equal(data[..., 3, 5, 0], expected_data)
+
+
+def test_get_unique_times():
+    data = np.arange(1 * 2 * 3 * 8).reshape((8, 3, 1, 2))
+    times = np.array(
+        [
+            datetime(2022, 1, 1),
+            datetime(2022, 1, 1),
+            datetime(2022, 2, 1),
+            datetime(2022, 2, 1),
+            datetime(2022, 3, 1),
+            datetime(2022, 4, 1),
+            datetime(2022, 4, 1),
+            datetime(2022, 4, 1),
+        ]
+    )
+    new_data, new_times = LinearInterpolationTask._get_unique_times(data, times)
+    np.testing.assert_array_equal(new_times, np.array([datetime(2022, i, 1) for i in range(1, 5)]))
+    np.testing.assert_array_equal(
+        new_data,
+        np.array(
+            [
+                [[[3, 4]], [[5, 6]], [[7, 8]]],
+                [[[15, 16]], [[17, 18]], [[19, 20]]],
+                [[[24, 25]], [[26, 27]], [[28, 29]]],
+                [[[36, 37]], [[38, 39]], [[40, 41]]],
+            ]
+        ),
+    )
