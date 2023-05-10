@@ -359,8 +359,7 @@ class InterpolationTask(EOTask):
         if not eopatch.timestamps:
             return np.zeros(0, dtype=np.int64)
 
-        if ref_date is None:
-            ref_date = eopatch.timestamps[0]
+        ref_date = ref_date or eopatch.timestamps[0]
 
         return np.asarray(
             [round((timestamp - ref_date).total_seconds() / scale_time) for timestamp in eopatch.timestamps],
@@ -383,7 +382,7 @@ class InterpolationTask(EOTask):
         # Apply a mask on data
         if self.mask_feature_parser is not None:
             for mask_type, mask_name in self.mask_feature_parser.get_features(eopatch):
-                negated_mask = ~eopatch[mask_type][mask_name].astype(bool)
+                negated_mask = ~eopatch[mask_type, mask_name].astype(bool)
                 feature_data = self._mask_feature_data(feature_data, negated_mask, mask_type)
 
         # If resampling create new EOPatch
@@ -406,20 +405,12 @@ class InterpolationTask(EOTask):
         # Interpolate
         feature_data = self.interpolate_data(feature_data, times, resampled_times)
 
-        # Normalize
+        # Normalize and insert correct unknown value
         if self.result_interval:
-            min_val, max_val = self.result_interval
-            valid_mask = ~np.isnan(feature_data)
-            feature_data[valid_mask] = np.maximum(np.minimum(feature_data[valid_mask], max_val), min_val)
+            feature_data = np.clip(feature_data, *self.result_interval)
+        feature_data[np.isnan(feature_data)] = self.unknown_value
 
-        # Replace unknown value
-        if not np.isnan(self.unknown_value):
-            feature_data[np.isnan(feature_data)] = self.unknown_value
-
-        # Reshape back
         new_eopatch[feature_type, new_feature_name] = np.reshape(feature_data, (-1, height, width, band_num))
-
-        # append features from old patch
         new_eopatch = self._copy_old_features(new_eopatch, eopatch)
 
         return new_eopatch
