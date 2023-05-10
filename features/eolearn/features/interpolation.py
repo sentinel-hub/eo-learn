@@ -269,14 +269,6 @@ class InterpolationTask(EOTask):
 
             return new_data
 
-        # mask representing overlap between reference and resampled times
-        time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
-
-        # define time values as linear monotonically increasing over the observations
-        const = int(self.filling_factor * (np.max(times) - np.min(times)))
-        temp_values = times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
-        res_temp_values = resampled_times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
-
         # array defining index correspondence between reference times and resampled times
         min_time, max_time = np.min(resampled_times), np.max(resampled_times)
         ori2res = np.array(
@@ -291,10 +283,16 @@ class InterpolationTask(EOTask):
         nan_row_res_indices = np.array([index for index in ori2res[row_nans] if index is not None], dtype=np.int32)
         nan_col_res_indices = np.array([index is not None for index in ori2res[row_nans]], dtype=bool)
 
+        # define time values as linear monotonically increasing over the observations
+        const = int(self.filling_factor * (np.max(times) - np.min(times)))
+        temp_values = times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
+        res_temp_values = resampled_times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
+
         if nan_row_res_indices.size:
             # mask out from output values the starting/ending NaNs
             res_temp_values[nan_row_res_indices, col_nans[nan_col_res_indices]] = np.nan
         # if temporal values outside the reference dates are required (extrapolation) masked them to NaN
+        time_mask = (resampled_times >= np.min(times)) & (resampled_times <= np.max(times))
         res_temp_values[~time_mask, :] = np.nan
 
         # build 1d array for interpolation. Spline functions require monotonically increasing values of x, so .T is used
@@ -304,9 +302,8 @@ class InterpolationTask(EOTask):
         # build interpolation function
         if len(input_x) > 1:
             interp_func = self.get_interpolation_function(input_x, input_y)
-
-            # interpolate non-NaN values in resampled time values
-            new_data[~np.isnan(res_temp_values)] = interp_func(res_temp_values[~np.isnan(res_temp_values)])
+            valid = ~np.isnan(res_temp_values)
+            new_data[valid] = interp_func(res_temp_values[valid])
 
         return new_data
 
