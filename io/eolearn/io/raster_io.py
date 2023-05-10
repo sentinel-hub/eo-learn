@@ -110,25 +110,19 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
     @classmethod
     def _generate_paths(cls, path_template: str, timestamps: List[dt.datetime]) -> List[str]:
         """Uses a filename path template to create a list of actual filename paths."""
-        if not cls._has_tiff_file_extension(path_template):
+        has_tiff_file_extensions = path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")
+        if not has_tiff_file_extensions:
             path_template = f"{path_template}.tif"
 
         if not timestamps:
             return [path_template]
 
-        if "*" in path_template:
-            path_template = path_template.replace("*", "%Y%m%dT%H%M%S")
+        path_template = path_template.replace("*", "%Y%m%dT%H%M%S")
 
-        if timestamps[0].strftime(path_template) == path_template:
+        if timestamps[0].strftime(path_template) == path_template:  # unaffected by timestamps
             return [path_template]
 
         return [timestamp.strftime(path_template) for timestamp in timestamps]
-
-    @staticmethod
-    def _has_tiff_file_extension(path: str) -> bool:
-        """Checks if path ends with a tiff file extension."""
-        path = path.lower()
-        return path.endswith(".tif") or path.endswith(".tiff")
 
 
 class ExportToTiffTask(BaseRasterIoTask):
