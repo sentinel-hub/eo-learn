@@ -278,13 +278,13 @@ class InterpolationTask(EOTask):
         res_temp_values = resampled_times[:, np.newaxis] + const * np.arange(num_obs)[np.newaxis, :].astype(np.float64)
 
         # array defining index correspondence between reference times and resampled times
-        temp = []
-        for orig_time in times:
-            if np.min(resampled_times) <= orig_time <= np.max(resampled_times):
-                temp.append(np.abs(resampled_times - orig_time).argmin())
-            else:
-                temp.append(None)
-        ori2res = np.array(temp)
+        min_time, max_time = np.min(resampled_times), np.max(resampled_times)
+        ori2res = np.array(
+            [
+                np.abs(resampled_times - orig_time).argmin() if min_time <= orig_time <= max_time else None
+                for orig_time in times
+            ]
+        )
 
         # find NaNs that start or end a time-series
         row_nans, col_nans = np.where(self._get_start_end_nans(data))
