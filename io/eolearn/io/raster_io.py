@@ -56,8 +56,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
         :param folder: A path to a main folder containing all image, potentially in its subfolders. If `filesystem`
             parameter is defined, then `folder` should be a path relative to filesystem object. Otherwise, it should be
             an absolute path.
-        :param filesystem: An existing filesystem object. If not given it will be initialized according to `folder`
-            parameter.
+        :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
         :param no_data_value: When exporting this is the NoData value of pixels in exported images.
             When importing this value is assigned to the pixels with NoData.
@@ -75,6 +74,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
         if filesystem is None:
             filesystem, folder = get_base_filesystem_and_path(folder, create=create, config=config)
 
+        # the super-class takes care of filesystem pickling
         super().__init__(folder, filesystem=filesystem, create=create, config=config)
 
     def _get_filename_paths(self, filename_template: Union[str, List[str]], timestamps: List[dt.datetime]) -> List[str]:
@@ -98,14 +98,12 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
                         "The number of provided timestamps does not match the number of provided filenames."
                     )
         else:
-            raise TypeError(
-                f"The 'filename' parameter must either be a list or a string, but {filename_template} found"
-            )
+            raise TypeError(f"The 'filename' parameter must be a list or a string, but {filename_template} found")
 
         if self._create_path:
-            paths_to_create = {fs.path.dirname(filename_path) for filename_path in filename_paths}
-            for filename_path in paths_to_create:
-                self.filesystem.makedirs(filename_path, recreate=True)
+            unique_folder_paths = {fs.path.dirname(filename_path) for filename_path in filename_paths}
+            for folder_path in unique_folder_paths:
+                self.filesystem.makedirs(folder_path, recreate=True)
 
         return filename_paths
 
