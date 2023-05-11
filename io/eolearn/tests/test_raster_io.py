@@ -218,7 +218,10 @@ def test_export2tiff_wrong_feature(mocker, test_eopatch):
         assert logging.Logger.warning.call_count == 1
 
         (val_err,), _ = logging.Logger.warning.call_args
-        assert str(val_err) == "Feature feature-not-present of type FeatureType.MASK_TIMELESS was not found in EOPatch"
+        assert (
+            str(val_err)
+            == "Feature (<FeatureType.MASK_TIMELESS: 'mask_timeless'>, 'feature-not-present') was not found in EOPatch"
+        )
 
         with pytest.raises(ValueError):
             failing_export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=True)

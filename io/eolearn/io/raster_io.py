@@ -493,7 +493,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
     def _load_data(self, filename_paths: List[str], initial_bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
         """Load data from images, join them, and provide their bounding box."""
-        data_per_path: List[np.ndarray] = []
+        data_per_path = []
         final_bbox: Optional[BBox] = None
 
         with self.filesystem as filesystem:
