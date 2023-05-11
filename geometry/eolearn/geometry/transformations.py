@@ -9,14 +9,13 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import datetime as dt
-import functools
 import logging
 import warnings
+from functools import partial
 from typing import Any, Callable, Iterator, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
-import pyproj
 import rasterio.features
 import rasterio.transform
 import shapely.geometry
@@ -103,6 +102,7 @@ class VectorToRasterTask(EOTask):
             available parameters are `all_touched` and `merge_alg`
         """
         self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
+        self._rasterize_per_timestamp = self.raster_feature[0].is_temporal()
 
         if _vector_is_timeless(self.vector_input) and not self.raster_feature[0].is_timeless():
             raise ValueError("Vector input has no time-dependence but a time-dependent output feature was selected")
@@ -123,8 +123,6 @@ class VectorToRasterTask(EOTask):
         self.rasterio_params = rasterio_params
         self.overlap_value = overlap_value
         self.buffer = buffer
-
-        self._rasterize_per_timestamp = self.raster_feature[0].is_temporal()
 
     def _parse_main_params(
         self, vector_input: Union[GeoDataFrame, SingleFeatureSpec], raster_feature: SingleFeatureSpec
@@ -160,6 +158,34 @@ class VectorToRasterTask(EOTask):
         self, vector_data: GeoDataFrame, bbox: BBox, timestamps: List[dt.datetime]
     ) -> GeoDataFrame:
         """Applies preprocessing steps on a dataframe with geometries and potential values and timestamps"""
+        vector_data = self._reduce_vector_data(vector_data, timestamps)
+
+        if bbox.crs is not CRS(vector_data.crs.to_epsg()):
+            warnings.warn(
+                "Vector data is not in the same CRS as EOPatch, the task will re-project vectors for each execution",
+                EORuntimeWarning,
+            )
+            vector_data = vector_data.to_crs(bbox.crs.pyproj_crs())
+
+        bbox_poly = bbox.geometry
+        vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
+
+        if self.buffer:
+            vector_data.geometry = vector_data.geometry.buffer(self.buffer)
+            vector_data = vector_data[~vector_data.is_empty]
+
+        if not vector_data.geometry.is_valid.all():
+            warnings.warn("Given vector polygons contain some invalid geometries, attempting to fix", EORuntimeWarning)
+            vector_data.geometry = vector_data.geometry.buffer(0)
+
+        if vector_data.geometry.has_z.any():
+            warnings.warn("Polygons contain 3D geometries, they will be projected to 2D", EORuntimeWarning)
+            vector_data.geometry = vector_data.geometry.map(partial(shapely.ops.transform, lambda *args: args[:2]))
+
+        return vector_data
+
+    def _reduce_vector_data(self, vector_data: GeoDataFrame, timestamps: List[dt.datetime]) -> GeoDataFrame:
+        """Removes all redundant columns and rows."""
         columns_to_keep = ["geometry"]
         if self._rasterize_per_timestamp:
             columns_to_keep.append(TIMESTAMP_COLUMN)
@@ -174,42 +200,6 @@ class VectorToRasterTask(EOTask):
         if self.values_column is not None and self.values is not None:
             values = [self.values] if isinstance(self.values, (int, float)) else self.values
             vector_data = vector_data[vector_data[self.values_column].isin(values)]
-
-        gpd_crs = vector_data.crs
-        # This special case has to be handled because of WGS84 and lat-lon order:
-        if isinstance(gpd_crs, pyproj.CRS):
-            gpd_crs = gpd_crs.to_epsg()
-        vector_data_crs = CRS(gpd_crs)
-
-        if bbox.crs is not vector_data_crs:
-            warnings.warn(
-                (
-                    "Vector data is not in the same CRS as EOPatch, this task will re-project vector data for "
-                    "each execution"
-                ),
-                EORuntimeWarning,
-            )
-            vector_data = vector_data.to_crs(bbox.crs.pyproj_crs())
-
-        bbox_poly = bbox.geometry
-        vector_data = vector_data[vector_data.geometry.intersects(bbox_poly)].copy(deep=True)
-
-        if self.buffer:
-            vector_data.geometry = vector_data.geometry.buffer(self.buffer)
-            vector_data = vector_data[~vector_data.is_empty]
-
-        if not vector_data.geometry.is_valid.all():
-            warnings.warn("Given vector polygons contain some invalid geometries, they will be fixed", EORuntimeWarning)
-            vector_data.geometry = vector_data.geometry.buffer(0)
-
-        if vector_data.geometry.has_z.any():
-            warnings.warn(
-                "Given vector polygons contain some 3D geometries, they will be projected to 2D", EORuntimeWarning
-            )
-            vector_data.geometry = vector_data.geometry.map(
-                functools.partial(shapely.ops.transform, lambda *args: args[:2])
-            )
-
         return vector_data
 
     def _vector_data_to_shape_iterator(self, vector_data: GeoDataFrame, join_per_value: bool) -> ShapeIterator:
@@ -278,7 +268,7 @@ class VectorToRasterTask(EOTask):
 
         base_rasterize_func = rasterio.features.rasterize if self.overlap_value is None else self.rasterize_overlapped
 
-        return functools.partial(base_rasterize_func, **rasterize_params)
+        return partial(base_rasterize_func, **rasterize_params)
 
     def rasterize_overlapped(self, shapes: ShapeIterator, out: np.ndarray, **rasterize_args: Any) -> None:
         """Rasterize overlapped classes.
