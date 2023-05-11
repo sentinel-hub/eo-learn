@@ -262,24 +262,19 @@ class ExportToTiffTask(BaseRasterIoTask):
     def _get_source_and_destination_params(
         self, data_array: np.ndarray, bbox: BBox
     ) -> Tuple[Tuple[str, Affine], Tuple[str, Affine], Tuple[int, int]]:
-        """
-        Calculates source and destination CRS and transforms. Additionally, it returns destination height and width
-        """
+        """Calculates source and destination CRS and transforms. Also returns destination height and width."""
         _, height, width = data_array.shape
 
         src_crs = bbox.crs.ogc_string()
         src_transform = rasterio.transform.from_bounds(*bbox, width=width, height=height)
 
-        if self.crs:
-            dst_crs = self.crs.ogc_string()
-            dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
-                src_crs, dst_crs, width, height, *bbox
-            )
-        else:
-            dst_crs = src_crs
-            dst_transform = src_transform
-            dst_width, dst_height = width, height
+        if self.crs is None:
+            return (src_crs, src_transform), (src_crs, src_transform), (height, width)
 
+        dst_crs = self.crs.ogc_string()
+        dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
+            src_crs, dst_crs, width, height, *bbox
+        )
         return (src_crs, src_transform), (dst_crs, dst_transform), (dst_height, dst_width)
 
     def _export_tiff(
@@ -288,6 +283,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         filesystem: FS,
         path: str,
         channel_count: int,
+        *,
         dst_crs: str,
         dst_transform: Affine,
         dst_height: int,
@@ -296,7 +292,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         src_transform: Affine,
     ) -> None:
         """Export an EOPatch feature to tiff based on input channel range."""
-        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:  # noqa: SIM117
+        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:
             with rasterio.open(
                 file_handle,
                 "w",
@@ -340,27 +336,23 @@ class ExportToTiffTask(BaseRasterIoTask):
             return eopatch
 
         if self.feature not in eopatch:
-            error_msg = f"Feature {self.feature[1]} of type {self.feature[0]} was not found in EOPatch"
+            error_msg = f"Feature {self.feature} was not found in EOPatch"
             LOGGER.warning(error_msg)
             if self.fail_on_missing:
                 raise ValueError(error_msg)
             return eopatch
         if eopatch.bbox is None:
-            raise ValueError(
-                "Given EOPatch is missing a bounding box and therefore no feature can be exported to GeoTIFF"
-            )
+            raise ValueError("EOPatch without a bounding box encountered, cannot export to GeoTIFF")
 
         image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamps, self.feature)
 
-        (
-            (src_crs, src_transform),
-            (dst_crs, dst_transform),
-            (dst_height, dst_width),
-        ) = self._get_source_and_destination_params(image_array, eopatch.bbox)
+        src_info, dst_info, (dst_height, dst_width) = self._get_source_and_destination_params(image_array, eopatch.bbox)
+        src_crs, src_transform = src_info
+        dst_crs, dst_transform = dst_info
 
         filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
 
-        with self.filesystem as filesystem:
+        with self.filesystem as filesystem:  # no worries about `close`, filesystem is freshly unpickled by the property
             export_function = functools.partial(
                 self._export_tiff,
                 filesystem=filesystem,
