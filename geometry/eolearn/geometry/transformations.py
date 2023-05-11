@@ -9,6 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import datetime as dt
+import itertools as it
 import logging
 import warnings
 from functools import partial
@@ -203,19 +204,18 @@ class VectorToRasterTask(EOTask):
         return vector_data
 
     def _vector_data_to_shape_iterator(self, vector_data: GeoDataFrame, join_per_value: bool) -> ShapeIterator:
-        """Returns an iterator of pairs `(shape, value)` or `None` if given dataframe is empty"""
+        """Returns an iterator of pairs `(shape, value)`."""
         if self.values_column is None:
             value = cast(float, self.values)  # cast is checked at init
-            return zip(vector_data.geometry, [value] * len(vector_data.index))
+            return zip(vector_data.geometry, it.repeat(value))
 
+        values = vector_data[self.values_column]
         if join_per_value:
-            classes = np.unique(vector_data[self.values_column])
-            grouped = (vector_data.geometry[vector_data[self.values_column] == cl] for cl in classes)
+            groups = {val: vector_data.geometry[values == val] for val in np.unique(values)}
             join_function = shapely.ops.unary_union if shapely.__version__ >= "1.8.0" else shapely.ops.cascaded_union
-            grouped = (join_function(group) for group in grouped)
-            return zip(grouped, classes)
+            return ((join_function(group), val) for val, group in groups.items())
 
-        return zip(vector_data.geometry, vector_data[self.values_column])
+        return zip(vector_data.geometry, values)
 
     def _get_raster_shape(self, eopatch: EOPatch) -> Tuple[int, int]:
         """Determines the shape of new raster feature, returns a pair (height, width)"""
