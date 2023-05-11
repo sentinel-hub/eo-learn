@@ -105,7 +105,7 @@ class VectorToRasterTask(EOTask):
         self.vector_input, self.raster_feature = self._parse_main_params(vector_input, raster_feature)
 
         if _vector_is_timeless(self.vector_input) and not self.raster_feature[0].is_timeless():
-            raise ValueError("Vector input has no time-dependence but a time-dependent raster feature was selected")
+            raise ValueError("Vector input has no time-dependence but a time-dependent output feature was selected")
 
         self.values = values
         self.values_column = values_column
@@ -138,31 +138,23 @@ class VectorToRasterTask(EOTask):
 
     def _get_vector_data_iterator(
         self, eopatch: EOPatch, join_per_value: bool
-    ) -> Iterator[Tuple[Optional[dt.datetime], Optional[ShapeIterator]]]:
+    ) -> Iterator[Tuple[Optional[dt.datetime], ShapeIterator]]:
         """Collects and prepares vector shapes for rasterization. It works as an iterator that returns pairs of
         `(timestamp or None, <iterator over shapes and values>)`
 
         :param eopatch: An EOPatch from where geometries will be obtained
         :param join_per_value: If `True` it will join geometries with the same value using a cascaded union
         """
-        vector_data = self._get_vector_data_from_eopatch(eopatch)
+        vector_data = self.vector_input if _is_geopandas_object(self.vector_input) else eopatch[self.vector_input]
         # EOPatch has a bbox, verified in execute
         vector_data = self._preprocess_vector_data(vector_data, cast(BBox, eopatch.bbox), eopatch.timestamps)
 
         if self._rasterize_per_timestamp:
-            for timestamp, vector_data_per_timestamp in vector_data.groupby(TIMESTAMP_COLUMN):
-                yield timestamp.to_pydatetime(), self._vector_data_to_shape_iterator(
-                    vector_data_per_timestamp, join_per_value
-                )
-        else:
+            for timestamp, data_for_time in vector_data.groupby(TIMESTAMP_COLUMN):
+                if not data_for_time.empty:
+                    yield timestamp.to_pydatetime(), self._vector_data_to_shape_iterator(data_for_time, join_per_value)
+        elif not vector_data.empty:
             yield None, self._vector_data_to_shape_iterator(vector_data, join_per_value)
-
-    def _get_vector_data_from_eopatch(self, eopatch: EOPatch) -> GeoDataFrame:
-        """Provides a vector dataframe either from the attribute or from given EOPatch feature"""
-        if _is_geopandas_object(self.vector_input):
-            return self.vector_input
-
-        return eopatch[self.vector_input]
 
     def _preprocess_vector_data(
         self, vector_data: GeoDataFrame, bbox: BBox, timestamps: List[dt.datetime]
@@ -220,13 +212,8 @@ class VectorToRasterTask(EOTask):
 
         return vector_data
 
-    def _vector_data_to_shape_iterator(
-        self, vector_data: GeoDataFrame, join_per_value: bool
-    ) -> Optional[ShapeIterator]:
+    def _vector_data_to_shape_iterator(self, vector_data: GeoDataFrame, join_per_value: bool) -> ShapeIterator:
         """Returns an iterator of pairs `(shape, value)` or `None` if given dataframe is empty"""
-        if vector_data.empty:
-            return None
-
         if self.values_column is None:
             value = cast(float, self.values)  # cast is checked at init
             return zip(vector_data.geometry, [value] * len(vector_data.index))
@@ -335,9 +322,6 @@ class VectorToRasterTask(EOTask):
         timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamps)}
 
         for timestamp, shape_iterator in vector_data_iterator:
-            if shape_iterator is None:
-                continue
-
             if timestamp is None:
                 rasterize_func(shape_iterator, out=raster)
             else:
