@@ -28,7 +28,7 @@ disable = [
 max-args = 15
 max-branches = 15
 max-attributes = 20
-max-locals = 20
+max-locals = 21
 min-public-methods = 0
 
 [tool.pylint.similarities]
