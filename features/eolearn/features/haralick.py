@@ -79,7 +79,7 @@ class HaralickTask(EOTask):
                 "Haralick stride is larger than window size; some pixel values will be ignored", EOUserWarning
             )
 
-    def _custom_texture(self, glcm: np.ndarray) -> np.ndarray:
+    def _custom_texture(self, glcm: np.ndarray) -> np.ndarray:  # pylint: disable=too-many-return-statements
         if self.texture_feature == "sum_of_square_variance":
             i_raw = np.empty_like(glcm)
             i_raw[...] = np.arange(glcm.shape[0])
