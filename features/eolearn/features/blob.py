@@ -14,7 +14,10 @@ from typing import Any, Callable
 import numpy as np
 import skimage.feature
 
+from sentinelhub.exceptions import deprecated_class
+
 from eolearn.core import EOPatch, EOTask
+from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import SingleFeatureSpec
 
 
@@ -31,29 +34,15 @@ class BlobTask(EOTask):
     The output is a `FeatureType.DATA` where the radius of each blob is stored in his center.
     ie : If blob[date, i, j, 0] = 5 then a blob of radius 5 is present at the coordinate (i, j)
 
-    The task uses skimage.feature.blob_log or skimage.feature.blob_dog or skimage.feature.blob_doh to extract the blobs.
+    The task uses `skimage.feature.blob_log`, `skimage.feature.blob_dog` or `skimage.feature.blob_doh` for extraction.
 
     The input image must be in [-1,1] range.
 
-    :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-                    specified it will be saved with name '<feature_name>_BLOB'
-
-                    Example: (FeatureType.DATA, 'bands') or (FeatureType.DATA, 'bands', 'blob')
-
-    :param blob_object: Name of the blob method to use
-    :param blob_parameters: List of parameters to be passed to the blob function. Below is a list of such parameters.
-    :param min_sigma: The minimum standard deviation for Gaussian Kernel. Keep this low to detect smaller blobs
-    :param max_sigma: The maximum standard deviation for Gaussian Kernel. Keep this high to detect larger blobs
-    :param threshold: The absolute lower bound for scale space maxima. Local maxima smaller than thresh are ignored.
-                        Reduce this to detect blobs with less intensity
-    :param overlap: A value between 0 and 1. If the area of two blobs overlaps by a fraction greater than threshold,
-                    the smaller blob is eliminated
-    :param num_sigma: For ‘Log’ and ‘DoH’: The number of intermediate values of standard deviations to consider between
-                        min_sigma and max_sigma
-    :param log_scale: For ‘Log’ and ‘DoH’: If set intermediate values of standard deviations are interpolated using a
-                        logarithmic scale to the base 10. If not, linear interpolation is used
-    :param sigma_ratio: For ‘DoG’: The ratio between the standard deviation of Gaussian Kernels used for computing the
-                        Difference of Gaussians
+    :param feature: A feature that will be used and a new feature name where data will be saved, e.g.
+        `(FeatureType.DATA, 'bands', 'blob')`.
+    :param blob_object: Callable that calculates the blob
+    :param blob_parameters: Parameters to be passed to the blob function. Consult documentation of `blob_object`
+        for available parameters.
     """
 
     def __init__(self, feature: SingleFeatureSpec, blob_object: Callable, **blob_parameters: Any):
@@ -88,6 +77,7 @@ class BlobTask(EOTask):
         return eopatch
 
 
+@deprecated_class(EODeprecationWarning, "Use `BlobTask` with `blob_object=skimage.feature.blob_dog`.")
 class DoGBlobTask(BlobTask):
     """Task to compute blobs with Difference of Gaussian (DoG) method"""
 
@@ -114,6 +104,7 @@ class DoGBlobTask(BlobTask):
         )
 
 
+@deprecated_class(EODeprecationWarning, "Use `BlobTask` with `blob_object=skimage.feature.blob_doh`.")
 class DoHBlobTask(BlobTask):
     """Task to compute blobs with Determinant of the Hessian (DoH) method"""
 
@@ -142,6 +133,7 @@ class DoHBlobTask(BlobTask):
         )
 
 
+@deprecated_class(EODeprecationWarning, "Use `BlobTask` with `blob_object=skimage.feature.blob_log`.")
 class LoGBlobTask(BlobTask):
     """Task to compute blobs with Laplacian of Gaussian (LoG) method"""
 
