@@ -8,6 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
+import itertools as it
 from typing import Optional, Tuple
 
 import numpy as np
@@ -39,16 +40,14 @@ class HOGTask(EOTask):
         visualize_feature_name: Optional[str] = None,
     ):
         """
-        :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-            specified it will be saved with name '<feature_name>_HOG'
-
-            Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'hog')`
+        :param feature: A feature that will be used and a new feature name where data will be saved, e.g.
+            `(FeatureType.DATA, 'bands', 'hog')`.
         :param orientations: Number of direction to use for the oriented gradient
         :param pixels_per_cell: Number of pixels in a cell, provided as a pair of integers.
         :param cells_per_block: Number of cells in a block, provided as a pair of integers.
         :param visualize: Produce a visualization for the HOG in an image
         :param visualize_feature_name: Name of the visualization feature to be added to the eopatch (if empty and
-            visualize is True, it becomes “new_name”_VIZU)
+            visualize is True, it becomes “new_name”_VISU)
         """
         self.feature_parser = self.get_feature_parser(feature, allowed_feature_types=[FeatureType.DATA])
 
@@ -61,22 +60,22 @@ class HOGTask(EOTask):
         self.visualize_name = visualize_feature_name
 
     def _compute_hog(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-        results_im = np.empty(
+        num_times, height, width, num_bands = data.shape
+        is_multichannel = num_bands != 1
+        hog_result = np.empty(
             (
-                data.shape[0],
-                (int(data.shape[1] // self.pixels_per_cell[0]) - self.cells_per_block[0] + 1) * self.cells_per_block[0],
-                (int(data.shape[2] // self.pixels_per_cell[1]) - self.cells_per_block[1] + 1) * self.cells_per_block[1],
+                num_times,
+                ((height // self.pixels_per_cell[0]) - self.cells_per_block[0] + 1) * self.cells_per_block[0],
+                ((width // self.pixels_per_cell[1]) - self.cells_per_block[1] + 1) * self.cells_per_block[1],
                 self.n_orientations,
             ),
-            dtype=float,
+            dtype=np.float32,
         )
         if self.visualize:
-            im_visu = np.empty(data.shape[0:3] + (1,))
-        for time in range(data.shape[0]):
-            is_multichannel = data.shape[-1] != 1
-            image = data[time] if is_multichannel else data[time, :, :, 0]
-            res, image = skimage.feature.hog(
-                image,
+            hog_visualization = np.empty((num_times, height, width, 1))
+        for time in range(num_times):
+            output, image = skimage.feature.hog(
+                data[time] if is_multichannel else data[time, :, :, 0],
                 orientations=self.n_orientations,
                 pixels_per_cell=self.pixels_per_cell,
                 visualize=self.visualize,
@@ -85,29 +84,31 @@ class HOGTask(EOTask):
                 feature_vector=self.hog_feature_vector,
                 channel_axis=-1 if is_multichannel else None,
             )
+
+            block_rows, block_cols, cell_rows, cell_cols, angles = output.shape
+            for block_row, block_col in it.product(range(block_rows), range(block_cols)):
+                for cell_row, cell_col in it.product(range(cell_rows), range(cell_cols)):
+                    row = block_row * self.cells_per_block[0] + cell_row
+                    col = block_col * self.cells_per_block[1] + cell_col
+                    for angle in range(angles):
+                        hog_result[time, row, col, angle] = output[block_row, block_col, cell_row, cell_col, angle]
+
             if self.visualize:
-                im_visu[time, :, :, 0] = image
-            for block_row in range(res.shape[0]):
-                for block_col in range(res.shape[1]):
-                    for cell_row in range(res.shape[2]):
-                        for cell_col in range(res.shape[3]):
-                            row = block_row * self.cells_per_block[0] + cell_row
-                            col = block_col * self.cells_per_block[1] + cell_col
-                            for angle in range(res.shape[4]):
-                                results_im[time, row, col, angle] = res[block_row, block_col, cell_row, cell_col, angle]
-        return results_im, im_visu
+                hog_visualization[time, :, :, 0] = image
+
+        return hog_result, hog_visualization
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """Execute computation of HoG features on input eopatch
 
         :param eopatch: Input eopatch
-        :return: EOPatch instance with new keys holding the HoG features and HoG image for visualisation.
+        :return: EOPatch instance with new keys holding the HoG features and HoG image for visualization.
         """
         for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
-            result_im, im_visu = self._compute_hog(eopatch[feature_type, feature_name])
-            eopatch[feature_type, new_feature_name] = result_im
+            hog_result, hog_visualization = self._compute_hog(eopatch[feature_type, feature_name])
+            eopatch[feature_type, new_feature_name] = hog_result
             if self.visualize:
                 visualize_name = self.visualize_name or f"{new_feature_name}_VISU"
-                eopatch[feature_type, visualize_name] = im_visu
+                eopatch[feature_type, visualize_name] = hog_visualization
 
         return eopatch
