@@ -102,18 +102,22 @@ class HaralickTask(EOTask):
             p_x_y = self._get_pxy(glcm)
             return (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
         if self.texture_feature == "difference_variance":
-            p_x_y = self._get_pxy(glcm, for_diff=True)
+            p_x_y = self._get_pxy_for_diff(glcm)
             sum_average = np.array(p_x_y * np.arange(len(p_x_y))).sum()
             return ((np.arange(len(p_x_y)) - sum_average) ** 2).sum()
 
         # self.texture_feature == 'difference_entropy':
-        p_x_y = self._get_pxy(glcm, for_diff=True)
+        p_x_y = self._get_pxy_for_diff(glcm)
         return (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
 
-    def _get_pxy(self, glcm: np.ndarray, for_diff: bool = False) -> np.ndarray:
-        sign = -1 if for_diff else 1
-        tuple_array = np.array(list(it.product(range(self.levels), np.asarray(range(self.levels)) * sign)))
+    def _get_pxy(self, glcm: np.ndarray) -> np.ndarray:
+        tuple_array = np.array(list(it.product(range(self.levels), range(self.levels))))
         index = [tuple_array[tuple_array.sum(axis=1) == x] for x in range(self.levels)]
+        return np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
+
+    def _get_pxy_for_diff(self, glcm: np.ndarray) -> np.ndarray:
+        tuple_array = np.array(list(it.product(range(self.levels), np.asarray(range(self.levels)) * -1)))
+        index = [tuple_array[np.abs(tuple_array.sum(axis=1)) == x] for x in range(self.levels)]
         return np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
 
     def _calculate_haralick(self, data: np.ndarray) -> np.ndarray:
