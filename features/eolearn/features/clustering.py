@@ -83,7 +83,6 @@ class ClusteringTask(EOTask):
         # Reshapes the data, because AgglomerativeClustering method only takes one dimensional arrays of vectors
         height, width, num_channels = data.shape
         data = np.reshape(data, (-1, num_channels))
-        pre_masking_len = len(data)
 
         graph_args = {"n_x": height, "n_y": width}
 
@@ -115,9 +114,9 @@ class ClusteringTask(EOTask):
 
         # Transforms data back to original shape and setting all masked regions to -1
         if self.mask_name is not None:
-            new_data = np.full(pre_masking_len, -1)
-            new_data[np.ravel(mask) != 0] = result
-            result = new_data
+            unmasked_result = np.full(height * width, -1)
+            unmasked_result[np.ravel(mask) != 0] = result
+            result = unmasked_result
 
         eopatch[FeatureType.DATA_TIMELESS, self.new_feature_name] = np.reshape(result, (height, width, 1))
 
