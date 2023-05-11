@@ -191,7 +191,6 @@ class ExportToTiffTask(BaseRasterIoTask):
         if feature_type.is_temporal():
             data_array = self._reduce_by_time(data_array, timestamps)
         else:
-            # add temporal dimension
             data_array = np.expand_dims(data_array, axis=0)
 
         if not feature_type.is_spatial():
@@ -223,15 +222,15 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         raise ValueError(f"Invalid format in {self.band_indices}, expected tuple or list")
 
-    def _reduce_by_time(self, array: np.ndarray, timestamps: List[dt.datetime]) -> np.ndarray:
+    def _reduce_by_time(self, data_array: np.ndarray, timestamps: List[dt.datetime]) -> np.ndarray:
         """Reduce array by selecting a subset of times."""
         if self.date_indices is None:
-            return array
+            return data_array
 
         if isinstance(self.date_indices, list):
             if [date for date in self.date_indices if not isinstance(date, int)]:
                 raise ValueError(f"Invalid format in {self.date_indices} list, expected integers")
-            return array[np.array(self.date_indices), ...]
+            return data_array[np.array(self.date_indices), ...]
 
         if isinstance(self.date_indices, tuple):
             dates = np.array(timestamps)
@@ -244,7 +243,7 @@ class ExportToTiffTask(BaseRasterIoTask):
                 start_date, end_date = start_idx, end_idx
             else:
                 raise ValueError(f"Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes")
-            return array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
+            return data_array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
 
         raise ValueError(f"Invalid format in {self.date_indices}, expected tuple or list")
 
@@ -255,16 +254,10 @@ class ExportToTiffTask(BaseRasterIoTask):
         if image_dtype == np.int64:
             image_dtype = np.int32
             warnings.warn(
-                (
-                    f"Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export "
-                    "as numpy.int32 instead"
-                ),
-                EORuntimeWarning,
+                f"Cannot export {feature} with dtype numpy.int64. Will export as numpy.int32 instead", EORuntimeWarning
             )
 
-        if image_dtype == data_array.dtype:
-            return data_array
-        return data_array.astype(image_dtype)
+        return data_array.astype(image_dtype) if image_dtype != data_array.dtype else data_array
 
     def _get_source_and_destination_params(
         self, data_array: np.ndarray, bbox: BBox
