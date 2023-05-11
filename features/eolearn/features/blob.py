@@ -8,6 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
+import itertools as it
 from math import sqrt
 from typing import Any, Callable
 
@@ -16,7 +17,7 @@ import skimage.feature
 
 from sentinelhub.exceptions import deprecated_class
 
-from eolearn.core import EOPatch, EOTask
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import SingleFeatureSpec
 
@@ -46,21 +47,21 @@ class BlobTask(EOTask):
     """
 
     def __init__(self, feature: SingleFeatureSpec, blob_object: Callable, **blob_parameters: Any):
-        self.feature_parser = self.get_feature_parser(feature)
+        self.feature_parser = self.get_feature_parser(feature, allowed_feature_types=[FeatureType.DATA])
 
         self.blob_object = blob_object
         self.blob_parameters = blob_parameters
 
     def _compute_blob(self, data: np.ndarray) -> np.ndarray:
-        result = np.zeros(data.shape, dtype=float)
-        for time in range(data.shape[0]):
-            for band in range(data.shape[-1]):
-                image = data[time, :, :, band]
-                res = np.asarray(self.blob_object(image, **self.blob_parameters))
-                x_coord = res[:, 0].astype(int)
-                y_coord = res[:, 1].astype(int)
-                radius = res[:, 2] * sqrt(2)
-                result[time, x_coord, y_coord, band] = radius
+        result = np.zeros(data.shape, dtype=np.float32)
+        num_time, _, _, num_bands = data.shape
+        for time_idx, band_idx in it.product(range(num_time), range(num_bands)):
+            image = data[time_idx, :, :, band_idx]
+            blob = self.blob_object(image, **self.blob_parameters)
+            x_coord = blob[:, 0].astype(int)
+            y_coord = blob[:, 1].astype(int)
+            radius = blob[:, 2] * sqrt(2)
+            result[time_idx, x_coord, y_coord, band_idx] = radius
         return result
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
@@ -69,10 +70,8 @@ class BlobTask(EOTask):
         :param eopatch: Input eopatch
         :return: EOPatch instance with new key holding the blob image.
         """
-        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
-            eopatch[feature_type][new_feature_name] = self._compute_blob(
-                eopatch[feature_type][feature_name].astype(np.float64)
-            ).astype(np.float32)
+        for ftype, fname, new_fname in self.feature_parser.get_renamed_features(eopatch):
+            eopatch[ftype, new_fname] = self._compute_blob(eopatch[ftype, fname].astype(np.float64))
 
         return eopatch
 
