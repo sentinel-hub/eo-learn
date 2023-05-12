@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+from abc import ABCMeta
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
@@ -23,7 +24,7 @@ from .utils import resize_images
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseSnowMaskTask(EOTask):
+class BaseSnowMaskTask(EOTask, metaclass=ABCMeta):
     """Base class for snow detection and masking"""
 
     def __init__(
@@ -40,7 +41,7 @@ class BaseSnowMaskTask(EOTask):
         :param dilation_size: Size of the disk in pixels for performing dilation. Value 0 means do not perform
             this post-processing step.
         """
-        self.bands_feature = self.parse_feature(data_feature)
+        self.bands_feature = self.parse_feature(data_feature, allowed_feature_types={FeatureType.DATA})
         self.band_indices = band_indices
         self.dilation_size = dilation_size
         self.undefined_value = undefined_value
@@ -51,9 +52,6 @@ class BaseSnowMaskTask(EOTask):
         if self.dilation_size:
             snow_masks = np.array([binary_dilation(mask, disk(self.dilation_size)) for mask in snow_masks])
         return snow_masks
-
-    def execute(self, eopatch: EOPatch) -> Any:
-        raise NotImplementedError
 
 
 class SnowMaskTask(BaseSnowMaskTask):
@@ -99,20 +97,13 @@ class SnowMaskTask(BaseSnowMaskTask):
         ndsi[ndsi_invalid] = self.undefined_value
         ndvi[ndvi_invalid] = self.undefined_value
 
-        snow_mask = np.where(
-            np.logical_and(
-                np.logical_or(
-                    ndsi >= self.ndsi_threshold, np.abs(ndvi - self.NDVI_THRESHOLD) < self.NDVI_THRESHOLD / 2
-                ),
-                bands[..., 0] >= self.brightness_threshold,
-            ),
-            1,
-            0,
-        )
+        ndi_criterion = (ndsi >= self.ndsi_threshold) | (np.abs(ndvi - self.NDVI_THRESHOLD) < self.NDVI_THRESHOLD / 2)
+        brightnes_criterion = bands[..., 0] >= self.brightness_threshold
+        snow_mask = np.where(ndi_criterion & brightnes_criterion, 1, 0)
 
         snow_mask = self._apply_dilation(snow_mask)
 
-        snow_mask[np.logical_or(ndsi_invalid, ndvi_invalid)] = self.undefined_value
+        snow_mask[ndsi_invalid | ndvi_invalid] = self.undefined_value
 
         eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(bool)
         return eopatch
@@ -181,48 +172,32 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         self.red_params = red_params
         self.ndsi_params = ndsi_params
         self.b10_index = b10_index
-        self._validate_params()
-
-    def _validate_params(self) -> None:
-        """Check length of parameters defining threshold values"""
-        for params, n_params in [(self.dem_params, 2), (self.red_params, 5), (self.ndsi_params, 3)]:
-            if not isinstance(params, (tuple, list)) or len(params) != n_params:
-                raise ValueError(
-                    f"Incorrect format or number of parameters for {params}. Has to be a tuple of length {n_params}"
-                )
 
     def _resample_red(self, input_array: np.ndarray) -> np.ndarray:
         """Method to resample the values of the red band
 
         The input array is first down-scaled using bicubic interpolation and up-scaled back using nearest neighbour
         interpolation
-
-        :param input_array: input values
-        :return: resampled values
         """
-        height, width = input_array.shape[1:]
+        _, height, width = input_array.shape
         size = (height // self.red_params[0], width // self.red_params[0])
-        return resize_images(
-            resize_images(input_array[..., np.newaxis], new_size=size),
-            new_size=(height, width),
-        ).squeeze()
+        downscaled = resize_images(input_array[..., np.newaxis], new_size=size)
+        return resize_images(downscaled, new_size=(height, width)).squeeze()
 
     def _adjust_cloud_mask(
-        self, bands: np.ndarray, cloud_mask: np.ndarray, dem: np.ndarray, b10: np.ndarray
+        self, bands: np.ndarray, cloud_mask: np.ndarray, dem: np.ndarray, b10: Optional[np.ndarray]
     ) -> np.ndarray:
         """Adjust existing cloud mask using cirrus band if L1C data and resampled red band
 
         Add to the existing cloud mask pixels found thresholding down-sampled red band and cirrus band/DEM
         """
-        clm_b10 = (
-            np.where(b10 > self.B10_THR + self.DEM_FACTOR * dem, 1, 0)
-            if b10 is not None
-            else np.ones(shape=cloud_mask.shape, dtype=np.uint8)
-        )
-        return np.logical_or(
-            np.where(np.logical_and(cloud_mask == 1, self._resample_red(bands[..., 1]) > self.red_params[1]), 1, 0),
-            clm_b10,
-        ).astype(np.uint8)
+        if b10 is not None:
+            clm_b10 = b10 > self.B10_THR + self.DEM_FACTOR * dem
+        else:
+            clm_b10 = np.full_like(cloud_mask, True)
+
+        criterion = (cloud_mask == 1) & (self._resample_red(bands[..., 1]) > self.red_params[1])
+        return (criterion | clm_b10).astype(np.uint8)
 
     def _apply_first_pass(
         self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem: np.ndarray, clm_temp: np.ndarray
