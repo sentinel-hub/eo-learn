@@ -59,7 +59,7 @@ class HOGTask(EOTask):
         self.hog_feature_vector = hog_feature_vector
         self.visualize_name = visualize_feature_name
 
-    def _compute_hog(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _compute_hog(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:  # pylint: disable=too-many-locals
         num_times, height, width, num_bands = data.shape
         is_multichannel = num_bands != 1
         hog_result = np.empty(
