@@ -22,8 +22,9 @@ ModeTypes = Literal["standard", "timewise", "monthly", "total"]
 class TDigestTask(EOTask):
     """
     An EOTask to compute the T-Digest representation of a chosen feature of an EOPatch.
-    It integrates the [T-Digest algorithm by Ted Dunning](https://arxiv.org/abs/1902.04023) to efficiently \
-        compute quantiles of the underlying dataset into eo-learn.
+    It integrates the [T-Digest algorithm by Ted Dunning](https://arxiv.org/abs/1902.04023) to efficiently compute
+    quantiles of the underlying dataset into eo-learn.
+
     The output features of the tasks may be merged to compute a representation of the complete dataset.
     That enables quantile based normalisation or statistical analysis of datasets larger than RAM in EO.
     """
@@ -39,17 +40,13 @@ class TDigestTask(EOTask):
         :param in_feature: The input feature to compute the T-Digest representation for.
         :param out_feature: The output feature where to save the T-Digest representation of the chosen feature.
         :param mode: The mode to apply to the timestamps and bands.
-        - The 'standard' mode computes the T-Digest representation \
-            for each band accumulating timestamps.
-        - The 'timewise' mode computes the T-Digest representation \
-            for each band and timestamp of the chosen feature.
-        - The 'monthly' mode computes the T-Digest representation \
-            for each band accumulating the timestamps per month.
-        - The 'total' mode computes the total T-Digest representation \
-            of the whole feature accumulating all timestamps, bands and pixels \
-                - cannot be used with pixelwise=True.
-        :param pixelwise: Decider whether to compute the T-Digest representation accumulating pixels or per pixel. \
-            Cannot be used with mode='total'.
+            * `'standard'` computes the T-Digest representation for each band accumulating timestamps.
+            * `'timewise'` computes the T-Digest representation for each band and timestamp of the chosen feature.
+            * `'monthly'` computes the T-Digest representation for each band accumulating the timestamps per month.
+            * | `'total'` computes the total T-Digest representation of the whole feature accumulating all timestamps,
+              | bands and pixels. Cannot be used with `pixelwise=True`.
+        :param pixelwise: Decider whether to compute the T-Digest representation accumulating pixels or per pixel.
+            Cannot be used with `mode='total'`.
         """
 
         self.mode = mode
