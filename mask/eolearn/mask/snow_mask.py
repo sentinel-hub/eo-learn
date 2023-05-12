@@ -197,39 +197,29 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
             clm_b10 = np.full_like(cloud_mask, True)
 
         criterion = (cloud_mask == 1) & (self._resample_red(bands[..., 1]) > self.red_params[1])
-        return (criterion | clm_b10).astype(np.uint8)
+        return criterion | clm_b10
 
     def _apply_first_pass(
         self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem: np.ndarray, clm_temp: np.ndarray
     ) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
         """Apply first pass of snow detection"""
-        snow_mask_pass1 = np.where(
-            np.logical_and(
-                np.logical_not(clm_temp), np.logical_and(ndsi > self.ndsi_params[0], bands[..., 1] > self.red_params[3])
-            ),
-            1,
-            0,
-        )
+        snow_mask_pass1 = ~clm_temp & (ndsi > self.ndsi_params[0]) & (bands[..., 1] > self.red_params[3])
 
-        clm_pass1 = np.where(
-            np.logical_or(clm_temp, (bands[..., 1] > self.red_params[2]) & np.logical_not(snow_mask_pass1) & clm), 1, 0
-        )
+        clm_pass1 = clm_temp | ((bands[..., 1] > self.red_params[2]) & ~snow_mask_pass1 & clm.astype(bool))
 
-        dem_edges = np.linspace(
-            np.min(dem), np.max(dem), int(np.ceil((np.max(dem) - np.min(dem)) / self.dem_params[0]))
-        )
+        min_dem, max_dem = np.min(dem), np.max(dem)
+        dem_edges = np.linspace(min_dem, max_dem, int(np.ceil((max_dem - min_dem) / self.dem_params[0])))
         nbins = len(dem_edges) - 1
+
         dem_hist_clear_pixels, snow_frac = None, None
         if nbins > 0:
             snow_frac = np.zeros(shape=(bands.shape[0], nbins))
-            dem_hist_clear_pixels = np.array(
-                [np.histogram(dem[np.logical_not(mask)], bins=dem_edges)[0] for mask in clm_pass1]
-            )
+            dem_hist_clear_pixels = np.array([np.histogram(dem[~mask], bins=dem_edges)[0] for mask in clm_pass1])
 
             for date, nbin in itertools.product(range(bands.shape[0]), range(nbins)):
                 if dem_hist_clear_pixels[date, nbin] > 0:
-                    dem_mask = np.logical_and(dem_edges[nbin] <= dem, dem < dem_edges[nbin + 1])
-                    in_dem_range_clear = np.where(np.logical_and(dem_mask, np.logical_not(clm_pass1[date])))
+                    dem_mask = (dem_edges[nbin] <= dem) & (dem < dem_edges[nbin + 1])
+                    in_dem_range_clear = np.where(dem_mask & ~clm_pass1[date])
                     snow_frac[date, nbin] = (
                         np.sum(snow_mask_pass1[date][in_dem_range_clear]) / dem_hist_clear_pixels[date, nbin]
                     )
@@ -248,24 +238,22 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
         """Second pass of snow detection"""
         _, height, width, _ = bands.shape
         total_snow_frac = np.sum(snow_mask_pass1, axis=(1, 2)) / (height * width)
-        snow_mask_pass2 = np.zeros(snow_mask_pass1.shape)
+        snow_mask_pass2 = np.full_like(snow_mask_pass1, False)
         for date in range(bands.shape[0]):
-            if (total_snow_frac[date] > self.ndsi_params[2]) and (
-                snow_frac is not None and np.any(snow_frac[date] > self.dem_params[1])
+            if (
+                (total_snow_frac[date] > self.ndsi_params[2])
+                and snow_frac is not None
+                and np.any(snow_frac[date] > self.dem_params[1])
             ):
                 z_s = dem_edges[np.max(np.argmax(snow_frac[date] > self.dem_params[1]) - 2, 0)]
 
-                snow_mask_pass2[date, :, :] = np.where(
-                    np.logical_and(
-                        dem > z_s,
-                        np.logical_and(
-                            np.logical_not(clm_temp[date]),
-                            np.logical_and(ndsi[date] > self.ndsi_params[1], bands[date, ..., 1] > self.red_params[-1]),
-                        ),
-                    ),
-                    1,
-                    0,
+                snow_mask_pass2[date, :, :] = (
+                    (dem > z_s)
+                    & ~clm_temp[date]
+                    & (ndsi[date] > self.ndsi_params[1])
+                    & (bands[date, ..., 1] > self.red_params[-1])
                 )
+
         return snow_mask_pass2
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
@@ -288,7 +276,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
 
         snow_mask_pass2 = self._apply_second_pass(bands, ndsi, dem, clm_temp, snow_mask_pass1, snow_frac, dem_edges)
 
-        snow_mask = self._apply_dilation(np.logical_or(snow_mask_pass1, snow_mask_pass2))
+        snow_mask = self._apply_dilation(snow_mask_pass1 | snow_mask_pass2)
 
         eopatch[self.mask_feature] = snow_mask[..., np.newaxis].astype(bool)
 
