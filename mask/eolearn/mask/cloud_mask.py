@@ -430,7 +430,7 @@ class CloudMaskTask(EOTask):
 
         return local_avg, local_var
 
-    def _extract_multi_features(
+    def _extract_multi_features(  # pylint: disable=too-many-locals
         self,
         bands: np.ndarray,
         is_data: np.ndarray,
