@@ -9,33 +9,28 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import copy
 
 import pytest
-from pytest import approx
-from skimage.feature import blob_dog
+from skimage.feature import blob_dog, blob_doh, blob_log
 
 from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import FeatureType
-from eolearn.features import BlobTask, DoGBlobTask, DoHBlobTask, LoGBlobTask
+from eolearn.features import BlobTask
 
 FEATURE = (FeatureType.DATA, "NDVI", "blob")
 BLOB_FEATURE = (FeatureType.DATA, "blob")
 
 
-def test_dog_blob_task(small_ndvi_eopatch):
-    eopatch = small_ndvi_eopatch
-    BlobTask(FEATURE, blob_dog, sigma_ratio=1.6, min_sigma=1, max_sigma=30, overlap=0.5, threshold=0)(eopatch)
-    DoGBlobTask((FeatureType.DATA, "NDVI", "blob_dog"), threshold=0)(eopatch)
-    assert eopatch[BLOB_FEATURE] == approx(eopatch.data["blob_dog"])
-
-
 BLOB_TESTS = [
-    (DoGBlobTask(FEATURE, threshold=0), {"exp_min": 0.0, "exp_max": 37.9625, "exp_mean": 0.08545, "exp_median": 0.0}),
     (
-        DoHBlobTask(FEATURE, num_sigma=5, threshold=0),
+        BlobTask(FEATURE, blob_dog, threshold=0, max_sigma=30),
+        {"exp_min": 0.0, "exp_max": 37.9625, "exp_mean": 0.08545, "exp_median": 0.0},
+    ),
+    (
+        BlobTask(FEATURE, blob_doh, num_sigma=5, threshold=0),
         {"exp_min": 0.0, "exp_max": 21.9203, "exp_mean": 0.05807, "exp_median": 0.0},
     ),
     (
-        LoGBlobTask(FEATURE, log_scale=True, threshold=0),
+        BlobTask(FEATURE, blob_log, log_scale=True, threshold=0, max_sigma=30),
         {"exp_min": 0, "exp_max": 42.4264, "exp_mean": 0.09767, "exp_median": 0.0},
     ),
 ]
