@@ -1,6 +1,7 @@
 include requirements*.txt
 include LICENSE
 include README.md
+include eolearn/io/py.typed
 exclude eolearn/tests/*
 exclude eolearn/tests/test_extra/*
 exclude eolearn/tests/TestInputs/*

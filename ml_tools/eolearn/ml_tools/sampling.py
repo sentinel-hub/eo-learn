@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from math import sqrt
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 from shapely.geometry import Point, Polygon
@@ -61,8 +61,7 @@ def sample_by_values(
         raise ValueError(f"Given image has shape {image.shape} but sampling operates only on 2D images")
 
     rng = rng or np.random.default_rng()
-    rows = np.empty((0,), dtype=np.int16)
-    columns = np.empty((0,), dtype=np.int16)
+    rows, columns = np.empty((0,), dtype=int), np.empty((0,), dtype=int)
 
     for value, n_samples in n_samples_per_value.items():
         sample_rows, sample_cols = rng.choice(np.nonzero(image == value), size=n_samples, replace=replace, axis=1)
@@ -155,12 +154,12 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
         image_shape = None
         for feature_type, feature_name, new_feature_name in self.features_parser.get_renamed_features(eopatch):
             if feature_name is not None:
-                data_to_sample = eopatch[feature_type][feature_name]
+                data_to_sample = eopatch[feature_type, feature_name]
 
                 feature_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
                 image_shape = feature_shape
 
-                eopatch[feature_type][new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
+                eopatch[feature_type, new_feature_name] = data_to_sample[..., row_grid, column_grid, :]
 
         if self.mask_of_samples is not None and image_shape is not None:
             mask = get_mask_of_samples(image_shape, row_grid, column_grid)
@@ -284,13 +283,6 @@ class BlockSamplingTask(BaseSamplingTask):
         super().__init__(features_to_sample, **kwargs)
 
         self.amount = amount
-        if not (
-            isinstance(sample_size, tuple)
-            and len(sample_size) == 2
-            and all(isinstance(value, int) for value in sample_size)
-        ):
-            raise ValueError(f"Parameter sample_size should be a tuple of 2 integers but {sample_size} found")
-
         self.sample_size = tuple(sample_size)
         self.replace = replace
 
@@ -298,13 +290,7 @@ class BlockSamplingTask(BaseSamplingTask):
         """Generate a mask consisting entirely of `values` entries, used for sampling on whole raster"""
 
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        if feature_name is None:
-            raise ValueError(
-                f"Encountered {feature_type} when calculating spatial dimension, please report bug to eo-learn"
-                " developers."
-            )
-
-        height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
+        height, width = eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))
         height -= self.sample_size[0] - 1
         width -= self.sample_size[1] - 1
 
@@ -382,13 +368,8 @@ class GridSamplingTask(BaseSamplingTask):
         :return: An EOPatch with additional spatially sampled features
         """
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        if feature_name is None:
-            raise ValueError(
-                f"Encountered {feature_type} when calculating spatial dimension, please report bug to eo-learn"
-                " developers."
-            )
 
-        image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
+        image_shape = eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))
         rows, columns = self._sample_regular_grid(image_shape)
         size_x, size_y = self.sample_size  # this way it also works for lists
         row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
