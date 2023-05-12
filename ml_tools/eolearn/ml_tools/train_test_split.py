@@ -79,20 +79,14 @@ class TrainTestSplitTask(EOTask):
         self.input_feature = self.parse_feature(input_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
         self.output_feature = self.parse_feature(output_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
 
-        if np.isscalar(bins):
-            bins = [bins]
-
-        if (
-            not isinstance(bins, list)
-            or not all(isinstance(bi, float) for bi in bins)
-            or np.any(np.diff(bins) <= 0)
-            or bins[0] <= 0
-            or bins[-1] >= 1
-        ):
+        if isinstance(bins, float):
+            self.bins = [bins]
+        else:
+            self.bins = list(bins)
+        if np.any(np.diff(self.bins) <= 0) or self.bins[0] <= 0 or self.bins[-1] >= 1:
             raise ValueError("bins argument should be a list of ascending floats inside an open interval (0, 1)")
 
         self.ignore_values = set() if ignore_values is None else set(ignore_values)
-        self.bins = bins
         self.split_type = TrainTestSplitType(split_type)
 
     def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None) -> EOPatch:
