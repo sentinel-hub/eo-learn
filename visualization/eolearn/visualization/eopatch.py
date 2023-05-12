@@ -288,13 +288,14 @@ class MatplotlibVisualization:
 
         return axes
 
-    def _plot_bbox(self, target_crs: Optional[CRS] = None) -> np.ndarray:
+    def _plot_bbox(self, axes: Optional[np.ndarray] = None, target_crs: Optional[CRS] = None) -> np.ndarray:
         """Plot a bounding box"""
         bbox = self.eopatch.bbox
         if bbox is None:
             raise ValueError("EOPatch doesn't have a bounding box")
 
-        axes = self._provide_axes(nrows=1, ncols=1, title="Bounding box")
+        if axes is None:
+            axes = self._provide_axes(nrows=1, ncols=1, title="Bounding box")
 
         bbox_gdf = GeoDataFrame(geometry=[bbox.geometry], crs=bbox.crs.pyproj_crs())
         if target_crs is not None:
