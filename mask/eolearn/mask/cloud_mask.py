@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import logging
 import os
 from functools import partial
-from typing import Callable, Optional, Protocol, Tuple, Union, cast
+from typing import Optional, Protocol, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -19,8 +19,9 @@ from skimage.morphology import disk
 from sentinelhub import BBox, bbox_to_resolution
 
 from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
+from eolearn.core.utils.common import _apply_to_spatial_axes
 
-from .utils import map_over_axis, resize_images
+from .utils import resize_images
 
 LOGGER = logging.getLogger(__name__)
 
@@ -250,19 +251,14 @@ class CloudMaskTask(EOTask):
         mu2_2 = mu2 * mu2
         mu1_mu2 = mu1 * mu2
 
-        sigma12 = cv2.GaussianBlur((data_x * data_y).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
+        sigma12 = cv2.GaussianBlur(data_x * data_y, (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
         sigma12 -= mu1_mu2
 
         # Formula
-        tmp1 = 2.0 * mu1_mu2 + const1
-        tmp2 = 2.0 * sigma12 + const2
-        num = tmp1 * tmp2
+        numerator = (2.0 * mu1_mu2 + const1) * (2.0 * sigma12 + const2)
+        denominator = (mu1_2 + mu2_2 + const1) * (sigma1_2 + sigma2_2 + const2)
 
-        tmp1 = mu1_2 + mu2_2 + const1
-        tmp2 = sigma1_2 + sigma2_2 + const2
-        den = tmp1 * tmp2
-
-        return np.divide(num, den)
+        return np.divide(numerator, denominator)
 
     def _win_avg(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Spatial window average"""
@@ -278,37 +274,17 @@ class CloudMaskTask(EOTask):
     def _dilate(self, data: np.ndarray) -> np.ndarray:
         return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
 
-    @staticmethod
-    def _map_sequence(data: np.ndarray, func2d: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
-        """Iterate over time and band dimensions and apply a function to each slice.
-        Returns a new array with the combined results.
-
-        :param data: input array
-        :param func2d: Mapping function that is applied on each 2d image slice. All outputs must have the same shape.
-        """
-
-        # Map over channel dimension on 3d tensor
-        def func3d(data_slice: np.ndarray) -> np.ndarray:
-            return map_over_axis(data_slice, func2d, axis=2)
-
-        # Map over time dimension on 4d tensor
-        def func4d(data_slice: np.ndarray) -> np.ndarray:
-            return map_over_axis(data_slice, func3d, axis=0)
-
-        output = func4d(data)
-        return output
-
     def _average_all(self, data: np.ndarray) -> np.ndarray:
         """Average over each spatial slice of data"""
         if self.avg_kernel is not None:
-            return self._map_sequence(data, self._average)
+            return _apply_to_spatial_axes(self._average, data, (1, 2))
 
         return data
 
     def _dilate_all(self, data: np.ndarray) -> np.ndarray:
         """Dilate over each spatial slice of data"""
         if self.dil_kernel is not None:
-            return self._map_sequence(data, self._dilate)
+            return _apply_to_spatial_axes(self._dilate, data, (1, 2))
 
         return data
 
@@ -441,11 +417,11 @@ class CloudMaskTask(EOTask):
         data = bands if local_avg is None else bands[-1][None, ...]
         data_mask = is_data if local_avg is None else is_data[-1][None, ...]
 
-        avg_data = self._map_sequence(data, local_avg_func)
-        avg_data_mask = self._map_sequence(data_mask, local_avg_func)
+        avg_data = _apply_to_spatial_axes(local_avg_func, data, (1, 2))
+        avg_data_mask = _apply_to_spatial_axes(local_avg_func, data_mask, (1, 2))
         avg_data_mask[avg_data_mask == 0.0] = 1.0
 
-        var_data = self._map_sequence(data, local_var_func)
+        var_data = _apply_to_spatial_axes(local_var_func, data, (1, 2))
 
         if local_avg is None or local_var is None:
             local_avg = avg_data / avg_data_mask
