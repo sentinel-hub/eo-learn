@@ -31,7 +31,6 @@ from typing import (
 )
 from warnings import warn
 
-import attr
 import dateutil.parser
 import geopandas as gpd
 import numpy as np
@@ -233,7 +232,6 @@ def _create_feature_dict(feature_type: FeatureType, value: Dict[str, Any]) -> _F
     return _FeatureDictNumpy(value, feature_type)
 
 
-@attr.s(repr=False, eq=False, kw_only=True)
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
 
@@ -254,21 +252,37 @@ class EOPatch:
     arrays in other attributes.
     """
 
-    data: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.DATA))
-    mask: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.MASK))
-    scalar: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.SCALAR))
-    label: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.LABEL))
-    vector: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR))
-    data_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.DATA_TIMELESS))
-    mask_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.MASK_TIMELESS))
-    scalar_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.SCALAR_TIMELESS))
-    label_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.LABEL_TIMELESS))
-    vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
-    meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
-    bbox: Optional[BBox] = attr.ib(default=None)
-    timestamps: List[dt.datetime] = attr.ib(factory=list)
+    def __init__(
+        self,
+        *,
+        data: Optional[Dict[str, np.ndarray]] = None,
+        mask: Optional[Dict[str, np.ndarray]] = None,
+        scalar: Optional[Dict[str, np.ndarray]] = None,
+        label: Optional[Dict[str, np.ndarray]] = None,
+        vector: Optional[Dict[str, gpd.GeoDataFrame]] = None,
+        data_timeless: Optional[Dict[str, np.ndarray]] = None,
+        mask_timeless: Optional[Dict[str, np.ndarray]] = None,
+        scalar_timeless: Optional[Dict[str, np.ndarray]] = None,
+        label_timeless: Optional[Dict[str, np.ndarray]] = None,
+        vector_timeless: Optional[Dict[str, gpd.GeoDataFrame]] = None,
+        meta_info: Optional[Dict[str, Any]] = None,
+        bbox: Optional[BBox] = None,
+        timestamps: Optional[List[dt.datetime]] = None,
+    ):
+        self.data = data or {}
+        self.mask = mask or {}
+        self.scalar = scalar or {}
+        self.label = label or {}
+        self.vector = vector or {}
+        self.data_timeless = data_timeless or {}
+        self.mask_timeless = mask_timeless or {}
+        self.scalar_timeless = scalar_timeless or {}
+        self.label_timeless = label_timeless or {}
+        self.vector_timeless = vector_timeless or {}
+        self.meta_info = meta_info or {}
+        self.bbox = bbox
+        self.timestamps = timestamps or []
 
-    def __attrs_post_init__(self) -> None:
         if self.bbox is None:
             warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
 
