@@ -1,4 +1,3 @@
-attrs>=19.2.0
 boto3
 fs
 fs-s3fs
