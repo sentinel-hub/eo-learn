@@ -40,7 +40,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, FeatureIOJson, load_eopatch_content, save_eopatch
+from .eodata_io import FeatureIO, FeatureIOBBox, FeatureIOJson, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
@@ -243,6 +243,10 @@ class EOPatch:
     arrays in other attributes.
     """
 
+    # establish types of property value holders
+    _timestamps: Union[FeatureIOJson, List[dt.datetime]]
+    _bbox: Union[FeatureIOBBox, Optional[BBox]]
+
     def __init__(
         self,
         *,
@@ -260,9 +264,6 @@ class EOPatch:
         bbox: Optional[BBox] = None,
         timestamps: Optional[List[dt.datetime]] = None,
     ):
-        # set defaults and establish types, override with value later in __init__
-        self._timestamps: Union[FeatureIOJson, List[dt.datetime]] = []
-
         self.data = data or {}
         self.mask = mask or {}
         self.scalar = scalar or {}
@@ -276,9 +277,6 @@ class EOPatch:
         self.meta_info = meta_info or {}
         self.bbox = bbox
         self.timestamps = timestamps or []
-
-        if self.bbox is None:
-            warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
 
     @property
     def timestamp(self) -> List[dt.datetime]:
@@ -318,6 +316,22 @@ class EOPatch:
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of dt.datetime objects.")
 
+    @property
+    def bbox(self) -> Optional[BBox]:
+        """A property for handling the `bbox` attribute."""
+        if isinstance(self._bbox, FeatureIOBBox):
+            self.bbox = self._bbox.load()  # assigned to `bbox` property to trigger validation
+        return self._bbox  # type: ignore[return-value] # mypy cannot verify due to mutations
+
+    @bbox.setter
+    def bbox(self, value: Union[None, BBox, FeatureIOBBox]) -> None:
+        if isinstance(value, (BBox, FeatureIOBBox)) or value is None:
+            if value is None:
+                warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
+            self._bbox = value
+        else:
+            raise TypeError(f"Cannot assign {value} as bbox. Should be a `BBox` object.")
+
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
 
@@ -327,35 +341,18 @@ class EOPatch:
             self.__getattribute__(key)[feature_name] = value
             return
 
-        if key != "timestamps" and FeatureType.has_value(key) and not isinstance(value, FeatureIO):
-            feature_type = FeatureType(key)
-            value = self._parse_feature_type_value(feature_type, value)
+        if key not in ("timestamps", "bbox") and FeatureType.has_value(key) and not isinstance(value, FeatureIO):
+            if not isinstance(value, dict):
+                raise TypeError(f"Cannot parse {value} for attribute {key}. Should be a dictionary.")
+            value = _create_feature_dict(FeatureType(key), value)
 
         super().__setattr__(key, value)
-
-    @staticmethod
-    def _parse_feature_type_value(
-        feature_type: FeatureType, value: object
-    ) -> Union[_FeatureDict, BBox, List[dt.date], None]:
-        """Checks or parses value which will be assigned to a feature type attribute of `EOPatch`. If the value
-        cannot be parsed correctly it raises an error.
-
-        :raises: TypeError, ValueError
-        """
-
-        if feature_type is FeatureType.BBOX and (value is None or isinstance(value, BBox)):
-            if value is None:
-                warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
-            return value
-
-        if isinstance(value, dict):
-            return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
-
-        raise TypeError(f"Cannot parse given value {value} for feature type {feature_type}. Possible type missmatch.")
 
     def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
         """Handles lazy loading and can even provide a single feature from _FeatureDict."""
         value = super().__getattribute__(key)
+        if key in ("timestamps", "bbox"):
+            return value
 
         if isinstance(value, FeatureIO) and load:
             value = value.load()
