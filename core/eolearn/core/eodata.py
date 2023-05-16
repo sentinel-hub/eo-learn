@@ -334,24 +334,18 @@ class EOPatch:
             raise TypeError(f"Cannot assign {value} as bbox. Should be a `BBox` object.")
 
     @property
-    def meta_info(self) -> _FeatureDictJson:
-        """A property for handling the `bbox` attribute."""
+    def meta_info(self) -> Dict[str, Any]:
+        """A property for handling the `meta_info` attribute."""
         if isinstance(self._meta_info, FeatureIOJson):
-            self.meta_info = self._meta_info.load()  # assigned to `bbox` property to trigger validation
+            self.meta_info = self._meta_info.load()  # assigned to `meta_info` property to trigger validation
         return self._meta_info  # type: ignore[return-value] # mypy cannot verify due to mutations
 
     @meta_info.setter
     def meta_info(self, value: Union[Dict[str, Any], FeatureIOJson]) -> None:
         self._meta_info = value if isinstance(value, FeatureIOJson) else _FeatureDictJson(value, FeatureType.META_INFO)
 
-    def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
-        """Raises TypeError if feature type attributes are not of correct type.
-
-        In case they are a dictionary they are cast to _FeatureDict class.
-        """
-        if feature_name not in (None, Ellipsis) and FeatureType.has_value(key):
-            self.__getattribute__(key)[feature_name] = value
-            return
+    def __setattr__(self, key: str, value: object) -> None:
+        """Casts dictionaries to _FeatureDict objects for non-meta features."""
 
         if FeatureType.has_value(key) and not FeatureType(key).is_meta():
             if not isinstance(value, dict):
@@ -359,16 +353,6 @@ class EOPatch:
             value = _create_feature_dict(FeatureType(key), value)
 
         super().__setattr__(key, value)
-
-    def __getattribute__(self, key: str, feature_name: Union[str, None, EllipsisType] = None) -> Any:
-        """Handles lazy loading and can even provide a single feature from _FeatureDict."""
-        value = super().__getattribute__(key)
-
-        if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
-            feature_name = cast(str, feature_name)  # the above check deals with ... and None
-            return value[feature_name]
-
-        return value
 
     @overload
     def __getitem__(self, key: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]) -> BBox:
@@ -395,7 +379,11 @@ class EOPatch:
             feature_type, feature_name = key, None
 
         ftype = FeatureType(feature_type).value
-        return self.__getattribute__(ftype, feature_name=feature_name)  # type: ignore[call-arg]
+        value = getattr(self, ftype)
+        if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
+            feature_name = cast(str, feature_name)  # the above check deals with ... and None
+            return value[feature_name]
+        return value
 
     def __setitem__(
         self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
@@ -411,7 +399,12 @@ class EOPatch:
         else:
             feature_type, feature_name = key, None
 
-        return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
+        ftype = FeatureType(feature_type).value
+
+        if feature_name not in (None, Ellipsis):
+            getattr(self, ftype)[feature_name] = value
+        else:
+            setattr(self, ftype, value)
 
     def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
         """Deletes the selected feature type or feature.
