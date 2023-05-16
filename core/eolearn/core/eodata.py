@@ -18,6 +18,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
     List,
     Literal,
     Optional,
@@ -39,7 +40,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
+from .eodata_io import FeatureIO, FeatureIOJson, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
@@ -259,6 +260,9 @@ class EOPatch:
         bbox: Optional[BBox] = None,
         timestamps: Optional[List[dt.datetime]] = None,
     ):
+        # set defaults and establish types, override with value later in __init__
+        self._timestamps: Union[FeatureIOJson, List[dt.datetime]] = []
+
         self.data = data or {}
         self.mask = mask or {}
         self.scalar = scalar or {}
@@ -298,6 +302,22 @@ class EOPatch:
         )
         self.timestamps = value
 
+    @property
+    def timestamps(self) -> List[dt.datetime]:
+        """A property for handling the `timestamps` attribute."""
+        if isinstance(self._timestamps, FeatureIOJson):
+            self.timestamps = self._timestamps.load()  # assigned to `timestamps` property to trigger validation
+        return self._timestamps  # type: ignore[return-value] # mypy cannot verify due to mutations
+
+    @timestamps.setter
+    def timestamps(self, value: Union[Iterable[dt.datetime], FeatureIOJson]) -> None:
+        if isinstance(value, FeatureIOJson):
+            self._timestamps = value
+        elif isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
+            self._timestamps = [_parse_to_datetime(time) for time in value]
+        else:
+            raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of dt.datetime objects.")
+
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
 
@@ -307,7 +327,7 @@ class EOPatch:
             self.__getattribute__(key)[feature_name] = value
             return
 
-        if FeatureType.has_value(key) and not isinstance(value, FeatureIO):
+        if key != "timestamps" and FeatureType.has_value(key) and not isinstance(value, FeatureIO):
             feature_type = FeatureType(key)
             value = self._parse_feature_type_value(feature_type, value)
 
@@ -327,11 +347,6 @@ class EOPatch:
             if value is None:
                 warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
             return value
-
-        if feature_type is FeatureType.TIMESTAMPS and isinstance(value, (tuple, list)):
-            return [
-                timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp) for timestamp in value
-            ]
 
         if isinstance(value, dict):
             return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
@@ -778,3 +793,12 @@ def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
         executor.submit(lambda: eopatch.bbox)
         executor.submit(lambda: eopatch.timestamps)
         list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
+
+
+def _parse_to_datetime(value: Union[dt.date, str]) -> dt.datetime:
+    if isinstance(value, dt.datetime):
+        return value
+    if isinstance(value, dt.date):
+        return dt.datetime(value.year, value.month, value.day)
+    if isinstance(value, str):
+        return dateutil.parser.parse(value)
