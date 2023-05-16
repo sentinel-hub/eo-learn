@@ -23,7 +23,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -88,15 +87,6 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
 
         for feature_name, value in feature_dict.items():
             self[feature_name] = value
-
-    @classmethod
-    def empty_factory(cls: Type[Self], feature_type: FeatureType) -> Callable[[], Self]:
-        """Returns a factory function for creating empty feature dictionaries with an appropriate feature type."""
-
-        def factory() -> Self:
-            return cls(feature_dict={}, feature_type=feature_type)  # type: ignore[call-arg]
-
-        return factory
 
     def __setitem__(self, feature_name: str, value: Union[T, FeatureIO[T]]) -> None:
         """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
