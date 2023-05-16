@@ -57,6 +57,7 @@ MISSING_BBOX_WARNING = (
     " EOPatches represent geolocated data and so any EOPatch without a BBox is ill-formed. Consider"
     " using a different data structure for non-geolocated data."
 )
+TIMESTAMP_RENAME_WARNING = "The attribute `timestamp` is deprecated, use `timestamps` instead."
 
 MAX_DATA_REPR_LEN = 100
 
@@ -102,9 +103,7 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
 
         for char in feature_name:
             if char in self.FORBIDDEN_CHARS:
-                raise ValueError(
-                    f"The name of feature ({self.feature_type}, {feature_name}) contains an illegal character '{char}'."
-                )
+                raise ValueError(f"The feature name of {feature_name} contains an illegal character '{char}'.")
 
         if feature_name == "":
             raise ValueError("Feature name cannot be an empty string.")
@@ -150,22 +149,17 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
 class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
     """_FeatureDict object specialized for Numpy arrays."""
 
-    def __init__(self, feature_dict: Dict[str, Union[np.ndarray, FeatureIO[np.ndarray]]], feature_type: FeatureType):
-        ndim = feature_type.ndim()
-        if ndim is None:
-            raise ValueError(f"Feature type {feature_type} does not represent a Numpy based feature.")
-        self.ndim = ndim
-        super().__init__(feature_dict, feature_type)
-
     def _parse_feature_value(self, value: object, feature_name: str) -> np.ndarray:
         if not isinstance(value, np.ndarray):
             raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
-        if not hasattr(self, "ndim"):  # Because of serialization/deserialization during multiprocessing
+        if not hasattr(self, "feature_type"):  # custom pickling of dict super loses attributes
             return value
-        if value.ndim != self.ndim:
+
+        expected_ndim = cast(int, self.feature_type.ndim())  # numpy features have ndim
+        if value.ndim != expected_ndim:
             raise ValueError(
-                f"Numpy array of {self.feature_type} feature has to have {self.ndim} "
-                f"dimension{'s' if self.ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
+                f"Numpy array of {self.feature_type} feature has to have {expected_ndim} "
+                f"dimension{'s' if expected_ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
             )
 
         if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
@@ -179,11 +173,6 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
 
 class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
     """_FeatureDict object specialized for GeoDataFrames."""
-
-    def __init__(self, feature_dict: Dict[str, gpd.GeoDataFrame], feature_type: FeatureType):
-        if not feature_type.is_vector():
-            raise ValueError(f"Feature type {feature_type} does not represent a vector feature.")
-        super().__init__(feature_dict, feature_type)
 
     def _parse_feature_value(self, value: object, feature_name: str) -> gpd.GeoDataFrame:
         if isinstance(value, gpd.GeoSeries):
@@ -279,20 +268,12 @@ class EOPatch:
     @property
     def timestamp(self) -> List[dt.datetime]:
         """A property for handling the deprecated timestamp attribute."""
-        warn(
-            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
-            category=EODeprecationWarning,
-            stacklevel=2,
-        )
+        warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         return self.timestamps
 
     @timestamp.setter
     def timestamp(self, value: List[dt.datetime]) -> None:
-        warn(
-            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
-            category=EODeprecationWarning,
-            stacklevel=2,
-        )
+        warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         self.timestamps = value
 
     @property
@@ -305,7 +286,7 @@ class EOPatch:
         if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
             self._timestamps = [self._parse_to_datetime(time) for time in value]
         else:
-            raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of dt.datetime objects.")
+            raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
 
     @staticmethod
     def _parse_to_datetime(value: Union[dt.date, str]) -> dt.datetime:
@@ -376,12 +357,7 @@ class EOPatch:
     def __setitem__(
         self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
     ) -> None:
-        """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
-        (feature_type, feature_name).
-
-        :param key: Type of EOPatch feature
-        :param value: New dictionary or list
-        """
+        """Sets a new value to the given FeatureType or tuple of (feature_type, feature_name)."""
         feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
         ftype_attr = FeatureType(feature_type).value
 
@@ -391,10 +367,7 @@ class EOPatch:
             setattr(self, ftype_attr, value)
 
     def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
-        """Deletes the selected feature type or feature.
-
-        :param feature: EOPatch feature
-        """
+        """Deletes the selected feature type or feature."""
         if isinstance(feature, tuple):
             feature_type, feature_name = feature
             if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
@@ -433,6 +406,7 @@ class EOPatch:
             "`(feature_type, feature_name)` pairs."
         )
 
+    @deprecated_function(EODeprecationWarning, "Use the `merge` method instead.")
     def __add__(self, other: EOPatch) -> EOPatch:
         """Merges two EOPatches into a new EOPatch."""
         return self.merge(other)
