@@ -9,6 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import copy
 import datetime as dt
 import logging
@@ -40,7 +41,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, FeatureIOBBox, FeatureIOJson, FeatureIOTimestamps, load_eopatch_content, save_eopatch
+from .eodata_io import FeatureIO, FeatureIOJson, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
@@ -49,7 +50,6 @@ from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
 
 T = TypeVar("T")
-Self = TypeVar("Self")
 
 LOGGER = logging.getLogger(__name__)
 MISSING_BBOX_WARNING = (
@@ -61,11 +61,8 @@ MISSING_BBOX_WARNING = (
 MAX_DATA_REPR_LEN = 100
 
 if TYPE_CHECKING:
-    try:
-        from eolearn.visualization import PlotBackend
-        from eolearn.visualization.eopatch_base import BasePlotConfig
-    except ImportError:
-        pass
+    with contextlib.suppress(ImportError):
+        from eolearn.visualization import PlotBackend, PlotConfig
 
 
 class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
@@ -244,8 +241,8 @@ class EOPatch:
     """
 
     # establish types of property value holders
-    _timestamps: Union[FeatureIOTimestamps, List[dt.datetime]]
-    _bbox: Union[FeatureIOBBox, Optional[BBox]]
+    _timestamps: List[dt.datetime]
+    _bbox: Optional[BBox]
     _meta_info: Union[FeatureIOJson, _FeatureDictJson]
 
     def __init__(
@@ -281,10 +278,7 @@ class EOPatch:
 
     @property
     def timestamp(self) -> List[dt.datetime]:
-        """A property for handling the deprecated timestamp attribute.
-
-        :return: A list of EOPatch timestamps
-        """
+        """A property for handling the deprecated timestamp attribute."""
         warn(
             "The attribute `timestamp` is deprecated, use `timestamps` instead.",
             category=EODeprecationWarning,
@@ -304,37 +298,36 @@ class EOPatch:
     @property
     def timestamps(self) -> List[dt.datetime]:
         """A property for handling the `timestamps` attribute."""
-        if isinstance(self._timestamps, FeatureIOTimestamps):
-            self.timestamps = self._timestamps.load()  # assigned to `timestamps` property to trigger validation
-        return self._timestamps  # type: ignore[return-value] # mypy cannot verify due to mutations
+        return self._timestamps
 
     @timestamps.setter
-    def timestamps(self, value: Union[Iterable[dt.datetime], FeatureIOTimestamps]) -> None:
-        if isinstance(value, FeatureIOTimestamps):
-            self._timestamps = value
-        elif isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
-            self._timestamps = [_parse_to_datetime(time) for time in value]
+    def timestamps(self, value: Iterable[dt.datetime]) -> None:
+        if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
+            self._timestamps = [self._parse_to_datetime(time) for time in value]
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of dt.datetime objects.")
+
+    @staticmethod
+    def _parse_to_datetime(value: Union[dt.date, str]) -> dt.datetime:
+        if isinstance(value, dt.date):
+            return value if isinstance(value, dt.datetime) else dt.datetime(value.year, value.month, value.day)
+        return dateutil.parser.parse(value)
 
     @property
     def bbox(self) -> Optional[BBox]:
         """A property for handling the `bbox` attribute."""
-        if isinstance(self._bbox, FeatureIOBBox):
-            self.bbox = self._bbox.load()  # assigned to `bbox` property to trigger validation
-        return self._bbox  # type: ignore[return-value] # mypy cannot verify due to mutations
+        return self._bbox
 
     @bbox.setter
-    def bbox(self, value: Union[None, BBox, FeatureIOBBox]) -> None:
-        if isinstance(value, (BBox, FeatureIOBBox)) or value is None:
-            if value is None:
-                warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
-            self._bbox = value
-        else:
+    def bbox(self, value: Optional[BBox]) -> None:
+        if not (isinstance(value, BBox) or value is None):
             raise TypeError(f"Cannot assign {value} as bbox. Should be a `BBox` object.")
+        if value is None:
+            warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
+        self._bbox = value
 
     @property
-    def meta_info(self) -> Dict[str, Any]:
+    def meta_info(self) -> Dict[str, Any]:  # once META_INFO becomes regular (in terms of IO) this can be removed
         """A property for handling the `meta_info` attribute."""
         if isinstance(self._meta_info, FeatureIOJson):
             self.meta_info = self._meta_info.load()  # assigned to `meta_info` property to trigger validation
@@ -373,13 +366,8 @@ class EOPatch:
 
         :param key: Feature type or a (feature_type, feature_name) pair.
         """
-        if isinstance(key, tuple):
-            feature_type, feature_name = key
-        else:
-            feature_type, feature_name = key, None
-
-        ftype = FeatureType(feature_type).value
-        value = getattr(self, ftype)
+        feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
+        value = getattr(self, FeatureType(feature_type).value)
         if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
             feature_name = cast(str, feature_name)  # the above check deals with ... and None
             return value[feature_name]
@@ -394,17 +382,13 @@ class EOPatch:
         :param key: Type of EOPatch feature
         :param value: New dictionary or list
         """
-        if isinstance(key, tuple):
-            feature_type, feature_name = key
-        else:
-            feature_type, feature_name = key, None
-
-        ftype = FeatureType(feature_type).value
+        feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
+        ftype_attr = FeatureType(feature_type).value
 
         if feature_name not in (None, Ellipsis):
-            getattr(self, ftype)[feature_name] = value
+            getattr(self, ftype_attr)[feature_name] = value
         else:
-            setattr(self, ftype, value)
+            setattr(self, ftype_attr, value)
 
     def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
         """Deletes the selected feature type or feature.
@@ -660,11 +644,11 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox, timestamps, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
-        eopatch = EOPatch(bbox=bbox)  # type: ignore[arg-type]
+        bbox_io, timestamps_io, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
+        eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 
-        if timestamps is not None:
-            eopatch.timestamps = timestamps  # type: ignore[assignment]
+        if timestamps_io is not None:
+            eopatch.timestamps = timestamps_io.load()
         if meta_info is not None:
             eopatch.meta_info = meta_info  # type: ignore[assignment]
         for feature, feature_io in features_dict.items():
@@ -744,7 +728,7 @@ class EOPatch:
         channel_names: Optional[List[str]] = None,
         rgb: Optional[Tuple[int, int, int]] = None,
         backend: Union[str, PlotBackend] = "matplotlib",
-        config: Optional[BasePlotConfig] = None,
+        config: Optional[PlotConfig] = None,
         **kwargs: Any,
     ) -> object:
         """Plots an `EOPatch` feature.
@@ -788,11 +772,3 @@ def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
         executor.submit(lambda: eopatch.bbox)
         executor.submit(lambda: eopatch.timestamps)
         list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
-
-
-def _parse_to_datetime(value: Union[dt.date, str]) -> dt.datetime:
-    if isinstance(value, dt.datetime):
-        return value
-    if isinstance(value, dt.date):
-        return dt.datetime(value.year, value.month, value.day)
-    return dateutil.parser.parse(value)
