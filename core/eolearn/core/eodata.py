@@ -40,7 +40,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, FeatureIOBBox, FeatureIOJson, load_eopatch_content, save_eopatch
+from .eodata_io import FeatureIO, FeatureIOBBox, FeatureIOJson, FeatureIOTimestamps, load_eopatch_content, save_eopatch
 from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
@@ -244,8 +244,9 @@ class EOPatch:
     """
 
     # establish types of property value holders
-    _timestamps: Union[FeatureIOJson, List[dt.datetime]]
+    _timestamps: Union[FeatureIOTimestamps, List[dt.datetime]]
     _bbox: Union[FeatureIOBBox, Optional[BBox]]
+    _meta_info: Union[FeatureIOJson, _FeatureDictJson]
 
     def __init__(
         self,
@@ -303,13 +304,13 @@ class EOPatch:
     @property
     def timestamps(self) -> List[dt.datetime]:
         """A property for handling the `timestamps` attribute."""
-        if isinstance(self._timestamps, FeatureIOJson):
+        if isinstance(self._timestamps, FeatureIOTimestamps):
             self.timestamps = self._timestamps.load()  # assigned to `timestamps` property to trigger validation
         return self._timestamps  # type: ignore[return-value] # mypy cannot verify due to mutations
 
     @timestamps.setter
-    def timestamps(self, value: Union[Iterable[dt.datetime], FeatureIOJson]) -> None:
-        if isinstance(value, FeatureIOJson):
+    def timestamps(self, value: Union[Iterable[dt.datetime], FeatureIOTimestamps]) -> None:
+        if isinstance(value, FeatureIOTimestamps):
             self._timestamps = value
         elif isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
             self._timestamps = [_parse_to_datetime(time) for time in value]
@@ -332,6 +333,17 @@ class EOPatch:
         else:
             raise TypeError(f"Cannot assign {value} as bbox. Should be a `BBox` object.")
 
+    @property
+    def meta_info(self) -> _FeatureDictJson:
+        """A property for handling the `bbox` attribute."""
+        if isinstance(self._meta_info, FeatureIOJson):
+            self.meta_info = self._meta_info.load()  # assigned to `bbox` property to trigger validation
+        return self._meta_info  # type: ignore[return-value] # mypy cannot verify due to mutations
+
+    @meta_info.setter
+    def meta_info(self, value: Union[Dict[str, Any], FeatureIOJson]) -> None:
+        self._meta_info = value if isinstance(value, FeatureIOJson) else _FeatureDictJson(value, FeatureType.META_INFO)
+
     def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
         """Raises TypeError if feature type attributes are not of correct type.
 
@@ -341,23 +353,16 @@ class EOPatch:
             self.__getattribute__(key)[feature_name] = value
             return
 
-        if key not in ("timestamps", "bbox") and FeatureType.has_value(key) and not isinstance(value, FeatureIO):
+        if FeatureType.has_value(key) and not FeatureType(key).is_meta():
             if not isinstance(value, dict):
                 raise TypeError(f"Cannot parse {value} for attribute {key}. Should be a dictionary.")
             value = _create_feature_dict(FeatureType(key), value)
 
         super().__setattr__(key, value)
 
-    def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
+    def __getattribute__(self, key: str, feature_name: Union[str, None, EllipsisType] = None) -> Any:
         """Handles lazy loading and can even provide a single feature from _FeatureDict."""
         value = super().__getattribute__(key)
-        if key in ("timestamps", "bbox"):
-            return value
-
-        if isinstance(value, FeatureIO) and load:
-            value = value.load()
-            setattr(self, key, value)
-            value = getattr(self, key)
 
         if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
             feature_name = cast(str, feature_name)  # the above check deals with ... and None
