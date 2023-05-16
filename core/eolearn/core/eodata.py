@@ -795,5 +795,4 @@ def _parse_to_datetime(value: Union[dt.date, str]) -> dt.datetime:
         return value
     if isinstance(value, dt.date):
         return dt.datetime(value.year, value.month, value.day)
-    if isinstance(value, str):
-        return dateutil.parser.parse(value)
+    return dateutil.parser.parse(value)
