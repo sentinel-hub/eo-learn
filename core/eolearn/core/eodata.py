@@ -42,7 +42,7 @@ from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
-from .eodata_merge import merge_eopatches
+from .eodata_merge import OperationInputType, merge_eopatch_content
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
@@ -660,6 +660,7 @@ class EOPatch:
             _trigger_loading_for_eopatch_features(eopatch)
         return eopatch
 
+    @deprecated_function(EODeprecationWarning, "Use the function `eolearn.core.merge_eopatches` instead.")
     def merge(
         self,
         *eopatches: EOPatch,
@@ -692,7 +693,7 @@ class EOPatch:
             - 'median': Join arrays by taking median values. Ignore NaN values.
         :return: A merged EOPatch
         """
-        eopatch_content = merge_eopatches(
+        eopatch_content = merge_eopatch_content(
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
@@ -774,3 +775,43 @@ def _trigger_loading_for_eopatch_features(eopatch: EOPatch) -> None:
         executor.submit(lambda: eopatch.bbox)
         executor.submit(lambda: eopatch.timestamps)
         list(executor.map(lambda feature: eopatch[feature], eopatch.get_features()))
+
+
+def merge_eopatches(
+    *eopatches: EOPatch,
+    features: FeaturesSpecification = ...,
+    time_dependent_op: OperationInputType = None,
+    timeless_op: OperationInputType = None,
+) -> EOPatch:
+    """Merge features of given EOPatches into a new EOPatch.
+
+    :param eopatches: Any number of EOPatches to be merged together.
+    :param features: A collection of features to be merged together. By default, all features will be merged.
+    :param time_dependent_op: An operation for joining data for time-dependent raster features. Before joining time
+        slices of all arrays will be sorted. Supported options are:
+
+        - None: If time slices with matching timestamps have the same values, take one. Raise an error otherwise.
+        - 'concatenate': Keep all time slices, even the ones with matching timestamps
+        - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
+        - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
+        - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
+        - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
+    :param timeless_op: An operation for joining data for timeless raster features. Supported options are:
+
+        - None: If arrays are the same, take one. Raise an error otherwise.
+        - 'concatenate': Join arrays over the last (i.e. bands) dimension
+        - 'min': Join arrays by taking minimum values. Ignore NaN values.
+        - 'max': Join arrays by taking maximum values. Ignore NaN values.
+        - 'mean': Join arrays by taking mean values. Ignore NaN values.
+        - 'median': Join arrays by taking median values. Ignore NaN values.
+    :return: A merged EOPatch
+    """
+    eopatch_content = merge_eopatch_content(
+        *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
+    )
+
+    merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
+    for feature, value in eopatch_content.items():
+        merged_eopatch[feature] = value
+
+    return merged_eopatch
