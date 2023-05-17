@@ -21,7 +21,7 @@ from shapely.geometry import Point
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
+from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask, merge_eopatches
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import (
     FeatureIO,
@@ -119,7 +119,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
             add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
 
         new_eopatch = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
-        assert new_eopatch == eopatch + add_eopatch
+        assert new_eopatch == merge_eopatches(eopatch, add_eopatch)
 
 
 @mock_s3

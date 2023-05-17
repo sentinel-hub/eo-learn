@@ -145,8 +145,7 @@ def test_vector_merge():
 
     eop1 = EOPatch(bbox=bbox, vector_timeless={"vectors": df})
 
-    for eop in [merge_eopatches(eop1, eop1), eop1 + eop1]:
-        assert eop == eop1
+    assert eop1 == merge_eopatches(eop1, eop1)
 
     eop2 = eop1.__deepcopy__()
     eop2.vector_timeless["vectors"].crs = CRS.POP_WEB.pyproj_crs()
