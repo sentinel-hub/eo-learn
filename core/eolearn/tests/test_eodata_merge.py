@@ -12,7 +12,7 @@ from geopandas import GeoDataFrame
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import EOPatch, FeatureType
+from eolearn.core import EOPatch, FeatureType, merge_eopatches
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EORuntimeWarning
@@ -33,11 +33,11 @@ def test_time_dependent_merge():
         timestamps=[all_timestamps[3], all_timestamps[1], all_timestamps[2], all_timestamps[4], all_timestamps[3]],
     )
 
-    eop = eop1.merge(eop2)
+    eop = merge_eopatches(eop1, eop2)
     expected_eop = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
     assert eop == expected_eop
 
-    eop = eop1.merge(eop2, time_dependent_op="concatenate")
+    eop = merge_eopatches(eop1, eop2, time_dependent_op="concatenate")
     expected_eop = EOPatch(
         bbox=DUMMY_BBOX,
         data={"bands": np.ones((8, 4, 5, 2))},
@@ -51,9 +51,9 @@ def test_time_dependent_merge():
     eop2.data["bands"][1, ...] = 4
 
     with pytest.raises(ValueError):
-        eop1.merge(eop2)
+        merge_eopatches(eop1, eop2)
 
-    eop = eop1.merge(eop2, time_dependent_op="mean")
+    eop = merge_eopatches(eop1, eop2, time_dependent_op="mean")
     expected_eop = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))}, timestamps=all_timestamps)
     expected_eop.data["bands"][1, ...] = 4
     expected_eop.data["bands"][3, ...] = 3
@@ -72,23 +72,27 @@ def test_time_dependent_merge_with_missing_features():
     )
     eop2 = EOPatch(bbox=DUMMY_BBOX, timestamps=timestamps[:4])
 
-    eop = eop1.merge(eop2)
+    eop = merge_eopatches(eop1, eop2)
     assert eop == eop1
 
-    eop = eop2.merge(eop1, eop1, eop2, time_dependent_op="min")
+    eop = merge_eopatches(eop2, eop1, eop1, eop2, time_dependent_op="min")
     assert eop == eop1
 
-    eop = eop1.merge()
+    eop = merge_eopatches(
+        eop1,
+    )
     assert eop == eop1
 
 
 def test_failed_time_dependent_merge():
     eop1 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))})
     with pytest.raises(ValueError):
-        eop1.merge()
+        merge_eopatches(
+            eop1,
+        )
     eop2 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((1, 4, 5, 2))}, timestamps=[dt.datetime(2020, 1, 1)])
     with pytest.raises(ValueError):
-        eop2.merge(eop1)
+        merge_eopatches(eop2, eop1)
 
 
 def test_timeless_merge():
@@ -102,9 +106,9 @@ def test_timeless_merge():
     )
 
     with pytest.raises(ValueError):
-        eop1.merge(eop2)
+        merge_eopatches(eop1, eop2)
 
-    eop = eop1.merge(eop2, timeless_op="concatenate")
+    eop = merge_eopatches(eop1, eop2, timeless_op="concatenate")
     expected_eop = EOPatch(
         bbox=DUMMY_BBOX,
         mask_timeless={
@@ -116,7 +120,7 @@ def test_timeless_merge():
     expected_eop.mask_timeless["mask"][..., 5:] = 4
     assert eop == expected_eop
 
-    eop = eop1.merge(eop2, eop2, timeless_op="min")
+    eop = merge_eopatches(eop1, eop2, eop2, timeless_op="min")
     expected_eop = EOPatch(
         bbox=DUMMY_BBOX,
         mask_timeless={
@@ -141,26 +145,26 @@ def test_vector_merge():
 
     eop1 = EOPatch(bbox=bbox, vector_timeless={"vectors": df})
 
-    for eop in [eop1.merge(eop1), eop1 + eop1]:
+    for eop in [merge_eopatches(eop1, eop1), eop1 + eop1]:
         assert eop == eop1
 
     eop2 = eop1.__deepcopy__()
     eop2.vector_timeless["vectors"].crs = CRS.POP_WEB.pyproj_crs()
     with pytest.raises(ValueError):
-        eop1.merge(eop2)
+        merge_eopatches(eop1, eop2)
 
 
 def test_meta_info_merge():
     eop1 = EOPatch(bbox=DUMMY_BBOX, meta_info={"a": 1, "b": 2})
     eop2 = EOPatch(bbox=DUMMY_BBOX, meta_info={"a": 1, "c": 5})
 
-    eop = eop1.merge(eop2)
+    eop = merge_eopatches(eop1, eop2)
     expected_eop = EOPatch(bbox=DUMMY_BBOX, meta_info={"a": 1, "b": 2, "c": 5})
     assert eop == expected_eop
 
     eop2.meta_info["a"] = 3
     with pytest.warns(EORuntimeWarning):
-        eop = eop1.merge(eop2)
+        eop = merge_eopatches(eop1, eop2)
     assert eop == expected_eop
 
 
@@ -168,18 +172,18 @@ def test_bbox_merge():
     eop1 = EOPatch(bbox=BBox((1, 2, 3, 4), CRS.WGS84))
     eop2 = EOPatch(bbox=BBox((1, 2, 3, 4), CRS.POP_WEB))
 
-    eop = eop1.merge(eop1)
+    eop = merge_eopatches(eop1, eop1)
     assert eop == eop1
 
     with pytest.raises(ValueError):
-        eop1.merge(eop2)
+        merge_eopatches(eop1, eop2)
 
 
 def test_lazy_loading(test_eopatch_path):
     eop1 = EOPatch.load(test_eopatch_path, lazy_loading=True)
     eop2 = EOPatch.load(test_eopatch_path, lazy_loading=True)
 
-    eop = eop1.merge(eop2, features=[(FeatureType.MASK, ...)])
+    eop = merge_eopatches(eop1, eop2, features=[(FeatureType.MASK, ...)])
     assert isinstance(eop.mask.get("CLM"), np.ndarray)
     assert isinstance(eop1.mask.get("CLM"), np.ndarray)
     assert isinstance(eop1.mask_timeless.get("LULC"), FeatureIO)
