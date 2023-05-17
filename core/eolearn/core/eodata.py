@@ -32,12 +32,11 @@ from typing import (
 )
 from warnings import warn
 
-import dateutil.parser
 import geopandas as gpd
 import numpy as np
 from fs.base import FS
 
-from sentinelhub import CRS, BBox
+from sentinelhub import CRS, BBox, parse_time
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
@@ -286,15 +285,9 @@ class EOPatch:
     @timestamps.setter
     def timestamps(self, value: Iterable[dt.datetime]) -> None:
         if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
-            self._timestamps = [self._parse_to_datetime(time) for time in value]
+            self._timestamps = [parse_time(time, force_datetime=True) for time in value]
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
-
-    @staticmethod
-    def _parse_to_datetime(value: Union[dt.date, str]) -> dt.datetime:
-        if isinstance(value, dt.date):
-            return value if isinstance(value, dt.datetime) else dt.datetime(value.year, value.month, value.day)
-        return dateutil.parser.parse(value)
 
     @property
     def bbox(self) -> Optional[BBox]:
