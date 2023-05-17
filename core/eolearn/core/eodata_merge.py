@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 OperationInputType = Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable]
 
 
-def merge_eopatch_content(
+def _merge_eopatch_content(
     *eopatches: EOPatch,
     features: FeaturesSpecification = ...,
     time_dependent_op: OperationInputType = None,

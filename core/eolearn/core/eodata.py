@@ -42,7 +42,7 @@ from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
-from .eodata_merge import OperationInputType, merge_eopatch_content
+from .eodata_merge import OperationInputType, _merge_eopatch_content
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
@@ -693,7 +693,7 @@ class EOPatch:
             - 'median': Join arrays by taking median values. Ignore NaN values.
         :return: A merged EOPatch
         """
-        eopatch_content = merge_eopatch_content(
+        eopatch_content = _merge_eopatch_content(
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
@@ -806,7 +806,7 @@ def merge_eopatches(
         - 'median': Join arrays by taking median values. Ignore NaN values.
     :return: A merged EOPatch
     """
-    eopatch_content = merge_eopatch_content(
+    eopatch_content = _merge_eopatch_content(
         *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
     )
 
