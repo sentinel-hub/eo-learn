@@ -23,7 +23,6 @@ INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(300, 300), depth_range
 @pytest.mark.parametrize(
     "bad_arg, bad_kwargs",
     [
-        (None, {}),
         (1.5, {}),
         ([0.5, 0.3], {}),
         ([0.5], {"split_type": None}),

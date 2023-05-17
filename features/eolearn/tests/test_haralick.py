@@ -33,6 +33,10 @@ OUTPUT_FEATURE = (FeatureType.DATA, "haralick")
             HaralickTask(FEATURE, texture_feature="sum_entropy", angle=-np.pi / 2, levels=8, window_size=7),
             {"exp_min": 0, "exp_max": 1.7463, "exp_mean": 0.5657, "exp_median": 0.50558},
         ],
+        [
+            HaralickTask(FEATURE, texture_feature="difference_variance", angle=-np.pi / 2, levels=8, window_size=7),
+            {"exp_min": 42, "exp_max": 110.6122, "exp_mean": 53.857082, "exp_median": 50},
+        ],
     ),
 )
 def test_haralick(small_ndvi_eopatch, task, expected_statistics):

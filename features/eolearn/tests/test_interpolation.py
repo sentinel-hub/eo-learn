@@ -232,41 +232,47 @@ INTERPOLATION_TEST_CASES = [
 
 
 COPY_FEATURE_CASES = [
-    InterpolationTestCase(
-        "cubic_copy_success",
-        CubicInterpolationTask(
-            (FeatureType.DATA, "NDVI"),
-            result_interval=(0.0, 1.0),
-            mask_feature=(FeatureType.MASK, "IS_VALID"),
-            resample_range=("2015-01-01", "2018-01-01", 16),
-            unknown_value=5,
-            bounds_error=False,
-            copy_features=[
-                (FeatureType.MASK, "IS_VALID"),
-                (FeatureType.DATA, "NDVI", "NDVI_OLD"),
-                (FeatureType.MASK_TIMELESS, "LULC"),
-            ],
-        ),
-        result_len=69,
-        expected_statistics=dict(exp_min=0.0, exp_max=5.0, exp_mean=1.3592644, exp_median=0.6174331),
-    ),
-    InterpolationTestCase(
-        "cubic_copy_fail",
-        CubicInterpolationTask(
-            (FeatureType.DATA, "NDVI"),
-            result_interval=(0.0, 1.0),
-            mask_feature=(FeatureType.MASK, "IS_VALID"),
-            resample_range=("2015-01-01", "2018-01-01", 16),
-            unknown_value=5,
-            bounds_error=False,
-            copy_features=[
-                (FeatureType.MASK, "IS_VALID"),
+    (
+        InterpolationTestCase(
+            "cubic_copy_success",
+            CubicInterpolationTask(
                 (FeatureType.DATA, "NDVI"),
-                (FeatureType.MASK_TIMELESS, "LULC"),
-            ],
+                result_interval=(0.0, 1.0),
+                mask_feature=(FeatureType.MASK, "IS_VALID"),
+                resample_range=("2015-01-01", "2018-01-01", 16),
+                unknown_value=5,
+                bounds_error=False,
+                copy_features=[
+                    (FeatureType.MASK, "IS_VALID"),
+                    (FeatureType.DATA, "NDVI", "NDVI_OLD"),
+                    (FeatureType.MASK_TIMELESS, "LULC"),
+                ],
+            ),
+            result_len=69,
+            expected_statistics={},
         ),
-        result_len=69,
-        expected_statistics=dict(exp_min=0.0, exp_max=5.0, exp_mean=1.3592644, exp_median=0.6174331),
+        True,
+    ),
+    (
+        InterpolationTestCase(
+            "cubic_copy_fail",
+            CubicInterpolationTask(
+                (FeatureType.DATA, "NDVI"),
+                result_interval=(0.0, 1.0),
+                mask_feature=(FeatureType.MASK, "IS_VALID"),
+                resample_range=("2015-01-01", "2018-01-01", 16),
+                unknown_value=5,
+                bounds_error=False,
+                copy_features=[
+                    (FeatureType.MASK, "IS_VALID"),
+                    (FeatureType.DATA, "NDVI"),
+                    (FeatureType.MASK_TIMELESS, "LULC"),
+                ],
+            ),
+            result_len=69,
+            expected_statistics={},
+        ),
+        False,
     ),
 ]
 
@@ -288,14 +294,11 @@ def test_interpolation(test_case: InterpolationTestCase, test_patch):
     assert_statistics_match(data, **test_case.expected_statistics, abs_delta=delta)
 
 
-@pytest.mark.parametrize("test_case", COPY_FEATURE_CASES, ids=lambda x: x.name)
-def test_copied_fields(test_case, test_patch):
-    try:
+@pytest.mark.parametrize("test_case, passes", COPY_FEATURE_CASES)
+def test_copied_fields(test_case, passes, test_patch):
+    if passes:
         eopatch = test_case.execute(test_patch)
-    except ValueError:
-        eopatch = None
 
-    if eopatch is not None:
         copied_features = [
             (FeatureType.MASK, "IS_VALID"),
             (FeatureType.DATA, "NDVI_OLD"),
@@ -303,3 +306,7 @@ def test_copied_fields(test_case, test_patch):
         ]
         for feature in copied_features:
             assert feature in eopatch, f"Expected feature `{feature}` is not present in EOPatch"
+    else:
+        # Fails due to name duplication
+        with pytest.raises(ValueError):
+            test_case.execute(test_patch)

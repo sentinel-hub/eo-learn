@@ -37,7 +37,7 @@ class HaralickTask(EOTask):
         "sum_entropy",
         "difference_variance",
         "difference_entropy",
-    }
+    }.union(AVAILABLE_TEXTURES_SKIMAGE)
 
     def __init__(
         self,
@@ -50,10 +50,8 @@ class HaralickTask(EOTask):
         stride: int = 1,
     ):
         """
-        :param feature: A feature that will be used and a new feature name where data will be saved. If new name is not
-            specified it will be saved with name '<feature_name>_HARALICK'.
-
-            Example: `(FeatureType.DATA, 'bands')` or `(FeatureType.DATA, 'bands', 'haralick_values')`
+        :param feature: A feature that will be used and a new feature name where data will be saved, e.g.
+          `(FeatureType.DATA, 'bands', 'haralick_values')`
         :param texture_feature: Type of Haralick textural feature to be calculated
         :param distance: Distance between pairs of pixels used for GLCM
         :param angle: Angle between pairs of pixels used for GLCM in radians, e.g. angle=np.pi/4
@@ -64,11 +62,8 @@ class HaralickTask(EOTask):
         self.feature_parser = self.get_feature_parser(feature)
 
         self.texture_feature = texture_feature
-        if self.texture_feature not in self.AVAILABLE_TEXTURES.union(self.AVAILABLE_TEXTURES_SKIMAGE):
-            raise ValueError(
-                "Haralick texture feature must be one of these: "
-                f"{self.AVAILABLE_TEXTURES.union(self.AVAILABLE_TEXTURES_SKIMAGE)}"
-            )
+        if self.texture_feature not in self.AVAILABLE_TEXTURES:
+            raise ValueError(f"Haralick texture feature must be one of these: {self.AVAILABLE_TEXTURES}")
 
         self.distance = distance
         self.angle = angle
@@ -79,102 +74,81 @@ class HaralickTask(EOTask):
             raise ValueError("Window size must be an odd number")
 
         self.stride = stride
-        if self.stride >= self.window_size + 1:
+        if self.stride > self.window_size:
             warnings.warn(
-                "Haralick stride is superior to the window size; some pixel values will be ignored", EOUserWarning
+                "Haralick stride is larger than window size; some pixel values will be ignored", EOUserWarning
             )
 
-    def _custom_texture(self, glcm: np.ndarray) -> np.ndarray:
-        # Sum of square: Variance
+    def _custom_texture(self, glcm: np.ndarray) -> np.ndarray:  # pylint: disable=too-many-return-statements
         if self.texture_feature == "sum_of_square_variance":
             i_raw = np.empty_like(glcm)
             i_raw[...] = np.arange(glcm.shape[0])
             i_raw = np.transpose(i_raw)
             i_minus_mean = (i_raw - glcm.mean()) ** 2
-            res = np.apply_over_axes(np.sum, i_minus_mean * glcm, axes=(0, 1))[0][0]
-        elif self.texture_feature == "inverse_difference_moment":
-            # np.meshgrid
+            return np.apply_over_axes(np.sum, i_minus_mean * glcm, axes=(0, 1))[0][0]
+        if self.texture_feature == "inverse_difference_moment":
             j_cols = np.empty_like(glcm)
             j_cols[...] = np.arange(glcm.shape[1])
             i_minus_j = ((j_cols - np.transpose(j_cols)) ** 2) + 1
-            res = np.apply_over_axes(np.sum, glcm / i_minus_j, axes=(0, 1))[0][0]
-        elif self.texture_feature == "sum_average":
-            # Slow
-            p_x_y = self._get_pxy_for_sum(glcm)
-            res = np.array(p_x_y * np.array(range(len(p_x_y)))).sum()
-        elif self.texture_feature == "sum_variance":
-            # Slow
-            p_x_y = self._get_pxy_for_sum(glcm)
-            sum_average = np.array(p_x_y * np.array(range(len(p_x_y)))).sum()
-            res = ((np.array(range(len(p_x_y))) - sum_average) ** 2).sum()
-        elif self.texture_feature == "sum_entropy":
-            # Slow
-            p_x_y = self._get_pxy_for_sum(glcm)
-            res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
-        elif self.texture_feature == "difference_variance":
-            # Slow
-            tuple_array = np.array(
-                list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))), dtype=(int, 2)
-            )
-            index = [
-                np.array([tuple(x) for x in tuple_array[np.abs(tuple_array.sum(axis=1)) == x]])
-                for x in range(self.levels)
-            ]
+            return np.apply_over_axes(np.sum, glcm / i_minus_j, axes=(0, 1))[0][0]
+        if self.texture_feature == "sum_average":
+            p_x_y = self._get_pxy(glcm)
+            return np.array(p_x_y * np.arange(len(p_x_y))).sum()
+        if self.texture_feature == "sum_variance":
+            p_x_y = self._get_pxy(glcm)
+            sum_average = np.array(p_x_y * np.arange(len(p_x_y))).sum()
+            return ((np.arange(len(p_x_y)) - sum_average) ** 2).sum()
+        if self.texture_feature == "sum_entropy":
+            p_x_y = self._get_pxy(glcm)
+            return (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
+        if self.texture_feature == "difference_variance":
+            p_x_y = self._get_pxy_for_diff(glcm)
+            sum_average = np.array(p_x_y * np.arange(len(p_x_y))).sum()
+            return ((np.arange(len(p_x_y)) - sum_average) ** 2).sum()
 
-            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
-            sum_average = np.array(p_x_y * np.array(range(len(index)))).sum()
-            res = ((np.array(range(len(index))) - sum_average) ** 2).sum()
-        else:
-            # self.texture_feature == 'difference_entropy':
-            # Slow
-            tuple_array = np.array(
-                list(it.product(list(range(self.levels)), list(np.asarray(range(self.levels)) * -1))), dtype=(int, 2)
-            )
-            index = [
-                np.array([tuple(x) for x in tuple_array[np.abs(tuple_array.sum(axis=1)) == x]])
-                for x in range(self.levels)
-            ]
+        # self.texture_feature == 'difference_entropy':
+        p_x_y = self._get_pxy_for_diff(glcm)
+        return (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
 
-            p_x_y = np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
-            res = (p_x_y * np.log(p_x_y + np.finfo(float).eps)).sum() * -1.0
-        return res
+    def _get_pxy(self, glcm: np.ndarray) -> np.ndarray:
+        tuple_array = np.array(list(it.product(range(self.levels), range(self.levels))))
+        index = [tuple_array[tuple_array.sum(axis=1) == x] for x in range(self.levels)]
+        return np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
 
-    def _get_pxy_for_sum(self, glcm: np.ndarray) -> np.ndarray:
-        tuple_array = np.array(list(it.product(list(range(self.levels)), list(range(self.levels)))), dtype=(int, 2))
-        index = [np.array([tuple(x) for x in tuple_array[tuple_array.sum(axis=1) == x]]) for x in range(self.levels)]
+    def _get_pxy_for_diff(self, glcm: np.ndarray) -> np.ndarray:
+        tuple_array = np.array(list(it.product(range(self.levels), np.asarray(range(self.levels)) * -1)))
+        index = [tuple_array[np.abs(tuple_array.sum(axis=1)) == x] for x in range(self.levels)]
         return np.array([glcm[tuple(np.moveaxis(idx, -1, 0))].sum() for idx in index])
 
     def _calculate_haralick(self, data: np.ndarray) -> np.ndarray:
         result = np.empty(data.shape, dtype=float)
+        num_times, _, _, num_bands = data.shape
         # For each date and each band
-        for time in range(data.shape[0]):
-            for band in range(data.shape[3]):
-                image = data[time, :, :, band]
-                image_min, image_max = np.min(image), np.max(image)
-                coef = (image_max - image_min) / self.levels
-                digitized_image = np.digitize(image, np.array([image_min + k * coef for k in range(self.levels - 1)]))
+        for time, band in it.product(range(num_times), range(num_bands)):
+            image = data[time, :, :, band]
+            image_min, image_max = np.min(image), np.max(image)
+            coef = (image_max - image_min) / self.levels
+            digitized_image = np.digitize(image, np.array([image_min + k * coef for k in range(self.levels - 1)]))
 
-                # Padding the image to handle borders
-                pad = self.window_size // 2
-                digitized_image = np.pad(digitized_image, ((pad, pad), (pad, pad)), "edge")
-                # Sliding window
-                for i in range(0, image.shape[0], self.stride):
-                    for j in range(0, image.shape[1], self.stride):
-                        window = digitized_image[i : i + self.window_size, j : j + self.window_size]
-                        glcm = skimage.feature.graycomatrix(
-                            window, [self.distance], [self.angle], levels=self.levels, normed=True, symmetric=True
-                        )
+            # Padding the image to handle borders
+            pad = self.window_size // 2
+            digitized_image = np.pad(digitized_image, ((pad, pad), (pad, pad)), "edge")
+            # Sliding window
+            for i, j in it.product(range(0, image.shape[0], self.stride), range(0, image.shape[1], self.stride)):
+                window = digitized_image[i : i + self.window_size, j : j + self.window_size]
+                glcm = skimage.feature.graycomatrix(
+                    window, [self.distance], [self.angle], levels=self.levels, normed=True, symmetric=True
+                )
 
-                        if self.texture_feature in self.AVAILABLE_TEXTURES_SKIMAGE:
-                            res = skimage.feature.graycoprops(glcm, self.texture_feature)[0][0]
-                        else:
-                            res = self._custom_texture(glcm[:, :, 0, 0])
+                if self.texture_feature in self.AVAILABLE_TEXTURES_SKIMAGE:
+                    result[time, i, j, band] = skimage.feature.graycoprops(glcm, self.texture_feature)[0][0]
+                else:
+                    result[time, i, j, band] = self._custom_texture(glcm[:, :, 0, 0])
 
-                        result[time, i, j, band] = res
         return result
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        for feature_type, feature_name, new_feature_name in self.feature_parser.get_renamed_features(eopatch):
-            eopatch[feature_type, new_feature_name] = self._calculate_haralick(eopatch[feature_type, feature_name])
+        for ftype, fname, new_fname in self.feature_parser.get_renamed_features(eopatch):
+            eopatch[ftype, new_fname] = self._calculate_haralick(eopatch[ftype, fname])
 
         return eopatch

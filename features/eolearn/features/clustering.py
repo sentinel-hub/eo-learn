@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Callable, List, Literal, Optional, Union, cast
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
@@ -61,17 +61,13 @@ class ClusteringTask(EOTask):
             adjacent pixels connected.
         :param mask_name: An optional mask feature used for exclusion of the area from clustering
         """
-        self.features_parser = self.get_feature_parser(features)
+        self.features_parser = self.get_feature_parser(features, allowed_feature_types=[FeatureType.DATA_TIMELESS])
         self.distance_threshold = distance_threshold
         self.affinity = affinity
         self.linkage = linkage
         self.new_feature_name = new_feature_name
         self.n_clusters = n_clusters
-        self.compute_full_tree: Union[Literal["auto"], bool] = "auto"
-        if distance_threshold is not None:
-            self.compute_full_tree = True
-        if remove_small < 0:
-            raise ValueError("remove_small argument should be non-negative")
+        self.compute_full_tree: Union[Literal["auto"], bool] = "auto" if distance_threshold is None else True
         self.remove_small = remove_small
         self.connectivity = connectivity
         self.mask_name = mask_name
@@ -85,19 +81,16 @@ class ClusteringTask(EOTask):
         data = np.concatenate([eopatch[feature] for feature in relevant_features], axis=2)
 
         # Reshapes the data, because AgglomerativeClustering method only takes one dimensional arrays of vectors
-        org_shape = data.shape
-        data = np.reshape(data, (-1, org_shape[-1]))
-        org_length = len(data)
+        height, width, num_channels = data.shape
+        data = np.reshape(data, (-1, num_channels))
 
-        graph_args = {"n_x": org_shape[0], "n_y": org_shape[1]}
-        locations = None
+        graph_args = {"n_x": height, "n_y": width}
 
         # All connections to masked pixels are removed
         if self.mask_name is not None:
             mask = eopatch.mask_timeless[self.mask_name].squeeze()
             graph_args["mask"] = mask
-            locations = [i for i, elem in enumerate(np.ravel(mask)) if elem == 0]
-            data = np.delete(data, locations, axis=0)
+            data = data[np.ravel(mask) != 0]
 
         # If connectivity is not set, it uses pixel-to-pixel connections
         if not self.connectivity:
@@ -113,28 +106,18 @@ class ClusteringTask(EOTask):
         )
 
         model.fit(data)
-        trimmed_labels = model.labels_
+        result = model.labels_
         if self.remove_small > 0:
-            # Counts how many pixels covers each cluster
-            labels = np.zeros(model.n_clusters_)
-            for i in trimmed_labels:
-                labels[i] += 1
-
-            # Sets to -1 all pixels corresponding to too small clusters
-            for i, no_lab in enumerate(labels):
-                if no_lab < self.remove_small:
-                    trimmed_labels[trimmed_labels == i] = -1
+            for label, count in zip(*np.unique(result, return_counts=True)):
+                if count < self.remove_small:
+                    result[result == label] = -1
 
         # Transforms data back to original shape and setting all masked regions to -1
         if self.mask_name is not None:
-            locations = cast(List[int], locations)  # set because mask_name is not None
-            new_data = [-1] * org_length
-            for i, val in zip(np.delete(np.arange(org_length), locations), trimmed_labels):
-                new_data[i] = val
-            trimmed_labels = new_data
+            unmasked_result = np.full(height * width, -1)
+            unmasked_result[np.ravel(mask) != 0] = result
+            result = unmasked_result
 
-        trimmed_labels = np.reshape(trimmed_labels, org_shape[:-1])
-
-        eopatch[FeatureType.DATA_TIMELESS, self.new_feature_name] = trimmed_labels[..., np.newaxis]
+        eopatch[FeatureType.DATA_TIMELESS, self.new_feature_name] = np.reshape(result, (height, width, 1))
 
         return eopatch

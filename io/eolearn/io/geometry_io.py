@@ -9,6 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 
 import abc
 import logging
+from contextlib import nullcontext
 from typing import Any, Optional, Union
 
 import boto3
@@ -152,28 +153,19 @@ class VectorImportTask(_BaseVectorImportTask):
         return self._aws_session
 
     @property
-    def dataset_crs(self) -> Optional[CRS]:
-        """Provides a CRS of dataset, it loads it lazily (i.e. the first time it is needed)
-
-        :return: Dataset's CRS
-        """
+    def dataset_crs(self) -> CRS:
+        """Provides a CRS of dataset, it loads it lazily (i.e. the first time it is needed)"""
         if self._dataset_crs is None:
-            if self.full_path.startswith("s3://"):
-                with fiona.Env(session=self.aws_session):
-                    self._read_crs()
-            else:
-                self._read_crs()
+            is_on_s3 = self.full_path.startswith("s3://")
+            with fiona.Env(session=self.aws_session) if is_on_s3 else nullcontext():
+                with fiona.open(self.full_path, **self.fiona_kwargs) as features:
+                    self._dataset_crs = CRS(features.crs)
 
         return self._dataset_crs
 
-    def _read_crs(self) -> None:
-        """Reads information about CRS from a dataset"""
-        with fiona.open(self.full_path, **self.fiona_kwargs) as features:
-            self._dataset_crs = CRS(features.crs)
-
     def _load_vector_data(self, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
         """Loads vector data either from S3 or local path"""
-        bbox_bounds = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox and self.dataset_crs else None
+        bbox_bounds = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
         if self.full_path.startswith("s3://"):
             with fiona.Env(session=self.aws_session), fiona.open(self.full_path, **self.fiona_kwargs) as features:
@@ -182,7 +174,7 @@ class VectorImportTask(_BaseVectorImportTask):
                 return gpd.GeoDataFrame.from_features(
                     feature_iter,
                     columns=list(features.schema["properties"]) + ["geometry"],
-                    crs=self.dataset_crs.pyproj_crs() if self.dataset_crs else None,
+                    crs=self.dataset_crs.pyproj_crs(),
                 )
 
         return gpd.read_file(self.full_path, bbox=bbox_bounds, **self.fiona_kwargs)
