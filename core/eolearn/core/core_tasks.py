@@ -19,7 +19,7 @@ from fs.base import FS
 from sentinelhub import SHConfig
 
 from .constants import FeatureType
-from .eodata import EOPatch
+from .eodata import EOPatch, merge_eopatches
 from .eotask import EOTask
 from .types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
@@ -137,9 +137,7 @@ class LoadTask(IOTask):
         """
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
         loaded_patch = EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
-        if eopatch is None:
-            return loaded_patch
-        return eopatch.merge(loaded_patch)
+        return loaded_patch if eopatch is None else merge_eopatches(eopatch, loaded_patch)
 
 
 class AddFeatureTask(EOTask):
@@ -570,4 +568,4 @@ class MergeEOPatchesTask(EOTask):
         if not eopatches:
             raise ValueError("At least one EOPatch should be given")
 
-        return eopatches[0].merge(*eopatches[1:], **self.merge_kwargs)
+        return merge_eopatches(*eopatches, **self.merge_kwargs)
