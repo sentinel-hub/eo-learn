@@ -317,7 +317,7 @@ def grid_task_fixture(request) -> EOTask:
 
 
 @pytest.mark.parametrize("grid_task", [[(1, 1), (1, 1)], [(2, 3), (5, 3)], [(6, 5), (3, 3)]], indirect=True)
-def test_grid_sampling_task(test_eopatch: EOPatch, grid_task: EOTask) -> None:
+def test_grid_sampling_task(test_eopatch: EOPatch, grid_task: GridSamplingTask) -> None:
     # expected_shape calculated
     sample_size = grid_task.sample_size
     expected_shape = list(test_eopatch.data["BANDS-S2-L1C"].shape)
@@ -336,11 +336,10 @@ def test_grid_sampling_task(test_eopatch: EOPatch, grid_task: EOTask) -> None:
     assert np.sum(eopatch[SAMPLE_MASK]) == height * width
 
 
-@pytest.mark.parametrize("grid_task", [[(1, 1), (1, 1)], [(2, 3), (5, 3)], [(6, 5), (3, 3)]], indirect=True)
-def test_grid_sampling_task_reproducibility(test_eopatch: EOPatch, grid_task: EOTask) -> None:
-    test_eopatch2 = test_eopatch.copy(deep=True)
-    eopatch = grid_task.execute(test_eopatch)
-    eopatch2 = grid_task.execute(test_eopatch2)
+@pytest.mark.parametrize("grid_task", [[(1, 1), (1, 1)], [(2, 3), (5, 3)]], indirect=True)
+def test_grid_sampling_task_reproducibility(test_eopatch: EOPatch, grid_task: GridSamplingTask) -> None:
+    eopatch1 = grid_task.execute(copy.copy(test_eopatch))
+    eopatch2 = grid_task.execute(copy.copy(test_eopatch))
 
-    assert eopatch is not eopatch2
-    assert eopatch == eopatch2
+    assert eopatch1 == eopatch2
+    assert eopatch1 is not eopatch2
