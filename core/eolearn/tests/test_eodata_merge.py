@@ -78,9 +78,7 @@ def test_time_dependent_merge_with_missing_features():
     eop = merge_eopatches(eop2, eop1, eop1, eop2, time_dependent_op="min")
     assert eop == eop1
 
-    eop = merge_eopatches(
-        eop1,
-    )
+    eop = merge_eopatches(eop1)
     assert eop == eop1
 
 
