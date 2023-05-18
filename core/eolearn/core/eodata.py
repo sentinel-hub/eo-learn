@@ -41,7 +41,6 @@ from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, FeatureIOJson, load_eopatch_content, save_eopatch
-from .eodata_merge import merge_eopatches
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
@@ -627,6 +626,7 @@ class EOPatch:
             _trigger_loading_for_eopatch_features(eopatch)
         return eopatch
 
+    @deprecated_function(EODeprecationWarning, "Use the function `eolearn.core.merge_eopatches` instead.")
     def merge(
         self,
         *eopatches: EOPatch,
@@ -659,15 +659,11 @@ class EOPatch:
             - 'median': Join arrays by taking median values. Ignore NaN values.
         :return: A merged EOPatch
         """
-        eopatch_content = merge_eopatches(
+        from .eodata_merge import merge_eopatches  # pylint: disable=import-outside-toplevel, cyclic-import
+
+        return merge_eopatches(
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
-
-        merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
-        for feature, value in eopatch_content.items():
-            merged_eopatch[feature] = value
-
-        return merged_eopatch
 
     def consolidate_timestamps(self, timestamps: List[dt.datetime]) -> Set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.

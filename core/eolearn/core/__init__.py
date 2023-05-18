@@ -22,6 +22,7 @@ from .core_tasks import (
     ZipFeatureTask,
 )
 from .eodata import EOPatch
+from .eodata_merge import merge_eopatches
 from .eoexecution import EOExecutor
 from .eonode import EONode, linearly_connect_tasks
 from .eotask import EOTask

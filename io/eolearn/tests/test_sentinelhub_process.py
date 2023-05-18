@@ -16,6 +16,7 @@ import pytest
 from pytest import approx
 
 from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, Unit
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask
@@ -382,12 +383,18 @@ class TestProcessingIO:
 
     def test_dem(self):
         task = SentinelHubDemTask(resolution=10, feature=(FeatureType.DATA_TIMELESS, "DEM"), max_threads=3)
-
         eopatch = task.execute(bbox=self.bbox)
-        dem = eopatch.data_timeless["DEM"]
-
         width, height = self.size
-        assert dem.shape == (height, width, 1)
+
+        assert_statistics_match(
+            eopatch.data_timeless["DEM"],
+            exp_shape=(height, width, 1),
+            exp_dtype=np.float32,
+            exp_max=3.4277425,
+            exp_min=-0.96642065,
+            exp_mean=0.2557371,
+            exp_median=0,
+        )
 
     def test_dem_cop(self):
         task = SentinelHubDemTask(

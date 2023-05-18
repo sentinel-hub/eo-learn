@@ -127,7 +127,7 @@ TIFF_TEST_CASES = [
 ]
 
 
-@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=[test_case.name for test_case in TIFF_TEST_CASES])
+@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=lambda x: x.name)
 def test_export_import(test_case, test_eopatch):
     test_eopatch[test_case.feature_type][test_case.name] = test_case.data
 
@@ -331,34 +331,36 @@ def test_time_dependent_feature(test_eopatch):
         f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
     ]
 
-    export_task = ExportToTiffTask(feature, folder=PATH_ON_BUCKET)
-    import_task = ImportFromTiffTask(feature, folder=PATH_ON_BUCKET, timestamp_size=68)
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name, timestamp_size=68)
 
-    export_task(test_eopatch, filename=filename_export)
-    new_eopatch = import_task(filename=filename_import)
+        export_task(test_eopatch, filename=filename_export)
+        new_eopatch = import_task(filename=filename_import)
 
-    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
+        assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
-    test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
-    filename_import = [
-        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
-    ]
+        test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
+        filename_import = [
+            f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
+        ]
 
-    with pytest.raises(ResourceNotFound):
-        import_task(filename=filename_import)
+        with pytest.raises((ResourceNotFound, rasterio.errors.RasterioIOError)):
+            import_task(filename=filename_import)
 
 
 def test_time_dependent_feature_with_timestamps(test_eopatch):
     feature = FeatureType.DATA, "NDVI"
     filename = "relative-path/%Y%m%dT%H%M%S.tiff"
 
-    export_task = ExportToTiffTask(feature, folder=PATH_ON_BUCKET)
-    import_task = ImportFromTiffTask(feature, folder=PATH_ON_BUCKET)
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name)
 
-    export_task.execute(test_eopatch, filename=filename)
-    new_eopatch = import_task(test_eopatch, filename=filename)
+        export_task.execute(test_eopatch, filename=filename)
+        new_eopatch = import_task(test_eopatch, filename=filename)
 
-    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
+        assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
 
 @pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
