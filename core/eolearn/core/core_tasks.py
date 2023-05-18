@@ -19,7 +19,8 @@ from fs.base import FS
 from sentinelhub import SHConfig
 
 from .constants import FeatureType
-from .eodata import EOPatch, merge_eopatches
+from .eodata import EOPatch
+from .eodata_merge import merge_eopatches
 from .eotask import EOTask
 from .types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
