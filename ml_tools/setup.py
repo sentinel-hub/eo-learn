@@ -47,7 +47,10 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
-    extras_require={"PLOTTING": parse_requirements("requirements-plotting.txt")},
+    extras_require={
+        "PLOTTING": parse_requirements("requirements-plotting.txt"),
+        "TDIGEST": parse_requirements("requirements-tdigest.txt"),
+    },
     zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -63,6 +66,7 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: GIS",
         "Topic :: Scientific/Engineering :: Image Processing",

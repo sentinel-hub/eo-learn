@@ -56,6 +56,7 @@ jobs:
         run: |
           pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
           python install_all.py
+          pip install -r ml_tools/requirements-tdigest.txt
 
       - name: Run pylint
         run: make pylint
@@ -80,6 +81,7 @@ jobs:
         python-version:
           - "3.9"
           - "3.10"
+          - "3.11"
         include:
           # A flag marks whether full or partial tests should be run
           # We don't run integration tests on pull requests from outside repos, because they don't have secrets
