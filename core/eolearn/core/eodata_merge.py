@@ -12,7 +12,7 @@ import datetime as dt
 import functools
 import itertools as it
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -21,14 +21,52 @@ from geopandas import GeoDataFrame
 from sentinelhub import BBox
 
 from .constants import FeatureType
+from .eodata import EOPatch
 from .exceptions import EORuntimeWarning
 from .types import FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
 
-if TYPE_CHECKING:
-    from .eodata import EOPatch
-
 OperationInputType = Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable]
+
+
+def merge_eopatches(
+    *eopatches: EOPatch,
+    features: FeaturesSpecification = ...,
+    time_dependent_op: OperationInputType = None,
+    timeless_op: OperationInputType = None,
+) -> EOPatch:
+    """Merge features of given EOPatches into a new EOPatch.
+
+    :param eopatches: Any number of EOPatches to be merged together.
+    :param features: A collection of features to be merged together. By default, all features will be merged.
+    :param time_dependent_op: An operation for joining data for time-dependent raster features. Before joining time
+        slices of all arrays will be sorted. Supported options are:
+
+        - None: If time slices with matching timestamps have the same values, take one. Raise an error otherwise.
+        - 'concatenate': Keep all time slices, even the ones with matching timestamps
+        - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
+        - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
+        - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
+        - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
+    :param timeless_op: An operation for joining data for timeless raster features. Supported options are:
+
+        - None: If arrays are the same, take one. Raise an error otherwise.
+        - 'concatenate': Join arrays over the last (i.e. bands) dimension
+        - 'min': Join arrays by taking minimum values. Ignore NaN values.
+        - 'max': Join arrays by taking maximum values. Ignore NaN values.
+        - 'mean': Join arrays by taking mean values. Ignore NaN values.
+        - 'median': Join arrays by taking median values. Ignore NaN values.
+    :return: A merged EOPatch
+    """
+    eopatch_content = _merge_eopatch_content(
+        *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
+    )
+
+    merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
+    for feature, value in eopatch_content.items():
+        merged_eopatch[feature] = value
+
+    return merged_eopatch
 
 
 def _merge_eopatch_content(
