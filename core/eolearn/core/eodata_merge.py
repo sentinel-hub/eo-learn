@@ -58,50 +58,7 @@ def merge_eopatches(
         - 'median': Join arrays by taking median values. Ignore NaN values.
     :return: A merged EOPatch
     """
-    eopatch_content = _merge_eopatch_content(
-        *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
-    )
 
-    merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
-    for feature, value in eopatch_content.items():
-        merged_eopatch[feature] = value
-
-    return merged_eopatch
-
-
-def _merge_eopatch_content(
-    *eopatches: EOPatch,
-    features: FeaturesSpecification = ...,
-    time_dependent_op: OperationInputType = None,
-    timeless_op: OperationInputType = None,
-) -> Dict[FeatureSpec, Any]:
-    """Merge features of given EOPatches into a new EOPatch.
-
-    :param eopatches: Any number of EOPatches to be merged together
-    :param features: A collection of features to be merged together. By default, all features will be merged.
-    :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
-        joining time slices of all arrays will be sorted. Supported options are:
-
-        - None (default): If time slices with matching timestamps have the same values, take one. Raise an error
-          otherwise.
-        - 'concatenate': Keep all time slices, even the ones with matching timestamps
-        - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
-        - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
-        - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
-        - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
-
-    :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
-        are:
-
-        - None (default): If arrays are the same, take one. Raise an error otherwise.
-        - 'concatenate': Join arrays over the last (i.e. bands) dimension
-        - 'min': Join arrays by taking minimum values. Ignore NaN values.
-        - 'max': Join arrays by taking maximum values. Ignore NaN values.
-        - 'mean': Join arrays by taking mean values. Ignore NaN values.
-        - 'median': Join arrays by taking median values. Ignore NaN values.
-
-    :return: Contents of a merged EOPatch
-    """
     reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
     timeless_operation = _parse_operation(timeless_op, is_timeless=True)
@@ -136,7 +93,11 @@ def _merge_eopatch_content(
 
     eopatch_content[(FeatureType.BBOX, None)] = _get_common_bbox(eopatches)
 
-    return eopatch_content
+    merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
+    for feature, value in eopatch_content.items():
+        merged_eopatch[feature] = value
+
+    return merged_eopatch
 
 
 def _parse_operation(operation_input: OperationInputType, is_timeless: bool) -> Callable:
