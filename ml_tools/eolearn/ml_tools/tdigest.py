@@ -1,5 +1,6 @@
 """
 The module provides an EOTask for the computation of a T-Digest representation of an EOPatch.
+Requires installation of `eolearn.ml_tools[TDIGEST]`.
 
 Copyright (c) 2017- Sinergise and contributors
 For the full list of contributors, see the CREDITS file in the root directory of this source tree.
