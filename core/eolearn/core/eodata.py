@@ -9,6 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import concurrent.futures
+import contextlib
 import copy
 import datetime as dt
 import logging
@@ -18,12 +19,12 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
     List,
     Literal,
     Optional,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -31,17 +32,15 @@ from typing import (
 )
 from warnings import warn
 
-import attr
-import dateutil.parser
 import geopandas as gpd
 import numpy as np
 from fs.base import FS
 
-from sentinelhub import CRS, BBox
+from sentinelhub import CRS, BBox, parse_time
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
+from .eodata_io import FeatureIO, FeatureIOJson, load_eopatch_content, save_eopatch
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
@@ -49,7 +48,6 @@ from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
 
 T = TypeVar("T")
-Self = TypeVar("Self")
 
 LOGGER = logging.getLogger(__name__)
 MISSING_BBOX_WARNING = (
@@ -57,15 +55,13 @@ MISSING_BBOX_WARNING = (
     " EOPatches represent geolocated data and so any EOPatch without a BBox is ill-formed. Consider"
     " using a different data structure for non-geolocated data."
 )
+TIMESTAMP_RENAME_WARNING = "The attribute `timestamp` is deprecated, use `timestamps` instead."
 
 MAX_DATA_REPR_LEN = 100
 
 if TYPE_CHECKING:
-    try:
-        from eolearn.visualization import PlotBackend
-        from eolearn.visualization.eopatch_base import BasePlotConfig
-    except ImportError:
-        pass
+    with contextlib.suppress(ImportError):
+        from eolearn.visualization import PlotBackend, PlotConfig
 
 
 class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
@@ -89,15 +85,6 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
         for feature_name, value in feature_dict.items():
             self[feature_name] = value
 
-    @classmethod
-    def empty_factory(cls: Type[Self], feature_type: FeatureType) -> Callable[[], Self]:
-        """Returns a factory function for creating empty feature dictionaries with an appropriate feature type."""
-
-        def factory() -> Self:
-            return cls(feature_dict={}, feature_type=feature_type)  # type: ignore[call-arg]
-
-        return factory
-
     def __setitem__(self, feature_name: str, value: Union[T, FeatureIO[T]]) -> None:
         """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
         transform value in correct form.
@@ -114,9 +101,7 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
 
         for char in feature_name:
             if char in self.FORBIDDEN_CHARS:
-                raise ValueError(
-                    f"The name of feature ({self.feature_type}, {feature_name}) contains an illegal character '{char}'."
-                )
+                raise ValueError(f"The feature name of {feature_name} contains an illegal character '{char}'.")
 
         if feature_name == "":
             raise ValueError("Feature name cannot be an empty string.")
@@ -162,22 +147,17 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
 class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
     """_FeatureDict object specialized for Numpy arrays."""
 
-    def __init__(self, feature_dict: Dict[str, Union[np.ndarray, FeatureIO[np.ndarray]]], feature_type: FeatureType):
-        ndim = feature_type.ndim()
-        if ndim is None:
-            raise ValueError(f"Feature type {feature_type} does not represent a Numpy based feature.")
-        self.ndim = ndim
-        super().__init__(feature_dict, feature_type)
-
     def _parse_feature_value(self, value: object, feature_name: str) -> np.ndarray:
         if not isinstance(value, np.ndarray):
             raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
-        if not hasattr(self, "ndim"):  # Because of serialization/deserialization during multiprocessing
+        if not hasattr(self, "feature_type"):  # custom pickling of `dict` (superclass) loses attributes
             return value
-        if value.ndim != self.ndim:
+
+        expected_ndim = cast(int, self.feature_type.ndim())  # numpy features have ndim
+        if value.ndim != expected_ndim:
             raise ValueError(
-                f"Numpy array of {self.feature_type} feature has to have {self.ndim} "
-                f"dimension{'s' if self.ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
+                f"Numpy array of {self.feature_type} feature has to have {expected_ndim} "
+                f"dimension{'s' if expected_ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
             )
 
         if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
@@ -192,16 +172,13 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
 class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
     """_FeatureDict object specialized for GeoDataFrames."""
 
-    def __init__(self, feature_dict: Dict[str, gpd.GeoDataFrame], feature_type: FeatureType):
-        if not feature_type.is_vector():
-            raise ValueError(f"Feature type {feature_type} does not represent a vector feature.")
-        super().__init__(feature_dict, feature_type)
-
     def _parse_feature_value(self, value: object, feature_name: str) -> gpd.GeoDataFrame:
         if isinstance(value, gpd.GeoSeries):
             value = gpd.GeoDataFrame(geometry=value, crs=value.crs)
 
         if isinstance(value, gpd.GeoDataFrame):
+            if not hasattr(self, "feature_type"):  # custom pickling of `dict` (superclass) loses attributes
+                return value
             if self.feature_type is FeatureType.VECTOR and TIMESTAMP_COLUMN not in value:
                 raise ValueError(
                     f"{self.feature_type} feature has to contain a column '{TIMESTAMP_COLUMN}' with timestamps but "
@@ -232,7 +209,6 @@ def _create_feature_dict(feature_type: FeatureType, value: Dict[str, Any]) -> _F
     return _FeatureDictNumpy(value, feature_type)
 
 
-@attr.s(repr=False, eq=False, kw_only=True)
 class EOPatch:
     """The basic data object for multi-temporal remotely sensed data, such as satellite imagery and its derivatives.
 
@@ -253,100 +229,98 @@ class EOPatch:
     arrays in other attributes.
     """
 
-    data: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.DATA))
-    mask: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.MASK))
-    scalar: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.SCALAR))
-    label: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.LABEL))
-    vector: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR))
-    data_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.DATA_TIMELESS))
-    mask_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.MASK_TIMELESS))
-    scalar_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.SCALAR_TIMELESS))
-    label_timeless: _FeatureDictNumpy = attr.ib(factory=_FeatureDictNumpy.empty_factory(FeatureType.LABEL_TIMELESS))
-    vector_timeless: _FeatureDictGeoDf = attr.ib(factory=_FeatureDictGeoDf.empty_factory(FeatureType.VECTOR_TIMELESS))
-    meta_info: _FeatureDictJson = attr.ib(factory=_FeatureDictJson.empty_factory(FeatureType.META_INFO))
-    bbox: Optional[BBox] = attr.ib(default=None)
-    timestamps: List[dt.datetime] = attr.ib(factory=list)
+    # establish types of property value holders
+    _timestamps: List[dt.datetime]
+    _bbox: Optional[BBox]
+    _meta_info: Union[FeatureIOJson, _FeatureDictJson]
 
-    def __attrs_post_init__(self) -> None:
-        if self.bbox is None:
-            warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
+    def __init__(
+        self,
+        *,
+        data: Optional[Dict[str, np.ndarray]] = None,
+        mask: Optional[Dict[str, np.ndarray]] = None,
+        scalar: Optional[Dict[str, np.ndarray]] = None,
+        label: Optional[Dict[str, np.ndarray]] = None,
+        vector: Optional[Dict[str, gpd.GeoDataFrame]] = None,
+        data_timeless: Optional[Dict[str, np.ndarray]] = None,
+        mask_timeless: Optional[Dict[str, np.ndarray]] = None,
+        scalar_timeless: Optional[Dict[str, np.ndarray]] = None,
+        label_timeless: Optional[Dict[str, np.ndarray]] = None,
+        vector_timeless: Optional[Dict[str, gpd.GeoDataFrame]] = None,
+        meta_info: Optional[Dict[str, Any]] = None,
+        bbox: Optional[BBox] = None,
+        timestamps: Optional[List[dt.datetime]] = None,
+    ):
+        self.data = data or {}
+        self.mask = mask or {}
+        self.scalar = scalar or {}
+        self.label = label or {}
+        self.vector = vector or {}
+        self.data_timeless = data_timeless or {}
+        self.mask_timeless = mask_timeless or {}
+        self.scalar_timeless = scalar_timeless or {}
+        self.label_timeless = label_timeless or {}
+        self.vector_timeless = vector_timeless or {}
+        self.meta_info = meta_info or {}
+        self.bbox = bbox
+        self.timestamps = timestamps or []
 
     @property
     def timestamp(self) -> List[dt.datetime]:
-        """A property for handling the deprecated timestamp attribute.
-
-        :return: A list of EOPatch timestamps
-        """
-        warn(
-            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
-            category=EODeprecationWarning,
-            stacklevel=2,
-        )
+        """A property for handling the deprecated timestamp attribute."""
+        warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         return self.timestamps
 
     @timestamp.setter
     def timestamp(self, value: List[dt.datetime]) -> None:
-        warn(
-            "The attribute `timestamp` is deprecated, use `timestamps` instead.",
-            category=EODeprecationWarning,
-            stacklevel=2,
-        )
+        warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         self.timestamps = value
 
-    def __setattr__(self, key: str, value: object, feature_name: Union[str, None, EllipsisType] = None) -> None:
-        """Raises TypeError if feature type attributes are not of correct type.
+    @property
+    def timestamps(self) -> List[dt.datetime]:
+        """A property for handling the `timestamps` attribute."""
+        return self._timestamps
 
-        In case they are a dictionary they are cast to _FeatureDict class.
-        """
-        if feature_name not in (None, Ellipsis) and FeatureType.has_value(key):
-            self.__getattribute__(key)[feature_name] = value
-            return
+    @timestamps.setter
+    def timestamps(self, value: Iterable[dt.datetime]) -> None:
+        if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
+            self._timestamps = [parse_time(time, force_datetime=True) for time in value]
+        else:
+            raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
 
-        if FeatureType.has_value(key) and not isinstance(value, FeatureIO):
-            feature_type = FeatureType(key)
-            value = self._parse_feature_type_value(feature_type, value)
+    @property
+    def bbox(self) -> Optional[BBox]:
+        """A property for handling the `bbox` attribute."""
+        return self._bbox
+
+    @bbox.setter
+    def bbox(self, value: Optional[BBox]) -> None:
+        if not (isinstance(value, BBox) or value is None):
+            raise TypeError(f"Cannot assign {value} as bbox. Should be a `BBox` object.")
+        if value is None:
+            warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
+        self._bbox = value
+
+    @property
+    def meta_info(self) -> Dict[str, Any]:  # once META_INFO becomes regular (in terms of IO) this can be removed
+        """A property for handling the `meta_info` attribute."""
+        if isinstance(self._meta_info, FeatureIOJson):
+            self.meta_info = self._meta_info.load()  # assigned to `meta_info` property to trigger validation
+        return self._meta_info  # type: ignore[return-value] # mypy cannot verify due to mutations
+
+    @meta_info.setter
+    def meta_info(self, value: Union[Dict[str, Any], FeatureIOJson]) -> None:
+        self._meta_info = value if isinstance(value, FeatureIOJson) else _FeatureDictJson(value, FeatureType.META_INFO)
+
+    def __setattr__(self, key: str, value: object) -> None:
+        """Casts dictionaries to _FeatureDict objects for non-meta features."""
+
+        if FeatureType.has_value(key) and not FeatureType(key).is_meta():
+            if not isinstance(value, dict):
+                raise TypeError(f"Cannot parse {value} for attribute {key}. Should be a dictionary.")
+            value = _create_feature_dict(FeatureType(key), value)
 
         super().__setattr__(key, value)
-
-    @staticmethod
-    def _parse_feature_type_value(
-        feature_type: FeatureType, value: object
-    ) -> Union[_FeatureDict, BBox, List[dt.date], None]:
-        """Checks or parses value which will be assigned to a feature type attribute of `EOPatch`. If the value
-        cannot be parsed correctly it raises an error.
-
-        :raises: TypeError, ValueError
-        """
-
-        if feature_type is FeatureType.BBOX and (value is None or isinstance(value, BBox)):
-            if value is None:
-                warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
-            return value
-
-        if feature_type is FeatureType.TIMESTAMPS and isinstance(value, (tuple, list)):
-            return [
-                timestamp if isinstance(timestamp, dt.date) else dateutil.parser.parse(timestamp) for timestamp in value
-            ]
-
-        if isinstance(value, dict):
-            return value if isinstance(value, _FeatureDict) else _create_feature_dict(feature_type, value)
-
-        raise TypeError(f"Cannot parse given value {value} for feature type {feature_type}. Possible type missmatch.")
-
-    def __getattribute__(self, key: str, load: bool = True, feature_name: Union[str, None, EllipsisType] = None) -> Any:
-        """Handles lazy loading and can even provide a single feature from _FeatureDict."""
-        value = super().__getattribute__(key)
-
-        if isinstance(value, FeatureIO) and load:
-            value = value.load()
-            setattr(self, key, value)
-            value = getattr(self, key)
-
-        if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
-            feature_name = cast(str, feature_name)  # the above check deals with ... and None
-            return value[feature_name]
-
-        return value
 
     @overload
     def __getitem__(self, key: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]) -> BBox:
@@ -367,35 +341,27 @@ class EOPatch:
 
         :param key: Feature type or a (feature_type, feature_name) pair.
         """
-        if isinstance(key, tuple):
-            feature_type, feature_name = key
-        else:
-            feature_type, feature_name = key, None
-
-        ftype = FeatureType(feature_type).value
-        return self.__getattribute__(ftype, feature_name=feature_name)  # type: ignore[call-arg]
+        feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
+        value = getattr(self, FeatureType(feature_type).value)
+        if feature_name not in (None, Ellipsis) and isinstance(value, _FeatureDict):
+            feature_name = cast(str, feature_name)  # the above check deals with ... and None
+            return value[feature_name]
+        return value
 
     def __setitem__(
         self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
     ) -> None:
-        """Sets a new dictionary / list to the given FeatureType. As a key it can also accept a tuple of
-        (feature_type, feature_name).
+        """Sets a new value to the given FeatureType or tuple of (feature_type, feature_name)."""
+        feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
+        ftype_attr = FeatureType(feature_type).value
 
-        :param key: Type of EOPatch feature
-        :param value: New dictionary or list
-        """
-        if isinstance(key, tuple):
-            feature_type, feature_name = key
+        if feature_name not in (None, Ellipsis):
+            getattr(self, ftype_attr)[feature_name] = value
         else:
-            feature_type, feature_name = key, None
-
-        return self.__setattr__(FeatureType(feature_type).value, value, feature_name=feature_name)
+            setattr(self, ftype_attr, value)
 
     def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
-        """Deletes the selected feature type or feature.
-
-        :param feature: EOPatch feature
-        """
+        """Deletes the selected feature type or feature."""
         if isinstance(feature, tuple):
             feature_type, feature_name = feature
             if feature_type in [FeatureType.BBOX, FeatureType.TIMESTAMPS]:
@@ -434,6 +400,7 @@ class EOPatch:
             "`(feature_type, feature_name)` pairs."
         )
 
+    @deprecated_function(EODeprecationWarning, "Use the `merge` method instead.")
     def __add__(self, other: EOPatch) -> EOPatch:
         """Merges two EOPatches into a new EOPatch."""
         return self.merge(other)
@@ -645,11 +612,11 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox, timestamps, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
-        eopatch = EOPatch(bbox=bbox)  # type: ignore[arg-type]
+        bbox_io, timestamps_io, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
+        eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 
-        if timestamps is not None:
-            eopatch.timestamps = timestamps  # type: ignore[assignment]
+        if timestamps_io is not None:
+            eopatch.timestamps = timestamps_io.load()
         if meta_info is not None:
             eopatch.meta_info = meta_info  # type: ignore[assignment]
         for feature, feature_io in features_dict.items():
@@ -726,7 +693,7 @@ class EOPatch:
         channel_names: Optional[List[str]] = None,
         rgb: Optional[Tuple[int, int, int]] = None,
         backend: Union[str, PlotBackend] = "matplotlib",
-        config: Optional[BasePlotConfig] = None,
+        config: Optional[PlotConfig] = None,
         **kwargs: Any,
     ) -> object:
         """Plots an `EOPatch` feature.
