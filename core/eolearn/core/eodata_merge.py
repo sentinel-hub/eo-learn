@@ -65,37 +65,29 @@ def merge_eopatches(
 
     feature_parser = FeatureParser(features)
     all_features = {feature for eopatch in eopatches for feature in feature_parser.get_features(eopatch)}
-    eopatch_content: Dict[FeatureSpec, object] = {}
 
     timestamps, order_mask_per_eopatch = _merge_timestamps(eopatches, reduce_timestamps)
     optimize_raster_temporal = _check_if_optimize(eopatches, time_dependent_op)
+
+    merged_eopatch = EOPatch(bbox=_get_common_bbox(eopatches), timestamps=timestamps)
 
     for feature in all_features:
         feature_type, feature_name = feature
 
         if feature_type.is_array():
             if feature_type.is_temporal():
-                eopatch_content[feature] = _merge_time_dependent_raster_feature(
+                merged_eopatch[feature] = _merge_time_dependent_raster_feature(
                     eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize_raster_temporal
                 )
             else:
-                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_operation)
+                merged_eopatch[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_operation)
 
         if feature_type.is_vector():
-            eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
-
-        if feature_type is FeatureType.TIMESTAMPS:
-            eopatch_content[feature] = timestamps
+            merged_eopatch[feature] = _merge_vector_feature(eopatches, feature)
 
         if feature_type is FeatureType.META_INFO:
             feature_name = cast(str, feature_name)  # parser makes sure of it
-            eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
-
-    eopatch_content[(FeatureType.BBOX, None)] = _get_common_bbox(eopatches)
-
-    merged_eopatch = EOPatch(bbox=eopatch_content[(FeatureType.BBOX, None)])
-    for feature, value in eopatch_content.items():
-        merged_eopatch[feature] = value
+            merged_eopatch[feature] = _select_meta_info_feature(eopatches, feature_name)
 
     return merged_eopatch
 
