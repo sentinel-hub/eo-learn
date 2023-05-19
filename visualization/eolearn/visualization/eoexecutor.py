@@ -148,7 +148,7 @@ class EOExecutorVisualization:
                     "name": f"{node_name} ({node.uid})",
                     "uid": node.uid,
                     "args": {
-                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore
+                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
                         for key, value in node.task.private_task_config.init_args.items()
                     },
                 }

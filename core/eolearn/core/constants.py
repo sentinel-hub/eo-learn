@@ -20,12 +20,12 @@ TIMESTAMP_COLUMN = "TIMESTAMP"
 
 def _warn_and_adjust(name: str) -> str:
     # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
-    deprecation_msg = None
+    deprecation_msg = None  # placeholder
     if name in ("TIMESTAMP", "timestamp"):
         name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
 
     if deprecation_msg:
-        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore
+        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore[unreachable]
     return name
 
 

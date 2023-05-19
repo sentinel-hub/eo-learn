@@ -27,7 +27,7 @@ import eolearn.geometry
 import eolearn.io
 import eolearn.mask
 import eolearn.ml_tools
-import eolearn.visualization  # noqa
+import eolearn.visualization  # noqa: F401
 from eolearn.core import EOTask
 
 # -- Project information -----------------------------------------------------

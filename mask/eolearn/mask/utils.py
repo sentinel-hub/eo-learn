@@ -97,8 +97,10 @@ def resize_images(  # type: ignore[no-untyped-def]
         height, width = new_size
         return cv2.resize(image, (width, height), interpolation=interpolation_method)
 
-    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2)  # pylint: disable=unnecessary-lambda-assignment # noqa
-    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0)  # pylint: disable=unnecessary-lambda-assignment # noqa
+    # pylint: disable-next=unnecessary-lambda-assignment
+    _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2)  # noqa: E731
+    # pylint: disable-next=unnecessary-lambda-assignment
+    _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0)  # noqa: E731
 
     # Choose a resize method based on number of dimensions
     resize_methods = {2: _resize2d, 3: _resize3d, 4: _resize4d}

@@ -27,7 +27,7 @@ _OutputType = TypeVar("_OutputType")
 class RayExecutor(EOExecutor):
     """A special type of `EOExecutor` that works with Ray framework"""
 
-    def run(self, **tqdm_kwargs: Any) -> List[WorkflowResults]:  # type: ignore
+    def run(self, **tqdm_kwargs: Any) -> List[WorkflowResults]:  # type: ignore[override]
         """Runs the executor using a Ray cluster
 
         Before calling this method make sure to initialize a Ray cluster using `ray.init`.
