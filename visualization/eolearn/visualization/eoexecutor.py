@@ -211,9 +211,8 @@ class EOExecutorVisualization:
         env = Environment(loader=FileSystemLoader(templates_dir))
         env.filters["datetime"] = self._format_datetime
         env.globals.update(timedelta=self._format_timedelta)
-        template = env.get_template(self.eoexecutor.REPORT_FILENAME)
 
-        return template
+        return env.get_template(self.eoexecutor.REPORT_FILENAME)
 
     @staticmethod
     def _format_datetime(value: dt.datetime) -> str:

@@ -35,8 +35,7 @@ def example_data_path_fixture():
 @pytest.fixture(name="gpkg_file")
 def local_gpkg_example_file_fixture():
     """A pytest fixture to retrieve a gpkg example file"""
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../../example_data/import-gpkg-test.gpkg")
-    return path
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "../../../example_data/import-gpkg-test.gpkg")
 
 
 @pytest.fixture(name="s3_gpkg_file")

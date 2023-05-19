@@ -95,9 +95,7 @@ def resize_images(  # type: ignore[no-untyped-def]
             image = cv2.GaussianBlur(image, (0, 0), sigmaX=sigma_x, sigmaY=sigma_y, borderType=cv2.BORDER_REFLECT)
 
         height, width = new_size
-        resized = cv2.resize(image, (width, height), interpolation=interpolation_method)
-
-        return resized
+        return cv2.resize(image, (width, height), interpolation=interpolation_method)
 
     _resize3d = lambda x: map_over_axis(x, _resize2d, axis=2)  # pylint: disable=unnecessary-lambda-assignment # noqa
     _resize4d = lambda x: map_over_axis(x, _resize3d, axis=0)  # pylint: disable=unnecessary-lambda-assignment # noqa
