@@ -183,4 +183,4 @@ def test_lazy_loading(test_eopatch_path):
     eop = merge_eopatches(eop1, eop2, features=[(FeatureType.MASK, ...)])
     assert isinstance(eop.mask.get("CLM"), np.ndarray)
     assert isinstance(eop1.mask.get("CLM"), np.ndarray)
-    assert isinstance(eop1.mask_timeless.get("LULC"), FeatureIO)
+    assert isinstance(eop1.mask_timeless._get_unloaded("LULC"), FeatureIO)
