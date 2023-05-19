@@ -549,8 +549,8 @@ class FeatureIOBBox(FeatureIO[BBox]):
         file.write(json_data.encode())
 
 
-def _better_jsonify(param: object) -> str:
-    """Adds the option to serialize datetime.date objects via isoformat."""
+def _better_jsonify(param: object) -> Any:
+    """Adds the option to serialize datetime.date and FeatureDict objects via isoformat."""
     if isinstance(param, datetime.date):
         return param.isoformat()
     if isinstance(param, Mapping):
