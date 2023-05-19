@@ -6,8 +6,27 @@ preview = true
 profile = "black"
 known_first_party = "sentinelhub"
 known_absolute = "eolearn"
-sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","ABSOLUTE","LOCALFOLDER"]
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "FIRSTPARTY",
+    "ABSOLUTE",
+    "LOCALFOLDER",
+]
 line_length = 120
+
+[tool.ruff]
+exclude = [".git", "__pycache__", "build", "dist"]
+ignore = ["C408", "SIM117", "SIM108"]
+line-length = 120
+select = ["C4", "C9", "E", "F", "SIM", "W"]
+
+[tool.ruff.mccabe]
+max-complexity = 15
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
 
 [tool.pylint.format]
 max-line-length = 120
@@ -21,7 +40,7 @@ disable = [
     "invalid-unary-operand-type",
     "unspecified-encoding",
     "unnecessary-ellipsis",
-    "use-dict-literal"
+    "use-dict-literal",
 ]
 
 [tool.pylint.design]
@@ -44,9 +63,7 @@ overgeneral-exceptions = "builtins.Exception"
 max-nested-blocks = 7
 
 [tool.pytest.ini_options]
-markers = [
-    "sh_integration: marks integration tests with Sentinel Hub service"
-]
+markers = ["sh_integration: marks integration tests with Sentinel Hub service"]
 
 [tool.coverage.run]
 source = [
@@ -57,20 +74,14 @@ source = [
     "io",
     "mask",
     "ml_tools",
-    "visualization"
+    "visualization",
 ]
 
 [tool.coverage.report]
-omit = [
-    "*/setup.py",
-    "*/tests/*",
-    "*/__init__.py"
-]
+omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-flake8 = [
-    "--extend-ignore=E402"
-]
+flake8 = ["--extend-ignore=E402"]
 
 [tool.nbqa.exclude]
 flake8 = "examples/core/CoreOverview.ipynb"
