@@ -386,7 +386,7 @@ def test_map_features_fails(patch: EOPatch) -> None:
     ],
 )
 def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], patch: EOPatch) -> None:
-    def kwargs_map(data, *, some=3, **kwargs) -> tuple:
+    def kwargs_map(_, *, some=3, **kwargs) -> tuple:
         return some, kwargs
 
     mapped_patch = MapFeatureTask(input_feature, (FeatureType.META_INFO, "kwargs"), kwargs_map, **kwargs)(patch)

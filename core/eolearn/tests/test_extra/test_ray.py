@@ -19,6 +19,8 @@ from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
 from eolearn.core.extra.ray import RayExecutor, join_ray_futures, join_ray_futures_iter, parallelize_with_ray
 
+# ruff: noqa: ARG001
+
 
 class ExampleTask(EOTask):
     def execute(self, *_, **kwargs):
