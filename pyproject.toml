@@ -43,6 +43,8 @@ select = [
     "ARG",
     "PD",
     "PGH",
+    "FLY",
+    "NPY",
 ]
 target-version = "py38"
 

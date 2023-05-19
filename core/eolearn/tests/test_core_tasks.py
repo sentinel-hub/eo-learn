@@ -47,6 +47,7 @@ from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+# ruff: noqa: NPY002
 
 
 @pytest.fixture(name="patch")

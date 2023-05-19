@@ -15,6 +15,7 @@ from eolearn.mask import ClassFrequencyTask
 
 IN_FEATURE = (FeatureType.MASK, "TEST")
 OUT_FEATURE = (FeatureType.DATA_TIMELESS, "FREQ")
+# ruff: noqa: NPY002
 
 
 @pytest.mark.parametrize("classes, no_data_value", ((["a", "b"], 0), (4, 0), (None, 0), ([1, 2, 3], 2)))

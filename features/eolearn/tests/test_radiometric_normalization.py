@@ -24,6 +24,8 @@ from eolearn.features import (
 )
 from eolearn.mask import MaskFeatureTask
 
+# ruff: noqa: NPY002
+
 
 @pytest.fixture(name="eopatch")
 def eopatch_fixture(example_eopatch):
