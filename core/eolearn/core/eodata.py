@@ -447,10 +447,10 @@ class EOPatch:
 
             l_bracket, r_bracket = ("[", "]") if isinstance(value, list) else ("(", ")")
             if isinstance(value, (list, tuple)) and len(value) > 2:
-                repr_str = f"{l_bracket}{repr(value[0])}, ..., {repr(value[-1])}{r_bracket}"
+                repr_str = f"{l_bracket}{value[0]!r}, ..., {value[-1]!r}{r_bracket}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
-                repr_str = f"{l_bracket}{repr(value[0])}, ...{r_bracket}"
+                repr_str = f"{l_bracket}{value[0]!r}, ...{r_bracket}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))

@@ -237,7 +237,7 @@ class EOExecutor:
                 logger.addHandler(handler)
                 return logger, handler
             except BaseException as exception:
-                warnings.warn(f"Failed to start logging with exception: {repr(exception)}", category=EORuntimeWarning)
+                warnings.warn(f"Failed to start logging with exception: {exception!r}", category=EORuntimeWarning)
 
         return None, None
 
@@ -249,7 +249,7 @@ class EOExecutor:
                 handler.close()
                 logger.removeHandler(handler)
             except BaseException as exception:
-                warnings.warn(f"Failed to end logging with exception: {repr(exception)}", category=EORuntimeWarning)
+                warnings.warn(f"Failed to end logging with exception: {exception!r}", category=EORuntimeWarning)
 
     @classmethod
     def _execute_workflow(cls, data: _ProcessingData) -> WorkflowResults:
@@ -390,5 +390,5 @@ class EOExecutor:
             with self.filesystem.open(log_path, "r") as file_handle:
                 return file_handle.read()
         except BaseException as exception:
-            warnings.warn(f"Failed to load logs with exception: {repr(exception)}", category=EORuntimeWarning)
+            warnings.warn(f"Failed to load logs with exception: {exception!r}", category=EORuntimeWarning)
             return "Failed to load logs"

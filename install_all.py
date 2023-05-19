@@ -24,7 +24,7 @@ SUBPACKAGE_LIST = [
 
 def pip_command(name, args):
     args = [arg for arg in args if not arg.startswith(".")]
-    subprocess.check_call([sys.executable, "-m", "pip", "install"] + args + [f"./{name}"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", *args, f"./{name}"])
 
 
 if __name__ == "__main__":

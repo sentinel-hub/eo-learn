@@ -243,7 +243,7 @@ class VectorToRasterTask(EOTask):
         if self.write_to_existing and self.raster_feature in eopatch:
             raster = eopatch[self.raster_feature]
 
-            expected_full_shape = raster_shape + (1,)
+            expected_full_shape = (*raster_shape, 1)
             if raster.shape != expected_full_shape:
                 msg = (
                     f"The existing raster feature {self.raster_feature} has a shape {raster.shape} but the expected"

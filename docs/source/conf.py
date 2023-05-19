@@ -34,7 +34,7 @@ from eolearn.core import EOTask
 
 # General information about the project.
 project = "eo-learn"
-copyright = "2017-, Sinergise"  # noqa[A001]
+copyright = "2017-, Sinergise"  # noqa: A001
 author = "Sinergise EO research team"
 doc_title = "eo-learn Documentation"
 
@@ -77,7 +77,7 @@ autodoc_type_aliases = {
     "SingleFeatureSpec": "eolearn.core.types.SingleFeatureSpec",
 }
 
-# Both the class’ and the __init__ method’s docstring are concatenated and inserted.
+# Both the class' and the __init__ method's docstring are concatenated and inserted.
 autoclass_content = "both"
 
 # Content is in the same order as in module

@@ -135,7 +135,7 @@ def test_get_mask_of_samples(small_image: np.ndarray, n_samples: Dict[int, int])
 def eopatch_fixture(small_image: np.ndarray) -> EOPatch:
     config = PatchGeneratorConfig(raster_shape=small_image.shape, depth_range=(5, 6), num_timestamps=10)
     patch = generate_eopatch([(FeatureType.DATA, "bands")], config=config)
-    patch.mask_timeless["raster"] = small_image.reshape(small_image.shape + (1,))
+    patch.mask_timeless["raster"] = small_image.reshape((*small_image.shape, 1))
     return patch
 
 

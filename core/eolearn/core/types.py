@@ -17,7 +17,7 @@ if sys.version_info >= (3, 10):
     from types import EllipsisType  # pylint: disable=ungrouped-imports
     from typing import TypeAlias
 else:
-    import builtins  # noqa: F401
+    import builtins  # noqa: F401, RUF100
 
     from typing_extensions import TypeAlias
 

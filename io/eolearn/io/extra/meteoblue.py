@@ -45,7 +45,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         apikey: str,
         query: Optional[dict] = None,
         units: Optional[dict] = None,
-        time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008
+        time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008, RUF100
         cache_folder: Optional[str] = None,
         cache_max_age: int = 604800,
     ):
@@ -208,7 +208,7 @@ def meteoblue_to_dataframe(result: Any) -> pd.DataFrame:
     code_names = [f"{code.code}_{code.level}_{code.aggregation}" for code in geometry.codes]
 
     if not geometry.timeIntervals:
-        return pd.DataFrame(columns=[TIMESTAMP_COLUMN, "Longitude", "Latitude"] + code_names)
+        return pd.DataFrame(columns=[TIMESTAMP_COLUMN, "Longitude", "Latitude", *code_names])
 
     dataframes = []
     for index, time_interval in enumerate(geometry.timeIntervals):
