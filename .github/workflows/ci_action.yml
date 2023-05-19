@@ -1,14 +1,7 @@
 name: build
 
 on:
-  pull_request:
-  push:
-    branches:
-      - "master"
-      - "develop"
-  schedule:
-    # Schedule events are triggered by whoever last changed the cron schedule
-    - cron: "5 0 * * *"
+  workflow_call:
 
 env:
   # The only way to simulate if-else statement
