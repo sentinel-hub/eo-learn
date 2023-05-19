@@ -18,7 +18,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterable,
     Iterator,
     List,
@@ -132,12 +131,11 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
     def __len__(self) -> int:
         return len(self._content)
 
+    def __contains__(self, key: object) -> bool:
+        return key in self._content
+
     def __iter__(self) -> Iterator[str]:
         return iter(self._content)
-
-    def get_dict(self) -> Dict[str, Union[T, FeatureIO[T]]]:
-        """Returns a Python dictionary of features and value."""
-        return dict(self._content.items())
 
     @abstractmethod
     def _parse_feature_value(self, value: object, feature_name: str) -> T:
@@ -203,7 +201,7 @@ class _FeatureDictJson(_FeatureDict[Any]):
         return value
 
 
-def _create_feature_dict(feature_type: FeatureType, value: Dict[str, Any]) -> _FeatureDict:
+def _create_feature_dict(feature_type: FeatureType, value: Mapping[str, Any]) -> _FeatureDict:
     """Creates the correct FeatureDict, corresponding to the FeatureType."""
     if feature_type.is_vector():
         return _FeatureDictGeoDf(value, feature_type)
@@ -254,15 +252,23 @@ class EOPatch:
         bbox: Optional[BBox] = None,
         timestamps: Optional[List[dt.datetime]] = None,
     ):
-        self.data: MutableMapping[str, np.ndarray] = data or {}
-        self.mask: MutableMapping[str, np.ndarray] = mask or {}
-        self.scalar: MutableMapping[str, np.ndarray] = scalar or {}
-        self.label: MutableMapping[str, np.ndarray] = label or {}
+        self.data: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(data or {}, FeatureType.DATA)
+        self.mask: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(mask or {}, FeatureType.MASK)
+        self.scalar: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(scalar or {}, FeatureType.SCALAR)
+        self.label: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(label or {}, FeatureType.LABEL)
         self.vector: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(vector or {}, FeatureType.VECTOR)
-        self.data_timeless: MutableMapping[str, np.ndarray] = data_timeless or {}
-        self.mask_timeless: MutableMapping[str, np.ndarray] = mask_timeless or {}
-        self.scalar_timeless: MutableMapping[str, np.ndarray] = scalar_timeless or {}
-        self.label_timeless: MutableMapping[str, np.ndarray] = label_timeless or {}
+        self.data_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            data_timeless or {}, FeatureType.DATA_TIMELESS
+        )
+        self.mask_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            mask_timeless or {}, FeatureType.MASK_TIMELESS
+        )
+        self.scalar_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            scalar_timeless or {}, FeatureType.SCALAR_TIMELESS
+        )
+        self.label_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            label_timeless or {}, FeatureType.LABEL_TIMELESS
+        )
         self.vector_timeless: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(
             vector_timeless or {}, FeatureType.VECTOR_TIMELESS
         )
@@ -307,14 +313,15 @@ class EOPatch:
         self._bbox = value
 
     @property
-    def meta_info(self) -> Dict[str, Any]:  # once META_INFO becomes regular (in terms of IO) this can be removed
+    def meta_info(self) -> MutableMapping[str, Any]:
         """A property for handling the `meta_info` attribute."""
+        # once META_INFO becomes regular (in terms of IO) this can be removed
         if isinstance(self._meta_info, FeatureIOJson):
             self.meta_info = self._meta_info.load()  # assigned to `meta_info` property to trigger validation
         return self._meta_info  # type: ignore[return-value] # mypy cannot verify due to mutations
 
     @meta_info.setter
-    def meta_info(self, value: Union[Dict[str, Any], FeatureIOJson]) -> None:
+    def meta_info(self, value: Union[Mapping[str, Any], FeatureIOJson]) -> None:
         self._meta_info = value if isinstance(value, FeatureIOJson) else _FeatureDictJson(value, FeatureType.META_INFO)
 
     def __setattr__(self, key: str, value: object) -> None:
@@ -417,9 +424,10 @@ class EOPatch:
             if not content:
                 continue
 
-            if isinstance(content, (dict, _FeatureDict)):
+            if isinstance(content, _FeatureDict):
+                content = {k: content._get_unloaded(k) for k in content}
                 inner_content_repr = "\n    ".join(
-                    [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.get_dict().items())]
+                    [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
                 )
                 content_str = "{\n    " + inner_content_repr + "\n  }"
             else:
