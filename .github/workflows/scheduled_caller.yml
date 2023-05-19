@@ -1,3 +1,5 @@
+name: scheduled build caller
+
 on:
   schedule:
     # Schedule events are triggered by whoever last changed the cron schedule
