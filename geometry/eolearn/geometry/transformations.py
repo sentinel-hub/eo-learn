@@ -37,6 +37,9 @@ LOGGER = logging.getLogger(__name__)
 
 ShapeIterator = Iterator[Tuple[BaseGeometry, float]]
 
+# ruff 0.269 wrongly recognizes `self.values` as a pandas method `.values`
+# ruff: noqa: PD011
+
 
 class VectorToRasterTask(EOTask):
     """A task for transforming a vector feature into a raster feature

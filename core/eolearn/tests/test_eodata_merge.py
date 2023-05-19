@@ -132,7 +132,7 @@ def test_timeless_merge():
 
 def test_vector_merge():
     bbox = BBox((1, 2, 3, 4), CRS.WGS84)
-    df = GeoDataFrame(
+    dummy_gdf = GeoDataFrame(
         {
             "values": [1, 2],
             TIMESTAMP_COLUMN: [dt.datetime(2017, 1, 1, 10, 4, 7), dt.datetime(2017, 1, 4, 10, 14, 5)],
@@ -141,7 +141,7 @@ def test_vector_merge():
         crs=bbox.crs.pyproj_crs(),
     )
 
-    eop1 = EOPatch(bbox=bbox, vector_timeless={"vectors": df})
+    eop1 = EOPatch(bbox=bbox, vector_timeless={"vectors": dummy_gdf})
 
     assert eop1 == merge_eopatches(eop1, eop1)
 
