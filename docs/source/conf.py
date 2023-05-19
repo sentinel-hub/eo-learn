@@ -289,13 +289,7 @@ def process_readme():
 
     chapters = ["\n".join(chapter) for chapter in chapters]
 
-    intro = "\n".join(
-        [
-            chapter
-            for chapter in chapters
-            if not (chapter.startswith("## Install") or chapter.startswith("## Documentation"))
-        ]
-    )
+    intro = "\n".join([chapter for chapter in chapters if not (chapter.startswith(("## Install", "## Documentation")))])
     install = "\n".join([chapter for chapter in chapters if chapter.startswith("## Install")])
 
     intro = intro.replace("./CONTRIBUTING.md", "contribute.html")
