@@ -14,6 +14,7 @@ import copy
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
+from collections.abc import MutableMapping
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -22,6 +23,7 @@ from typing import (
     Iterable,
     List,
     Literal,
+    Mapping,
     Optional,
     Set,
     Tuple,
@@ -73,7 +75,7 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
 
     FORBIDDEN_CHARS = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
 
-    def __init__(self, feature_dict: Dict[str, Union[T, FeatureIO[T]]], feature_type: FeatureType):
+    def __init__(self, feature_dict: Mapping[str, Union[T, FeatureIO[T]]], feature_type: FeatureType):
         """
         :param feature_dict: A dictionary of feature names and values
         :param feature_type: Type of features
@@ -237,31 +239,41 @@ class EOPatch:
     def __init__(
         self,
         *,
-        data: Optional[Dict[str, np.ndarray]] = None,
-        mask: Optional[Dict[str, np.ndarray]] = None,
-        scalar: Optional[Dict[str, np.ndarray]] = None,
-        label: Optional[Dict[str, np.ndarray]] = None,
-        vector: Optional[Dict[str, gpd.GeoDataFrame]] = None,
-        data_timeless: Optional[Dict[str, np.ndarray]] = None,
-        mask_timeless: Optional[Dict[str, np.ndarray]] = None,
-        scalar_timeless: Optional[Dict[str, np.ndarray]] = None,
-        label_timeless: Optional[Dict[str, np.ndarray]] = None,
-        vector_timeless: Optional[Dict[str, gpd.GeoDataFrame]] = None,
-        meta_info: Optional[Dict[str, Any]] = None,
+        data: Optional[Mapping[str, np.ndarray]] = None,
+        mask: Optional[Mapping[str, np.ndarray]] = None,
+        scalar: Optional[Mapping[str, np.ndarray]] = None,
+        label: Optional[Mapping[str, np.ndarray]] = None,
+        vector: Optional[Mapping[str, gpd.GeoDataFrame]] = None,
+        data_timeless: Optional[Mapping[str, np.ndarray]] = None,
+        mask_timeless: Optional[Mapping[str, np.ndarray]] = None,
+        scalar_timeless: Optional[Mapping[str, np.ndarray]] = None,
+        label_timeless: Optional[Mapping[str, np.ndarray]] = None,
+        vector_timeless: Optional[Mapping[str, gpd.GeoDataFrame]] = None,
+        meta_info: Optional[Mapping[str, Any]] = None,
         bbox: Optional[BBox] = None,
         timestamps: Optional[List[dt.datetime]] = None,
     ):
-        self.data = data or {}
-        self.mask = mask or {}
-        self.scalar = scalar or {}
-        self.label = label or {}
-        self.vector = vector or {}
-        self.data_timeless = data_timeless or {}
-        self.mask_timeless = mask_timeless or {}
-        self.scalar_timeless = scalar_timeless or {}
-        self.label_timeless = label_timeless or {}
-        self.vector_timeless = vector_timeless or {}
-        self.meta_info = meta_info or {}
+        self.data: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(data or {}, FeatureType.DATA)
+        self.mask: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(mask or {}, FeatureType.MASK)
+        self.scalar: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(scalar or {}, FeatureType.SCALAR)
+        self.label: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(label or {}, FeatureType.LABEL)
+        self.vector: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(vector or {}, FeatureType.VECTOR)
+        self.data_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            data_timeless or {}, FeatureType.DATA_TIMELESS
+        )
+        self.mask_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            mask_timeless or {}, FeatureType.MASK_TIMELESS
+        )
+        self.scalar_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            scalar_timeless or {}, FeatureType.SCALAR_TIMELESS
+        )
+        self.label_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
+            label_timeless or {}, FeatureType.LABEL_TIMELESS
+        )
+        self.vector_timeless: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(
+            vector_timeless or {}, FeatureType.VECTOR_TIMELESS
+        )
+        self.meta_info: MutableMapping[str, np.ndarray] = _FeatureDictJson(meta_info or {}, FeatureType.META_INFO)
         self.bbox = bbox
         self.timestamps = timestamps or []
 
