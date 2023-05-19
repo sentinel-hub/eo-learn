@@ -268,7 +268,7 @@ class EOPatch:
         self.vector_timeless: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(
             vector_timeless or {}, FeatureType.VECTOR_TIMELESS
         )
-        self.meta_info: MutableMapping[str, np.ndarray] = _FeatureDictJson(meta_info or {}, FeatureType.META_INFO)
+        self.meta_info: MutableMapping[str, Any] = _FeatureDictJson(meta_info or {}, FeatureType.META_INFO)
         self.bbox = bbox
         self.timestamps = timestamps or []
 
