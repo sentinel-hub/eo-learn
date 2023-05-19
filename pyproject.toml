@@ -20,7 +20,7 @@ line_length = 120
 exclude = [".git", "__pycache__", "build", "dist"]
 ignore = ["C408", "SIM117", "SIM108", "B904", "B028", "A003", "COM812"]
 line-length = 120
-select = ["C4", "C90", "E", "F", "SIM", "W", "N", "YTT", "B", "A", "COM", "T10", "ISC", "ICN", "G", "PIE", "T20", "RET"]
+select = ["C4", "C90", "E", "F", "SIM", "W", "N", "YTT", "B", "A", "COM", "T10", "ISC", "ICN", "G", "PIE", "T20", "RET", "SLF"]
 target-version = "py38"
 
 [tool.ruff.mccabe]

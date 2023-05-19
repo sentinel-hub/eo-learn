@@ -119,7 +119,7 @@ def test_filesystem_serialization(filesystem: FS, compare_params: List[str]):
 
     unpickled_filesystem = unpickle_fs(pickled_filesystem)
     assert filesystem is not unpickled_filesystem
-    assert isinstance(unpickled_filesystem._lock, RLock)
+    assert isinstance(unpickled_filesystem._lock, RLock)  # noqa[SLF001]
     for param in compare_params:
         assert getattr(filesystem, param) == getattr(unpickled_filesystem, param)
 

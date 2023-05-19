@@ -22,6 +22,9 @@ from fs_s3fs import S3FS
 
 from sentinelhub import SHConfig
 
+# because we access internals when pickling FS
+# ruff: noqa: SLF001
+
 
 def get_filesystem(
     path: Union[str, Path], create: bool = False, config: Optional[SHConfig] = None, **kwargs: Any
