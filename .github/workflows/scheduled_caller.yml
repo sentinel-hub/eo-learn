@@ -1,0 +1,9 @@
+on:
+  schedule:
+    # Schedule events are triggered by whoever last changed the cron schedule
+    - cron: "5 0 * * *"
+
+jobs:
+  call-workflow:
+    uses: sentinel-hub/eo-learn/.github/workflows/ci_action.yml@develop
+    secrets: inherit
