@@ -14,16 +14,17 @@ import copy
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from collections.abc import MutableMapping
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Literal,
     Mapping,
+    MutableMapping,
     Optional,
     Set,
     Tuple,
@@ -66,7 +67,7 @@ if TYPE_CHECKING:
         from eolearn.visualization import PlotBackend, PlotConfig
 
 
-class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
+class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
     """A dictionary structure that holds features of certain feature type.
 
     It checks that features have a correct and dimension. It also supports lazy loading by accepting a function as a
@@ -83,9 +84,7 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
         super().__init__()
 
         self.feature_type = feature_type
-
-        for feature_name, value in feature_dict.items():
-            self[feature_name] = value
+        self._content = dict(feature_dict.items())
 
     def __setitem__(self, feature_name: str, value: Union[T, FeatureIO[T]]) -> None:
         """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
@@ -94,7 +93,7 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
         if not isinstance(value, FeatureIO):
             value = self._parse_feature_value(value, feature_name)
         self._check_feature_name(feature_name)
-        super().__setitem__(feature_name, value)
+        self._content[feature_name] = value
 
     def _check_feature_name(self, feature_name: str) -> None:
         """Ensures that feature names are strings and do not contain forbidden characters."""
@@ -108,35 +107,37 @@ class _FeatureDict(Dict[str, Union[T, FeatureIO[T]]], metaclass=ABCMeta):
         if feature_name == "":
             raise ValueError("Feature name cannot be an empty string.")
 
-    @overload
-    def __getitem__(self, feature_name: str, load: Literal[True] = ...) -> T:
-        ...
-
-    @overload
-    def __getitem__(self, feature_name: str, load: Literal[False] = ...) -> Union[T, FeatureIO[T]]:
-        ...
-
-    def __getitem__(self, feature_name: str, load: bool = True) -> Union[T, FeatureIO[T]]:
+    def __getitem__(self, feature_name: str) -> T:
         """Implements lazy loading."""
-        value = super().__getitem__(feature_name)
+        value = self._content[feature_name]
 
-        if isinstance(value, FeatureIO) and load:
+        if isinstance(value, FeatureIO):
+            value = cast(FeatureIO[T], value)  # not sure why mypy borks this one
             value = value.load()
-            self[feature_name] = value
+            self._content[feature_name] = value
 
         return value
 
+    def _get_unloaded(self, feature_name: str) -> Union[T, FeatureIO[T]]:
+        """Returns the value, bypassing lazy-loading mechanisms."""
+        return self._content[feature_name]
+
+    def __delitem__(self, feature_name: str) -> None:
+        del self._content[feature_name]
+
     def __eq__(self, other: object) -> bool:
-        """Compares its content against a content of another feature type dictionary."""
+        # default doesn't know how to compare numpy arrays
         return deep_eq(self, other)
 
-    def __ne__(self, other: object) -> bool:
-        """Compares its content against a content of another feature type dictionary."""
-        return not self.__eq__(other)
+    def __len__(self) -> int:
+        return len(self._content)
 
-    def get_dict(self) -> Dict[str, T]:
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._content)
+
+    def get_dict(self) -> Dict[str, Union[T, FeatureIO[T]]]:
         """Returns a Python dictionary of features and value."""
-        return dict(self)
+        return dict(self._content.items())
 
     @abstractmethod
     def _parse_feature_value(self, value: object, feature_name: str) -> T:
@@ -253,23 +254,15 @@ class EOPatch:
         bbox: Optional[BBox] = None,
         timestamps: Optional[List[dt.datetime]] = None,
     ):
-        self.data: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(data or {}, FeatureType.DATA)
-        self.mask: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(mask or {}, FeatureType.MASK)
-        self.scalar: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(scalar or {}, FeatureType.SCALAR)
-        self.label: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(label or {}, FeatureType.LABEL)
+        self.data: MutableMapping[str, np.ndarray] = data or {}
+        self.mask: MutableMapping[str, np.ndarray] = mask or {}
+        self.scalar: MutableMapping[str, np.ndarray] = scalar or {}
+        self.label: MutableMapping[str, np.ndarray] = label or {}
         self.vector: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(vector or {}, FeatureType.VECTOR)
-        self.data_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            data_timeless or {}, FeatureType.DATA_TIMELESS
-        )
-        self.mask_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            mask_timeless or {}, FeatureType.MASK_TIMELESS
-        )
-        self.scalar_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            scalar_timeless or {}, FeatureType.SCALAR_TIMELESS
-        )
-        self.label_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            label_timeless or {}, FeatureType.LABEL_TIMELESS
-        )
+        self.data_timeless: MutableMapping[str, np.ndarray] = data_timeless or {}
+        self.mask_timeless: MutableMapping[str, np.ndarray] = mask_timeless or {}
+        self.scalar_timeless: MutableMapping[str, np.ndarray] = scalar_timeless or {}
+        self.label_timeless: MutableMapping[str, np.ndarray] = label_timeless or {}
         self.vector_timeless: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(
             vector_timeless or {}, FeatureType.VECTOR_TIMELESS
         )
@@ -328,7 +321,7 @@ class EOPatch:
         """Casts dictionaries to _FeatureDict objects for non-meta features."""
 
         if FeatureType.has_value(key) and not FeatureType(key).is_meta():
-            if not isinstance(value, dict):
+            if not isinstance(value, (dict, _FeatureDict)):
                 raise TypeError(f"Cannot parse {value} for attribute {key}. Should be a dictionary.")
             value = _create_feature_dict(FeatureType(key), value)
 
@@ -424,9 +417,9 @@ class EOPatch:
             if not content:
                 continue
 
-            if isinstance(content, dict):
+            if isinstance(content, (dict, _FeatureDict)):
                 inner_content_repr = "\n    ".join(
-                    [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
+                    [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.get_dict().items())]
                 )
                 content_str = "{\n    " + inner_content_repr + "\n  }"
             else:
@@ -490,7 +483,7 @@ class EOPatch:
             if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 new_eopatch[feature_type] = copy.copy(self[feature_type])
             else:
-                new_eopatch[feature_type][feature_name] = self[feature_type].__getitem__(feature_name, load=False)
+                new_eopatch[feature_type][feature_name] = self[feature_type]._get_unloaded(feature_name)
         return new_eopatch
 
     def __deepcopy__(self, memo: Optional[dict] = None, features: FeaturesSpecification = ...) -> EOPatch:
@@ -507,7 +500,7 @@ class EOPatch:
             if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
             else:
-                value = self[feature_type].__getitem__(feature_name, load=False)
+                value = self[feature_type]._get_unloaded(feature_name)
 
                 if isinstance(value, FeatureIO):
                     # We cannot deepcopy the entire object because of the filesystem attribute

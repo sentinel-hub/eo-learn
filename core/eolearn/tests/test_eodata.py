@@ -229,13 +229,13 @@ def test_copy_lazy_loaded_patch(test_eopatch_path: str, features: FeaturesSpecif
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
     copied_eopatch = original_eopatch.copy(features=features)
 
-    original_data = original_eopatch.mask.__getitem__("CLM", load=False)
+    original_data = original_eopatch.mask._get_unloaded("CLM")
     assert isinstance(original_data, FeatureIO), "Shallow copying loads the data."
-    copied_data = copied_eopatch.mask.__getitem__("CLM", load=False)
+    copied_data = copied_eopatch.mask._get_unloaded("CLM")
     assert original_data is copied_data
 
     original_mask = original_eopatch.mask["CLM"]
-    assert copied_eopatch.mask.__getitem__("CLM", load=False).loaded_value is not None
+    assert copied_eopatch.mask._get_unloaded("CLM").loaded_value is not None
     copied_mask = copied_eopatch.mask["CLM"]
     assert original_mask is copied_mask
 
@@ -243,14 +243,14 @@ def test_copy_lazy_loaded_patch(test_eopatch_path: str, features: FeaturesSpecif
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
     copied_eopatch = original_eopatch.copy(features=features, deep=True)
 
-    original_data = original_eopatch.mask.__getitem__("CLM", load=False)
+    original_data = original_eopatch.mask._get_unloaded("CLM")
     assert isinstance(original_data, FeatureIO), "Deep copying loads the data of source."
-    copied_data = copied_eopatch.mask.__getitem__("CLM", load=False)
+    copied_data = copied_eopatch.mask._get_unloaded("CLM")
     assert isinstance(copied_data, FeatureIO), "Deep copying loads the data of target."
     assert original_data is not copied_data, "Deep copying only does a shallow copy of FeatureIO objects."
 
     mask1 = original_eopatch.mask["CLM"]
-    assert copied_eopatch.mask.__getitem__("CLM", load=False).loaded_value is None
+    assert copied_eopatch.mask._get_unloaded("CLM").loaded_value is None
     mask2 = copied_eopatch.mask["CLM"]
     assert np.array_equal(mask1, mask2) and mask1 is not mask2, "Data no longer matches after deep copying."
 
