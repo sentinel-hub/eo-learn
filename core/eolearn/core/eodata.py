@@ -151,8 +151,6 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
     def _parse_feature_value(self, value: object, feature_name: str) -> np.ndarray:
         if not isinstance(value, np.ndarray):
             raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
-        if not hasattr(self, "feature_type"):  # custom pickling of `dict` (superclass) loses attributes
-            return value
 
         expected_ndim = cast(int, self.feature_type.ndim())  # numpy features have ndim
         if value.ndim != expected_ndim:
@@ -178,8 +176,6 @@ class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
             value = gpd.GeoDataFrame(geometry=value, crs=value.crs)
 
         if isinstance(value, gpd.GeoDataFrame):
-            if not hasattr(self, "feature_type"):  # custom pickling of `dict` (superclass) loses attributes
-                return value
             if self.feature_type is FeatureType.VECTOR and TIMESTAMP_COLUMN not in value:
                 raise ValueError(
                     f"{self.feature_type} feature has to contain a column '{TIMESTAMP_COLUMN}' with timestamps but "
