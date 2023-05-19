@@ -19,7 +19,21 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING, Any, BinaryIO, Dict, Generic, Iterator, List, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    BinaryIO,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import dateutil.parser
 import fs
@@ -500,7 +514,7 @@ class FeatureIOJson(FeatureIO[T]):
     @classmethod
     def _write_to_file(cls, data: T, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
         try:
-            json_data = json.dumps(data, indent=2, default=_jsonify_timestamp)
+            json_data = json.dumps(data, indent=2, default=_better_jsonify)
         except TypeError as exception:
             raise TypeError(
                 f"Failed to serialize when saving JSON file to {path}. Make sure that this feature type "
@@ -535,10 +549,12 @@ class FeatureIOBBox(FeatureIO[BBox]):
         file.write(json_data.encode())
 
 
-def _jsonify_timestamp(param: object) -> str:
+def _better_jsonify(param: object) -> str:
     """Adds the option to serialize datetime.date objects via isoformat."""
     if isinstance(param, datetime.date):
         return param.isoformat()
+    if isinstance(param, Mapping):
+        return dict(param.items())
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
