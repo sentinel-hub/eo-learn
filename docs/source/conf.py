@@ -34,7 +34,7 @@ from eolearn.core import EOTask
 
 # General information about the project.
 project = "eo-learn"
-copyright = "2017-, Sinergise"
+copyright = "2017-, Sinergise"  # noqa[A001]
 author = "Sinergise EO research team"
 doc_title = "eo-learn Documentation"
 

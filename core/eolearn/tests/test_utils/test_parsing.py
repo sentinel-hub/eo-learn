@@ -10,7 +10,7 @@ from eolearn.core.utils.testing import generate_eopatch
 
 @dataclass
 class ParserTestCase:
-    input: FeaturesSpecification
+    parser_input: FeaturesSpecification
     features: List[FeatureSpec]
     renaming: List[FeatureRenameSpec]
     specifications: Optional[List[Tuple[FeatureType, Union[str, EllipsisType]]]] = None
@@ -24,30 +24,30 @@ def get_test_case_description(test_case: ParserTestCase) -> str:
 @pytest.mark.parametrize(
     "test_case",
     [
-        ParserTestCase(input=[], features=[], renaming=[], specifications=[], description="Empty input"),
+        ParserTestCase(parser_input=[], features=[], renaming=[], specifications=[], description="Empty input"),
         ParserTestCase(
-            input=(FeatureType.DATA, "bands"),
+            parser_input=(FeatureType.DATA, "bands"),
             features=[(FeatureType.DATA, "bands")],
             renaming=[(FeatureType.DATA, "bands", "bands")],
             specifications=[(FeatureType.DATA, "bands")],
             description="Singleton feature",
         ),
         ParserTestCase(
-            input=FeatureType.BBOX,
+            parser_input=FeatureType.BBOX,
             features=[(FeatureType.BBOX, None)],
             renaming=[(FeatureType.BBOX, None, None)],
             specifications=[(FeatureType.BBOX, ...)],
             description="BBox feature",
         ),
         ParserTestCase(
-            input=(FeatureType.MASK, "CLM", "new_CLM"),
+            parser_input=(FeatureType.MASK, "CLM", "new_CLM"),
             features=[(FeatureType.MASK, "CLM")],
             renaming=[(FeatureType.MASK, "CLM", "new_CLM")],
             specifications=[(FeatureType.MASK, "CLM")],
             description="Renamed feature",
         ),
         ParserTestCase(
-            input=[FeatureType.BBOX, (FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
+            parser_input=[FeatureType.BBOX, (FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
             features=[(FeatureType.BBOX, None), (FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
             renaming=[
                 (FeatureType.BBOX, None, None),
@@ -62,7 +62,7 @@ def get_test_case_description(test_case: ParserTestCase) -> str:
             description="List of inputs",
         ),
         ParserTestCase(
-            input=((FeatureType.TIMESTAMPS, ...), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a", "b")),
+            parser_input=((FeatureType.TIMESTAMPS, ...), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a", "b")),
             features=[(FeatureType.TIMESTAMPS, None), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a")],
             renaming=[
                 (FeatureType.TIMESTAMPS, None, None),
@@ -73,7 +73,7 @@ def get_test_case_description(test_case: ParserTestCase) -> str:
             description="Tuple of inputs with rename",
         ),
         ParserTestCase(
-            input={
+            parser_input={
                 FeatureType.DATA: ["bands_S2", ("bands_l8", "BANDS_L8")],
                 FeatureType.MASK_TIMELESS: [],
                 FeatureType.BBOX: ...,
@@ -104,7 +104,7 @@ def get_test_case_description(test_case: ParserTestCase) -> str:
 )
 def test_feature_parser_no_eopatch(test_case: ParserTestCase):
     """Test that input is parsed according to our expectations. No EOPatch provided."""
-    parser = FeatureParser(test_case.input)
+    parser = FeatureParser(test_case.parser_input)
     assert parser.get_features() == test_case.features
     assert parser.get_renamed_features() == test_case.renaming
     assert parser.get_feature_specifications() == test_case.specifications
@@ -227,7 +227,7 @@ def test_all_features_allowed_feature_types(
     "test_case",
     [
         ParserTestCase(
-            input=...,
+            parser_input=...,
             features=[
                 (FeatureType.BBOX, None),
                 (FeatureType.DATA, "data"),
@@ -251,13 +251,13 @@ def test_all_features_allowed_feature_types(
             description="Get-all",
         ),
         ParserTestCase(
-            input=(FeatureType.DATA, ...),
+            parser_input=(FeatureType.DATA, ...),
             features=[(FeatureType.DATA, "data"), (FeatureType.DATA, "CLP")],
             renaming=[(FeatureType.DATA, "data", "data"), (FeatureType.DATA, "CLP", "CLP")],
             description="Get-all for a feature type",
         ),
         ParserTestCase(
-            input=[
+            parser_input=[
                 FeatureType.BBOX,
                 FeatureType.MASK,
                 (FeatureType.META_INFO, ...),
@@ -280,7 +280,7 @@ def test_all_features_allowed_feature_types(
             description="Sequence with ellipsis",
         ),
         ParserTestCase(
-            input={
+            parser_input={
                 FeatureType.DATA: ["data", ("CLP", "new_CLP")],
                 FeatureType.MASK_TIMELESS: ...,
             },
@@ -293,14 +293,17 @@ def test_all_features_allowed_feature_types(
             description="Dictionary with ellipsis",
         ),
         ParserTestCase(
-            input={FeatureType.VECTOR: ...}, features=[], renaming=[], description="Request all of an empty feature"
+            parser_input={FeatureType.VECTOR: ...},
+            features=[],
+            renaming=[],
+            description="Request all of an empty feature",
         ),
     ],
     ids=get_test_case_description,
 )
 def test_feature_parser_with_eopatch(test_case: ParserTestCase, eopatch: EOPatch):
     """Test that input is parsed according to our expectations. EOPatch provided."""
-    parser = FeatureParser(test_case.input)
+    parser = FeatureParser(test_case.parser_input)
     assert parser.get_features(eopatch) == test_case.features, f"{parser.get_features(eopatch)}"
     assert parser.get_renamed_features(eopatch) == test_case.renaming
 

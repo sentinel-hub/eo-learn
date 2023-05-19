@@ -56,7 +56,7 @@ def calculate_stats(array):
         array[: max(int(time / 2), 1), -1, -1, :],
         array[:, int(height / 2), int(width / 2), :],
     ]
-    values = [(np.nanmean(slice) if not np.isnan(slice).all() else np.nan) for slice in slices]
+    values = [(np.nanmean(_slice) if not np.isnan(_slice).all() else np.nan) for _slice in slices]
     return np.round(np.array(values), 4)
 
 
