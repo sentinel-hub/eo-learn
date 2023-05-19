@@ -29,10 +29,12 @@ LOGGER = logging.getLogger(__name__)
 class ClassifierType(Protocol):
     """Defines the necessary classifier interface."""
 
-    def predict(self, X: np.ndarray) -> np.ndarray:  # pylint: disable=missing-function-docstring,invalid-name
+    # pylint: disable-next=missing-function-docstring,invalid-name
+    def predict(self, X: np.ndarray) -> np.ndarray:  # noqa[N803]
         ...
 
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # pylint: disable=missing-function-docstring,invalid-name
+    # pylint: disable-next=missing-function-docstring,invalid-name
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # noqa[N803]
         ...
 
 

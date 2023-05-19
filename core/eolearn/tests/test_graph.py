@@ -129,4 +129,4 @@ def test_resolve_dependencies(edges):
             graph.topologically_ordered_vertices()
     else:
         vertex_position = {vertex: i for i, vertex in enumerate(graph.topologically_ordered_vertices())}
-        assert functools.reduce(lambda P, Q: P and Q, [vertex_position[u] < vertex_position[v] for u, v in edges])
+        assert functools.reduce(lambda p, q: p and q, [vertex_position[u] < vertex_position[v] for u, v in edges])

@@ -32,13 +32,13 @@ def _warn_and_adjust(name: str) -> str:
 class EnumWithDeprecations(EnumMeta):
     """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
 
-    def __getattribute__(cls, name: str) -> Any:
+    def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getattribute__(_warn_and_adjust(name))
 
-    def __getitem__(cls, name: str) -> Any:
+    def __getitem__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getitem__(_warn_and_adjust(name))
 
-    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa[N805]
         return super().__call__(_warn_and_adjust(value), *args, **kwargs)
 
 
