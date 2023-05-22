@@ -18,7 +18,7 @@ line_length = 120
 
 [tool.ruff]
 exclude = [".git", "__pycache__", "build", "dist"]
-ignore = ["C408", "SIM117", "SIM108", "B904", "B028", "A003", "COM812"]
+ignore = ["C408", "SIM117", "SIM108", "B904", "B028", "A003", "COM812", "PD011"]
 line-length = 120
 select = [
     "C4",
@@ -109,6 +109,7 @@ omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
 flake8 = ["--extend-ignore=E402"]
+ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002"]
 
 [tool.nbqa.exclude]
 flake8 = "examples/core/CoreOverview.ipynb"
