@@ -3,7 +3,7 @@ name: scheduled build caller
 on:
   schedule:
     # Schedule events are triggered by whoever last changed the cron schedule
-    - cron: "5 0 * * *"
+    - cron: "0 0 * * *"
 
 jobs:
   call-workflow:
