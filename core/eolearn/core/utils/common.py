@@ -8,7 +8,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import uuid
-from typing import Callable, Sequence, Tuple, Union, cast
+from typing import Callable, Mapping, Sequence, Tuple, Union, cast
 
 import geopandas as gpd
 import numpy as np
@@ -58,7 +58,7 @@ def deep_eq(fst_obj: object, snd_obj: object) -> bool:
 
         return len(fst_obj) == len(snd_obj) and all(map(deep_eq, fst_obj, snd_obj))
 
-    if isinstance(fst_obj, dict):
+    if isinstance(fst_obj, (dict, Mapping)):
         snd_obj = cast(dict, snd_obj)
 
         if fst_obj.keys() != snd_obj.keys():
