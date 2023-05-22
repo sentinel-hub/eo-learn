@@ -6,9 +6,7 @@ on:
     branches:
       - "master"
       - "develop"
-  schedule:
-    # Schedule events are triggered by whoever last changed the cron schedule
-    - cron: "5 0 * * *"
+  workflow_call:
 
 concurrency:
   # This will cancel outdated runs on the same pull-request, but not runs for other triggers
