@@ -118,15 +118,11 @@ source = [
 omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-flake8 = ["--extend-ignore=E402"]
 ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002"]
 # E402 -> imports on top
 # T201 -> print found
 # B015 & B018 -> useless expression (used to show values in ipynb)
 # NPY002 -> use RNG instead of old numpy.random
-
-[tool.nbqa.exclude]
-flake8 = "examples/core/CoreOverview.ipynb"
 
 [tool.mypy]
 follow_imports = "normal"
