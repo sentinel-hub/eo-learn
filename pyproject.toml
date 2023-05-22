@@ -26,38 +26,38 @@ ignore = [
     "COM812", # trailing comma missing, fights with black
     "PD011",  # suggests `.to_numpy` instead of `.values`, also does this for non-pandas objects...
     # potentially fixable
-    "B904", # want `raise ... from None` instead of just `raise ...`
-    "B028", # always demands a stacklevel argument when warning
+    "B904",  # want `raise ... from None` instead of just `raise ...`
+    "B028",  # always demands a stacklevel argument when warning
     "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
 ]
 line-length = 120
 select = [
-    "C4",
-    "C90",
-    "E",
-    "F",
-    "SIM",
-    "W",
-    "N",
-    "YTT",
-    "B",
-    "A",
-    "COM",
-    "T10",
-    "ISC",
-    "ICN",
-    "G",
-    "PIE",
-    "T20",
-    "RET",
-    "SLF",
-    "ARG",
-    "PD",
-    "PGH",
-    "FLY",
-    "NPY",
-    "RUF",
-    "PT",
+    "F",   # pyflakes
+    "E",   # pycodestyle
+    "W",   # pycodestyle
+    "C90", # mccabe
+    "N",   # naming
+    "YTT", # flake-2020
+    "B",   # bugbear
+    "A",   # built-ins
+    "COM", # commas
+    "C4",  # comprehensions
+    "T10", # debugger statements
+    "ISC", # implicit string concatenation
+    "ICN", # import conventions
+    "G",   # logging format
+    "PIE", # flake8-pie
+    "T20", # print statements
+    "PT",  # pytest style
+    "RET", # returns
+    "SLF", # private member access
+    "SIM", # simplifications
+    "ARG", # unused arguments
+    "PD",  # pandas
+    "PGH", # pygrep hooks (useless noqa comments, eval statements etc.)
+    "FLY", # flynt
+    "RUF", # ruff rules
+    "NPY", # numpy
 ]
 target-version = "py38"
 
