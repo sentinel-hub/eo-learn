@@ -27,7 +27,7 @@ ignore = [
     "PD011",  # suggests `.to_numpy` instead of `.values`, also does this for non-pandas objects...
     # potentially fixable
     "B904", # want `raise ... from None` instead of just `raise ...`
-    "B028", # always demans a stacklevel argument when warning
+    "B028", # always demands a stacklevel argument when warning
 ]
 line-length = 120
 select = [
