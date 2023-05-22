@@ -46,7 +46,7 @@ DATA_TIMELESS_TEST_FEATURE = FeatureType.DATA_TIMELESS, "TEST"
 
 
 @pytest.mark.parametrize(
-    "task, test_feature, expected_statistics",
+    ("task", "test_feature", "expected_statistics"),
     (
         [
             MaskFeatureTask(

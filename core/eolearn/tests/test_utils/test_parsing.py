@@ -111,7 +111,7 @@ def test_feature_parser_no_eopatch(test_case: ParserTestCase):
 
 
 @pytest.mark.parametrize(
-    "test_input, specifications",
+    ("test_input", "specifications"),
     [
         [(FeatureType.DATA, ...), [(FeatureType.DATA, ...)]],
         [
@@ -137,7 +137,7 @@ def test_feature_parser_no_eopatch_failure(
 
 
 @pytest.mark.parametrize(
-    "test_input, allowed_types",
+    ("test_input", "allowed_types"),
     [
         [
             (
@@ -179,7 +179,7 @@ def eopatch_fixture():
 
 
 @pytest.mark.parametrize(
-    "test_input, allowed_types",
+    ("test_input", "allowed_types"),
     [
         [
             (

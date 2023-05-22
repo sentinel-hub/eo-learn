@@ -134,7 +134,7 @@ def test_fill():
 
 
 @pytest.mark.parametrize(
-    "input_feature, operation",
+    ("input_feature", "operation"),
     [((FeatureType.DATA, "TEST"), "x"), ((FeatureType.DATA, "TEST"), 4), (None, "f"), (np.zeros((4, 5)), "x")],
 )
 def test_bad_input(input_feature, operation):
@@ -242,7 +242,7 @@ def test_linear_function_task():
 
 
 @pytest.mark.parametrize(
-    ["resize_type", "height_param", "width_param", "features_call", "features_check", "outputs"],
+    ("resize_type", "height_param", "width_param", "features_call", "features_check", "outputs"),
     [
         (ResizeParam.NEW_SIZE, 50, 70, ("data", "CLP"), ("data", "CLP"), (68, 50, 70, 1)),
         (ResizeParam.NEW_SIZE, 50, 70, ("data", "CLP"), ("mask", "CLM"), (68, 101, 100, 1)),

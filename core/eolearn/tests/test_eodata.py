@@ -126,7 +126,8 @@ def test_invalid_characters():
 def test_repr(test_eopatch_path: str) -> None:
     test_eopatch = EOPatch.load(test_eopatch_path)
     repr_str = repr(test_eopatch)
-    assert repr_str.startswith("EOPatch(") and repr_str.endswith(")")
+    assert repr_str.startswith("EOPatch(")
+    assert repr_str.endswith(")")
     assert len(repr_str) > 100
 
     assert repr(EOPatch(bbox=DUMMY_BBOX)) == "EOPatch(\n  bbox=BBox(((0.0, 0.0), (1.0, 1.0)), crs=CRS('3857'))\n)"
@@ -265,7 +266,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "ftype, fname",
+    ("ftype", "fname"),
     [
         [FeatureType.DATA, "BANDS-S2-L1C"],
         [FeatureType.MASK, "CLM"],
@@ -317,7 +318,7 @@ def test_equals() -> None:
     assert eop1 != eop2
 
 
-@pytest.fixture(scope="function", name="eopatch_spatial_dim")
+@pytest.fixture(name="eopatch_spatial_dim")
 def eopatch_spatial_dim_fixture() -> EOPatch:
     patch = EOPatch(bbox=DUMMY_BBOX)
     patch.data["A"] = np.zeros((1, 2, 3, 4))
@@ -327,7 +328,7 @@ def eopatch_spatial_dim_fixture() -> EOPatch:
 
 
 @pytest.mark.parametrize(
-    "feature, expected_dim",
+    ("feature", "expected_dim"),
     [
         [(FeatureType.DATA, "A"), (2, 3)],
         [(FeatureType.MASK, "B"), (3, 2)],
@@ -341,7 +342,7 @@ def test_get_spatial_dimension(
 
 
 @pytest.mark.parametrize(
-    "patch, expected_features",
+    ("patch", "expected_features"),
     [
         (
             pytest.lazy_fixture("mini_eopatch"),

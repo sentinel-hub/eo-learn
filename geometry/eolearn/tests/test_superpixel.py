@@ -16,7 +16,7 @@ SUPERPIXEL_FEATURE = FeatureType.MASK_TIMELESS, "SP_FEATURE"
 
 
 @pytest.mark.parametrize(
-    "task, expected_statistics",
+    ("task", "expected_statistics"),
     (
         [
             SuperpixelSegmentationTask(

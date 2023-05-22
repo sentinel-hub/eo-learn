@@ -12,7 +12,7 @@ from eolearn.mask import SnowMaskTask, TheiaSnowMaskTask
 
 
 @pytest.mark.parametrize(
-    "task, result",
+    ("task", "result"),
     [
         (SnowMaskTask((FeatureType.DATA, "BANDS-S2-L1C"), [2, 3, 7, 11], mask_name="TEST_SNOW_MASK"), (50468, 1405)),
         (

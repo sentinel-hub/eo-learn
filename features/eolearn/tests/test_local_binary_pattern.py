@@ -19,7 +19,7 @@ OUTPUT_FEATURE = (FeatureType.DATA, "lbp")
 
 
 @pytest.mark.parametrize(
-    "task, expected_statistics",
+    ("task", "expected_statistics"),
     (
         [
             LocalBinaryPatternTask(LBP_FEATURE, nb_points=24, radius=3),

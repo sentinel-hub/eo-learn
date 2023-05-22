@@ -19,7 +19,7 @@ OUTPUT_FEATURE = (FeatureType.DATA, "haralick")
 
 
 @pytest.mark.parametrize(
-    "task, expected_statistics",
+    ("task", "expected_statistics"),
     (
         [
             HaralickTask(FEATURE, texture_feature="contrast", angle=0, levels=255, window_size=3),

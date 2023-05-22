@@ -16,7 +16,7 @@ from eolearn.mask.cloud_mask import _get_window_indices
 
 
 @pytest.mark.parametrize(
-    "num_of_elements, middle_idx, window_size, expected_indices",
+    ("num_of_elements", "middle_idx", "window_size", "expected_indices"),
     (
         [100, 0, 10, (0, 10)],
         [100, 1, 10, (0, 10)],

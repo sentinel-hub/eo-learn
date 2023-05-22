@@ -192,7 +192,7 @@ def _execute_with_warning_control(
 
 
 @pytest.mark.parametrize(
-    "bands, times", [([2, "string", 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, "string", 2, 3])]
+    ("bands", "times"), [([2, "string", 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, "string", 2, 3])]
 )
 def test_export2tiff_wrong_format(bands, times, test_eopatch):
     test_eopatch.data["data"] = np.arange(10 * 3 * 2 * 6, dtype=float).reshape(10, 3, 2, 6)
@@ -363,7 +363,7 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
         assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
 
-@pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
+@pytest.mark.parametrize(("no_data_value", "data_type"), [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
     eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))

@@ -60,7 +60,7 @@ def calculate_stats(array):
     return np.round(np.array(values), 4)
 
 
-@pytest.mark.sh_integration
+@pytest.mark.sh_integration()
 class TestProcessingIO:
     """Test cases for SentinelHubInputTask"""
 
@@ -134,7 +134,7 @@ class TestProcessingIO:
         assert bands.shape == (4, height, width, 3)
 
     @pytest.mark.parametrize(
-        ["resampling_type", "stats"],
+        ("resampling_type", "stats"),
         [
             (ResamplingType.NEAREST, [0.0836, 0.1547, 0.0794]),
             (ResamplingType.BICUBIC, [0.0836, 0.1548, 0.0792]),
@@ -163,7 +163,7 @@ class TestProcessingIO:
         assert bands.shape == (4, height, width, 1)
 
     @pytest.mark.parametrize(
-        ["geometry", "stats"],
+        ("geometry", "stats"),
         [
             (
                 Geometry(
@@ -204,7 +204,7 @@ class TestProcessingIO:
         assert bands.shape == (4, height, width, 1)
 
     @pytest.mark.parametrize(
-        ["geometry", "stats"],
+        ("geometry", "stats"),
         [
             (
                 Geometry(
@@ -571,7 +571,7 @@ class TestProcessingIO:
         assert masks.shape == (0, 101, 99, 1)
 
 
-@pytest.mark.sh_integration
+@pytest.mark.sh_integration()
 class TestSentinelHubInputTaskDataCollections:
     """Integration tests for all supported data collections"""
 

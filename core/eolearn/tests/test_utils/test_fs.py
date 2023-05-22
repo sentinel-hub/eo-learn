@@ -102,7 +102,7 @@ def test_get_aws_credentials(mocked_copy):
 
 
 @pytest.mark.parametrize(
-    "filesystem, compare_params",
+    ("filesystem", "compare_params"),
     [
         (OSFS("."), ["root_path"]),
         (TempFS(identifier="test"), ["identifier", "_temp_dir"]),
@@ -172,7 +172,7 @@ def test_join_path(path_parts, expected_path):
 
 
 @pytest.mark.parametrize(
-    "filesystem, path, expected_full_path",
+    ("filesystem", "path", "expected_full_path"),
     [
         (OSFS("/tmp"), "my/folder", "/tmp/my/folder"),
         (S3FS(bucket_name="data", dir_path="/folder"), "/sub/folder", "s3://data/folder/sub/folder"),

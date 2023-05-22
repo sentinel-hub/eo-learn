@@ -21,7 +21,7 @@ from eolearn.ml_tools.sampling import expand_to_grids, get_mask_of_samples, rand
 
 
 @pytest.mark.parametrize(
-    "triangle, expected_points",
+    ("triangle", "expected_points"),
     [
         (
             Polygon([[-10, -12], [5, 10], [15, 4]]),
@@ -66,7 +66,7 @@ def small_image_fixture() -> np.ndarray:
 
 
 @pytest.mark.parametrize(
-    "image, n_samples",
+    ("image", "n_samples"),
     [
         (np.ones((100,)), {1: 100}),
         (np.ones((100, 100, 3)), {1: 100}),
@@ -82,7 +82,7 @@ def test_sample_by_values_errors(image: np.ndarray, n_samples: Dict[int, int]) -
 
 @pytest.mark.parametrize("seed", range(5))
 @pytest.mark.parametrize(
-    "n_samples, replace",
+    ("n_samples", "replace"),
     [
         ({0: 100, 1: 200, 2: 30}, False),
         ({1: 200}, False),
@@ -100,7 +100,7 @@ def test_sample_by_values(small_image: np.ndarray, seed: int, n_samples: Dict[in
 
 
 @pytest.mark.parametrize(
-    "rows, columns",
+    ("rows", "columns"),
     [
         (np.array([1, 1, 2, 3, 4]), np.array([2, 3, 1, 1, 4])),
     ],
@@ -189,7 +189,7 @@ def test_object_sampling_reproducibility(eopatch: EOPatch, seed: int, block_task
 
 
 @pytest.mark.parametrize(
-    "fraction, replace",
+    ("fraction", "replace"),
     [[2, False], [-0.5, True], [{1: 0.5, 3: 0.4, 5: 1.2}, False], [{1: 0.5, 3: -0.4, 5: 1.2}, True], [(1, 0.4), True]],
 )
 def test_fraction_sampling_errors(fraction: Union[float, Dict[int, float]], replace: bool) -> None:

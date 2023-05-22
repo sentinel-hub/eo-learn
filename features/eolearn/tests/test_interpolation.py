@@ -294,7 +294,7 @@ def test_interpolation(test_case: InterpolationTestCase, test_patch):
     assert_statistics_match(data, **test_case.expected_statistics, abs_delta=delta)
 
 
-@pytest.mark.parametrize("test_case, passes", COPY_FEATURE_CASES)
+@pytest.mark.parametrize(("test_case", "passes"), COPY_FEATURE_CASES)
 def test_copied_fields(test_case, passes, test_patch):
     if passes:
         eopatch = test_case.execute(test_patch)
