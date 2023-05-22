@@ -28,6 +28,7 @@ ignore = [
     # potentially fixable
     "B904", # want `raise ... from None` instead of just `raise ...`
     "B028", # always demands a stacklevel argument when warning
+    "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
 ]
 line-length = 120
 select = [
@@ -56,6 +57,7 @@ select = [
     "FLY",
     "NPY",
     "RUF",
+    "PT",
 ]
 target-version = "py38"
 
