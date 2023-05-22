@@ -18,7 +18,17 @@ line_length = 120
 
 [tool.ruff]
 exclude = [".git", "__pycache__", "build", "dist"]
-ignore = ["C408", "SIM117", "SIM108", "B904", "B028", "A003", "COM812"]
+ignore = [
+    "C408",   # complains about `dict()` calls, we use them to avoid too many " in the code
+    "SIM117", # wants to always combine `with` statements, gets ugly for us
+    "SIM108", # tries to aggresively inline `if`, not always readable
+    "A003",   # complains when ATTRIBUTES shadow builtins, we have objects that implement `filter` and such
+    "COM812", # trailing comma missing, fights with black
+    "PD011",  # suggests `.to_numpy` instead of `.values`, also does this for non-pandas objects...
+    # potentially fixable
+    "B904", # want `raise ... from None` instead of just `raise ...`
+    "B028", # always demands a stacklevel argument when warning
+]
 line-length = 120
 select = [
     "C4",
@@ -108,10 +118,11 @@ source = [
 omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-flake8 = ["--extend-ignore=E402"]
-
-[tool.nbqa.exclude]
-flake8 = "examples/core/CoreOverview.ipynb"
+ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002"]
+# E402 -> imports on top
+# T201 -> print found
+# B015 & B018 -> useless expression (used to show values in ipynb)
+# NPY002 -> use RNG instead of old numpy.random
 
 [tool.mypy]
 follow_imports = "normal"
