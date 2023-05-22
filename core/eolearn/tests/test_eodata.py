@@ -136,9 +136,8 @@ def test_repr(test_eopatch_path: str) -> None:
 def test_repr_no_crs(test_eopatch: EOPatch) -> None:
     test_eopatch.vector_timeless["LULC"].crs = None
     repr_str = test_eopatch.__repr__()
-    assert (
-        isinstance(repr_str, str) and len(repr_str) > 100
-    ), "EOPatch __repr__ must return non-empty string even in case of missing crs"
+    assert isinstance(repr_str, str)
+    assert len(repr_str) > 100, "EOPatch __repr__ must return non-empty string even in case of missing crs"
 
 
 def test_add_feature() -> None:
@@ -225,7 +224,7 @@ def test_deep_copy(test_eopatch: EOPatch) -> None:
     assert test_eopatch != eopatch_copy
 
 
-@pytest.mark.parametrize("features", (..., [(FeatureType.MASK, "CLM")]))
+@pytest.mark.parametrize("features", [..., [(FeatureType.MASK, "CLM")]])
 def test_copy_lazy_loaded_patch(test_eopatch_path: str, features: FeaturesSpecification) -> None:
     # shallow copy
     original_eopatch = EOPatch.load(test_eopatch_path, lazy_loading=True)
@@ -254,7 +253,8 @@ def test_copy_lazy_loaded_patch(test_eopatch_path: str, features: FeaturesSpecif
     mask1 = original_eopatch.mask["CLM"]
     assert copied_eopatch.mask.__getitem__("CLM", load=False).loaded_value is None
     mask2 = copied_eopatch.mask["CLM"]
-    assert np.array_equal(mask1, mask2) and mask1 is not mask2, "Data no longer matches after deep copying."
+    assert np.array_equal(mask1, mask2), "Data no longer matches after deep copying."
+    assert mask1 is not mask2, "Data was not deep copied."
 
 
 def test_copy_features(test_eopatch: EOPatch) -> None:
@@ -268,10 +268,10 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
 @pytest.mark.parametrize(
     ("ftype", "fname"),
     [
-        [FeatureType.DATA, "BANDS-S2-L1C"],
-        [FeatureType.MASK, "CLM"],
-        [FeatureType.BBOX, ...],
-        [FeatureType.TIMESTAMPS, None],
+        (FeatureType.DATA, "BANDS-S2-L1C"),
+        (FeatureType.MASK, "CLM"),
+        (FeatureType.BBOX, ...),
+        (FeatureType.TIMESTAMPS, None),
     ],
 )
 def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None:
@@ -330,9 +330,9 @@ def eopatch_spatial_dim_fixture() -> EOPatch:
 @pytest.mark.parametrize(
     ("feature", "expected_dim"),
     [
-        [(FeatureType.DATA, "A"), (2, 3)],
-        [(FeatureType.MASK, "B"), (3, 2)],
-        [(FeatureType.MASK_TIMELESS, "C"), (4, 5)],
+        ((FeatureType.DATA, "A"), (2, 3)),
+        ((FeatureType.MASK, "B"), (3, 2)),
+        ((FeatureType.MASK_TIMELESS, "C"), (4, 5)),
     ],
 )
 def test_get_spatial_dimension(

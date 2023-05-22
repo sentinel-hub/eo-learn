@@ -11,7 +11,6 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from pytest import approx
 from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -190,7 +189,7 @@ def test_object_sampling_reproducibility(eopatch: EOPatch, seed: int, block_task
 
 @pytest.mark.parametrize(
     ("fraction", "replace"),
-    [[2, False], [-0.5, True], [{1: 0.5, 3: 0.4, 5: 1.2}, False], [{1: 0.5, 3: -0.4, 5: 1.2}, True], [(1, 0.4), True]],
+    [(2, False), (-0.5, True), ({1: 0.5, 3: 0.4, 5: 1.2}, False), ({1: 0.5, 3: -0.4, 5: 1.2}, True), ((1, 0.4), True)],
 )
 def test_fraction_sampling_errors(fraction: Union[float, Dict[int, float]], replace: bool) -> None:
     with pytest.raises(ValueError):
@@ -259,7 +258,7 @@ def test_fraction_sampling_input_fraction(
 
     for val, count in full.items():
         if val not in exclude:
-            assert samples[val] == approx(count * fraction_task.fraction, abs=1)
+            assert samples[val] == pytest.approx(count * fraction_task.fraction, abs=1)
 
 
 @pytest.mark.parametrize("seed", range(3))
@@ -283,7 +282,7 @@ def test_fraction_sampling_input_dict(fraction_task: FractionSamplingTask, seed:
     exclude = fraction_task.exclude_values or []  # get rid of pesky None
     assert set(exclude).isdisjoint(set(sample_values))
     assert set(sample_values).issubset(set(fraction_task.fraction))
-    assert all(count == approx(full[val] * fraction_task.fraction[val], abs=1) for val, count in samples.items())
+    assert all(count == pytest.approx(full[val] * fraction_task.fraction[val], abs=1) for val, count in samples.items())
 
 
 @pytest.mark.parametrize("seed", range(3))

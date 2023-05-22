@@ -113,15 +113,15 @@ def test_feature_parser_no_eopatch(test_case: ParserTestCase):
 @pytest.mark.parametrize(
     ("test_input", "specifications"),
     [
-        [(FeatureType.DATA, ...), [(FeatureType.DATA, ...)]],
-        [
+        ((FeatureType.DATA, ...), [(FeatureType.DATA, ...)]),
+        (
             [FeatureType.BBOX, (FeatureType.MASK, "CLM"), FeatureType.DATA],
             [(FeatureType.BBOX, ...), (FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
-        ],
-        [
+        ),
+        (
             {FeatureType.BBOX: None, FeatureType.MASK: ["CLM"], FeatureType.DATA: ...},
             [(FeatureType.BBOX, ...), (FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
-        ],
+        ),
     ],
 )
 def test_feature_parser_no_eopatch_failure(
@@ -139,15 +139,15 @@ def test_feature_parser_no_eopatch_failure(
 @pytest.mark.parametrize(
     ("test_input", "allowed_types"),
     [
-        [
+        (
             (
                 (FeatureType.DATA, "bands", "new_bands"),
                 (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
                 (FeatureType.MASK, "CLM", "new_CLM"),
             ),
             (FeatureType.MASK,),
-        ],
-        [
+        ),
+        (
             {
                 FeatureType.MASK: ["CLM", "IS_VALID"],
                 FeatureType.DATA: [("bands", "new_bands")],
@@ -157,7 +157,7 @@ def test_feature_parser_no_eopatch_failure(
                 FeatureType.MASK,
                 FeatureType.DATA,
             ),
-        ],
+        ),
     ],
 )
 def test_allowed_feature_types_iterable(test_input: FeaturesSpecification, allowed_types: Iterable[FeatureType]):
@@ -181,21 +181,21 @@ def eopatch_fixture():
 @pytest.mark.parametrize(
     ("test_input", "allowed_types"),
     [
-        [
+        (
             (
                 (FeatureType.DATA, "bands", "new_bands"),
                 (FeatureType.MASK, "IS_VALID", "new_IS_VALID"),
                 (FeatureType.MASK, "CLM", "new_CLM"),
             ),
             lambda x: x == FeatureType.MASK,
-        ],
-        [
+        ),
+        (
             {
                 FeatureType.META_INFO: ["something"],
                 FeatureType.DATA: [("bands", "new_bands")],
             },
             lambda ftype: not ftype.is_meta(),
-        ],
+        ),
     ],
 )
 def test_allowed_feature_types_callable(

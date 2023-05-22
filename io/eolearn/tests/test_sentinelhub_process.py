@@ -13,7 +13,6 @@ from typing import Any, List, Optional
 
 import numpy as np
 import pytest
-from pytest import approx
 
 from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, Unit
 from sentinelhub.testing_utils import assert_statistics_match
@@ -93,7 +92,7 @@ class TestProcessingIO:
         bands = eopatch[(FeatureType.DATA, "BANDS")]
         is_data = eopatch[(FeatureType.MASK, "dataMask")]
 
-        assert calculate_stats(bands) == approx([x / 10000 for x in expected_int_stats], abs=1e-4)
+        assert calculate_stats(bands) == pytest.approx([x / 10000 for x in expected_int_stats], abs=1e-4)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
@@ -109,7 +108,7 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx(expected_int_stats)
+        assert calculate_stats(bands) == pytest.approx(expected_int_stats)
 
         assert bands.dtype == np.uint16
 
@@ -128,7 +127,7 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx([0.0648, 0.1193, 0.063])
+        assert calculate_stats(bands) == pytest.approx([0.0648, 0.1193, 0.063])
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
@@ -157,7 +156,7 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx(stats)
+        assert calculate_stats(bands) == pytest.approx(stats)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 1)
@@ -198,7 +197,7 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval, geometry=geometry)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx(stats)
+        assert calculate_stats(bands) == pytest.approx(stats)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 1)
@@ -268,7 +267,7 @@ class TestProcessingIO:
         assert eop.data["bands"].shape == (4, height, width, 1)
         bands = eop[(FeatureType.DATA, "bands")]
 
-        assert calculate_stats(bands) == approx(stats)
+        assert calculate_stats(bands) == pytest.approx(stats)
 
     def test_scl_only(self):
         """Download just SCL, without any other bands"""
@@ -346,7 +345,7 @@ class TestProcessingIO:
         sun_azimuth_angles = eopatch[(FeatureType.DATA, "sunAzimuthAngles")]
         sun_zenith_angles = eopatch[(FeatureType.DATA, "sunZenithAngles")]
 
-        assert calculate_stats(bands) == approx([0.027, 0.0243, 0.0162])
+        assert calculate_stats(bands) == pytest.approx([0.027, 0.0243, 0.0162])
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
@@ -379,7 +378,7 @@ class TestProcessingIO:
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
         assert bands.shape == (4, 4, 4, 13)
-        assert calculate_stats(bands) == approx([0.0, 0.0493, 0.0277])
+        assert calculate_stats(bands) == pytest.approx([0.0, 0.0493, 0.0277])
 
     def test_dem(self):
         task = SentinelHubDemTask(resolution=10, feature=(FeatureType.DATA_TIMELESS, "DEM"), max_threads=3)
@@ -788,4 +787,4 @@ class TestSentinelHubInputTaskDataCollections:
         assert len(timestamps) == test_case.timestamp_length
 
         stats = calculate_stats(data)
-        assert stats == approx(test_case.stats, nan_ok=True), f"Expected stats {test_case.stats}, got {stats}"
+        assert stats == pytest.approx(test_case.stats, nan_ok=True), f"Expected stats {test_case.stats}, got {stats}"

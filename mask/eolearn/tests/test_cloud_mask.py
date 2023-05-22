@@ -8,7 +8,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from pytest import approx
 
 from eolearn.core import FeatureType
 from eolearn.mask import CloudMaskTask
@@ -17,20 +16,20 @@ from eolearn.mask.cloud_mask import _get_window_indices
 
 @pytest.mark.parametrize(
     ("num_of_elements", "middle_idx", "window_size", "expected_indices"),
-    (
-        [100, 0, 10, (0, 10)],
-        [100, 1, 10, (0, 10)],
-        [100, 50, 10, (45, 55)],
-        [271, 270, 10, (261, 271)],
-        [314, 314, 10, (304, 314)],
-        [100, 0, 11, (0, 11)],
-        [100, 1, 11, (0, 11)],
-        [100, 50, 11, (45, 56)],
-        [271, 270, 11, (260, 271)],
-        [314, 314, 11, (303, 314)],
-        [11, 2, 11, (0, 11)],
-        [11, 2, 33, (0, 11)],
-    ),
+    [
+        (100, 0, 10, (0, 10)),
+        (100, 1, 10, (0, 10)),
+        (100, 50, 10, (45, 55)),
+        (271, 270, 10, (261, 271)),
+        (314, 314, 10, (304, 314)),
+        (100, 0, 11, (0, 11)),
+        (100, 1, 11, (0, 11)),
+        (100, 50, 11, (45, 56)),
+        (271, 270, 11, (260, 271)),
+        (314, 314, 11, (303, 314)),
+        (11, 2, 11, (0, 11)),
+        (11, 2, 33, (0, 11)),
+    ],
     ids=str,
 )
 def test_window_indices_function(num_of_elements, middle_idx, window_size, expected_indices):
@@ -79,8 +78,8 @@ def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
     assert eop_clm.data["CLP_TEST"].dtype == np.float32
 
     # Compare mean cloud coverage with provided reference
-    assert np.mean(eop_clm.mask["CLM_TEST"]) == approx(np.mean(eop_clm.mask["CLM_S2C"]), abs=0.01)
-    assert np.mean(eop_clm.data["CLP_TEST"]) == approx(np.mean(eop_clm.data["CLP_S2C"]), abs=0.01)
+    assert np.mean(eop_clm.mask["CLM_TEST"]) == pytest.approx(np.mean(eop_clm.mask["CLM_S2C"]), abs=0.01)
+    assert np.mean(eop_clm.data["CLP_TEST"]) == pytest.approx(np.mean(eop_clm.data["CLP_S2C"]), abs=0.01)
 
     # Check if most of the same times are flagged as cloudless
     cloudless = np.mean(eop_clm.mask["CLM_TEST"], axis=(1, 2, 3)) == 0

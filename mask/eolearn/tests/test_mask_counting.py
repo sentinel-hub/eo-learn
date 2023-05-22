@@ -18,7 +18,7 @@ OUT_FEATURE = (FeatureType.DATA_TIMELESS, "FREQ")
 # ruff: noqa: NPY002
 
 
-@pytest.mark.parametrize(("classes", "no_data_value"), ((["a", "b"], 0), (4, 0), (None, 0), ([1, 2, 3], 2)))
+@pytest.mark.parametrize(("classes", "no_data_value"), [(["a", "b"], 0), (4, 0), (None, 0), ([1, 2, 3], 2)])
 def test_value_error(classes, no_data_value):
     with pytest.raises(ValueError):
         ClassFrequencyTask(IN_FEATURE, OUT_FEATURE, classes=classes, no_data_value=no_data_value)

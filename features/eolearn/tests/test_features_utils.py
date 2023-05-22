@@ -8,7 +8,7 @@ from eolearn.features.utils import ResizeLib, ResizeMethod, spatially_resize_ima
 
 @pytest.mark.parametrize("method", ResizeMethod)
 @pytest.mark.parametrize("library", ResizeLib)
-@pytest.mark.parametrize("dtype", (np.float32, np.int32, np.uint8, bool))
+@pytest.mark.parametrize("dtype", [np.float32, np.int32, np.uint8, bool])
 @pytest.mark.parametrize("new_size", [(50, 50), (35, 39), (271, 271)])
 def test_spatially_resize_image_new_size(
     method: ResizeMethod, library: ResizeLib, dtype: Union[np.dtype, type], new_size: Tuple[int, int]
@@ -60,10 +60,10 @@ def test_spatially_resize_image_scale_factors(
     assert result.shape == (height * scale_factors[0], width * scale_factors[1], 3)
 
 
-@pytest.mark.parametrize("library", (ResizeLib.PIL,))
+@pytest.mark.parametrize("library", [ResizeLib.PIL])
 @pytest.mark.parametrize(
     "dtype",
-    (
+    [
         bool,
         np.int8,
         np.uint8,
@@ -78,7 +78,7 @@ def test_spatially_resize_image_scale_factors(
         np.float32,
         np.float64,
         float,
-    ),
+    ],
 )
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_spatially_resize_image_dtype(library: ResizeLib, dtype: Union[np.dtype, type]):

@@ -20,12 +20,12 @@ OUTPUT_FEATURE = (FeatureType.DATA, "lbp")
 
 @pytest.mark.parametrize(
     ("task", "expected_statistics"),
-    (
-        [
+    [
+        (
             LocalBinaryPatternTask(LBP_FEATURE, nb_points=24, radius=3),
             {"exp_min": 0.0, "exp_max": 25.0, "exp_mean": 15.8313, "exp_median": 21.0},
-        ],
-    ),
+        ),
+    ],
 )
 def test_local_binary_pattern(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)

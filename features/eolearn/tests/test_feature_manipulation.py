@@ -270,9 +270,6 @@ def test_spatial_resize_task(
     assert resize(example_eopatch)[features_check].shape == outputs
 
 
-def test_spatial_resize_task_exception(example_eopatch):
+def test_spatial_resize_task_exception():
     with pytest.raises(ValueError):
-        resize_wrong_param = SpatialResizeTask(
-            features=("mask", "CLM"), resize_type="blabla", height_param=20, width_param=20
-        )
-        resize_wrong_param(example_eopatch)
+        SpatialResizeTask(features=("mask", "CLM"), resize_type="blabla", height_param=20, width_param=20)
