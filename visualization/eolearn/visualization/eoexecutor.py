@@ -148,7 +148,7 @@ class EOExecutorVisualization:
                     "name": f"{node_name} ({node.uid})",
                     "uid": node.uid,
                     "args": {
-                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore
+                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
                         for key, value in node.task.private_task_config.init_args.items()
                     },
                 }
@@ -211,9 +211,8 @@ class EOExecutorVisualization:
         env = Environment(loader=FileSystemLoader(templates_dir))
         env.filters["datetime"] = self._format_datetime
         env.globals.update(timedelta=self._format_timedelta)
-        template = env.get_template(self.eoexecutor.REPORT_FILENAME)
 
-        return template
+        return env.get_template(self.eoexecutor.REPORT_FILENAME)
 
     @staticmethod
     def _format_datetime(value: dt.datetime) -> str:

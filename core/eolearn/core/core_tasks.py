@@ -49,7 +49,7 @@ class DeepCopyTask(CopyTask):
         return eopatch.copy(features=self.features, deep=True)
 
 
-class IOTask(EOTask, metaclass=ABCMeta):  # noqa B024
+class IOTask(EOTask, metaclass=ABCMeta):
     """An abstract Input/Output task that can handle a path and a filesystem object."""
 
     def __init__(

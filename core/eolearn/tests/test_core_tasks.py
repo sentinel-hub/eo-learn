@@ -47,6 +47,7 @@ from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+# ruff: noqa: NPY002
 
 
 @pytest.fixture(name="patch")
@@ -210,7 +211,7 @@ def test_initialize_feature(
     expected_data = init_val * np.ones(shape)
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
 
-    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
+    assert all(np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec))
 
 
 @pytest.mark.parametrize(
@@ -225,7 +226,7 @@ def test_initialize_feature_with_spec(
     expected_data = init_val * np.ones(patch[shape].shape)
 
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
-    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
+    assert all(np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec))
 
 
 def test_initialize_feature_fails(patch: EOPatch) -> None:
@@ -386,7 +387,7 @@ def test_map_features_fails(patch: EOPatch) -> None:
     ],
 )
 def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], patch: EOPatch) -> None:
-    def kwargs_map(data, *, some=3, **kwargs) -> tuple:
+    def kwargs_map(_, *, some=3, **kwargs) -> tuple:
         return some, kwargs
 
     mapped_patch = MapFeatureTask(input_feature, (FeatureType.META_INFO, "kwargs"), kwargs_map, **kwargs)(patch)

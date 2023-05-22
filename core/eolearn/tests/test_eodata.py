@@ -21,6 +21,7 @@ from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+# ruff: noqa: NPY002
 
 
 @pytest.fixture(name="mini_eopatch")

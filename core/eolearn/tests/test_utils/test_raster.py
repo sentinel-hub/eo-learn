@@ -13,6 +13,8 @@ from numpy.testing import assert_array_equal
 
 from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
 
+# ruff: noqa: NPY002
+
 
 @pytest.mark.parametrize("size", [0, 5])
 @pytest.mark.parametrize("percentile", [0, 1.5, 50, 80.99, 100])

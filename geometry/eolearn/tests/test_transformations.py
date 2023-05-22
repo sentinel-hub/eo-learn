@@ -35,6 +35,9 @@ CUSTOM_DATAFRAME_3D = CUSTOM_DATAFRAME.copy()
 CUSTOM_DATAFRAME_3D.geometry = CUSTOM_DATAFRAME_3D.geometry.map(partial(shapely.ops.transform, lambda x, y: (x, y, 0)))
 
 
+# ruff: noqa: PD008
+
+
 @dataclasses.dataclass(frozen=True)
 class VectorToRasterTestCase:
     name: str

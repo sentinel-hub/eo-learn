@@ -126,7 +126,7 @@ def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, colu
     return mask
 
 
-class BaseSamplingTask(EOTask, metaclass=ABCMeta):  # noqa: B024
+class BaseSamplingTask(EOTask, metaclass=ABCMeta):
     """A base class for sampling tasks"""
 
     def __init__(

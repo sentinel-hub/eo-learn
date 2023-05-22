@@ -27,7 +27,7 @@ from eolearn.core import (
 from eolearn.core.eoworkflow import NodeStats
 
 
-class CustomException(ValueError):
+class CustomExceptionError(ValueError):
     pass
 
 
@@ -48,7 +48,7 @@ class IncTask(EOTask):
 
 class ExceptionTask(EOTask):
     def execute(self, *_, **__):
-        raise CustomException
+        raise CustomExceptionError
 
 
 def test_workflow_arguments():
@@ -272,7 +272,7 @@ def test_exception_handling():
     increase_node = EONode(IncTask(), inputs=[exception_node])
     workflow = EOWorkflow([input_node, exception_node, increase_node])
 
-    with pytest.raises(CustomException):
+    with pytest.raises(CustomExceptionError):
         workflow.execute()
 
     results = workflow.execute(raise_errors=False)
@@ -288,7 +288,7 @@ def test_exception_handling():
         assert node_stats.node_name == node.name
 
         if node is exception_node:
-            assert isinstance(node_stats.exception, CustomException)
+            assert isinstance(node_stats.exception, CustomExceptionError)
             assert node_stats.exception_traceback.startswith("Traceback")
         else:
             assert node_stats.exception is None

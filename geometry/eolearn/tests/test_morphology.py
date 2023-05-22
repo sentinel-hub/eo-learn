@@ -16,6 +16,7 @@ from eolearn.geometry import ErosionTask, MorphologicalFilterTask, Morphological
 CLASSES = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 MASK_FEATURE = FeatureType.MASK, "mask"
 MASK_TIMELESS_FEATURE = FeatureType.MASK_TIMELESS, "timeless_mask"
+# ruff: noqa: NPY002
 
 
 @pytest.mark.parametrize("invalid_input", [None, 0, "a"])

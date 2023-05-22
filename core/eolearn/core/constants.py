@@ -20,25 +20,25 @@ TIMESTAMP_COLUMN = "TIMESTAMP"
 
 def _warn_and_adjust(name: str) -> str:
     # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
-    deprecation_msg = None
+    deprecation_msg = None  # placeholder
     if name in ("TIMESTAMP", "timestamp"):
         name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
 
     if deprecation_msg:
-        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore
+        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore[unreachable]
     return name
 
 
 class EnumWithDeprecations(EnumMeta):
     """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
 
-    def __getattribute__(cls, name: str) -> Any:
+    def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getattribute__(_warn_and_adjust(name))
 
-    def __getitem__(cls, name: str) -> Any:
+    def __getitem__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getitem__(_warn_and_adjust(name))
 
-    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa[N805]
         return super().__call__(_warn_and_adjust(value), *args, **kwargs)
 
 

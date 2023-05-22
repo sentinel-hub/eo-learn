@@ -16,6 +16,9 @@ import numpy as np
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import SingleFeatureSpec
 
+# switching to np.random.Generator would change results
+# ruff: noqa: NPY002
+
 
 class TrainTestSplitType(Enum):
     """An enum defining TrainTestSplitTask's methods of splitting the data into subsets"""

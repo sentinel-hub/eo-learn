@@ -37,7 +37,7 @@ from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
+class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     """Base abstract class for raster IO tasks"""
 
     def __init__(

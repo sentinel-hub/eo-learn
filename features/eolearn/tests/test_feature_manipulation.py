@@ -20,6 +20,7 @@ from eolearn.features.feature_manipulation import SpatialResizeTask
 from eolearn.features.utils import ResizeParam
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+# ruff: noqa: NPY002
 
 
 @pytest.mark.parametrize(

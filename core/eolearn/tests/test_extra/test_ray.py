@@ -19,6 +19,8 @@ from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
 from eolearn.core.extra.ray import RayExecutor, join_ray_futures, join_ray_futures_iter, parallelize_with_ray
 
+# ruff: noqa: ARG001
+
 
 class ExampleTask(EOTask):
     def execute(self, *_, **kwargs):
@@ -63,27 +65,19 @@ def test_nodes_fixture():
     example = EONode(ExampleTask())
     foo = EONode(FooTask(), inputs=[example, example])
     output = EONode(OutputTask("output"), inputs=[foo])
-    nodes = {"example": example, "foo": foo, "output": output}
-    return nodes
+    return {"example": example, "foo": foo, "output": output}
 
 
 @pytest.fixture(name="workflow")
 def workflow_fixture(test_nodes):
-    workflow = EOWorkflow(list(test_nodes.values()))
-    return workflow
+    return EOWorkflow(list(test_nodes.values()))
 
 
 @pytest.fixture(name="execution_kwargs")
 def execution_kwargs_fixture(test_nodes):
     example_node = test_nodes["example"]
 
-    execution_kwargs = [
-        {example_node: {"arg1": 1}},
-        {},
-        {example_node: {"arg1": 3, "arg3": 10}},
-        {example_node: {"arg1": None}},
-    ]
-    return execution_kwargs
+    return [{example_node: {"arg1": 1}}, {}, {example_node: {"arg1": 3, "arg3": 10}}, {example_node: {"arg1": None}}]
 
 
 def test_fail_without_ray(workflow, execution_kwargs):

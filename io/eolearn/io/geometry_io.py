@@ -173,7 +173,7 @@ class VectorImportTask(_BaseVectorImportTask):
 
                 return gpd.GeoDataFrame.from_features(
                     feature_iter,
-                    columns=list(features.schema["properties"]) + ["geometry"],
+                    columns=list(features.schema["properties"]) + ["geometry"],  # noqa: RUF005
                     crs=self.dataset_crs.pyproj_crs(),
                 )
 

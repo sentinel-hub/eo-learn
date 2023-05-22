@@ -37,6 +37,9 @@ LOGGER = logging.getLogger(__name__)
 
 ShapeIterator = Iterator[Tuple[BaseGeometry, float]]
 
+# ruff 0.269 wrongly recognizes `self.values` as a pandas method `.values`
+# ruff: noqa: PD011
+
 
 class VectorToRasterTask(EOTask):
     """A task for transforming a vector feature into a raster feature
@@ -240,7 +243,7 @@ class VectorToRasterTask(EOTask):
         if self.write_to_existing and self.raster_feature in eopatch:
             raster = eopatch[self.raster_feature]
 
-            expected_full_shape = raster_shape + (1,)
+            expected_full_shape = (*raster_shape, 1)
             if raster.shape != expected_full_shape:
                 msg = (
                     f"The existing raster feature {self.raster_feature} has a shape {raster.shape} but the expected"
