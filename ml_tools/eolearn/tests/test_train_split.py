@@ -21,7 +21,7 @@ INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(300, 300), depth_range
 
 
 @pytest.mark.parametrize(
-    "bad_arg, bad_kwargs",
+    ("bad_arg", "bad_kwargs"),
     [
         (1.5, {}),
         ([0.5, 0.3], {}),
@@ -34,7 +34,7 @@ def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
         TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 
 
-@pytest.fixture(name="eopatch1", scope="function")
+@pytest.fixture(name="eopatch1")
 def eopatch1_fixture() -> EOPatch:
     return generate_eopatch(INPUT_FEATURE, config=INPUT_FEATURE_CONFIG)
 

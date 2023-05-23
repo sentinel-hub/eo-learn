@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import logging
 
 import numpy as np
-from pytest import approx
+import pytest
 
 from eolearn.core import FeatureType
 from eolearn.features import ClusteringTask
@@ -45,11 +45,11 @@ def test_clustering(example_eopatch):
 
     assert len(np.unique(clusters)) == 22, "Wrong number of clusters."
     assert np.median(clusters) == 2
-    assert np.mean(clusters) == approx(2.19109)
+    assert np.mean(clusters) == pytest.approx(2.19109)
 
     clusters = example_eopatch.data_timeless["clusters_mask"].squeeze()
 
     assert len(np.unique(clusters)) == 8, "Wrong number of clusters."
     assert np.median(clusters) == 0
-    assert np.mean(clusters) == approx(-0.0550495)
+    assert np.mean(clusters) == pytest.approx(-0.0550495)
     assert np.all(clusters[90:, 95:] == -1), "Wrong area"

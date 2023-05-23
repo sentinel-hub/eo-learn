@@ -31,7 +31,7 @@ def test_euclidean_norm():
     assert (eopatch.data["NORM"] == np.sqrt(len(bands))).all()
 
 
-@pytest.mark.parametrize("bad_input", ([1, 2, 3], "test", 0.5))
+@pytest.mark.parametrize("bad_input", [(1, 2, 3), "test", 0.5])
 def test_bad_input(bad_input):
     with pytest.raises(ValueError):
         NormalizedDifferenceIndexTask(INPUT_FEATURE, (FeatureType.DATA, "NDI"), bands=bad_input)

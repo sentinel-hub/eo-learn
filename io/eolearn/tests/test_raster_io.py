@@ -37,7 +37,7 @@ PATH_ON_BUCKET = f"s3://{BUCKET_NAME}/some-folder"
 
 
 @pytest.fixture(autouse=True)
-def create_s3_bucket_fixture():
+def _create_s3_bucket_fixture():
     with mock_s3():
         s3resource = boto3.resource("s3", region_name="eu-central-1")
         s3resource.create_bucket(Bucket=BUCKET_NAME, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
@@ -192,17 +192,18 @@ def _execute_with_warning_control(
 
 
 @pytest.mark.parametrize(
-    "bands, times", [([2, "string", 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, "string", 2, 3])]
+    ("bands", "times"), [([2, "string", 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, "string", 2, 3])]
 )
 def test_export2tiff_wrong_format(bands, times, test_eopatch):
     test_eopatch.data["data"] = np.arange(10 * 3 * 2 * 6, dtype=float).reshape(10, 3, 2, 6)
 
-    with tempfile.TemporaryDirectory() as tmp_dir_name, pytest.raises(ValueError):
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
         tmp_file_name = "temp_file.tiff"
         task = ExportToTiffTask(
             (FeatureType.DATA, "data"), folder=tmp_dir_name, band_indices=bands, date_indices=times, image_dtype=float
         )
-        task.execute(test_eopatch, filename=tmp_file_name)
+        with pytest.raises(ValueError):
+            task.execute(test_eopatch, filename=tmp_file_name)
 
 
 def test_export2tiff_wrong_feature(mocker, test_eopatch):
@@ -223,8 +224,8 @@ def test_export2tiff_wrong_feature(mocker, test_eopatch):
             == "Feature (<FeatureType.MASK_TIMELESS: 'mask_timeless'>, 'feature-not-present') was not found in EOPatch"
         )
 
+        failing_export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=True)
         with pytest.raises(ValueError):
-            failing_export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=True)
             failing_export_task(test_eopatch, filename=tmp_file_name)
 
 
@@ -363,7 +364,7 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
         assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
 
-@pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
+@pytest.mark.parametrize(("no_data_value", "data_type"), [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
     eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))
