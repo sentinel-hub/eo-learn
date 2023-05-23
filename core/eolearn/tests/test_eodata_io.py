@@ -160,7 +160,7 @@ def test_save_add_only_features(eopatch, fs_loader):
     ]
 
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=features, overwrite_permission=0)
+        eopatch.save("/", filesystem=temp_fs, features=features, overwrite_permission=OverwritePermission.ADD_ONLY)
 
 
 @mock_s3
@@ -183,11 +183,19 @@ def test_overwrite_failure(fs_loader):
         eopatch.save("/", filesystem=temp_fs)
 
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=[(FeatureType.MASK_TIMELESS, "mask")], overwrite_permission=2)
+        eopatch.save(
+            "/",
+            filesystem=temp_fs,
+            features=[(FeatureType.MASK_TIMELESS, "mask")],
+            overwrite_permission=OverwritePermission.OVERWRITE_PATCH,
+        )
 
         with pytest.raises(IOError):
             eopatch.save(
-                "/", filesystem=temp_fs, features=[(FeatureType.MASK_TIMELESS, "Mask")], overwrite_permission=0
+                "/",
+                filesystem=temp_fs,
+                features=[(FeatureType.MASK_TIMELESS, "Mask")],
+                overwrite_permission=OverwritePermission.ADD_ONLY,
             )
 
 
@@ -269,8 +277,12 @@ def test_cleanup_different_compression(fs_loader, eopatch):
     with fs_loader() as temp_fs:
         temp_fs.makedir(folder)
 
-        save_compressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, overwrite_permission=1)
-        save_noncompressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=0, overwrite_permission=1)
+        save_compressed_task = SaveTask(
+            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES"
+        )
+        save_noncompressed_task = SaveTask(
+            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES"
+        )
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
         compressed_bbox_path = bbox_path + ".gz"
         mask_timeless_path = fs.path.join(folder, patch_folder, "mask_timeless", "mask.npy")
