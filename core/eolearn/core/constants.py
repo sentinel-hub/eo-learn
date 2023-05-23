@@ -303,6 +303,21 @@ class OverwritePermission(Enum):
     - `OVERWRITE_PATCH` - Overwrite entire content of saved EOPatch and replace it with the new content.
     """
 
-    ADD_ONLY = 0
-    OVERWRITE_FEATURES = 1
-    OVERWRITE_PATCH = 2
+    ADD_ONLY = "ADD_ONLY"
+    OVERWRITE_FEATURES = "OVERWRITE_FEATURES"
+    OVERWRITE_PATCH = "OVERWRITE_PATCH"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "OverwritePermission":
+        permissions_mapping = {0: "ADD_ONLY", 1: "OVERWRITE_FEATURES", 2: "OVERWRITE_PATCH"}
+        if isinstance(value, int) and value in permissions_mapping:
+            deprecation_msg = (
+                f"Please use strings to instantiate overwrite permissions, e.g., instead of {value} use"
+                f" {permissions_mapping[value]!r}"
+            )
+            warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)
+
+            return cls(permissions_mapping[value])
+        if isinstance(value, str) and value.upper() in cls._value2member_map_:
+            return cls(value.upper())
+        return super()._missing_(value)
