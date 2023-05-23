@@ -4,9 +4,8 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-
 import numpy as np
-from pytest import approx
+import pytest
 
 from sentinelhub import CRS, BBox
 
@@ -37,4 +36,4 @@ def test_double_logistic_approximation(example_eopatch):
     delta = 0.1
 
     for name, value, expected_value in zip(names, values, expected_values):
-        assert value == approx(expected_value, abs=delta), f"Missmatch in value of {name}"
+        assert value == pytest.approx(expected_value, abs=delta), f"Missmatch in value of {name}"

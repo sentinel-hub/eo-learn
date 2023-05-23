@@ -11,7 +11,7 @@ from eolearn.core import FeatureType
 
 
 @pytest.mark.parametrize(
-    "old_ftype, new_ftype",
+    ("old_ftype", "new_ftype"),
     [
         (FeatureType.TIMESTAMP, FeatureType.TIMESTAMPS),
         (FeatureType["TIMESTAMP"], FeatureType["TIMESTAMPS"]),

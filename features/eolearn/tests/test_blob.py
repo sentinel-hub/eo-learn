@@ -36,7 +36,7 @@ BLOB_TESTS = [
 ]
 
 
-@pytest.mark.parametrize("task, expected_statistics", BLOB_TESTS)
+@pytest.mark.parametrize(("task", "expected_statistics"), BLOB_TESTS)
 def test_blob_task(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)

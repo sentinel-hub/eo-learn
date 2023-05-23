@@ -125,7 +125,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize(
-    "save_features, load_features",
+    ("save_features", "load_features"),
     [
         (..., ...),
         ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
@@ -307,7 +307,7 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
 
 
 @pytest.mark.parametrize(
-    "constructor, data",
+    ("constructor", "data"),
     [
         (FeatureIONumpy, np.zeros(20)),
         (FeatureIONumpy, np.zeros((2, 3, 3, 2), dtype=np.int16)),

@@ -8,7 +8,7 @@ from eolearn.features.utils import ResizeLib, ResizeMethod, spatially_resize_ima
 
 @pytest.mark.parametrize("method", ResizeMethod)
 @pytest.mark.parametrize("library", ResizeLib)
-@pytest.mark.parametrize("dtype", (np.float32, np.int32, np.uint8, bool))
+@pytest.mark.parametrize("dtype", [np.float32, np.int32, np.uint8, bool])
 @pytest.mark.parametrize("new_size", [(50, 50), (35, 39), (271, 271)])
 def test_spatially_resize_image_new_size(
     method: ResizeMethod, library: ResizeLib, dtype: Union[np.dtype, type], new_size: Tuple[int, int]
@@ -21,24 +21,28 @@ def test_spatially_resize_image_new_size(
     old_shape = (111, 111)
     data_2d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(data_2d, new_size, resize_method=method, resize_library=library)
-    assert result.shape == new_size and result.dtype == dtype
+    assert result.shape == new_size
+    assert result.dtype == dtype
 
     old_shape = (111, 111, 3)
     data_3d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(data_3d, new_size, resize_method=method, resize_library=library)
-    assert result.shape == (*new_size, 3) and result.dtype == dtype
+    assert result.shape == (*new_size, 3)
+    assert result.dtype == dtype
 
     old_shape = (5, 111, 111, 3)
     data_4d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(data_4d, new_size, resize_method=method, resize_library=library)
-    assert result.shape == (5, *new_size, 3) and result.dtype == dtype
+    assert result.shape == (5, *new_size, 3)
+    assert result.dtype == dtype
 
     old_shape = (2, 1, 111, 111, 3)
     data_5d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
     result = spatially_resize_image(
         data_5d, new_size, resize_method=method, spatial_axes=(2, 3), resize_library=library
     )
-    assert result.shape == (2, 1, *new_size, 3) and result.dtype == dtype
+    assert result.shape == (2, 1, *new_size, 3)
+    assert result.dtype == dtype
 
 
 @pytest.mark.parametrize("method", ResizeMethod)
@@ -56,10 +60,10 @@ def test_spatially_resize_image_scale_factors(
     assert result.shape == (height * scale_factors[0], width * scale_factors[1], 3)
 
 
-@pytest.mark.parametrize("library", (ResizeLib.PIL,))
+@pytest.mark.parametrize("library", [ResizeLib.PIL])
 @pytest.mark.parametrize(
     "dtype",
-    (
+    [
         bool,
         np.int8,
         np.uint8,
@@ -74,7 +78,7 @@ def test_spatially_resize_image_scale_factors(
         np.float32,
         np.float64,
         float,
-    ),
+    ],
 )
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_spatially_resize_image_dtype(library: ResizeLib, dtype: Union[np.dtype, type]):

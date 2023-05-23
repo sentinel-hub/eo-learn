@@ -23,7 +23,7 @@ def eopatch_fixture():
 
 
 @pytest.mark.parametrize(
-    "feature, params",
+    ("feature", "params"),
     [
         ((FeatureType.DATA, "BANDS-S2-L1C"), {"rgb": [3, 2, 1]}),
         ((FeatureType.DATA, "BANDS-S2-L1C"), {"times": [7, 14, 67], "channels": slice(4, 8)}),
@@ -45,7 +45,7 @@ def eopatch_fixture():
         (FeatureType.BBOX, {}),
     ],
 )
-@pytest.mark.sh_integration
+@pytest.mark.sh_integration()
 def test_eopatch_plot(eopatch, feature, params):
     """A simple test of EOPatch plotting for different features."""
     # We reduce width and height otherwise running matplotlib.pyplot.subplots in combination with pytest would

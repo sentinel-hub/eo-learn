@@ -421,7 +421,7 @@ class EOPatch:
                 continue
 
             if isinstance(content, _FeatureDict):
-                content = {k: content._get_unloaded(k) for k in content}
+                content = {k: content._get_unloaded(k) for k in content}  # noqa: SLF001
                 inner_content_repr = "\n    ".join(
                     [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
                 )
@@ -487,7 +487,7 @@ class EOPatch:
             if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 new_eopatch[feature_type] = copy.copy(self[feature_type])
             else:
-                new_eopatch[feature_type][feature_name] = self[feature_type]._get_unloaded(feature_name)
+                new_eopatch[feature_type][feature_name] = self[feature_type]._get_unloaded(feature_name)  # noqa: SLF001
         return new_eopatch
 
     def __deepcopy__(self, memo: Optional[dict] = None, features: FeaturesSpecification = ...) -> EOPatch:
@@ -504,7 +504,7 @@ class EOPatch:
             if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
             else:
-                value = self[feature_type]._get_unloaded(feature_name)
+                value = self[feature_type]._get_unloaded(feature_name)  # noqa: SLF001
 
                 if isinstance(value, FeatureIO):
                     # We cannot deepcopy the entire object because of the filesystem attribute
