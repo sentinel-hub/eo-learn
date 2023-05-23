@@ -2,20 +2,6 @@
 line-length = 120
 preview = true
 
-[tool.isort]
-profile = "black"
-known_first_party = "sentinelhub"
-known_absolute = "eolearn"
-sections = [
-    "FUTURE",
-    "STDLIB",
-    "THIRDPARTY",
-    "FIRSTPARTY",
-    "ABSOLUTE",
-    "LOCALFOLDER",
-]
-line_length = 120
-
 [tool.ruff]
 exclude = [".git", "__pycache__", "build", "dist"]
 ignore = [
@@ -30,6 +16,8 @@ ignore = [
     "B028",  # always demands a stacklevel argument when warning
     "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
 ]
+fixable = ["I", "F401"]
+fix = true
 line-length = 120
 select = [
     "F",   # pyflakes
@@ -58,11 +46,27 @@ select = [
     "FLY", # flynt
     "RUF", # ruff rules
     "NPY", # numpy
+    "I",   # isort
 ]
 target-version = "py38"
 
 [tool.ruff.mccabe]
 max-complexity = 15
+
+[tool.ruff.isort]
+# required-imports = ["from __future__ import annotations"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "our-packages",
+    "first-party",
+    "local-folder",
+]
+known-first-party = ["eolearn"]
+
+[tool.ruff.isort.sections]
+our-packages = ["sentinelhub"]
 
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]

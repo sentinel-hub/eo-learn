@@ -18,23 +18,6 @@ repos:
       - id: black
         language_version: python3
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        name: isort (python)
-
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v2.1.1
-    hooks:
-      - id: autoflake
-        args:
-          [
-            --remove-all-unused-imports,
-            --in-place,
-            --ignore-init-module-imports,
-          ]
-
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: "v0.0.269"
     hooks:
@@ -44,5 +27,4 @@ repos:
     rev: 1.7.0
     hooks:
       - id: nbqa-black
-      - id: nbqa-isort
       - id: nbqa-ruff
