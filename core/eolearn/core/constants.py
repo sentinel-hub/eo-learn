@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 import warnings
 from enum import Enum, EnumMeta
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 from sentinelhub import BBox, MimeType
 from sentinelhub.exceptions import deprecated_function
@@ -16,13 +16,14 @@ from sentinelhub.exceptions import deprecated_function
 from .exceptions import EODeprecationWarning
 
 TIMESTAMP_COLUMN = "TIMESTAMP"
+T = TypeVar("T")
 
 
-def _warn_and_adjust(name: str) -> str:
+def _warn_and_adjust(name: T) -> T:
     # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
     deprecation_msg = None  # placeholder
     if name in ("TIMESTAMP", "timestamp"):
-        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
+        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"  # type: ignore[assignment]
 
     if deprecation_msg:
         warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore[unreachable]
@@ -292,8 +293,8 @@ class FeatureTypeSet(metaclass=DeprecatedCollectionClass):
     RASTER_TYPES_1D = frozenset([FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS])
 
 
-def _warn_and_adjust_permissions(name: str) -> str:
-    if name.upper() == "OVERWRITE_PATCH":
+def _warn_and_adjust_permissions(name: T) -> T:
+    if isinstance(name, str) and name.upper() == "OVERWRITE_PATCH":
         warnings.warn(
             '"OVERWRITE_PATCH" permission is deprecated and will be removed in a future version',
             category=EODeprecationWarning,
