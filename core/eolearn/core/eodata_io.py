@@ -106,8 +106,10 @@ def save_eopatch(
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
 
-    if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
-        _remove_old_eopatch(filesystem, patch_location)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
+        if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
+            _remove_old_eopatch(filesystem, patch_location)
 
     ftype_folders = {fs.path.dirname(path) for _, _, path in data_for_saving}
     for folder in ftype_folders:
@@ -117,8 +119,10 @@ def save_eopatch(
         save_function = partial(_save_single_feature, filesystem=filesystem, compress_level=compress_level)
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
-    if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-        remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
+        if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
+            remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
