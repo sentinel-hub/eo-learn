@@ -107,7 +107,7 @@ def save_eopatch(
     data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
             _remove_old_eopatch(filesystem, patch_location)
 
@@ -120,7 +120,7 @@ def save_eopatch(
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
             remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
 
