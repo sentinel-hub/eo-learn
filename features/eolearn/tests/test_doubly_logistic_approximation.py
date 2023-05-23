@@ -37,5 +37,3 @@ def test_double_logistic_approximation(example_eopatch):
 
     for name, value, expected_value in zip(names, values, expected_values):
         assert value == pytest.approx(expected_value, abs=delta), f"Missmatch in value of {name}"
-    for name, value, expected_value in zip(names, values, expected_values):
-        assert value == pytest.approx(expected_value, abs=delta), f"Missmatch in value of {name}"
