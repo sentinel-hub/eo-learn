@@ -304,7 +304,7 @@ def _warn_and_adjust_permissions(name: T) -> T:
 
 
 class PermissionsWithDeprecations(EnumMeta):
-    """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
+    """A custom EnumMeta class for catching the deprecated Enum members of the OverwritePermission Enum class."""
 
     def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getattribute__(_warn_and_adjust_permissions(name))
@@ -317,14 +317,13 @@ class PermissionsWithDeprecations(EnumMeta):
 
 
 class OverwritePermission(Enum, metaclass=PermissionsWithDeprecations):
-    """Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
+    """Enum class which specifies which content of the saved EOPatch can be overwritten when saving new content.
 
     Permissions are in the following hierarchy:
 
     - `ADD_ONLY` - Only new features can be added, anything that is already saved cannot be changed.
     - `OVERWRITE_FEATURES` - Overwrite only data for features which have to be saved. The remaining content of saved
       EOPatch will stay unchanged.
-    - `OVERWRITE_PATCH` - Overwrite entire content of saved EOPatch and replace it with the new content.
     """
 
     ADD_ONLY = "ADD_ONLY"
