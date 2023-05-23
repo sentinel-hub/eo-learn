@@ -137,7 +137,6 @@ def test_execution_results(workflow, execution_kwargs):
 
 
 @pytest.mark.usefixtures("_simple_cluster")
-@pytest.mark.usefixtures("_simple_cluster")
 def test_execution_errors(workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
