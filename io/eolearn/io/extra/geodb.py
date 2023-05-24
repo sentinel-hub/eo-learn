@@ -10,7 +10,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from sentinelhub import CRS, BBox
 
@@ -48,7 +48,7 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
         self.geodb_db = geodb_db
         self.geodb_collection = geodb_collection
         self.geodb_kwargs = kwargs
-        self._dataset_crs: Optional[CRS] = None
+        self._dataset_crs: CRS | None = None
 
         super().__init__(feature=feature, reproject=reproject, clip=clip)
 
@@ -64,7 +64,7 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
 
         return self._dataset_crs
 
-    def _load_vector_data(self, bbox: Optional[BBox]) -> Any:
+    def _load_vector_data(self, bbox: BBox | None) -> Any:
         """Loads vector data from geoDB table"""
         prepared_bbox = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 

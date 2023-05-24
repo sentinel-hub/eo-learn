@@ -12,7 +12,7 @@ import datetime as dt
 import functools
 import itertools as it
 import warnings
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -96,7 +96,7 @@ def _parse_operation(operation_input: OperationInputType, is_timeless: bool) -> 
     """Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
     arrays. If the input already is a function it returns it.
     """
-    defaults: Dict[Optional[str], Callable] = {
+    defaults: Dict[str | None, Callable] = {
         None: _return_if_equal_operation,
         "concatenate": functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
         "mean": functools.partial(np.nanmean, axis=0),
@@ -287,7 +287,7 @@ def _select_meta_info_feature(eopatches: Sequence[EOPatch], feature_name: str) -
     return values[0]
 
 
-def _get_common_bbox(eopatches: Sequence[EOPatch]) -> Optional[BBox]:
+def _get_common_bbox(eopatches: Sequence[EOPatch]) -> BBox | None:
     """Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones."""
     bboxes = [eopatch.bbox for eopatch in eopatches if eopatch.bbox is not None]
 
@@ -305,7 +305,7 @@ def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) 
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
 
 
-def _all_equal(values: Union[Sequence[Any], np.ndarray]) -> bool:
+def _all_equal(values: Sequence[Any] | np.ndarray) -> bool:
     """A helper function that checks if all values in a given list are equal to each other."""
     first_value = values[0]
 

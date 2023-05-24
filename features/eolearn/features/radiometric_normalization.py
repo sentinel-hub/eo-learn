@@ -9,7 +9,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Optional
 
 import numpy as np
 
@@ -37,7 +36,7 @@ class ReferenceScenesTask(EOTask):
         self,
         feature: SingleFeatureSpec,
         valid_fraction_feature: SingleFeatureSpec,
-        max_scene_number: Optional[int] = None,
+        max_scene_number: int | None = None,
     ):
         self.renamed_feature = parse_renamed_feature(feature)
         self.valid_fraction_feature = self.parse_feature(valid_fraction_feature)

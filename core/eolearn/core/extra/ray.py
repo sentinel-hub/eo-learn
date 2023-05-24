@@ -10,7 +10,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
+from typing import Any, Callable, Collection, Generator, Iterable, List, Tuple, TypeVar, cast
 
 try:
     import ray
@@ -95,7 +95,7 @@ def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[A
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `futures`.
     """
-    results: List[Optional[Any]] = [None] * len(futures)
+    results: List[Any | None] = [None] * len(futures)
     for position, result in join_ray_futures_iter(futures, **tqdm_kwargs):
         results[position] = result
 

@@ -20,7 +20,7 @@ import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Protocol, Sequence, Tuple, Union
 
 import fs
 from fs.base import FS
@@ -52,9 +52,9 @@ class _ProcessingData:
     workflow: EOWorkflow
     workflow_kwargs: Dict[EONode, Dict[str, object]]
     pickled_filesystem: bytes
-    log_path: Optional[str]
+    log_path: str | None
     filter_logs_by_thread: bool
-    logs_filter: Optional[Filter]
+    logs_filter: Filter | None
     logs_handler_factory: _HandlerFactoryType
 
 
@@ -62,7 +62,7 @@ class _ProcessingData:
 class _ExecutionRunParams:
     """Parameters that are used during execution run."""
 
-    workers: Optional[int]
+    workers: int | None
     multiprocess: bool
     tqdm_kwargs: Dict[str, Any]
 
@@ -81,11 +81,11 @@ class EOExecutor:
         workflow: EOWorkflow,
         execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]],
         *,
-        execution_names: Optional[List[str]] = None,
+        execution_names: List[str] | None = None,
         save_logs: bool = False,
         logs_folder: str = ".",
-        filesystem: Optional[FS] = None,
-        logs_filter: Optional[Filter] = None,
+        filesystem: FS | None = None,
+        logs_filter: Filter | None = None,
         logs_handler_factory: _HandlerFactoryType = FileHandler,
     ):
         """
@@ -118,8 +118,8 @@ class EOExecutor:
         self.logs_filter = logs_filter
         self.logs_handler_factory = logs_handler_factory
 
-        self.start_time: Optional[dt.datetime] = None
-        self.report_folder: Optional[str] = None
+        self.start_time: dt.datetime | None = None
+        self.report_folder: str | None = None
         self.general_stats: Dict[str, object] = {}
         self.execution_results: List[WorkflowResults] = []
 
@@ -137,7 +137,7 @@ class EOExecutor:
         return [input_kwargs or {} for input_kwargs in execution_kwargs]
 
     @staticmethod
-    def _parse_execution_names(execution_names: Optional[List[str]], execution_kwargs: Sequence) -> List[str]:
+    def _parse_execution_names(execution_names: List[str] | None, execution_kwargs: Sequence) -> List[str]:
         """Parses a list of execution names."""
         if execution_names is None:
             return [str(num) for num in range(1, len(execution_kwargs) + 1)]
@@ -149,13 +149,13 @@ class EOExecutor:
         return execution_names
 
     @staticmethod
-    def _parse_logs_filesystem(filesystem: Optional[FS], logs_folder: str) -> Tuple[FS, str]:
+    def _parse_logs_filesystem(filesystem: FS | None, logs_folder: str) -> Tuple[FS, str]:
         """Ensures a filesystem and a file path relative to it."""
         if filesystem is None:
             return get_base_filesystem_and_path(logs_folder)
         return filesystem, logs_folder
 
-    def run(self, workers: Optional[int] = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> List[WorkflowResults]:
+    def run(self, workers: int | None = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> List[WorkflowResults]:
         """Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -178,7 +178,7 @@ class EOExecutor:
         if self.save_logs:
             self.filesystem.makedirs(self.report_folder, recreate=True)
 
-        log_paths: Sequence[Optional[str]]
+        log_paths: Sequence[str | None]
         if self.save_logs:
             log_paths = self.get_log_paths(full_path=False)
         else:
@@ -222,12 +222,12 @@ class EOExecutor:
     @classmethod
     def _try_add_logging(
         cls,
-        log_path: Optional[str],
+        log_path: str | None,
         pickled_filesystem: bytes,
         filter_logs_by_thread: bool,
-        logs_filter: Optional[Filter],
+        logs_filter: Filter | None,
         logs_handler_factory: _HandlerFactoryType,
-    ) -> Tuple[Optional[Logger], Optional[Handler]]:
+    ) -> Tuple[Logger | None, Handler | None]:
         """Adds a handler to a logger and returns them both. In case this fails it shows a warning."""
         if log_path:
             try:
@@ -244,7 +244,7 @@ class EOExecutor:
         return None, None
 
     @classmethod
-    def _try_remove_logging(cls, log_path: Optional[str], logger: Optional[Logger], handler: Optional[Handler]) -> None:
+    def _try_remove_logging(cls, log_path: str | None, logger: Logger | None, handler: Handler | None) -> None:
         """Removes a handler from a logger in case that handler exists."""
         if log_path and logger and handler:
             try:
@@ -274,7 +274,7 @@ class EOExecutor:
         log_path: str,
         pickled_filesystem: bytes,
         filter_logs_by_thread: bool,
-        logs_filter: Optional[Filter],
+        logs_filter: Filter | None,
         logs_handler_factory: _HandlerFactoryType,
     ) -> Handler:
         """Provides object which handles logs."""
@@ -300,11 +300,11 @@ class EOExecutor:
         return handler
 
     @staticmethod
-    def _get_processing_type(workers: Optional[int], multiprocess: bool) -> _ProcessingType:
+    def _get_processing_type(workers: int | None, multiprocess: bool) -> _ProcessingType:
         """Provides a type of processing according to given parameters."""
         return _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
-    def _prepare_general_stats(self, workers: Optional[int], processing_type: _ProcessingType) -> Dict[str, object]:
+    def _prepare_general_stats(self, workers: int | None, processing_type: _ProcessingType) -> Dict[str, object]:
         """Prepares a dictionary with a general statistics about executions."""
         failed_count = sum(results.workflow_failed() for results in self.execution_results)
         return {
@@ -377,7 +377,7 @@ class EOExecutor:
             return [get_full_path(self.filesystem, path) for path in log_paths]
         return log_paths
 
-    def read_logs(self) -> List[Optional[str]]:
+    def read_logs(self) -> List[str | None]:
         """Loads the content of log files if logs have been saved."""
         if not self.save_logs:
             return [None] * len(self.execution_kwargs)

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Optional, Tuple
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -40,7 +40,7 @@ class ECCRegistrationTask(EOTask):
         registration_feature: Tuple[FeatureType, str],
         reference_feature: Tuple[FeatureType, str],
         channel: int,
-        valid_mask_feature: Optional[Tuple[FeatureType, str]] = None,
+        valid_mask_feature: Tuple[FeatureType, str] | None = None,
         apply_to_features: FeaturesSpecification = ...,
         interpolation_mode: int = cv2.INTER_LINEAR,
         warp_mode: int = cv2.MOTION_TRANSLATION,
@@ -98,7 +98,7 @@ class ECCRegistrationTask(EOTask):
         self,
         src: np.ndarray,
         trg: np.ndarray,
-        valid_mask: Optional[np.ndarray] = None,
+        valid_mask: np.ndarray | None = None,
         warp_mode: int = cv2.MOTION_TRANSLATION,
     ) -> np.ndarray:
         """Method that estimates the transformation between source and target image"""

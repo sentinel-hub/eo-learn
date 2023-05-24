@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import itertools as it
-from typing import Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 import skimage.feature
@@ -37,7 +37,7 @@ class HOGTask(EOTask):
         visualize: bool = True,
         hog_feature_vector: bool = False,
         block_norm: str = "L2-Hys",
-        visualize_feature_name: Optional[str] = None,
+        visualize_feature_name: str | None = None,
     ):
         """
         :param feature: A feature that will be used and a new feature name where data will be saved, e.g.

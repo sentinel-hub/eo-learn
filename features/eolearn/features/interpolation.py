@@ -13,7 +13,7 @@ import inspect
 import warnings
 from collections import defaultdict
 from functools import partial
-from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Tuple, Union, cast
 
 import dateutil
 import numpy as np
@@ -121,9 +121,9 @@ class InterpolationTask(EOTask):
         interpolation_object: Callable,
         *,
         resample_range: ResampleRangeType = None,
-        result_interval: Optional[Tuple[float, float]] = None,
-        mask_feature: Optional[SingleFeatureSpec] = None,
-        copy_features: Optional[FeaturesSpecification] = None,
+        result_interval: Tuple[float, float] | None = None,
+        mask_feature: SingleFeatureSpec | None = None,
+        copy_features: FeaturesSpecification | None = None,
         unknown_value: float = np.nan,
         filling_factor: int = 10,
         scale_time: int = 3600,
@@ -338,7 +338,7 @@ class InterpolationTask(EOTask):
 
     @staticmethod
     def _get_eopatch_time_series(
-        eopatch: EOPatch, ref_date: Optional[dt.datetime] = None, scale_time: int = 1
+        eopatch: EOPatch, ref_date: dt.datetime | None = None, scale_time: int = 1
     ) -> np.ndarray:
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
 
@@ -509,7 +509,7 @@ class ResamplingTask(InterpolationTask):
         interpolation_object: Callable,
         resample_range: ResampleRangeType,
         *,
-        result_interval: Optional[Tuple[float, float]] = None,
+        result_interval: Tuple[float, float] | None = None,
         unknown_value: float = np.nan,
         **interpolation_parameters: Any,
     ):

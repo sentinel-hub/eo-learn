@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Callable, Dict, Iterable, Literal, Union
+from typing import Callable, Dict, Iterable, Literal
 
 import numpy as np
 
@@ -24,7 +24,7 @@ class JoinMasksTask(ZipFeatureTask):
         self,
         input_features: FeaturesSpecification,
         output_feature: SingleFeatureSpec,
-        join_operation: Union[Literal["and", "or", "xor"], Callable] = "and",
+        join_operation: Literal["and", "or", "xor"] | Callable = "and",
     ):
         """
         :param input_features: Mask features to be joined together.

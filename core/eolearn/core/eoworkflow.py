@@ -23,7 +23,7 @@ import datetime as dt
 import logging
 import traceback
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Optional, Sequence, Set, Tuple, cast
+from typing import Dict, List, Sequence, Set, Tuple, cast
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
@@ -127,7 +127,7 @@ class EOWorkflow:
         return cls(list(all_nodes))
 
     def execute(
-        self, input_kwargs: Optional[Dict[EONode, Dict[str, object]]] = None, raise_errors: bool = True
+        self, input_kwargs: Dict[EONode, Dict[str, object]] | None = None, raise_errors: bool = True
     ) -> "WorkflowResults":
         """Executes the workflow.
 
@@ -304,7 +304,7 @@ class EOWorkflow:
         """
         return self._nodes[:]
 
-    def get_node_with_uid(self, uid: Optional[str], fail_if_missing: bool = False) -> Optional[EONode]:
+    def get_node_with_uid(self, uid: str | None, fail_if_missing: bool = False) -> EONode | None:
         """Returns node with give uid, if it exists in the workflow."""
         if uid in self._uid_dict:
             return self._uid_dict[uid]
@@ -320,7 +320,7 @@ class EOWorkflow:
         visualization = self._get_visualization()
         return visualization.get_dot()
 
-    def dependency_graph(self, filename: Optional[str] = None):  # type: ignore[no-untyped-def] # same as get_dot
+    def dependency_graph(self, filename: str | None = None):  # type: ignore[no-untyped-def] # same as get_dot
         """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
@@ -350,7 +350,7 @@ class WorkflowResults:
     start_time: dt.datetime
     end_time: dt.datetime
     stats: Dict[str, NodeStats]
-    error_node_uid: Optional[str] = field(init=False, default=None)
+    error_node_uid: str | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         """Checks if there is any node that failed during the workflow execution."""

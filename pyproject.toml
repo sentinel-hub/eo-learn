@@ -36,13 +36,13 @@ select = [
     # "UP",  # pyupgrade
     "FA",  # checks where future import of annotations would make types nicer
 ]
-fix = false
+fix = true
 fixable = [
     "I",     # sort imports
     "F401",  # remove redundant imports
     "UP007", # use new-style type annotations
-    "UP006", # use new-style type annotations
-    "UP037", # remove quotes around types when not necessary
+    # "UP006", # use new-style type annotations
+    # "UP037", # remove quotes around types when not necessary
     "FA100", # import future annotations where necessary (not autofixable ATM)
 ]
 ignore = [

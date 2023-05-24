@@ -13,7 +13,7 @@ import functools
 import logging
 import warnings
 from abc import ABCMeta
-from typing import Any, BinaryIO, List, Optional, Tuple, Union
+from typing import Any, BinaryIO, List, Tuple
 
 import fs
 import numpy as np
@@ -47,11 +47,11 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         feature: SingleFeatureSpec,
         folder: str,
         *,
-        filesystem: Optional[FS] = None,
-        image_dtype: Optional[Union[np.dtype, type]] = None,
-        no_data_value: Optional[float] = None,
+        filesystem: FS | None = None,
+        image_dtype: np.dtype | type | None = None,
+        no_data_value: float | None = None,
         create: bool = False,
-        config: Optional[SHConfig] = None,
+        config: SHConfig | None = None,
     ):
         """
         :param feature: Feature which will be exported or imported
@@ -79,7 +79,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         # the super-class takes care of filesystem pickling
         super().__init__(folder, filesystem=filesystem, create=create, config=config)
 
-    def _get_filename_paths(self, filename_template: Union[str, List[str]], timestamps: List[dt.datetime]) -> List[str]:
+    def _get_filename_paths(self, filename_template: str | List[str], timestamps: List[dt.datetime]) -> List[str]:
         """From a filename "template" and base path on the filesystem it generates full paths to tiff files. The paths
         are still relative to the filesystem object.
 
@@ -148,11 +148,11 @@ class ExportToTiffTask(BaseRasterIoTask):
         feature: SingleFeatureSpec,
         folder: str,
         *,
-        date_indices: Union[List[int], Tuple[int, int], Tuple[dt.datetime, dt.datetime], Tuple[str, str], None] = None,
-        band_indices: Union[List[int], Tuple[int, int], None] = None,
-        crs: Union[CRS, int, str, None] = None,
+        date_indices: List[int] | Tuple[int, int] | Tuple[dt.datetime, dt.datetime] | Tuple[str, str] | None = None,
+        band_indices: List[int] | Tuple[int, int] | None = None,
+        crs: CRS | int | str | None = None,
         fail_on_missing: bool = True,
-        compress: Optional[str] = None,
+        compress: str | None = None,
         **kwargs: Any,
     ):
         """
@@ -322,7 +322,7 @@ class ExportToTiffTask(BaseRasterIoTask):
                             resampling=rasterio.warp.Resampling.nearest,
                         )
 
-    def execute(self, eopatch: EOPatch, *, filename: Union[str, List[str], None] = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, filename: str | List[str] | None = "") -> EOPatch:
         """Execute method
 
         :param eopatch: An input EOPatch
@@ -397,7 +397,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         folder: str,
         *,
         use_vsi: bool = False,
-        timestamp_size: Optional[int] = None,
+        timestamp_size: int | None = None,
         **kwargs: Any,
     ):
         """
@@ -434,7 +434,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
             endpoint_url=filesystem.endpoint_url,
         )
 
-    def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
+    def _load_from_image(self, path: str, filesystem: FS, bbox: BBox | None) -> Tuple[np.ndarray, BBox | None]:
         """The method decides in what way data will be loaded from the image.
 
         The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
@@ -457,7 +457,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         with rasterio.Env(), filesystem.openbin(path, "r") as file_handle:
             return self._read_image(file_handle, bbox)
 
-    def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
+    def _read_image(self, file_object: str | BinaryIO, bbox: BBox | None) -> Tuple[np.ndarray, BBox | None]:
         """Reads data from the image."""
         src: DatasetReader
         with rasterio.open(file_object) as src:
@@ -466,9 +466,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
 
     @staticmethod
-    def _get_reading_window_and_bbox(
-        reader: DatasetReader, bbox: Optional[BBox]
-    ) -> Tuple[Optional[Window], Optional[BBox]]:
+    def _get_reading_window_and_bbox(reader: DatasetReader, bbox: BBox | None) -> Tuple[Window | None, BBox | None]:
         """Provides a reading window for which data will be read from image. If it returns `None` this means that the
         whole image should be read. Those cases are when bbox is not defined, image is not geo-referenced, or
         bbox coordinates exactly match image coordinates. Additionally, it provides a bounding box of reading window
@@ -493,10 +491,10 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
         return from_bounds(*iter(bbox), transform=image_transform), original_bbox
 
-    def _load_data(self, filename_paths: List[str], initial_bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
+    def _load_data(self, filename_paths: List[str], initial_bbox: BBox | None) -> Tuple[np.ndarray, BBox | None]:
         """Load data from images, join them, and provide their bounding box."""
         data_per_path = []
-        final_bbox: Optional[BBox] = None
+        final_bbox: BBox | None = None
 
         with self.filesystem as filesystem:
             for path in filename_paths:
@@ -514,7 +512,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
         return np.concatenate(data_per_path, axis=0), final_bbox
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch | None = None, *, filename: str | None = "") -> EOPatch:
         """Execute method which adds a new feature to the EOPatch.
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created

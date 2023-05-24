@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import collections
 import copy
-from typing import DefaultDict, Dict, Generic, Iterator, List, Optional, Sequence, Set, Tuple, TypeVar
+from typing import DefaultDict, Dict, Generic, Iterator, List, Sequence, Set, Tuple, TypeVar
 
 _T = TypeVar("_T")
 
@@ -28,7 +28,7 @@ class DirectedGraph(Generic[_T]):
     :param adjacency_dict: A dictionary mapping vertices to lists of neighbors
     """
 
-    def __init__(self, adjacency_dict: Optional[Dict[_T, List[_T]]] = None):
+    def __init__(self, adjacency_dict: Dict[_T, List[_T]] | None = None):
         self._adj_dict = (
             collections.defaultdict(list, adjacency_dict) if adjacency_dict else collections.defaultdict(list)
         )

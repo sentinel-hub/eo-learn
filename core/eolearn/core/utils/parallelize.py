@@ -13,14 +13,14 @@ import concurrent.futures
 import multiprocessing
 from concurrent.futures import FIRST_COMPLETED, Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, List, Tuple, TypeVar, cast
 
 from tqdm.auto import tqdm
 
 if TYPE_CHECKING:
     from threading import Lock
 
-    MULTIPROCESSING_LOCK: Optional[Lock] = None
+    MULTIPROCESSING_LOCK: Lock | None = None
 else:
     MULTIPROCESSING_LOCK = None
 
@@ -39,7 +39,7 @@ class _ProcessingType(Enum):
     RAY = "ray"
 
 
-def _decide_processing_type(workers: Optional[int], multiprocess: bool) -> _ProcessingType:
+def _decide_processing_type(workers: int | None, multiprocess: bool) -> _ProcessingType:
     """Decides processing type according to given parameters.
 
     :param workers: A number of workers to be used (either threads or processes). If a single worker is given it will
@@ -57,7 +57,7 @@ def _decide_processing_type(workers: Optional[int], multiprocess: bool) -> _Proc
 def parallelize(
     function: Callable[..., _OutputType],
     *params: Iterable[Any],
-    workers: Optional[int],
+    workers: int | None,
     multiprocess: bool = True,
     **tqdm_kwargs: Any,
 ) -> List[_OutputType]:
@@ -142,7 +142,7 @@ def join_futures(futures: List[Future], **tqdm_kwargs: Any) -> List[Any]:
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `futures`.
     """
-    results: List[Optional[Any]] = [None] * len(futures)
+    results: List[Any | None] = [None] * len(futures)
     for position, result in join_futures_iter(futures, **tqdm_kwargs):
         results[position] = result
 

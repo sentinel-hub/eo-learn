@@ -24,11 +24,9 @@ from typing import (
     Literal,
     Mapping,
     MutableMapping,
-    Optional,
     Set,
     Tuple,
     TypeVar,
-    Union,
     cast,
     overload,
 )
@@ -75,7 +73,7 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
 
     FORBIDDEN_CHARS = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
 
-    def __init__(self, feature_dict: Mapping[str, Union[T, FeatureIO[T]]], feature_type: FeatureType):
+    def __init__(self, feature_dict: Mapping[str, T | FeatureIO[T]], feature_type: FeatureType):
         """
         :param feature_dict: A dictionary of feature names and values
         :param feature_type: Type of features
@@ -85,7 +83,7 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
         self.feature_type = feature_type
         self._content = dict(feature_dict.items())
 
-    def __setitem__(self, feature_name: str, value: Union[T, FeatureIO[T]]) -> None:
+    def __setitem__(self, feature_name: str, value: T | FeatureIO[T]) -> None:
         """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
         transform value in correct form.
         """
@@ -117,7 +115,7 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
 
         return value
 
-    def _get_unloaded(self, feature_name: str) -> Union[T, FeatureIO[T]]:
+    def _get_unloaded(self, feature_name: str) -> T | FeatureIO[T]:
         """Returns the value, bypassing lazy-loading mechanisms."""
         return self._content[feature_name]
 
@@ -228,25 +226,25 @@ class EOPatch:
 
     # establish types of property value holders
     _timestamps: List[dt.datetime]
-    _bbox: Optional[BBox]
-    _meta_info: Union[FeatureIOJson, _FeatureDictJson]
+    _bbox: BBox | None
+    _meta_info: FeatureIOJson | _FeatureDictJson
 
     def __init__(
         self,
         *,
-        data: Optional[Mapping[str, np.ndarray]] = None,
-        mask: Optional[Mapping[str, np.ndarray]] = None,
-        scalar: Optional[Mapping[str, np.ndarray]] = None,
-        label: Optional[Mapping[str, np.ndarray]] = None,
-        vector: Optional[Mapping[str, gpd.GeoDataFrame]] = None,
-        data_timeless: Optional[Mapping[str, np.ndarray]] = None,
-        mask_timeless: Optional[Mapping[str, np.ndarray]] = None,
-        scalar_timeless: Optional[Mapping[str, np.ndarray]] = None,
-        label_timeless: Optional[Mapping[str, np.ndarray]] = None,
-        vector_timeless: Optional[Mapping[str, gpd.GeoDataFrame]] = None,
-        meta_info: Optional[Mapping[str, Any]] = None,
-        bbox: Optional[BBox] = None,
-        timestamps: Optional[List[dt.datetime]] = None,
+        data: Mapping[str, np.ndarray] | None = None,
+        mask: Mapping[str, np.ndarray] | None = None,
+        scalar: Mapping[str, np.ndarray] | None = None,
+        label: Mapping[str, np.ndarray] | None = None,
+        vector: Mapping[str, gpd.GeoDataFrame] | None = None,
+        data_timeless: Mapping[str, np.ndarray] | None = None,
+        mask_timeless: Mapping[str, np.ndarray] | None = None,
+        scalar_timeless: Mapping[str, np.ndarray] | None = None,
+        label_timeless: Mapping[str, np.ndarray] | None = None,
+        vector_timeless: Mapping[str, gpd.GeoDataFrame] | None = None,
+        meta_info: Mapping[str, Any] | None = None,
+        bbox: BBox | None = None,
+        timestamps: List[dt.datetime] | None = None,
     ):
         self.data: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(data or {}, FeatureType.DATA)
         self.mask: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(mask or {}, FeatureType.MASK)
@@ -296,12 +294,12 @@ class EOPatch:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
 
     @property
-    def bbox(self) -> Optional[BBox]:
+    def bbox(self) -> BBox | None:
         """A property for handling the `bbox` attribute."""
         return self._bbox
 
     @bbox.setter
-    def bbox(self, value: Optional[BBox]) -> None:
+    def bbox(self, value: BBox | None) -> None:
         if not (isinstance(value, BBox) or value is None):
             raise TypeError(f"Cannot assign {value} as bbox. Should be a `BBox` object.")
         if value is None:
@@ -317,7 +315,7 @@ class EOPatch:
         return self._meta_info  # type: ignore[return-value] # mypy cannot verify due to mutations
 
     @meta_info.setter
-    def meta_info(self, value: Union[Mapping[str, Any], FeatureIOJson]) -> None:
+    def meta_info(self, value: Mapping[str, Any] | FeatureIOJson) -> None:
         self._meta_info = value if isinstance(value, FeatureIOJson) else _FeatureDictJson(value, FeatureType.META_INFO)
 
     def __setattr__(self, key: str, value: object) -> None:
@@ -331,20 +329,20 @@ class EOPatch:
         super().__setattr__(key, value)
 
     @overload
-    def __getitem__(self, key: Union[Literal[FeatureType.BBOX], Tuple[Literal[FeatureType.BBOX], Any]]) -> BBox:
+    def __getitem__(self, key: Literal[FeatureType.BBOX] | Tuple[Literal[FeatureType.BBOX], Any]) -> BBox:
         ...
 
     @overload
     def __getitem__(
-        self, key: Union[Literal[FeatureType.TIMESTAMPS], Tuple[Literal[FeatureType.TIMESTAMPS], Any]]
+        self, key: Literal[FeatureType.TIMESTAMPS] | Tuple[Literal[FeatureType.TIMESTAMPS], Any]
     ) -> List[dt.datetime]:
         ...
 
     @overload
-    def __getitem__(self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+    def __getitem__(self, key: FeatureType | Tuple[FeatureType, str | None | EllipsisType]) -> Any:
         ...
 
-    def __getitem__(self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]]) -> Any:
+    def __getitem__(self, key: FeatureType | Tuple[FeatureType, str | None | EllipsisType]) -> Any:
         """Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name).
 
         :param key: Feature type or a (feature_type, feature_name) pair.
@@ -356,9 +354,7 @@ class EOPatch:
             return value[feature_name]
         return value
 
-    def __setitem__(
-        self, key: Union[FeatureType, Tuple[FeatureType, Union[str, None, EllipsisType]]], value: Any
-    ) -> None:
+    def __setitem__(self, key: FeatureType | Tuple[FeatureType, str | None | EllipsisType], value: Any) -> None:
         """Sets a new value to the given FeatureType or tuple of (feature_type, feature_name)."""
         feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
         ftype_attr = FeatureType(feature_type).value
@@ -368,7 +364,7 @@ class EOPatch:
         else:
             setattr(self, ftype_attr, value)
 
-    def __delitem__(self, feature: Union[FeatureType, FeatureSpec]) -> None:
+    def __delitem__(self, feature: FeatureType | FeatureSpec) -> None:
         """Deletes the selected feature type or feature."""
         if isinstance(feature, tuple):
             feature_type, feature_name = feature
@@ -490,7 +486,7 @@ class EOPatch:
                 new_eopatch[feature_type][feature_name] = self[feature_type]._get_unloaded(feature_name)  # noqa: SLF001
         return new_eopatch
 
-    def __deepcopy__(self, memo: Optional[dict] = None, features: FeaturesSpecification = ...) -> EOPatch:
+    def __deepcopy__(self, memo: dict | None = None, features: FeaturesSpecification = ...) -> EOPatch:
         """Returns a new EOPatch with deep copies of given features.
 
         :param memo: built-in parameter for memoization
@@ -578,7 +574,7 @@ class EOPatch:
         features: FeaturesSpecification = ...,
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
-        filesystem: Optional[FS] = None,
+        filesystem: FS | None = None,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -606,7 +602,7 @@ class EOPatch:
 
     @staticmethod
     def load(
-        path: str, features: FeaturesSpecification = ..., lazy_loading: bool = False, filesystem: Optional[FS] = None
+        path: str, features: FeaturesSpecification = ..., lazy_loading: bool = False, filesystem: FS | None = None
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
 
@@ -640,8 +636,8 @@ class EOPatch:
         self,
         *eopatches: EOPatch,
         features: FeaturesSpecification = ...,
-        time_dependent_op: Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable] = None,
-        timeless_op: Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable] = None,
+        time_dependent_op: Literal[None, "concatenate", "min", "max", "mean", "median"] | Callable = None,
+        timeless_op: Literal[None, "concatenate", "min", "max", "mean", "median"] | Callable = None,
     ) -> EOPatch:
         """Merge features of given EOPatches into a new EOPatch.
 
@@ -697,12 +693,12 @@ class EOPatch:
         self,
         feature: FeatureSpec,
         *,
-        times: Union[List[int], slice, None] = None,
-        channels: Union[List[int], slice, None] = None,
-        channel_names: Optional[List[str]] = None,
-        rgb: Optional[Tuple[int, int, int]] = None,
-        backend: Union[str, PlotBackend] = "matplotlib",
-        config: Optional[PlotConfig] = None,
+        times: List[int] | slice | None = None,
+        channels: List[int] | slice | None = None,
+        channel_names: List[str] | None = None,
+        rgb: Tuple[int, int, int] | None = None,
+        backend: str | PlotBackend = "matplotlib",
+        config: PlotConfig | None = None,
         **kwargs: Any,
     ) -> object:
         """Plots an `EOPatch` feature.

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import partial
-from typing import Optional, Protocol, Tuple, Union, cast
+from typing import Protocol, Tuple, cast
 
 import cv2
 import numpy as np
@@ -86,17 +86,17 @@ class CloudMaskTask(EOTask):
         data_feature: Tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
         is_data_feature: Tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
         all_bands: bool = True,
-        processing_resolution: Union[None, float, Tuple[float, float]] = None,
+        processing_resolution: None | float | Tuple[float, float] = None,
         max_proc_frames: int = 11,
-        mono_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
-        multi_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
-        mask_feature: Optional[Tuple[FeatureType, str]] = (FeatureType.MASK, "CLM_INTERSSIM"),
+        mono_features: Tuple[str | None, str | None] | None = None,
+        multi_features: Tuple[str | None, str | None] | None = None,
+        mask_feature: Tuple[FeatureType, str] | None = (FeatureType.MASK, "CLM_INTERSSIM"),
         mono_threshold: float = 0.4,
         multi_threshold: float = 0.5,
-        average_over: Optional[int] = 4,
-        dilation_size: Optional[int] = 2,
-        mono_classifier: Optional[ClassifierType] = None,
-        multi_classifier: Optional[ClassifierType] = None,
+        average_over: int | None = 4,
+        dilation_size: int | None = 2,
+        mono_classifier: ClassifierType | None = None,
+        multi_classifier: ClassifierType | None = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
@@ -178,7 +178,7 @@ class CloudMaskTask(EOTask):
             self.dil_kernel = None
 
     @staticmethod
-    def _parse_resolution_arg(resolution: Union[None, float, Tuple[float, float]]) -> Optional[Tuple[float, float]]:
+    def _parse_resolution_arg(resolution: None | float | Tuple[float, float]) -> Tuple[float, float] | None:
         """Parses initialization resolution argument"""
         if isinstance(resolution, (int, float)):
             resolution = resolution, resolution
@@ -364,10 +364,10 @@ class CloudMaskTask(EOTask):
         img_size = height * width
         multi_proba = np.empty(n_times * img_size)
 
-        local_avg: Optional[np.ndarray] = None
-        local_var: Optional[np.ndarray] = None
-        prev_left: Optional[int] = None
-        prev_right: Optional[int] = None
+        local_avg: np.ndarray | None = None
+        local_var: np.ndarray | None = None
+        prev_left: int | None = None
+        prev_right: int | None = None
 
         for t_idx in range(n_times):
             # Extract temporal window indices
@@ -398,8 +398,8 @@ class CloudMaskTask(EOTask):
 
     def _update_batches(
         self,
-        local_avg: Optional[np.ndarray],
-        local_var: Optional[np.ndarray],
+        local_avg: np.ndarray | None,
+        local_var: np.ndarray | None,
         bands: np.ndarray,
         is_data: np.ndarray,
         sigma: float,

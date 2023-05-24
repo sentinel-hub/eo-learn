@@ -17,7 +17,7 @@ import inspect
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, TypeVar
 
 from sentinelhub.exceptions import deprecated_function
 
@@ -82,17 +82,17 @@ class EOTask(metaclass=ABCMeta):
     @staticmethod
     def parse_feature(
         feature: SingleFeatureSpec,
-        eopatch: Optional[EOPatch] = None,
-        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
-    ) -> Tuple[FeatureType, Optional[str]]:
+        eopatch: EOPatch | None = None,
+        allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
+    ) -> Tuple[FeatureType, str | None]:
         """See `eolearn.core.utils.parse_feature`."""
         return parse_feature(feature, eopatch, allowed_feature_types)
 
     @staticmethod
     def parse_features(
         features: FeaturesSpecification,
-        eopatch: Optional[EOPatch] = None,
-        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+        eopatch: EOPatch | None = None,
+        allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
     ) -> List[FeatureSpec]:
         """See `eolearn.core.utils.parse_features`."""
         return parse_features(features, eopatch, allowed_feature_types)
@@ -100,7 +100,7 @@ class EOTask(metaclass=ABCMeta):
     @staticmethod
     def get_feature_parser(
         features: FeaturesSpecification,
-        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+        allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
     ) -> FeatureParser:
         """See :class:`FeatureParser<eolearn.core.utils.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)

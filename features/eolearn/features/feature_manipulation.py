@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Union, cast
+from typing import Any, Callable, Dict, Iterable, List, Literal, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
@@ -40,7 +40,7 @@ class SimpleFilterTask(EOTask):
     def __init__(
         self,
         feature: SingleFeatureSpec,
-        filter_func: Union[Callable[[np.ndarray], bool], Callable[[dt.datetime], bool]],
+        filter_func: Callable[[np.ndarray], bool] | Callable[[dt.datetime], bool],
         filter_features: FeaturesSpecification = ...,
     ):
         """
@@ -219,10 +219,10 @@ class LinearFunctionTask(MapFeatureTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_features: Optional[FeaturesSpecification] = None,
+        output_features: FeaturesSpecification | None = None,
         slope: float = 1,
         intercept: float = 0,
-        dtype: Union[str, type, np.dtype, None] = None,
+        dtype: str | type | np.dtype | None = None,
     ):
         """
         :param input_features: Feature or features on which the function is used.

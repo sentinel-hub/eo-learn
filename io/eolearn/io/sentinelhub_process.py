@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Iterable, List, Literal, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Literal, Tuple, cast
 
 import numpy as np
 
@@ -47,14 +47,14 @@ class SentinelHubInputBaseTask(EOTask, metaclass=ABCMeta):
     def __init__(
         self,
         data_collection: DataCollection,
-        size: Optional[Tuple[int, int]] = None,
-        resolution: Optional[Union[float, Tuple[float, float]]] = None,
-        cache_folder: Optional[str] = None,
-        config: Optional[SHConfig] = None,
-        max_threads: Optional[int] = None,
-        upsampling: Optional[ResamplingType] = None,
-        downsampling: Optional[ResamplingType] = None,
-        session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        size: Tuple[int, int] | None = None,
+        resolution: float | Tuple[float, float] | None = None,
+        cache_folder: str | None = None,
+        config: SHConfig | None = None,
+        max_threads: int | None = None,
+        upsampling: ResamplingType | None = None,
+        downsampling: ResamplingType | None = None,
+        session_loader: Callable[[], SentinelHubSession] | None = None,
     ):
         """
         :param data_collection: A collection of requested satellite data.
@@ -84,10 +84,10 @@ class SentinelHubInputBaseTask(EOTask, metaclass=ABCMeta):
 
     def execute(
         self,
-        eopatch: Optional[EOPatch] = None,
-        bbox: Optional[BBox] = None,
-        time_interval: Optional[RawTimeIntervalType] = None,  # should be kept at this to prevent code-breaks
-        geometry: Optional[Geometry] = None,
+        eopatch: EOPatch | None = None,
+        bbox: BBox | None = None,
+        time_interval: RawTimeIntervalType | None = None,  # should be kept at this to prevent code-breaks
+        geometry: Geometry | None = None,
     ) -> EOPatch:
         """Main execute method for the Process API tasks.
         The `geometry` is used only in conjunction with the `bbox` and does not act as a replacement."""
@@ -140,7 +140,7 @@ class SentinelHubInputBaseTask(EOTask, metaclass=ABCMeta):
         raise ValueError("Size or resolution for the requests should be provided!")
 
     @staticmethod
-    def _consolidate_bbox(bbox: Optional[BBox], eopatch_bbox: Optional[BBox]) -> BBox:
+    def _consolidate_bbox(bbox: BBox | None, eopatch_bbox: BBox | None) -> BBox:
         if eopatch_bbox is None:
             if bbox is None:
                 raise ValueError("Either the eopatch or the task must provide valid bbox.")
@@ -157,17 +157,17 @@ class SentinelHubInputBaseTask(EOTask, metaclass=ABCMeta):
     @abstractmethod
     def _build_requests(
         self,
-        bbox: Optional[BBox],
+        bbox: BBox | None,
         size_x: int,
         size_y: int,
-        timestamps: Optional[List[dt.datetime]],
-        time_interval: Optional[RawTimeIntervalType],
-        geometry: Optional[Geometry],
+        timestamps: List[dt.datetime] | None,
+        time_interval: RawTimeIntervalType | None,
+        geometry: Geometry | None,
     ) -> List[SentinelHubRequest]:
         """Build requests"""
 
     @abstractmethod
-    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: RawTimeIntervalType | None, bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
 
 
@@ -180,18 +180,18 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         features: FeaturesSpecification,
         evalscript: str,
         data_collection: DataCollection,
-        size: Optional[Tuple[int, int]] = None,
-        resolution: Optional[Union[float, Tuple[float, float]]] = None,
-        maxcc: Optional[float] = None,
-        time_difference: Optional[dt.timedelta] = None,
-        mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
-        cache_folder: Optional[str] = None,
-        config: Optional[SHConfig] = None,
-        max_threads: Optional[int] = None,
-        upsampling: Optional[ResamplingType] = None,
-        downsampling: Optional[ResamplingType] = None,
-        aux_request_args: Optional[dict] = None,
-        session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        size: Tuple[int, int] | None = None,
+        resolution: float | Tuple[float, float] | None = None,
+        maxcc: float | None = None,
+        time_difference: dt.timedelta | None = None,
+        mosaicking_order: str | MosaickingOrder | None = None,
+        cache_folder: str | None = None,
+        config: SHConfig | None = None,
+        max_threads: int | None = None,
+        upsampling: ResamplingType | None = None,
+        downsampling: ResamplingType | None = None,
+        aux_request_args: dict | None = None,
+        session_loader: Callable[[], SentinelHubSession] | None = None,
         timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     ):
         """
@@ -268,7 +268,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
         return responses
 
-    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: RawTimeIntervalType | None, bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if any(feat_type.is_timeless() for feat_type, _, _ in self.features if feat_type.is_array()):
             return []
@@ -285,16 +285,16 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
     def _build_requests(
         self,
-        bbox: Optional[BBox],
+        bbox: BBox | None,
         size_x: int,
         size_y: int,
-        timestamps: Optional[List[dt.datetime]],
-        time_interval: Optional[RawTimeIntervalType],
-        geometry: Optional[Geometry],
+        timestamps: List[dt.datetime] | None,
+        time_interval: RawTimeIntervalType | None,
+        geometry: Geometry | None,
     ) -> List[SentinelHubRequest]:
         """Defines request timestamps and builds requests. In case `timestamps` is either `None` or an empty list it
         still has to create at least one request in order to obtain back number of bands of responses."""
-        dates: List[Optional[Tuple[Optional[dt.datetime], Optional[dt.datetime]]]]
+        dates: List[Tuple[dt.datetime | None, dt.datetime | None] | None]
         if timestamps:
             dates = [(date - self.time_difference, date + self.time_difference) for date in timestamps]
         elif timestamps is None:
@@ -306,11 +306,11 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
 
     def _create_sh_request(
         self,
-        time_interval: Optional[RawTimeIntervalType],
-        bbox: Optional[BBox],
+        time_interval: RawTimeIntervalType | None,
+        bbox: BBox | None,
         size_x: int,
         size_y: int,
-        geometry: Optional[Geometry],
+        geometry: Geometry | None,
     ) -> SentinelHubRequest:
         """Create an instance of SentinelHubRequest"""
         return SentinelHubRequest(
@@ -366,24 +366,24 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
     def __init__(
         self,
         data_collection: DataCollection,
-        size: Optional[Tuple[int, int]] = None,
-        resolution: Optional[Union[float, Tuple[float, float]]] = None,
-        bands_feature: Optional[Tuple[FeatureType, str]] = None,
-        bands: Optional[List[str]] = None,
-        additional_data: Optional[List[Tuple[FeatureType, str]]] = None,
-        evalscript: Optional[str] = None,
-        maxcc: Optional[float] = None,
-        time_difference: Optional[dt.timedelta] = None,
-        cache_folder: Optional[str] = None,
-        config: Optional[SHConfig] = None,
-        max_threads: Optional[int] = None,
-        bands_dtype: Union[None, np.dtype, type] = None,
+        size: Tuple[int, int] | None = None,
+        resolution: float | Tuple[float, float] | None = None,
+        bands_feature: Tuple[FeatureType, str] | None = None,
+        bands: List[str] | None = None,
+        additional_data: List[Tuple[FeatureType, str]] | None = None,
+        evalscript: str | None = None,
+        maxcc: float | None = None,
+        time_difference: dt.timedelta | None = None,
+        cache_folder: str | None = None,
+        config: SHConfig | None = None,
+        max_threads: int | None = None,
+        bands_dtype: None | np.dtype | type = None,
         single_scene: bool = False,
-        mosaicking_order: Optional[Union[str, MosaickingOrder]] = None,
-        upsampling: Optional[ResamplingType] = None,
-        downsampling: Optional[ResamplingType] = None,
-        aux_request_args: Optional[dict] = None,
-        session_loader: Optional[Callable[[], SentinelHubSession]] = None,
+        mosaicking_order: str | MosaickingOrder | None = None,
+        upsampling: ResamplingType | None = None,
+        downsampling: ResamplingType | None = None,
+        aux_request_args: dict | None = None,
+        session_loader: Callable[[], SentinelHubSession] | None = None,
         timestamp_filter: Callable[[List[dt.datetime], dt.timedelta], List[dt.datetime]] = filter_times,
     ):
         """
@@ -442,13 +442,13 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             self.requested_bands = parse_data_collection_bands(data_collection, bands)
 
         self.requested_additional_bands = []
-        self.additional_data: Optional[List[FeatureRenameSpec]] = None
+        self.additional_data: List[FeatureRenameSpec] | None = None
         if additional_data is not None:
             self.additional_data = parse_renamed_features(additional_data)  # parser gives too general type
             additional_bands = cast(List[str], [band for _, band, _ in self.additional_data])
             self.requested_additional_bands = parse_data_collection_bands(data_collection, additional_bands)
 
-    def _get_timestamps(self, time_interval: Optional[RawTimeIntervalType], bbox: BBox) -> List[dt.datetime]:
+    def _get_timestamps(self, time_interval: RawTimeIntervalType | None, bbox: BBox) -> List[dt.datetime]:
         """Get the timestamp array needed as a parameter for downloading the images"""
         if self.single_scene:
             return [time_interval[0]]  # type: ignore[index, list-item]
@@ -465,16 +465,16 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
     def _build_requests(
         self,
-        bbox: Optional[BBox],
+        bbox: BBox | None,
         size_x: int,
         size_y: int,
-        timestamps: Optional[List[dt.datetime]],
-        time_interval: Optional[RawTimeIntervalType],
-        geometry: Optional[Geometry],
+        timestamps: List[dt.datetime] | None,
+        time_interval: RawTimeIntervalType | None,
+        geometry: Geometry | None,
     ) -> List[SentinelHubRequest]:
         """Build requests"""
         if timestamps is None:
-            intervals: List[Optional[RawTimeIntervalType]] = [None]
+            intervals: List[RawTimeIntervalType | None] = [None]
         elif self.single_scene:
             intervals = [parse_time_interval(time_interval)]
         else:
@@ -484,11 +484,11 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
 
     def _create_sh_request(
         self,
-        time_interval: Optional[RawTimeIntervalType],
-        bbox: Optional[BBox],
+        time_interval: RawTimeIntervalType | None,
+        bbox: BBox | None,
         size_x: int,
         size_y: int,
-        geometry: Optional[Geometry],
+        geometry: Geometry | None,
     ) -> SentinelHubRequest:
         """Create an instance of SentinelHubRequest"""
         responses = [
@@ -559,9 +559,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         eopatch[bands_feature] = np.concatenate(processed_bands, axis=-1)
 
     @staticmethod
-    def _extract_array(
-        tiffs: List[np.ndarray], idx: int, shape: Tuple[int, ...], dtype: Union[type, np.dtype]
-    ) -> np.ndarray:
+    def _extract_array(tiffs: List[np.ndarray], idx: int, shape: Tuple[int, ...], dtype: type | np.dtype) -> np.ndarray:
         """Extract a numpy array from the received tiffs"""
         feature_arrays = (np.atleast_3d(img)[..., idx] for img in tiffs)
         return np.asarray(list(feature_arrays), dtype=dtype).reshape(*shape, 1)
@@ -575,7 +573,7 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
 
     def __init__(
         self,
-        feature: Union[None, str, FeatureSpec] = None,
+        feature: None | str | FeatureSpec = None,
         data_collection: DataCollection = DataCollection.DEM,
         **kwargs: Any,
     ):
@@ -616,7 +614,7 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
 
     def __init__(
         self,
-        sen2cor_classification: Union[Literal["SCL", "CLD", "SNW"], List[Literal["SCL", "CLD", "SNW"]]],
+        sen2cor_classification: Literal["SCL", "CLD", "SNW"] | List[Literal["SCL", "CLD", "SNW"]],
         data_collection: DataCollection = DataCollection.SENTINEL2_L2A,
         **kwargs: Any,
     ):

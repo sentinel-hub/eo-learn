@@ -32,7 +32,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
 )
 
 import dateutil.parser
@@ -75,9 +74,9 @@ TIMESTAMPS_FILENAME = "timestamps"
 class FilesystemDataInfo:
     """Information about data that is present on the filesystem. Fields represent paths to relevant file."""
 
-    timestamps: Optional[str] = None
-    bbox: Optional[str] = None
-    meta_info: Optional[str] = None
+    timestamps: str | None = None
+    bbox: str | None = None
+    meta_info: str | None = None
     features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
     def iterate_features(self) -> Iterator[Tuple[Tuple[FeatureType, str], str]]:
@@ -164,7 +163,7 @@ def remove_redundant_files(
 ) -> None:
     """Removes files that should have been overwritten but were not due to different compression levels."""
 
-    def has_different_compression(path: Optional[str]) -> bool:
+    def has_different_compression(path: str | None) -> bool:
         return path is not None and MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
 
     files_to_remove = []
@@ -216,7 +215,7 @@ def load_eopatch_content(
 
 def _load_meta_features(
     filesystem: FS, file_information: FilesystemDataInfo, features: FeaturesSpecification
-) -> Tuple[Optional[FeatureIOBBox], Optional[FeatureIOTimestamps], Optional[FeatureIOJson]]:
+) -> Tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, FeatureIOJson | None]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
@@ -295,7 +294,7 @@ def get_filesystem_data_info(
 @deprecated_function(category=EODeprecationWarning)
 def walk_filesystem(
     filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
+) -> Iterator[Tuple[FeatureType, str | EllipsisType, str]]:
     """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
@@ -361,7 +360,7 @@ def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesyste
             )
 
 
-def _to_lowercase(ftype: FeatureType, fname: Optional[str], *_: Any) -> Tuple[FeatureType, Optional[str]]:
+def _to_lowercase(ftype: FeatureType, fname: str | None, *_: Any) -> Tuple[FeatureType, str | None]:
     """Transforms a feature to it's lowercase representation."""
     return ftype, fname if fname is None else fname.lower()
 
@@ -389,7 +388,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         self.path = path
         self.filesystem = filesystem
 
-        self.loaded_value: Optional[T] = None
+        self.loaded_value: T | None = None
 
     @classmethod
     @abstractmethod
@@ -416,7 +415,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         return self.loaded_value
 
     @abstractmethod
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> T:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> T:
         """Loads from a file and decodes content."""
 
     @classmethod
@@ -453,7 +452,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def _write_to_file(cls, data: T, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
+    def _write_to_file(cls, data: T, file: BinaryIO | gzip.GzipFile, path: str) -> None:
         """Writes data to a file in the appropriate way."""
 
 
@@ -464,11 +463,11 @@ class FeatureIONumpy(FeatureIO[np.ndarray]):
     def get_file_format(cls) -> MimeType:
         return MimeType.NPY
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> np.ndarray:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> np.ndarray:
         return np.load(file, allow_pickle=True)
 
     @classmethod
-    def _write_to_file(cls, data: np.ndarray, file: Union[BinaryIO, gzip.GzipFile], _: str) -> None:
+    def _write_to_file(cls, data: np.ndarray, file: BinaryIO | gzip.GzipFile, _: str) -> None:
         return np.save(file, data)
 
 
@@ -479,7 +478,7 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
     def get_file_format(cls) -> MimeType:
         return MimeType.GPKG
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> gpd.GeoDataFrame:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> gpd.GeoDataFrame:
         dataframe = gpd.read_file(file)
 
         if dataframe.crs is not None:
@@ -494,7 +493,7 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
         return dataframe
 
     @classmethod
-    def _write_to_file(cls, data: gpd.GeoDataFrame, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
+    def _write_to_file(cls, data: gpd.GeoDataFrame, file: BinaryIO | gzip.GzipFile, path: str) -> None:
         layer = fs.path.basename(path)
         with warnings.catch_warnings():
             warnings.filterwarnings(
@@ -512,11 +511,11 @@ class FeatureIOJson(FeatureIO[T]):
     def get_file_format(cls) -> MimeType:
         return MimeType.JSON
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> T:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> T:
         return json.load(file)
 
     @classmethod
-    def _write_to_file(cls, data: T, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
+    def _write_to_file(cls, data: T, file: BinaryIO | gzip.GzipFile, path: str) -> None:
         try:
             json_data = json.dumps(data, indent=2, default=_better_jsonify)
         except TypeError as exception:
@@ -531,7 +530,7 @@ class FeatureIOJson(FeatureIO[T]):
 class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> List[datetime.datetime]:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> List[datetime.datetime]:
         data = json.load(file)
         return [dateutil.parser.parse(timestamp) for timestamp in data]
 
@@ -543,12 +542,12 @@ class FeatureIOBBox(FeatureIO[BBox]):
     def get_file_format(cls) -> MimeType:
         return MimeType.GEOJSON
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> BBox:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> BBox:
         json_data = json.load(file)
         return Geometry.from_geojson(json_data).bbox
 
     @classmethod
-    def _write_to_file(cls, data: BBox, file: Union[BinaryIO, gzip.GzipFile], _: str) -> None:
+    def _write_to_file(cls, data: BBox, file: BinaryIO | gzip.GzipFile, _: str) -> None:
         json_data = json.dumps(data.geojson, indent=2)
         file.write(json_data.encode())
 

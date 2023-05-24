@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Callable, Iterable, List, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
 from ..types import (
@@ -90,7 +90,7 @@ class FeatureParser:
     def __init__(
         self,
         features: FeaturesSpecification,
-        allowed_feature_types: Union[Iterable[FeatureType], Callable[[FeatureType], bool], EllipsisType] = ...,
+        allowed_feature_types: Iterable[FeatureType] | Callable[[FeatureType], bool] | EllipsisType = ...,
     ):
         """
         :param features: A collection of features in one of the supported formats
@@ -159,7 +159,7 @@ class FeatureParser:
 
     def _parse_sequence(
         self,
-        features: Union[SingleFeatureSpec, SequenceFeatureSpec],
+        features: SingleFeatureSpec | SequenceFeatureSpec,
     ) -> List[_ParserFeaturesSpec]:
         """Implements parsing and validation in case the input is a tuple describing a single feature or a sequence."""
 
@@ -200,7 +200,7 @@ class FeatureParser:
         parsed_name = self._parse_feature_name(feature_type, feature_name)
         return (feature_type, *parsed_name)
 
-    def _parse_feature_type(self, feature_type: Union[str, FeatureType], *, message_about_position: str) -> FeatureType:
+    def _parse_feature_type(self, feature_type: str | FeatureType, *, message_about_position: str) -> FeatureType:
         """Tries to extract a feature type if possible, fails otherwise.
 
         The parameter `message_about_position` is used for more informative error messages.
@@ -247,14 +247,14 @@ class FeatureParser:
                 f" {specification} instead."
             )
 
-    def get_feature_specifications(self) -> List[Tuple[FeatureType, Union[str, EllipsisType]]]:
+    def get_feature_specifications(self) -> List[Tuple[FeatureType, str | EllipsisType]]:
         """Returns the feature specifications in a more streamlined fashion.
 
         Requests for all features, e.g. `(FeatureType.DATA, ...)`, are returned directly.
         """
         return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
 
-    def get_features(self, eopatch: Optional[EOPatch] = None) -> List[FeatureSpec]:
+    def get_features(self, eopatch: EOPatch | None = None) -> List[FeatureSpec]:
         """Returns a list of `(feature_type, feature_name)` pairs.
 
         For features that specify renaming, the new name of the feature is ignored.
@@ -267,7 +267,7 @@ class FeatureParser:
         renamed_features = self.get_renamed_features(eopatch)
         return [feature[:2] for feature in renamed_features]  # pattern unpacking messes with typechecking
 
-    def get_renamed_features(self, eopatch: Optional[EOPatch] = None) -> List[FeatureRenameSpec]:
+    def get_renamed_features(self, eopatch: EOPatch | None = None) -> List[FeatureRenameSpec]:
         """Returns a list of `(feature_type, old_name, new_name)` triples.
 
         For features without a specified renaming the new name is equal to the old one.
@@ -303,9 +303,9 @@ class FeatureParser:
 
 def parse_feature(
     feature: SingleFeatureSpec,
-    eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
-) -> Tuple[FeatureType, Optional[str]]:
+    eopatch: EOPatch | None = None,
+    allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
+) -> Tuple[FeatureType, str | None]:
     """Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
@@ -319,8 +319,8 @@ def parse_feature(
 
 def parse_renamed_feature(
     feature: SingleFeatureSpec,
-    eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+    eopatch: EOPatch | None = None,
+    allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
 ) -> FeatureRenameSpec:
     """Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
 
@@ -335,8 +335,8 @@ def parse_renamed_feature(
 
 def parse_features(
     features: FeaturesSpecification,
-    eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+    eopatch: EOPatch | None = None,
+    allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
 ) -> List[FeatureSpec]:
     """Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
@@ -347,8 +347,8 @@ def parse_features(
 
 def parse_renamed_features(
     features: FeaturesSpecification,
-    eopatch: Optional[EOPatch] = None,
-    allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+    eopatch: EOPatch | None = None,
+    allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
 ) -> List[FeatureRenameSpec]:
     """Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 

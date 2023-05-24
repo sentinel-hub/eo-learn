@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import datetime as dt
 from abc import ABCMeta, abstractmethod
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 import dateutil.parser
 import geopandas as gpd
@@ -45,10 +45,10 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         self,
         feature: Tuple[FeatureType, str],
         apikey: str,
-        query: Optional[dict] = None,
-        units: Optional[dict] = None,
+        query: dict | None = None,
+        units: dict | None = None,
         time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008, RUF100
-        cache_folder: Optional[str] = None,
+        cache_folder: str | None = None,
         cache_max_age: int = 604800,
     ):
         """
@@ -74,7 +74,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         self.time_difference = time_difference
 
     @staticmethod
-    def _get_modified_eopatch(eopatch: Optional[EOPatch], bbox: Optional[BBox]) -> Tuple[EOPatch, BBox]:
+    def _get_modified_eopatch(eopatch: EOPatch | None, bbox: BBox | None) -> Tuple[EOPatch, BBox]:
         if bbox is not None:
             if eopatch is None:
                 eopatch = EOPatch(bbox=bbox)
@@ -88,7 +88,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
             raise ValueError("Bounding box is not provided")
         return eopatch, eopatch.bbox
 
-    def _prepare_time_intervals(self, eopatch: EOPatch, time_interval: Optional[RawTimeIntervalType]) -> List[str]:
+    def _prepare_time_intervals(self, eopatch: EOPatch, time_interval: RawTimeIntervalType | None) -> List[str]:
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
         if not eopatch.timestamps and not time_interval:
             raise ValueError(
@@ -117,11 +117,11 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
 
     def execute(
         self,
-        eopatch: Optional[EOPatch] = None,
+        eopatch: EOPatch | None = None,
         *,
-        query: Optional[dict] = None,
-        bbox: Optional[BBox] = None,
-        time_interval: Optional[RawTimeIntervalType] = None,
+        query: dict | None = None,
+        bbox: BBox | None = None,
+        time_interval: RawTimeIntervalType | None = None,
     ) -> EOPatch:
         """Execute method that adds new meteoblue data into an EOPatch
 

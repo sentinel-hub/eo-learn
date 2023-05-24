@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Sequence
 
 from graphviz import Digraph
 
@@ -24,7 +24,7 @@ class EOWorkflowVisualization:
         """
         self.nodes = nodes
 
-    def dependency_graph(self, filename: Optional[str] = None) -> Digraph:
+    def dependency_graph(self, filename: str | None = None) -> Digraph:
         """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,

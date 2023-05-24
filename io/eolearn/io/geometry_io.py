@@ -12,7 +12,7 @@ from __future__ import annotations
 import abc
 import logging
 from contextlib import nullcontext
-from typing import Any, Optional, Union
+from typing import Any
 
 import boto3
 import fiona
@@ -34,7 +34,7 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
     """Base Vector Import Task, implementing common methods"""
 
     def __init__(
-        self, feature: FeatureSpec, reproject: bool = True, clip: bool = False, config: Optional[SHConfig] = None
+        self, feature: FeatureSpec, reproject: bool = True, clip: bool = False, config: SHConfig | None = None
     ):
         """
         :param feature: A vector feature into which to import data
@@ -48,10 +48,10 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
         self.clip = clip
 
     @abc.abstractmethod
-    def _load_vector_data(self, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
+    def _load_vector_data(self, bbox: BBox | None) -> gpd.GeoDataFrame:
         """Loads vector data given a bounding box"""
 
-    def _reproject_and_clip(self, vectors: gpd.GeoDataFrame, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
+    def _reproject_and_clip(self, vectors: gpd.GeoDataFrame, bbox: BBox | None) -> gpd.GeoDataFrame:
         """Method to reproject and clip vectors to the EOPatch crs and bbox"""
 
         if self.reproject:
@@ -73,7 +73,7 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
 
         return vectors
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, bbox: Optional[BBox] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch | None = None, *, bbox: BBox | None = None) -> EOPatch:
         """
         :param eopatch: An existing EOPatch. If none is provided it will create a new one.
         :param bbox: A bounding box for which to load data. By default, if none is provided, it will take a bounding box
@@ -105,8 +105,8 @@ class VectorImportTask(_BaseVectorImportTask):
         path: str,
         reproject: bool = True,
         clip: bool = False,
-        filesystem: Optional[FS] = None,
-        config: Optional[SHConfig] = None,
+        filesystem: FS | None = None,
+        config: SHConfig | None = None,
         **kwargs: Any,
     ):
         """
@@ -128,7 +128,7 @@ class VectorImportTask(_BaseVectorImportTask):
 
         self.fiona_kwargs = kwargs
         self._aws_session = None
-        self._dataset_crs: Optional[CRS] = None
+        self._dataset_crs: CRS | None = None
 
         super().__init__(feature=feature, reproject=reproject, clip=clip, config=config)
 
@@ -165,7 +165,7 @@ class VectorImportTask(_BaseVectorImportTask):
 
         return self._dataset_crs
 
-    def _load_vector_data(self, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
+    def _load_vector_data(self, bbox: BBox | None) -> gpd.GeoDataFrame:
         """Loads vector data either from S3 or local path"""
         bbox_bounds = bbox.transform_bounds(self.dataset_crs).geometry.bounds if bbox else None
 
@@ -188,7 +188,7 @@ class GeopediaVectorImportTask(_BaseVectorImportTask):
     def __init__(
         self,
         feature: FeatureSpec,
-        geopedia_table: Union[str, int],
+        geopedia_table: str | int,
         reproject: bool = True,
         clip: bool = False,
         **kwargs: Any,
@@ -202,10 +202,10 @@ class GeopediaVectorImportTask(_BaseVectorImportTask):
         """
         self.geopedia_table = geopedia_table
         self.geopedia_kwargs = kwargs
-        self.dataset_crs: Optional[CRS] = None
+        self.dataset_crs: CRS | None = None
         super().__init__(feature=feature, reproject=reproject, clip=clip)
 
-    def _load_vector_data(self, bbox: Optional[BBox]) -> gpd.GeoDataFrame:
+    def _load_vector_data(self, bbox: BBox | None) -> gpd.GeoDataFrame:
         """Loads vector data from geopedia table"""
         prepared_bbox = bbox.transform_bounds(CRS.POP_WEB) if bbox else None
 

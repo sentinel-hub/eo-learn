@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from math import sqrt
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Tuple, Union, cast
 
 import numpy as np
 from shapely.geometry import Point, Polygon
@@ -21,7 +21,7 @@ from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 _FractionType = Union[float, Dict[int, float]]
 
 
-def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generator] = None) -> Point:
+def random_point_in_triangle(triangle: Polygon, rng: np.random.Generator | None = None) -> Point:
     """Selects a random point from an interior of a triangle.
 
     :param triangle: A triangle polygon.
@@ -44,7 +44,7 @@ def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generato
 def sample_by_values(
     image: np.ndarray,
     n_samples_per_value: Dict[int, int],
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
     replace: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Sample points from image with the amount of samples specified for each value.
@@ -133,7 +133,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):
         self,
         features_to_sample: FeaturesSpecification,
         *,
-        mask_of_samples: Optional[Tuple[FeatureType, str]] = None,
+        mask_of_samples: Tuple[FeatureType, str] | None = None,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -180,7 +180,7 @@ class FractionSamplingTask(BaseSamplingTask):
         features_to_sample: FeaturesSpecification,
         sampling_feature: SingleFeatureSpec,
         fraction: _FractionType,
-        exclude_values: Optional[List[int]] = None,
+        exclude_values: List[int] | None = None,
         replace: bool = False,
         **kwargs: Any,
     ):
@@ -230,9 +230,7 @@ class FractionSamplingTask(BaseSamplingTask):
             return {val: round(n * fraction[val]) for val, n in available.items() if val in fraction}
         return {val: round(n * self.fraction) for val, n in available.items()}
 
-    def execute(
-        self, eopatch: EOPatch, *, seed: Optional[int] = None, fraction: Optional[_FractionType] = None
-    ) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: int | None = None, fraction: _FractionType | None = None) -> EOPatch:
         """Execute random spatial sampling of specified features of eopatch
 
         :param eopatch: Input eopatch to be sampled
@@ -296,7 +294,7 @@ class BlockSamplingTask(BaseSamplingTask):
 
         return np.ones((height, width), dtype=np.uint8)
 
-    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[float] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: int | None = None, amount: float | None = None) -> EOPatch:
         """Execute a spatial sampling on features from a given EOPatch
 
         :param eopatch: Input eopatch to be sampled
