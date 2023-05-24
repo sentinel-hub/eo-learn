@@ -17,7 +17,7 @@ import tdigest as td
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
 
-ModeTypes = Literal["standard", "timewise", "monthly", "total"]
+ModeTypes = Union[Literal["standard", "timewise", "monthly", "total"], Callable]
 
 
 class TDigestTask(EOTask):
@@ -84,7 +84,8 @@ class TDigestTask(EOTask):
         for in_feature_, out_feature_, shape in _looper(
             in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch
         ):
-            eopatch[out_feature_] = _processing_function.get(self.mode, self.mode)(
+            processing_func = self.mode if callable(self.mode) else _processing_function[self.mode]
+            eopatch[out_feature_] = processing_func(
                 input_array=eopatch[in_feature_],
                 timestamps=eopatch.timestamps,
                 shape=shape,
