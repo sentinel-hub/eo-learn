@@ -166,7 +166,7 @@ class DirectedGraph(Generic[_T]):
         return copy.copy(self._adj_dict[vertex])
 
     @staticmethod
-    def from_edges(edges: Sequence[tuple[_T, _T]]) -> "DirectedGraph[_T]":
+    def from_edges(edges: Sequence[tuple[_T, _T]]) -> DirectedGraph[_T]:
         """Return DirectedGraph created from edges.
         :param edges: Pairs of objects that describe all the edges of the graph
         """
@@ -176,7 +176,7 @@ class DirectedGraph(Generic[_T]):
         return dag
 
     @staticmethod
-    def _is_cyclic(graph: "DirectedGraph") -> bool:
+    def _is_cyclic(graph: DirectedGraph) -> bool:
         """True if the directed graph contains a cycle. False otherwise.
 
         The algorithm is naive, running in O(V^2) time, and not intended for serious use! For production purposes on

@@ -118,7 +118,7 @@ class EOWorkflow:
         return dag
 
     @classmethod
-    def from_endnodes(cls, *endnodes: EONode) -> "EOWorkflow":
+    def from_endnodes(cls, *endnodes: EONode) -> EOWorkflow:
         """Constructs the EOWorkflow from the end-nodes by recursively extracting nodes in the workflow structure."""
         all_nodes: set[EONode] = set()
         memo: dict[EONode, set[EONode]] = {}
@@ -128,7 +128,7 @@ class EOWorkflow:
 
     def execute(
         self, input_kwargs: dict[EONode, dict[str, object]] | None = None, raise_errors: bool = True
-    ) -> "WorkflowResults":
+    ) -> WorkflowResults:
         """Executes the workflow.
 
         :param input_kwargs: External input arguments to the workflow. They have to be in a form of a dictionary where
@@ -363,7 +363,7 @@ class WorkflowResults:
         """Informs if the EOWorkflow execution failed."""
         return self.error_node_uid is not None
 
-    def drop_outputs(self) -> "WorkflowResults":
+    def drop_outputs(self) -> WorkflowResults:
         """Creates a new WorkflowResults object without outputs which can take a lot of memory."""
         new_params = {
             param.name: {} if param.name == "outputs" else getattr(self, param.name)

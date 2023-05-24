@@ -212,7 +212,7 @@ def test_with_lock(num_workers):
         handler.close()
         logger.removeHandler(handler)
 
-        with open(fp.name, "r") as log_file:
+        with open(fp.name) as log_file:
             lines = log_file.read().strip("\n ").split("\n")
 
         assert len(lines) == 2 * num_workers
@@ -235,7 +235,7 @@ def test_without_lock(num_workers):
         handler.close()
         logger.removeHandler(handler)
 
-        with open(fp.name, "r") as log_file:
+        with open(fp.name) as log_file:
             lines = log_file.read().strip("\n ").split("\n")
 
         assert len(lines) == 2 * num_workers
