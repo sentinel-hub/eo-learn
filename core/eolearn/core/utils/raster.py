@@ -56,7 +56,7 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
     return combined_data
 
 
-def constant_pad(
+def constant_pad(  # noqa: C901
     array: np.ndarray,
     multiple_of: Tuple[int, int],
     up_down_rule: Literal["even", "up", "down"] = "even",

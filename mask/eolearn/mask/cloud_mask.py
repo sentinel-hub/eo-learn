@@ -486,7 +486,7 @@ class CloudMaskTask(EOTask):
 
         return multi_features.reshape(-1, multi_features.shape[-1])
 
-    def execute(self, eopatch: EOPatch) -> EOPatch:
+    def execute(self, eopatch: EOPatch) -> EOPatch:  # noqa: C901
         """Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance

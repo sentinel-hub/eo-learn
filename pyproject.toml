@@ -33,8 +33,8 @@ select = [
     "RUF", # ruff rules
     "NPY", # numpy
     "I",   # isort
-    "UP",  # pyupgrade
-    "FA",  # checks where future import of annotations would make types nicer
+    # "UP",  # pyupgrade
+    # "FA",  # checks where future import of annotations would make types nicer
 ]
 fix = false
 fixable = [
