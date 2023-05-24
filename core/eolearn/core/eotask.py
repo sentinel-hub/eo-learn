@@ -17,7 +17,7 @@ import inspect
 import logging
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Iterable, TypeVar
 
 from sentinelhub.exceptions import deprecated_function
 
@@ -46,11 +46,11 @@ class EOTask(metaclass=ABCMeta):
         deprecated_function(EODeprecationWarning, PARSE_RENAMED_DEPRECATE_MSG)(parse_renamed_features)
     )
 
-    def __new__(cls: Type[Self], *args: Any, **kwargs: Any) -> Self:
+    def __new__(cls: type[Self], *args: Any, **kwargs: Any) -> Self:
         """Stores initialization parameters and the order to the instance attribute `init_args`."""
         self = super().__new__(cls)  # type: ignore[misc]
 
-        init_args: Dict[str, object] = {}
+        init_args: dict[str, object] = {}
         for arg, value in zip(inspect.getfullargspec(self.__init__).args[1 : len(args) + 1], args):
             init_args[arg] = repr(value)
         for arg in inspect.getfullargspec(self.__init__).args[len(args) + 1 :]:
@@ -82,25 +82,25 @@ class EOTask(metaclass=ABCMeta):
     @staticmethod
     def parse_feature(
         feature: SingleFeatureSpec,
-        eopatch: Optional[EOPatch] = None,
-        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
-    ) -> Tuple[FeatureType, Optional[str]]:
+        eopatch: EOPatch | None = None,
+        allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
+    ) -> tuple[FeatureType, str | None]:
         """See `eolearn.core.utils.parse_feature`."""
         return parse_feature(feature, eopatch, allowed_feature_types)
 
     @staticmethod
     def parse_features(
         features: FeaturesSpecification,
-        eopatch: Optional[EOPatch] = None,
-        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
-    ) -> List[FeatureSpec]:
+        eopatch: EOPatch | None = None,
+        allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
+    ) -> list[FeatureSpec]:
         """See `eolearn.core.utils.parse_features`."""
         return parse_features(features, eopatch, allowed_feature_types)
 
     @staticmethod
     def get_feature_parser(
         features: FeaturesSpecification,
-        allowed_feature_types: Union[EllipsisType, Iterable[FeatureType], Callable[[FeatureType], bool]] = ...,
+        allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
     ) -> FeatureParser:
         """See :class:`FeatureParser<eolearn.core.utils.FeatureParser>`."""
         return FeatureParser(features, allowed_feature_types=allowed_feature_types)
@@ -113,4 +113,4 @@ class _PrivateTaskConfig:
     :param init_args: A dictionary of parameters and values used for EOTask initialization
     """
 
-    init_args: Dict[str, object]
+    init_args: dict[str, object]

@@ -13,7 +13,7 @@ import inspect
 import warnings
 from collections import defaultdict
 from functools import partial
-from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, List, Tuple, Union, cast
 
 import dateutil
 import numpy as np
@@ -121,9 +121,9 @@ class InterpolationTask(EOTask):
         interpolation_object: Callable,
         *,
         resample_range: ResampleRangeType = None,
-        result_interval: Optional[Tuple[float, float]] = None,
-        mask_feature: Optional[SingleFeatureSpec] = None,
-        copy_features: Optional[FeaturesSpecification] = None,
+        result_interval: tuple[float, float] | None = None,
+        mask_feature: SingleFeatureSpec | None = None,
+        copy_features: FeaturesSpecification | None = None,
         unknown_value: float = np.nan,
         filling_factor: int = 10,
         scale_time: int = 3600,
@@ -208,7 +208,7 @@ class InterpolationTask(EOTask):
         return np.logical_or(start_nan, end_nan)
 
     @staticmethod
-    def _get_unique_times(data: np.ndarray, times: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _get_unique_times(data: np.ndarray, times: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Replace duplicate acquisitions which have same values on the chosen timescale with their average.
         The average is calculated with numpy.nanmean, meaning that NaN values are ignored when calculating the average.
 
@@ -312,7 +312,7 @@ class InterpolationTask(EOTask):
             return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
-    def get_resampled_timestamp(self, timestamps: List[dt.datetime]) -> List[dt.datetime]:
+    def get_resampled_timestamp(self, timestamps: list[dt.datetime]) -> list[dt.datetime]:
         """Takes a list of timestamps and generates new list of timestamps according to `resample_range`"""
         if self.resample_range is None:
             return timestamps
@@ -338,7 +338,7 @@ class InterpolationTask(EOTask):
 
     @staticmethod
     def _get_eopatch_time_series(
-        eopatch: EOPatch, ref_date: Optional[dt.datetime] = None, scale_time: int = 1
+        eopatch: EOPatch, ref_date: dt.datetime | None = None, scale_time: int = 1
     ) -> np.ndarray:
         """Returns a numpy array with seconds passed between the reference date and the timestamp of each image.
 
@@ -509,7 +509,7 @@ class ResamplingTask(InterpolationTask):
         interpolation_object: Callable,
         resample_range: ResampleRangeType,
         *,
-        result_interval: Optional[Tuple[float, float]] = None,
+        result_interval: tuple[float, float] | None = None,
         unknown_value: float = np.nan,
         **interpolation_parameters: Any,
     ):

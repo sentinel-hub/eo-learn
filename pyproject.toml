@@ -3,22 +3,8 @@ line-length = 120
 preview = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "build", "dist"]
-ignore = [
-    "C408",   # complains about `dict()` calls, we use them to avoid too many " in the code
-    "SIM117", # wants to always combine `with` statements, gets ugly for us
-    "SIM108", # tries to aggresively inline `if`, not always readable
-    "A003",   # complains when ATTRIBUTES shadow builtins, we have objects that implement `filter` and such
-    "COM812", # trailing comma missing, fights with black
-    "PD011",  # suggests `.to_numpy` instead of `.values`, also does this for non-pandas objects...
-    # potentially fixable
-    "B904",  # want `raise ... from None` instead of just `raise ...`
-    "B028",  # always demands a stacklevel argument when warning
-    "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
-]
-fixable = ["I", "F401"]
-fix = true
 line-length = 120
+target-version = "py38"
 select = [
     "F",   # pyflakes
     "E",   # pycodestyle
@@ -47,14 +33,36 @@ select = [
     "RUF", # ruff rules
     "NPY", # numpy
     "I",   # isort
+    "UP",  # pyupgrade
+    "FA",  # checks where future import of annotations would make types nicer
 ]
-target-version = "py38"
+fix = true
+fixable = [
+    "I",     # sort imports
+    "F401",  # remove redundant imports
+    "UP007", # use new-style union type annotations
+    "UP006", # use new-style built-in type annotations
+    "UP037", # remove quotes around types when not necessary
+    "FA100", # import future annotations where necessary (not autofixable ATM)
+]
+ignore = [
+    "C408",   # complains about `dict()` calls, we use them to avoid too many " in the code
+    "SIM117", # wants to always combine `with` statements, gets ugly for us
+    "SIM108", # tries to aggresively inline `if`, not always readable
+    "A003",   # complains when ATTRIBUTES shadow builtins, we have objects that implement `filter` and such
+    "COM812", # trailing comma missing, fights with black
+    "PD011",  # suggests `.to_numpy` instead of `.values`, also does this for non-pandas objects...
+    # potentially fixable
+    "B904",  # want `raise ... from None` instead of just `raise ...`
+    "B028",  # always demands a stacklevel argument when warning
+    "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
+    "UP024", # wants to switch IOError with OSError
+]
+per-file-ignores = { "__init__.py" = ["F401"] }
+exclude = [".git", "__pycache__", "build", "dist"]
 
-[tool.ruff.mccabe]
-max-complexity = 15
 
 [tool.ruff.isort]
-# required-imports = ["from __future__ import annotations"]
 section-order = [
     "future",
     "standard-library",
@@ -64,12 +72,8 @@ section-order = [
     "local-folder",
 ]
 known-first-party = ["eolearn"]
+sections = { our-packages = ["sentinelhub"] }
 
-[tool.ruff.isort.sections]
-our-packages = ["sentinelhub"]
-
-[tool.ruff.per-file-ignores]
-"__init__.py" = ["F401"]
 
 [tool.pylint.format]
 max-line-length = 120
@@ -124,11 +128,13 @@ source = [
 omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002"]
+ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002,UP,FA"]
 # E402 -> imports on top
 # T201 -> print found
 # B015 & B018 -> useless expression (used to show values in ipynb)
 # NPY002 -> use RNG instead of old numpy.random
+# UP -> suggestions for new-style classes (future import might confuse readers)
+# FA -> necessary future annotations import
 
 [tool.mypy]
 follow_imports = "normal"

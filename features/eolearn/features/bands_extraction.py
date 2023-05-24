@@ -8,8 +8,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 import numpy as np
 
 from eolearn.core import MapFeatureTask
@@ -25,7 +23,7 @@ class EuclideanNormTask(MapFeatureTask):
     """
 
     def __init__(
-        self, input_feature: SingleFeatureSpec, output_feature: SingleFeatureSpec, bands: Optional[List[int]] = None
+        self, input_feature: SingleFeatureSpec, output_feature: SingleFeatureSpec, bands: list[int] | None = None
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.
@@ -57,7 +55,7 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
         self,
         input_feature: SingleFeatureSpec,
         output_feature: SingleFeatureSpec,
-        bands: Tuple[int, int],
+        bands: tuple[int, int],
         acorvi_constant: float = 0,
         undefined_value: float = np.nan,
     ):

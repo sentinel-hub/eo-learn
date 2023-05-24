@@ -12,7 +12,7 @@ import datetime as dt
 import itertools as it
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +32,7 @@ class PlotBackend(Enum):
     MATPLOTLIB = "matplotlib"
 
 
-def plot_eopatch(*args: Any, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs: Any) -> object:
+def plot_eopatch(*args: Any, backend: PlotBackend | str = PlotBackend.MATPLOTLIB, **kwargs: Any) -> object:
     """The main `EOPatch` plotting function. It pr
 
     :param args: Positional arguments to be propagated to a plotting backend.
@@ -66,17 +66,17 @@ class PlotConfig:
         box.
     """
 
-    rgb_factor: Optional[float] = 3.5
-    timestamp_column: Optional[str] = TIMESTAMP_COLUMN
+    rgb_factor: float | None = 3.5
+    timestamp_column: str | None = TIMESTAMP_COLUMN
     geometry_column: str = "geometry"
-    subplot_width: Union[float, int] = 8
-    subplot_height: Union[float, int] = 8
+    subplot_width: float | int = 8
+    subplot_height: float | int = 8
     interpolation: str = "none"
-    subplot_kwargs: Dict[str, object] = field(default_factory=dict)
+    subplot_kwargs: dict[str, object] = field(default_factory=dict)
     show_title: bool = True
-    title_kwargs: Dict[str, object] = field(default_factory=dict)
-    label_kwargs: Dict[str, object] = field(default_factory=dict)
-    bbox_kwargs: Dict[str, object] = field(default_factory=dict)
+    title_kwargs: dict[str, object] = field(default_factory=dict)
+    label_kwargs: dict[str, object] = field(default_factory=dict)
+    bbox_kwargs: dict[str, object] = field(default_factory=dict)
 
 
 class MatplotlibVisualization:
@@ -87,12 +87,12 @@ class MatplotlibVisualization:
         eopatch: EOPatch,
         feature: SingleFeatureSpec,
         *,
-        axes: Optional[np.ndarray] = None,
-        config: Optional[PlotConfig] = None,
-        times: Union[List[int], slice, None] = None,
-        channels: Union[List[int], slice, None] = None,
-        channel_names: Optional[List[str]] = None,
-        rgb: Optional[Tuple[int, int, int]] = None,
+        axes: np.ndarray | None = None,
+        config: PlotConfig | None = None,
+        times: list[int] | slice | None = None,
+        channels: list[int] | slice | None = None,
+        channel_names: list[str] | None = None,
+        rgb: tuple[int, int, int] | None = None,
     ):
         """
         :param eopatch: An EOPatch with a feature to plot.
@@ -157,7 +157,7 @@ class MatplotlibVisualization:
             return self._plot_bar(data, title=feature_name)
         return self._plot_time_series(data, timestamps=timestamps, title=feature_name)
 
-    def collect_and_prepare_feature(self, eopatch: EOPatch) -> Tuple[Any, List[dt.datetime]]:
+    def collect_and_prepare_feature(self, eopatch: EOPatch) -> tuple[Any, list[dt.datetime]]:
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = eopatch[self.feature]
@@ -210,7 +210,7 @@ class MatplotlibVisualization:
         return dataframe[filtered_rows]
 
     def _plot_raster_grid(
-        self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
+        self, raster: np.ndarray, timestamps: list[dt.datetime] | None = None, title: str | None = None
     ) -> np.ndarray:
         """Plots a grid of raster images"""
         rows, _, _, columns = raster.shape
@@ -238,7 +238,7 @@ class MatplotlibVisualization:
         return axes
 
     def _plot_time_series(
-        self, series: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
+        self, series: np.ndarray, timestamps: list[dt.datetime] | None = None, title: str | None = None
     ) -> np.ndarray:
         """Plots time series feature."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
@@ -254,7 +254,7 @@ class MatplotlibVisualization:
             axis.legend()
         return axes
 
-    def _plot_bar(self, values: np.ndarray, title: Optional[str] = None) -> np.ndarray:
+    def _plot_bar(self, values: np.ndarray, title: str | None = None) -> np.ndarray:
         """Make a bar plot from values."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
         axis = axes.flatten()[0]
@@ -265,7 +265,7 @@ class MatplotlibVisualization:
         return axes
 
     def _plot_vector_feature(
-        self, dataframe: GeoDataFrame, timestamp_column: Optional[str] = None, title: Optional[str] = None
+        self, dataframe: GeoDataFrame, timestamp_column: str | None = None, title: str | None = None
     ) -> np.ndarray:
         """Plots a GeoDataFrame vector feature"""
         rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
@@ -288,7 +288,7 @@ class MatplotlibVisualization:
 
         return axes
 
-    def _plot_bbox(self, axes: Optional[np.ndarray] = None, target_crs: Optional[CRS] = None) -> np.ndarray:
+    def _plot_bbox(self, axes: np.ndarray | None = None, target_crs: CRS | None = None) -> np.ndarray:
         """Plot a bounding box"""
         bbox = self.eopatch.bbox
         if bbox is None:
@@ -314,9 +314,7 @@ class MatplotlibVisualization:
 
         return axes
 
-    def _provide_axes(
-        self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs: Any
-    ) -> np.ndarray:
+    def _provide_axes(self, *, nrows: int, ncols: int, title: str | None = None, **subplot_kwargs: Any) -> np.ndarray:
         """Either provides an existing grid of axes or creates new one"""
         if self.axes is not None:
             return self.axes
@@ -341,6 +339,6 @@ class MatplotlibVisualization:
 
         return axes
 
-    def _get_label_kwargs(self) -> Dict[str, object]:
+    def _get_label_kwargs(self) -> dict[str, object]:
         """Provides `matplotlib` arguments for writing labels in plots."""
         return {"fontsize": 12, **self.config.label_kwargs}

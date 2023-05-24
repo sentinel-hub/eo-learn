@@ -7,10 +7,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import collections
 import copy
-from typing import DefaultDict, Dict, Generic, Iterator, List, Optional, Sequence, Set, Tuple, TypeVar
+from typing import Generic, Iterator, Sequence, TypeVar
 
 _T = TypeVar("_T")
 
@@ -27,7 +28,7 @@ class DirectedGraph(Generic[_T]):
     :param adjacency_dict: A dictionary mapping vertices to lists of neighbors
     """
 
-    def __init__(self, adjacency_dict: Optional[Dict[_T, List[_T]]] = None):
+    def __init__(self, adjacency_dict: dict[_T, list[_T]] | None = None):
         self._adj_dict = (
             collections.defaultdict(list, adjacency_dict) if adjacency_dict else collections.defaultdict(list)
         )
@@ -49,8 +50,8 @@ class DirectedGraph(Generic[_T]):
         """Returns iterator over the vertices of the graph."""
         return iter(self._vertices)
 
-    def _make_indegrees_dict(self) -> DefaultDict[_T, int]:
-        indegrees: DefaultDict[_T, int] = collections.defaultdict(int)
+    def _make_indegrees_dict(self) -> collections.defaultdict[_T, int]:
+        indegrees: collections.defaultdict[_T, int] = collections.defaultdict(int)
 
         for u_vertex in self._adj_dict:
             for v_vertex in self._adj_dict[u_vertex]:
@@ -58,7 +59,7 @@ class DirectedGraph(Generic[_T]):
 
         return indegrees
 
-    def get_indegrees(self) -> Dict[_T, int]:
+    def get_indegrees(self) -> dict[_T, int]:
         """Returns a dictionary containing in-degrees of vertices of the graph."""
         return dict(self._indegrees)
 
@@ -71,7 +72,7 @@ class DirectedGraph(Generic[_T]):
         """
         return self._indegrees[vertex]
 
-    def get_outdegrees(self) -> Dict[_T, int]:
+    def get_outdegrees(self) -> dict[_T, int]:
         """
         :return: dictionary of out-degrees, see get_outdegree
         """
@@ -86,13 +87,13 @@ class DirectedGraph(Generic[_T]):
         """
         return len(self._adj_dict[vertex])
 
-    def get_adj_dict(self) -> Dict[_T, list]:
+    def get_adj_dict(self) -> dict[_T, list]:
         """
         :return: adj_dict
         """
         return {vertex: copy.copy(neighbours) for vertex, neighbours in self._adj_dict.items()}
 
-    def get_vertices(self) -> Set[_T]:
+    def get_vertices(self) -> set[_T]:
         """Returns the set of vertices of the graph."""
         return set(self._vertices)
 
@@ -160,12 +161,12 @@ class DirectedGraph(Generic[_T]):
         """True if `u_vertex -> v_vertex` is an edge of the graph. False otherwise."""
         return v_vertex in self._adj_dict[u_vertex]
 
-    def get_neighbors(self, vertex: _T) -> List[_T]:
+    def get_neighbors(self, vertex: _T) -> list[_T]:
         """Returns the set of successor vertices of `vertex`."""
         return copy.copy(self._adj_dict[vertex])
 
     @staticmethod
-    def from_edges(edges: Sequence[Tuple[_T, _T]]) -> "DirectedGraph[_T]":
+    def from_edges(edges: Sequence[tuple[_T, _T]]) -> DirectedGraph[_T]:
         """Return DirectedGraph created from edges.
         :param edges: Pairs of objects that describe all the edges of the graph
         """
@@ -175,7 +176,7 @@ class DirectedGraph(Generic[_T]):
         return dag
 
     @staticmethod
-    def _is_cyclic(graph: "DirectedGraph") -> bool:
+    def _is_cyclic(graph: DirectedGraph) -> bool:
         """True if the directed graph contains a cycle. False otherwise.
 
         The algorithm is naive, running in O(V^2) time, and not intended for serious use! For production purposes on
@@ -196,7 +197,7 @@ class DirectedGraph(Generic[_T]):
                         stack.append(v)
         return False
 
-    def topologically_ordered_vertices(self) -> List[_T]:
+    def topologically_ordered_vertices(self) -> list[_T]:
         """Computes an ordering `<` of vertices so that for any two vertices `v` and `v'` we have that if `v˙ depends
         on `v'` then `v' < v`. In words, all dependencies of a vertex precede the vertex in this ordering.
 

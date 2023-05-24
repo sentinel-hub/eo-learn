@@ -6,7 +6,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-from typing import Dict, List, Optional, Sequence
+from __future__ import annotations
+
+from typing import Sequence
 
 from graphviz import Digraph
 
@@ -22,7 +24,7 @@ class EOWorkflowVisualization:
         """
         self.nodes = nodes
 
-    def dependency_graph(self, filename: Optional[str] = None) -> Digraph:
+    def dependency_graph(self, filename: str | None = None) -> Digraph:
         """Visualize the computational graph.
 
         :param filename: Filename of the output image together with file extension. Supported formats: `png`, `jpg`,
@@ -54,10 +56,10 @@ class EOWorkflowVisualization:
         return dot
 
     @staticmethod
-    def _get_node_uid_to_dot_name_mapping(nodes: Sequence[EONode]) -> Dict[str, str]:
+    def _get_node_uid_to_dot_name_mapping(nodes: Sequence[EONode]) -> dict[str, str]:
         """Creates mapping between EONode classes and names used in DOT graph. To do that, it has to collect nodes with
         the same name and assign them different indices."""
-        dot_name_to_nodes: Dict[str, List[EONode]] = {}
+        dot_name_to_nodes: dict[str, list[EONode]] = {}
         for node in nodes:
             dot_name_to_nodes[node.get_name()] = dot_name_to_nodes.get(node.get_name(), [])
             dot_name_to_nodes[node.get_name()].append(node)

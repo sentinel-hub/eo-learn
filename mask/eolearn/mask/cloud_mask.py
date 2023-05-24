@@ -6,10 +6,12 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import logging
 import os
 from functools import partial
-from typing import Optional, Protocol, Tuple, Union, cast
+from typing import Protocol, cast
 
 import cv2
 import numpy as np
@@ -81,20 +83,20 @@ class CloudMaskTask(EOTask):
 
     def __init__(
         self,
-        data_feature: Tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature: Tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
+        data_feature: tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature: tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
         all_bands: bool = True,
-        processing_resolution: Union[None, float, Tuple[float, float]] = None,
+        processing_resolution: None | float | tuple[float, float] = None,
         max_proc_frames: int = 11,
-        mono_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
-        multi_features: Optional[Tuple[Optional[str], Optional[str]]] = None,
-        mask_feature: Optional[Tuple[FeatureType, str]] = (FeatureType.MASK, "CLM_INTERSSIM"),
+        mono_features: tuple[str | None, str | None] | None = None,
+        multi_features: tuple[str | None, str | None] | None = None,
+        mask_feature: tuple[FeatureType, str] | None = (FeatureType.MASK, "CLM_INTERSSIM"),
         mono_threshold: float = 0.4,
         multi_threshold: float = 0.5,
-        average_over: Optional[int] = 4,
-        dilation_size: Optional[int] = 2,
-        mono_classifier: Optional[ClassifierType] = None,
-        multi_classifier: Optional[ClassifierType] = None,
+        average_over: int | None = 4,
+        dilation_size: int | None = 2,
+        mono_classifier: ClassifierType | None = None,
+        multi_classifier: ClassifierType | None = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
@@ -176,7 +178,7 @@ class CloudMaskTask(EOTask):
             self.dil_kernel = None
 
     @staticmethod
-    def _parse_resolution_arg(resolution: Union[None, float, Tuple[float, float]]) -> Optional[Tuple[float, float]]:
+    def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
         """Parses initialization resolution argument"""
         if isinstance(resolution, (int, float)):
             resolution = resolution, resolution
@@ -211,7 +213,7 @@ class CloudMaskTask(EOTask):
 
         return prediction if is_booster else prediction[..., 1]
 
-    def _scale_factors(self, reference_shape: Tuple[int, int], bbox: BBox) -> Tuple[Tuple[float, float], float]:
+    def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[tuple[float, float], float]:
         """Compute the resampling factors for height and width of the input array and sigma
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
@@ -298,7 +300,7 @@ class CloudMaskTask(EOTask):
         local_var: np.ndarray,
         rel_tdx: int,
         sigma: float,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Calculate SSIM stats"""
         ssim_max = np.empty((1, *bands.shape[1:]), dtype=np.float32)
         ssim_mean = np.empty_like(ssim_max)
@@ -362,10 +364,10 @@ class CloudMaskTask(EOTask):
         img_size = height * width
         multi_proba = np.empty(n_times * img_size)
 
-        local_avg: Optional[np.ndarray] = None
-        local_var: Optional[np.ndarray] = None
-        prev_left: Optional[int] = None
-        prev_right: Optional[int] = None
+        local_avg: np.ndarray | None = None
+        local_var: np.ndarray | None = None
+        prev_left: int | None = None
+        prev_right: int | None = None
 
         for t_idx in range(n_times):
             # Extract temporal window indices
@@ -396,12 +398,12 @@ class CloudMaskTask(EOTask):
 
     def _update_batches(
         self,
-        local_avg: Optional[np.ndarray],
-        local_var: Optional[np.ndarray],
+        local_avg: np.ndarray | None,
+        local_var: np.ndarray | None,
         bands: np.ndarray,
         is_data: np.ndarray,
         sigma: float,
-    ) -> Tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Calculates or updates the window average and variance. The calculation is done per 2D image along the
         temporal and band axes."""
         local_avg_func = partial(self._win_avg, sigma=sigma)
@@ -486,7 +488,7 @@ class CloudMaskTask(EOTask):
 
         return multi_features.reshape(-1, multi_features.shape[-1])
 
-    def execute(self, eopatch: EOPatch) -> EOPatch:
+    def execute(self, eopatch: EOPatch) -> EOPatch:  # noqa: C901
         """Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
         :param eopatch: Input `EOPatch` instance
@@ -558,7 +560,7 @@ class CloudMaskTask(EOTask):
         return eopatch
 
 
-def _get_window_indices(num_of_elements: int, middle_idx: int, window_size: int) -> Tuple[int, int]:
+def _get_window_indices(num_of_elements: int, middle_idx: int, window_size: int) -> tuple[int, int]:
     """
     Returns the minimum and maximum indices to be used for indexing, lower inclusive and upper exclusive.
     The window has the following properties:

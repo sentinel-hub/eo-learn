@@ -8,8 +8,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from .eodata import EOPatch
 from .eotask import EOTask
 from .types import FeaturesSpecification
@@ -19,13 +17,13 @@ from .utils.common import generate_uid
 class InputTask(EOTask):
     """Introduces data into an EOWorkflow, where the data can be specified at initialization or at execution."""
 
-    def __init__(self, value: Optional[object] = None):
+    def __init__(self, value: object | None = None):
         """
         :param value: Default value that the task should provide as a result. Can be overridden in execution arguments
         """
         self.value = value
 
-    def execute(self, *, value: Optional[object] = None) -> object:
+    def execute(self, *, value: object | None = None) -> object:
         """
         :param value: A value that the task should provide as its result. If not set uses the value from initialization
         :return: Directly returns `value`
@@ -36,7 +34,7 @@ class InputTask(EOTask):
 class OutputTask(EOTask):
     """Stores data as an output of `EOWorkflow` results."""
 
-    def __init__(self, name: Optional[str] = None, features: FeaturesSpecification = ...):
+    def __init__(self, name: str | None = None, features: FeaturesSpecification = ...):
         """
         :param name: A name under which the data will be saved in `WorkflowResults`, auto-generated if `None`
         :param features: A collection of features to be kept if the data is an `EOPatch`

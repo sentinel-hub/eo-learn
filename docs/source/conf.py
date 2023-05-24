@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-  # noqa: UP009
 #
 # Configuration file for the Sphinx documentation builder.
 #
@@ -242,7 +242,7 @@ def copy_documentation_examples(source_folder, target_folder):
     files_to_include = ["core/images/eopatch.png"]
 
     for rst_file in ["examples.rst", "index.rst"]:
-        with open(rst_file, "r") as fp:
+        with open(rst_file) as fp:
             content = fp.read()
 
         for line in content.split("\n"):
@@ -271,7 +271,7 @@ def process_readme():
     """Function which will process README.md file and divide it into INTRO.md and INSTALL.md, which will be used in
     documentation
     """
-    with open("../../README.md", "r") as file:
+    with open("../../README.md") as file:
         readme = file.read()
 
     readme = readme.replace("# eo-learn", "# Introduction").replace("docs/source/", "")

@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import numpy as np
 
@@ -68,9 +68,9 @@ class TrainTestSplitTask(EOTask):
         self,
         input_feature: SingleFeatureSpec,
         output_feature: SingleFeatureSpec,
-        bins: Union[float, List[Any]],
+        bins: float | list[Any],
         split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
-        ignore_values: Optional[List[int]] = None,
+        ignore_values: list[int] | None = None,
     ):
         """
         :param input_feature: The input feature to guide the split.
@@ -92,7 +92,7 @@ class TrainTestSplitTask(EOTask):
         self.ignore_values = set() if ignore_values is None else set(ignore_values)
         self.split_type = TrainTestSplitType(split_type)
 
-    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: int | None = None) -> EOPatch:
         """
         :param eopatch: input EOPatch
         :param seed: An argument to be passed to numpy.random.seed function.

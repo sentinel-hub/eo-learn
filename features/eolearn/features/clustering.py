@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Callable, Literal, Optional, Union
+from typing import Callable, Literal
 
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
@@ -31,13 +31,13 @@ class ClusteringTask(EOTask):
         self,
         features: FeatureSpec,
         new_feature_name: str,
-        distance_threshold: Optional[float] = None,
-        n_clusters: Optional[int] = None,
+        distance_threshold: float | None = None,
+        n_clusters: int | None = None,
         affinity: Literal["euclidean", "l1", "l2", "manhattan", "cosine"] = "cosine",
         linkage: Literal["ward", "complete", "average", "single"] = "single",
         remove_small: int = 0,
-        connectivity: Union[None, np.ndarray, Callable] = None,
-        mask_name: Optional[str] = None,
+        connectivity: None | np.ndarray | Callable = None,
+        mask_name: str | None = None,
     ):
         """Class constructor
 
@@ -67,7 +67,7 @@ class ClusteringTask(EOTask):
         self.linkage = linkage
         self.new_feature_name = new_feature_name
         self.n_clusters = n_clusters
-        self.compute_full_tree: Union[Literal["auto"], bool] = "auto" if distance_threshold is None else True
+        self.compute_full_tree: Literal["auto"] | bool = "auto" if distance_threshold is None else True
         self.remove_small = remove_small
         self.connectivity = connectivity
         self.mask_name = mask_name

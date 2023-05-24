@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from math import sqrt
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Union, cast
 
 import numpy as np
 from shapely.geometry import Point, Polygon
@@ -21,7 +21,7 @@ from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 _FractionType = Union[float, Dict[int, float]]
 
 
-def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generator] = None) -> Point:
+def random_point_in_triangle(triangle: Polygon, rng: np.random.Generator | None = None) -> Point:
     """Selects a random point from an interior of a triangle.
 
     :param triangle: A triangle polygon.
@@ -43,10 +43,10 @@ def random_point_in_triangle(triangle: Polygon, rng: Optional[np.random.Generato
 
 def sample_by_values(
     image: np.ndarray,
-    n_samples_per_value: Dict[int, int],
-    rng: Optional[np.random.Generator] = None,
+    n_samples_per_value: dict[int, int],
+    rng: np.random.Generator | None = None,
     replace: bool = False,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Sample points from image with the amount of samples specified for each value.
 
     :param image: A 2-dimensional numpy array
@@ -72,8 +72,8 @@ def sample_by_values(
 
 
 def expand_to_grids(
-    rows: np.ndarray, columns: np.ndarray, sample_size: Tuple[int, int] = (1, 1)
-) -> Tuple[np.ndarray, np.ndarray]:
+    rows: np.ndarray, columns: np.ndarray, sample_size: tuple[int, int] = (1, 1)
+) -> tuple[np.ndarray, np.ndarray]:
     """Expands sampled points into blocks and returns a pair of arrays. Each array represents a grid of indices
     of pixel locations, the first one row indices and the second one column indices. Each array is of shape
     `(N * sample_height, sample_width)`, where each element represent a row or column index in an original array
@@ -105,7 +105,7 @@ def expand_to_grids(
     return row_grids, column_grids
 
 
-def get_mask_of_samples(image_shape: Tuple[int, int], row_grid: np.ndarray, column_grid: np.ndarray) -> np.ndarray:
+def get_mask_of_samples(image_shape: tuple[int, int], row_grid: np.ndarray, column_grid: np.ndarray) -> np.ndarray:
     """Creates a mask of counts how many times each pixel has been sampled.
 
     :param image_shape: Height and width of a sampled image.
@@ -133,7 +133,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):
         self,
         features_to_sample: FeaturesSpecification,
         *,
-        mask_of_samples: Optional[Tuple[FeatureType, str]] = None,
+        mask_of_samples: tuple[FeatureType, str] | None = None,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -180,7 +180,7 @@ class FractionSamplingTask(BaseSamplingTask):
         features_to_sample: FeaturesSpecification,
         sampling_feature: SingleFeatureSpec,
         fraction: _FractionType,
-        exclude_values: Optional[List[int]] = None,
+        exclude_values: list[int] | None = None,
         replace: bool = False,
         **kwargs: Any,
     ):
@@ -221,7 +221,7 @@ class FractionSamplingTask(BaseSamplingTask):
                 f"The fraction input is {fraction} but needs to be a number or a dictionary mapping labels to numbers."
             )
 
-    def _calculate_amount_per_value(self, image: np.ndarray, fraction: _FractionType) -> Dict[int, int]:
+    def _calculate_amount_per_value(self, image: np.ndarray, fraction: _FractionType) -> dict[int, int]:
         """Calculates the number of samples needed for each value present in mask according to the fraction parameter"""
         uniques, counts = np.unique(image, return_counts=True)
         available = {val: n for val, n in zip(uniques, counts) if val not in self.exclude_values}
@@ -230,9 +230,7 @@ class FractionSamplingTask(BaseSamplingTask):
             return {val: round(n * fraction[val]) for val, n in available.items() if val in fraction}
         return {val: round(n * self.fraction) for val, n in available.items()}
 
-    def execute(
-        self, eopatch: EOPatch, *, seed: Optional[int] = None, fraction: Optional[_FractionType] = None
-    ) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: int | None = None, fraction: _FractionType | None = None) -> EOPatch:
         """Execute random spatial sampling of specified features of eopatch
 
         :param eopatch: Input eopatch to be sampled
@@ -268,7 +266,7 @@ class BlockSamplingTask(BaseSamplingTask):
         self,
         features_to_sample: FeaturesSpecification,
         amount: float,
-        sample_size: Tuple[int, int] = (1, 1),
+        sample_size: tuple[int, int] = (1, 1),
         replace: bool = False,
         **kwargs: Any,
     ):
@@ -296,7 +294,7 @@ class BlockSamplingTask(BaseSamplingTask):
 
         return np.ones((height, width), dtype=np.uint8)
 
-    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None, amount: Optional[float] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: int | None = None, amount: float | None = None) -> EOPatch:
         """Execute a spatial sampling on features from a given EOPatch
 
         :param eopatch: Input eopatch to be sampled
@@ -332,8 +330,8 @@ class GridSamplingTask(BaseSamplingTask):
     def __init__(
         self,
         features_to_sample: FeaturesSpecification,
-        sample_size: Tuple[int, int] = (1, 1),
-        stride: Tuple[int, int] = (1, 1),
+        sample_size: tuple[int, int] = (1, 1),
+        stride: tuple[int, int] = (1, 1),
         **kwargs: Any,
     ):
         """
@@ -353,7 +351,7 @@ class GridSamplingTask(BaseSamplingTask):
         if not all(value > 0 for value in self.sample_size + self.stride):
             raise ValueError("Both sample_size and stride should have only positive values")
 
-    def _sample_regular_grid(self, image_shape: Tuple[int, int]) -> Tuple[np.ndarray, np.ndarray]:
+    def _sample_regular_grid(self, image_shape: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
         """Samples points from a regular grid and returns indices of rows and columns"""
         rows = np.arange(0, image_shape[0] - self.sample_size[0] + 1, self.stride[0])
         columns = np.arange(0, image_shape[1] - self.sample_size[1] + 1, self.stride[1])

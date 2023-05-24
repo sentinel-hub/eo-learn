@@ -13,7 +13,7 @@ import itertools as it
 import logging
 import warnings
 from functools import partial
-from typing import Any, Callable, Iterator, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterator, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -60,17 +60,17 @@ class VectorToRasterTask(EOTask):
 
     def __init__(
         self,
-        vector_input: Union[GeoDataFrame, SingleFeatureSpec],
+        vector_input: GeoDataFrame | SingleFeatureSpec,
         raster_feature: SingleFeatureSpec,
         *,
-        values: Union[None, float, List[float]] = None,
-        values_column: Optional[str] = None,
-        raster_shape: Union[None, Tuple[int, int], SingleFeatureSpec] = None,
-        raster_resolution: Union[None, float, Tuple[float, float]] = None,
-        raster_dtype: Union[np.dtype, type] = np.uint8,
+        values: None | float | list[float] = None,
+        values_column: str | None = None,
+        raster_shape: None | tuple[int, int] | SingleFeatureSpec = None,
+        raster_resolution: None | float | tuple[float, float] = None,
+        raster_dtype: np.dtype | type = np.uint8,
         no_data_value: float = 0,
         write_to_existing: bool = False,
-        overlap_value: Optional[float] = None,
+        overlap_value: float | None = None,
         buffer: float = 0,
         **rasterio_params: Any,
     ):
@@ -124,8 +124,8 @@ class VectorToRasterTask(EOTask):
         self.buffer = buffer
 
     def _parse_main_params(
-        self, vector_input: Union[GeoDataFrame, SingleFeatureSpec], raster_feature: SingleFeatureSpec
-    ) -> Tuple[Union[GeoDataFrame, Tuple[FeatureType, str]], Tuple[FeatureType, str]]:
+        self, vector_input: GeoDataFrame | SingleFeatureSpec, raster_feature: SingleFeatureSpec
+    ) -> tuple[GeoDataFrame | tuple[FeatureType, str], tuple[FeatureType, str]]:
         """Parsing first 2 parameters - what vector data will be used and in which raster feature it will be saved"""
         if not _is_geopandas_object(vector_input):
             vector_input = self.parse_feature(vector_input, allowed_feature_types=lambda fty: fty.is_vector())
@@ -135,7 +135,7 @@ class VectorToRasterTask(EOTask):
 
     def _get_vector_data_iterator(
         self, eopatch: EOPatch, join_per_value: bool
-    ) -> Iterator[Tuple[Optional[dt.datetime], ShapeIterator]]:
+    ) -> Iterator[tuple[dt.datetime | None, ShapeIterator]]:
         """Collects and prepares vector shapes for rasterization. It works as an iterator that returns pairs of
         `(timestamp or None, <iterator over shapes and values>)`
 
@@ -154,7 +154,7 @@ class VectorToRasterTask(EOTask):
             yield None, self._vector_data_to_shape_iterator(vector_data, join_per_value)
 
     def _preprocess_vector_data(
-        self, vector_data: GeoDataFrame, bbox: BBox, timestamps: List[dt.datetime]
+        self, vector_data: GeoDataFrame, bbox: BBox, timestamps: list[dt.datetime]
     ) -> GeoDataFrame:
         """Applies preprocessing steps on a dataframe with geometries and potential values and timestamps"""
         vector_data = self._reduce_vector_data(vector_data, timestamps)
@@ -183,7 +183,7 @@ class VectorToRasterTask(EOTask):
 
         return vector_data
 
-    def _reduce_vector_data(self, vector_data: GeoDataFrame, timestamps: List[dt.datetime]) -> GeoDataFrame:
+    def _reduce_vector_data(self, vector_data: GeoDataFrame, timestamps: list[dt.datetime]) -> GeoDataFrame:
         """Removes all redundant columns and rows."""
         columns_to_keep = ["geometry"]
         if self._rasterize_per_timestamp:
@@ -214,7 +214,7 @@ class VectorToRasterTask(EOTask):
 
         return zip(vector_data.geometry, values)
 
-    def _get_raster_shape(self, eopatch: EOPatch) -> Tuple[int, int]:
+    def _get_raster_shape(self, eopatch: EOPatch) -> tuple[int, int]:
         """Determines the shape of new raster feature, returns a pair (height, width)"""
         if isinstance(self.raster_shape, (tuple, list)) and len(self.raster_shape) == 2:
             if isinstance(self.raster_shape[0], int) and isinstance(self.raster_shape[1], int):
@@ -225,7 +225,7 @@ class VectorToRasterTask(EOTask):
 
         if self.raster_resolution:
             # parsing from strings is not denoted in types, so an explicit upcast is required
-            raw_resolution: Union[str, float, Tuple[float, float]] = self.raster_resolution
+            raw_resolution: str | float | tuple[float, float] = self.raster_resolution
             resolution = float(raw_resolution.strip("m")) if isinstance(raw_resolution, str) else raw_resolution
 
             width, height = bbox_to_dimensions(cast(BBox, eopatch.bbox), resolution)  # cast verified in execute
@@ -333,9 +333,9 @@ class RasterToVectorTask(EOTask):
         self,
         features: FeaturesSpecification,
         *,
-        values: Optional[List[int]] = None,
+        values: list[int] | None = None,
         values_column: str = "VALUE",
-        raster_dtype: Union[None, np.dtype, type] = None,
+        raster_dtype: None | np.dtype | type = None,
         **rasterio_params: Any,
     ):
         """
@@ -363,7 +363,7 @@ class RasterToVectorTask(EOTask):
         self.rasterio_params = rasterio_params
 
     def _vectorize_single_raster(
-        self, raster: np.ndarray, affine_transform: Affine, crs: CRS, timestamps: Optional[dt.datetime] = None
+        self, raster: np.ndarray, affine_transform: Affine, crs: CRS, timestamps: dt.datetime | None = None
     ) -> GeoDataFrame:
         """Vectorizes a data slice of a single time component
 
@@ -436,7 +436,7 @@ def _is_geopandas_object(data: object) -> bool:
     return isinstance(data, (GeoDataFrame, GeoSeries))
 
 
-def _vector_is_timeless(vector_input: Union[GeoDataFrame, Tuple[FeatureType, Any]]) -> bool:
+def _vector_is_timeless(vector_input: GeoDataFrame | tuple[FeatureType, Any]) -> bool:
     """Used to check if the vector input (either geopandas object EOPatch Feature) is time independent"""
     if _is_geopandas_object(vector_input):
         return TIMESTAMP_COLUMN not in vector_input

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import itertools as it
 from enum import Enum
-from typing import Callable, List, Optional, Tuple, Union, cast
+from typing import Callable, Tuple, cast
 
 import numpy as np
 import skimage.filters.rank
@@ -35,7 +35,7 @@ class ErosionTask(EOTask):
         self,
         mask_feature: SingleFeatureSpec,
         disk_radius: int = 1,
-        erode_labels: Optional[List[int]] = None,
+        erode_labels: list[int] | None = None,
         no_data_label: int = 0,
     ):
         if not isinstance(disk_radius, int) or disk_radius is None or disk_radius < 1:
@@ -139,10 +139,10 @@ class MorphologicalFilterTask(MapFeatureTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_features: Optional[FeaturesSpecification] = None,
+        output_features: FeaturesSpecification | None = None,
         *,
-        morph_operation: Union[MorphologicalOperations, Callable],
-        struct_elem: Optional[np.ndarray] = None,
+        morph_operation: MorphologicalOperations | Callable,
+        struct_elem: np.ndarray | None = None,
     ):
         """
         :param input_features: Input features to be processed.
