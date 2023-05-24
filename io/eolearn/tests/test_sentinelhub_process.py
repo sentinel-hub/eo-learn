@@ -13,18 +13,12 @@ from typing import Any, List, Optional
 
 import numpy as np
 import pytest
-from pytest import approx
 
-from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, SHConfig, Unit
+from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrder, ResamplingType, Unit
+from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.io import (
-    SentinelHubDemTask,
-    SentinelHubEvalscriptTask,
-    SentinelHubInputTask,
-    SentinelHubSen2corTask,
-    get_available_timestamps,
-)
+from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask
 
 
 @pytest.fixture(name="cache_folder")
@@ -61,11 +55,11 @@ def calculate_stats(array):
         array[: max(int(time / 2), 1), -1, -1, :],
         array[:, int(height / 2), int(width / 2), :],
     ]
-    values = [(np.nanmean(slice) if not np.isnan(slice).all() else np.nan) for slice in slices]
+    values = [(np.nanmean(_slice) if not np.isnan(_slice).all() else np.nan) for _slice in slices]
     return np.round(np.array(values), 4)
 
 
-@pytest.mark.sh_integration
+@pytest.mark.sh_integration()
 class TestProcessingIO:
     """Test cases for SentinelHubInputTask"""
 
@@ -98,7 +92,7 @@ class TestProcessingIO:
         bands = eopatch[(FeatureType.DATA, "BANDS")]
         is_data = eopatch[(FeatureType.MASK, "dataMask")]
 
-        assert calculate_stats(bands) == approx([x / 10000 for x in expected_int_stats], abs=1e-4)
+        assert calculate_stats(bands) == pytest.approx([x / 10000 for x in expected_int_stats], abs=1e-4)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
@@ -114,7 +108,7 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx(expected_int_stats)
+        assert calculate_stats(bands) == pytest.approx(expected_int_stats)
 
         assert bands.dtype == np.uint16
 
@@ -133,13 +127,13 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx([0.0648, 0.1193, 0.063])
+        assert calculate_stats(bands) == pytest.approx([0.0648, 0.1193, 0.063])
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
 
     @pytest.mark.parametrize(
-        ["resampling_type", "stats"],
+        ("resampling_type", "stats"),
         [
             (ResamplingType.NEAREST, [0.0836, 0.1547, 0.0794]),
             (ResamplingType.BICUBIC, [0.0836, 0.1548, 0.0792]),
@@ -162,13 +156,13 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx(stats)
+        assert calculate_stats(bands) == pytest.approx(stats)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 1)
 
     @pytest.mark.parametrize(
-        ["geometry", "stats"],
+        ("geometry", "stats"),
         [
             (
                 Geometry(
@@ -203,13 +197,13 @@ class TestProcessingIO:
         eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval, geometry=geometry)
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
-        assert calculate_stats(bands) == approx(stats)
+        assert calculate_stats(bands) == pytest.approx(stats)
 
         width, height = self.size
         assert bands.shape == (4, height, width, 1)
 
     @pytest.mark.parametrize(
-        ["geometry", "stats"],
+        ("geometry", "stats"),
         [
             (
                 Geometry(
@@ -273,7 +267,7 @@ class TestProcessingIO:
         assert eop.data["bands"].shape == (4, height, width, 1)
         bands = eop[(FeatureType.DATA, "bands")]
 
-        assert calculate_stats(bands) == approx(stats)
+        assert calculate_stats(bands) == pytest.approx(stats)
 
     def test_scl_only(self):
         """Download just SCL, without any other bands"""
@@ -351,7 +345,7 @@ class TestProcessingIO:
         sun_azimuth_angles = eopatch[(FeatureType.DATA, "sunAzimuthAngles")]
         sun_zenith_angles = eopatch[(FeatureType.DATA, "sunZenithAngles")]
 
-        assert calculate_stats(bands) == approx([0.027, 0.0243, 0.0162])
+        assert calculate_stats(bands) == pytest.approx([0.027, 0.0243, 0.0162])
 
         width, height = self.size
         assert bands.shape == (4, height, width, 3)
@@ -384,16 +378,22 @@ class TestProcessingIO:
         bands = eopatch[(FeatureType.DATA, "BANDS")]
 
         assert bands.shape == (4, 4, 4, 13)
-        assert calculate_stats(bands) == approx([0.0, 0.0493, 0.0277])
+        assert calculate_stats(bands) == pytest.approx([0.0, 0.0493, 0.0277])
 
     def test_dem(self):
         task = SentinelHubDemTask(resolution=10, feature=(FeatureType.DATA_TIMELESS, "DEM"), max_threads=3)
-
         eopatch = task.execute(bbox=self.bbox)
-        dem = eopatch.data_timeless["DEM"]
-
         width, height = self.size
-        assert dem.shape == (height, width, 1)
+
+        assert_statistics_match(
+            eopatch.data_timeless["DEM"],
+            exp_shape=(height, width, 1),
+            exp_dtype=np.float32,
+            exp_max=3.4277425,
+            exp_min=-0.96642065,
+            exp_mean=0.2557371,
+            exp_median=0,
+        )
 
     def test_dem_cop(self):
         task = SentinelHubDemTask(
@@ -507,42 +507,6 @@ class TestProcessingIO:
         width, height = self.size
         assert array.shape == (13, height, width, 2)
 
-    def test_get_available_timestamps_with_missing_data_collection_service_url(self):
-        collection = DataCollection.SENTINEL2_L1C.define_from("COLLECTION_WITHOUT_URL", service_url=None)
-        timestamps = get_available_timestamps(
-            bbox=self.bbox,
-            config=SHConfig(),
-            data_collection=collection,
-            time_difference=self.time_difference,
-            time_interval=self.time_interval,
-            maxcc=self.maxcc,
-        )
-
-        assert len(timestamps) == 4
-        assert all(timestamp.tzinfo is not None for timestamp in timestamps)
-
-    def test_get_available_timestamps_custom_filtration(self):
-        """Checks that the custom filtration works as intended."""
-        timestamps1 = get_available_timestamps(
-            bbox=self.bbox,
-            config=SHConfig(),
-            data_collection=DataCollection.SENTINEL2_L1C,
-            time_interval=self.time_interval,
-            timestamp_filter=lambda stamps, diff: stamps[:3],
-        )
-
-        assert len(timestamps1) == 3
-
-        timestamps2 = get_available_timestamps(
-            bbox=self.bbox,
-            config=SHConfig(),
-            data_collection=DataCollection.SENTINEL2_L1C,
-            time_interval=self.time_interval,
-            timestamp_filter=lambda stamps, diff: stamps[:5],
-        )
-
-        assert len(timestamps2) == 5
-
     def test_no_data_input_task_request(self):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, "BANDS"),
@@ -606,7 +570,7 @@ class TestProcessingIO:
         assert masks.shape == (0, 101, 99, 1)
 
 
-@pytest.mark.sh_integration
+@pytest.mark.sh_integration()
 class TestSentinelHubInputTaskDataCollections:
     """Integration tests for all supported data collections"""
 
@@ -823,4 +787,4 @@ class TestSentinelHubInputTaskDataCollections:
         assert len(timestamps) == test_case.timestamp_length
 
         stats = calculate_stats(data)
-        assert stats == approx(test_case.stats, nan_ok=True), f"Expected stats {test_case.stats}, got {stats}"
+        assert stats == pytest.approx(test_case.stats, nan_ok=True), f"Expected stats {test_case.stats}, got {stats}"

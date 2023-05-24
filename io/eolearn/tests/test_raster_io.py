@@ -37,7 +37,7 @@ PATH_ON_BUCKET = f"s3://{BUCKET_NAME}/some-folder"
 
 
 @pytest.fixture(autouse=True)
-def create_s3_bucket_fixture():
+def _create_s3_bucket_fixture():
     with mock_s3():
         s3resource = boto3.resource("s3", region_name="eu-central-1")
         s3resource.create_bucket(Bucket=BUCKET_NAME, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
@@ -127,7 +127,7 @@ TIFF_TEST_CASES = [
 ]
 
 
-@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=[test_case.name for test_case in TIFF_TEST_CASES])
+@pytest.mark.parametrize("test_case", TIFF_TEST_CASES, ids=lambda x: x.name)
 def test_export_import(test_case, test_eopatch):
     test_eopatch[test_case.feature_type][test_case.name] = test_case.data
 
@@ -192,17 +192,18 @@ def _execute_with_warning_control(
 
 
 @pytest.mark.parametrize(
-    "bands, times", [([2, "string", 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, "string", 2, 3])]
+    ("bands", "times"), [([2, "string", 1, 0], [1, 7, 0, 2, 3]), ([2, 3, 1, 0], [1, 7, "string", 2, 3])]
 )
 def test_export2tiff_wrong_format(bands, times, test_eopatch):
     test_eopatch.data["data"] = np.arange(10 * 3 * 2 * 6, dtype=float).reshape(10, 3, 2, 6)
 
-    with tempfile.TemporaryDirectory() as tmp_dir_name, pytest.raises(ValueError):
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
         tmp_file_name = "temp_file.tiff"
         task = ExportToTiffTask(
             (FeatureType.DATA, "data"), folder=tmp_dir_name, band_indices=bands, date_indices=times, image_dtype=float
         )
-        task.execute(test_eopatch, filename=tmp_file_name)
+        with pytest.raises(ValueError):
+            task.execute(test_eopatch, filename=tmp_file_name)
 
 
 def test_export2tiff_wrong_feature(mocker, test_eopatch):
@@ -218,10 +219,13 @@ def test_export2tiff_wrong_feature(mocker, test_eopatch):
         assert logging.Logger.warning.call_count == 1
 
         (val_err,), _ = logging.Logger.warning.call_args
-        assert str(val_err) == "Feature feature-not-present of type FeatureType.MASK_TIMELESS was not found in EOPatch"
+        assert (
+            str(val_err)
+            == "Feature (<FeatureType.MASK_TIMELESS: 'mask_timeless'>, 'feature-not-present') was not found in EOPatch"
+        )
 
+        failing_export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=True)
         with pytest.raises(ValueError):
-            failing_export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=True)
             failing_export_task(test_eopatch, filename=tmp_file_name)
 
 
@@ -328,37 +332,39 @@ def test_time_dependent_feature(test_eopatch):
         f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
     ]
 
-    export_task = ExportToTiffTask(feature, folder=PATH_ON_BUCKET)
-    import_task = ImportFromTiffTask(feature, folder=PATH_ON_BUCKET, timestamp_size=68)
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name, timestamp_size=68)
 
-    export_task(test_eopatch, filename=filename_export)
-    new_eopatch = import_task(filename=filename_import)
+        export_task(test_eopatch, filename=filename_export)
+        new_eopatch = import_task(filename=filename_import)
 
-    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
+        assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
-    test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
-    filename_import = [
-        f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
-    ]
+        test_eopatch.timestamps[-1] = datetime.datetime(2020, 10, 10)
+        filename_import = [
+            f'relative-path/{timestamp.strftime("%Y%m%dT%H%M%S")}.tiff' for timestamp in test_eopatch.timestamps
+        ]
 
-    with pytest.raises(ResourceNotFound):
-        import_task(filename=filename_import)
+        with pytest.raises((ResourceNotFound, rasterio.errors.RasterioIOError)):
+            import_task(filename=filename_import)
 
 
 def test_time_dependent_feature_with_timestamps(test_eopatch):
     feature = FeatureType.DATA, "NDVI"
     filename = "relative-path/%Y%m%dT%H%M%S.tiff"
 
-    export_task = ExportToTiffTask(feature, folder=PATH_ON_BUCKET)
-    import_task = ImportFromTiffTask(feature, folder=PATH_ON_BUCKET)
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name)
 
-    export_task.execute(test_eopatch, filename=filename)
-    new_eopatch = import_task(test_eopatch, filename=filename)
+        export_task.execute(test_eopatch, filename=filename)
+        new_eopatch = import_task(test_eopatch, filename=filename)
 
-    assert_array_equal(new_eopatch[feature], test_eopatch[feature])
+        assert_array_equal(new_eopatch[feature], test_eopatch[feature])
 
 
-@pytest.mark.parametrize("no_data_value, data_type", [(np.nan, float), (0, int), (None, float), (1, np.byte)])
+@pytest.mark.parametrize(("no_data_value", "data_type"), [(np.nan, float), (0, int), (None, float), (1, np.byte)])
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
     eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))

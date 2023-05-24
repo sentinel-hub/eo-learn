@@ -7,9 +7,7 @@ def get_long_description():
     this_directory = os.path.abspath(os.path.dirname(__file__))
 
     with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
-        long_description = f.read()
-
-    return long_description
+        return f.read()
 
 
 def parse_requirements(file):
@@ -29,7 +27,7 @@ def get_version():
 
 setup(
     name="eo-learn-coregistration",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     version=get_version(),
     description="A collection of image co-registration EOTasks",
     long_description=get_long_description(),
@@ -59,10 +57,10 @@ setup(
         "Operating System :: Unix",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: GIS",
         "Topic :: Scientific/Engineering :: Image Processing",

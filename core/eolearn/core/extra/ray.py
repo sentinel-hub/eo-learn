@@ -8,7 +8,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-from typing import Any, Callable, Collection, Generator, Iterable, List, Optional, Tuple, TypeVar, cast
+from __future__ import annotations
+
+from typing import Any, Callable, Collection, Generator, Iterable, List, TypeVar, cast
 
 try:
     import ray
@@ -27,7 +29,7 @@ _OutputType = TypeVar("_OutputType")
 class RayExecutor(EOExecutor):
     """A special type of `EOExecutor` that works with Ray framework"""
 
-    def run(self, **tqdm_kwargs: Any) -> List[WorkflowResults]:  # type: ignore
+    def run(self, **tqdm_kwargs: Any) -> list[WorkflowResults]:  # type: ignore[override]
         """Runs the executor using a Ray cluster
 
         Before calling this method make sure to initialize a Ray cluster using `ray.init`.
@@ -43,8 +45,8 @@ class RayExecutor(EOExecutor):
 
     @classmethod
     def _run_execution(
-        cls, processing_args: List[_ProcessingData], run_params: _ExecutionRunParams
-    ) -> List[WorkflowResults]:
+        cls, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
+    ) -> list[WorkflowResults]:
         """Runs ray execution"""
         futures = [_ray_workflow_executor.remote(workflow_args) for workflow_args in processing_args]
         return join_ray_futures(futures, **run_params.tqdm_kwargs)
@@ -64,7 +66,7 @@ def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
 
 def parallelize_with_ray(
     function: Callable[[_InputType], _OutputType], *params: Iterable[_InputType], **tqdm_kwargs: Any
-) -> List[_OutputType]:
+) -> list[_OutputType]:
     """Parallelizes function execution with Ray.
 
     Note that this function will automatically connect to a Ray cluster, if a connection wouldn't exist yet. But it
@@ -83,7 +85,7 @@ def parallelize_with_ray(
     return join_ray_futures(futures, **tqdm_kwargs)
 
 
-def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[Any]:
+def join_ray_futures(futures: list[ray.ObjectRef], **tqdm_kwargs: Any) -> list[Any]:
     """Resolves futures, monitors progress, and returns a list of results.
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
@@ -93,7 +95,7 @@ def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[A
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `futures`.
     """
-    results: List[Optional[Any]] = [None] * len(futures)
+    results: list[Any | None] = [None] * len(futures)
     for position, result in join_ray_futures_iter(futures, **tqdm_kwargs):
         results[position] = result
 
@@ -101,8 +103,8 @@ def join_ray_futures(futures: List[ray.ObjectRef], **tqdm_kwargs: Any) -> List[A
 
 
 def join_ray_futures_iter(
-    futures: List[ray.ObjectRef], update_interval: float = 0.5, **tqdm_kwargs: Any
-) -> Generator[Tuple[int, Any], None, None]:
+    futures: list[ray.ObjectRef], update_interval: float = 0.5, **tqdm_kwargs: Any
+) -> Generator[tuple[int, Any], None, None]:
     """Resolves futures, monitors progress, and serves as an iterator over results.
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
@@ -117,7 +119,7 @@ def join_ray_futures_iter(
 
     def _ray_wait_function(
         remaining_futures: Collection[ray.ObjectRef],
-    ) -> Tuple[Collection[ray.ObjectRef], Collection[ray.ObjectRef]]:
+    ) -> tuple[Collection[ray.ObjectRef], Collection[ray.ObjectRef]]:
         return ray.wait(remaining_futures, num_returns=len(remaining_futures), timeout=float(update_interval))
 
     return _base_join_futures_iter(_ray_wait_function, ray.get, futures, **tqdm_kwargs)

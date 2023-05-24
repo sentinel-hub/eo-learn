@@ -5,14 +5,15 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 import warnings
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from typing_extensions import Literal
 
 from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
+
+# ruff: noqa: NPY002
 
 
 @pytest.mark.parametrize("size", [0, 5])

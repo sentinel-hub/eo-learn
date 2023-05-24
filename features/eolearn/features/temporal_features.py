@@ -154,10 +154,10 @@ class AddMaxMinTemporalIndicesTask(EOTask):
         argmin_data = np.ma.MaskedArray.argmin(madata, axis=0)
 
         if argmax_data.ndim == 2:
-            argmax_data = argmax_data.reshape(argmax_data.shape + (1,))
+            argmax_data = argmax_data.reshape((*argmax_data.shape, 1))
 
         if argmin_data.ndim == 2:
-            argmin_data = argmin_data.reshape(argmin_data.shape + (1,))
+            argmin_data = argmin_data.reshape((*argmin_data.shape, 1))
 
         eopatch.data_timeless[self.amax_feature] = argmax_data
         eopatch.data_timeless[self.amin_feature] = argmin_data

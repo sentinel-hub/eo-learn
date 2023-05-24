@@ -9,12 +9,15 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import Any
 
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import SingleFeatureSpec
+
+# switching to np.random.Generator would change results
+# ruff: noqa: NPY002
 
 
 class TrainTestSplitType(Enum):
@@ -65,13 +68,13 @@ class TrainTestSplitTask(EOTask):
         self,
         input_feature: SingleFeatureSpec,
         output_feature: SingleFeatureSpec,
-        bins: Union[float, List[Any]],
+        bins: float | list[Any],
         split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
-        ignore_values: Optional[List[int]] = None,
+        ignore_values: list[int] | None = None,
     ):
         """
         :param input_feature: The input feature to guide the split.
-        :param input_feature: The output feature where to save the mask.
+        :param output_feature: The output feature where to save the mask.
         :param bins: Cumulative probabilities of all value classes or a single float, representing a fraction.
         :param split_type: Value split type, either 'PER_PIXEL', 'PER_CLASS' or 'PER_VALUE'.
         :param ignore_values: A list of values in input_feature to ignore and not assign them to any subsets.
@@ -79,23 +82,17 @@ class TrainTestSplitTask(EOTask):
         self.input_feature = self.parse_feature(input_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
         self.output_feature = self.parse_feature(output_feature, allowed_feature_types=[FeatureType.MASK_TIMELESS])
 
-        if np.isscalar(bins):
-            bins = [bins]
-
-        if (
-            not isinstance(bins, list)
-            or not all(isinstance(bi, float) for bi in bins)
-            or np.any(np.diff(bins) <= 0)
-            or bins[0] <= 0
-            or bins[-1] >= 1
-        ):
+        if isinstance(bins, float):
+            self.bins = [bins]
+        else:
+            self.bins = list(bins)
+        if np.any(np.diff(self.bins) <= 0) or self.bins[0] <= 0 or self.bins[-1] >= 1:
             raise ValueError("bins argument should be a list of ascending floats inside an open interval (0, 1)")
 
         self.ignore_values = set() if ignore_values is None else set(ignore_values)
-        self.bins = bins
         self.split_type = TrainTestSplitType(split_type)
 
-    def execute(self, eopatch: EOPatch, *, seed: Optional[int] = None) -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, seed: int | None = None) -> EOPatch:
         """
         :param eopatch: input EOPatch
         :param seed: An argument to be passed to numpy.random.seed function.

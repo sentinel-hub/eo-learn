@@ -7,6 +7,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 import datetime
 import os
 import tempfile
+import warnings
 from typing import Any, Type
 
 import fs
@@ -21,7 +22,7 @@ from shapely.geometry import Point
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask
+from eolearn.core import EOPatch, FeatureType, LoadTask, OverwritePermission, SaveTask, merge_eopatches
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import (
     FeatureIO,
@@ -42,6 +43,13 @@ FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS.WGS84)
 
 
+@pytest.fixture(name="_silence_warnings")
+def _silence_warnings_fixture():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
+        yield
+
+
 @pytest.fixture(name="eopatch")
 def eopatch_fixture():
     eopatch = generate_eopatch(
@@ -50,10 +58,9 @@ def eopatch_fixture():
             FeatureType.MASK_TIMELESS: ["mask"],
             FeatureType.SCALAR: ["my scalar with spaces"],
             FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
+            FeatureType.META_INFO: ["something", "something-else"],
         }
     )
-    eopatch.meta_info["something"] = "nothing"
-    eopatch.meta_info["something-else"] = "nothing"
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
@@ -91,6 +98,7 @@ def test_saving_in_empty_folder(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.usefixtures("_silence_warnings")
 def test_saving_in_non_empty_folder(eopatch, fs_loader):
     with fs_loader() as temp_fs:
         empty_file = "foo.txt"
@@ -107,6 +115,7 @@ def test_saving_in_non_empty_folder(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.usefixtures("_silence_warnings")
 def test_overwriting_non_empty_folder(eopatch, fs_loader):
     with fs_loader() as temp_fs:
         eopatch.save("/", filesystem=temp_fs)
@@ -120,13 +129,13 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
             add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
 
         new_eopatch = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
-        assert new_eopatch == eopatch + add_eopatch
+        assert new_eopatch == merge_eopatches(eopatch, add_eopatch)
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize(
-    "save_features, load_features",
+    ("save_features", "load_features"),
     [
         (..., ...),
         ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
@@ -161,7 +170,7 @@ def test_save_add_only_features(eopatch, fs_loader):
     ]
 
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=features, overwrite_permission=0)
+        eopatch.save("/", filesystem=temp_fs, features=features, overwrite_permission=OverwritePermission.ADD_ONLY)
 
 
 @mock_s3
@@ -174,6 +183,7 @@ def test_bbox_always_saved(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.usefixtures("_silence_warnings")
 def test_overwrite_failure(fs_loader):
     eopatch = EOPatch(bbox=DUMMY_BBOX)
     mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
@@ -184,11 +194,19 @@ def test_overwrite_failure(fs_loader):
         eopatch.save("/", filesystem=temp_fs)
 
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=[(FeatureType.MASK_TIMELESS, "mask")], overwrite_permission=2)
+        eopatch.save(
+            "/",
+            filesystem=temp_fs,
+            features=[(FeatureType.MASK_TIMELESS, "mask")],
+            overwrite_permission=OverwritePermission.OVERWRITE_PATCH,
+        )
 
         with pytest.raises(IOError):
             eopatch.save(
-                "/", filesystem=temp_fs, features=[(FeatureType.MASK_TIMELESS, "Mask")], overwrite_permission=0
+                "/",
+                filesystem=temp_fs,
+                features=[(FeatureType.MASK_TIMELESS, "Mask")],
+                overwrite_permission=OverwritePermission.ADD_ONLY,
             )
 
 
@@ -270,8 +288,12 @@ def test_cleanup_different_compression(fs_loader, eopatch):
     with fs_loader() as temp_fs:
         temp_fs.makedir(folder)
 
-        save_compressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, overwrite_permission=1)
-        save_noncompressed_task = SaveTask(folder, filesystem=temp_fs, compress_level=0, overwrite_permission=1)
+        save_compressed_task = SaveTask(
+            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES"
+        )
+        save_noncompressed_task = SaveTask(
+            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES"
+        )
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
         compressed_bbox_path = bbox_path + ".gz"
         mask_timeless_path = fs.path.join(folder, patch_folder, "mask_timeless", "mask.npy")
@@ -294,6 +316,7 @@ def test_cleanup_different_compression(fs_loader, eopatch):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("folder_name", ["/", "foo", "foo/bar"])
+@pytest.mark.usefixtures("_silence_warnings")
 def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
     with fs_loader() as temp_fs:
         eopatch.save(folder_name, filesystem=temp_fs)
@@ -308,7 +331,7 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
 
 
 @pytest.mark.parametrize(
-    "constructor, data",
+    ("constructor", "data"),
     [
         (FeatureIONumpy, np.zeros(20)),
         (FeatureIONumpy, np.zeros((2, 3, 3, 2), dtype=np.int16)),

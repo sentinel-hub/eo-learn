@@ -61,6 +61,7 @@ def test_generate_eopatch_config(config: Dict[str, Any]) -> None:
             FeatureType.MASK_TIMELESS: "mask_timeless",
             FeatureType.SCALAR_TIMELESS: "scalar_timeless",
             FeatureType.LABEL_TIMELESS: "label_timeless",
+            FeatureType.META_INFO: "meta_info",
         },
     ],
 )
@@ -145,11 +146,16 @@ def test_generate_eopatch_data(test_case: GenerateTestCase) -> None:
 @pytest.mark.parametrize(
     "feature",
     [
-        (FeatureType.META_INFO, "meta_info"),
         (FeatureType.VECTOR, "vector"),
         (FeatureType.VECTOR_TIMELESS, "vector_timeless"),
+        {FeatureType.VECTOR_TIMELESS: ["vector_timeless"], FeatureType.META_INFO: ["test_meta"]},
     ],
 )
-def test_generate_eopatch_fails(feature: FeatureSpec) -> None:
+def test_generate_eopatch_fails(feature: FeaturesSpecification) -> None:
     with pytest.raises(ValueError):
         generate_eopatch(feature)
+
+
+def test_generate_meta_data() -> None:
+    patch = generate_eopatch((FeatureType.META_INFO, "test_meta"))
+    assert isinstance(patch.meta_info["test_meta"], str)

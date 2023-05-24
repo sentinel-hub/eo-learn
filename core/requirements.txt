@@ -1,10 +1,9 @@
-attrs>=19.2.0
 boto3
 fs
 fs-s3fs
-geopandas>=0.8.1
+geopandas>=0.11.0
 numpy>=1.20.0
 python-dateutil
-sentinelhub>=3.8.1
+sentinelhub>=3.9.0
 tqdm>=4.27
 typing-extensions

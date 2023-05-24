@@ -6,6 +6,8 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import base64
 import datetime as dt
 import importlib
@@ -13,7 +15,7 @@ import inspect
 import os
 import warnings
 from collections import defaultdict
-from typing import Any, DefaultDict, Dict, List, Tuple, cast
+from typing import Any, cast
 
 import fs
 import graphviz
@@ -97,12 +99,12 @@ class EOExecutorVisualization:
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
-    def _get_exception_stats(self) -> List[Tuple[str, str, List[Tuple[str, int]]]]:
+    def _get_exception_stats(self) -> list[tuple[str, str, list[tuple[str, int]]]]:
         """Creates aggregated stats about exceptions"""
         formatter = HtmlFormatter()
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
 
-        exception_stats: DefaultDict[str, DefaultDict[str, int]] = defaultdict(lambda: defaultdict(lambda: 0))
+        exception_stats: defaultdict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(lambda: 0))
 
         for workflow_results in self.eoexecutor.execution_results:
             if not workflow_results.error_node_uid:
@@ -117,8 +119,8 @@ class EOExecutorVisualization:
         return self._to_ordered_stats(exception_stats)
 
     def _to_ordered_stats(
-        self, exception_stats: DefaultDict[str, DefaultDict[str, int]]
-    ) -> List[Tuple[str, str, List[Tuple[str, int]]]]:
+        self, exception_stats: defaultdict[str, defaultdict[str, int]]
+    ) -> list[tuple[str, str, list[tuple[str, int]]]]:
         """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
         for the same node get ordered by number of occurrences in a decreasing order.
         """
@@ -134,10 +136,10 @@ class EOExecutorVisualization:
 
         return ordered_exception_stats
 
-    def _get_node_descriptions(self) -> List[Dict[str, Any]]:
+    def _get_node_descriptions(self) -> list[dict[str, Any]]:
         """Prepares a list of node names and initialization parameters of their tasks"""
         descriptions = []
-        name_counts: Dict[str, int] = defaultdict(lambda: 0)
+        name_counts: dict[str, int] = defaultdict(lambda: 0)
 
         for node in self.eoexecutor.workflow.get_nodes():
             node_name = node.get_name(name_counts[node.get_name()])
@@ -148,7 +150,7 @@ class EOExecutorVisualization:
                     "name": f"{node_name} ({node.uid})",
                     "uid": node.uid,
                     "args": {
-                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore
+                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
                         for key, value in node.task.private_task_config.init_args.items()
                     },
                 }
@@ -156,7 +158,7 @@ class EOExecutorVisualization:
 
         return descriptions
 
-    def _render_task_sources(self, formatter: pygments.formatter.Formatter) -> Dict[str, Any]:
+    def _render_task_sources(self, formatter: pygments.formatter.Formatter) -> dict[str, Any]:
         """Renders source code of EOTasks"""
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
         sources = {}
@@ -211,9 +213,8 @@ class EOExecutorVisualization:
         env = Environment(loader=FileSystemLoader(templates_dir))
         env.filters["datetime"] = self._format_datetime
         env.globals.update(timedelta=self._format_timedelta)
-        template = env.get_template(self.eoexecutor.REPORT_FILENAME)
 
-        return template
+        return env.get_template(self.eoexecutor.REPORT_FILENAME)
 
     @staticmethod
     def _format_datetime(value: dt.datetime) -> str:

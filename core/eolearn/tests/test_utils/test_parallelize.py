@@ -21,7 +21,7 @@ from eolearn.core.utils.parallelize import (
 
 
 @pytest.mark.parametrize(
-    "workers, multiprocess, expected_type",
+    ("workers", "multiprocess", "expected_type"),
     [
         (1, False, _ProcessingType.SINGLE_PROCESS),
         (1, True, _ProcessingType.SINGLE_PROCESS),
@@ -41,7 +41,7 @@ def test_execute_with_mp_lock():
 
 
 @pytest.mark.parametrize(
-    "workers, multiprocess",
+    ("workers", "multiprocess"),
     [
         (1, True),
         (3, False),

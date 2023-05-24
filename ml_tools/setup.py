@@ -7,9 +7,7 @@ def get_long_description():
     this_directory = os.path.abspath(os.path.dirname(__file__))
 
     with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
-        long_description = f.read()
-
-    return long_description
+        return f.read()
 
 
 def parse_requirements(file):
@@ -29,7 +27,7 @@ def get_version():
 
 setup(
     name="eo-learn-ml-tools",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     version=get_version(),
     description="A collection of machine learning EOTasks and utilities",
     long_description=get_long_description(),
@@ -47,7 +45,10 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
-    extras_require={"PLOTTING": parse_requirements("requirements-plotting.txt")},
+    extras_require={
+        "PLOTTING": parse_requirements("requirements-plotting.txt"),
+        "TDIGEST": parse_requirements("requirements-tdigest.txt"),
+    },
     zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -60,10 +61,10 @@ setup(
         "Operating System :: Unix",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: GIS",
         "Topic :: Scientific/Engineering :: Image Processing",

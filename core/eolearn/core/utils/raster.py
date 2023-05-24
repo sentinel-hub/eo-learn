@@ -6,10 +6,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
-from typing import Tuple
+from typing import Literal, Tuple
 
 import numpy as np
-from typing_extensions import Literal
 
 
 def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "linear") -> np.ndarray:
@@ -57,7 +56,7 @@ def fast_nanpercentile(data: np.ndarray, percentile: float, *, method: str = "li
     return combined_data
 
 
-def constant_pad(
+def constant_pad(  # noqa: C901
     array: np.ndarray,
     multiple_of: Tuple[int, int],
     up_down_rule: Literal["even", "up", "down"] = "even",

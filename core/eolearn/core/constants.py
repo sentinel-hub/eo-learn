@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 import warnings
 from enum import Enum, EnumMeta
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 from sentinelhub import BBox, MimeType
 from sentinelhub.exceptions import deprecated_function
@@ -16,29 +16,30 @@ from sentinelhub.exceptions import deprecated_function
 from .exceptions import EODeprecationWarning
 
 TIMESTAMP_COLUMN = "TIMESTAMP"
+T = TypeVar("T")
 
 
-def _warn_and_adjust(name: str) -> str:
+def _warn_and_adjust(name: T) -> T:
     # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
-    deprecation_msg = None
+    deprecation_msg = None  # placeholder
     if name in ("TIMESTAMP", "timestamp"):
-        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
+        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"  # type: ignore[assignment]
 
     if deprecation_msg:
-        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore
+        warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)  # type: ignore[unreachable]
     return name
 
 
 class EnumWithDeprecations(EnumMeta):
     """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
 
-    def __getattribute__(cls, name: str) -> Any:
+    def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getattribute__(_warn_and_adjust(name))
 
-    def __getitem__(cls, name: str) -> Any:
+    def __getitem__(cls, name: str) -> Any:  # noqa[N805]
         return super().__getitem__(_warn_and_adjust(name))
 
-    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa[N805]
         return super().__call__(_warn_and_adjust(value), *args, **kwargs)
 
 
@@ -292,17 +293,54 @@ class FeatureTypeSet(metaclass=DeprecatedCollectionClass):
     RASTER_TYPES_1D = frozenset([FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS])
 
 
-class OverwritePermission(Enum):
-    """Enum class which specifies which content of saved EOPatch can be overwritten when saving new content.
+def _warn_and_adjust_permissions(name: T) -> T:
+    if isinstance(name, str) and name.upper() == "OVERWRITE_PATCH":
+        warnings.warn(
+            '"OVERWRITE_PATCH" permission is deprecated and will be removed in a future version',
+            category=EODeprecationWarning,
+            stacklevel=3,
+        )
+    return name
+
+
+class PermissionsWithDeprecations(EnumMeta):
+    """A custom EnumMeta class for catching the deprecated Enum members of the OverwritePermission Enum class."""
+
+    def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
+        return super().__getattribute__(_warn_and_adjust_permissions(name))
+
+    def __getitem__(cls, name: str) -> Any:  # noqa[N805]
+        return super().__getitem__(_warn_and_adjust_permissions(name))
+
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa[N805]
+        return super().__call__(_warn_and_adjust_permissions(value), *args, **kwargs)
+
+
+class OverwritePermission(Enum, metaclass=PermissionsWithDeprecations):
+    """Enum class which specifies which content of the saved EOPatch can be overwritten when saving new content.
 
     Permissions are in the following hierarchy:
 
     - `ADD_ONLY` - Only new features can be added, anything that is already saved cannot be changed.
     - `OVERWRITE_FEATURES` - Overwrite only data for features which have to be saved. The remaining content of saved
       EOPatch will stay unchanged.
-    - `OVERWRITE_PATCH` - Overwrite entire content of saved EOPatch and replace it with the new content.
     """
 
-    ADD_ONLY = 0
-    OVERWRITE_FEATURES = 1
-    OVERWRITE_PATCH = 2
+    ADD_ONLY = "ADD_ONLY"
+    OVERWRITE_FEATURES = "OVERWRITE_FEATURES"
+    OVERWRITE_PATCH = "OVERWRITE_PATCH"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "OverwritePermission":
+        permissions_mapping = {0: "ADD_ONLY", 1: "OVERWRITE_FEATURES", 2: "OVERWRITE_PATCH"}
+        if isinstance(value, int) and value in permissions_mapping:
+            deprecation_msg = (
+                f"Please use strings to instantiate overwrite permissions, e.g., instead of {value} use"
+                f" {permissions_mapping[value]!r}"
+            )
+            warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)
+
+            return cls(permissions_mapping[value])
+        if isinstance(value, str) and value.upper() in cls._value2member_map_:
+            return cls(value.upper())
+        return super()._missing_(value)

@@ -47,6 +47,7 @@ from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+# ruff: noqa: NPY002
 
 
 @pytest.fixture(name="patch")
@@ -57,11 +58,10 @@ def patch_fixture() -> EOPatch:
             FeatureType.MASK: ["CLM"],
             FeatureType.MASK_TIMELESS: ["mask", "LULC", "RANDOM_UINT8"],
             FeatureType.SCALAR: ["values", "CLOUD_COVERAGE"],
+            FeatureType.META_INFO: ["something"],
         }
     )
     patch.data["CLP_S2C"] = np.zeros_like(patch.data["CLP"])
-
-    patch.meta_info["something"] = "beep boop"
     return patch
 
 
@@ -104,11 +104,13 @@ def test_load_task(test_eopatch_path: str) -> None:
 
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
-    assert FeatureType.BBOX in partial_patch and FeatureType.TIMESTAMPS not in partial_patch
+    assert FeatureType.BBOX in partial_patch
+    assert FeatureType.TIMESTAMPS not in partial_patch
 
     load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMPS])
     upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
-    assert FeatureType.BBOX in upgraded_partial_patch and FeatureType.TIMESTAMPS in upgraded_partial_patch
+    assert FeatureType.BBOX in upgraded_partial_patch
+    assert FeatureType.TIMESTAMPS in upgraded_partial_patch
     assert FeatureType.DATA not in upgraded_partial_patch
 
 
@@ -123,7 +125,7 @@ def test_io_task_pickling(filesystem: FS, task_class: Type[EOTask]) -> None:
 
 
 @pytest.mark.parametrize(
-    "feature, feature_data",
+    ("feature", "feature_data"),
     [
         ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
@@ -198,7 +200,7 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "init_val, shape, feature_spec",
+    ("init_val", "shape", "feature_spec"),
     [
         (8, (5, 2, 6, 3), (FeatureType.MASK, "test")),
         (9, (1, 4, 3), (FeatureType.MASK_TIMELESS, "test")),
@@ -211,11 +213,11 @@ def test_initialize_feature(
     expected_data = init_val * np.ones(shape)
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
 
-    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
+    assert all(np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec))
 
 
 @pytest.mark.parametrize(
-    "init_val, shape, feature_spec",
+    ("init_val", "shape", "feature_spec"),
     [
         (3, (FeatureType.DATA, "bands"), {FeatureType.MASK: ["F1", "F2", "F3"]}),
     ],
@@ -226,7 +228,7 @@ def test_initialize_feature_with_spec(
     expected_data = init_val * np.ones(patch[shape].shape)
 
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
-    assert all([np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec)])
+    assert all(np.array_equal(patch[features], expected_data) for features in parse_features(feature_spec))
 
 
 def test_initialize_feature_fails(patch: EOPatch) -> None:
@@ -258,7 +260,7 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
 
 
 @pytest.mark.parametrize(
-    "features_to_merge, feature, axis",
+    ("features_to_merge", "feature", "axis"),
     [
         ([(FeatureType.DATA, "bands")], (FeatureType.DATA, "merged"), 0),
         ([(FeatureType.DATA, "bands"), (FeatureType.DATA, "CLP")], (FeatureType.DATA, "merged"), -1),
@@ -282,7 +284,7 @@ def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature
 
 
 @pytest.mark.parametrize(
-    "input_features, output_feature, zip_function, kwargs",
+    ("input_features", "output_feature", "zip_function", "kwargs"),
     [
         ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), np.maximum, {}),
         ({FeatureType.DATA: ["CLP", "bands"]}, (FeatureType.DATA, "ziped"), lambda a, b: a + b, {}),
@@ -320,7 +322,7 @@ def test_zip_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_features, output_features, map_function, kwargs",
+    ("input_features", "output_features", "map_function", "kwargs"),
     [
         ({FeatureType.DATA: ["CLP", "bands"]}, {FeatureType.DATA: ["CLP_+3", "bands_+3"]}, lambda x: x + 3, {}),
         (
@@ -362,7 +364,7 @@ def test_map_features(
         assert_array_equal(mapped_patch[out_feature], expected_output)
 
 
-@pytest.mark.parametrize("input_features, map_function", [({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3)])
+@pytest.mark.parametrize(("input_features", "map_function"), [({FeatureType.DATA: ["CLP", "bands"]}, lambda x: x + 3)])
 def test_map_features_overwrite(input_features: FeaturesSpecification, map_function: Callable, patch: EOPatch) -> None:
     original_patch = patch.copy(deep=True, features=input_features)
     patch = MapFeatureTask(input_features, input_features, map_function)(patch)
@@ -381,13 +383,13 @@ def test_map_features_fails(patch: EOPatch) -> None:
 
 
 @pytest.mark.parametrize(
-    "input_feature, kwargs",
+    ("input_feature", "kwargs"),
     [
         ((FeatureType.DATA, "bands"), {"axis": -1, "name": "fun_name", "bands": [4, 3, 2]}),
     ],
 )
 def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], patch: EOPatch) -> None:
-    def kwargs_map(data, *, some=3, **kwargs) -> tuple:
+    def kwargs_map(_, *, some=3, **kwargs) -> tuple:
         return some, kwargs
 
     mapped_patch = MapFeatureTask(input_feature, (FeatureType.META_INFO, "kwargs"), kwargs_map, **kwargs)(patch)
@@ -397,7 +399,7 @@ def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], 
 
 
 @pytest.mark.parametrize(
-    "feature,  task_input",
+    ("feature", "task_input"),
     [
         ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): [2, 4, 6]}),
         ((FeatureType.DATA, "bands"), {(FeatureType.DATA, "EXPLODED_BANDS"): [2]}),

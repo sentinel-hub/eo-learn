@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -37,10 +36,10 @@ class ECCRegistrationTask(EOTask):
 
     def __init__(
         self,
-        registration_feature: Tuple[FeatureType, str],
-        reference_feature: Tuple[FeatureType, str],
+        registration_feature: tuple[FeatureType, str],
+        reference_feature: tuple[FeatureType, str],
         channel: int,
-        valid_mask_feature: Optional[Tuple[FeatureType, str]] = None,
+        valid_mask_feature: tuple[FeatureType, str] | None = None,
         apply_to_features: FeaturesSpecification = ...,
         interpolation_mode: int = cv2.INTER_LINEAR,
         warp_mode: int = cv2.MOTION_TRANSLATION,
@@ -98,7 +97,7 @@ class ECCRegistrationTask(EOTask):
         self,
         src: np.ndarray,
         trg: np.ndarray,
-        valid_mask: Optional[np.ndarray] = None,
+        valid_mask: np.ndarray | None = None,
         warp_mode: int = cv2.MOTION_TRANSLATION,
     ) -> np.ndarray:
         """Method that estimates the transformation between source and target image"""
@@ -160,7 +159,7 @@ class ECCRegistrationTask(EOTask):
         new_eopatch[FeatureType.META_INFO, "warp_matrices"] = warp_matrices
         return new_eopatch
 
-    def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: Tuple[int, int], flags: int) -> np.ndarray:
+    def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: tuple[int, int], flags: int) -> np.ndarray:
         """Transform the target image with the estimated transformation matrix"""
         if warp_matrix.shape == (3, 3):
             return cv2.warpPerspective(
@@ -216,6 +215,5 @@ def get_gradient(src: np.ndarray) -> np.ndarray:
     grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
     grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
 
-    # Combine the two gradients
-    grad = cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)
-    return grad
+    # Combine and return the two gradients
+    return cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)

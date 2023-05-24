@@ -1,0 +1,11 @@
+name: scheduled build caller
+
+on:
+  schedule:
+    # Schedule events are triggered by whoever last changed the cron schedule
+    - cron: "0 0 * * *"
+
+jobs:
+  call-workflow:
+    uses: sentinel-hub/eo-learn/.github/workflows/ci_action.yml@develop
+    secrets: inherit

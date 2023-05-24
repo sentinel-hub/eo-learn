@@ -2,12 +2,78 @@
 line-length = 120
 preview = true
 
-[tool.isort]
-profile = "black"
-known_first_party = "sentinelhub"
-known_absolute = "eolearn"
-sections = ["FUTURE","STDLIB","THIRDPARTY","FIRSTPARTY","ABSOLUTE","LOCALFOLDER"]
-line_length = 120
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+select = [
+    "F",   # pyflakes
+    "E",   # pycodestyle
+    "W",   # pycodestyle
+    "C90", # mccabe
+    "N",   # naming
+    "YTT", # flake-2020
+    "B",   # bugbear
+    "A",   # built-ins
+    "COM", # commas
+    "C4",  # comprehensions
+    "T10", # debugger statements
+    "ISC", # implicit string concatenation
+    "ICN", # import conventions
+    "G",   # logging format
+    "PIE", # flake8-pie
+    "T20", # print statements
+    "PT",  # pytest style
+    "RET", # returns
+    "SLF", # private member access
+    "SIM", # simplifications
+    "ARG", # unused arguments
+    "PD",  # pandas
+    "PGH", # pygrep hooks (useless noqa comments, eval statements etc.)
+    "FLY", # flynt
+    "RUF", # ruff rules
+    "NPY", # numpy
+    "I",   # isort
+    "UP",  # pyupgrade
+    "FA",  # checks where future import of annotations would make types nicer
+]
+fix = true
+fixable = [
+    "I",     # sort imports
+    "F401",  # remove redundant imports
+    "UP007", # use new-style union type annotations
+    "UP006", # use new-style built-in type annotations
+    "UP037", # remove quotes around types when not necessary
+    "FA100", # import future annotations where necessary (not autofixable ATM)
+]
+ignore = [
+    "C408",   # complains about `dict()` calls, we use them to avoid too many " in the code
+    "SIM117", # wants to always combine `with` statements, gets ugly for us
+    "SIM108", # tries to aggresively inline `if`, not always readable
+    "A003",   # complains when ATTRIBUTES shadow builtins, we have objects that implement `filter` and such
+    "COM812", # trailing comma missing, fights with black
+    "PD011",  # suggests `.to_numpy` instead of `.values`, also does this for non-pandas objects...
+    # potentially fixable
+    "B904",  # want `raise ... from None` instead of just `raise ...`
+    "B028",  # always demands a stacklevel argument when warning
+    "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
+    "UP024", # wants to switch IOError with OSError
+]
+per-file-ignores = { "__init__.py" = ["F401"] }
+exclude = [".git", "__pycache__", "build", "dist"]
+
+
+[tool.ruff.isort]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "our-packages",
+    "first-party",
+    "local-folder",
+]
+known-first-party = ["eolearn"]
+sections = { our-packages = ["sentinelhub"] }
+
 
 [tool.pylint.format]
 max-line-length = 120
@@ -21,14 +87,14 @@ disable = [
     "invalid-unary-operand-type",
     "unspecified-encoding",
     "unnecessary-ellipsis",
-    "use-dict-literal"
+    "use-dict-literal",
 ]
 
 [tool.pylint.design]
 max-args = 15
 max-branches = 15
 max-attributes = 20
-max-locals = 20
+max-locals = 21
 min-public-methods = 0
 
 [tool.pylint.similarities]
@@ -44,9 +110,7 @@ overgeneral-exceptions = "builtins.Exception"
 max-nested-blocks = 7
 
 [tool.pytest.ini_options]
-markers = [
-    "sh_integration: marks integration tests with Sentinel Hub service"
-]
+markers = ["sh_integration: marks integration tests with Sentinel Hub service"]
 
 [tool.coverage.run]
 source = [
@@ -57,23 +121,20 @@ source = [
     "io",
     "mask",
     "ml_tools",
-    "visualization"
+    "visualization",
 ]
 
 [tool.coverage.report]
-omit = [
-    "*/setup.py",
-    "*/tests/*",
-    "*/__init__.py"
-]
+omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-flake8 = [
-    "--extend-ignore=E402"
-]
-
-[tool.nbqa.exclude]
-flake8 = "examples/core/CoreOverview.ipynb"
+ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002,UP,FA"]
+# E402 -> imports on top
+# T201 -> print found
+# B015 & B018 -> useless expression (used to show values in ipynb)
+# NPY002 -> use RNG instead of old numpy.random
+# UP -> suggestions for new-style classes (future import might confuse readers)
+# FA -> necessary future annotations import
 
 [tool.mypy]
 follow_imports = "normal"

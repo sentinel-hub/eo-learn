@@ -51,7 +51,7 @@ class TestVectorImportTask:
 
 def test_clipping_wrong_crs(gpkg_file):
     """Test for trying to clip using different CRS than the data is in"""
+    feature = FeatureType.VECTOR_TIMELESS, "lpis_iacs"
+    import_task = VectorImportTask(feature=feature, path=gpkg_file, reproject=False, clip=True)
     with pytest.raises(ValueError):
-        feature = FeatureType.VECTOR_TIMELESS, "lpis_iacs"
-        import_task = VectorImportTask(feature=feature, path=gpkg_file, reproject=False, clip=True)
         import_task.execute(bbox=BBox([657690, 5071637, 660493, 5074440], CRS.UTM_31N))

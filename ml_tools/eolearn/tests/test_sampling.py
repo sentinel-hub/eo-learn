@@ -11,7 +11,6 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from pytest import approx
 from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType
@@ -21,7 +20,7 @@ from eolearn.ml_tools.sampling import expand_to_grids, get_mask_of_samples, rand
 
 
 @pytest.mark.parametrize(
-    "triangle, expected_points",
+    ("triangle", "expected_points"),
     [
         (
             Polygon([[-10, -12], [5, 10], [15, 4]]),
@@ -66,7 +65,7 @@ def small_image_fixture() -> np.ndarray:
 
 
 @pytest.mark.parametrize(
-    "image, n_samples",
+    ("image", "n_samples"),
     [
         (np.ones((100,)), {1: 100}),
         (np.ones((100, 100, 3)), {1: 100}),
@@ -82,7 +81,7 @@ def test_sample_by_values_errors(image: np.ndarray, n_samples: Dict[int, int]) -
 
 @pytest.mark.parametrize("seed", range(5))
 @pytest.mark.parametrize(
-    "n_samples, replace",
+    ("n_samples", "replace"),
     [
         ({0: 100, 1: 200, 2: 30}, False),
         ({1: 200}, False),
@@ -100,7 +99,7 @@ def test_sample_by_values(small_image: np.ndarray, seed: int, n_samples: Dict[in
 
 
 @pytest.mark.parametrize(
-    "rows, columns",
+    ("rows", "columns"),
     [
         (np.array([1, 1, 2, 3, 4]), np.array([2, 3, 1, 1, 4])),
     ],
@@ -135,7 +134,7 @@ def test_get_mask_of_samples(small_image: np.ndarray, n_samples: Dict[int, int])
 def eopatch_fixture(small_image: np.ndarray) -> EOPatch:
     config = PatchGeneratorConfig(raster_shape=small_image.shape, depth_range=(5, 6), num_timestamps=10)
     patch = generate_eopatch([(FeatureType.DATA, "bands")], config=config)
-    patch.mask_timeless["raster"] = small_image.reshape(small_image.shape + (1,))
+    patch.mask_timeless["raster"] = small_image.reshape((*small_image.shape, 1))
     return patch
 
 
@@ -189,8 +188,8 @@ def test_object_sampling_reproducibility(eopatch: EOPatch, seed: int, block_task
 
 
 @pytest.mark.parametrize(
-    "fraction, replace",
-    [[2, False], [-0.5, True], [{1: 0.5, 3: 0.4, 5: 1.2}, False], [{1: 0.5, 3: -0.4, 5: 1.2}, True], [(1, 0.4), True]],
+    ("fraction", "replace"),
+    [(2, False), (-0.5, True), ({1: 0.5, 3: 0.4, 5: 1.2}, False), ({1: 0.5, 3: -0.4, 5: 1.2}, True), ((1, 0.4), True)],
 )
 def test_fraction_sampling_errors(fraction: Union[float, Dict[int, float]], replace: bool) -> None:
     with pytest.raises(ValueError):
@@ -259,7 +258,7 @@ def test_fraction_sampling_input_fraction(
 
     for val, count in full.items():
         if val not in exclude:
-            assert samples[val] == approx(count * fraction_task.fraction, abs=1)
+            assert samples[val] == pytest.approx(count * fraction_task.fraction, abs=1)
 
 
 @pytest.mark.parametrize("seed", range(3))
@@ -283,7 +282,7 @@ def test_fraction_sampling_input_dict(fraction_task: FractionSamplingTask, seed:
     exclude = fraction_task.exclude_values or []  # get rid of pesky None
     assert set(exclude).isdisjoint(set(sample_values))
     assert set(sample_values).issubset(set(fraction_task.fraction))
-    assert all(count == approx(full[val] * fraction_task.fraction[val], abs=1) for val, count in samples.items())
+    assert all(count == pytest.approx(full[val] * fraction_task.fraction[val], abs=1) for val, count in samples.items())
 
 
 @pytest.mark.parametrize("seed", range(3))
@@ -317,7 +316,7 @@ def grid_task_fixture(request) -> EOTask:
 
 
 @pytest.mark.parametrize("grid_task", [[(1, 1), (1, 1)], [(2, 3), (5, 3)], [(6, 5), (3, 3)]], indirect=True)
-def test_grid_sampling_task(test_eopatch: EOPatch, grid_task: EOTask) -> None:
+def test_grid_sampling_task(test_eopatch: EOPatch, grid_task: GridSamplingTask) -> None:
     # expected_shape calculated
     sample_size = grid_task.sample_size
     expected_shape = list(test_eopatch.data["BANDS-S2-L1C"].shape)
@@ -336,11 +335,10 @@ def test_grid_sampling_task(test_eopatch: EOPatch, grid_task: EOTask) -> None:
     assert np.sum(eopatch[SAMPLE_MASK]) == height * width
 
 
-@pytest.mark.parametrize("grid_task", [[(1, 1), (1, 1)], [(2, 3), (5, 3)], [(6, 5), (3, 3)]], indirect=True)
-def test_grid_sampling_task_reproducibility(test_eopatch: EOPatch, grid_task: EOTask) -> None:
-    test_eopatch2 = test_eopatch.copy(deep=True)
-    eopatch = grid_task.execute(test_eopatch)
-    eopatch2 = grid_task.execute(test_eopatch2)
+@pytest.mark.parametrize("grid_task", [[(1, 1), (1, 1)], [(2, 3), (5, 3)]], indirect=True)
+def test_grid_sampling_task_reproducibility(test_eopatch: EOPatch, grid_task: GridSamplingTask) -> None:
+    eopatch1 = grid_task.execute(copy.copy(test_eopatch))
+    eopatch2 = grid_task.execute(copy.copy(test_eopatch))
 
-    assert eopatch is not eopatch2
-    assert eopatch == eopatch2
+    assert eopatch1 == eopatch2
+    assert eopatch1 is not eopatch2

@@ -19,7 +19,19 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING, Any, BinaryIO, Dict, Generic, Iterator, List, Optional, Tuple, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    BinaryIO,
+    Dict,
+    Generic,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 
 import dateutil.parser
 import fs
@@ -39,7 +51,6 @@ from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
-from .utils.vector_io import infer_schema
 
 if TYPE_CHECKING:
     from .eodata import EOPatch
@@ -62,12 +73,12 @@ TIMESTAMPS_FILENAME = "timestamps"
 class FilesystemDataInfo:
     """Information about data that is present on the filesystem. Fields represent paths to relevant file."""
 
-    timestamps: Optional[str] = None
-    bbox: Optional[str] = None
-    meta_info: Optional[str] = None
-    features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
+    timestamps: str | None = None
+    bbox: str | None = None
+    meta_info: str | None = None
+    features: dict[FeatureType, dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
-    def iterate_features(self) -> Iterator[Tuple[Tuple[FeatureType, str], str]]:
+    def iterate_features(self) -> Iterator[tuple[tuple[FeatureType, str], str]]:
         """Yields `(ftype, fname), path` tuples from `features`."""
         for ftype, ftype_dict in self.features.items():
             for fname, path in ftype_dict.items():
@@ -93,8 +104,10 @@ def save_eopatch(
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
 
-    if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
-        _remove_old_eopatch(filesystem, patch_location)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
+        if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
+            _remove_old_eopatch(filesystem, patch_location)
 
     ftype_folders = {fs.path.dirname(path) for _, _, path in data_for_saving}
     for folder in ftype_folders:
@@ -104,8 +117,10 @@ def save_eopatch(
         save_function = partial(_save_single_feature, filesystem=filesystem, compress_level=compress_level)
         list(executor.map(save_function, data_for_saving))  # Wrapped in a list to get better exceptions
 
-    if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-        remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=EODeprecationWarning)
+        if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
+            remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -114,8 +129,8 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 
 
 def _yield_features_to_save(
-    eopatch: EOPatch, eopatch_features: List[FeatureSpec], patch_location: str
-) -> Iterator[Tuple[Type[FeatureIO], Any, str]]:
+    eopatch: EOPatch, eopatch_features: list[FeatureSpec], patch_location: str
+) -> Iterator[tuple[type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
     get_file_path = partial(fs.path.join, patch_location)
     meta_features = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
@@ -134,20 +149,20 @@ def _yield_features_to_save(
             yield (_get_feature_io_constructor(ftype), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
 
 
-def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
+def _save_single_feature(save_spec: tuple[type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
     feature_io, data, feature_path = save_spec
     feature_io.save(data, filesystem, feature_path, compress_level)
 
 
 def remove_redundant_files(
     filesystem: FS,
-    eopatch_features: List[FeatureSpec],
+    eopatch_features: list[FeatureSpec],
     preexisting_files: FilesystemDataInfo,
     current_compress_level: int,
 ) -> None:
     """Removes files that should have been overwritten but were not due to different compression levels."""
 
-    def has_different_compression(path: Optional[str]) -> bool:
+    def has_different_compression(path: str | None) -> bool:
         return path is not None and MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
 
     files_to_remove = []
@@ -180,7 +195,7 @@ def load_eopatch_content(
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
 
-    features_dict: Dict[Tuple[FeatureType, str], FeatureIO] = {}
+    features_dict: dict[tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype.is_meta():
             continue
@@ -199,7 +214,7 @@ def load_eopatch_content(
 
 def _load_meta_features(
     filesystem: FS, file_information: FilesystemDataInfo, features: FeaturesSpecification
-) -> Tuple[Optional[FeatureIOBBox], Optional[FeatureIOTimestamps], Optional[FeatureIOJson]]:
+) -> tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, FeatureIOJson | None]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
@@ -278,7 +293,7 @@ def get_filesystem_data_info(
 @deprecated_function(category=EODeprecationWarning)
 def walk_filesystem(
     filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> Iterator[Tuple[FeatureType, Union[str, EllipsisType], str]]:
+) -> Iterator[tuple[FeatureType, str | EllipsisType, str]]:
     """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
@@ -295,7 +310,7 @@ def walk_filesystem(
         yield (*feature, path)
 
 
-def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[str, str]]:
+def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[tuple[str, str]]:
     """Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem).
     Skips folders and files in subfolders.
     """
@@ -305,7 +320,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
 
 
 def _check_collisions(
-    overwrite_permission: OverwritePermission, eopatch_features: List[FeatureSpec], existing_files: FilesystemDataInfo
+    overwrite_permission: OverwritePermission, eopatch_features: list[FeatureSpec], existing_files: FilesystemDataInfo
 ) -> None:
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
@@ -319,7 +334,7 @@ def _check_collisions(
         _check_letter_case_collisions(eopatch_features, FilesystemDataInfo())
 
 
-def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_add_only_permission(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {_to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()}
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
@@ -329,7 +344,7 @@ def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_f
         raise ValueError(f"Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY")
 
 
-def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_letter_case_collisions(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -344,7 +359,7 @@ def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesyste
             )
 
 
-def _to_lowercase(ftype: FeatureType, fname: Optional[str], *_: Any) -> Tuple[FeatureType, Optional[str]]:
+def _to_lowercase(ftype: FeatureType, fname: str | None, *_: Any) -> tuple[FeatureType, str | None]:
     """Transforms a feature to it's lowercase representation."""
     return ftype, fname if fname is None else fname.lower()
 
@@ -372,7 +387,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         self.path = path
         self.filesystem = filesystem
 
-        self.loaded_value: Optional[T] = None
+        self.loaded_value: T | None = None
 
     @classmethod
     @abstractmethod
@@ -399,7 +414,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         return self.loaded_value
 
     @abstractmethod
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> T:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> T:
         """Loads from a file and decodes content."""
 
     @classmethod
@@ -436,7 +451,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def _write_to_file(cls, data: T, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
+    def _write_to_file(cls, data: T, file: BinaryIO | gzip.GzipFile, path: str) -> None:
         """Writes data to a file in the appropriate way."""
 
 
@@ -447,11 +462,11 @@ class FeatureIONumpy(FeatureIO[np.ndarray]):
     def get_file_format(cls) -> MimeType:
         return MimeType.NPY
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> np.ndarray:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> np.ndarray:
         return np.load(file, allow_pickle=True)
 
     @classmethod
-    def _write_to_file(cls, data: np.ndarray, file: Union[BinaryIO, gzip.GzipFile], _: str) -> None:
+    def _write_to_file(cls, data: np.ndarray, file: BinaryIO | gzip.GzipFile, _: str) -> None:
         return np.save(file, data)
 
 
@@ -462,7 +477,7 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
     def get_file_format(cls) -> MimeType:
         return MimeType.GPKG
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> gpd.GeoDataFrame:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> gpd.GeoDataFrame:
         dataframe = gpd.read_file(file)
 
         if dataframe.crs is not None:
@@ -477,22 +492,15 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
         return dataframe
 
     @classmethod
-    def _write_to_file(cls, data: gpd.GeoDataFrame, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
+    def _write_to_file(cls, data: gpd.GeoDataFrame, file: BinaryIO | gzip.GzipFile, path: str) -> None:
         layer = fs.path.basename(path)
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="You are attempting to write an empty DataFrame to file*",
-                    category=UserWarning,
-                )
-                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
-        except ValueError as err:
-            # This workaround is only required for geopandas<0.11.0 and will be removed in the future.
-            if data.empty:
-                schema = infer_schema(data)
-                return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, schema=schema)
-            raise err
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="You are attempting to write an empty DataFrame to file*",
+                category=UserWarning,
+            )
+            return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
 
 
 class FeatureIOJson(FeatureIO[T]):
@@ -502,13 +510,13 @@ class FeatureIOJson(FeatureIO[T]):
     def get_file_format(cls) -> MimeType:
         return MimeType.JSON
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> T:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> T:
         return json.load(file)
 
     @classmethod
-    def _write_to_file(cls, data: T, file: Union[BinaryIO, gzip.GzipFile], path: str) -> None:
+    def _write_to_file(cls, data: T, file: BinaryIO | gzip.GzipFile, path: str) -> None:
         try:
-            json_data = json.dumps(data, indent=2, default=_jsonify_timestamp)
+            json_data = json.dumps(data, indent=2, default=_better_jsonify)
         except TypeError as exception:
             raise TypeError(
                 f"Failed to serialize when saving JSON file to {path}. Make sure that this feature type "
@@ -521,7 +529,7 @@ class FeatureIOJson(FeatureIO[T]):
 class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> List[datetime.datetime]:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> list[datetime.datetime]:
         data = json.load(file)
         return [dateutil.parser.parse(timestamp) for timestamp in data]
 
@@ -533,24 +541,26 @@ class FeatureIOBBox(FeatureIO[BBox]):
     def get_file_format(cls) -> MimeType:
         return MimeType.GEOJSON
 
-    def _read_from_file(self, file: Union[BinaryIO, gzip.GzipFile]) -> BBox:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> BBox:
         json_data = json.load(file)
         return Geometry.from_geojson(json_data).bbox
 
     @classmethod
-    def _write_to_file(cls, data: BBox, file: Union[BinaryIO, gzip.GzipFile], _: str) -> None:
+    def _write_to_file(cls, data: BBox, file: BinaryIO | gzip.GzipFile, _: str) -> None:
         json_data = json.dumps(data.geojson, indent=2)
         file.write(json_data.encode())
 
 
-def _jsonify_timestamp(param: object) -> str:
-    """Adds the option to serialize datetime.date objects via isoformat."""
+def _better_jsonify(param: object) -> Any:
+    """Adds the option to serialize datetime.date and FeatureDict objects via isoformat."""
     if isinstance(param, datetime.date):
         return param.isoformat()
+    if isinstance(param, Mapping):
+        return dict(param.items())
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
-def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
+def _get_feature_io_constructor(ftype: FeatureType) -> type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
         return FeatureIOBBox

@@ -131,7 +131,7 @@ This section assumes you have installed all packages in `requirements-dev.txt`.
 
 Most of the automated code-checking is packaged into [pre-commit hooks](https://pre-commit.com/). You can activate them by running `pre-commit install`. If you wish to check all code you can do so by running `pre-commit run --all-files`. This takes care of:
 - auto-formatting the code using `black`, `isort`, and `autoflake`
-- checking the code with `flake8`
+- checking the code with `ruff`
 - checking and formatting any Jupyter notebooks with `nbqa`
 - various other helpful things (correcting line-endings etc.)
 

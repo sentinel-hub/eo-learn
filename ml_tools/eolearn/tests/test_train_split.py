@@ -17,13 +17,12 @@ from eolearn.ml_tools.train_test_split import TrainTestSplitTask, TrainTestSplit
 
 INPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST")
 OUTPUT_FEATURE = (FeatureType.MASK_TIMELESS, "TEST_TRAIN_MASK")
-INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(1000, 1000), depth_range=(3, 4))
+INPUT_FEATURE_CONFIG = PatchGeneratorConfig(raster_shape=(300, 300), depth_range=(3, 4))
 
 
 @pytest.mark.parametrize(
-    "bad_arg, bad_kwargs",
+    ("bad_arg", "bad_kwargs"),
     [
-        (None, {}),
         (1.5, {}),
         ([0.5, 0.3], {}),
         ([0.5], {"split_type": None}),
@@ -35,7 +34,7 @@ def test_bad_args(bad_arg: Any, bad_kwargs: Any) -> None:
         TrainTestSplitTask(INPUT_FEATURE, OUTPUT_FEATURE, bad_arg, **bad_kwargs)
 
 
-@pytest.fixture(name="eopatch1", scope="function")
+@pytest.fixture(name="eopatch1")
 def eopatch1_fixture() -> EOPatch:
     return generate_eopatch(INPUT_FEATURE, config=INPUT_FEATURE_CONFIG)
 

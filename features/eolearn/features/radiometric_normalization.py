@@ -9,7 +9,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Optional
 
 import numpy as np
 
@@ -37,7 +36,7 @@ class ReferenceScenesTask(EOTask):
         self,
         feature: SingleFeatureSpec,
         valid_fraction_feature: SingleFeatureSpec,
-        max_scene_number: Optional[int] = None,
+        max_scene_number: int | None = None,
     ):
         self.renamed_feature = parse_renamed_feature(feature)
         self.valid_fraction_feature = self.parse_feature(valid_fraction_feature)
@@ -133,8 +132,7 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
         ind = f_arr.astype("int16")
         y_val, x_val = ind_tmp.shape[1], ind_tmp.shape[2]
         y_val, x_val = np.ogrid[0:y_val, 0:x_val]  # type: ignore[assignment]
-        idx = np.where(valid_obs == 0, self.max_index, ind_tmp[ind, y_val, x_val])
-        return idx
+        return np.where(valid_obs == 0, self.max_index, ind_tmp[ind, y_val, x_val])
 
     @abstractmethod
     def _get_reference_band(self, data: np.ndarray) -> np.ndarray:
@@ -150,8 +148,7 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
         :param data: Input 3D array holding the reference band
         :return: 2D array holding the temporal index corresponding to percentile
         """
-        indices = self._index_by_percentile(data, self.percentile)
-        return indices
+        return self._index_by_percentile(data, self.percentile)
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """Compute composite array merging temporal frames according to the compositing method
@@ -283,8 +280,7 @@ class MaxNDVICompositingTask(BaseCompositingTask):
         median = np.nanmedian(data, axis=0)
         indices_min = self._index_by_percentile(data, self.percentiles[0])
         indices_max = self._index_by_percentile(data, self.percentiles[1])
-        indices = np.where(median < -0.05, indices_min, indices_max)
-        return indices
+        return np.where(median < -0.05, indices_min, indices_max)
 
 
 class MaxNDWICompositingTask(BaseCompositingTask):

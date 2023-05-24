@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import copy
 from abc import ABCMeta
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Iterable, Tuple, Union, cast
 
 import fs
 import numpy as np
@@ -20,6 +20,7 @@ from sentinelhub import SHConfig
 
 from .constants import FeatureType
 from .eodata import EOPatch
+from .eodata_merge import merge_eopatches
 from .eotask import EOTask
 from .types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
@@ -48,12 +49,10 @@ class DeepCopyTask(CopyTask):
         return eopatch.copy(features=self.features, deep=True)
 
 
-class IOTask(EOTask, metaclass=ABCMeta):  # noqa B024
+class IOTask(EOTask, metaclass=ABCMeta):
     """An abstract Input/Output task that can handle a path and a filesystem object."""
 
-    def __init__(
-        self, path: str, filesystem: Optional[FS] = None, create: bool = False, config: Optional[SHConfig] = None
-    ):
+    def __init__(self, path: str, filesystem: FS | None = None, create: bool = False, config: SHConfig | None = None):
         """
         :param path: root path where all EOPatches are saved
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
@@ -83,7 +82,7 @@ class IOTask(EOTask, metaclass=ABCMeta):  # noqa B024
 class SaveTask(IOTask):
     """Saves the given EOPatch to a filesystem."""
 
-    def __init__(self, path: str, filesystem: Optional[FS] = None, config: Optional[SHConfig] = None, **kwargs: Any):
+    def __init__(self, path: str, filesystem: FS | None = None, config: SHConfig | None = None, **kwargs: Any):
         """
         :param path: root path where all EOPatches are saved
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
@@ -114,7 +113,7 @@ class SaveTask(IOTask):
 class LoadTask(IOTask):
     """Loads an EOPatch from a filesystem."""
 
-    def __init__(self, path: str, filesystem: Optional[FS] = None, config: Optional[SHConfig] = None, **kwargs: Any):
+    def __init__(self, path: str, filesystem: FS | None = None, config: SHConfig | None = None, **kwargs: Any):
         """
         :param path: root directory where all EOPatches are saved
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
@@ -127,7 +126,7 @@ class LoadTask(IOTask):
         self.kwargs = kwargs
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, eopatch_folder: str = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch | None = None, *, eopatch_folder: str = "") -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch: Optional input EOPatch. If given the loaded features are merged onto it, otherwise a new EOPatch
@@ -137,9 +136,7 @@ class LoadTask(IOTask):
         """
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
         loaded_patch = EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
-        if eopatch is None:
-            return loaded_patch
-        return eopatch.merge(loaded_patch)
+        return loaded_patch if eopatch is None else merge_eopatches(eopatch, loaded_patch)
 
 
 class AddFeatureTask(EOTask):
@@ -257,9 +254,9 @@ class InitializeFeatureTask(EOTask):
     def __init__(
         self,
         features: FeaturesSpecification,
-        shape: Union[Tuple[int, ...], FeatureSpec],
+        shape: tuple[int, ...] | FeatureSpec,
         init_value: int = 0,
-        dtype: Union[np.dtype, type] = np.uint8,
+        dtype: np.dtype | type = np.uint8,
     ):
         """
         :param features: A collection of features to initialize.
@@ -270,8 +267,8 @@ class InitializeFeatureTask(EOTask):
         """
 
         self.features = self.parse_features(features)
-        self.shape_feature: Optional[Tuple[FeatureType, Optional[str]]]
-        self.shape: Union[None, Tuple[int, int, int], Tuple[int, int, int, int]]
+        self.shape_feature: tuple[FeatureType, str | None] | None
+        self.shape: None | tuple[int, int, int] | tuple[int, int, int, int]
 
         try:
             self.shape_feature = self.parse_feature(shape)  # type: ignore[arg-type]
@@ -373,7 +370,7 @@ class MapFeatureTask(EOTask):
         self,
         input_features: FeaturesSpecification,
         output_features: FeaturesSpecification,
-        map_function: Optional[Callable] = None,
+        map_function: Callable | None = None,
         **kwargs: Any,
     ):
         """
@@ -453,7 +450,7 @@ class ZipFeatureTask(EOTask):
         self,
         input_features: FeaturesSpecification,
         output_feature: SingleFeatureSpec,
-        zip_function: Optional[Callable] = None,
+        zip_function: Callable | None = None,
         **kwargs: Any,
     ):
         """
@@ -490,7 +487,7 @@ class ZipFeatureTask(EOTask):
 class MergeFeatureTask(ZipFeatureTask):
     """Merges multiple features together by concatenating their data along the specified axis."""
 
-    def zip_method(self, *f: np.ndarray, dtype: Union[None, np.dtype, type] = None, axis: int = -1) -> np.ndarray:
+    def zip_method(self, *f: np.ndarray, dtype: None | np.dtype | type = None, axis: int = -1) -> np.ndarray:
         """Concatenates the data of features along the specified axis."""
         return np.concatenate(f, axis=axis, dtype=dtype)  # pylint: disable=unexpected-keyword-arg
 
@@ -498,7 +495,7 @@ class MergeFeatureTask(ZipFeatureTask):
 class ExtractBandsTask(MapFeatureTask):
     """Moves a subset of bands from one feature to a new one."""
 
-    def __init__(self, input_feature: FeaturesSpecification, output_feature: FeaturesSpecification, bands: List[int]):
+    def __init__(self, input_feature: FeaturesSpecification, output_feature: FeaturesSpecification, bands: list[int]):
         """
         :param input_feature: A source feature from which to take the subset of bands.
         :param output_feature: An output feature to which to write the bands.
@@ -519,8 +516,8 @@ class ExplodeBandsTask(EOTask):
 
     def __init__(
         self,
-        input_feature: Tuple[FeatureType, str],
-        output_mapping: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
+        input_feature: tuple[FeatureType, str],
+        output_mapping: dict[tuple[FeatureType, str], int | Iterable[int]],
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.
@@ -553,12 +550,12 @@ class CreateEOPatchTask(EOTask):
 class MergeEOPatchesTask(EOTask):
     """Merge content from multiple EOPatches into a single EOPatch.
 
-    Check :func:`EOPatch.merge<eolearn.core.eodata.EOPatch.merge>` for more information about the merging process.
+    Check :func:`merge_eopatches<eolearn.core.eodata_merge.merge_eopatches>` for more information.
     """
 
     def __init__(self, **merge_kwargs: Any):
         """
-        :param merge_kwargs: Keyword arguments defined for `EOPatch.merge` method.
+        :param merge_kwargs: Keyword arguments defined for `merge_eopatches` function.
         """
         self.merge_kwargs = merge_kwargs
 
@@ -570,4 +567,4 @@ class MergeEOPatchesTask(EOTask):
         if not eopatches:
             raise ValueError("At least one EOPatch should be given")
 
-        return eopatches[0].merge(*eopatches[1:], **self.merge_kwargs)
+        return merge_eopatches(*eopatches, **self.merge_kwargs)

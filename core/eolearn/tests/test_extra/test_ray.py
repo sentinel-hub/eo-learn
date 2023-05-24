@@ -19,6 +19,8 @@ from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, WorkflowResults
 from eolearn.core.eoworkflow_tasks import OutputTask
 from eolearn.core.extra.ray import RayExecutor, join_ray_futures, join_ray_futures_iter, parallelize_with_ray
 
+# ruff: noqa: ARG001
+
 
 class ExampleTask(EOTask):
     def execute(self, *_, **kwargs):
@@ -51,8 +53,8 @@ class CustomLogFilter(logging.Filter):
         return record.levelno >= logging.WARNING
 
 
-@pytest.fixture(name="simple_cluster", scope="module")
-def simple_cluster_fixture():
+@pytest.fixture(name="_simple_cluster", scope="module")
+def _simple_cluster_fixture():
     ray.init(log_to_driver=False)
     yield
     ray.shutdown()
@@ -63,27 +65,19 @@ def test_nodes_fixture():
     example = EONode(ExampleTask())
     foo = EONode(FooTask(), inputs=[example, example])
     output = EONode(OutputTask("output"), inputs=[foo])
-    nodes = {"example": example, "foo": foo, "output": output}
-    return nodes
+    return {"example": example, "foo": foo, "output": output}
 
 
 @pytest.fixture(name="workflow")
 def workflow_fixture(test_nodes):
-    workflow = EOWorkflow(list(test_nodes.values()))
-    return workflow
+    return EOWorkflow(list(test_nodes.values()))
 
 
 @pytest.fixture(name="execution_kwargs")
 def execution_kwargs_fixture(test_nodes):
     example_node = test_nodes["example"]
 
-    execution_kwargs = [
-        {example_node: {"arg1": 1}},
-        {},
-        {example_node: {"arg1": 3, "arg3": 10}},
-        {example_node: {"arg1": None}},
-    ]
-    return execution_kwargs
+    return [{example_node: {"arg1": 1}}, {}, {example_node: {"arg1": 3, "arg3": 10}}, {example_node: {"arg1": None}}]
 
 
 def test_fail_without_ray(workflow, execution_kwargs):
@@ -98,7 +92,8 @@ def test_fail_without_ray(workflow, execution_kwargs):
 
 @pytest.mark.parametrize("filter_logs", [True, False])
 @pytest.mark.parametrize("execution_names", [None, [4, "x", "y", "z"]])
-def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(
             workflow,
@@ -129,7 +124,8 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs, sim
             assert line_count == expected_line_count
 
 
-def test_execution_results(workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_execution_results(workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
         executor.run(desc="Test Ray")
@@ -140,7 +136,8 @@ def test_execution_results(workflow, execution_kwargs, simple_cluster):
                 assert isinstance(time_stat, datetime.datetime)
 
 
-def test_execution_errors(workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_execution_errors(workflow, execution_kwargs):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = RayExecutor(workflow, execution_kwargs, logs_folder=tmp_dir_name)
         executor.run()
@@ -155,7 +152,8 @@ def test_execution_errors(workflow, execution_kwargs, simple_cluster):
         assert executor.get_failed_executions() == [3]
 
 
-def test_execution_results2(workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_execution_results2(workflow, execution_kwargs):
     executor = RayExecutor(workflow, execution_kwargs)
     results = executor.run()
 
@@ -166,7 +164,8 @@ def test_execution_results2(workflow, execution_kwargs, simple_cluster):
             assert workflow_results.outputs["output"] == 42
 
 
-def test_keyboard_interrupt(simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_keyboard_interrupt():
     exception_node = EONode(KeyboardExceptionTask())
     workflow = EOWorkflow([exception_node])
     execution_kwargs = []
@@ -177,7 +176,8 @@ def test_keyboard_interrupt(simple_cluster):
         RayExecutor(workflow, execution_kwargs).run()
 
 
-def test_reruns(workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_reruns(workflow, execution_kwargs):
     executor = RayExecutor(workflow, execution_kwargs)
     for _ in range(100):
         executor.run()
@@ -190,7 +190,8 @@ def test_reruns(workflow, execution_kwargs, simple_cluster):
         executor.run()
 
 
-def test_run_after_interrupt(workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_run_after_interrupt(workflow, execution_kwargs):
     foo_node = EONode(FooTask())
     exception_node = EONode(KeyboardExceptionTask(), inputs=[foo_node])
     exception_workflow = EOWorkflow([foo_node, exception_node])
@@ -205,7 +206,8 @@ def test_run_after_interrupt(workflow, execution_kwargs, simple_cluster):
     assert [res.outputs for res in result_before_exception] == [res.outputs for res in result_after_exception]
 
 
-def test_mix_with_eoexecutor(workflow, execution_kwargs, simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_mix_with_eoexecutor(workflow, execution_kwargs):
     rayexecutor = RayExecutor(workflow, execution_kwargs)
     eoexecutor = EOExecutor(workflow, execution_kwargs)
     for _ in range(10):
@@ -234,7 +236,8 @@ def plus_one(value):
     return value + 1
 
 
-def test_join_ray_futures(simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_join_ray_futures():
     futures = [plus_one.remote(value) for value in range(5)]
     results = join_ray_futures(futures)
 
@@ -242,7 +245,8 @@ def test_join_ray_futures(simple_cluster):
     assert futures == []
 
 
-def test_join_ray_futures_iter(simple_cluster):
+@pytest.mark.usefixtures("_simple_cluster")
+def test_join_ray_futures_iter():
     futures = [plus_one.remote(value) for value in range(5)]
 
     results = []

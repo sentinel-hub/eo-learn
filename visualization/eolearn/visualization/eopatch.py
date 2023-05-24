@@ -12,7 +12,7 @@ import datetime as dt
 import itertools as it
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,9 +20,10 @@ from geopandas import GeoDataFrame
 from pyproj import CRS
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import SingleFeatureSpec
-
-from .eopatch_base import BaseEOPatchVisualization, BasePlotConfig
+from eolearn.core.utils.common import is_discrete_type
+from eolearn.core.utils.parsing import parse_feature
 
 
 class PlotBackend(Enum):
@@ -31,7 +32,7 @@ class PlotBackend(Enum):
     MATPLOTLIB = "matplotlib"
 
 
-def plot_eopatch(*args: Any, backend: Union[PlotBackend, str] = PlotBackend.MATPLOTLIB, **kwargs: Any) -> object:
+def plot_eopatch(*args: Any, backend: PlotBackend | str = PlotBackend.MATPLOTLIB, **kwargs: Any) -> object:
     """The main `EOPatch` plotting function. It pr
 
     :param args: Positional arguments to be propagated to a plotting backend.
@@ -48,9 +49,13 @@ def plot_eopatch(*args: Any, backend: Union[PlotBackend, str] = PlotBackend.MATP
 
 
 @dataclass
-class PlotConfig(BasePlotConfig):
+class PlotConfig:
     """Advanced plotting configurations
 
+    :param rgb_factor: A factor by which to scale RGB images to make them look better.
+    :param timestamp_column: A name of a column containing timestamps in a `GeoDataFrame` feature. If set to `None` it
+        will plot temporal vector features as if they were timeless.
+    :param geometry_column: A name of a column containing geometries in a `GeoDataFrame` feature.
     :param subplot_width: A width of each subplot in a grid
     :param subplot_height: A height of each subplot in a grid
     :param subplot_kwargs: A dictionary of parameters that will be passed to `matplotlib.pyplot.subplots` function.
@@ -61,39 +66,65 @@ class PlotConfig(BasePlotConfig):
         box.
     """
 
-    subplot_width: Union[float, int] = 8
-    subplot_height: Union[float, int] = 8
+    rgb_factor: float | None = 3.5
+    timestamp_column: str | None = TIMESTAMP_COLUMN
+    geometry_column: str = "geometry"
+    subplot_width: float | int = 8
+    subplot_height: float | int = 8
     interpolation: str = "none"
-    subplot_kwargs: Dict[str, object] = field(default_factory=dict)
+    subplot_kwargs: dict[str, object] = field(default_factory=dict)
     show_title: bool = True
-    title_kwargs: Dict[str, object] = field(default_factory=dict)
-    label_kwargs: Dict[str, object] = field(default_factory=dict)
-    bbox_kwargs: Dict[str, object] = field(default_factory=dict)
+    title_kwargs: dict[str, object] = field(default_factory=dict)
+    label_kwargs: dict[str, object] = field(default_factory=dict)
+    bbox_kwargs: dict[str, object] = field(default_factory=dict)
 
 
-class MatplotlibVisualization(BaseEOPatchVisualization):
+class MatplotlibVisualization:
     """EOPatch visualization using `matplotlib` framework."""
-
-    config: PlotConfig
 
     def __init__(
         self,
         eopatch: EOPatch,
         feature: SingleFeatureSpec,
         *,
-        axes: Optional[np.ndarray] = None,
-        config: Optional[PlotConfig] = None,
-        **kwargs: Any,
+        axes: np.ndarray | None = None,
+        config: PlotConfig | None = None,
+        times: list[int] | slice | None = None,
+        channels: list[int] | slice | None = None,
+        channel_names: list[str] | None = None,
+        rgb: tuple[int, int, int] | None = None,
     ):
         """
         :param eopatch: An EOPatch with a feature to plot.
         :param feature: A feature from the given EOPatch to plot.
         :param axes: A grid of axes on which to write plots. If not provided it will create a new grid.
         :param config: A configuration object with advanced plotting parameters.
-        :param kwargs: Parameters to be passed to the base class.
+        :param times: A list or a slice of indices on temporal axis to be used for plotting. If not provided all
+            indices will be used.
+        :param channels: A list or a slice of indices on channels axis to be used for plotting. If not provided all
+            indices will be used.
+        :param channel_names: Names of channels of the last dimension in the given raster feature.
+        :param rgb: If provided, it should be a list of 3 indices of RGB channels to be plotted. It will plot only RGB
+            images with these channels. This only works for raster features with spatial dimension.
         """
-        config = config or PlotConfig()
-        super().__init__(eopatch, feature, config=config, **kwargs)
+        self.eopatch = eopatch
+        self.feature = parse_feature(feature)
+        feature_type, _ = self.feature
+        self.config = config or PlotConfig()
+
+        if times is not None and not feature_type.is_temporal():
+            raise ValueError("Parameter times can only be provided for temporal features.")
+        self.times = times
+
+        self.channels = channels
+        self.channel_names = None if channel_names is None else [str(name) for name in channel_names]
+
+        if rgb and not (feature_type.is_spatial() and feature_type.is_array()):
+            raise ValueError("Parameter rgb can only be provided for plotting spatial raster features.")
+        self.rgb = rgb
+
+        if self.channels and self.rgb:
+            raise ValueError("Only one of parameters channels and rgb can be provided.")
 
         if axes is not None and not isinstance(axes, np.ndarray):
             axes = np.array([np.array([axes])])  # type: ignore[unreachable]
@@ -102,7 +133,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
     def plot(self) -> np.ndarray:
         """Plots the given feature"""
         feature_type, feature_name = self.feature
-        data, timestamps = self.collect_and_prepare_feature()
+        data, timestamps = self.collect_and_prepare_feature(self.eopatch)
 
         if feature_type is FeatureType.BBOX:
             return self._plot_bbox()
@@ -126,8 +157,60 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
             return self._plot_bar(data, title=feature_name)
         return self._plot_time_series(data, timestamps=timestamps, title=feature_name)
 
+    def collect_and_prepare_feature(self, eopatch: EOPatch) -> tuple[Any, list[dt.datetime]]:
+        """Collects a feature from EOPatch and modifies it according to plotting parameters"""
+        feature_type, _ = self.feature
+        data = eopatch[self.feature]
+        timestamps = eopatch.timestamps
+
+        if feature_type.is_array():
+            if self.times is not None:
+                data = data[self.times, ...]
+                if timestamps:
+                    timestamps = list(np.array(timestamps)[self.times])
+
+            if self.channels is not None:
+                data = data[..., self.channels]
+
+            if feature_type.is_spatial() and self.rgb:
+                data = self._prepare_rgb_data(data)
+
+            number_of_plot_columns = 1 if self.rgb else data.shape[-1]
+            if self.channel_names and len(self.channel_names) != number_of_plot_columns:
+                raise ValueError(
+                    f"Provided {len(self.channel_names)} channel names but attempting to make plots with "
+                    f"{number_of_plot_columns} columns for the given feature channels."
+                )
+
+        if feature_type.is_vector() and self.times is not None:
+            data = self._filter_temporal_dataframe(data)
+
+        return data, timestamps
+
+    def _prepare_rgb_data(self, data: np.ndarray) -> np.ndarray:
+        """Prepares data array for RGB plotting"""
+        data = data[..., self.rgb]
+
+        if self.config.rgb_factor is not None:
+            data = data * self.config.rgb_factor
+
+        if is_discrete_type(data.dtype):
+            data = np.clip(data, 0, 255)
+        else:
+            data = np.clip(data, 0.0, 1.0)
+
+        return data
+
+    def _filter_temporal_dataframe(self, dataframe: GeoDataFrame) -> GeoDataFrame:
+        """Prepares a list of unique timestamps from the dataframe, applies filter on them and returns a new
+        dataframe with rows that only contain filtered timestamps."""
+        unique_timestamps = dataframe[self.config.timestamp_column].unique()
+        filtered_timestamps = np.sort(unique_timestamps)[self.times]
+        filtered_rows = dataframe[self.config.timestamp_column].isin(filtered_timestamps)
+        return dataframe[filtered_rows]
+
     def _plot_raster_grid(
-        self, raster: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
+        self, raster: np.ndarray, timestamps: list[dt.datetime] | None = None, title: str | None = None
     ) -> np.ndarray:
         """Plots a grid of raster images"""
         rows, _, _, columns = raster.shape
@@ -155,7 +238,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         return axes
 
     def _plot_time_series(
-        self, series: np.ndarray, timestamps: Optional[List[dt.datetime]] = None, title: Optional[str] = None
+        self, series: np.ndarray, timestamps: list[dt.datetime] | None = None, title: str | None = None
     ) -> np.ndarray:
         """Plots time series feature."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
@@ -171,7 +254,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
             axis.legend()
         return axes
 
-    def _plot_bar(self, values: np.ndarray, title: Optional[str] = None) -> np.ndarray:
+    def _plot_bar(self, values: np.ndarray, title: str | None = None) -> np.ndarray:
         """Make a bar plot from values."""
         axes = self._provide_axes(nrows=1, ncols=1, title=title)
         axis = axes.flatten()[0]
@@ -182,7 +265,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
         return axes
 
     def _plot_vector_feature(
-        self, dataframe: GeoDataFrame, timestamp_column: Optional[str] = None, title: Optional[str] = None
+        self, dataframe: GeoDataFrame, timestamp_column: str | None = None, title: str | None = None
     ) -> np.ndarray:
         """Plots a GeoDataFrame vector feature"""
         rows = len(dataframe[timestamp_column].unique()) if timestamp_column else 1
@@ -205,7 +288,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
 
         return axes
 
-    def _plot_bbox(self, axes: Optional[np.ndarray] = None, target_crs: Optional[CRS] = None) -> np.ndarray:
+    def _plot_bbox(self, axes: np.ndarray | None = None, target_crs: CRS | None = None) -> np.ndarray:
         """Plot a bounding box"""
         bbox = self.eopatch.bbox
         if bbox is None:
@@ -231,9 +314,7 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
 
         return axes
 
-    def _provide_axes(
-        self, *, nrows: int, ncols: int, title: Optional[str] = None, **subplot_kwargs: Any
-    ) -> np.ndarray:
+    def _provide_axes(self, *, nrows: int, ncols: int, title: str | None = None, **subplot_kwargs: Any) -> np.ndarray:
         """Either provides an existing grid of axes or creates new one"""
         if self.axes is not None:
             return self.axes
@@ -258,6 +339,6 @@ class MatplotlibVisualization(BaseEOPatchVisualization):
 
         return axes
 
-    def _get_label_kwargs(self) -> Dict[str, object]:
+    def _get_label_kwargs(self) -> dict[str, object]:
         """Provides `matplotlib` arguments for writing labels in plots."""
         return {"fontsize": 12, **self.config.label_kwargs}

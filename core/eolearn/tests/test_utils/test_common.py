@@ -25,11 +25,8 @@ with warnings.catch_warnings():
         (bytes, False),
         (complex, False),
         (np.number, False),
-        (np.int, True),
         (np.byte, True),
         (np.bool_, True),
-        (np.bool, True),
-        (np.bool8, True),
         (np.integer, True),
         (np.dtype("uint16"), True),
         (np.int8, True),
@@ -43,7 +40,7 @@ with warnings.catch_warnings():
     ]
 
 
-@pytest.mark.parametrize("number_type, is_discrete", DTYPE_TEST_CASES)
+@pytest.mark.parametrize(("number_type", "is_discrete"), DTYPE_TEST_CASES)
 def test_is_discrete_type(number_type, is_discrete):
     """Checks the given type and its numpy dtype against the expected answer."""
     assert is_discrete_type(number_type) is is_discrete

@@ -6,12 +6,14 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime as dt
 import functools
 import logging
 import warnings
 from abc import ABCMeta
-from typing import Any, BinaryIO, List, Optional, Tuple, Union
+from typing import Any, BinaryIO
 
 import fs
 import numpy as np
@@ -37,7 +39,7 @@ from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
+class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     """Base abstract class for raster IO tasks"""
 
     def __init__(
@@ -45,19 +47,18 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
         feature: SingleFeatureSpec,
         folder: str,
         *,
-        filesystem: Optional[FS] = None,
-        image_dtype: Optional[Union[np.dtype, type]] = None,
-        no_data_value: Optional[float] = None,
+        filesystem: FS | None = None,
+        image_dtype: np.dtype | type | None = None,
+        no_data_value: float | None = None,
         create: bool = False,
-        config: Optional[SHConfig] = None,
+        config: SHConfig | None = None,
     ):
         """
         :param feature: Feature which will be exported or imported
         :param folder: A path to a main folder containing all image, potentially in its subfolders. If `filesystem`
             parameter is defined, then `folder` should be a path relative to filesystem object. Otherwise, it should be
             an absolute path.
-        :param filesystem: An existing filesystem object. If not given it will be initialized according to `folder`
-            parameter.
+        :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
         :param no_data_value: When exporting this is the NoData value of pixels in exported images.
             When importing this value is assigned to the pixels with NoData.
@@ -75,62 +76,58 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):  # noqa: B024
         if filesystem is None:
             filesystem, folder = get_base_filesystem_and_path(folder, create=create, config=config)
 
+        # the super-class takes care of filesystem pickling
         super().__init__(folder, filesystem=filesystem, create=create, config=config)
 
-    def _get_filename_paths(self, filename_template: Union[str, List[str]], timestamps: List[dt.datetime]) -> List[str]:
+    def _get_filename_paths(self, filename_template: str | list[str], timestamps: list[dt.datetime]) -> list[str]:
         """From a filename "template" and base path on the filesystem it generates full paths to tiff files. The paths
         are still relative to the filesystem object.
+
+        If the file extension is not provided, it will default to `.tif`. If a "*" wildcard or a datetime format
+        substring (e.g. "%Y%m%dT%H%M%S") is provided in the template, it returns multiple GeoTIFF paths where each one
+        will correspond to a single timestamp. Alternatively, a list of paths can be provided, one for each timestamp.
         """
         if isinstance(filename_template, str):
             filename_path = fs.path.join(self.filesystem_path, filename_template)
             filename_paths = self._generate_paths(filename_path, timestamps)
 
         elif isinstance(filename_template, list):
-            filename_paths = []
-            for timestamp_index, path in enumerate(filename_template):
-                filename_path = fs.path.join(self.filesystem_path, path)
-                if len(filename_template) == len(timestamps):
-                    filename_paths.extend(self._generate_paths(filename_path, [timestamps[timestamp_index]]))
-                elif not timestamps:
-                    filename_paths.extend(self._generate_paths(filename_path, timestamps))
-                else:
-                    raise ValueError(
-                        "The number of provided timestamps does not match the number of provided filenames."
-                    )
+            if timestamps and len(filename_template) != len(timestamps):
+                raise ValueError("The number of provided timestamps does not match the number of provided filenames.")
+
+            filenames = []
+            for idx, path in enumerate(filename_template):
+                timestamps = [] if not timestamps else [timestamps[idx]]
+                filenames.extend(self._generate_paths(path, timestamps))
+
+            filename_paths = [fs.path.join(self.filesystem_path, path) for path in filenames]
+
         else:
-            raise TypeError(
-                f"The 'filename' parameter must either be a list or a string, but {filename_template} found"
-            )
+            raise TypeError(f"The `filename` parameter must be a list or a string, but {filename_template} found")
 
         if self._create_path:
-            paths_to_create = {fs.path.dirname(filename_path) for filename_path in filename_paths}
-            for filename_path in paths_to_create:
-                self.filesystem.makedirs(filename_path, recreate=True)
+            unique_folder_paths = {fs.path.dirname(filename_path) for filename_path in filename_paths}
+            for folder_path in unique_folder_paths:
+                self.filesystem.makedirs(folder_path, recreate=True)
 
         return filename_paths
 
     @classmethod
-    def _generate_paths(cls, path_template: str, timestamps: List[dt.datetime]) -> List[str]:
+    def _generate_paths(cls, path_template: str, timestamps: list[dt.datetime]) -> list[str]:
         """Uses a filename path template to create a list of actual filename paths."""
-        if not cls._has_tiff_file_extension(path_template):
+        has_tiff_file_extensions = path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")
+        if not has_tiff_file_extensions:
             path_template = f"{path_template}.tif"
 
         if not timestamps:
             return [path_template]
 
-        if "*" in path_template:
-            path_template = path_template.replace("*", "%Y%m%dT%H%M%S")
+        path_template = path_template.replace("*", "%Y%m%dT%H%M%S")
 
-        if timestamps[0].strftime(path_template) == path_template:
+        if timestamps[0].strftime(path_template) == path_template:  # unaffected by timestamps
             return [path_template]
 
         return [timestamp.strftime(path_template) for timestamp in timestamps]
-
-    @staticmethod
-    def _has_tiff_file_extension(path: str) -> bool:
-        """Checks if path ends with a tiff file extension."""
-        path = path.lower()
-        return path.endswith(".tif") or path.endswith(".tiff")
 
 
 class ExportToTiffTask(BaseRasterIoTask):
@@ -151,11 +148,11 @@ class ExportToTiffTask(BaseRasterIoTask):
         feature: SingleFeatureSpec,
         folder: str,
         *,
-        date_indices: Union[List[int], Tuple[int, int], Tuple[dt.datetime, dt.datetime], Tuple[str, str], None] = None,
-        band_indices: Union[List[int], Tuple[int, int], None] = None,
-        crs: Union[CRS, int, str, None] = None,
+        date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
+        band_indices: list[int] | tuple[int, int] | None = None,
+        crs: CRS | int | str | None = None,
         fail_on_missing: bool = True,
-        compress: Optional[str] = None,
+        compress: str | None = None,
         **kwargs: Any,
     ):
         """
@@ -185,7 +182,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         self.compress = compress
 
     def _prepare_image_array(
-        self, data_array: np.ndarray, timestamps: List[dt.datetime], feature: Tuple[FeatureType, str]
+        self, data_array: np.ndarray, timestamps: list[dt.datetime], feature: tuple[FeatureType, str]
     ) -> np.ndarray:
         """Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
         array has shape (channels, height, width) and is of correct dtype.
@@ -196,7 +193,6 @@ class ExportToTiffTask(BaseRasterIoTask):
         if feature_type.is_temporal():
             data_array = self._reduce_by_time(data_array, timestamps)
         else:
-            # add temporal dimension
             data_array = np.expand_dims(data_array, axis=0)
 
         if not feature_type.is_spatial():
@@ -228,15 +224,15 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         raise ValueError(f"Invalid format in {self.band_indices}, expected tuple or list")
 
-    def _reduce_by_time(self, array: np.ndarray, timestamps: List[dt.datetime]) -> np.ndarray:
+    def _reduce_by_time(self, data_array: np.ndarray, timestamps: list[dt.datetime]) -> np.ndarray:
         """Reduce array by selecting a subset of times."""
         if self.date_indices is None:
-            return array
+            return data_array
 
         if isinstance(self.date_indices, list):
             if [date for date in self.date_indices if not isinstance(date, int)]:
                 raise ValueError(f"Invalid format in {self.date_indices} list, expected integers")
-            return array[np.array(self.date_indices), ...]
+            return data_array[np.array(self.date_indices), ...]
 
         if isinstance(self.date_indices, tuple):
             dates = np.array(timestamps)
@@ -249,49 +245,38 @@ class ExportToTiffTask(BaseRasterIoTask):
                 start_date, end_date = start_idx, end_idx
             else:
                 raise ValueError(f"Invalid format in {self.date_indices} tuple, expected ints, strings, or datetimes")
-            return array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
+            return data_array[np.nonzero(np.where((dates >= start_date) & (dates <= end_date), dates, 0))[0]]
 
         raise ValueError(f"Invalid format in {self.date_indices}, expected tuple or list")
 
-    def _set_export_dtype(self, data_array: np.ndarray, feature: Tuple[FeatureType, str]) -> np.ndarray:
+    def _set_export_dtype(self, data_array: np.ndarray, feature: tuple[FeatureType, str]) -> np.ndarray:
         """To a given array it sets a dtype in which data will be exported"""
         image_dtype = data_array.dtype if self.image_dtype is None else self.image_dtype
 
         if image_dtype == np.int64:
             image_dtype = np.int32
             warnings.warn(
-                (
-                    f"Data from feature {feature} cannot be exported to tiff with dtype numpy.int64. Will export "
-                    "as numpy.int32 instead"
-                ),
-                EORuntimeWarning,
+                f"Cannot export {feature} with dtype numpy.int64. Will export as numpy.int32 instead", EORuntimeWarning
             )
 
-        if image_dtype == data_array.dtype:
-            return data_array
-        return data_array.astype(image_dtype)
+        return data_array.astype(image_dtype) if image_dtype != data_array.dtype else data_array
 
     def _get_source_and_destination_params(
         self, data_array: np.ndarray, bbox: BBox
-    ) -> Tuple[Tuple[str, Affine], Tuple[str, Affine], Tuple[int, int]]:
-        """
-        Calculates source and destination CRS and transforms. Additionally, it returns destination height and width
-        """
+    ) -> tuple[tuple[str, Affine], tuple[str, Affine], tuple[int, int]]:
+        """Calculates source and destination CRS and transforms. Also returns destination height and width."""
         _, height, width = data_array.shape
 
         src_crs = bbox.crs.ogc_string()
         src_transform = rasterio.transform.from_bounds(*bbox, width=width, height=height)
 
-        if self.crs:
-            dst_crs = self.crs.ogc_string()
-            dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
-                src_crs, dst_crs, width, height, *bbox
-            )
-        else:
-            dst_crs = src_crs
-            dst_transform = src_transform
-            dst_width, dst_height = width, height
+        if self.crs is None:
+            return (src_crs, src_transform), (src_crs, src_transform), (height, width)
 
+        dst_crs = self.crs.ogc_string()
+        dst_transform, dst_width, dst_height = rasterio.warp.calculate_default_transform(
+            src_crs, dst_crs, width, height, *bbox
+        )
         return (src_crs, src_transform), (dst_crs, dst_transform), (dst_height, dst_width)
 
     def _export_tiff(
@@ -300,6 +285,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         filesystem: FS,
         path: str,
         channel_count: int,
+        *,
         dst_crs: str,
         dst_transform: Affine,
         dst_height: int,
@@ -308,7 +294,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         src_transform: Affine,
     ) -> None:
         """Export an EOPatch feature to tiff based on input channel range."""
-        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:  # noqa: SIM117
+        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:
             with rasterio.open(
                 file_handle,
                 "w",
@@ -336,7 +322,7 @@ class ExportToTiffTask(BaseRasterIoTask):
                             resampling=rasterio.warp.Resampling.nearest,
                         )
 
-    def execute(self, eopatch: EOPatch, *, filename: Union[str, List[str], None] = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, filename: str | list[str] | None = "") -> EOPatch:
         """Execute method
 
         :param eopatch: An input EOPatch
@@ -352,27 +338,23 @@ class ExportToTiffTask(BaseRasterIoTask):
             return eopatch
 
         if self.feature not in eopatch:
-            error_msg = f"Feature {self.feature[1]} of type {self.feature[0]} was not found in EOPatch"
+            error_msg = f"Feature {self.feature} was not found in EOPatch"
             LOGGER.warning(error_msg)
             if self.fail_on_missing:
                 raise ValueError(error_msg)
             return eopatch
         if eopatch.bbox is None:
-            raise ValueError(
-                "Given EOPatch is missing a bounding box and therefore no feature can be exported to GeoTIFF"
-            )
+            raise ValueError("EOPatch without a bounding box encountered, cannot export to GeoTIFF")
 
         image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamps, self.feature)
 
-        (
-            (src_crs, src_transform),
-            (dst_crs, dst_transform),
-            (dst_height, dst_width),
-        ) = self._get_source_and_destination_params(image_array, eopatch.bbox)
+        src_info, dst_info, (dst_height, dst_width) = self._get_source_and_destination_params(image_array, eopatch.bbox)
+        src_crs, src_transform = src_info
+        dst_crs, dst_transform = dst_info
 
         filename_paths = self._get_filename_paths(filename, eopatch.timestamps)
 
-        with self.filesystem as filesystem:
+        with self.filesystem as filesystem:  # no worries about `close`, filesystem is freshly unpickled by the property
             export_function = functools.partial(
                 self._export_tiff,
                 filesystem=filesystem,
@@ -415,7 +397,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         folder: str,
         *,
         use_vsi: bool = False,
-        timestamp_size: Optional[int] = None,
+        timestamp_size: int | None = None,
         **kwargs: Any,
     ):
         """
@@ -452,7 +434,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
             endpoint_url=filesystem.endpoint_url,
         )
 
-    def _load_from_image(self, path: str, filesystem: FS, bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
+    def _load_from_image(self, path: str, filesystem: FS, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
         """The method decides in what way data will be loaded from the image.
 
         The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
@@ -475,7 +457,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         with rasterio.Env(), filesystem.openbin(path, "r") as file_handle:
             return self._read_image(file_handle, bbox)
 
-    def _read_image(self, file_object: Union[str, BinaryIO], bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
+    def _read_image(self, file_object: str | BinaryIO, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
         """Reads data from the image."""
         src: DatasetReader
         with rasterio.open(file_object) as src:
@@ -484,9 +466,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
 
     @staticmethod
-    def _get_reading_window_and_bbox(
-        reader: DatasetReader, bbox: Optional[BBox]
-    ) -> Tuple[Optional[Window], Optional[BBox]]:
+    def _get_reading_window_and_bbox(reader: DatasetReader, bbox: BBox | None) -> tuple[Window | None, BBox | None]:
         """Provides a reading window for which data will be read from image. If it returns `None` this means that the
         whole image should be read. Those cases are when bbox is not defined, image is not geo-referenced, or
         bbox coordinates exactly match image coordinates. Additionally, it provides a bounding box of reading window
@@ -511,10 +491,10 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
         return from_bounds(*iter(bbox), transform=image_transform), original_bbox
 
-    def _load_data(self, filename_paths: List[str], initial_bbox: Optional[BBox]) -> Tuple[np.ndarray, Optional[BBox]]:
+    def _load_data(self, filename_paths: list[str], initial_bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
         """Load data from images, join them, and provide their bounding box."""
-        data_per_path: List[np.ndarray] = []
-        final_bbox: Optional[BBox] = None
+        data_per_path = []
+        final_bbox: BBox | None = None
 
         with self.filesystem as filesystem:
             for path in filename_paths:
@@ -532,7 +512,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
         return np.concatenate(data_per_path, axis=0), final_bbox
 
-    def execute(self, eopatch: Optional[EOPatch] = None, *, filename: Optional[str] = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch | None = None, *, filename: str | None = "") -> EOPatch:
         """Execute method which adds a new feature to the EOPatch.
 
         :param eopatch: input EOPatch or None if a new EOPatch should be created

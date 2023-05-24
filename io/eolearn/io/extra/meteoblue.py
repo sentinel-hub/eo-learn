@@ -12,9 +12,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime as dt
 from abc import ABCMeta, abstractmethod
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import dateutil.parser
 import geopandas as gpd
@@ -41,12 +43,12 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: Tuple[FeatureType, str],
+        feature: tuple[FeatureType, str],
         apikey: str,
-        query: Optional[dict] = None,
-        units: Optional[dict] = None,
-        time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008
-        cache_folder: Optional[str] = None,
+        query: dict | None = None,
+        units: dict | None = None,
+        time_difference: dt.timedelta = dt.timedelta(minutes=30),  # noqa: B008, RUF100
+        cache_folder: str | None = None,
         cache_max_age: int = 604800,
     ):
         """
@@ -72,7 +74,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         self.time_difference = time_difference
 
     @staticmethod
-    def _get_modified_eopatch(eopatch: Optional[EOPatch], bbox: Optional[BBox]) -> Tuple[EOPatch, BBox]:
+    def _get_modified_eopatch(eopatch: EOPatch | None, bbox: BBox | None) -> tuple[EOPatch, BBox]:
         if bbox is not None:
             if eopatch is None:
                 eopatch = EOPatch(bbox=bbox)
@@ -86,7 +88,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
             raise ValueError("Bounding box is not provided")
         return eopatch, eopatch.bbox
 
-    def _prepare_time_intervals(self, eopatch: EOPatch, time_interval: Optional[RawTimeIntervalType]) -> List[str]:
+    def _prepare_time_intervals(self, eopatch: EOPatch, time_interval: RawTimeIntervalType | None) -> list[str]:
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
         if not eopatch.timestamps and not time_interval:
             raise ValueError(
@@ -98,7 +100,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
             return [f"{serialized_start_time}/{serialized_end_time}"]
 
         timestamps = eopatch.timestamps
-        time_intervals: List[str] = []
+        time_intervals: list[str] = []
         for timestamp in timestamps:
             start_time = timestamp - self.time_difference
             end_time = timestamp + self.time_difference
@@ -110,16 +112,16 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
         return time_intervals
 
     @abstractmethod
-    def _get_data(self, query: dict) -> Tuple[Any, List[dt.datetime]]:
+    def _get_data(self, query: dict) -> tuple[Any, list[dt.datetime]]:
         """It should return an output feature object and a list of timestamps"""
 
     def execute(
         self,
-        eopatch: Optional[EOPatch] = None,
+        eopatch: EOPatch | None = None,
         *,
-        query: Optional[dict] = None,
-        bbox: Optional[BBox] = None,
-        time_interval: Optional[RawTimeIntervalType] = None,
+        query: dict | None = None,
+        bbox: BBox | None = None,
+        time_interval: RawTimeIntervalType | None = None,
     ) -> EOPatch:
         """Execute method that adds new meteoblue data into an EOPatch
 
@@ -167,7 +169,7 @@ class MeteoblueVectorTask(BaseMeteoblueTask):
     A meteoblue API key is required to retrieve data.
     """
 
-    def _get_data(self, query: dict) -> Tuple[gpd.GeoDataFrame, List[dt.datetime]]:
+    def _get_data(self, query: dict) -> tuple[gpd.GeoDataFrame, list[dt.datetime]]:
         """Provides a GeoDataFrame with information about weather control points and an empty list of timestamps"""
         result = self.client.querySync(query)
         dataframe = meteoblue_to_dataframe(result)
@@ -187,7 +189,7 @@ class MeteoblueRasterTask(BaseMeteoblueTask):
     A meteoblue API key is required to retrieve data.
     """
 
-    def _get_data(self, query: dict) -> Tuple[np.ndarray, List[dt.datetime]]:
+    def _get_data(self, query: dict) -> tuple[np.ndarray, list[dt.datetime]]:
         """Return a 4-dimensional numpy array of shape (time, height, width, weather variables) and a list of
         timestamps
         """
@@ -208,7 +210,7 @@ def meteoblue_to_dataframe(result: Any) -> pd.DataFrame:
     code_names = [f"{code.code}_{code.level}_{code.aggregation}" for code in geometry.codes]
 
     if not geometry.timeIntervals:
-        return pd.DataFrame(columns=[TIMESTAMP_COLUMN, "Longitude", "Latitude"] + code_names)
+        return pd.DataFrame(columns=[TIMESTAMP_COLUMN, "Longitude", "Latitude", *code_names])
 
     dataframes = []
     for index, time_interval in enumerate(geometry.timeIntervals):
@@ -271,12 +273,12 @@ def meteoblue_to_numpy(result: Any) -> np.ndarray:
     return data.transpose((1, 2, 3, 0))
 
 
-def _meteoblue_timestamps_from_geometry(geometry_pb: Any) -> List[dt.datetime]:
+def _meteoblue_timestamps_from_geometry(geometry_pb: Any) -> list[dt.datetime]:
     """Transforms a protobuf geometry object into a list of datetime objects"""
     return list(pd.core.common.flatten(map(_meteoblue_timestamps_from_time_interval, geometry_pb.timeIntervals)))
 
 
-def _meteoblue_timestamps_from_time_interval(timestamp_pb: Any) -> List[dt.datetime]:
+def _meteoblue_timestamps_from_time_interval(timestamp_pb: Any) -> list[dt.datetime]:
     """Transforms a protobuf timestamp object into a list of datetime objects"""
     if timestamp_pb.timestrings:
         # Time intervals like weekly data, return an `array of strings` as timestamps

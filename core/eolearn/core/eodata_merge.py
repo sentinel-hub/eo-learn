@@ -12,22 +12,19 @@ import datetime as dt
 import functools
 import itertools as it
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Literal, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
-from typing_extensions import Literal
 
 from sentinelhub import BBox
 
 from .constants import FeatureType
+from .eodata import EOPatch
 from .exceptions import EORuntimeWarning
 from .types import FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
-
-if TYPE_CHECKING:
-    from .eodata import EOPatch
 
 OperationInputType = Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable]
 
@@ -37,76 +34,69 @@ def merge_eopatches(
     features: FeaturesSpecification = ...,
     time_dependent_op: OperationInputType = None,
     timeless_op: OperationInputType = None,
-) -> Dict[FeatureSpec, Any]:
+) -> EOPatch:
     """Merge features of given EOPatches into a new EOPatch.
 
-    :param eopatches: Any number of EOPatches to be merged together
+    :param eopatches: Any number of EOPatches to be merged together.
     :param features: A collection of features to be merged together. By default, all features will be merged.
-    :param time_dependent_op: An operation to be used to join data for any time-dependent raster feature. Before
-        joining time slices of all arrays will be sorted. Supported options are:
+    :param time_dependent_op: An operation for joining data for time-dependent raster features. Before joining time
+        slices of all arrays will be sorted. Supported options are:
 
-        - None (default): If time slices with matching timestamps have the same values, take one. Raise an error
-          otherwise.
+        - None: If time slices with matching timestamps have the same values, take one. Raise an error otherwise.
         - 'concatenate': Keep all time slices, even the ones with matching timestamps
         - 'min': Join time slices with matching timestamps by taking minimum values. Ignore NaN values.
         - 'max': Join time slices with matching timestamps by taking maximum values. Ignore NaN values.
         - 'mean': Join time slices with matching timestamps by taking mean values. Ignore NaN values.
         - 'median': Join time slices with matching timestamps by taking median values. Ignore NaN values.
+    :param timeless_op: An operation for joining data for timeless raster features. Supported options are:
 
-    :param timeless_op: An operation to be used to join data for any timeless raster feature. Supported options
-        are:
-
-        - None (default): If arrays are the same, take one. Raise an error otherwise.
+        - None: If arrays are the same, take one. Raise an error otherwise.
         - 'concatenate': Join arrays over the last (i.e. bands) dimension
         - 'min': Join arrays by taking minimum values. Ignore NaN values.
         - 'max': Join arrays by taking maximum values. Ignore NaN values.
         - 'mean': Join arrays by taking mean values. Ignore NaN values.
         - 'median': Join arrays by taking median values. Ignore NaN values.
-
-    :return: Contents of a merged EOPatch
+    :return: A merged EOPatch
     """
+
     reduce_timestamps = time_dependent_op != "concatenate"
     time_dependent_operation = _parse_operation(time_dependent_op, is_timeless=False)
     timeless_operation = _parse_operation(timeless_op, is_timeless=True)
 
     feature_parser = FeatureParser(features)
     all_features = {feature for eopatch in eopatches for feature in feature_parser.get_features(eopatch)}
-    eopatch_content: Dict[FeatureSpec, object] = {}
 
     timestamps, order_mask_per_eopatch = _merge_timestamps(eopatches, reduce_timestamps)
     optimize_raster_temporal = _check_if_optimize(eopatches, time_dependent_op)
+
+    merged_eopatch = EOPatch(bbox=_get_common_bbox(eopatches), timestamps=timestamps)
 
     for feature in all_features:
         feature_type, feature_name = feature
 
         if feature_type.is_array():
             if feature_type.is_temporal():
-                eopatch_content[feature] = _merge_time_dependent_raster_feature(
+                merged_eopatch[feature] = _merge_time_dependent_raster_feature(
                     eopatches, feature, time_dependent_operation, order_mask_per_eopatch, optimize_raster_temporal
                 )
             else:
-                eopatch_content[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_operation)
+                merged_eopatch[feature] = _merge_timeless_raster_feature(eopatches, feature, timeless_operation)
 
         if feature_type.is_vector():
-            eopatch_content[feature] = _merge_vector_feature(eopatches, feature)
-
-        if feature_type is FeatureType.TIMESTAMPS:
-            eopatch_content[feature] = timestamps
+            merged_eopatch[feature] = _merge_vector_feature(eopatches, feature)
 
         if feature_type is FeatureType.META_INFO:
             feature_name = cast(str, feature_name)  # parser makes sure of it
-            eopatch_content[feature] = _select_meta_info_feature(eopatches, feature_name)
+            merged_eopatch[feature] = _select_meta_info_feature(eopatches, feature_name)
 
-    eopatch_content[(FeatureType.BBOX, None)] = _get_common_bbox(eopatches)
-
-    return eopatch_content
+    return merged_eopatch
 
 
 def _parse_operation(operation_input: OperationInputType, is_timeless: bool) -> Callable:
     """Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
     arrays. If the input already is a function it returns it.
     """
-    defaults: Dict[Optional[str], Callable] = {
+    defaults: dict[str | None, Callable] = {
         None: _return_if_equal_operation,
         "concatenate": functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
         "mean": functools.partial(np.nanmean, axis=0),
@@ -131,7 +121,7 @@ def _return_if_equal_operation(arrays: np.ndarray) -> bool:
 
 def _merge_timestamps(
     eopatches: Sequence[EOPatch], reduce_timestamps: bool
-) -> Tuple[List[dt.datetime], List[np.ndarray]]:
+) -> tuple[list[dt.datetime], list[np.ndarray]]:
     """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
@@ -215,7 +205,7 @@ def _extract_and_join_time_dependent_feature_values(
     feature: FeatureSpec,
     order_mask_per_eopatch: Sequence[np.ndarray],
     optimize: bool,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Collects feature arrays from EOPatches that have them and joins them together. It also joins together
     corresponding order masks.
     """
@@ -297,7 +287,7 @@ def _select_meta_info_feature(eopatches: Sequence[EOPatch], feature_name: str) -
     return values[0]
 
 
-def _get_common_bbox(eopatches: Sequence[EOPatch]) -> Optional[BBox]:
+def _get_common_bbox(eopatches: Sequence[EOPatch]) -> BBox | None:
     """Makes sure that all EOPatches, which define a bounding box and CRS, define the same ones."""
     bboxes = [eopatch.bbox for eopatch in eopatches if eopatch.bbox is not None]
 
@@ -309,13 +299,13 @@ def _get_common_bbox(eopatches: Sequence[EOPatch]) -> Optional[BBox]:
     raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes.")
 
 
-def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> List[Any]:
+def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> list[Any]:
     """A helper function that extracts a feature values from those EOPatches where a feature exists."""
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
 
 
-def _all_equal(values: Union[Sequence[Any], np.ndarray]) -> bool:
+def _all_equal(values: Sequence[Any] | np.ndarray) -> bool:
     """A helper function that checks if all values in a given list are equal to each other."""
     first_value = values[0]
 

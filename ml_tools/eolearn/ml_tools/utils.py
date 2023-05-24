@@ -21,7 +21,7 @@ from eolearn.core.exceptions import EODeprecationWarning
 @deprecated_function(
     category=EODeprecationWarning, message_suffix="Please use `numpy.lib.stride_tricks.sliding_window_view` instead."
 )
-def rolling_window(
+def rolling_window(  # noqa: C901
     array: np.ndarray,
     window: Any = (0,),
     asteps: Optional[Any] = None,

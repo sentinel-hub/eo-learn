@@ -1,4 +1,3 @@
-codecov
 hypothesis
 moto
 mypy>=0.990
