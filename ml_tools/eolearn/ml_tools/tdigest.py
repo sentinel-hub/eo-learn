@@ -7,9 +7,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 from functools import partial
 from itertools import product
-from typing import Any, Callable, Dict, Generator, Iterable, List, Literal, Tuple, Union
+from typing import Any, Callable, Generator, Iterable, Literal, Union
 
 import numpy as np
 import tdigest as td
@@ -34,7 +36,7 @@ class TDigestTask(EOTask):
         self,
         in_feature: FeaturesSpecification,
         out_feature: FeaturesSpecification,
-        mode: Union[Literal["standard", "timewise", "monthly", "total"], Callable] = "standard",
+        mode: Literal["standard", "timewise", "monthly", "total"] | Callable = "standard",
         pixelwise: bool = False,
         filternan: bool = False,
     ):
@@ -119,8 +121,8 @@ def _is_output_ftype(feature_type: FeatureType, mode: ModeTypes, pixelwise: bool
 
 
 def _looper(
-    in_feature: List[FeatureSpec], out_feature: List[FeatureSpec], eopatch: EOPatch
-) -> Generator[Tuple[FeatureSpec, FeatureSpec, np.ndarray], None, None]:
+    in_feature: list[FeatureSpec], out_feature: list[FeatureSpec], eopatch: EOPatch
+) -> Generator[tuple[FeatureSpec, FeatureSpec, np.ndarray], None, None]:
     for in_feature_, out_feature_ in zip(in_feature, out_feature):
         shape = np.array(eopatch[in_feature_].shape)
         yield in_feature_, out_feature_, shape
@@ -182,7 +184,7 @@ def _process_total(input_array: np.ndarray, filternan: bool, **_: Any) -> np.nda
     return _get_tdigest(input_array, filternan)
 
 
-_processing_function: Dict[str, Callable] = {
+_processing_function: dict[str, Callable] = {
     "standard": _process_standard,
     "timewise": _process_timewise,
     "monthly": _process_monthly,
