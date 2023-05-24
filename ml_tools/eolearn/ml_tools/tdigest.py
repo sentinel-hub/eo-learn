@@ -1,5 +1,6 @@
 """
 The module provides an EOTask for the computation of a T-Digest representation of an EOPatch.
+Requires installation of `eolearn.ml_tools[TDIGEST]`.
 
 Copyright (c) 2017- Sinergise and contributors
 For the full list of contributors, see the CREDITS file in the root directory of this source tree.
@@ -47,7 +48,7 @@ class TDigestTask(EOTask):
             * | `'total'` computes the total T-Digest representation of the whole feature accumulating all timestamps,
               | bands and pixels. Cannot be used with `pixelwise=True`.
             * | Callable computes the T-Digest representation defined by the processing function given as mode. Receives
-              | the input_array of the feature, the timestamps, the shape and the pixelwise and filternan keywords as an input.
+              | the input_array of the feature, timestamps, shape and pixelwise and filternan keywords as an input.
         :param pixelwise: Decider whether to compute the T-Digest representation accumulating pixels or per pixel.
             Cannot be used with `mode='total'`.
         :param filternan: Decider whether to filter out nan-values before computing the T-Digest.
@@ -84,7 +85,11 @@ class TDigestTask(EOTask):
             in_feature=self.in_feature, out_feature=self.out_feature, eopatch=eopatch
         ):
             eopatch[out_feature_] = _processing_function.get(self.mode, self.mode)(
-                input_array=eopatch[in_feature_], timestamps=eopatch.timestamps, shape=shape, pixelwise=self.pixelwise, filternan=self.filternan
+                input_array=eopatch[in_feature_],
+                timestamps=eopatch.timestamps,
+                shape=shape,
+                pixelwise=self.pixelwise,
+                filternan=self.filternan,
             )
 
         return eopatch
@@ -120,7 +125,9 @@ def _looper(
         yield in_feature_, out_feature_, shape
 
 
-def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, filternan: bool, **_: Any) -> np.ndarray:
+def _process_standard(
+    input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, filternan: bool, **_: Any
+) -> np.ndarray:
     if pixelwise:
         array = np.empty(shape[-3:], dtype=object)
         for i, j, k in product(range(shape[-3]), range(shape[-2]), range(shape[-1])):
@@ -134,7 +141,9 @@ def _process_standard(input_array: np.ndarray, shape: np.ndarray, pixelwise: boo
     return array
 
 
-def _process_timewise(input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, filternan: bool, **_: Any) -> np.ndarray:
+def _process_timewise(
+    input_array: np.ndarray, shape: np.ndarray, pixelwise: bool, filternan: bool, **_: Any
+) -> np.ndarray:
     if pixelwise:
         array = np.empty(shape, dtype=object)
         for time_, i, j, k in product(range(shape[0]), range(shape[1]), range(shape[2]), range(shape[3])):
