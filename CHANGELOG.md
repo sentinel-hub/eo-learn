@@ -1,3 +1,18 @@
+## [Version 1.4.2] - 2023-3-14
+
+- Introduced support for Python 3.11.
+- Removed support for Python 3.7.
+- Added T-Digest `EOTask` in the scope of the Global Earth Monitor Project, contributed by @meengel.
+- Used evalscript generation utility from `sentinelhub-py` in SH related `EOTasks`.
+- Deprecated the `EOPatch.merge` method and extracted it as a function.
+- Deprecated the `OVERWRITE_PATCH` permission and enforcing the usage of explicit string permissions.
+- Encapsulated `FeatureDict` class as `Mapping`, removed inheritance from `dict`.
+- Switched to new-style typed annotations.
+- Introduced the `ruff` python linter, removed `flake8` and `isort` (covered by `ruff`).
+- Fixed issue with occasionally failing scheduled builds on the `master` branch.
+- Various refactoring efforts and dependency improvements.
+- Various improvements to tests and code.
+
 ## [Version 1.4.1] - 2023-3-14
 
 - The codebase is now fully annotated and type annotations are mandatory for all new code.
