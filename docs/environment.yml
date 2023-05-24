@@ -18,5 +18,5 @@ dependencies:
   - ./../geometry
   - ./../io[METEOBLUE]
   - ./../mask
-  - ./../ml_tools
+  - ./../ml_tools[TDIGEST]
   - ./../visualization
