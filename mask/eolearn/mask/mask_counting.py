@@ -8,7 +8,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-from typing import Iterator, List
+from typing import Iterator
 
 import numpy as np
 
@@ -23,7 +23,7 @@ class ClassFrequencyTask(MapFeatureTask):
         self,
         input_feature: FeaturesSpecification,
         output_feature: FeaturesSpecification,
-        classes: List[int],
+        classes: list[int],
         no_data_value: int = 0,
     ):
         """

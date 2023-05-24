@@ -20,7 +20,7 @@ import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Dict, List, Protocol, Sequence, Tuple, Union
+from typing import Any, Callable, Protocol, Sequence, Union
 
 import fs
 from fs.base import FS
@@ -50,7 +50,7 @@ class _ProcessingData:
     serializable with pickle."""
 
     workflow: EOWorkflow
-    workflow_kwargs: Dict[EONode, Dict[str, object]]
+    workflow_kwargs: dict[EONode, dict[str, object]]
     pickled_filesystem: bytes
     log_path: str | None
     filter_logs_by_thread: bool
@@ -64,7 +64,7 @@ class _ExecutionRunParams:
 
     workers: int | None
     multiprocess: bool
-    tqdm_kwargs: Dict[str, Any]
+    tqdm_kwargs: dict[str, Any]
 
 
 class EOExecutor:
@@ -79,9 +79,9 @@ class EOExecutor:
     def __init__(
         self,
         workflow: EOWorkflow,
-        execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]],
+        execution_kwargs: Sequence[dict[EONode, dict[str, object]]],
         *,
-        execution_names: List[str] | None = None,
+        execution_names: list[str] | None = None,
         save_logs: bool = False,
         logs_folder: str = ".",
         filesystem: FS | None = None,
@@ -120,13 +120,13 @@ class EOExecutor:
 
         self.start_time: dt.datetime | None = None
         self.report_folder: str | None = None
-        self.general_stats: Dict[str, object] = {}
-        self.execution_results: List[WorkflowResults] = []
+        self.general_stats: dict[str, object] = {}
+        self.execution_results: list[WorkflowResults] = []
 
     @staticmethod
     def _parse_and_validate_execution_kwargs(
-        execution_kwargs: Sequence[Dict[EONode, Dict[str, object]]]
-    ) -> List[Dict[EONode, Dict[str, object]]]:
+        execution_kwargs: Sequence[dict[EONode, dict[str, object]]]
+    ) -> list[dict[EONode, dict[str, object]]]:
         """Parses and validates execution arguments provided by user and raises an error if something is wrong."""
         if not isinstance(execution_kwargs, (list, tuple)):
             raise ValueError("Parameter 'execution_kwargs' should be a list.")
@@ -137,7 +137,7 @@ class EOExecutor:
         return [input_kwargs or {} for input_kwargs in execution_kwargs]
 
     @staticmethod
-    def _parse_execution_names(execution_names: List[str] | None, execution_kwargs: Sequence) -> List[str]:
+    def _parse_execution_names(execution_names: list[str] | None, execution_kwargs: Sequence) -> list[str]:
         """Parses a list of execution names."""
         if execution_names is None:
             return [str(num) for num in range(1, len(execution_kwargs) + 1)]
@@ -149,13 +149,13 @@ class EOExecutor:
         return execution_names
 
     @staticmethod
-    def _parse_logs_filesystem(filesystem: FS | None, logs_folder: str) -> Tuple[FS, str]:
+    def _parse_logs_filesystem(filesystem: FS | None, logs_folder: str) -> tuple[FS, str]:
         """Ensures a filesystem and a file path relative to it."""
         if filesystem is None:
             return get_base_filesystem_and_path(logs_folder)
         return filesystem, logs_folder
 
-    def run(self, workers: int | None = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> List[WorkflowResults]:
+    def run(self, workers: int | None = 1, multiprocess: bool = True, **tqdm_kwargs: Any) -> list[WorkflowResults]:
         """Runs the executor with n workers.
 
         :param workers: Maximum number of workflows which will be executed in parallel. Default value is `1` which will
@@ -208,8 +208,8 @@ class EOExecutor:
 
     @classmethod
     def _run_execution(
-        cls, processing_args: List[_ProcessingData], run_params: _ExecutionRunParams
-    ) -> List[WorkflowResults]:
+        cls, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
+    ) -> list[WorkflowResults]:
         """Parallelizes the execution for each item of processing_args list."""
         return parallelize(
             cls._execute_workflow,
@@ -227,7 +227,7 @@ class EOExecutor:
         filter_logs_by_thread: bool,
         logs_filter: Filter | None,
         logs_handler_factory: _HandlerFactoryType,
-    ) -> Tuple[Logger | None, Handler | None]:
+    ) -> tuple[Logger | None, Handler | None]:
         """Adds a handler to a logger and returns them both. In case this fails it shows a warning."""
         if log_path:
             try:
@@ -304,7 +304,7 @@ class EOExecutor:
         """Provides a type of processing according to given parameters."""
         return _decide_processing_type(workers=workers, multiprocess=multiprocess)
 
-    def _prepare_general_stats(self, workers: int | None, processing_type: _ProcessingType) -> Dict[str, object]:
+    def _prepare_general_stats(self, workers: int | None, processing_type: _ProcessingType) -> dict[str, object]:
         """Prepares a dictionary with a general statistics about executions."""
         failed_count = sum(results.workflow_failed() for results in self.execution_results)
         return {
@@ -316,7 +316,7 @@ class EOExecutor:
             "workers": workers,
         }
 
-    def get_successful_executions(self) -> List[int]:
+    def get_successful_executions(self) -> list[int]:
         """Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
 
@@ -324,7 +324,7 @@ class EOExecutor:
         """
         return [idx for idx, results in enumerate(self.execution_results) if not results.workflow_failed()]
 
-    def get_failed_executions(self) -> List[int]:
+    def get_failed_executions(self) -> list[int]:
         """Returns a list of IDs of failed executions. The IDs are integers from interval
         `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
 
@@ -363,7 +363,7 @@ class EOExecutor:
 
         return EOExecutorVisualization(self).make_report(include_logs=include_logs)
 
-    def get_log_paths(self, full_path: bool = True) -> List[str]:
+    def get_log_paths(self, full_path: bool = True) -> list[str]:
         """Returns a list of file paths containing logs.
 
         :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
@@ -377,7 +377,7 @@ class EOExecutor:
             return [get_full_path(self.filesystem, path) for path in log_paths]
         return log_paths
 
-    def read_logs(self) -> List[str | None]:
+    def read_logs(self) -> list[str | None]:
         """Loads the content of log files if logs have been saved."""
         if not self.save_logs:
             return [None] * len(self.execution_kwargs)

@@ -13,7 +13,7 @@ import functools
 import logging
 import warnings
 from abc import ABCMeta
-from typing import Any, BinaryIO, List, Tuple
+from typing import Any, BinaryIO
 
 import fs
 import numpy as np
@@ -79,7 +79,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         # the super-class takes care of filesystem pickling
         super().__init__(folder, filesystem=filesystem, create=create, config=config)
 
-    def _get_filename_paths(self, filename_template: str | List[str], timestamps: List[dt.datetime]) -> List[str]:
+    def _get_filename_paths(self, filename_template: str | list[str], timestamps: list[dt.datetime]) -> list[str]:
         """From a filename "template" and base path on the filesystem it generates full paths to tiff files. The paths
         are still relative to the filesystem object.
 
@@ -113,7 +113,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         return filename_paths
 
     @classmethod
-    def _generate_paths(cls, path_template: str, timestamps: List[dt.datetime]) -> List[str]:
+    def _generate_paths(cls, path_template: str, timestamps: list[dt.datetime]) -> list[str]:
         """Uses a filename path template to create a list of actual filename paths."""
         has_tiff_file_extensions = path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")
         if not has_tiff_file_extensions:
@@ -148,8 +148,8 @@ class ExportToTiffTask(BaseRasterIoTask):
         feature: SingleFeatureSpec,
         folder: str,
         *,
-        date_indices: List[int] | Tuple[int, int] | Tuple[dt.datetime, dt.datetime] | Tuple[str, str] | None = None,
-        band_indices: List[int] | Tuple[int, int] | None = None,
+        date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
+        band_indices: list[int] | tuple[int, int] | None = None,
         crs: CRS | int | str | None = None,
         fail_on_missing: bool = True,
         compress: str | None = None,
@@ -182,7 +182,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         self.compress = compress
 
     def _prepare_image_array(
-        self, data_array: np.ndarray, timestamps: List[dt.datetime], feature: Tuple[FeatureType, str]
+        self, data_array: np.ndarray, timestamps: list[dt.datetime], feature: tuple[FeatureType, str]
     ) -> np.ndarray:
         """Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
         array has shape (channels, height, width) and is of correct dtype.
@@ -224,7 +224,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         raise ValueError(f"Invalid format in {self.band_indices}, expected tuple or list")
 
-    def _reduce_by_time(self, data_array: np.ndarray, timestamps: List[dt.datetime]) -> np.ndarray:
+    def _reduce_by_time(self, data_array: np.ndarray, timestamps: list[dt.datetime]) -> np.ndarray:
         """Reduce array by selecting a subset of times."""
         if self.date_indices is None:
             return data_array
@@ -249,7 +249,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         raise ValueError(f"Invalid format in {self.date_indices}, expected tuple or list")
 
-    def _set_export_dtype(self, data_array: np.ndarray, feature: Tuple[FeatureType, str]) -> np.ndarray:
+    def _set_export_dtype(self, data_array: np.ndarray, feature: tuple[FeatureType, str]) -> np.ndarray:
         """To a given array it sets a dtype in which data will be exported"""
         image_dtype = data_array.dtype if self.image_dtype is None else self.image_dtype
 
@@ -263,7 +263,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
     def _get_source_and_destination_params(
         self, data_array: np.ndarray, bbox: BBox
-    ) -> Tuple[Tuple[str, Affine], Tuple[str, Affine], Tuple[int, int]]:
+    ) -> tuple[tuple[str, Affine], tuple[str, Affine], tuple[int, int]]:
         """Calculates source and destination CRS and transforms. Also returns destination height and width."""
         _, height, width = data_array.shape
 
@@ -322,7 +322,7 @@ class ExportToTiffTask(BaseRasterIoTask):
                             resampling=rasterio.warp.Resampling.nearest,
                         )
 
-    def execute(self, eopatch: EOPatch, *, filename: str | List[str] | None = "") -> EOPatch:
+    def execute(self, eopatch: EOPatch, *, filename: str | list[str] | None = "") -> EOPatch:
         """Execute method
 
         :param eopatch: An input EOPatch
@@ -434,7 +434,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
             endpoint_url=filesystem.endpoint_url,
         )
 
-    def _load_from_image(self, path: str, filesystem: FS, bbox: BBox | None) -> Tuple[np.ndarray, BBox | None]:
+    def _load_from_image(self, path: str, filesystem: FS, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
         """The method decides in what way data will be loaded from the image.
 
         The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
@@ -457,7 +457,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         with rasterio.Env(), filesystem.openbin(path, "r") as file_handle:
             return self._read_image(file_handle, bbox)
 
-    def _read_image(self, file_object: str | BinaryIO, bbox: BBox | None) -> Tuple[np.ndarray, BBox | None]:
+    def _read_image(self, file_object: str | BinaryIO, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
         """Reads data from the image."""
         src: DatasetReader
         with rasterio.open(file_object) as src:
@@ -466,7 +466,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
 
     @staticmethod
-    def _get_reading_window_and_bbox(reader: DatasetReader, bbox: BBox | None) -> Tuple[Window | None, BBox | None]:
+    def _get_reading_window_and_bbox(reader: DatasetReader, bbox: BBox | None) -> tuple[Window | None, BBox | None]:
         """Provides a reading window for which data will be read from image. If it returns `None` this means that the
         whole image should be read. Those cases are when bbox is not defined, image is not geo-referenced, or
         bbox coordinates exactly match image coordinates. Additionally, it provides a bounding box of reading window
@@ -491,7 +491,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
         return from_bounds(*iter(bbox), transform=image_transform), original_bbox
 
-    def _load_data(self, filename_paths: List[str], initial_bbox: BBox | None) -> Tuple[np.ndarray, BBox | None]:
+    def _load_data(self, filename_paths: list[str], initial_bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
         """Load data from images, join them, and provide their bounding box."""
         data_per_path = []
         final_bbox: BBox | None = None

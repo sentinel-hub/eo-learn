@@ -13,7 +13,7 @@ import concurrent.futures
 import multiprocessing
 from concurrent.futures import FIRST_COMPLETED, Executor, Future, ProcessPoolExecutor, ThreadPoolExecutor
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, List, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, List, TypeVar, cast
 
 from tqdm.auto import tqdm
 
@@ -60,7 +60,7 @@ def parallelize(
     workers: int | None,
     multiprocess: bool = True,
     **tqdm_kwargs: Any,
-) -> List[_OutputType]:
+) -> list[_OutputType]:
     """Parallelizes the function on given parameters using the specified number of workers.
 
     :param function: A function to be parallelized.
@@ -120,7 +120,7 @@ def submit_and_monitor_execution(
     function: Callable[..., _OutputType],
     *params: Iterable[Any],
     **tqdm_kwargs: Any,
-) -> List[_OutputType]:
+) -> list[_OutputType]:
     """Performs the execution parallelization and monitors the process using a progress bar.
 
     :param executor: An object that performs parallelization.
@@ -132,7 +132,7 @@ def submit_and_monitor_execution(
     return join_futures(futures, **tqdm_kwargs)
 
 
-def join_futures(futures: List[Future], **tqdm_kwargs: Any) -> List[Any]:
+def join_futures(futures: list[Future], **tqdm_kwargs: Any) -> list[Any]:
     """Resolves futures, monitors progress, and returns a list of results.
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
@@ -142,7 +142,7 @@ def join_futures(futures: List[Future], **tqdm_kwargs: Any) -> List[Any]:
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `futures`.
     """
-    results: List[Any | None] = [None] * len(futures)
+    results: list[Any | None] = [None] * len(futures)
     for position, result in join_futures_iter(futures, **tqdm_kwargs):
         results[position] = result
 
@@ -150,8 +150,8 @@ def join_futures(futures: List[Future], **tqdm_kwargs: Any) -> List[Any]:
 
 
 def join_futures_iter(
-    futures: List[Future], update_interval: float = 0.5, **tqdm_kwargs: Any
-) -> Generator[Tuple[int, Any], None, None]:
+    futures: list[Future], update_interval: float = 0.5, **tqdm_kwargs: Any
+) -> Generator[tuple[int, Any], None, None]:
     """Resolves futures, monitors progress, and serves as an iterator over results.
 
     :param futures: A list of futures to be joined. Note that this list will be reduced into an empty list as a side
@@ -164,7 +164,7 @@ def join_futures_iter(
         in the original list to which `result` belongs to.
     """
 
-    def _wait_function(remaining_futures: Collection[Future]) -> Tuple[Collection[Future], Collection[Future]]:
+    def _wait_function(remaining_futures: Collection[Future]) -> tuple[Collection[Future], Collection[Future]]:
         done, not_done = concurrent.futures.wait(
             remaining_futures, timeout=float(update_interval), return_when=FIRST_COMPLETED
         )
@@ -177,11 +177,11 @@ def join_futures_iter(
 
 
 def _base_join_futures_iter(
-    wait_function: Callable[[Collection[_FutureType]], Tuple[Collection[_FutureType], Collection[_FutureType]]],
+    wait_function: Callable[[Collection[_FutureType]], tuple[Collection[_FutureType], Collection[_FutureType]]],
     get_result_function: Callable[[_FutureType], _OutputType],
-    futures: List[_FutureType],
+    futures: list[_FutureType],
     **tqdm_kwargs: Any,
-) -> Generator[Tuple[int, _OutputType], None, None]:
+) -> Generator[tuple[int, _OutputType], None, None]:
     """A generalized utility function that resolves futures, monitors progress, and serves as an iterator over
     results."""
     if not isinstance(futures, list):
@@ -200,7 +200,7 @@ def _base_join_futures_iter(
                 yield result_position, result
 
 
-def _make_copy_and_empty_given(items: List[_T]) -> List[_T]:
+def _make_copy_and_empty_given(items: list[_T]) -> list[_T]:
     """Removes items from the given list and returns its copy. The side effect of removing items is intentional."""
     items_copy = items[:]
     while items:

@@ -20,12 +20,9 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    List,
     Literal,
     Mapping,
     MutableMapping,
-    Set,
-    Tuple,
     TypeVar,
     cast,
     overload,
@@ -225,7 +222,7 @@ class EOPatch:
     """
 
     # establish types of property value holders
-    _timestamps: List[dt.datetime]
+    _timestamps: list[dt.datetime]
     _bbox: BBox | None
     _meta_info: FeatureIOJson | _FeatureDictJson
 
@@ -244,7 +241,7 @@ class EOPatch:
         vector_timeless: Mapping[str, gpd.GeoDataFrame] | None = None,
         meta_info: Mapping[str, Any] | None = None,
         bbox: BBox | None = None,
-        timestamps: List[dt.datetime] | None = None,
+        timestamps: list[dt.datetime] | None = None,
     ):
         self.data: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(data or {}, FeatureType.DATA)
         self.mask: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(mask or {}, FeatureType.MASK)
@@ -271,18 +268,18 @@ class EOPatch:
         self.timestamps = timestamps or []
 
     @property
-    def timestamp(self) -> List[dt.datetime]:
+    def timestamp(self) -> list[dt.datetime]:
         """A property for handling the deprecated timestamp attribute."""
         warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         return self.timestamps
 
     @timestamp.setter
-    def timestamp(self, value: List[dt.datetime]) -> None:
+    def timestamp(self, value: list[dt.datetime]) -> None:
         warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         self.timestamps = value
 
     @property
-    def timestamps(self) -> List[dt.datetime]:
+    def timestamps(self) -> list[dt.datetime]:
         """A property for handling the `timestamps` attribute."""
         return self._timestamps
 
@@ -329,20 +326,20 @@ class EOPatch:
         super().__setattr__(key, value)
 
     @overload
-    def __getitem__(self, key: Literal[FeatureType.BBOX] | Tuple[Literal[FeatureType.BBOX], Any]) -> BBox:
+    def __getitem__(self, key: Literal[FeatureType.BBOX] | tuple[Literal[FeatureType.BBOX], Any]) -> BBox:
         ...
 
     @overload
     def __getitem__(
-        self, key: Literal[FeatureType.TIMESTAMPS] | Tuple[Literal[FeatureType.TIMESTAMPS], Any]
-    ) -> List[dt.datetime]:
+        self, key: Literal[FeatureType.TIMESTAMPS] | tuple[Literal[FeatureType.TIMESTAMPS], Any]
+    ) -> list[dt.datetime]:
         ...
 
     @overload
-    def __getitem__(self, key: FeatureType | Tuple[FeatureType, str | None | EllipsisType]) -> Any:
+    def __getitem__(self, key: FeatureType | tuple[FeatureType, str | None | EllipsisType]) -> Any:
         ...
 
-    def __getitem__(self, key: FeatureType | Tuple[FeatureType, str | None | EllipsisType]) -> Any:
+    def __getitem__(self, key: FeatureType | tuple[FeatureType, str | None | EllipsisType]) -> Any:
         """Provides features of requested feature type. It can also accept a tuple of (feature_type, feature_name).
 
         :param key: Feature type or a (feature_type, feature_name) pair.
@@ -354,7 +351,7 @@ class EOPatch:
             return value[feature_name]
         return value
 
-    def __setitem__(self, key: FeatureType | Tuple[FeatureType, str | None | EllipsisType], value: Any) -> None:
+    def __setitem__(self, key: FeatureType | tuple[FeatureType, str | None | EllipsisType], value: Any) -> None:
         """Sets a new value to the given FeatureType or tuple of (feature_type, feature_name)."""
         feature_type, feature_name = key if isinstance(key, tuple) else (key, None)
         ftype_attr = FeatureType(feature_type).value
@@ -540,7 +537,7 @@ class EOPatch:
         else:
             self[feature_type] = {}
 
-    def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> Tuple[int, int]:
+    def get_spatial_dimension(self, feature_type: FeatureType, feature_name: str) -> tuple[int, int]:
         """
         Returns a tuple of spatial dimensions (height, width) of a feature.
 
@@ -553,12 +550,12 @@ class EOPatch:
 
         raise ValueError(f"Features of type {feature_type} do not have a spatial dimension or are not arrays.")
 
-    def get_features(self) -> List[FeatureSpec]:
+    def get_features(self) -> list[FeatureSpec]:
         """Returns a list of all non-empty features of EOPatch.
 
         :return: List of non-empty features
         """
-        feature_list: List[FeatureSpec] = []
+        feature_list: list[FeatureSpec] = []
         for feature_type in FeatureType:
             if feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMPS:
                 if feature_type in self:
@@ -670,7 +667,7 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
-    def consolidate_timestamps(self, timestamps: List[dt.datetime]) -> Set[dt.datetime]:
+    def consolidate_timestamps(self, timestamps: list[dt.datetime]) -> set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
         :param timestamps: keep frames with date found in this list
@@ -693,10 +690,10 @@ class EOPatch:
         self,
         feature: FeatureSpec,
         *,
-        times: List[int] | slice | None = None,
-        channels: List[int] | slice | None = None,
-        channel_names: List[str] | None = None,
-        rgb: Tuple[int, int, int] | None = None,
+        times: list[int] | slice | None = None,
+        channels: list[int] | slice | None = None,
+        channel_names: list[str] | None = None,
+        rgb: tuple[int, int, int] | None = None,
         backend: str | PlotBackend = "matplotlib",
         config: PlotConfig | None = None,
         **kwargs: Any,

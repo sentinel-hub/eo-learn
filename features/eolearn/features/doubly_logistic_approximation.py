@@ -9,7 +9,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import itertools as it
-from typing import List
 
 import numpy as np
 from scipy.optimize import curve_fit
@@ -39,7 +38,7 @@ class DoublyLogisticApproximationTask(EOTask):
         self,
         feature: SingleFeatureSpec,
         new_feature: SingleFeatureSpec = (FeatureType.DATA_TIMELESS, "DOUBLY_LOGISTIC_PARAM"),
-        initial_parameters: List[float] | None = None,
+        initial_parameters: list[float] | None = None,
         valid_mask: SingleFeatureSpec | None = None,
     ):
         self.initial_parameters = initial_parameters

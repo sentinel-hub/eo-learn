@@ -30,7 +30,6 @@ from typing import (
     Mapping,
     Optional,
     Tuple,
-    Type,
     TypeVar,
 )
 
@@ -77,9 +76,9 @@ class FilesystemDataInfo:
     timestamps: str | None = None
     bbox: str | None = None
     meta_info: str | None = None
-    features: Dict[FeatureType, Dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
+    features: dict[FeatureType, dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
-    def iterate_features(self) -> Iterator[Tuple[Tuple[FeatureType, str], str]]:
+    def iterate_features(self) -> Iterator[tuple[tuple[FeatureType, str], str]]:
         """Yields `(ftype, fname), path` tuples from `features`."""
         for ftype, ftype_dict in self.features.items():
             for fname, path in ftype_dict.items():
@@ -130,8 +129,8 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 
 
 def _yield_features_to_save(
-    eopatch: EOPatch, eopatch_features: List[FeatureSpec], patch_location: str
-) -> Iterator[Tuple[Type[FeatureIO], Any, str]]:
+    eopatch: EOPatch, eopatch_features: list[FeatureSpec], patch_location: str
+) -> Iterator[tuple[type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
     get_file_path = partial(fs.path.join, patch_location)
     meta_features = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
@@ -150,14 +149,14 @@ def _yield_features_to_save(
             yield (_get_feature_io_constructor(ftype), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
 
 
-def _save_single_feature(save_spec: Tuple[Type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
+def _save_single_feature(save_spec: tuple[type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
     feature_io, data, feature_path = save_spec
     feature_io.save(data, filesystem, feature_path, compress_level)
 
 
 def remove_redundant_files(
     filesystem: FS,
-    eopatch_features: List[FeatureSpec],
+    eopatch_features: list[FeatureSpec],
     preexisting_files: FilesystemDataInfo,
     current_compress_level: int,
 ) -> None:
@@ -196,7 +195,7 @@ def load_eopatch_content(
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
 
-    features_dict: Dict[Tuple[FeatureType, str], FeatureIO] = {}
+    features_dict: dict[tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype.is_meta():
             continue
@@ -215,7 +214,7 @@ def load_eopatch_content(
 
 def _load_meta_features(
     filesystem: FS, file_information: FilesystemDataInfo, features: FeaturesSpecification
-) -> Tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, FeatureIOJson | None]:
+) -> tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, FeatureIOJson | None]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
@@ -294,7 +293,7 @@ def get_filesystem_data_info(
 @deprecated_function(category=EODeprecationWarning)
 def walk_filesystem(
     filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> Iterator[Tuple[FeatureType, str | EllipsisType, str]]:
+) -> Iterator[tuple[FeatureType, str | EllipsisType, str]]:
     """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
 
@@ -311,7 +310,7 @@ def walk_filesystem(
         yield (*feature, path)
 
 
-def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple[str, str]]:
+def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[tuple[str, str]]:
     """Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem).
     Skips folders and files in subfolders.
     """
@@ -321,7 +320,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[Tuple
 
 
 def _check_collisions(
-    overwrite_permission: OverwritePermission, eopatch_features: List[FeatureSpec], existing_files: FilesystemDataInfo
+    overwrite_permission: OverwritePermission, eopatch_features: list[FeatureSpec], existing_files: FilesystemDataInfo
 ) -> None:
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
@@ -335,7 +334,7 @@ def _check_collisions(
         _check_letter_case_collisions(eopatch_features, FilesystemDataInfo())
 
 
-def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_add_only_permission(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {_to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()}
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
@@ -345,7 +344,7 @@ def _check_add_only_permission(eopatch_features: List[FeatureSpec], filesystem_f
         raise ValueError(f"Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY")
 
 
-def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_letter_case_collisions(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -360,7 +359,7 @@ def _check_letter_case_collisions(eopatch_features: List[FeatureSpec], filesyste
             )
 
 
-def _to_lowercase(ftype: FeatureType, fname: str | None, *_: Any) -> Tuple[FeatureType, str | None]:
+def _to_lowercase(ftype: FeatureType, fname: str | None, *_: Any) -> tuple[FeatureType, str | None]:
     """Transforms a feature to it's lowercase representation."""
     return ftype, fname if fname is None else fname.lower()
 
@@ -530,7 +529,7 @@ class FeatureIOJson(FeatureIO[T]):
 class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
-    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> List[datetime.datetime]:
+    def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> list[datetime.datetime]:
         data = json.load(file)
         return [dateutil.parser.parse(timestamp) for timestamp in data]
 
@@ -561,7 +560,7 @@ def _better_jsonify(param: object) -> Any:
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
-def _get_feature_io_constructor(ftype: FeatureType) -> Type[FeatureIO]:
+def _get_feature_io_constructor(ftype: FeatureType) -> type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
         return FeatureIOBBox

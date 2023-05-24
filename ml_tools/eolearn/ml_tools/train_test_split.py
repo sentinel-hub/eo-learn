@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 
@@ -68,9 +68,9 @@ class TrainTestSplitTask(EOTask):
         self,
         input_feature: SingleFeatureSpec,
         output_feature: SingleFeatureSpec,
-        bins: float | List[Any],
+        bins: float | list[Any],
         split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
-        ignore_values: List[int] | None = None,
+        ignore_values: list[int] | None = None,
     ):
         """
         :param input_feature: The input feature to guide the split.

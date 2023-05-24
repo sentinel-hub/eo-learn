@@ -23,7 +23,7 @@ import datetime as dt
 import logging
 import traceback
 from dataclasses import dataclass, field, fields
-from typing import Dict, List, Sequence, Set, Tuple, cast
+from typing import Sequence, Tuple, cast
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
@@ -83,7 +83,7 @@ class EOWorkflow:
         return nodes
 
     @staticmethod
-    def _make_uid_dict(nodes: Sequence[EONode]) -> Dict[str, EONode]:
+    def _make_uid_dict(nodes: Sequence[EONode]) -> dict[str, EONode]:
         """Creates a dictionary mapping node IDs to nodes while checking uniqueness of tasks.
 
         :param nodes: The sequence of workflow nodes defining the computational graph
@@ -120,14 +120,14 @@ class EOWorkflow:
     @classmethod
     def from_endnodes(cls, *endnodes: EONode) -> "EOWorkflow":
         """Constructs the EOWorkflow from the end-nodes by recursively extracting nodes in the workflow structure."""
-        all_nodes: Set[EONode] = set()
-        memo: Dict[EONode, Set[EONode]] = {}
+        all_nodes: set[EONode] = set()
+        memo: dict[EONode, set[EONode]] = {}
         for endnode in endnodes:
             all_nodes = all_nodes.union(endnode.get_dependencies(_memo=memo))
         return cls(list(all_nodes))
 
     def execute(
-        self, input_kwargs: Dict[EONode, Dict[str, object]] | None = None, raise_errors: bool = True
+        self, input_kwargs: dict[EONode, dict[str, object]] | None = None, raise_errors: bool = True
     ) -> "WorkflowResults":
         """Executes the workflow.
 
@@ -142,7 +142,7 @@ class EOWorkflow:
         """
         start_time = dt.datetime.now()
 
-        out_degrees: Dict[str, int] = self.uid_dag.get_outdegrees()
+        out_degrees: dict[str, int] = self.uid_dag.get_outdegrees()
 
         input_kwargs = input_kwargs or {}
         self.validate_input_kwargs(input_kwargs)
@@ -162,7 +162,7 @@ class EOWorkflow:
         return results
 
     @staticmethod
-    def validate_input_kwargs(input_kwargs: Dict[EONode, Dict[str, object]]) -> None:
+    def validate_input_kwargs(input_kwargs: dict[EONode, dict[str, object]]) -> None:
         """Validates EOWorkflow input arguments provided by user and raises an error if something is wrong.
 
         :param input_kwargs: A dictionary mapping tasks to task execution arguments
@@ -187,8 +187,8 @@ class EOWorkflow:
                 )
 
     def _execute_nodes(
-        self, *, uid_input_kwargs: Dict[str, Dict[str, object]], out_degrees: Dict[str, int], raise_errors: bool
-    ) -> Tuple[dict, dict]:
+        self, *, uid_input_kwargs: dict[str, dict[str, object]], out_degrees: dict[str, int], raise_errors: bool
+    ) -> tuple[dict, dict]:
         """Executes workflow nodes in the predetermined order.
 
         :param uid_input_kwargs: External input arguments to the workflow.
@@ -196,7 +196,7 @@ class EOWorkflow:
             of tasks that depend on this task.)
         :return: Results of a workflow
         """
-        intermediate_results: Dict[str, object] = {}
+        intermediate_results: dict[str, object] = {}
         output_results = {}
         stats_dict = {}
 
@@ -221,8 +221,8 @@ class EOWorkflow:
         return output_results, stats_dict
 
     def _execute_node(
-        self, *, node: EONode, node_input_values: List[object], node_input_kwargs: Dict[str, object], raise_errors: bool
-    ) -> Tuple[object, NodeStats]:
+        self, *, node: EONode, node_input_values: list[object], node_input_kwargs: dict[str, object], raise_errors: bool
+    ) -> tuple[object, NodeStats]:
         """Executes a node in the workflow by running its task and returning the results.
 
         :param node: A node of the workflow.
@@ -259,8 +259,8 @@ class EOWorkflow:
 
     @staticmethod
     def _execute_task(
-        task: EOTask, task_args: List[object], task_kwargs: Dict[str, object], raise_errors: bool
-    ) -> Tuple[object, bool]:
+        task: EOTask, task_args: list[object], task_kwargs: dict[str, object], raise_errors: bool
+    ) -> tuple[object, bool]:
         """Executes an EOTask and handles any potential exceptions."""
         if raise_errors:
             return task.execute(*task_args, **task_kwargs), True
@@ -275,7 +275,7 @@ class EOWorkflow:
 
     @staticmethod
     def _relax_dependencies(
-        *, node: EONode, out_degrees: Dict[str, int], intermediate_results: Dict[str, object]
+        *, node: EONode, out_degrees: dict[str, int], intermediate_results: dict[str, object]
     ) -> None:
         """Relaxes dependencies incurred by `node` after it has been successfully executed. All the nodes it
         depended on are updated. If `node` was the last remaining node depending on a node `n` then `n`'s result
@@ -297,7 +297,7 @@ class EOWorkflow:
                 )
                 del intermediate_results[relevant_node.uid]
 
-    def get_nodes(self) -> List[EONode]:
+    def get_nodes(self) -> list[EONode]:
         """Returns an ordered list of all nodes within this workflow, ordered in the execution order.
 
         :return: List of all nodes withing workflow. The order of nodes is the same as the order of execution.
@@ -346,10 +346,10 @@ class EOWorkflow:
 class WorkflowResults:
     """An object containing results of an EOWorkflow execution."""
 
-    outputs: Dict[str, object]
+    outputs: dict[str, object]
     start_time: dt.datetime
     end_time: dt.datetime
-    stats: Dict[str, NodeStats]
+    stats: dict[str, NodeStats]
     error_node_uid: str | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:

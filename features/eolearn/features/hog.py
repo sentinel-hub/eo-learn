@@ -9,7 +9,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import itertools as it
-from typing import Tuple
 
 import numpy as np
 import skimage.feature
@@ -32,8 +31,8 @@ class HOGTask(EOTask):
         self,
         feature: SingleFeatureSpec,
         orientations: int = 9,
-        pixels_per_cell: Tuple[int, int] = (8, 8),
-        cells_per_block: Tuple[int, int] = (3, 3),
+        pixels_per_cell: tuple[int, int] = (8, 8),
+        cells_per_block: tuple[int, int] = (3, 3),
         visualize: bool = True,
         hog_feature_vector: bool = False,
         block_norm: str = "L2-Hys",
@@ -59,7 +58,7 @@ class HOGTask(EOTask):
         self.hog_feature_vector = hog_feature_vector
         self.visualize_name = visualize_feature_name
 
-    def _compute_hog(self, data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:  # pylint: disable=too-many-locals
+    def _compute_hog(self, data: np.ndarray) -> tuple[np.ndarray, np.ndarray]:  # pylint: disable=too-many-locals
         num_times, height, width, num_bands = data.shape
         is_multichannel = num_bands != 1
         hog_result = np.empty(

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import itertools as it
 from enum import Enum
-from typing import Callable, List, Tuple, cast
+from typing import Callable, Tuple, cast
 
 import numpy as np
 import skimage.filters.rank
@@ -35,7 +35,7 @@ class ErosionTask(EOTask):
         self,
         mask_feature: SingleFeatureSpec,
         disk_radius: int = 1,
-        erode_labels: List[int] | None = None,
+        erode_labels: list[int] | None = None,
         no_data_label: int = 0,
     ):
         if not isinstance(disk_radius, int) or disk_radius is None or disk_radius < 1:

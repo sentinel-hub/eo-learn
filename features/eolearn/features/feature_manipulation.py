@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, List, Literal, cast
+from typing import Any, Callable, Iterable, Literal, cast
 
 import numpy as np
 from geopandas import GeoDataFrame
@@ -55,12 +55,12 @@ class SimpleFilterTask(EOTask):
         self.filter_func = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
 
-    def _get_filtered_indices(self, feature_data: Iterable) -> List[int]:
+    def _get_filtered_indices(self, feature_data: Iterable) -> list[int]:
         """Get valid time indices from either a numpy array or a list of timestamps."""
         return [idx for idx, img in enumerate(feature_data) if self.filter_func(img)]
 
     @staticmethod
-    def _filter_vector_feature(gdf: GeoDataFrame, good_idxs: List[int], timestamps: List[dt.datetime]) -> GeoDataFrame:
+    def _filter_vector_feature(gdf: GeoDataFrame, good_idxs: list[int], timestamps: list[dt.datetime]) -> GeoDataFrame:
         """Filters rows that don't match with the timestamps that will be kept."""
         timestamps_to_keep = {timestamps[idx] for idx in good_idxs}
         return gdf[gdf[TIMESTAMP_COLUMN].isin(timestamps_to_keep)]
@@ -283,7 +283,7 @@ class SpatialResizeTask(EOTask):
         )
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        resize_fun_kwargs: Dict[str, Any]
+        resize_fun_kwargs: dict[str, Any]
         if self.resize_type == ResizeParam.RESOLUTION:
             if not eopatch.bbox:
                 raise ValueError("Resolution-specified resizing can only be done on EOPatches with a defined BBox.")

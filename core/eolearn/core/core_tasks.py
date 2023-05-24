@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import copy
 from abc import ABCMeta
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union, cast
+from typing import Any, Callable, Iterable, Tuple, Union, cast
 
 import fs
 import numpy as np
@@ -254,7 +254,7 @@ class InitializeFeatureTask(EOTask):
     def __init__(
         self,
         features: FeaturesSpecification,
-        shape: Tuple[int, ...] | FeatureSpec,
+        shape: tuple[int, ...] | FeatureSpec,
         init_value: int = 0,
         dtype: np.dtype | type = np.uint8,
     ):
@@ -267,8 +267,8 @@ class InitializeFeatureTask(EOTask):
         """
 
         self.features = self.parse_features(features)
-        self.shape_feature: Tuple[FeatureType, str | None] | None
-        self.shape: None | Tuple[int, int, int] | Tuple[int, int, int, int]
+        self.shape_feature: tuple[FeatureType, str | None] | None
+        self.shape: None | tuple[int, int, int] | tuple[int, int, int, int]
 
         try:
             self.shape_feature = self.parse_feature(shape)  # type: ignore[arg-type]
@@ -495,7 +495,7 @@ class MergeFeatureTask(ZipFeatureTask):
 class ExtractBandsTask(MapFeatureTask):
     """Moves a subset of bands from one feature to a new one."""
 
-    def __init__(self, input_feature: FeaturesSpecification, output_feature: FeaturesSpecification, bands: List[int]):
+    def __init__(self, input_feature: FeaturesSpecification, output_feature: FeaturesSpecification, bands: list[int]):
         """
         :param input_feature: A source feature from which to take the subset of bands.
         :param output_feature: An output feature to which to write the bands.
@@ -516,8 +516,8 @@ class ExplodeBandsTask(EOTask):
 
     def __init__(
         self,
-        input_feature: Tuple[FeatureType, str],
-        output_mapping: Dict[Tuple[FeatureType, str], int | Iterable[int]],
+        input_feature: tuple[FeatureType, str],
+        output_mapping: dict[tuple[FeatureType, str], int | Iterable[int]],
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.

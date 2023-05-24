@@ -9,7 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Callable, Iterable, List, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Tuple, Union, cast
 
 from ..constants import FeatureType
 from ..types import (
@@ -106,7 +106,7 @@ class FeatureParser:
             )
         self._feature_specs = self._parse_features(features)
 
-    def _parse_features(self, features: FeaturesSpecification) -> List[_ParserFeaturesSpec]:
+    def _parse_features(self, features: FeaturesSpecification) -> list[_ParserFeaturesSpec]:
         """This method parses and validates input, returning a list of `(ftype, old_name, new_name)` triples.
 
         Due to typing issues the all-features requests are transformed from `(ftype, ...)` to `(ftype, None, None)`.
@@ -135,10 +135,10 @@ class FeatureParser:
     def _parse_dict(
         self,
         features: DictFeatureSpec,
-    ) -> List[_ParserFeaturesSpec]:
+    ) -> list[_ParserFeaturesSpec]:
         """Implements parsing and validation in case the input is a dictionary."""
 
-        feature_specs: List[_ParserFeaturesSpec] = []
+        feature_specs: list[_ParserFeaturesSpec] = []
 
         for feature_type, feature_names in features.items():
             feature_type = self._parse_feature_type(feature_type, message_about_position="keys of the dictionary")
@@ -160,10 +160,10 @@ class FeatureParser:
     def _parse_sequence(
         self,
         features: SingleFeatureSpec | SequenceFeatureSpec,
-    ) -> List[_ParserFeaturesSpec]:
+    ) -> list[_ParserFeaturesSpec]:
         """Implements parsing and validation in case the input is a tuple describing a single feature or a sequence."""
 
-        feature_specs: List[_ParserFeaturesSpec] = []
+        feature_specs: list[_ParserFeaturesSpec] = []
 
         # Check for possible singleton
         if 2 <= len(features) <= 3:
@@ -219,7 +219,7 @@ class FeatureParser:
         return feature_type
 
     @staticmethod
-    def _parse_feature_name(feature_type: FeatureType, name: object) -> Tuple[str, str]:
+    def _parse_feature_name(feature_type: FeatureType, name: object) -> tuple[str, str]:
         """Parses input in places where a feature name is expected, handling the cases of a name and renaming pair."""
         if isinstance(name, str):
             return name, name
@@ -247,14 +247,14 @@ class FeatureParser:
                 f" {specification} instead."
             )
 
-    def get_feature_specifications(self) -> List[Tuple[FeatureType, str | EllipsisType]]:
+    def get_feature_specifications(self) -> list[tuple[FeatureType, str | EllipsisType]]:
         """Returns the feature specifications in a more streamlined fashion.
 
         Requests for all features, e.g. `(FeatureType.DATA, ...)`, are returned directly.
         """
         return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
 
-    def get_features(self, eopatch: EOPatch | None = None) -> List[FeatureSpec]:
+    def get_features(self, eopatch: EOPatch | None = None) -> list[FeatureSpec]:
         """Returns a list of `(feature_type, feature_name)` pairs.
 
         For features that specify renaming, the new name of the feature is ignored.
@@ -267,7 +267,7 @@ class FeatureParser:
         renamed_features = self.get_renamed_features(eopatch)
         return [feature[:2] for feature in renamed_features]  # pattern unpacking messes with typechecking
 
-    def get_renamed_features(self, eopatch: EOPatch | None = None) -> List[FeatureRenameSpec]:
+    def get_renamed_features(self, eopatch: EOPatch | None = None) -> list[FeatureRenameSpec]:
         """Returns a list of `(feature_type, old_name, new_name)` triples.
 
         For features without a specified renaming the new name is equal to the old one.
@@ -278,7 +278,7 @@ class FeatureParser:
 
         If `eopatch` is not provided the method fails if an all-feature request is in the specification.
         """
-        parsed_features: List[FeatureRenameSpec] = []
+        parsed_features: list[FeatureRenameSpec] = []
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
@@ -305,7 +305,7 @@ def parse_feature(
     feature: SingleFeatureSpec,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> Tuple[FeatureType, str | None]:
+) -> tuple[FeatureType, str | None]:
     """Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
@@ -337,7 +337,7 @@ def parse_features(
     features: FeaturesSpecification,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> List[FeatureSpec]:
+) -> list[FeatureSpec]:
     """Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
@@ -349,7 +349,7 @@ def parse_renamed_features(
     features: FeaturesSpecification,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> List[FeatureRenameSpec]:
+) -> list[FeatureRenameSpec]:
     """Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.

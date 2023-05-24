@@ -11,7 +11,7 @@ from __future__ import annotations
 import itertools
 import logging
 from abc import ABCMeta
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 from skimage.morphology import binary_dilation, disk
@@ -30,7 +30,7 @@ class BaseSnowMaskTask(EOTask, metaclass=ABCMeta):
     def __init__(
         self,
         data_feature: FeatureSpec,
-        band_indices: List[int],
+        band_indices: list[int],
         dilation_size: int = 0,
         undefined_value: int = 0,
         mask_name: str = "SNOW_MASK",
@@ -66,7 +66,7 @@ class SnowMaskTask(BaseSnowMaskTask):
     def __init__(
         self,
         data_feature: FeatureSpec,
-        band_indices: List[int],
+        band_indices: list[int],
         ndsi_threshold: float = 0.4,
         brightness_threshold: float = 0.3,
         **kwargs: Any,
@@ -128,12 +128,12 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
     def __init__(
         self,
         data_feature: FeatureSpec,
-        band_indices: List[int],
+        band_indices: list[int],
         cloud_mask_feature: FeatureSpec,
         dem_feature: FeatureSpec,
-        dem_params: Tuple[float, float] = (100, 0.1),
-        red_params: Tuple[float, float, float, float, float] = (12, 0.3, 0.1, 0.2, 0.040),
-        ndsi_params: Tuple[float, float, float] = (0.4, 0.15, 0.001),
+        dem_params: tuple[float, float] = (100, 0.1),
+        red_params: tuple[float, float, float, float, float] = (12, 0.3, 0.1, 0.2, 0.040),
+        ndsi_params: tuple[float, float, float] = (0.4, 0.15, 0.001),
         b10_index: int | None = None,
         **kwargs: Any,
     ):
@@ -201,7 +201,7 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
 
     def _apply_first_pass(
         self, bands: np.ndarray, ndsi: np.ndarray, clm: np.ndarray, dem: np.ndarray, clm_temp: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray | None, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray | None, np.ndarray]:
         """Apply first pass of snow detection"""
         snow_mask_pass1 = ~clm_temp & (ndsi > self.ndsi_params[0]) & (bands[..., 1] > self.red_params[3])
 

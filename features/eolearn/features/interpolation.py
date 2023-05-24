@@ -121,7 +121,7 @@ class InterpolationTask(EOTask):
         interpolation_object: Callable,
         *,
         resample_range: ResampleRangeType = None,
-        result_interval: Tuple[float, float] | None = None,
+        result_interval: tuple[float, float] | None = None,
         mask_feature: SingleFeatureSpec | None = None,
         copy_features: FeaturesSpecification | None = None,
         unknown_value: float = np.nan,
@@ -208,7 +208,7 @@ class InterpolationTask(EOTask):
         return np.logical_or(start_nan, end_nan)
 
     @staticmethod
-    def _get_unique_times(data: np.ndarray, times: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _get_unique_times(data: np.ndarray, times: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Replace duplicate acquisitions which have same values on the chosen timescale with their average.
         The average is calculated with numpy.nanmean, meaning that NaN values are ignored when calculating the average.
 
@@ -312,7 +312,7 @@ class InterpolationTask(EOTask):
             return partial(self.interpolation_object, xp=times, fp=series, left=np.nan, right=np.nan)
         return self.interpolation_object(times, series, **self.interpolation_parameters)
 
-    def get_resampled_timestamp(self, timestamps: List[dt.datetime]) -> List[dt.datetime]:
+    def get_resampled_timestamp(self, timestamps: list[dt.datetime]) -> list[dt.datetime]:
         """Takes a list of timestamps and generates new list of timestamps according to `resample_range`"""
         if self.resample_range is None:
             return timestamps
@@ -509,7 +509,7 @@ class ResamplingTask(InterpolationTask):
         interpolation_object: Callable,
         resample_range: ResampleRangeType,
         *,
-        result_interval: Tuple[float, float] | None = None,
+        result_interval: tuple[float, float] | None = None,
         unknown_value: float = np.nan,
         **interpolation_parameters: Any,
     ):

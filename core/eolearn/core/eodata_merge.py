@@ -12,7 +12,7 @@ import datetime as dt
 import functools
 import itertools as it
 import warnings
-from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Literal, Sequence, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -96,7 +96,7 @@ def _parse_operation(operation_input: OperationInputType, is_timeless: bool) -> 
     """Transforms operation's instruction (i.e. an input string) into a function that can be applied to a list of
     arrays. If the input already is a function it returns it.
     """
-    defaults: Dict[str | None, Callable] = {
+    defaults: dict[str | None, Callable] = {
         None: _return_if_equal_operation,
         "concatenate": functools.partial(np.concatenate, axis=-1 if is_timeless else 0),
         "mean": functools.partial(np.nanmean, axis=0),
@@ -121,7 +121,7 @@ def _return_if_equal_operation(arrays: np.ndarray) -> bool:
 
 def _merge_timestamps(
     eopatches: Sequence[EOPatch], reduce_timestamps: bool
-) -> Tuple[List[dt.datetime], List[np.ndarray]]:
+) -> tuple[list[dt.datetime], list[np.ndarray]]:
     """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
@@ -205,7 +205,7 @@ def _extract_and_join_time_dependent_feature_values(
     feature: FeatureSpec,
     order_mask_per_eopatch: Sequence[np.ndarray],
     optimize: bool,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Collects feature arrays from EOPatches that have them and joins them together. It also joins together
     corresponding order masks.
     """
@@ -299,7 +299,7 @@ def _get_common_bbox(eopatches: Sequence[EOPatch]) -> BBox | None:
     raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes.")
 
 
-def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> List[Any]:
+def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> list[Any]:
     """A helper function that extracts a feature values from those EOPatches where a feature exists."""
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]

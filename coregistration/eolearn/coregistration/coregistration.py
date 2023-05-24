@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Tuple
 
 import cv2
 import numpy as np
@@ -37,10 +36,10 @@ class ECCRegistrationTask(EOTask):
 
     def __init__(
         self,
-        registration_feature: Tuple[FeatureType, str],
-        reference_feature: Tuple[FeatureType, str],
+        registration_feature: tuple[FeatureType, str],
+        reference_feature: tuple[FeatureType, str],
         channel: int,
-        valid_mask_feature: Tuple[FeatureType, str] | None = None,
+        valid_mask_feature: tuple[FeatureType, str] | None = None,
         apply_to_features: FeaturesSpecification = ...,
         interpolation_mode: int = cv2.INTER_LINEAR,
         warp_mode: int = cv2.MOTION_TRANSLATION,
@@ -160,7 +159,7 @@ class ECCRegistrationTask(EOTask):
         new_eopatch[FeatureType.META_INFO, "warp_matrices"] = warp_matrices
         return new_eopatch
 
-    def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: Tuple[int, int], flags: int) -> np.ndarray:
+    def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: tuple[int, int], flags: int) -> np.ndarray:
         """Transform the target image with the estimated transformation matrix"""
         if warp_matrix.shape == (3, 3):
             return cv2.warpPerspective(
