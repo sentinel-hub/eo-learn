@@ -8,7 +8,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -24,9 +26,9 @@ from eolearn.core.exceptions import EODeprecationWarning
 def rolling_window(  # noqa: C901
     array: np.ndarray,
     window: Any = (0,),
-    asteps: Optional[Any] = None,
-    wsteps: Optional[Any] = None,
-    axes: Optional[Any] = None,
+    asteps: Any | None = None,
+    wsteps: Any | None = None,
+    axes: Any | None = None,
     toend: bool = True,
 ) -> np.ndarray:
     """Create a view of `array` which for every point gives the n-dimensional neighbourhood of size window. New

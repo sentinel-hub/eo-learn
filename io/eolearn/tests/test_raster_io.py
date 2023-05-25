@@ -4,6 +4,8 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import copy
 import dataclasses
 import datetime
@@ -11,7 +13,7 @@ import logging
 import os
 import tempfile
 import warnings
-from typing import Any, Optional, Type, Union
+from typing import Any
 
 import boto3
 import numpy as np
@@ -49,10 +51,10 @@ class TiffTestCase:
     name: str
     feature_type: FeatureType
     data: np.ndarray
-    bands: Optional[Union[tuple, list]] = None
-    times: Optional[Union[tuple, list]] = None
-    expected_times: Optional[Union[tuple, list]] = None
-    warning: Optional[Type[Warning]] = None
+    bands: tuple | list | None = None
+    times: tuple | list | None = None
+    expected_times: tuple | list | None = None
+    warning: type[Warning] | None = None
 
     def __post_init__(self):
         if self.expected_times is None:
@@ -179,7 +181,7 @@ def test_export_import(test_case, test_eopatch):
 
 
 def _execute_with_warning_control(
-    export_task: ExportToTiffTask, warning: Optional[Type[Warning]], *args: Any, **kwargs: Any
+    export_task: ExportToTiffTask, warning: type[Warning] | None, *args: Any, **kwargs: Any
 ) -> None:
     """Makes sure that task either raises an expected warning or doesn't raise any EO runtime warning."""
     if warning:

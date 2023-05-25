@@ -6,10 +6,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import warnings
 from enum import Enum
 from functools import partial
-from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 from PIL import Image
@@ -35,7 +36,7 @@ class ResizeMethod(Enum):
     LINEAR = "linear"
     CUBIC = "cubic"
 
-    def get_cv2_method(self, dtype: Union[np.dtype, type]) -> int:
+    def get_cv2_method(self, dtype: np.dtype | type) -> int:
         """Obtain the constant specifying the interpolation method for the CV2 library."""
         try:
             import cv2  # pylint: disable=import-outside-toplevel
@@ -77,7 +78,7 @@ class ResizeLib(Enum):
     PIL = "PIL"
     CV2 = "cv2"
 
-    def get_compatible_dtype(self, dtype: Union[np.dtype, type]) -> np.dtype:
+    def get_compatible_dtype(self, dtype: np.dtype | type) -> np.dtype:
         """Returns a suitable dtype with which the library can work. Warns if information loss could occur."""
         if self is ResizeLib.CV2:
             lossless = {bool: np.uint8, np.float16: np.float32}
@@ -92,7 +93,7 @@ class ResizeLib(Enum):
 
     @staticmethod
     def _extract_compatible_dtype(
-        dtype: Union[np.dtype, type], lossless_casts: Dict[np.dtype, np.dtype], infoloss_casts: Dict[np.dtype, np.dtype]
+        dtype: np.dtype | type, lossless_casts: dict[np.dtype, np.dtype], infoloss_casts: dict[np.dtype, np.dtype]
     ) -> np.dtype:
         """Searches the dictionaries and extract the appropriate dtype. Warns of data loss if it could occur."""
         dtype = np.dtype(dtype)
@@ -108,9 +109,9 @@ class ResizeLib(Enum):
 
 def spatially_resize_image(
     data: np.ndarray,
-    new_size: Optional[Tuple[int, int]] = None,
-    scale_factors: Optional[Tuple[float, float]] = None,
-    spatial_axes: Optional[Tuple[int, int]] = None,
+    new_size: tuple[int, int] | None = None,
+    scale_factors: tuple[float, float] | None = None,
+    spatial_axes: tuple[int, int] | None = None,
     resize_method: ResizeMethod = ResizeMethod.LINEAR,
     resize_library: ResizeLib = ResizeLib.PIL,
 ) -> np.ndarray:
@@ -169,5 +170,5 @@ def spatially_resize_image(
     return resized_data.astype(old_dtype)
 
 
-def _pil_resize_ndarray(image: np.ndarray, size: Tuple[int, int], method: Image.Resampling) -> np.ndarray:
+def _pil_resize_ndarray(image: np.ndarray, size: tuple[int, int], method: Image.Resampling) -> np.ndarray:
     return np.array(Image.fromarray(image).resize(size, method))

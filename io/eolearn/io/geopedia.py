@@ -7,8 +7,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import rasterio.transform
@@ -38,10 +39,10 @@ class AddGeopediaFeatureTask(EOTask):
     def __init__(
         self,
         feature: FeatureSpec,
-        layer: Union[str, int],
+        layer: str | int,
         theme: str,
-        raster_value: Union[Dict[str, Tuple[float, List[float]]], float],
-        raster_dtype: Union[np.dtype, type] = np.uint8,
+        raster_value: dict[str, tuple[float, list[float]]] | float,
+        raster_dtype: np.dtype | type = np.uint8,
         no_data_val: float = 0,
         image_format: MimeType = MimeType.PNG,
         mean_abs_difference: float = 2,
@@ -58,7 +59,7 @@ class AddGeopediaFeatureTask(EOTask):
 
         self.image_format = image_format
 
-    def _get_wms_request(self, bbox: Optional[BBox], size_x: int, size_y: int) -> GeopediaWmsRequest:
+    def _get_wms_request(self, bbox: BBox | None, size_x: int, size_y: int) -> GeopediaWmsRequest:
         """
         Returns WMS request.
         """
@@ -116,7 +117,7 @@ class AddGeopediaFeatureTask(EOTask):
     def _map_from_binaries(
         self,
         eopatch: EOPatch,
-        dst_shape: Union[int, Tuple[int, int]],
+        dst_shape: int | tuple[int, int],
         request_data: np.ndarray,
         binaries_raster_value: float,
     ) -> np.ndarray:
@@ -138,9 +139,9 @@ class AddGeopediaFeatureTask(EOTask):
     def _map_from_multiclass(
         self,
         eopatch: EOPatch,
-        dst_shape: Union[int, Tuple[int, int]],
+        dst_shape: int | tuple[int, int],
         request_data: np.ndarray,
-        multiclass_raster_value: Dict[str, Tuple[float, List[float]]],
+        multiclass_raster_value: dict[str, tuple[float, list[float]]],
     ) -> np.ndarray:
         """
         `raster_value` is a dictionary specifying the intensity values for each class and the corresponding label value.

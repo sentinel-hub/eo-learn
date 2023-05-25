@@ -4,12 +4,13 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import json
 import os
 import unittest.mock as mock
 from _thread import RLock
 from pathlib import Path
-from typing import List
 
 import pytest
 from botocore.credentials import Credentials
@@ -113,7 +114,7 @@ def test_get_aws_credentials(mocked_copy):
         ),
     ],
 )
-def test_filesystem_serialization(filesystem: FS, compare_params: List[str]):
+def test_filesystem_serialization(filesystem: FS, compare_params: list[str]):
     pickled_filesystem = pickle_fs(filesystem)
     assert isinstance(pickled_filesystem, bytes)
 

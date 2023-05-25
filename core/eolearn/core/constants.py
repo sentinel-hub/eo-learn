@@ -6,9 +6,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import warnings
 from enum import Enum, EnumMeta
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 from sentinelhub import BBox, MimeType
 from sentinelhub.exceptions import deprecated_function
@@ -170,7 +172,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
         """True if FeatureType stores a dictionary of numpy.ndarrays. False otherwise."""
         return self.is_array()
 
-    def ndim(self) -> Optional[int]:
+    def ndim(self) -> int | None:
         """If given FeatureType stores a dictionary of numpy.ndarrays it returns dimensions of such arrays."""
         if self.is_array():
             return {
@@ -331,7 +333,7 @@ class OverwritePermission(Enum, metaclass=PermissionsWithDeprecations):
     OVERWRITE_PATCH = "OVERWRITE_PATCH"
 
     @classmethod
-    def _missing_(cls, value: object) -> "OverwritePermission":
+    def _missing_(cls, value: object) -> OverwritePermission:
         permissions_mapping = {0: "ADD_ONLY", 1: "OVERWRITE_FEATURES", 2: "OVERWRITE_PATCH"}
         if isinstance(value, int) and value in permissions_mapping:
             deprecation_msg = (

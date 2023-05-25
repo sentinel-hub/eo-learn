@@ -4,10 +4,12 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import dataclasses
 import warnings
 from functools import partial
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from typing import Any
 
 import numpy as np
 import pytest
@@ -42,8 +44,8 @@ CUSTOM_DATAFRAME_3D.geometry = CUSTOM_DATAFRAME_3D.geometry.map(partial(shapely.
 class VectorToRasterTestCase:
     name: str
     task: EOTask
-    img_exp_statistics: Dict[str, Union[Tuple[int, ...], Type, np.dtype, float]]
-    warning: Optional[Type[Warning]] = None
+    img_exp_statistics: dict[str, tuple[int, ...] | type | np.dtype | float]
+    warning: type[Warning] | None = None
 
 
 VECTOR_TO_RASTER_TEST_CASES = (

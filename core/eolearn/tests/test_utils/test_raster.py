@@ -4,8 +4,10 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import warnings
-from typing import Literal, Optional, Tuple
+from typing import Literal
 
 import numpy as np
 import pytest
@@ -62,11 +64,11 @@ def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtyp
 )
 def test_constant_pad(
     array: np.ndarray,
-    multiple_of: Tuple[int, int],
+    multiple_of: tuple[int, int],
     up_down_rule: Literal["even", "up", "down"],
     left_right_rule: Literal["even", "left", "right"],
     pad_value: float,
-    expected_result: Optional[np.ndarray],
+    expected_result: np.ndarray | None,
 ):
     """Checks that the function pads correctly and minimally. In larger cases only the shapes are checked."""
     padded = constant_pad(array, multiple_of, up_down_rule, left_right_rule, pad_value)

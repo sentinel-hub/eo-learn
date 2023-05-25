@@ -7,8 +7,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
+from __future__ import annotations
+
 import itertools
-from typing import List, Optional, Union
 
 import numpy as np
 
@@ -21,10 +22,10 @@ except ImportError as exception:
 
 def plot_confusion_matrix(
     confusion_matrix: np.ndarray,
-    classes: List[str],
+    classes: list[str],
     normalize: bool = True,
     title: str = "Confusion matrix",
-    cmap: Optional[Union[str, Colormap]] = plt.cm.Blues,
+    cmap: str | Colormap | None = plt.cm.Blues,
     xlabel: str = "Predicted label",
     ylabel: str = "True label",
 ) -> None:

@@ -6,12 +6,14 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import copy
 import os
 import pickle
 import threading
 from pathlib import Path, PurePath
-from typing import Any, Optional, Tuple, Union
+from typing import Any
 
 import fs
 from boto3 import Session
@@ -26,9 +28,7 @@ from sentinelhub import SHConfig
 # ruff: noqa: SLF001
 
 
-def get_filesystem(
-    path: Union[str, Path], create: bool = False, config: Optional[SHConfig] = None, **kwargs: Any
-) -> FS:
+def get_filesystem(path: str | Path, create: bool = False, config: SHConfig | None = None, **kwargs: Any) -> FS:
     """A utility function for initializing any type of filesystem object with PyFilesystem2 package.
 
     :param path: A filesystem path
@@ -46,7 +46,7 @@ def get_filesystem(
     return fs.open_fs(path, create=create, **kwargs)
 
 
-def get_base_filesystem_and_path(*path_parts: str, **kwargs: Any) -> Tuple[FS, str]:
+def get_base_filesystem_and_path(*path_parts: str, **kwargs: Any) -> tuple[FS, str]:
     """Parses multiple strings that define a filesystem path and returns a filesystem object with a relative path
     on the filesystem.
 
@@ -73,7 +73,7 @@ def get_base_filesystem_and_path(*path_parts: str, **kwargs: Any) -> Tuple[FS, s
 
 
 def load_s3_filesystem(
-    path: str, strict: bool = False, config: Optional[SHConfig] = None, aws_profile: Optional[str] = None, **kwargs: Any
+    path: str, strict: bool = False, config: SHConfig | None = None, aws_profile: str | None = None, **kwargs: Any
 ) -> S3FS:
     """Loads AWS s3 filesystem from a path.
 
@@ -108,7 +108,7 @@ def load_s3_filesystem(
     )
 
 
-def get_aws_credentials(aws_profile: str, config: Optional[SHConfig] = None) -> SHConfig:
+def get_aws_credentials(aws_profile: str, config: SHConfig | None = None) -> SHConfig:
     """Collects credentials from AWS profile and adds them to an instance of SHConfig.
 
     :param aws_profile: A name of AWS profile

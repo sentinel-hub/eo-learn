@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Iterable
 
 import pytest
 
@@ -11,9 +13,9 @@ from eolearn.core.utils.testing import generate_eopatch
 @dataclass
 class ParserTestCase:
     parser_input: FeaturesSpecification
-    features: List[FeatureSpec]
-    renaming: List[FeatureRenameSpec]
-    specifications: Optional[List[Tuple[FeatureType, Union[str, EllipsisType]]]] = None
+    features: list[FeatureSpec]
+    renaming: list[FeatureRenameSpec]
+    specifications: list[tuple[FeatureType, str | EllipsisType]] | None = None
     description: str = ""
 
 
@@ -125,7 +127,7 @@ def test_feature_parser_no_eopatch(test_case: ParserTestCase):
     ],
 )
 def test_feature_parser_no_eopatch_failure(
-    test_input: FeaturesSpecification, specifications: List[Tuple[FeatureType, Union[str, EllipsisType]]]
+    test_input: FeaturesSpecification, specifications: list[tuple[FeatureType, str | EllipsisType]]
 ):
     """When a get-all request `...` without an eopatch the parser should fail unless parsing specifications."""
     parser = FeatureParser(test_input)
@@ -214,7 +216,7 @@ def test_allowed_feature_types_callable(
     ],
 )
 def test_all_features_allowed_feature_types(
-    eopatch: EOPatch, allowed_types: Union[Iterable[FeatureType], Callable[[FeatureType], bool]]
+    eopatch: EOPatch, allowed_types: Iterable[FeatureType] | Callable[[FeatureType], bool]
 ):
     """Ensure that allowed_feature_types is respected when requesting all features."""
     parser = FeatureParser(..., allowed_feature_types=allowed_types)
