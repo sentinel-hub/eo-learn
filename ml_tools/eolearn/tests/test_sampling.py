@@ -4,9 +4,10 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import copy
 import math
-from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import pytest
@@ -36,7 +37,7 @@ from eolearn.ml_tools.sampling import expand_to_grids, get_mask_of_samples, rand
         ),
     ],
 )
-def test_random_point_in_triangle_generator(triangle: Polygon, expected_points: List[Point]) -> None:
+def test_random_point_in_triangle_generator(triangle: Polygon, expected_points: list[Point]) -> None:
     generator = np.random.default_rng(seed=42)
     points = [random_point_in_triangle(triangle, generator) for _ in range(2)]
     assert all(point == expected for point, expected in zip(points, expected_points))
@@ -73,7 +74,7 @@ def small_image_fixture() -> np.ndarray:
         (np.ones((100, 100)), {1: 10001}),
     ],
 )
-def test_sample_by_values_errors(image: np.ndarray, n_samples: Dict[int, int]) -> None:
+def test_sample_by_values_errors(image: np.ndarray, n_samples: dict[int, int]) -> None:
     rng = np.random.default_rng()
     with pytest.raises(ValueError):
         sample_by_values(image, n_samples, rng=rng)
@@ -88,7 +89,7 @@ def test_sample_by_values_errors(image: np.ndarray, n_samples: Dict[int, int]) -
         ({0: 100, 2: 30000}, True),
     ],
 )
-def test_sample_by_values(small_image: np.ndarray, seed: int, n_samples: Dict[int, int], replace: bool) -> None:
+def test_sample_by_values(small_image: np.ndarray, seed: int, n_samples: dict[int, int], replace: bool) -> None:
     rng = np.random.default_rng(seed)
     rows, cols = sample_by_values(small_image, n_samples, rng=rng, replace=replace)
     labels = small_image[rows, cols]
@@ -105,7 +106,7 @@ def test_sample_by_values(small_image: np.ndarray, seed: int, n_samples: Dict[in
     ],
 )
 @pytest.mark.parametrize("sample_size", [(1, 1), (2, 3), (10, 11)])
-def test_expand_to_grids(rows: np.ndarray, columns: np.ndarray, sample_size: Tuple[int, int]) -> None:
+def test_expand_to_grids(rows: np.ndarray, columns: np.ndarray, sample_size: tuple[int, int]) -> None:
     row_grid, column_grid = expand_to_grids(rows, columns, sample_size=sample_size)
     expected_shape = sample_size[0] * rows.size, sample_size[1]
 
@@ -121,7 +122,7 @@ def test_expand_to_grids(rows: np.ndarray, columns: np.ndarray, sample_size: Tup
         ({0: 100, 2: 30000}),
     ],
 )
-def test_get_mask_of_samples(small_image: np.ndarray, n_samples: Dict[int, int]) -> None:
+def test_get_mask_of_samples(small_image: np.ndarray, n_samples: dict[int, int]) -> None:
     row_grid, column_grid = sample_by_values(small_image, n_samples, replace=True)
     image_shape = small_image.shape
     result = get_mask_of_samples(image_shape, row_grid, column_grid)
@@ -191,7 +192,7 @@ def test_object_sampling_reproducibility(eopatch: EOPatch, seed: int, block_task
     ("fraction", "replace"),
     [(2, False), (-0.5, True), ({1: 0.5, 3: 0.4, 5: 1.2}, False), ({1: 0.5, 3: -0.4, 5: 1.2}, True), ((1, 0.4), True)],
 )
-def test_fraction_sampling_errors(fraction: Union[float, Dict[int, float]], replace: bool) -> None:
+def test_fraction_sampling_errors(fraction: float | dict[int, float], replace: bool) -> None:
     with pytest.raises(ValueError):
         FractionSamplingTask(
             [(FeatureType.DATA, "NDVI", "NDVI_SAMPLED")],

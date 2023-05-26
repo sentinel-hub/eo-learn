@@ -5,10 +5,12 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
+from __future__ import annotations
+
 import copy
 import pickle
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Type, Union
+from typing import Any, Callable, Iterable
 
 import numpy as np
 import pytest
@@ -71,7 +73,7 @@ def eopatch_to_explode_fixture() -> EOPatch:
 
 
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
-def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
+def test_copy(task: type[CopyTask], patch: EOPatch) -> None:
     patch_copy = task().execute(patch)
     assert patch_copy == patch
 
@@ -90,7 +92,7 @@ def test_copy(task: Type[CopyTask], patch: EOPatch) -> None:
     ],
 )
 @pytest.mark.parametrize("task", [DeepCopyTask, CopyTask])
-def test_partial_copy(features: List[FeatureSpec], task: Type[CopyTask], patch: EOPatch) -> None:
+def test_partial_copy(features: list[FeatureSpec], task: type[CopyTask], patch: EOPatch) -> None:
     patch_copy = task(features=features)(patch)
 
     assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
@@ -116,7 +118,7 @@ def test_load_task(test_eopatch_path: str) -> None:
 
 @pytest.mark.parametrize("filesystem", [OSFS("."), S3FS("s3://fake-bucket/"), TempFS()])
 @pytest.mark.parametrize("task_class", [LoadTask, SaveTask])
-def test_io_task_pickling(filesystem: FS, task_class: Type[EOTask]) -> None:
+def test_io_task_pickling(filesystem: FS, task_class: type[EOTask]) -> None:
     task = task_class("/", filesystem=filesystem)
 
     pickled_task = pickle.dumps(task)
@@ -178,7 +180,7 @@ def test_remove_fails(patch: EOPatch) -> None:
     ],
 )
 @pytest.mark.parametrize("deep", [True, False])
-def test_duplicate_feature(feature_specification: List[FeatureRenameSpec], deep: bool, patch: EOPatch) -> None:
+def test_duplicate_feature(feature_specification: list[FeatureRenameSpec], deep: bool, patch: EOPatch) -> None:
     patch = DuplicateFeatureTask(feature_specification, deep)(patch)
 
     for f_type, f_name, f_dup_name in feature_specification:
@@ -208,7 +210,7 @@ def test_duplicate_feature_fails(patch: EOPatch) -> None:
     ],
 )
 def test_initialize_feature(
-    init_val: float, shape: Tuple[int, ...], feature_spec: FeaturesSpecification, patch: EOPatch
+    init_val: float, shape: tuple[int, ...], feature_spec: FeaturesSpecification, patch: EOPatch
 ) -> None:
     expected_data = init_val * np.ones(shape)
     patch = InitializeFeatureTask(feature_spec, shape=shape, init_value=init_val)(patch)
@@ -276,7 +278,7 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
         ),
     ],
 )
-def test_merge_features(axis: int, features_to_merge: List[FeatureSpec], feature: FeatureSpec, patch: EOPatch) -> None:
+def test_merge_features(axis: int, features_to_merge: list[FeatureSpec], feature: FeatureSpec, patch: EOPatch) -> None:
     patch = MergeFeatureTask(features_to_merge, feature, axis=axis)(patch)
     expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
 
@@ -307,7 +309,7 @@ def test_zip_features(
     input_features: FeaturesSpecification,
     output_feature: FeatureSpec,
     zip_function: Callable,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
     patch: EOPatch,
 ) -> None:
     expected = zip_function(*[patch[feat] for feat in parse_features(input_features)], **kwargs)
@@ -350,7 +352,7 @@ def test_map_features(
     input_features: FeaturesSpecification,
     output_features: FeaturesSpecification,
     map_function: Callable,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
     patch: EOPatch,
 ) -> None:
     original_patch = patch.copy(deep=True, features=input_features)
@@ -388,7 +390,7 @@ def test_map_features_fails(patch: EOPatch) -> None:
         ((FeatureType.DATA, "bands"), {"axis": -1, "name": "fun_name", "bands": [4, 3, 2]}),
     ],
 )
-def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], patch: EOPatch) -> None:
+def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: dict[str, Any], patch: EOPatch) -> None:
     def kwargs_map(_, *, some=3, **kwargs) -> tuple:
         return some, kwargs
 
@@ -414,8 +416,8 @@ def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: Dict[str, Any], 
 )
 def test_explode_bands(
     eopatch_to_explode: EOPatch,
-    feature: Tuple[FeatureType, str],
-    task_input: Dict[Tuple[FeatureType, str], Union[int, Iterable[int]]],
+    feature: tuple[FeatureType, str],
+    task_input: dict[tuple[FeatureType, str], int | Iterable[int]],
 ) -> None:
     patch = ExplodeBandsTask(feature, task_input)(eopatch_to_explode)
     assert all(new_feature in patch for new_feature in task_input)
@@ -453,7 +455,7 @@ def test_extract_bands_fails(eopatch_to_explode: EOPatch) -> None:
         {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
     ],
 )
-def test_create_eopatch(features: Dict[str, Any]) -> None:
+def test_create_eopatch(features: dict[str, Any]) -> None:
     assert CreateEOPatchTask()(**features) == EOPatch(**features)
 
 

@@ -58,11 +58,12 @@ ignore = [
     "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
     "UP024", # wants to switch IOError with OSError
 ]
-per-file-ignores = { "__init__.py" = ["F401"] }
+per-file-ignores = { "__init__.py" = ["F401", "I002"], "conf.py" = ["I002"]}
 exclude = [".git", "__pycache__", "build", "dist"]
 
 
 [tool.ruff.isort]
+required-imports = ["from __future__ import annotations"]
 section-order = [
     "future",
     "standard-library",
@@ -128,13 +129,14 @@ source = [
 omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002,UP,FA"]
+ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002,UP,FA,I002"]
 # E402 -> imports on top
 # T201 -> print found
 # B015 & B018 -> useless expression (used to show values in ipynb)
 # NPY002 -> use RNG instead of old numpy.random
 # UP -> suggestions for new-style classes (future import might confuse readers)
 # FA -> necessary future annotations import
+# I002 -> auto-inserts future annotations
 
 [tool.mypy]
 follow_imports = "normal"

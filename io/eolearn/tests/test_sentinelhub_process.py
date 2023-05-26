@@ -4,12 +4,14 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import dataclasses
 import datetime as dt
 import os
 import shutil
 from concurrent import futures
-from typing import Any, List, Optional
+from typing import Any
 
 import numpy as np
 import pytest
@@ -42,8 +44,8 @@ class IoTestCase:
     time_interval: tuple
     feature: str = "BANDS"
     feature_type: FeatureType = FeatureType.DATA
-    data_size: Optional[int] = None
-    timestamp_length: Optional[int] = None
+    data_size: int | None = None
+    timestamp_length: int | None = None
     stats: Any = None
 
 
@@ -140,7 +142,7 @@ class TestProcessingIO:
             ("bicubic", [0.0836, 0.1548, 0.0792]),
         ],
     )
-    def test_upsampling_downsampling(self, resampling_type: ResamplingType, stats: List[float]):
+    def test_upsampling_downsampling(self, resampling_type: ResamplingType, stats: list[float]):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, "BANDS"),
             bands=["B01"],
@@ -183,7 +185,7 @@ class TestProcessingIO:
             ),
         ],
     )
-    def test_geometry_argument(self, geometry: Geometry, stats: List[float]):
+    def test_geometry_argument(self, geometry: Geometry, stats: list[float]):
         task = SentinelHubInputTask(
             bands_feature=(FeatureType.DATA, "BANDS"),
             bands=["B01"],
@@ -224,7 +226,7 @@ class TestProcessingIO:
             ),
         ],
     )
-    def test_geometry_argument_evalscript(self, geometry: Geometry, stats: List[float]):
+    def test_geometry_argument_evalscript(self, geometry: Geometry, stats: list[float]):
         evalscript = """
             //VERSION=3
 

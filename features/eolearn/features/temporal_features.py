@@ -6,9 +6,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
 
 import itertools as it
-from typing import List, Optional
 
 import numpy as np
 
@@ -44,7 +44,7 @@ class AddSpatioTemporalFeaturesTask(EOTask):
         argmin_ndvi_slope: str = "ARGMIN_NDVI_SLOPE",
         feats_feature: str = "STF",
         data_feature: str = "BANDS-S2-L1C",
-        indices: Optional[List[int]] = None,
+        indices: list[int] | None = None,
     ):
         """Class constructor
 
@@ -113,7 +113,7 @@ class AddMaxMinTemporalIndicesTask(EOTask):
     def __init__(
         self,
         data_feature: str = "NDVI",
-        data_index: Optional[int] = None,
+        data_index: int | None = None,
         amax_data_feature: str = "ARGMAX_NDVI",
         amin_data_feature: str = "ARGMIN_NDVI",
         mask_data: bool = True,

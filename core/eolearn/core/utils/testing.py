@@ -6,10 +6,12 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime as dt
 import string
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import geopandas as gpd
 import numpy as np
@@ -31,23 +33,23 @@ class PatchGeneratorConfig:
     """Dataclass containing a more complex setup of the PatchGenerator class."""
 
     num_timestamps: int = 5
-    timestamps_range: Tuple[dt.datetime, dt.datetime] = (dt.datetime(2019, 1, 1), dt.datetime(2019, 12, 31))
-    timestamps: List[dt.datetime] = field(init=False, repr=False)
+    timestamps_range: tuple[dt.datetime, dt.datetime] = (dt.datetime(2019, 1, 1), dt.datetime(2019, 12, 31))
+    timestamps: list[dt.datetime] = field(init=False, repr=False)
 
     max_integer_value: int = 256
-    raster_shape: Tuple[int, int] = (98, 151)
-    depth_range: Tuple[int, int] = (1, 3)
+    raster_shape: tuple[int, int] = (98, 151)
+    depth_range: tuple[int, int] = (1, 3)
 
     def __post_init__(self) -> None:
         self.timestamps = list(pd.date_range(*self.timestamps_range, periods=self.num_timestamps).to_pydatetime())
 
 
 def generate_eopatch(
-    features: Optional[List[Tuple[FeatureType, str]]] = None,
+    features: list[tuple[FeatureType, str]] | None = None,
     bbox: BBox = DEFAULT_BBOX,
-    timestamps: Optional[List[dt.datetime]] = None,
+    timestamps: list[dt.datetime] | None = None,
     seed: int = 42,
-    config: Optional[PatchGeneratorConfig] = None,
+    config: PatchGeneratorConfig | None = None,
 ) -> EOPatch:
     """A class for generating EOPatches with dummy data."""
     config = config if config is not None else PatchGeneratorConfig()
@@ -73,7 +75,7 @@ def generate_eopatch(
 
 
 def _generate_feature_data(
-    rng: np.random.Generator, ftype: FeatureType, shape: Tuple[int, ...], config: PatchGeneratorConfig
+    rng: np.random.Generator, ftype: FeatureType, shape: tuple[int, ...], config: PatchGeneratorConfig
 ) -> np.ndarray:
     if ftype.is_discrete():
         return rng.integers(config.max_integer_value, size=shape)
@@ -81,8 +83,8 @@ def _generate_feature_data(
 
 
 def _get_feature_shape(
-    rng: np.random.Generator, ftype: FeatureType, timestamps: List[dt.datetime], config: PatchGeneratorConfig
-) -> Tuple[int, ...]:
+    rng: np.random.Generator, ftype: FeatureType, timestamps: list[dt.datetime], config: PatchGeneratorConfig
+) -> tuple[int, ...]:
     time, height, width, depth = len(timestamps), *config.raster_shape, rng.integers(*config.depth_range)
 
     if ftype.is_spatial() and not ftype.is_vector():

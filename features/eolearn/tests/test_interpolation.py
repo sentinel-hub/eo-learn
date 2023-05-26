@@ -4,9 +4,10 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import dataclasses
 from datetime import datetime
-from typing import Dict, Optional
 
 import numpy as np
 import pytest
@@ -49,8 +50,8 @@ class InterpolationTestCase:
     name: str
     task: EOTask
     result_len: int
-    expected_statistics: Dict[str, float]
-    nan_replace: Optional[float] = None
+    expected_statistics: dict[str, float]
+    nan_replace: float | None = None
 
     def execute(self, eopatch):
         feature_type, feature_name, _ = self.task.renamed_feature

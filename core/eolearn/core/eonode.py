@@ -6,9 +6,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime as dt
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union, cast
+from typing import Sequence, cast
 
 from .eotask import EOTask
 from .utils.common import generate_uid
@@ -27,8 +29,8 @@ class EONode:
     """
 
     task: EOTask
-    inputs: Sequence["EONode"] = field(default_factory=tuple)
-    name: Optional[str] = field(default=None)
+    inputs: Sequence[EONode] = field(default_factory=tuple)
+    name: str | None = field(default=None)
     uid: str = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -57,7 +59,7 @@ class EONode:
             return f"{self.name}_{suffix_number}"
         return cast(str, self.name)
 
-    def get_dependencies(self, *, _memo: Optional[Dict["EONode", Set["EONode"]]] = None) -> Set["EONode"]:
+    def get_dependencies(self, *, _memo: dict[EONode, set[EONode]] | None = None) -> set[EONode]:
         """Returns a set of nodes that this node depends on. Set includes the node itself."""
         _memo = _memo if _memo is not None else {}
         if self not in _memo:
@@ -67,7 +69,7 @@ class EONode:
         return _memo[self]
 
 
-def linearly_connect_tasks(*tasks: Union[EOTask, Tuple[EOTask, str]]) -> List[EONode]:
+def linearly_connect_tasks(*tasks: EOTask | tuple[EOTask, str]) -> list[EONode]:
     """Creates a list of linearly linked nodes, suitable to construct an EOWorkflow.
 
     Nodes depend on each other in such a way, that the node containing the task at index `i` is the input node for the
@@ -98,5 +100,5 @@ class NodeStats:
     node_name: str
     start_time: dt.datetime
     end_time: dt.datetime
-    exception: Optional[BaseException] = None
-    exception_traceback: Optional[str] = None
+    exception: BaseException | None = None
+    exception_traceback: str | None = None

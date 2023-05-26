@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from __future__ import annotations
 
 import numpy as np
 import pytest
@@ -11,7 +11,7 @@ from eolearn.features.utils import ResizeLib, ResizeMethod, spatially_resize_ima
 @pytest.mark.parametrize("dtype", [np.float32, np.int32, np.uint8, bool])
 @pytest.mark.parametrize("new_size", [(50, 50), (35, 39), (271, 271)])
 def test_spatially_resize_image_new_size(
-    method: ResizeMethod, library: ResizeLib, dtype: Union[np.dtype, type], new_size: Tuple[int, int]
+    method: ResizeMethod, library: ResizeLib, dtype: np.dtype | type, new_size: tuple[int, int]
 ):
     """Test that all methods and backends are able to downscale and upscale images of various dtypes."""
     if library is ResizeLib.CV2:  # noqa: SIM102
@@ -49,7 +49,7 @@ def test_spatially_resize_image_new_size(
 @pytest.mark.parametrize("library", ResizeLib)
 @pytest.mark.parametrize("scale_factors", [(2, 2), (0.25, 0.25)])
 def test_spatially_resize_image_scale_factors(
-    method: ResizeMethod, library: ResizeLib, scale_factors: Tuple[float, float]
+    method: ResizeMethod, library: ResizeLib, scale_factors: tuple[float, float]
 ):
     height, width = 120, 120
     old_shape = (height, width, 3)
@@ -81,7 +81,7 @@ def test_spatially_resize_image_scale_factors(
     ],
 )
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
-def test_spatially_resize_image_dtype(library: ResizeLib, dtype: Union[np.dtype, type]):
+def test_spatially_resize_image_dtype(library: ResizeLib, dtype: np.dtype | type):
     # Warnings occur due to lossy casting in the downsampling procedure
     old_shape = (111, 111)
     data_2d = np.arange(np.prod(old_shape)).astype(dtype).reshape(old_shape)
@@ -107,7 +107,7 @@ def test_image_fixture():
 @pytest.mark.parametrize("library", ResizeLib)
 @pytest.mark.parametrize("new_size", [(50, 50), (217, 271)])
 def test_spatially_resize_image_correctness(
-    method: ResizeMethod, library: ResizeLib, new_size: Tuple[int, int], test_image: np.ndarray
+    method: ResizeMethod, library: ResizeLib, new_size: tuple[int, int], test_image: np.ndarray
 ):
     """Test that resizing is correct on a very basic example. It tests midpoints of the 4 quadrants."""
     height, width = new_size

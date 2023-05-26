@@ -4,9 +4,11 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime
 import warnings
-from typing import Any, List, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pytest
@@ -192,7 +194,7 @@ def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: E
 
 
 @pytest.mark.parametrize("bbox_feature", [FeatureType.BBOX, (FeatureType.BBOX, None)])
-def test_cannot_delete_bbox(bbox_feature: Union[FeatureType, FeatureSpec], mini_eopatch: EOPatch) -> None:
+def test_cannot_delete_bbox(bbox_feature: FeatureType | FeatureSpec, mini_eopatch: EOPatch) -> None:
     with pytest.raises(ValueError):
         del mini_eopatch[bbox_feature]
 
@@ -336,7 +338,7 @@ def eopatch_spatial_dim_fixture() -> EOPatch:
     ],
 )
 def test_get_spatial_dimension(
-    feature: Tuple[FeatureType, str], expected_dim: Tuple[int, int], eopatch_spatial_dim: EOPatch
+    feature: tuple[FeatureType, str], expected_dim: tuple[int, int], eopatch_spatial_dim: EOPatch
 ) -> None:
     assert eopatch_spatial_dim.get_spatial_dimension(*feature) == expected_dim
 
@@ -360,7 +362,7 @@ def test_get_spatial_dimension(
         (EOPatch(bbox=DUMMY_BBOX), [(FeatureType.BBOX, None)]),
     ],
 )
-def test_get_features(patch: EOPatch, expected_features: List[FeatureSpec]) -> None:
+def test_get_features(patch: EOPatch, expected_features: list[FeatureSpec]) -> None:
     assert patch.get_features() == expected_features
 
 

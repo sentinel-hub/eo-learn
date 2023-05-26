@@ -4,10 +4,12 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import dataclasses
 import warnings
 from functools import partial
-from typing import Callable, Optional, Tuple
+from typing import Callable
 
 import numpy as np
 import pytest
@@ -56,8 +58,8 @@ def test_is_discrete_type(number_type, is_discrete):
 class ApplyToAxesTestCase:
     function: Callable[[np.ndarray], np.ndarray]
     data: np.ndarray
-    spatial_axes: Tuple[int, int]
-    expected: Optional[np.ndarray] = None
+    spatial_axes: tuple[int, int]
+    expected: np.ndarray | None = None
 
 
 APPLY_TO_TEST_CASES = [

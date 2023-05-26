@@ -5,8 +5,9 @@ For the full list of contributors, see the CREDITS file in the root directory of
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
 
+from __future__ import annotations
+
 import datetime
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -55,7 +56,7 @@ def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
     "invalid_feature",
     [(FeatureType.VECTOR, "foo"), (FeatureType.VECTOR_TIMELESS, "bar"), (FeatureType.MASK_TIMELESS, "foobar")],
 )
-def test_simple_filter_invalid_feature(invalid_feature: Tuple[FeatureType, str]):
+def test_simple_filter_invalid_feature(invalid_feature: tuple[FeatureType, str]):
     with pytest.raises(ValueError):
         SimpleFilterTask(invalid_feature, filter_func=lambda _: True)
 

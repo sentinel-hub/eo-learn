@@ -7,8 +7,10 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import uuid
-from typing import Callable, Mapping, Sequence, Tuple, Union, cast
+from typing import Callable, Mapping, Sequence, cast
 
 import geopandas as gpd
 import numpy as np
@@ -80,13 +82,13 @@ def generate_uid(prefix: str) -> str:
     return f"{prefix}-{time_uid}-{random_uid}"
 
 
-def is_discrete_type(number_type: Union[np.dtype, type]) -> bool:
+def is_discrete_type(number_type: np.dtype | type) -> bool:
     """Checks if a given `numpy` type is a discrete numerical type."""
     return np.issubdtype(number_type, np.integer) or np.issubdtype(number_type, bool)
 
 
 def _apply_to_spatial_axes(
-    function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: Tuple[int, int]
+    function: Callable[[np.ndarray], np.ndarray], data: np.ndarray, spatial_axes: tuple[int, int]
 ) -> np.ndarray:
     """Helper function for applying a 2D -> 2D function to a higher dimension array
 
