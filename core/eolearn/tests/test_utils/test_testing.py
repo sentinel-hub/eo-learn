@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import datetime as dt
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pytest
@@ -32,7 +34,7 @@ def test_generate_eopatch_set_bbox_timestamps() -> None:
         {"num_timestamps": 7, "max_integer_value": 333, "raster_shape": (3, 27), "depth_range": (5, 15)},
     ],
 )
-def test_generate_eopatch_config(config: Dict[str, Any]) -> None:
+def test_generate_eopatch_config(config: dict[str, Any]) -> None:
     mask_feature = (FeatureType.MASK, "mask")
 
     patch = generate_eopatch(mask_feature, config=PatchGeneratorConfig(**config))
@@ -75,7 +77,7 @@ def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> No
 class GenerateTestCase:
     data_features: FeaturesSpecification
     seed: int
-    expected_statistics: Dict[FeatureSpec, Dict[str, Any]]
+    expected_statistics: dict[FeatureSpec, dict[str, Any]]
 
 
 @pytest.mark.parametrize(

@@ -4,11 +4,13 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+from __future__ import annotations
+
 import datetime
 import os
 import tempfile
 import warnings
-from typing import Any, Type
+from typing import Any
 
 import fs
 import geopandas as gpd
@@ -360,7 +362,7 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
     ],
 )
 @pytest.mark.parametrize("compress_level", [0, 1])
-def test_feature_io(constructor: Type[FeatureIO], data: Any, compress_level: int) -> None:
+def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int) -> None:
     """
     Tests verifying that FeatureIO subclasses correctly save, load, and lazy-load data.
     Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
