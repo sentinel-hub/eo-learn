@@ -1,4 +1,4 @@
-## [Version 1.4.2] - 2023-3-14
+## [Version 1.4.2] - 2023-03-14
 
 - Introduced support for Python 3.11.
 - Removed support for Python 3.7.
@@ -13,7 +13,7 @@
 - Various refactoring efforts and dependency improvements.
 - Various improvements to tests and code.
 
-## [Version 1.4.1] - 2023-3-14
+## [Version 1.4.1] - 2023-03-14
 
 - The codebase is now fully annotated and type annotations are mandatory for all new code.
 - In the future `EOPatch` objects will **require** a valid `bbox`. For now the users are warned when no such value is provided.
@@ -27,7 +27,7 @@
 - Various other minor improvements and deprecations.
 
 
-## [Version 1.4.0] - 2023-1-20
+## [Version 1.4.0] - 2023-01-20
 
 - (**codebreaking**) Complete overhaul of `eolearn.coregistration`. See documentation for details.
 - (**codebreaking**) Removed non-working HVPlot backend for `eolearn.visualization`.
