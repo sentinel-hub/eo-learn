@@ -33,6 +33,7 @@ class TestVectorImportTask:
     def test_import_s3_file(self, s3_gpkg_file, reproject, clip, n_features, bbox, crs):
         self._test_import(bbox, clip, crs, s3_gpkg_file, n_features, reproject)
 
+    @pytest.mark.geopedia()
     def test_import_from_geopedia(self, reproject, clip, n_features, bbox, crs):
         feature = FeatureType.VECTOR_TIMELESS, "lpis_iacs"
         import_task = GeopediaVectorImportTask(feature=feature, geopedia_table=3447, reproject=reproject, clip=clip)
