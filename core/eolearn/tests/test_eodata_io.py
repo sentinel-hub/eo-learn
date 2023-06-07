@@ -368,7 +368,7 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
     Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
     """
 
-    file_extension = "." + str(constructor.get_file_format().extension)
+    file_extension = f".{constructor.get_file_extension()}"
     file_extension = file_extension if compress_level == 0 else file_extension + ".gz"
     file_name = "name"
     with TempFS("testing_file_sistem") as temp_fs:
