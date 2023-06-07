@@ -401,17 +401,19 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         """Method for loading a feature. The loaded value is stored into an attribute in case a second load request is
         triggered inside a shallow-copied EOPatch.
         """
-        if self.loaded_value is not None:
-            return self.loaded_value
+        if self.loaded_value is None:
+            self.loaded_value = self._load_value()
 
+        return self.loaded_value
+
+    def _load_value(self) -> T:
+        """Actually loads the value from the storage."""
         with self.filesystem.openbin(self.path, "r") as file_handle:
             if MimeType.GZIP.matches_extension(self.path):
                 with gzip.open(file_handle, "rb") as gzip_fp:
-                    self.loaded_value = self._read_from_file(gzip_fp)
+                    return self._read_from_file(gzip_fp)
             else:
-                self.loaded_value = self._read_from_file(file_handle)
-
-        return self.loaded_value
+                return self._read_from_file(file_handle)
 
     @abstractmethod
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> T:
