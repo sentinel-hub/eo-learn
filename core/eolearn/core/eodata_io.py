@@ -376,7 +376,6 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         """
         :param path: A path in the filesystem
         :param filesystem: A filesystem object
-        :compress_level: The compression level to be used when saving, inferred from path if not provided
         """
         filename = fs.path.basename(path)
         expected_extension = f".{self.get_file_format().extension}"
@@ -406,8 +405,26 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
 
         return self.loaded_value
 
+    @abstractmethod
     def _load_value(self) -> T:
-        """Actually loads the value from the storage."""
+        """Loads the value from the storage."""
+
+    @abstractmethod
+    @classmethod
+    def save(cls, data: T, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:
+        """Method for saving a feature. The path is assumed to be filesystem path but without file extensions.
+
+        Example of path is `eopatch/data/NDVI`, which is then used to save `eopatch/data/NDVI.npy.gz`.
+        """
+
+
+class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
+    """A class that handles the saving and loading process of a single feature at a given location.
+
+    Uses GZip to compress files when required.
+    """
+
+    def _load_value(self) -> T:
         with self.filesystem.openbin(self.path, "r") as file_handle:
             if MimeType.GZIP.matches_extension(self.path):
                 with gzip.open(file_handle, "rb") as gzip_fp:
@@ -457,7 +474,7 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         """Writes data to a file in the appropriate way."""
 
 
-class FeatureIONumpy(FeatureIO[np.ndarray]):
+class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
     @classmethod
@@ -472,7 +489,7 @@ class FeatureIONumpy(FeatureIO[np.ndarray]):
         return np.save(file, data)
 
 
-class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
+class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
 
     @classmethod
@@ -505,7 +522,7 @@ class FeatureIOGeoDf(FeatureIO[gpd.GeoDataFrame]):
             return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
 
 
-class FeatureIOJson(FeatureIO[T]):
+class FeatureIOJson(FeatureIOGZip[T]):
     """FeatureIO object specialized for JSON-like objects."""
 
     @classmethod
@@ -536,7 +553,7 @@ class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
         return [dateutil.parser.parse(timestamp) for timestamp in data]
 
 
-class FeatureIOBBox(FeatureIO[BBox]):
+class FeatureIOBBox(FeatureIOGZip[BBox]):
     """FeatureIO object specialized for BBox objects."""
 
     @classmethod
