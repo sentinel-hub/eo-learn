@@ -411,8 +411,8 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
     def _load_value(self) -> T:
         """Loads the value from the storage."""
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def save(cls, data: T, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:
         """Method for saving a feature. The path is assumed to be filesystem path but without file extensions.
 
