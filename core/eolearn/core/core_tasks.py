@@ -18,7 +18,7 @@ from fs.base import FS
 
 from sentinelhub import SHConfig
 
-from .constants import FeatureType
+from .constants import FeatureType, OverwritePermission
 from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
@@ -82,20 +82,29 @@ class IOTask(EOTask, metaclass=ABCMeta):
 class SaveTask(IOTask):
     """Saves the given EOPatch to a filesystem."""
 
-    def __init__(self, path: str, filesystem: FS | None = None, config: SHConfig | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        path: str,
+        filesystem: FS | None = None,
+        config: SHConfig | None = None,
+        features: FeaturesSpecification = ...,
+        overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
+        compress_level: int = 0,
+    ):
         """
         :param path: root path where all EOPatches are saved
-        :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
-            path.
+        :param filesystem: An existing filesystem object. If not given it will be initialized according to the path.
+        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
+            default configuration will be taken.
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
-        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
-            default configuration will be taken.
         """
-        self.kwargs = kwargs
+        self.features = features
+        self.overwrite_permission = overwrite_permission
+        self.compress_level = compress_level
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
     def execute(self, eopatch: EOPatch, *, eopatch_folder: str = "") -> EOPatch:
@@ -106,24 +115,38 @@ class SaveTask(IOTask):
         :return: The same EOPatch
         """
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
-        eopatch.save(path, filesystem=self.filesystem, **self.kwargs)
+        eopatch.save(
+            path,
+            filesystem=self.filesystem,
+            features=self.features,
+            overwrite_permission=self.overwrite_permission,
+            compress_level=self.compress_level,
+        )
         return eopatch
 
 
 class LoadTask(IOTask):
     """Loads an EOPatch from a filesystem."""
 
-    def __init__(self, path: str, filesystem: FS | None = None, config: SHConfig | None = None, **kwargs: Any):
+    def __init__(
+        self,
+        path: str,
+        filesystem: FS | None = None,
+        config: SHConfig | None = None,
+        features: FeaturesSpecification = ...,
+        lazy_loading: bool = False,
+    ):
         """
         :param path: root directory where all EOPatches are saved
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the EOPatch
             path. If you intend to run this task in multiprocessing mode you shouldn't specify this parameter.
-        :param features: A collection of features to be loaded. By default, all features will be loaded.
-        :param lazy_loading: If `True` features will be lazy loaded. Default is `False`
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
+        :param features: A collection of features to be loaded. By default, all features will be loaded.
+        :param lazy_loading: If `True` features will be lazy loaded.
         """
-        self.kwargs = kwargs
+        self.features = features
+        self.lazy_loading = lazy_loading
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
     def execute(self, eopatch: EOPatch | None = None, *, eopatch_folder: str = "") -> EOPatch:
@@ -135,7 +158,9 @@ class LoadTask(IOTask):
         :return: EOPatch loaded from disk
         """
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
-        loaded_patch = EOPatch.load(path, filesystem=self.filesystem, **self.kwargs)
+        loaded_patch = EOPatch.load(
+            path, filesystem=self.filesystem, features=self.features, lazy_loading=self.lazy_loading
+        )
         return loaded_patch if eopatch is None else merge_eopatches(eopatch, loaded_patch)
 
 
