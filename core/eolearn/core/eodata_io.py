@@ -377,16 +377,18 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         :param path: A path in the filesystem
         :param filesystem: A filesystem object
         """
-        filename = fs.path.basename(path)
-        expected_extension = f".{self.get_file_format().extension}"
-        compressed_extension = expected_extension + f".{MimeType.GZIP.extension}"
-        if not filename.endswith((expected_extension, compressed_extension)):
-            raise ValueError(f"FeatureIO expects a filepath with the {expected_extension} file extension, got {path}")
+        self._check_path_has_valid_extension(path)
 
         self.path = path
         self.filesystem = filesystem
 
         self.loaded_value: T | None = None
+
+    def _check_path_has_valid_extension(self, path: str) -> None:
+        filename = fs.path.basename(path)
+        expected_extension = f".{self.get_file_format().extension}"
+        if not filename.endswith(expected_extension):
+            raise ValueError(f"FeatureIO expects a filepath with the {expected_extension} file extension, got {path}")
 
     @classmethod
     @abstractmethod
@@ -423,6 +425,13 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
 
     Uses GZip to compress files when required.
     """
+
+    def _check_path_has_valid_extension(self, path: str) -> None:
+        filename = fs.path.basename(path)
+        expected_extension = f".{self.get_file_format().extension}"
+        compressed_extension = expected_extension + f".{MimeType.GZIP.extension}"
+        if not filename.endswith((expected_extension, compressed_extension)):
+            raise ValueError(f"FeatureIO expects a filepath with the {expected_extension} file extension, got {path}")
 
     def _load_value(self) -> T:
         with self.filesystem.openbin(self.path, "r") as file_handle:
