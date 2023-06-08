@@ -188,8 +188,13 @@ def remove_redundant_files(
         if base in old_path_extension and old_path_extension[base] != extension:
             files_to_remove.append(f"{base}.{old_path_extension[base]}")
 
+    def _remover(path: str):  # Zarr path can also be path to a folder
+        if not path.endswith("zarr") or filesystem.isfile(path):
+            return filesystem.remove(path)
+        return filesystem.removetree(path)
+
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
+        list(executor.map(_remover, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
 def load_eopatch_content(filesystem: FS, patch_location: str, features: FeaturesSpecification) -> PatchContentType:
