@@ -47,12 +47,12 @@ FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS.WGS84)
 
 
-def _skip_when_appropriate(fs_loader: type[FS], use_zarr: bool) -> None:
+def _skip_when_appropriate(fs_loader: type[FS] | None, use_zarr: bool) -> None:
     if not use_zarr:
         return
     if "zarr" not in sys.modules:
         pytest.skip(reason="Cannot test zarr without dependencies.")
-    if not isinstance(fs_loader, type):  # S3FS because is a lazy fixture and therefore not a class
+    if fs_loader is not None and not isinstance(fs_loader, type):  # S3FS because is a lazy fixture and not a class
         # https://github.com/aio-libs/aiobotocore/issues/755
         pytest.skip(reason="Moto3 and aiobotocore (used by s3fs used by zarr) do not interact properly.")
 
@@ -370,6 +370,7 @@ def test_cleanup_different_compression(fs_loader, eopatch):
 def test_cleanup_different_compression_zarr(eopatch):
     # zarr and moto dont work atm anyway
     # slightly different than regular one, since zarr does not use gzip to compress itself
+    _skip_when_appropriate(None, True)
     folder = "foo-folder"
     patch_folder = "patch-folder"
     with TempFS() as temp_fs:
@@ -495,6 +496,7 @@ def test_walk_filesystem_interface(fs_loader, features, eopatch, use_zarr: bool)
 
 
 def test_zarr_and_numpy_overwrite(eopatch):
+    _skip_when_appropriate(None, True)
     save_kwargs = dict(features=[FeatureType.DATA], overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
     with TempFS() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, use_zarr=True, **save_kwargs)
@@ -509,6 +511,7 @@ def test_zarr_and_numpy_overwrite(eopatch):
 
 @pytest.mark.parametrize("zarr_file_exists", [True, False])
 def test_zarr_and_numpy_detect_collisions(eopatch, zarr_file_exists):
+    _skip_when_appropriate(None, True)
     save_kwargs = dict(features=[FeatureType.DATA], overwrite_permission=OverwritePermission.ADD_ONLY)
     with TempFS() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, use_zarr=zarr_file_exists, **save_kwargs)
@@ -517,6 +520,7 @@ def test_zarr_and_numpy_detect_collisions(eopatch, zarr_file_exists):
 
 
 def test_zarr_and_numpy_combined_loading(eopatch):
+    _skip_when_appropriate(None, True)
     with TempFS() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, use_zarr=True)
         eopatch.save(
