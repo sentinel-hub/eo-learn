@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import datetime
 import os
+import sys
 import tempfile
 import warnings
 from typing import Any
@@ -16,6 +17,7 @@ import fs
 import geopandas as gpd
 import numpy as np
 import pytest
+from fs.base import FS
 from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
 from geopandas import GeoDataFrame
@@ -43,6 +45,16 @@ from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopat
 FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS.WGS84)
+
+
+def _skip_when_appropriate(fs_loader: type[FS], use_zarr: bool) -> None:
+    if not use_zarr:
+        return
+    if "zarr" not in sys.modules:
+        pytest.skip(reason="Cannot test zarr without dependencies.")
+    if not isinstance(fs_loader, type):  # S3FS because is a lazy fixture and therefore not a class
+        # https://github.com/aio-libs/aiobotocore/issues/755
+        pytest.skip(reason="Moto3 and aiobotocore (used by s3fs used by zarr) do not interact properly.")
 
 
 @pytest.fixture(name="_silence_warnings")
@@ -85,50 +97,64 @@ def test_saving_to_a_file(eopatch):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_saving_in_empty_folder(eopatch, fs_loader):
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_saving_in_empty_folder(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
         if isinstance(temp_fs, TempFS):
-            eopatch.save(temp_fs.root_path)
+            eopatch.save(temp_fs.root_path, use_zarr=use_zarr)
         else:
-            eopatch.save("/", filesystem=temp_fs)
-        assert temp_fs.exists("/mask_timeless/mask.npy")
+            eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
+        assert temp_fs.exists(f"/mask_timeless/mask.{'zarr' if use_zarr else 'npy'}")
 
         subfolder = "new-subfolder"
-        eopatch.save("new-subfolder", filesystem=temp_fs)
+        eopatch.save("new-subfolder", filesystem=temp_fs, use_zarr=use_zarr)
         assert temp_fs.exists(f"/{subfolder}/bbox.geojson")
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
-def test_saving_in_non_empty_folder(eopatch, fs_loader):
+def test_saving_in_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
         empty_file = "foo.txt"
 
         with temp_fs.open(empty_file, "w"):
             pass
 
-        eopatch.save("/", filesystem=temp_fs)
+        eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
         assert temp_fs.exists(empty_file)
 
-        eopatch.save("/", overwrite_permission=OverwritePermission.OVERWRITE_PATCH, filesystem=temp_fs)
+        eopatch.save(
+            "/", overwrite_permission=OverwritePermission.OVERWRITE_PATCH, filesystem=temp_fs, use_zarr=use_zarr
+        )
         assert not temp_fs.exists(empty_file)
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
-def test_overwriting_non_empty_folder(eopatch, fs_loader):
+def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs)
-        eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
-        eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+        eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
+        eopatch.save(
+            "/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_FEATURES, use_zarr=use_zarr
+        )
+        eopatch.save(
+            "/", filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH, use_zarr=use_zarr
+        )
 
         add_eopatch = EOPatch(bbox=eopatch.bbox)
         add_eopatch.data_timeless["some data"] = np.empty((3, 3, 2))
-        add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
+        add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY, use_zarr=use_zarr)
         with pytest.raises(ValueError):
-            add_eopatch.save("/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY)
+            add_eopatch.save(
+                "/", filesystem=temp_fs, overwrite_permission=OverwritePermission.ADD_ONLY, use_zarr=use_zarr
+            )
 
         new_eopatch = EOPatch.load("/", filesystem=temp_fs, lazy_loading=False)
         assert new_eopatch == merge_eopatches(eopatch, add_eopatch)
@@ -136,6 +162,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize(
     ("save_features", "load_features"),
     [
@@ -146,10 +173,15 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader):
     ],
 )
 def test_save_load_partial(
-    eopatch: EOPatch, fs_loader, save_features: FeaturesSpecification, load_features: FeaturesSpecification
+    eopatch: EOPatch,
+    fs_loader: type[FS],
+    save_features: FeaturesSpecification,
+    load_features: FeaturesSpecification,
+    use_zarr: bool,
 ):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
-        eopatch.save("/", features=save_features, filesystem=temp_fs)
+        eopatch.save("/", features=save_features, filesystem=temp_fs, use_zarr=use_zarr)
         loaded_eopatch = EOPatch.load("/", features=load_features, filesystem=temp_fs)
 
         # have to check features that have been saved and then loaded (double filtering)
@@ -161,7 +193,9 @@ def test_save_load_partial(
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_save_add_only_features(eopatch, fs_loader):
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     features = [
         (FeatureType.MASK_TIMELESS, "mask"),
         FeatureType.MASK,
@@ -172,28 +206,38 @@ def test_save_add_only_features(eopatch, fs_loader):
     ]
 
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=features, overwrite_permission=OverwritePermission.ADD_ONLY)
+        eopatch.save(
+            "/",
+            filesystem=temp_fs,
+            features=features,
+            overwrite_permission=OverwritePermission.ADD_ONLY,
+            use_zarr=use_zarr,
+        )
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_bbox_always_saved(eopatch, fs_loader):
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_bbox_always_saved(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA])
+        eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA], use_zarr=use_zarr)
         assert temp_fs.exists("/bbox.geojson")
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
-def test_overwrite_failure(fs_loader):
+def test_overwrite_failure(fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     eopatch = EOPatch(bbox=DUMMY_BBOX)
     mask = np.arange(3 * 3 * 2).reshape(3, 3, 2)
     eopatch.mask_timeless["mask"] = mask
     eopatch.mask_timeless["Mask"] = mask
 
     with fs_loader() as temp_fs, pytest.raises(IOError):
-        eopatch.save("/", filesystem=temp_fs)
+        eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
 
     with fs_loader() as temp_fs:
         eopatch.save(
@@ -201,6 +245,7 @@ def test_overwrite_failure(fs_loader):
             filesystem=temp_fs,
             features=[(FeatureType.MASK_TIMELESS, "mask")],
             overwrite_permission=OverwritePermission.OVERWRITE_PATCH,
+            use_zarr=use_zarr,
         )
 
         with pytest.raises(IOError):
@@ -209,18 +254,21 @@ def test_overwrite_failure(fs_loader):
                 filesystem=temp_fs,
                 features=[(FeatureType.MASK_TIMELESS, "Mask")],
                 overwrite_permission=OverwritePermission.ADD_ONLY,
+                use_zarr=use_zarr,
             )
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_save_and_load_tasks(eopatch, fs_loader):
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     folder = "foo-folder"
     patch_folder = "patch-folder"
     with fs_loader() as temp_fs:
         temp_fs.makedir(folder)
 
-        save_task = SaveTask(folder, filesystem=temp_fs, compress_level=9)
+        save_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, use_zarr=use_zarr)
         load_task = LoadTask(folder, filesystem=temp_fs, lazy_loading=False)
 
         saved_eop = save_task(eopatch, eopatch_folder=patch_folder)
@@ -234,10 +282,12 @@ def test_save_and_load_tasks(eopatch, fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_fail_saving_nonexistent_feature(eopatch, fs_loader):
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_fail_saving_nonexistent_feature(eopatch, fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     features = [(FeatureType.DATA, "nonexistent")]
     with fs_loader() as temp_fs, pytest.raises(ValueError):
-        eopatch.save("/", filesystem=temp_fs, features=features)
+        eopatch.save("/", filesystem=temp_fs, features=features, use_zarr=use_zarr)
 
 
 @mock_s3
@@ -250,7 +300,9 @@ def test_fail_loading_nonexistent_feature(fs_loader):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-def test_nonexistent_location(fs_loader):
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_nonexistent_location(fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     """In the event of a path not existing all save actions should create the path, and loads should fail."""
     path = "./folder/subfolder/new-eopatch/"
     eopatch = EOPatch(bbox=DUMMY_BBOX)
@@ -260,7 +312,7 @@ def test_nonexistent_location(fs_loader):
         with pytest.raises(ResourceNotFound):
             EOPatch.load(path, filesystem=temp_fs)
 
-        eopatch.save(path, filesystem=temp_fs)
+        eopatch.save(path, filesystem=temp_fs, use_zarr=use_zarr)
 
     # IO on nonexistent path (no fs specified)
     with TempFS() as temp_fs:
@@ -272,13 +324,13 @@ def test_nonexistent_location(fs_loader):
         with pytest.raises(CreateFailed):
             load_task.execute()
 
-        eopatch.save(full_path)
+        eopatch.save(full_path, use_zarr=use_zarr)
         assert os.path.exists(full_path)
 
     # SaveTask on nonexistent path (no fs specified)
     with TempFS() as temp_fs:
         full_path = os.path.join(temp_fs.root_path, path)
-        SaveTask(full_path).execute(eopatch)
+        SaveTask(full_path, use_zarr=use_zarr).execute(eopatch)
         assert os.path.exists(full_path)
 
 
@@ -315,11 +367,46 @@ def test_cleanup_different_compression(fs_loader, eopatch):
         assert temp_fs.exists(compressed_mask_timeless_path)
 
 
+def test_cleanup_different_compression_zarr(eopatch):
+    # zarr and moto dont work atm anyway
+    # slightly different than regular one, since zarr does not use gzip to compress itself
+    folder = "foo-folder"
+    patch_folder = "patch-folder"
+    with TempFS() as temp_fs:
+        temp_fs.makedir(folder)
+
+        save_compressed_task = SaveTask(
+            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
+        )
+        save_noncompressed_task = SaveTask(
+            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
+        )
+        bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
+        compressed_bbox_path = bbox_path + ".gz"
+        mask_timeless_path = fs.path.join(folder, patch_folder, "mask_timeless", "mask.zarr")
+        wrong_compressed_mask_timeless_path = mask_timeless_path + ".gz"
+
+        save_compressed_task(eopatch, eopatch_folder=patch_folder)
+        save_noncompressed_task(eopatch, eopatch_folder=patch_folder)
+        assert temp_fs.exists(bbox_path)
+        assert temp_fs.exists(mask_timeless_path)
+        assert not temp_fs.exists(compressed_bbox_path)
+        assert not temp_fs.exists(wrong_compressed_mask_timeless_path)
+
+        save_compressed_task(eopatch, eopatch_folder=patch_folder)
+        assert not temp_fs.exists(bbox_path)
+        assert temp_fs.exists(mask_timeless_path)
+        assert temp_fs.exists(compressed_bbox_path)
+        assert not temp_fs.exists(wrong_compressed_mask_timeless_path)
+
+
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize("folder_name", ["/", "foo", "foo/bar"])
 @pytest.mark.usefixtures("_silence_warnings")
-def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
+def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
         eopatch.save(folder_name, filesystem=temp_fs)
 
@@ -327,9 +414,11 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch):
         lazy_eopatch.data["whatever"] = np.empty((2, 3, 3, 2))
         del lazy_eopatch[FeatureType.MASK_TIMELESS, "mask"]
 
-        lazy_eopatch.save(folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
-        assert temp_fs.exists(fs.path.join(folder_name, "data", "whatever.npy"))
-        assert not temp_fs.exists(fs.path.join(folder_name, "mask_timeless", "mask.npy"))
+        lazy_eopatch.save(
+            folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH, use_zarr=use_zarr
+        )
+        assert temp_fs.exists(fs.path.join(folder_name, "data", f"whatever.{'zarr' if use_zarr else 'npy'}"))
+        assert not temp_fs.exists(fs.path.join(folder_name, "mask_timeless", f"mask.{'zarr' if use_zarr else 'npy'}"))
 
 
 @pytest.mark.parametrize(
@@ -367,7 +456,6 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
     Tests verifying that FeatureIO subclasses correctly save, load, and lazy-load data.
     Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
     """
-
     file_extension = f".{constructor.get_file_extension()}"
     file_extension = file_extension if compress_level == 0 else file_extension + ".gz"
     file_name = "name"
@@ -384,6 +472,7 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize(
     "features",
     [
@@ -392,13 +481,18 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
         [(FeatureType.META_INFO, "something"), (FeatureType.SCALAR_TIMELESS, ...)],
     ],
 )
-def test_walk_filesystem_interface(fs_loader, features, eopatch):
+def test_walk_filesystem_interface(fs_loader, features, eopatch, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
         io_kwargs = dict(path="./", filesystem=temp_fs, features=features)
-        eopatch.save(**io_kwargs)
+        eopatch.save(**io_kwargs, use_zarr=use_zarr)
         loaded_eopatch = EOPatch.load(**io_kwargs)
 
         with pytest.warns(EODeprecationWarning):
             for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
                 feature_key = ftype if ftype.is_meta() else (ftype, fname)
                 assert feature_key in loaded_eopatch
+
+
+# todo: add test where we save once with numpy and once with zarr, check files get cleaned as intended
+# todo: add test where we save once with numpy and once with zarr and there is a collision detected for add-only
