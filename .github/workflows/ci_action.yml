@@ -102,6 +102,11 @@ jobs:
           pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
           python install_all.py -e
 
+      - name: Install zarr backend # this will run Zarr backend tests on 3.9
+        if: matrix.python-version == '3.9'
+        run: |
+          pip install -r core/requirements-zarr.txt
+
       - name: Run full tests and code coverage
         if: ${{ matrix.full_test_suite }}
         run: |
