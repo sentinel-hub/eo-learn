@@ -12,6 +12,7 @@ import concurrent.futures
 import contextlib
 import datetime
 import gzip
+import itertools
 import json
 import platform
 import sys
@@ -132,7 +133,7 @@ def save_eopatch(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-            remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
+            remove_redundant_files(filesystem, data_for_saving, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -169,33 +170,23 @@ def _save_single_feature(save_spec: tuple[type[FeatureIO[T]], T, str], *, filesy
 
 def remove_redundant_files(
     filesystem: FS,
-    eopatch_features: list[FeatureSpec],
+    data_for_saving: list[tuple[type[FeatureIO], Any, str]],
     preexisting_files: FilesystemDataInfo,
     current_compress_level: int,
 ) -> None:
-    """Removes files that should have been overwritten but were not due to different compression levels."""
-
-    def has_different_compression(path: str | None) -> bool:
-        return path is not None and MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
+    """Removes files that should have been overwritten but were not due to different file extensions."""
+    feature_paths = (path for _, ftype_dict in preexisting_files.features.items() for _, path in ftype_dict.items())
+    meta_paths = (preexisting_files.bbox, preexisting_files.meta_info, preexisting_files.timestamps)
+    split_paths = (path.split(".", maxsplit=1) for path in filter(None, itertools.chain(meta_paths, feature_paths)))
+    old_path_extension = dict(split_paths)  # maps {path_base: file_extension}
 
     files_to_remove = []
-    saved_meta_types = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
-
-    for ftype, fname in eopatch_features:
-        if ftype.is_meta():
-            continue
-        path = preexisting_files.features.get(ftype, {}).get(fname)  # type: ignore[arg-type]
-        if has_different_compression(path):
-            files_to_remove.append(path)
-
-    if FeatureType.BBOX in saved_meta_types and has_different_compression(preexisting_files.bbox):
-        files_to_remove.append(preexisting_files.bbox)
-
-    if FeatureType.TIMESTAMPS in saved_meta_types and has_different_compression(preexisting_files.timestamps):
-        files_to_remove.append(preexisting_files.timestamps)
-
-    if FeatureType.META_INFO in saved_meta_types and has_different_compression(preexisting_files.meta_info):
-        files_to_remove.append(preexisting_files.meta_info)
+    for feature_io, _, base in data_for_saving:
+        extension = feature_io.get_file_extension()
+        if issubclass(feature_io, FeatureIOGZip) and current_compress_level > 0:
+            extension += f".{MimeType.GZIP.extension}"
+        if base in old_path_extension and old_path_extension[base] != extension:
+            files_to_remove.append(f"{base}.{old_path_extension[base]}")
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
