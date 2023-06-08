@@ -14,6 +14,7 @@ import datetime
 import gzip
 import json
 import platform
+import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
@@ -28,6 +29,7 @@ from typing import (
     Iterator,
     List,
     Mapping,
+    MutableMapping,
     Optional,
     Tuple,
     TypeVar,
@@ -36,6 +38,7 @@ from typing import (
 import dateutil.parser
 import fs
 import fs.move
+import fs_s3fs
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -52,8 +55,15 @@ from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.parsing import FeatureParser
 
+try:
+    import s3fs
+    import zarr
+except ImportError:
+    pass
+
 if TYPE_CHECKING:
     from .eodata import EOPatch
+
 
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
@@ -577,6 +587,47 @@ class FeatureIOBBox(FeatureIOGZip[BBox]):
     def _write_to_file(cls, data: BBox, file: BinaryIO | gzip.GzipFile, _: str) -> None:
         json_data = json.dumps(data.geojson, indent=2)
         file.write(json_data.encode())
+
+
+class FeatureIOZarr(FeatureIO[np.ndarray]):
+    """FeatureIO object specialized for Zarr arrays."""
+
+    @classmethod
+    def get_file_extension(cls) -> str:
+        return "zarr"
+
+    def _load_value(self) -> np.ndarray:
+        self._check_dependencies_imported()
+
+        store = self._get_mapping(self.path, self.filesystem)
+        zarray = zarr.open_array(store=store, mode="r+")
+        return zarray[...]
+
+    @classmethod
+    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:  # noqa: ARG003
+        cls._check_dependencies_imported()
+
+        path = f"{feature_path}.{cls.get_file_extension()}"
+        store = cls._get_mapping(path, filesystem)
+        zarr.save(store, data)
+
+    @staticmethod
+    def _get_mapping(path: str, filesystem: FS) -> MutableMapping:
+        if isinstance(filesystem, OSFS):
+            abs_path = filesystem.getsyspath(path)
+            return zarr.DirectoryStore(abs_path)
+        if isinstance(filesystem, TempFS):
+            abs_path = filesystem.getsyspath(path)
+            return zarr.TempStore(abs_path)
+        if isinstance(filesystem, fs_s3fs.S3FS):
+            abs_path = f"{filesystem._bucket_name}/{path}"  # noqa: SLF001  #pylint: disable=protected-access
+            return s3fs.S3Map(abs_path, s3=s3fs.S3FileSystem())
+        raise ValueError(f"Cannot handle filesystem {filesystem}")
+
+    @staticmethod
+    def _check_dependencies_imported() -> None:
+        if not all(dep in sys.modules for dep in ["zarr", "s3fs"]):
+            raise ImportError("Cannot use the Zarr backend. Missing packages `zarr` and/or `s3fs`.")
 
 
 def _better_jsonify(param: object) -> Any:
