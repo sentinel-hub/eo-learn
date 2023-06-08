@@ -612,8 +612,13 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
             abs_path = filesystem.getsyspath(path)
             return zarr.TempStore(abs_path)
         if isinstance(filesystem, fs_s3fs.S3FS):
+            fsspec_filesystem = s3fs.S3FileSystem(
+                key=filesystem.aws_access_key_id,
+                secret=filesystem.aws_secret_access_key,
+                token=filesystem.aws_session_token,
+            )
             abs_path = f"{filesystem._bucket_name}/{path}"  # noqa: SLF001  #pylint: disable=protected-access
-            return s3fs.S3Map(abs_path, s3=s3fs.S3FileSystem())
+            return s3fs.S3Map(abs_path, s3=fsspec_filesystem)
         raise ValueError(f"Cannot handle filesystem {filesystem}")
 
     @classmethod
