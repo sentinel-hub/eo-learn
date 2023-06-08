@@ -377,14 +377,14 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
         :param path: A path in the filesystem
         :param filesystem: A filesystem object
         """
-        self._check_path_has_valid_extension(path)
+        self._check_path_extension(path)
 
         self.path = path
         self.filesystem = filesystem
 
         self.loaded_value: T | None = None
 
-    def _check_path_has_valid_extension(self, path: str) -> None:
+    def _check_path_extension(self, path: str) -> None:
         filename = fs.path.basename(path)
         expected_extension = f".{self.get_file_extension()}"
         if not filename.endswith(expected_extension):
@@ -426,7 +426,7 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
     Uses GZip to compress files when required.
     """
 
-    def _check_path_has_valid_extension(self, path: str) -> None:
+    def _check_path_extension(self, path: str) -> None:
         filename = fs.path.basename(path)
         expected_extension = f".{self.get_file_extension()}"
         compressed_extension = expected_extension + f".{MimeType.GZIP.extension}"
