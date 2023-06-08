@@ -69,7 +69,7 @@ def eopatch_fixture():
     eopatch = generate_eopatch(
         {
             FeatureType.DATA: ["data"],
-            FeatureType.MASK_TIMELESS: ["mask"],
+            FeatureType.MASK_TIMELESS: ["mask", "mask2"],
             FeatureType.SCALAR: ["my scalar with spaces"],
             FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
             FeatureType.META_INFO: ["something", "something-else"],
@@ -516,4 +516,16 @@ def test_zarr_and_numpy_detect_collisions(eopatch, zarr_file_exists):
             eopatch.save("/", filesystem=temp_fs, use_zarr=not zarr_file_exists, **save_kwargs)
 
 
-# todo: add test where some files are numpy and some are zarr
+def test_zarr_and_numpy_combined_loading(eopatch):
+    with TempFS() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, use_zarr=True)
+        eopatch.save(
+            "/",
+            filesystem=temp_fs,
+            features=[(FeatureType.MASK_TIMELESS, "mask2")],
+            use_zarr=False,
+            overwrite_permission=OverwritePermission.OVERWRITE_FEATURES,
+        )
+        assert temp_fs.exists("mask_timeless/mask.zarr")
+        assert temp_fs.exists("mask_timeless/mask2.npy")
+        assert EOPatch.load("/", filesystem=temp_fs) == eopatch
