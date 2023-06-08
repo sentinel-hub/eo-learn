@@ -188,7 +188,7 @@ def remove_redundant_files(
         if base in old_path_extension and old_path_extension[base] != extension:
             files_to_remove.append(f"{base}.{old_path_extension[base]}")
 
-    def _remover(path: str):  # Zarr path can also be path to a folder
+    def _remover(path: str) -> None:  # Zarr path can also be path to a folder
         if not path.endswith("zarr") or filesystem.isfile(path):
             return filesystem.remove(path)
         filesystem.makedirs(path, recreate=True)  # solves issue where zarr root folder is not an actual folder on S3
