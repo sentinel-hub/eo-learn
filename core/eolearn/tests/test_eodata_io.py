@@ -160,19 +160,6 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
         assert new_eopatch == merge_eopatches(eopatch, add_eopatch)
 
 
-def test_zarr_and_numpy_overwrite_correctly(eopatch):
-    save_kwargs = dict(features=[FeatureType.DATA], overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
-    with TempFS() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, use_zarr=True, **save_kwargs)
-        assert temp_fs.exists(fs.path.join("data", "data.zarr"))
-        eopatch.save("/", filesystem=temp_fs, use_zarr=False, **save_kwargs)
-        assert not temp_fs.exists(fs.path.join("data", "data.zarr"))
-        assert temp_fs.exists(fs.path.join("data", "data.npy"))
-        eopatch.save("/", filesystem=temp_fs, use_zarr=True, **save_kwargs)
-        assert temp_fs.exists(fs.path.join("data", "data.zarr"))
-        assert not temp_fs.exists(fs.path.join("data", "data.npy"))
-
-
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
@@ -507,5 +494,26 @@ def test_walk_filesystem_interface(fs_loader, features, eopatch, use_zarr: bool)
                 assert feature_key in loaded_eopatch
 
 
-# todo: add test where we save once with numpy and once with zarr and there is a collision detected for add-only
+def test_zarr_and_numpy_overwrite(eopatch):
+    save_kwargs = dict(features=[FeatureType.DATA], overwrite_permission=OverwritePermission.OVERWRITE_FEATURES)
+    with TempFS() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, use_zarr=True, **save_kwargs)
+        assert temp_fs.exists(fs.path.join("data", "data.zarr"))
+        eopatch.save("/", filesystem=temp_fs, use_zarr=False, **save_kwargs)
+        assert not temp_fs.exists(fs.path.join("data", "data.zarr"))
+        assert temp_fs.exists(fs.path.join("data", "data.npy"))
+        eopatch.save("/", filesystem=temp_fs, use_zarr=True, **save_kwargs)
+        assert temp_fs.exists(fs.path.join("data", "data.zarr"))
+        assert not temp_fs.exists(fs.path.join("data", "data.npy"))
+
+
+@pytest.mark.parametrize("zarr_file_exists", [True, False])
+def test_zarr_and_numpy_detect_collisions(eopatch, zarr_file_exists):
+    save_kwargs = dict(features=[FeatureType.DATA], overwrite_permission=OverwritePermission.ADD_ONLY)
+    with TempFS() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, use_zarr=zarr_file_exists, **save_kwargs)
+        with pytest.raises(ValueError):
+            eopatch.save("/", filesystem=temp_fs, use_zarr=not zarr_file_exists, **save_kwargs)
+
+
 # todo: add test where some files are numpy and some are zarr
