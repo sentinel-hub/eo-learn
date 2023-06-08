@@ -191,6 +191,7 @@ def remove_redundant_files(
     def _remover(path: str):  # Zarr path can also be path to a folder
         if not path.endswith("zarr") or filesystem.isfile(path):
             return filesystem.remove(path)
+        filesystem.makedirs(path, recreate=True)  # solves issue where zarr root folder is not an actual folder on S3
         return filesystem.removetree(path)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -616,7 +617,9 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
                 secret=filesystem.aws_secret_access_key,
                 token=filesystem.aws_session_token,
             )
-            abs_path = f"{filesystem._bucket_name}/{path}"  # noqa: SLF001  #pylint: disable=protected-access
+            # pylint: disable-next=protected-access
+            abs_path = f"{filesystem._bucket_name}/{filesystem.dir_path}/{path}"  # noqa: SLF001
+            abs_path = abs_path.replace("//", "/")  # can occur if the patch path is "/" within the filesystem
             return s3fs.S3Map(abs_path, s3=fsspec_filesystem)
         raise ValueError(f"Cannot handle filesystem {filesystem}")
 
