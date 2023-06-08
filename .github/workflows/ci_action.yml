@@ -98,6 +98,7 @@ jobs:
           # cache: pip # uncomment when all requirements are in `pyproject.toml`
 
       - name: Install packages
+        if: matrix.python-version != '3.9'
         run: |
           pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
           python install_all.py -e
@@ -105,7 +106,8 @@ jobs:
       - name: Install zarr backend # this will run Zarr backend tests on 3.9
         if: matrix.python-version == '3.9'
         run: |
-          pip install -r core/requirements-zarr.txt
+          pip install -r requirements-dev.txt -r core/requirements-zarr.txt --upgrade --upgrade-strategy eager
+          python install_all.py -e
 
       - name: Run full tests and code coverage
         if: ${{ matrix.full_test_suite }}
