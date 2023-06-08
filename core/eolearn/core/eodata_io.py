@@ -100,10 +100,10 @@ def save_eopatch(
     filesystem: FS,
     patch_location: str,
     *,
-    features: FeaturesSpecification = ...,
-    overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
-    compress_level: int = 0,
-    use_zarr: bool = False,
+    features: FeaturesSpecification,
+    overwrite_permission: OverwritePermission,
+    compress_level: int,
+    use_zarr: bool,
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
@@ -201,9 +201,7 @@ def remove_redundant_files(
         list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
-def load_eopatch_content(
-    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> PatchContentType:
+def load_eopatch_content(filesystem: FS, patch_location: str, features: FeaturesSpecification) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
