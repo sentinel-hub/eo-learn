@@ -99,9 +99,11 @@ def save_eopatch(
     eopatch: EOPatch,
     filesystem: FS,
     patch_location: str,
+    *,
     features: FeaturesSpecification = ...,
     overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
     compress_level: int = 0,
+    use_zarr: bool = False,
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
@@ -112,7 +114,7 @@ def save_eopatch(
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
     # Data must be collected before any tinkering with files due to lazy-loading
-    data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
+    data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location, use_zarr))
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=EODeprecationWarning)
@@ -139,7 +141,7 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 
 
 def _yield_features_to_save(
-    eopatch: EOPatch, eopatch_features: list[FeatureSpec], patch_location: str
+    eopatch: EOPatch, eopatch_features: list[FeatureSpec], patch_location: str, use_zarr: bool
 ) -> Iterator[tuple[type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -155,8 +157,9 @@ def _yield_features_to_save(
         yield (FeatureIOJson, eopatch.meta_info, get_file_path(FeatureType.META_INFO.value))
 
     for ftype, fname in eopatch_features:
-        if not ftype.is_meta():
-            yield (_get_feature_io_constructor(ftype), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
+        if ftype.is_meta():
+            continue
+        yield (_get_feature_io_constructor(ftype, use_zarr), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
 
 
 def _save_single_feature(save_spec: tuple[type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
@@ -212,12 +215,14 @@ def load_eopatch_content(
 
         if fname is ...:
             for fname, path in file_information.features.get(ftype, {}).items():
-                features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+                use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
+                features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype, use_zarr)(path, filesystem)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
                 raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
             path = file_information.features[ftype][fname]
-            features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+            use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
+            features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype, use_zarr)(path, filesystem)
 
     return bbox, timestamps, meta_info, features_dict
 
@@ -645,7 +650,7 @@ def _better_jsonify(param: object) -> Any:
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
-def _get_feature_io_constructor(ftype: FeatureType) -> type[FeatureIO]:
+def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
         return FeatureIOBBox
@@ -655,4 +660,4 @@ def _get_feature_io_constructor(ftype: FeatureType) -> type[FeatureIO]:
         return FeatureIOTimestamps
     if ftype.is_vector():
         return FeatureIOGeoDf
-    return FeatureIONumpy
+    return FeatureIOZarr if use_zarr else FeatureIONumpy
