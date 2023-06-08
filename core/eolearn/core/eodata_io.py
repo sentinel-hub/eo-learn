@@ -597,19 +597,11 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         return "zarr"
 
     def _load_value(self) -> np.ndarray:
-        self._check_dependencies_imported()
+        self._check_dependencies_imported(self.path)
 
         store = self._get_mapping(self.path, self.filesystem)
         zarray = zarr.open_array(store=store, mode="r+")
         return zarray[...]
-
-    @classmethod
-    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:  # noqa: ARG003
-        cls._check_dependencies_imported()
-
-        path = f"{feature_path}.{cls.get_file_extension()}"
-        store = cls._get_mapping(path, filesystem)
-        zarr.save(store, data)
 
     @staticmethod
     def _get_mapping(path: str, filesystem: FS) -> MutableMapping:
@@ -624,10 +616,19 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
             return s3fs.S3Map(abs_path, s3=s3fs.S3FileSystem())
         raise ValueError(f"Cannot handle filesystem {filesystem}")
 
+    @classmethod
+    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:  # noqa: ARG003
+        cls._check_dependencies_imported(feature_path)
+
+        path = f"{feature_path}.{cls.get_file_extension()}"
+        store = cls._get_mapping(path, filesystem)
+        zarr.save(store, data)
+
     @staticmethod
-    def _check_dependencies_imported() -> None:
+    def _check_dependencies_imported(path: str) -> None:
         if not all(dep in sys.modules for dep in ["zarr", "s3fs"]):
-            raise ImportError("Cannot use the Zarr backend. Missing packages `zarr` and/or `s3fs`.")
+            msg = f"Encountered use of Zarr for {path}, but missing dependencies. Please install `zarr` and `s3fs`."
+            raise ImportError(msg)
 
 
 def _better_jsonify(param: object) -> Any:
