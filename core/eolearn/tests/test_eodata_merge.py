@@ -193,4 +193,4 @@ def test_temporally_independent_merge(test_eopatch_path):
     part1 = EOPatch.load(test_eopatch_path, temporal_selection=slice(None, 10))
     part2 = EOPatch.load(test_eopatch_path, temporal_selection=slice(10, None))
 
-    assert full_patch == merge_eopatches(part1, part2)
+    assert full_patch == merge_eopatches(part1, part2, time_dependent_op="concatenate")

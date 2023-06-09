@@ -207,7 +207,7 @@ def load_eopatch_content(
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
-    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
+    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features, temporal_selection)
 
     features_dict: dict[tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
@@ -232,7 +232,7 @@ def _get_feature_io(
     use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
     constructor = _get_feature_io_constructor(ftype, use_zarr)
     if ftype.is_temporal():
-        return constructor(path, filesystem, temporal_selection)
+        return constructor(path, filesystem, temporal_selection)  # type: ignore[call-arg]
     return constructor(path, filesystem)
 
 
@@ -514,7 +514,7 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
     def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
-        self.temporal_selection = temporal_selection
+        self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
         super().__init__(path, filesystem)
 
     @classmethod
@@ -522,7 +522,7 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
         return MimeType.NPY.extension
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> np.ndarray:
-        return np.load(file, allow_pickle=True)
+        return np.load(file, allow_pickle=True)[self.temporal_selection, ...]
 
     @classmethod
     def _write_to_file(cls, data: np.ndarray, file: BinaryIO | gzip.GzipFile, _: str) -> None:
@@ -531,6 +531,10 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
 
 class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
+
+    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
+        self.temporal_selection = temporal_selection  # TODO: temporal selection currently does nothing
+        super().__init__(path, filesystem)
 
     @classmethod
     def get_file_extension(cls) -> str:
@@ -589,12 +593,13 @@ class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
     def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
-        self.temporal_selection = temporal_selection
+        self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
         super().__init__(path, filesystem)
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> list[datetime.datetime]:
         data = json.load(file)
-        return [dateutil.parser.parse(timestamp) for timestamp in data]
+        string_timestamps = np.array(data)[self.temporal_selection]
+        return [dateutil.parser.parse(raw_timestamp) for raw_timestamp in string_timestamps]
 
 
 class FeatureIOBBox(FeatureIOGZip[BBox]):
@@ -618,7 +623,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
     """FeatureIO object specialized for Zarr arrays."""
 
     def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
-        self.temporal_selection = temporal_selection
+        self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
         super().__init__(path, filesystem)
 
     @classmethod
@@ -630,7 +635,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
 
         store = self._get_mapping(self.path, self.filesystem)
         zarray = zarr.open_array(store=store, mode="r+")
-        return zarray[...]
+        return zarray.oindex[self.temporal_selection]
 
     @staticmethod
     def _get_mapping(path: str, filesystem: FS) -> MutableMapping:
