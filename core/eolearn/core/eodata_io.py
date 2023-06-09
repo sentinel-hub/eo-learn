@@ -54,6 +54,7 @@ from sentinelhub.exceptions import SHUserWarning, deprecated_function
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
+from .utils.fs import get_full_path
 from .utils.parsing import FeatureParser
 
 try:
@@ -605,11 +606,10 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
 
     @staticmethod
     def _get_mapping(path: str, filesystem: FS) -> MutableMapping:
+        abs_path = get_full_path(filesystem, path)
         if isinstance(filesystem, OSFS):
-            abs_path = filesystem.getsyspath(path)
             return zarr.DirectoryStore(abs_path)
         if isinstance(filesystem, TempFS):
-            abs_path = filesystem.getsyspath(path)
             return zarr.TempStore(abs_path)
         if isinstance(filesystem, fs_s3fs.S3FS):
             fsspec_filesystem = s3fs.S3FileSystem(
@@ -617,11 +617,8 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
                 secret=filesystem.aws_secret_access_key,
                 token=filesystem.aws_session_token,
             )
-            # pylint: disable-next=protected-access
-            abs_path = f"{filesystem._bucket_name}/{filesystem.dir_path}/{path}"  # noqa: SLF001
-            abs_path = abs_path.replace("//", "/")  # can occur if the patch path is "/" within the filesystem
             return s3fs.S3Map(abs_path, s3=fsspec_filesystem)
-        raise ValueError(f"Cannot handle filesystem {filesystem}")
+        raise ValueError(f"Cannot handle filesystem {filesystem} with the Zarr backend.")
 
     @classmethod
     def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:  # noqa: ARG003
