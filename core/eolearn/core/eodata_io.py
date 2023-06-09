@@ -183,11 +183,11 @@ def remove_redundant_files(
 
     files_to_remove = []
     for feature_io, _, base in data_for_saving:
-        extension = feature_io.get_file_extension()
+        extension = f".{feature_io.get_file_extension()}"
         if issubclass(feature_io, FeatureIOGZip) and current_compress_level > 0:
             extension += f".{MimeType.GZIP.extension}"
         if base in old_path_extension and old_path_extension[base] != extension:
-            files_to_remove.append(f"{base}.{old_path_extension[base]}")
+            files_to_remove.append(f"{base}{old_path_extension[base]}")
 
     def _remover(path: str) -> None:  # Zarr path can also be path to a folder
         if not path.endswith("zarr") or filesystem.isfile(path):
