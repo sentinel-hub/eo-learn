@@ -54,7 +54,7 @@ from sentinelhub.exceptions import SHUserWarning, deprecated_function
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
-from .utils.fs import get_full_path
+from .utils.fs import get_full_path, split_all_extensions
 from .utils.parsing import FeatureParser
 
 try:
@@ -178,7 +178,7 @@ def remove_redundant_files(
     """Removes files that should have been overwritten but were not due to different file extensions."""
     feature_paths = (path for _, ftype_dict in preexisting_files.features.items() for _, path in ftype_dict.items())
     meta_paths = (preexisting_files.bbox, preexisting_files.meta_info, preexisting_files.timestamps)
-    split_paths = (path.split(".", maxsplit=1) for path in filter(None, itertools.chain(meta_paths, feature_paths)))
+    split_paths = map(split_all_extensions, filter(None, itertools.chain(meta_paths, feature_paths)))
     old_path_extension = dict(split_paths)  # maps {path_base: file_extension}
 
     files_to_remove = []
@@ -377,7 +377,7 @@ def _to_lowercase(ftype: FeatureType, fname: str | None, *_: Any) -> tuple[Featu
 
 def _remove_file_extension(path: str) -> str:
     """This also removes file extensions of form `.geojson.gz` unlike `fs.path.splitext`."""
-    return path.split(".")[0]
+    return split_all_extensions(path)[0]
 
 
 class FeatureIO(Generic[T], metaclass=ABCMeta):
