@@ -115,7 +115,11 @@ jobs:
           sentinelhub.config \
             --sh_client_id "${{ secrets.SH_CLIENT_ID }}" \
             --sh_client_secret "${{ secrets.SH_CLIENT_SECRET }}"
-          pytest -m "not geopedia" --cov --cov-report=term --cov-report=xml
+          if [ ${{ github.event_name }} == 'push' ]; then
+            pytest -m "not geopedia" --cov --cov-report=term --cov-report=xml
+          else
+            pytest -m "not geopedia"
+          fi
 
       - name: Run reduced tests
         if: ${{ !matrix.full_test_suite }}
