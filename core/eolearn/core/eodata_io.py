@@ -634,7 +634,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
     @staticmethod
     def _check_dependencies_imported(path: str) -> None:
         if not all(dep in sys.modules for dep in ["zarr", "s3fs"]):
-            msg = f"Encountered use of Zarr for {path}, but missing dependencies. Please install `zarr` and `s3fs`."
+            msg = f"Encountered use of Zarr for {path} with missing dependencies. Please install `zarr` and `s3fs`."
             raise ImportError(msg)
 
 
