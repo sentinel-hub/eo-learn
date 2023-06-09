@@ -186,3 +186,12 @@ def test_lazy_loading(test_eopatch_path):
     assert isinstance(eop.mask.get("CLM"), np.ndarray)
     assert isinstance(eop1.mask.get("CLM"), np.ndarray)
     assert isinstance(eop1.mask_timeless._get_unloaded("LULC"), FeatureIO)  # noqa: SLF001
+
+
+def test_temporally_independent_merge(test_eopatch_path):
+    features = [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.TIMESTAMPS]
+    full_patch = EOPatch.load(test_eopatch_path, features=features)
+    part1 = EOPatch.load(test_eopatch_path, features=features, temporal_selection=slice(None, 10))
+    part2 = EOPatch.load(test_eopatch_path, features=features, temporal_selection=slice(10, None))
+
+    assert full_patch == merge_eopatches(part1, part2)
