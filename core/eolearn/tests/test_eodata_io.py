@@ -22,6 +22,7 @@ from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
 from geopandas import GeoDataFrame
 from moto import mock_s3
+from numpy.testing import assert_array_equal
 from shapely.geometry import Point
 
 from sentinelhub import CRS, BBox
@@ -533,3 +534,33 @@ def test_zarr_and_numpy_combined_loading(eopatch):
         assert temp_fs.exists("mask_timeless/mask.zarr")
         assert temp_fs.exists("mask_timeless/mask2.npy")
         assert EOPatch.load("/", filesystem=temp_fs) == eopatch
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("temporal_selection", [])
+def test_partial_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    with fs_loader() as temp_fs:
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+
+        full_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+        partial_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
+
+        assert full_patch == eopatch
+        assert_array_equal(full_patch.data["data"][temporal_selection, ...], partial_patch.data["data"])
+        assert_array_equal(np.array(full_patch.timestamps)[temporal_selection], partial_patch.data["data"])
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("temporal_selection", [])
+def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    with fs_loader() as temp_fs:
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+
+        with pytest.raises(IndexError):
+            EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
