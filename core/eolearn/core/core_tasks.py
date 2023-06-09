@@ -90,6 +90,7 @@ class SaveTask(IOTask):
         features: FeaturesSpecification = ...,
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
+        use_zarr: bool = False,
     ):
         """
         :param path: root path where all EOPatches are saved
@@ -101,10 +102,12 @@ class SaveTask(IOTask):
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
+        :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         """
         self.features = features
         self.overwrite_permission = overwrite_permission
         self.compress_level = compress_level
+        self.use_zarr = use_zarr
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
     def execute(self, eopatch: EOPatch, *, eopatch_folder: str = "") -> EOPatch:
@@ -121,6 +124,7 @@ class SaveTask(IOTask):
             features=self.features,
             overwrite_permission=self.overwrite_permission,
             compress_level=self.compress_level,
+            use_zarr=self.use_zarr,
         )
         return eopatch
 

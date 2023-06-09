@@ -12,8 +12,10 @@ import concurrent.futures
 import contextlib
 import datetime
 import gzip
+import itertools
 import json
 import platform
+import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
@@ -28,6 +30,7 @@ from typing import (
     Iterator,
     List,
     Mapping,
+    MutableMapping,
     Optional,
     Tuple,
     TypeVar,
@@ -36,6 +39,7 @@ from typing import (
 import dateutil.parser
 import fs
 import fs.move
+import fs_s3fs
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -50,10 +54,18 @@ from sentinelhub.exceptions import SHUserWarning, deprecated_function
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
+from .utils.fs import get_full_path, split_all_extensions
 from .utils.parsing import FeatureParser
+
+try:
+    import s3fs
+    import zarr
+except ImportError:
+    pass
 
 if TYPE_CHECKING:
     from .eodata import EOPatch
+
 
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
@@ -89,9 +101,11 @@ def save_eopatch(
     eopatch: EOPatch,
     filesystem: FS,
     patch_location: str,
-    features: FeaturesSpecification = ...,
-    overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
-    compress_level: int = 0,
+    *,
+    features: FeaturesSpecification,
+    overwrite_permission: OverwritePermission,
+    compress_level: int,
+    use_zarr: bool,
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
@@ -102,7 +116,7 @@ def save_eopatch(
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
     # Data must be collected before any tinkering with files due to lazy-loading
-    data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location))
+    data_for_saving = list(_yield_features_to_save(eopatch, eopatch_features, patch_location, use_zarr))
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=EODeprecationWarning)
@@ -120,7 +134,7 @@ def save_eopatch(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-            remove_redundant_files(filesystem, eopatch_features, file_information, compress_level)
+            remove_redundant_files(filesystem, data_for_saving, file_information, compress_level)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -129,7 +143,7 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 
 
 def _yield_features_to_save(
-    eopatch: EOPatch, eopatch_features: list[FeatureSpec], patch_location: str
+    eopatch: EOPatch, eopatch_features: list[FeatureSpec], patch_location: str, use_zarr: bool
 ) -> Iterator[tuple[type[FeatureIO], Any, str]]:
     """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -145,8 +159,9 @@ def _yield_features_to_save(
         yield (FeatureIOJson, eopatch.meta_info, get_file_path(FeatureType.META_INFO.value))
 
     for ftype, fname in eopatch_features:
-        if not ftype.is_meta():
-            yield (_get_feature_io_constructor(ftype), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
+        if ftype.is_meta():
+            continue
+        yield (_get_feature_io_constructor(ftype, use_zarr), eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
 
 
 def _save_single_feature(save_spec: tuple[type[FeatureIO[T]], T, str], *, filesystem: FS, compress_level: int) -> None:
@@ -156,41 +171,35 @@ def _save_single_feature(save_spec: tuple[type[FeatureIO[T]], T, str], *, filesy
 
 def remove_redundant_files(
     filesystem: FS,
-    eopatch_features: list[FeatureSpec],
+    data_for_saving: list[tuple[type[FeatureIO], Any, str]],
     preexisting_files: FilesystemDataInfo,
     current_compress_level: int,
 ) -> None:
-    """Removes files that should have been overwritten but were not due to different compression levels."""
-
-    def has_different_compression(path: str | None) -> bool:
-        return path is not None and MimeType.GZIP.matches_extension(path) != (current_compress_level > 0)
+    """Removes files that should have been overwritten but were not due to different file extensions."""
+    feature_paths = (path for _, ftype_dict in preexisting_files.features.items() for _, path in ftype_dict.items())
+    meta_paths = (preexisting_files.bbox, preexisting_files.meta_info, preexisting_files.timestamps)
+    split_paths = map(split_all_extensions, filter(None, itertools.chain(meta_paths, feature_paths)))
+    old_path_extension = dict(split_paths)  # maps {path_base: file_extension}
 
     files_to_remove = []
-    saved_meta_types = {ftype for ftype, _ in eopatch_features if ftype.is_meta()}
+    for feature_io, _, base in data_for_saving:
+        extension = f".{feature_io.get_file_extension()}"
+        if issubclass(feature_io, FeatureIOGZip) and current_compress_level > 0:
+            extension += f".{MimeType.GZIP.extension}"
+        if base in old_path_extension and old_path_extension[base] != extension:
+            files_to_remove.append(f"{base}{old_path_extension[base]}")
 
-    for ftype, fname in eopatch_features:
-        if ftype.is_meta():
-            continue
-        path = preexisting_files.features.get(ftype, {}).get(fname)  # type: ignore[arg-type]
-        if has_different_compression(path):
-            files_to_remove.append(path)
-
-    if FeatureType.BBOX in saved_meta_types and has_different_compression(preexisting_files.bbox):
-        files_to_remove.append(preexisting_files.bbox)
-
-    if FeatureType.TIMESTAMPS in saved_meta_types and has_different_compression(preexisting_files.timestamps):
-        files_to_remove.append(preexisting_files.timestamps)
-
-    if FeatureType.META_INFO in saved_meta_types and has_different_compression(preexisting_files.meta_info):
-        files_to_remove.append(preexisting_files.meta_info)
+    def _remover(path: str) -> None:  # Zarr path can also be path to a folder
+        if not path.endswith("zarr") or filesystem.isfile(path):
+            return filesystem.remove(path)
+        filesystem.makedirs(path, recreate=True)  # solves issue where zarr root folder is not an actual folder on S3
+        return filesystem.removetree(path)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        list(executor.map(filesystem.remove, files_to_remove))  # Wrapped in a list to get better exceptions
+        list(executor.map(_remover, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
-def load_eopatch_content(
-    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> PatchContentType:
+def load_eopatch_content(filesystem: FS, patch_location: str, features: FeaturesSpecification) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features)
@@ -202,12 +211,14 @@ def load_eopatch_content(
 
         if fname is ...:
             for fname, path in file_information.features.get(ftype, {}).items():
-                features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+                use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
+                features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype, use_zarr)(path, filesystem)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
                 raise IOError(f"Feature {(ftype, fname)} does not exist in eopatch at {patch_location}.")
             path = file_information.features[ftype][fname]
-            features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype)(path, filesystem)
+            use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
+            features_dict[(ftype, fname)] = _get_feature_io_constructor(ftype, use_zarr)(path, filesystem)
 
     return bbox, timestamps, meta_info, features_dict
 
@@ -366,7 +377,7 @@ def _to_lowercase(ftype: FeatureType, fname: str | None, *_: Any) -> tuple[Featu
 
 def _remove_file_extension(path: str) -> str:
     """This also removes file extensions of form `.geojson.gz` unlike `fs.path.splitext`."""
-    return path.split(".")[0]
+    return split_all_extensions(path)[0]
 
 
 class FeatureIO(Generic[T], metaclass=ABCMeta):
@@ -579,6 +590,51 @@ class FeatureIOBBox(FeatureIOGZip[BBox]):
         file.write(json_data.encode())
 
 
+class FeatureIOZarr(FeatureIO[np.ndarray]):
+    """FeatureIO object specialized for Zarr arrays."""
+
+    @classmethod
+    def get_file_extension(cls) -> str:
+        return "zarr"
+
+    def _load_value(self) -> np.ndarray:
+        self._check_dependencies_imported(self.path)
+
+        store = self._get_mapping(self.path, self.filesystem)
+        zarray = zarr.open_array(store=store, mode="r+")
+        return zarray[...]
+
+    @staticmethod
+    def _get_mapping(path: str, filesystem: FS) -> MutableMapping:
+        abs_path = get_full_path(filesystem, path)
+        if isinstance(filesystem, OSFS):
+            return zarr.DirectoryStore(abs_path)
+        if isinstance(filesystem, TempFS):
+            return zarr.TempStore(abs_path)
+        if isinstance(filesystem, fs_s3fs.S3FS):
+            fsspec_filesystem = s3fs.S3FileSystem(
+                key=filesystem.aws_access_key_id,
+                secret=filesystem.aws_secret_access_key,
+                token=filesystem.aws_session_token,
+            )
+            return s3fs.S3Map(abs_path, s3=fsspec_filesystem)
+        raise ValueError(f"Cannot handle filesystem {filesystem} with the Zarr backend.")
+
+    @classmethod
+    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:  # noqa: ARG003
+        cls._check_dependencies_imported(feature_path)
+
+        path = f"{feature_path}.{cls.get_file_extension()}"
+        store = cls._get_mapping(path, filesystem)
+        zarr.save(store, data)
+
+    @staticmethod
+    def _check_dependencies_imported(path: str) -> None:
+        if not all(dep in sys.modules for dep in ["zarr", "s3fs"]):
+            msg = f"Encountered use of Zarr for {path} with missing dependencies. Please install `zarr` and `s3fs`."
+            raise ImportError(msg)
+
+
 def _better_jsonify(param: object) -> Any:
     """Adds the option to serialize datetime.date and FeatureDict objects via isoformat."""
     if isinstance(param, datetime.date):
@@ -588,7 +644,7 @@ def _better_jsonify(param: object) -> Any:
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
 
 
-def _get_feature_io_constructor(ftype: FeatureType) -> type[FeatureIO]:
+def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
     if ftype is FeatureType.BBOX:
         return FeatureIOBBox
@@ -598,4 +654,4 @@ def _get_feature_io_constructor(ftype: FeatureType) -> type[FeatureIO]:
         return FeatureIOTimestamps
     if ftype.is_vector():
         return FeatureIOGeoDf
-    return FeatureIONumpy
+    return FeatureIOZarr if use_zarr else FeatureIONumpy

@@ -204,6 +204,13 @@ def join_path(*path_parts: str) -> str:
     return os.path.abspath(os.path.join(*path_parts))
 
 
+def split_all_extensions(path: str) -> tuple[str, str]:
+    """Similar to `os.path.splitext` but takes into account double extensions such as `.json.gz`."""
+    extensions = "".join(Path(path).suffixes)
+    suffixless_path = path[: -len(extensions)] if extensions else path  # use `removesuffix` once we drop 3.8 support
+    return suffixless_path, extensions
+
+
 def is_s3_path(path: str) -> bool:
     """Returns True if the path points to a S3 bucket, False otherwise."""
     return path.startswith("s3://")

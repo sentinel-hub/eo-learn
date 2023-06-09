@@ -25,7 +25,7 @@ from moto import mock_s3
 from sentinelhub import SHConfig
 
 from eolearn.core import get_filesystem, load_s3_filesystem, pickle_fs, unpickle_fs
-from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path
+from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path, split_all_extensions
 
 
 def test_get_local_filesystem(tmp_path):
@@ -183,3 +183,18 @@ def test_join_path(path_parts, expected_path):
 def test_get_full_path(filesystem, path, expected_full_path):
     full_path = get_full_path(filesystem, path)
     assert full_path == expected_full_path
+
+
+@pytest.mark.parametrize(
+    ("full_path", "result"),
+    [
+        ("s3://bb.ad/.as/.ad./.hidden.json.gz", ("s3://bb.ad/.as/.ad./.hidden", ".json.gz")),
+        ("s3://bb.ad/.as/.ad./.hidden.json", ("s3://bb.ad/.as/.ad./.hidden", ".json")),
+        ("s3://bb.ad/.as/.ad./.hidden", ("s3://bb.ad/.as/.ad./.hidden", "")),
+        (".ad./beep.json.gz", (".ad./beep", ".json.gz")),
+        (".hidden.json", (".hidden", ".json")),
+        (".hidden", (".hidden", "")),
+    ],
+)
+def test_split_all_extensions(full_path, result):
+    assert split_all_extensions(full_path) == result

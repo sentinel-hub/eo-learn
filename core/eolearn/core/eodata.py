@@ -572,6 +572,7 @@ class EOPatch:
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
         filesystem: FS | None = None,
+        use_zarr: bool = False,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -583,6 +584,7 @@ class EOPatch:
             to 9 (highest compression).
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
+        :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)
@@ -595,6 +597,7 @@ class EOPatch:
             features=features,
             compress_level=compress_level,
             overwrite_permission=OverwritePermission(overwrite_permission),
+            use_zarr=use_zarr,
         )
 
     @staticmethod
