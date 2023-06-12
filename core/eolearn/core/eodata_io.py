@@ -533,7 +533,7 @@ class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
 
     def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
-        self.temporal_selection = temporal_selection  # TODO: temporal selection currently does nothing
+        self.temporal_selection = temporal_selection  # temporal selection currently does nothing
         super().__init__(path, filesystem)
 
     @classmethod
