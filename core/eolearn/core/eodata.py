@@ -602,7 +602,11 @@ class EOPatch:
 
     @staticmethod
     def load(
-        path: str, features: FeaturesSpecification = ..., lazy_loading: bool = False, filesystem: FS | None = None
+        path: str,
+        features: FeaturesSpecification = ...,
+        lazy_loading: bool = False,
+        filesystem: FS | None = None,
+        temporal_selection: None | slice | list[int] = None,
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
 
@@ -611,13 +615,16 @@ class EOPatch:
         :param lazy_loading: If `True` features will be lazy loaded.
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
+        :param temporal_selection: Only loads data corresponding to the chosen indices.
         :return: Loaded EOPatch
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox_io, timestamps_io, meta_info, features_dict = load_eopatch_content(filesystem, path, features=features)
+        bbox_io, timestamps_io, meta_info, features_dict = load_eopatch_content(
+            filesystem, path, features=features, temporal_selection=temporal_selection
+        )
         eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 
         if timestamps_io is not None:

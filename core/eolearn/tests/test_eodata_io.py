@@ -22,6 +22,7 @@ from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
 from geopandas import GeoDataFrame
 from moto import mock_s3
+from numpy.testing import assert_array_equal
 from shapely.geometry import Point
 
 from sentinelhub import CRS, BBox
@@ -533,3 +534,35 @@ def test_zarr_and_numpy_combined_loading(eopatch):
         assert temp_fs.exists("mask_timeless/mask.zarr")
         assert temp_fs.exists("mask_timeless/mask2.npy")
         assert EOPatch.load("/", filesystem=temp_fs) == eopatch
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
+def test_partial_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    with fs_loader() as temp_fs:
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+
+        full_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+        partial_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
+
+        assert full_patch == eopatch
+        adjusted_selection = slice(None) if temporal_selection is None else temporal_selection
+        assert_array_equal(full_patch.data["data"][adjusted_selection, ...], partial_patch.data["data"])
+        assert_array_equal(full_patch.mask_timeless["mask"], partial_patch.mask_timeless["mask"])
+        assert_array_equal(np.array(full_patch.timestamps)[adjusted_selection], partial_patch.timestamps)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("temporal_selection", [[3, 4, 10]])
+def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    with fs_loader() as temp_fs:
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+
+        with pytest.raises(IndexError):
+            EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
