@@ -572,14 +572,11 @@ def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: 
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
-def test_partial_saving_into_existing(
-    fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, existing_use_zarr: bool, temporal_selection
-):
+def test_partial_saving_into_existing(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
     _skip_when_appropriate(fs_loader, use_zarr)
-    _skip_when_appropriate(fs_loader, existing_use_zarr)
     with fs_loader() as temp_fs:
         io_kwargs = dict(path="patch-folder", filesystem=temp_fs)
-        eopatch.save(**io_kwargs, use_zarr=existing_use_zarr)
+        eopatch.save(**io_kwargs, use_zarr=use_zarr)
 
         copy_patch = eopatch.copy(deep=True)
         copy_patch.consolidate_timestamps(np.array(copy_patch.timestamps)[temporal_selection])
