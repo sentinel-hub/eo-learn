@@ -565,3 +565,51 @@ def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: 
 
         with pytest.raises(IndexError):
             EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
+def test_partial_saving_into_existing(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    with fs_loader() as temp_fs:
+        io_kwargs = dict(path="patch-folder", filesystem=temp_fs)
+        eopatch.save(**io_kwargs, use_zarr=use_zarr)
+
+        copy_patch = eopatch.copy(deep=True)
+        copy_patch.consolidate_timestamps(np.array(copy_patch.timestamps)[temporal_selection])
+
+        copy_patch.data["data"] = np.full_like(copy_patch.data["data"], 2)
+        eopatch.save(**io_kwargs, use_zarr=use_zarr, temporal_selection=temporal_selection)
+
+        expected_data = eopatch.data["data"].copy()
+        expected_data[temporal_selection] = 2
+
+        assert_array_equal(EOPatch.load(**io_kwargs).data["data"], expected_data)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
+def test_partial_saving_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    with fs_loader() as temp_fs:
+        io_kwargs = dict(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+        with pytest.raises(ValueError):
+            # patch does not exist yet
+            eopatch.save(**io_kwargs, temporal_selection=slice(2, None))
+
+        eopatch.save(**io_kwargs)
+
+        with pytest.raises(ValueError):
+            # existing file is in different format
+            eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=not use_zarr, temporal_selection=[1, 2])
+
+        with pytest.raises(ValueError):
+            # temporal selection smaller than eopatch to be saved
+            eopatch.save(**io_kwargs, temporal_selection=[1, 2])
+
+        with pytest.raises(ValueError):
+            # temporal selection outside of saved eopatch
+            eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
