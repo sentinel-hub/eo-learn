@@ -144,7 +144,7 @@ def save_eopatch(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-            remove_redundant_files(filesystem, new_files, file_information)
+            _remove_redundant_files(filesystem, new_files, file_information)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -186,7 +186,7 @@ def _yield_savers(
         yield partial(feature_saver, data=eopatch[(ftype, fname)], feature_path=get_file_path(ftype.value, fname))
 
 
-def remove_redundant_files(
+def _remove_redundant_files(
     filesystem: FS,
     new_files: list[str],
     preexisting_files: FilesystemDataInfo,
