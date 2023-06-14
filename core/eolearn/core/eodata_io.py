@@ -122,7 +122,7 @@ def save_eopatch(
         _yield_savers(
             eopatch=eopatch,
             features=eopatch_features,
-            path=patch_location,
+            patch_location=patch_location,
             filesystem=filesystem,
             use_zarr=use_zarr,
             compress_level=compress_level,
@@ -135,21 +135,18 @@ def save_eopatch(
         if overwrite_permission is OverwritePermission.OVERWRITE_PATCH and patch_exists:
             _remove_old_eopatch(filesystem, patch_location)
 
-    ftype_folders = {fs.path.dirname(path) for _, _, _, path in data_for_saving}
-    for folder in ftype_folders:
-        filesystem.makedirs(folder, recreate=True)
-
-    def _save_single_feature(save_spec: tuple[FeatureType, Callable[[Any, str], None], Any, str]) -> None:
-        _, saver, data, feature_path = save_spec
-        saver(data=data, feature_path=feature_path)
+    filesystem.makedirs(patch_location, recreate=True)
+    folder_based_ftypes = {ftype for ftype, _ in eopatch_features if not ftype.is_meta()}
+    for ftype in folder_based_ftypes:
+        filesystem.makedirs(fs.path.join(patch_location, ftype.value), recreate=True)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        list(executor.map(_save_single_feature, data_for_saving))  # Wrapped in a list to get better exceptions
+        new_files = list(executor.map(lambda saver: saver(), data_for_saving))
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
-            remove_redundant_files(filesystem, data_for_saving, file_information, compress_level, use_zarr)
+            remove_redundant_files(filesystem, new_files, file_information)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -161,27 +158,27 @@ def _yield_savers(
     *,
     eopatch: EOPatch,
     features: list[FeatureSpec],
-    path: str,
+    patch_location: str,
     filesystem: FS,
     compress_level: int,
     use_zarr: bool,
     temporal_selection: None | slice | list[int],
-) -> Iterator[tuple[FeatureType, Callable[[Any, str], None], Any, str]]:
-    """Prepares a triple `(featureIO, data, path)` so that the `featureIO` can save `data` to `path`."""
-    get_file_path = partial(fs.path.join, path)
+) -> Iterator[Callable[[], str]]:
+    """Prepares callables that save the data and return the path to where the data was saved."""
+    get_file_path = partial(fs.path.join, patch_location)
     meta_features = {ftype for ftype, _ in features if ftype.is_meta()}
 
     if eopatch.bbox is not None:  # remove after BBox is never None
-        bbox_saver = partial(FeatureIOBBox.save, compress_level=compress_level, filesystem=filesystem)
-        yield (FeatureType.BBOX, bbox_saver, eopatch.bbox, get_file_path(BBOX_FILENAME))
+        bbox: BBox = eopatch.bbox  # mypy has problems
+        yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
     if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features:
-        timestamps_saver = partial(FeatureIOTimestamps.save, compress_level=compress_level, filesystem=filesystem)
-        yield (FeatureType.TIMESTAMPS, timestamps_saver, eopatch.timestamps, get_file_path(TIMESTAMPS_FILENAME))
+        path = get_file_path(TIMESTAMPS_FILENAME)
+        yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
     if eopatch.meta_info and FeatureType.META_INFO in meta_features:
-        timestamps_saver = partial(FeatureIOJson.save, compress_level=compress_level, filesystem=filesystem)
-        yield (FeatureType.META_INFO, timestamps_saver, eopatch.meta_info, get_file_path(FeatureType.META_INFO.value))
+        path = get_file_path(FeatureType.META_INFO.value)
+        yield partial(FeatureIOJson.save, eopatch.meta_info, filesystem, path, compress_level)
 
     for ftype, fname in features:
         if ftype.is_meta():
@@ -191,15 +188,13 @@ def _yield_savers(
         if temporal_selection and ftype.is_temporal():
             feature_saver = partial(feature_saver, temporal_selection=temporal_selection)
 
-        yield (ftype, feature_saver, eopatch[(ftype, fname)], get_file_path(ftype.value, fname))
+        yield partial(feature_saver, data=eopatch[(ftype, fname)], feature_path=get_file_path(ftype.value, fname))
 
 
 def remove_redundant_files(
     filesystem: FS,
-    data_for_saving: list[tuple[FeatureType, Callable[[Any, str], None], Any, str]],
+    new_files: list[str],
     preexisting_files: FilesystemDataInfo,
-    current_compress_level: int,
-    use_zarr: bool,
 ) -> None:
     """Removes files that should have been overwritten but were not due to different file extensions."""
     feature_paths = (path for _, ftype_dict in preexisting_files.features.items() for _, path in ftype_dict.items())
@@ -208,11 +203,8 @@ def remove_redundant_files(
     old_path_extension = dict(split_paths)  # maps {path_base: file_extension}
 
     files_to_remove = []
-    for ftype, _, _, base in data_for_saving:
-        feature_io = _get_feature_io_constructor(ftype, use_zarr)
-        extension = f".{feature_io.get_file_extension()}"
-        if issubclass(feature_io, FeatureIOGZip) and current_compress_level > 0:
-            extension += f".{MimeType.GZIP.extension}"
+    for path in new_files:
+        base, extension = split_all_extensions(path)
         if base in old_path_extension and old_path_extension[base] != extension:
             files_to_remove.append(f"{base}{old_path_extension[base]}")
 
@@ -440,9 +432,8 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
 
     def _check_path_extension(self, path: str) -> None:
         filename = fs.path.basename(path)
-        expected_extension = f".{self.get_file_extension()}"
-        if not filename.endswith(expected_extension):
-            raise ValueError(f"FeatureIO expects a filepath with the {expected_extension} file extension, got {path}")
+        if not filename.endswith(self.get_file_extension()):
+            raise ValueError(f"FeatureIO expects a filepath ending with {self.get_file_extension()}, got {path}")
 
     @classmethod
     @abstractmethod
@@ -467,9 +458,10 @@ class FeatureIO(Generic[T], metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def save(cls, data: T, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:
+    def save(cls, data: T, filesystem: FS, feature_path: str, compress_level: int = 0) -> str:
         """Method for saving a feature. The path is assumed to be filesystem path but without file extensions.
 
+        Returns the full path to which the feature is saved.
         Example of path is `eopatch/data/NDVI`, which is then used to save `eopatch/data/NDVI.npy.gz`.
         """
 
@@ -480,12 +472,21 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
     Uses GZip to compress files when required.
     """
 
+    @classmethod
+    def get_file_extension(cls, *, compress_level: int = 0) -> str:
+        extension = cls._get_uncompressed_file_extension()
+        return f"{extension}.gz" if compress_level > 0 else extension
+
+    @classmethod
+    @abstractmethod
+    def _get_uncompressed_file_extension(cls) -> str:
+        """The extension of files handled by the FeatureIO."""
+
     def _check_path_extension(self, path: str) -> None:
         filename = fs.path.basename(path)
-        expected_extension = f".{self.get_file_extension()}"
-        compressed_extension = expected_extension + f".{MimeType.GZIP.extension}"
-        if not filename.endswith((expected_extension, compressed_extension)):
-            raise ValueError(f"FeatureIO expects a filepath with the {expected_extension} file extension, got {path}")
+        expected_extensions = (self.get_file_extension(compress_level=0), self.get_file_extension(compress_level=1))
+        if not filename.endswith(expected_extensions):
+            raise ValueError(f"FeatureIO expects a filepath ending with either of {expected_extensions}, got {path}")
 
     def _load_value(self) -> T:
         with self.filesystem.openbin(self.path, "r") as file_handle:
@@ -500,7 +501,7 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
         """Loads from a file and decodes content."""
 
     @classmethod
-    def save(cls, data: T, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:
+    def save(cls, data: T, filesystem: FS, feature_path: str, compress_level: int = 0) -> str:
         """Method for saving a feature. The path is assumed to be filesystem path but without file extensions.
 
         Example of path is `eopatch/data/NDVI`, which is then used to save `eopatch/data/NDVI.npy.gz`.
@@ -509,8 +510,7 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
         to correct location. If any exceptions happen during the writing process the file is not moved (and old one not
         overwritten).
         """
-        gz_extension = ("." + MimeType.GZIP.extension) if compress_level else ""
-        path = f"{feature_path}.{cls.get_file_extension()}{gz_extension}"
+        path = feature_path + cls.get_file_extension(compress_level=compress_level)
 
         if isinstance(filesystem, (OSFS, TempFS)):
             with TempFS(temp_dir=filesystem.root_path) as tempfs:
@@ -518,8 +518,9 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
                 if fs.__version__ == "2.4.16" and filesystem.exists(path):  # An issue in the fs version
                     filesystem.remove(path)
                 fs.move.move_file(tempfs, "tmp_feature", filesystem, path)
-            return
-        cls._save(data, filesystem, path, compress_level)
+        else:
+            cls._save(data, filesystem, path, compress_level)
+        return path
 
     @classmethod
     def _save(cls, data: T, filesystem: FS, path: str, compress_level: int) -> None:
@@ -545,8 +546,8 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
         super().__init__(path, filesystem)
 
     @classmethod
-    def get_file_extension(cls) -> str:
-        return MimeType.NPY.extension
+    def _get_uncompressed_file_extension(cls) -> str:
+        return ".npy"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> np.ndarray:
         return np.load(file, allow_pickle=True)[self.temporal_selection, ...]
@@ -564,8 +565,8 @@ class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
         super().__init__(path, filesystem)
 
     @classmethod
-    def get_file_extension(cls) -> str:
-        return MimeType.GPKG.extension
+    def _get_uncompressed_file_extension(cls) -> str:
+        return ".gpkg"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> gpd.GeoDataFrame:
         dataframe = gpd.read_file(file)
@@ -597,8 +598,8 @@ class FeatureIOJson(FeatureIOGZip[T]):
     """FeatureIO object specialized for JSON-like objects."""
 
     @classmethod
-    def get_file_extension(cls) -> str:
-        return MimeType.JSON.extension
+    def _get_uncompressed_file_extension(cls) -> str:
+        return ".json"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> T:
         return json.load(file)
@@ -633,8 +634,8 @@ class FeatureIOBBox(FeatureIOGZip[BBox]):
     """FeatureIO object specialized for BBox objects."""
 
     @classmethod
-    def get_file_extension(cls) -> str:
-        return MimeType.GEOJSON.extension
+    def _get_uncompressed_file_extension(cls) -> str:
+        return ".geojson"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> BBox:
         json_data = json.load(file)
@@ -655,7 +656,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
 
     @classmethod
     def get_file_extension(cls) -> str:
-        return "zarr"
+        return ".zarr"
 
     def _load_value(self) -> np.ndarray:
         self._check_dependencies_imported(self.path)
@@ -681,12 +682,12 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         raise ValueError(f"Cannot handle filesystem {filesystem} with the Zarr backend.")
 
     @classmethod
-    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> None:  # noqa: ARG003
+    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> str:  # noqa: ARG003
         cls._check_dependencies_imported(feature_path)
-
-        path = f"{feature_path}.{cls.get_file_extension()}"
+        path = feature_path + cls.get_file_extension()
         store = cls._get_mapping(path, filesystem)
         zarr.save(store, data)
+        return path
 
     @staticmethod
     def _check_dependencies_imported(path: str) -> None:
