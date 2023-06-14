@@ -703,13 +703,17 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         store = cls._get_mapping(path, filesystem)
 
         if temporal_selection is None:
-            zarr.save(store, data)
+            chunk_size = (1, *data.shape[1:])
+            zarr.save_array(store, data, chunks=chunk_size)
             return path
 
-        if not filesystem.exists(path):
-            raise ValueError(f"Cannot perform partial save via temporal selection. No existing file at {path}.")
+        try:
+            zarray = zarr.open_array(store, "r+")
+        except ValueError as e:  # zarr does not expose the proper error...
+            raise ValueError(
+                f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires preexisting zarr."
+            ) from e
 
-        zarray = zarr.open_array(store, "r+")
         zarray.oindex[temporal_selection] = data
         return path
 
