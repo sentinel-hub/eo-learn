@@ -692,10 +692,11 @@ class EOPatch:
         good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
         good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
 
-        relevant_features = filter(lambda ftype: ftype.is_temporal() and not ftype.is_meta(), FeatureType)
-        for feature_type in relevant_features:
-            for feature_name, value in self[feature_type].items():
-                self[feature_type][feature_name] = value[good_timestamp_idxs, ...]
+        for ftype in FeatureType:
+            if ftype.is_timeless() or ftype.is_meta() or ftype.is_vector():
+                continue
+            for feature_name, value in self[ftype].items():
+                self[ftype, feature_name] = value[good_timestamp_idxs, ...]
 
         self.timestamps = good_timestamps
         return remove_from_patch
