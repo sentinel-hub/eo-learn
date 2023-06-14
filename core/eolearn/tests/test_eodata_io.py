@@ -458,8 +458,7 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
     Tests verifying that FeatureIO subclasses correctly save, load, and lazy-load data.
     Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
     """
-    file_extension = f".{constructor.get_file_extension()}"
-    file_extension = file_extension if compress_level == 0 else file_extension + ".gz"
+    file_extension = constructor.get_file_extension(compress_level=compress_level)
     file_name = "name"
     with TempFS("testing_file_sistem") as temp_fs:
         feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
