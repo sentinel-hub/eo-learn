@@ -25,9 +25,9 @@ else:
     MULTIPROCESSING_LOCK = None
 
 # pylint: disable=invalid-name
-_T = TypeVar("_T")
-_FutureType = TypeVar("_FutureType")
-_OutputType = TypeVar("_OutputType")
+T = TypeVar("T")
+FutureType = TypeVar("FutureType")
+OutputType = TypeVar("OutputType")
 
 
 class _ProcessingType(Enum):
@@ -55,12 +55,12 @@ def _decide_processing_type(workers: int | None, multiprocess: bool) -> _Process
 
 
 def parallelize(
-    function: Callable[..., _OutputType],
+    function: Callable[..., OutputType],
     *params: Iterable[Any],
     workers: int | None,
     multiprocess: bool = True,
     **tqdm_kwargs: Any,
-) -> list[_OutputType]:
+) -> list[OutputType]:
     """Parallelizes the function on given parameters using the specified number of workers.
 
     :param function: A function to be parallelized.
@@ -98,7 +98,7 @@ def parallelize(
         MULTIPROCESSING_LOCK = None
 
 
-def execute_with_mp_lock(function: Callable[..., _OutputType], *args: Any, **kwargs: Any) -> _OutputType:
+def execute_with_mp_lock(function: Callable[..., OutputType], *args: Any, **kwargs: Any) -> OutputType:
     """A helper utility function that executes a given function with multiprocessing lock if the process is being
     executed in a multiprocessing mode.
 
@@ -117,10 +117,10 @@ def execute_with_mp_lock(function: Callable[..., _OutputType], *args: Any, **kwa
 
 def submit_and_monitor_execution(
     executor: Executor,
-    function: Callable[..., _OutputType],
+    function: Callable[..., OutputType],
     *params: Iterable[Any],
     **tqdm_kwargs: Any,
-) -> list[_OutputType]:
+) -> list[OutputType]:
     """Performs the execution parallelization and monitors the process using a progress bar.
 
     :param executor: An object that performs parallelization.
@@ -177,16 +177,16 @@ def join_futures_iter(
 
 
 def _base_join_futures_iter(
-    wait_function: Callable[[Collection[_FutureType]], tuple[Collection[_FutureType], Collection[_FutureType]]],
-    get_result_function: Callable[[_FutureType], _OutputType],
-    futures: list[_FutureType],
+    wait_function: Callable[[Collection[FutureType]], tuple[Collection[FutureType], Collection[FutureType]]],
+    get_result_function: Callable[[FutureType], OutputType],
+    futures: list[FutureType],
     **tqdm_kwargs: Any,
-) -> Generator[tuple[int, _OutputType], None, None]:
+) -> Generator[tuple[int, OutputType], None, None]:
     """A generalized utility function that resolves futures, monitors progress, and serves as an iterator over
     results."""
     if not isinstance(futures, list):
         raise ValueError(f"Parameters 'futures' should be a list but {type(futures)} was given")
-    remaining_futures: Collection[_FutureType] = _make_copy_and_empty_given(futures)
+    remaining_futures: Collection[FutureType] = _make_copy_and_empty_given(futures)
 
     id_to_position_map = {id(future): index for index, future in enumerate(remaining_futures)}
 
@@ -200,7 +200,7 @@ def _base_join_futures_iter(
                 yield result_position, result
 
 
-def _make_copy_and_empty_given(items: list[_T]) -> list[_T]:
+def _make_copy_and_empty_given(items: list[T]) -> list[T]:
     """Removes items from the given list and returns its copy. The side effect of removing items is intentional."""
     items_copy = items[:]
     while items:
