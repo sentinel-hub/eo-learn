@@ -605,8 +605,8 @@ def test_partial_saving_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: b
         eopatch.save(**io_kwargs)
 
         with pytest.raises(ValueError):
-            # existing file is in different format
-            eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=not use_zarr, temporal_selection=[1, 2])
+            # saving without zarr
+            eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=False, temporal_selection=[1, 2])
 
         with pytest.raises(ValueError):
             # temporal selection smaller than eopatch to be saved

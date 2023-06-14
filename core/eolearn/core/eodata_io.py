@@ -112,6 +112,9 @@ def save_eopatch(
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
 
+    if temporal_selection is not None and not use_zarr:
+        raise ValueError("Cannot perform partial saving via `temporal_selection` without zarr arrays.")
+
     eopatch_features = FeatureParser(features).get_features(eopatch)
     file_information = get_filesystem_data_info(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
 
@@ -173,7 +176,7 @@ def _yield_savers(
         yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
     if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
-        # TODO: if temporal selection is enabled timestamps shouldn't be saved?
+        # if temporal selection is enabled timestamps shouldn't be saved?
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
@@ -709,10 +712,10 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
 
         try:
             zarray = zarr.open_array(store, "r+")
-        except ValueError as e:  # zarr does not expose the proper error...
+        except ValueError as error:  # zarr does not expose the proper error...
             raise ValueError(
                 f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires preexisting zarr."
-            ) from e
+            ) from error
 
         zarray.oindex[temporal_selection] = data
         return path
