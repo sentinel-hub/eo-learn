@@ -107,7 +107,6 @@ def save_eopatch(
     overwrite_permission: OverwritePermission,
     compress_level: int,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int],
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
@@ -126,7 +125,6 @@ def save_eopatch(
             filesystem=filesystem,
             use_zarr=use_zarr,
             compress_level=compress_level,
-            temporal_selection=temporal_selection,
         )
     )
 
@@ -162,7 +160,6 @@ def _yield_savers(
     filesystem: FS,
     compress_level: int,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int],
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -185,8 +182,6 @@ def _yield_savers(
             continue
         io_constructor = _get_feature_io_constructor(ftype, use_zarr)
         feature_saver = partial(io_constructor.save, compress_level=compress_level, filesystem=filesystem)
-        if temporal_selection and ftype.is_temporal():
-            feature_saver = partial(feature_saver, temporal_selection=temporal_selection)
 
         yield partial(feature_saver, data=eopatch[(ftype, fname)], feature_path=get_file_path(ftype.value, fname))
 

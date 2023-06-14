@@ -573,7 +573,6 @@ class EOPatch:
         compress_level: int = 0,
         filesystem: FS | None = None,
         use_zarr: bool = False,
-        temporal_selection: None | slice | list[int] = None,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -586,7 +585,6 @@ class EOPatch:
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
-        :param temporal_selection: Saves eopatch data into corresponding temporal indices of preexisting files.
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)
@@ -600,7 +598,6 @@ class EOPatch:
             compress_level=compress_level,
             overwrite_permission=OverwritePermission(overwrite_permission),
             use_zarr=use_zarr,
-            temporal_selection=temporal_selection,
         )
 
     @staticmethod
