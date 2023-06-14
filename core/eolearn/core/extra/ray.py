@@ -22,8 +22,8 @@ from ..eoworkflow import WorkflowResults
 from ..utils.parallelize import _base_join_futures_iter, _ProcessingType
 
 # pylint: disable=invalid-name
-_InputType = TypeVar("_InputType")
-_OutputType = TypeVar("_OutputType")
+InputType = TypeVar("InputType")
+OutputType = TypeVar("OutputType")
 
 
 class RayExecutor(EOExecutor):
@@ -65,8 +65,8 @@ def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
 
 
 def parallelize_with_ray(
-    function: Callable[[_InputType], _OutputType], *params: Iterable[_InputType], **tqdm_kwargs: Any
-) -> list[_OutputType]:
+    function: Callable[[InputType], OutputType], *params: Iterable[InputType], **tqdm_kwargs: Any
+) -> list[OutputType]:
     """Parallelizes function execution with Ray.
 
     Note that this function will automatically connect to a Ray cluster, if a connection wouldn't exist yet. But it
