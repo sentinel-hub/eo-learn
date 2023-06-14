@@ -696,13 +696,21 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         filesystem: FS,
         feature_path: str,
         compress_level: int = 0,  # noqa: ARG003
-        temporal_selection: None | slice | list[int] = None,  # noqa: ARG003
+        temporal_selection: None | slice | list[int] = None,
     ) -> str:
         cls._check_dependencies_imported(feature_path)
         path = feature_path + cls.get_file_extension()
         store = cls._get_mapping(path, filesystem)
 
-        zarr.save(store, data)
+        if temporal_selection is None:
+            zarr.save(store, data)
+            return path
+
+        if not filesystem.exists(path):
+            raise ValueError(f"Cannot perform partial save via temporal selection. No existing file at {path}.")
+
+        zarray = zarr.open_array(store, "r+")
+        zarray.oindex[temporal_selection] = data
         return path
 
     @staticmethod

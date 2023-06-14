@@ -569,33 +569,35 @@ def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("use_zarr", [True])
 @pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
 def test_partial_saving_into_existing(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
     _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
-        io_kwargs = dict(path="patch-folder", filesystem=temp_fs)
+        io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
         eopatch.save(**io_kwargs, use_zarr=use_zarr)
 
-        copy_patch = eopatch.copy(deep=True)
-        copy_patch.consolidate_timestamps(np.array(copy_patch.timestamps)[temporal_selection])
+        partial_patch = eopatch.copy(deep=True)
+        partial_patch.consolidate_timestamps(np.array(partial_patch.timestamps)[temporal_selection or ...])
 
-        copy_patch.data["data"] = np.full_like(copy_patch.data["data"], 2)
-        eopatch.save(**io_kwargs, use_zarr=use_zarr, temporal_selection=temporal_selection)
+        partial_patch.data["data"] = np.full_like(partial_patch.data["data"], 2)
+        partial_patch.save(**io_kwargs, use_zarr=use_zarr, temporal_selection=temporal_selection)
 
         expected_data = eopatch.data["data"].copy()
         expected_data[temporal_selection] = 2
 
-        assert_array_equal(EOPatch.load(**io_kwargs).data["data"], expected_data)
+        assert_array_equal(EOPatch.load(path="patch-folder", filesystem=temp_fs).data["data"], expected_data)
 
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
+@pytest.mark.parametrize("use_zarr", [True])
 def test_partial_saving_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool):
     _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
-        io_kwargs = dict(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+        io_kwargs = dict(
+            path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr, overwrite_permission="OVERWRITE_FEATURES"
+        )
         with pytest.raises(ValueError):
             # patch does not exist yet
             eopatch.save(**io_kwargs, temporal_selection=slice(2, None))
