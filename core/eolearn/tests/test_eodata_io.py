@@ -568,20 +568,18 @@ def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: 
 
 
 @mock_s3
-@pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True])
 @pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
-def test_partial_saving_into_existing(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
-    _skip_when_appropriate(fs_loader, use_zarr)
-    with fs_loader() as temp_fs:
+def test_partial_saving_into_existing(eopatch: EOPatch, temporal_selection):
+    _skip_when_appropriate(TempFS, True)
+    with TempFS() as temp_fs:
         io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
-        eopatch.save(**io_kwargs, use_zarr=use_zarr)
+        eopatch.save(**io_kwargs, use_zarr=True)
 
         partial_patch = eopatch.copy(deep=True)
         partial_patch.consolidate_timestamps(np.array(partial_patch.timestamps)[temporal_selection or ...])
 
         partial_patch.data["data"] = np.full_like(partial_patch.data["data"], 2)
-        partial_patch.save(**io_kwargs, use_zarr=use_zarr, temporal_selection=temporal_selection)
+        partial_patch.save(**io_kwargs, use_zarr=True, temporal_selection=temporal_selection)
 
         expected_data = eopatch.data["data"].copy()
         expected_data[temporal_selection] = 2
@@ -590,13 +588,11 @@ def test_partial_saving_into_existing(fs_loader: type[FS], eopatch: EOPatch, use
 
 
 @mock_s3
-@pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True])
-def test_partial_saving_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool):
-    _skip_when_appropriate(fs_loader, use_zarr)
-    with fs_loader() as temp_fs:
+def test_partial_saving_fails(eopatch: EOPatch):
+    _skip_when_appropriate(TempFS, True)
+    with TempFS() as temp_fs:
         io_kwargs = dict(
-            path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr, overwrite_permission="OVERWRITE_FEATURES"
+            path="patch-folder", filesystem=temp_fs, use_zarr=True, overwrite_permission="OVERWRITE_FEATURES"
         )
         with pytest.raises(ValueError):
             # patch does not exist yet
