@@ -695,10 +695,11 @@ class EOPatch:
         :param timestamps: keep frames with date found in this list
         :return: set of removed frames' dates
         """
-        remove_from_patch = set(self.timestamps).difference(timestamps)
-        remove_from_patch_idxs = [self.timestamps.index(rm_date) for rm_date in remove_from_patch]
-        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
-        good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
+        old_timestamps = self.get_timestamps()
+        remove_from_patch = set(old_timestamps).difference(timestamps)
+        remove_from_patch_idxs = [old_timestamps.index(rm_date) for rm_date in remove_from_patch]
+        good_timestamp_idxs = [idx for idx, _ in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
+        good_timestamps = [date for idx, date in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
 
         for ftype in FeatureType:
             if ftype.is_timeless() or ftype.is_meta() or ftype.is_vector():
