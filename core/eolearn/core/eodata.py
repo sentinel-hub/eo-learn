@@ -573,6 +573,7 @@ class EOPatch:
         compress_level: int = 0,
         filesystem: FS | None = None,
         use_zarr: bool = False,
+        temporal_selection: None | slice | list[int] = None,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -585,6 +586,8 @@ class EOPatch:
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
+        :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
+            used for saving data in multiple steps for memory optimization.
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)
@@ -598,6 +601,7 @@ class EOPatch:
             compress_level=compress_level,
             overwrite_permission=OverwritePermission(overwrite_permission),
             use_zarr=use_zarr,
+            temporal_selection=temporal_selection,
         )
 
     @staticmethod
@@ -688,10 +692,11 @@ class EOPatch:
         good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
         good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
 
-        relevant_features = filter(lambda ftype: ftype.is_temporal() and not ftype.is_meta(), FeatureType)
-        for feature_type in relevant_features:
-            for feature_name, value in self[feature_type].items():
-                self[feature_type][feature_name] = value[good_timestamp_idxs, ...]
+        for ftype in FeatureType:
+            if ftype.is_timeless() or ftype.is_meta() or ftype.is_vector():
+                continue
+            for feature_name, value in self[ftype].items():
+                self[ftype, feature_name] = value[good_timestamp_idxs, ...]
 
         self.timestamps = good_timestamps
         return remove_from_patch

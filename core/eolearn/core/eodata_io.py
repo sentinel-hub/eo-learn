@@ -107,9 +107,13 @@ def save_eopatch(
     overwrite_permission: OverwritePermission,
     compress_level: int,
     use_zarr: bool,
+    temporal_selection: None | slice | list[int] = None,
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
+
+    if temporal_selection is not None and not use_zarr:
+        raise ValueError("Cannot perform partial saving via `temporal_selection` without zarr arrays.")
 
     eopatch_features = FeatureParser(features).get_features(eopatch)
     file_information = get_filesystem_data_info(filesystem, patch_location) if patch_exists else FilesystemDataInfo()
@@ -125,6 +129,7 @@ def save_eopatch(
             filesystem=filesystem,
             use_zarr=use_zarr,
             compress_level=compress_level,
+            temporal_selection=temporal_selection,
         )
     )
 
@@ -160,6 +165,7 @@ def _yield_savers(
     filesystem: FS,
     compress_level: int,
     use_zarr: bool,
+    temporal_selection: None | slice | list[int] = None,
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -169,7 +175,8 @@ def _yield_savers(
         bbox: BBox = eopatch.bbox  # mypy has problems
         yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
-    if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features:
+    if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
+        # if temporal selection is enabled timestamps shouldn't be saved?
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
@@ -181,9 +188,18 @@ def _yield_savers(
         if ftype.is_meta():
             continue
         io_constructor = _get_feature_io_constructor(ftype, use_zarr)
-        feature_saver = partial(io_constructor.save, compress_level=compress_level, filesystem=filesystem)
+        feature_saver = partial(
+            io_constructor.save,
+            compress_level=compress_level,
+            filesystem=filesystem,
+            data=eopatch[ftype, fname],
+            feature_path=get_file_path(ftype.value, fname),
+        )
 
-        yield partial(feature_saver, data=eopatch[(ftype, fname)], feature_path=get_file_path(ftype.value, fname))
+        if ftype.is_temporal() and issubclass(io_constructor, FeatureIOZarr):
+            feature_saver = partial(feature_saver, temporal_selection=temporal_selection)
+
+        yield feature_saver
 
 
 def _remove_redundant_files(
@@ -677,11 +693,31 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         raise ValueError(f"Cannot handle filesystem {filesystem} with the Zarr backend.")
 
     @classmethod
-    def save(cls, data: np.ndarray, filesystem: FS, feature_path: str, compress_level: int = 0) -> str:  # noqa: ARG003
+    def save(
+        cls,
+        data: np.ndarray,
+        filesystem: FS,
+        feature_path: str,
+        compress_level: int = 0,  # noqa: ARG003
+        temporal_selection: None | slice | list[int] = None,
+    ) -> str:
         cls._check_dependencies_imported(feature_path)
         path = feature_path + cls.get_file_extension()
         store = cls._get_mapping(path, filesystem)
-        zarr.save(store, data)
+
+        if temporal_selection is None:
+            chunk_size = (1, *data.shape[1:])
+            zarr.save_array(store, data, chunks=chunk_size)
+            return path
+
+        try:
+            zarray = zarr.open_array(store, "r+")
+        except ValueError as error:  # zarr does not expose the proper error...
+            raise ValueError(
+                f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires preexisting zarr."
+            ) from error
+
+        zarray.oindex[temporal_selection] = data
         return path
 
     @staticmethod
