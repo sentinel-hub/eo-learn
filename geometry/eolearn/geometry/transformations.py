@@ -154,7 +154,7 @@ class VectorToRasterTask(EOTask):
             yield None, self._vector_data_to_shape_iterator(vector_data, join_per_value)
 
     def _preprocess_vector_data(
-        self, vector_data: GeoDataFrame, bbox: BBox, timestamps: list[dt.datetime]
+        self, vector_data: GeoDataFrame, bbox: BBox, timestamps: list[dt.datetime] | None
     ) -> GeoDataFrame:
         """Applies preprocessing steps on a dataframe with geometries and potential values and timestamps"""
         vector_data = self._reduce_vector_data(vector_data, timestamps)
@@ -183,7 +183,7 @@ class VectorToRasterTask(EOTask):
 
         return vector_data
 
-    def _reduce_vector_data(self, vector_data: GeoDataFrame, timestamps: list[dt.datetime]) -> GeoDataFrame:
+    def _reduce_vector_data(self, vector_data: GeoDataFrame, timestamps: list[dt.datetime] | None) -> GeoDataFrame:
         """Removes all redundant columns and rows."""
         columns_to_keep = ["geometry"]
         if self._rasterize_per_timestamp:
@@ -235,7 +235,9 @@ class VectorToRasterTask(EOTask):
 
     def _get_raster(self, eopatch: EOPatch, height: int, width: int) -> np.ndarray:
         """Provides raster into which data will be written"""
-        raster_shape = (len(eopatch.timestamps), height, width) if self._rasterize_per_timestamp else (height, width)
+        raster_shape = (
+            (len(eopatch.get_timestamps()), height, width) if self._rasterize_per_timestamp else (height, width)
+        )
 
         if self.write_to_existing and self.raster_feature in eopatch:
             raster = eopatch[self.raster_feature]
@@ -300,7 +302,8 @@ class VectorToRasterTask(EOTask):
             rasterio_dtype = self._RASTERIO_DTYPES_MAP[original_dtype]
             raster = raster.astype(rasterio_dtype)
 
-        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(eopatch.timestamps)}
+        timestamps = eopatch.timestamps or []
+        timestamp_to_index = {timestamp: index for index, timestamp in enumerate(timestamps)}
 
         for timestamp, shape_iterator in vector_data_iterator:
             if timestamp is None:
@@ -419,8 +422,9 @@ class RasterToVectorTask(EOTask):
             if raster_type.is_timeless():
                 eopatch[vector_type, vector_name] = self._vectorize_single_raster(raster, affine_transform, crs)
             else:
+                timestamps = eopatch.get_timestamps()
                 gpd_list = [
-                    self._vectorize_single_raster(raster[idx, ...], affine_transform, crs, eopatch.timestamps[idx])
+                    self._vectorize_single_raster(raster[idx, ...], affine_transform, crs, timestamps[idx])
                     for idx in range(raster.shape[0])
                 ]
 

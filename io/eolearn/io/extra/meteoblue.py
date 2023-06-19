@@ -90,16 +90,17 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
 
     def _prepare_time_intervals(self, eopatch: EOPatch, time_interval: RawTimeIntervalType | None) -> list[str]:
         """Prepare a list of time intervals for which data will be collected from meteoblue services"""
-        if not eopatch.timestamps and not time_interval:
-            raise ValueError(
-                "Time interval should either be defined with `eopatch.timestamps` or `time_interval` parameter"
-            )
+        timestamps = eopatch.timestamps
 
-        if time_interval:
+        if timestamps is None:
+            if not time_interval:
+                raise ValueError(
+                    "Time interval should either be defined with `eopatch.timestamps` or `time_interval` parameter"
+                )
+
             serialized_start_time, serialized_end_time = serialize_time(parse_time_interval(time_interval))
             return [f"{serialized_start_time}/{serialized_end_time}"]
 
-        timestamps = eopatch.timestamps
         time_intervals: list[str] = []
         for timestamp in timestamps:
             start_time = timestamp - self.time_difference

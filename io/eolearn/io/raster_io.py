@@ -79,7 +79,9 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         # the super-class takes care of filesystem pickling
         super().__init__(folder, filesystem=filesystem, create=create, config=config)
 
-    def _get_filename_paths(self, filename_template: str | list[str], timestamps: list[dt.datetime]) -> list[str]:
+    def _get_filename_paths(
+        self, filename_template: str | list[str], timestamps: list[dt.datetime] | None
+    ) -> list[str]:
         """From a filename "template" and base path on the filesystem it generates full paths to tiff files. The paths
         are still relative to the filesystem object.
 
@@ -113,7 +115,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
         return filename_paths
 
     @classmethod
-    def _generate_paths(cls, path_template: str, timestamps: list[dt.datetime]) -> list[str]:
+    def _generate_paths(cls, path_template: str, timestamps: list[dt.datetime] | None) -> list[str]:
         """Uses a filename path template to create a list of actual filename paths."""
         has_tiff_file_extensions = path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")
         if not has_tiff_file_extensions:
@@ -181,17 +183,15 @@ class ExportToTiffTask(BaseRasterIoTask):
         self.fail_on_missing = fail_on_missing
         self.compress = compress
 
-    def _prepare_image_array(
-        self, data_array: np.ndarray, timestamps: list[dt.datetime], feature: tuple[FeatureType, str]
-    ) -> np.ndarray:
+    def _prepare_image_array(self, eopatch: EOPatch, feature: tuple[FeatureType, str]) -> np.ndarray:
         """Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
         array has shape (channels, height, width) and is of correct dtype.
         """
-        data_array = self._reduce_by_bands(data_array)
+        data_array = self._reduce_by_bands(eopatch[feature])
 
         feature_type, _ = feature
         if feature_type.is_temporal():
-            data_array = self._reduce_by_time(data_array, timestamps)
+            data_array = self._reduce_by_time(data_array, eopatch.get_timestamps())
         else:
             data_array = np.expand_dims(data_array, axis=0)
 
@@ -346,7 +346,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         if eopatch.bbox is None:
             raise ValueError("EOPatch without a bounding box encountered, cannot export to GeoTIFF")
 
-        image_array = self._prepare_image_array(eopatch[self.feature], eopatch.timestamps, self.feature)
+        image_array = self._prepare_image_array(eopatch, self.feature)
 
         src_info, dst_info, (dst_height, dst_width) = self._get_source_and_destination_params(image_array, eopatch.bbox)
         src_crs, src_transform = src_info
@@ -368,7 +368,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
             channel_count = image_array.shape[0]
             if len(filename_paths) > 1:
-                single_channel_count = channel_count // len(eopatch.timestamps)
+                single_channel_count = channel_count // len(filename_paths)
                 for timestamp_index, path in enumerate(filename_paths):
                     time_slice_array = image_array[
                         timestamp_index * single_channel_count : (timestamp_index + 1) * single_channel_count, ...
