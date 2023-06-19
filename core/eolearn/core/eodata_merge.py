@@ -121,15 +121,15 @@ def _return_if_equal_operation(arrays: np.ndarray) -> bool:
 
 def _merge_timestamps(
     eopatches: Sequence[EOPatch], reduce_timestamps: bool
-) -> tuple[list[dt.datetime], list[np.ndarray]]:
+) -> tuple[list[dt.datetime] | None, list[np.ndarray]]:
     """Merges together timestamps from EOPatches. It also prepares a list of masks, one for each EOPatch, how
     timestamps should be ordered and joined together.
     """
-    timestamps_per_eopatch = [eopatch.timestamps for eopatch in eopatches]
+    timestamps_per_eopatch = [eopatch.timestamps or [] for eopatch in eopatches]
     all_timestamps = [timestamp for eopatch_timestamps in timestamps_per_eopatch for timestamp in eopatch_timestamps]
 
     if not all_timestamps:
-        return [], [np.array([], dtype=np.int32) for _ in range(len(eopatches))]
+        return None, [np.array([], dtype=np.int32) for _ in range(len(eopatches))]
 
     if reduce_timestamps:
         unique_timestamps, order_mask = np.unique(all_timestamps, return_inverse=True)  # type: ignore[call-overload]
