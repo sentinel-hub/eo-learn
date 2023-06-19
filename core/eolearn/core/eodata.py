@@ -285,7 +285,9 @@ class EOPatch:
 
     @timestamps.setter
     def timestamps(self, value: Iterable[dt.datetime] | None) -> None:
-        if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
+        if value is None:
+            self._timestamps = None
+        elif isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
             self._timestamps = [parse_time(time, force_datetime=True) for time in value]
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
@@ -381,7 +383,7 @@ class EOPatch:
         if feature_type == FeatureType.BBOX:
             raise ValueError("The BBox of an EOPatch should never be undefined.")
         if feature_type == FeatureType.TIMESTAMPS:
-            self[feature_type] = []
+            self[feature_type] = None
         else:
             self[feature_type] = {}
 
