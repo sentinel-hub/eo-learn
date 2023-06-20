@@ -292,10 +292,10 @@ class EOPatch:
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
 
-    def get_timestamps(self) -> list[dt.datetime]:
+    def get_timestamps(self, message_on_failure: str = "The EOPatch does not contain timestamps.") -> list[dt.datetime]:
         """Returns the `timestamps` attribute if timestamps if the EOPatch is temporally defined. Fails otherwise."""
         if self._timestamps is None:
-            raise RuntimeError("The EOPatch does not contain timestamps.")
+            raise RuntimeError(message_on_failure)
         return self._timestamps
 
     @property
