@@ -37,7 +37,7 @@ from sentinelhub import CRS, BBox, parse_time
 from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
-from .eodata_io import FeatureIO, FeatureIOJson, load_eopatch_content, save_eopatch
+from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
@@ -224,7 +224,6 @@ class EOPatch:
     # establish types of property value holders
     _timestamps: list[dt.datetime]
     _bbox: BBox | None
-    _meta_info: FeatureIOJson | _FeatureDictJson
 
     def __init__(
         self,
@@ -303,22 +302,10 @@ class EOPatch:
             warn(MISSING_BBOX_WARNING, category=EODeprecationWarning, stacklevel=2)
         self._bbox = value
 
-    @property
-    def meta_info(self) -> MutableMapping[str, Any]:
-        """A property for handling the `meta_info` attribute."""
-        # once META_INFO becomes regular (in terms of IO) this can be removed
-        if isinstance(self._meta_info, FeatureIOJson):
-            self.meta_info = self._meta_info.load()  # assigned to `meta_info` property to trigger validation
-        return self._meta_info  # type: ignore[return-value] # mypy cannot verify due to mutations
-
-    @meta_info.setter
-    def meta_info(self, value: Mapping[str, Any] | FeatureIOJson) -> None:
-        self._meta_info = value if isinstance(value, FeatureIOJson) else _FeatureDictJson(value, FeatureType.META_INFO)
-
     def __setattr__(self, key: str, value: object) -> None:
         """Casts dictionaries to _FeatureDict objects for non-meta features."""
 
-        if FeatureType.has_value(key) and not FeatureType(key).is_meta():
+        if FeatureType.has_value(key) and FeatureType(key) not in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
             if not isinstance(value, (dict, _FeatureDict)):
                 raise TypeError(f"Cannot parse {value} for attribute {key}. Should be a dictionary.")
             value = _create_feature_dict(FeatureType(key), value)

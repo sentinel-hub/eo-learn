@@ -152,6 +152,8 @@ def save_eopatch(
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
             _remove_redundant_files(filesystem, new_files, file_information)
 
+    _remove_old_style_metainfo(filesystem, patch_location, new_files, file_information)
+
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
     filesystem.removetree(patch_location)
@@ -225,6 +227,20 @@ def _remove_redundant_files(
         list(executor.map(_remover, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
+def _remove_old_style_metainfo(
+    filesystem: FS,
+    patch_location: str,
+    new_files: list[str],
+    preexisting_files: FilesystemDataInfo,
+) -> None:
+    """If any new meta-info was saved, this removes the old-style meta-info file."""
+    if preexisting_files.old_meta_info is None:
+        return
+
+    if any(fs.path.relativefrom(patch_location, path).startswith("meta_info") for path in new_files):
+        filesystem.remove(preexisting_files.old_meta_info)
+
+
 def load_eopatch_content(
     filesystem: FS,
     patch_location: str,
@@ -289,7 +305,11 @@ def _load_meta_features(
 
     old_meta_info = None
     if FeatureType.META_INFO in requested:
-        warnings.warn("old style meta-info", EODeprecationWarning)  # TODO: elaborate
+        msg = (
+            "Stored EOPatch contains old-style meta-info file, which will no longer be supported in the future. Please"
+            " re-save the EOPatch."
+        )
+        warnings.warn(msg, EODeprecationWarning, stacklevel=2)
         if file_information.old_meta_info is not None:
             old_meta_info = FeatureIOJson(file_information.old_meta_info, filesystem).load()
 

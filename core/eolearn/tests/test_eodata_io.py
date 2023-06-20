@@ -614,13 +614,21 @@ def test_partial_saving_fails(eopatch: EOPatch):
             eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
 
 
-def test_old_style_meta_info():
+@pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])
+def test_old_style_meta_info(patch_location):
     with TempFS() as temp_fs:
-        EOPatch(bbox=DUMMY_BBOX).save(path="patch-folder", filesystem=temp_fs)
+        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs)
         meta_info = {"this": ["list"], "something": "else"}
-        with temp_fs.open("patch-folder/meta_info.json", "w") as old_style_file:
+        with temp_fs.open(f"{patch_location}/meta_info.json", "w") as old_style_file:
             json.dump(meta_info, old_style_file)
 
         with pytest.warns(EODeprecationWarning):
-            loaded_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+            loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
         assert dict(loaded_patch.meta_info.items()) == meta_info
+
+        loaded_patch.meta_info = {"beep": "boop"}
+        loaded_patch.save(path=patch_location, filesystem=temp_fs)
+        assert not temp_fs.exists("patch-folder/meta_info.json")
+
+        loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
+        assert dict(loaded_patch.meta_info.items()) == {"beep": "boop"}
