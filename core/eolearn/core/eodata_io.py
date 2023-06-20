@@ -80,6 +80,7 @@ PatchContentType: TypeAlias = Tuple[
 
 BBOX_FILENAME = "bbox"
 TIMESTAMPS_FILENAME = "timestamps"
+BBOX_AND_TIMESTAMPS = (FeatureType.BBOX, FeatureType.TIMESTAMPS)
 
 
 @dataclass
@@ -139,7 +140,7 @@ def save_eopatch(
             _remove_old_eopatch(filesystem, patch_location)
 
     filesystem.makedirs(patch_location, recreate=True)
-    folder_based_ftypes = {ftype for ftype, _ in eopatch_features if not ftype.is_meta()}
+    folder_based_ftypes = {ftype for ftype, _ in eopatch_features if ftype not in BBOX_AND_TIMESTAMPS}
     for ftype in folder_based_ftypes:
         filesystem.makedirs(fs.path.join(patch_location, ftype.value), recreate=True)
 
@@ -180,12 +181,12 @@ def _yield_savers(
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
-    if eopatch.meta_info and FeatureType.META_INFO in meta_features:
-        path = get_file_path(FeatureType.META_INFO.value)
-        yield partial(FeatureIOJson.save, eopatch.meta_info, filesystem, path, compress_level)
+    # if eopatch.meta_info and FeatureType.META_INFO in meta_features:
+    #     path = get_file_path(FeatureType.META_INFO.value)
+    #     yield partial(FeatureIOJson.save, eopatch.meta_info, filesystem, path, compress_level)
 
     for ftype, fname in features:
-        if ftype.is_meta():
+        if ftype in BBOX_AND_TIMESTAMPS:
             continue
         io_constructor = _get_feature_io_constructor(ftype, use_zarr)
         feature_saver = partial(
@@ -237,11 +238,11 @@ def load_eopatch_content(
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
-    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features, temporal_selection)
+    bbox, timestamps, old_meta_info = _load_meta_features(filesystem, file_information, features, temporal_selection)
 
     features_dict: dict[tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
-        if ftype.is_meta():
+        if ftype in BBOX_AND_TIMESTAMPS:
             continue
 
         if fname is ...:
@@ -253,7 +254,7 @@ def load_eopatch_content(
             path = file_information.features[ftype][fname]
             features_dict[(ftype, fname)] = _get_feature_io(ftype, path, filesystem, temporal_selection)
 
-    return bbox, timestamps, meta_info, features_dict
+    return bbox, timestamps, old_meta_info, features_dict
 
 
 def _get_feature_io(
@@ -291,13 +292,9 @@ def _load_meta_features(
 
     meta_info = None
     if FeatureType.META_INFO in requested:
+        warnings.warn("old style meta-info", EODeprecationWarning)  # TODO: elaborate
         if file_information.old_meta_info is not None:
-            meta_info = FeatureIOJson(file_information.old_meta_info, filesystem)
-        elif any(
-            ftype == FeatureType.META_INFO and isinstance(fname, str)
-            for ftype, fname in FeatureParser(features).get_feature_specifications()
-        ):
-            raise IOError(err_msg.format(FeatureType.META_INFO))
+            meta_info = FeatureIOJson(file_information.old_meta_info, filesystem).load()
 
     return bbox, timestamps, meta_info
 

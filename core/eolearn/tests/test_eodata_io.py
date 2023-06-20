@@ -491,7 +491,7 @@ def test_walk_filesystem_interface(fs_loader, features, eopatch, use_zarr: bool)
 
         with pytest.warns(EODeprecationWarning):
             for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
-                feature_key = ftype if ftype.is_meta() else (ftype, fname)
+                feature_key = ftype if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMPS] else (ftype, fname)
                 assert feature_key in loaded_eopatch
 
 
@@ -611,3 +611,6 @@ def test_partial_saving_fails(eopatch: EOPatch):
         with pytest.raises(ValueError):
             # temporal selection outside of saved eopatch
             eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
+
+
+# TODO: add test that old-style metainfo is still loaded correctly
