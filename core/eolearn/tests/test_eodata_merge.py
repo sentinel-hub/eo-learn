@@ -95,6 +95,21 @@ def test_failed_time_dependent_merge():
         merge_eopatches(eop2, eop1)
 
 
+def test_temporally_empty_merge():
+    """Merging patches without a temporal definition should return a temporally undefined patch. However merging a patch
+    with an empty temporal axis should not result in a temporally undefined EOPatch."""
+    eop1 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((0, 4, 5, 2))}, timestamps=[])
+    eop2 = EOPatch(bbox=DUMMY_BBOX, mask_timeless={"mask": np.ones((4, 5, 2), dtype=np.int8)}, timestamps=None)
+    result = EOPatch(
+        bbox=DUMMY_BBOX,
+        data={"bands": np.ones((0, 4, 5, 2))},
+        mask_timeless={"mask": np.ones((4, 5, 2), dtype=np.int8)},
+        timestamps=[],
+    )
+    assert merge_eopatches(eop2, eop2).timestamps is None, "Faulty temporal definition added."
+    assert merge_eopatches(eop1, eop2) == result
+
+
 def test_timeless_merge():
     eop1 = EOPatch(
         bbox=DUMMY_BBOX,
