@@ -15,11 +15,12 @@ import inspect
 import os
 import warnings
 from collections import defaultdict
+from contextlib import nullcontext
 from typing import Any, cast
 
 import fs
 import graphviz
-import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pygments
 import pygments.formatter
 import pygments.lexers
@@ -50,49 +51,48 @@ class EOExecutorVisualization:
         start_time = cast(dt.datetime, self.eoexecutor.start_time)
         report_folder = cast(str, self.eoexecutor.report_folder)
 
-        if os.environ.get("DISPLAY", "") == "":
-            plt.switch_backend("Agg")
+        backend_ctx = mpl.rc_context({"backend": "Agg"}) if os.environ.get("DISPLAY", "") == "" else nullcontext()
+        with backend_ctx:
+            try:
+                dependency_graph = self._create_dependency_graph()
+            except graphviz.backend.ExecutableNotFound as ex:
+                dependency_graph = None
+                warnings.warn(
+                    (
+                        f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to"
+                        " have the dependency graph in the final report!"
+                    ),
+                    EOUserWarning,
+                )
 
-        try:
-            dependency_graph = self._create_dependency_graph()
-        except graphviz.backend.ExecutableNotFound as ex:
-            dependency_graph = None
-            warnings.warn(
-                (
-                    f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to have "
-                    "the dependency graph in the final report!"
-                ),
-                EOUserWarning,
+            formatter = HtmlFormatter(linenos=True)
+
+            template = self._get_template()
+
+            execution_log_filenames = [fs.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
+            if self.eoexecutor.save_logs:
+                execution_logs = self.eoexecutor.read_logs() if include_logs else None
+            else:
+                execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
+
+            html = template.render(
+                title=f"Report {self._format_datetime(start_time)}",
+                dependency_graph=dependency_graph,
+                general_stats=self.eoexecutor.general_stats,
+                exception_stats=self._get_exception_stats(),
+                task_descriptions=self._get_node_descriptions(),
+                task_sources=self._render_task_sources(formatter),
+                execution_results=self.eoexecutor.execution_results,
+                execution_tracebacks=self._render_execution_tracebacks(formatter),
+                execution_logs=execution_logs,
+                execution_log_filenames=execution_log_filenames,
+                execution_names=self.eoexecutor.execution_names,
+                code_css=formatter.get_style_defs(),
             )
+            self.eoexecutor.filesystem.makedirs(report_folder, recreate=True)
 
-        formatter = HtmlFormatter(linenos=True)
-
-        template = self._get_template()
-
-        execution_log_filenames = [fs.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
-        if self.eoexecutor.save_logs:
-            execution_logs = self.eoexecutor.read_logs() if include_logs else None
-        else:
-            execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
-
-        html = template.render(
-            title=f"Report {self._format_datetime(start_time)}",
-            dependency_graph=dependency_graph,
-            general_stats=self.eoexecutor.general_stats,
-            exception_stats=self._get_exception_stats(),
-            task_descriptions=self._get_node_descriptions(),
-            task_sources=self._render_task_sources(formatter),
-            execution_results=self.eoexecutor.execution_results,
-            execution_tracebacks=self._render_execution_tracebacks(formatter),
-            execution_logs=execution_logs,
-            execution_log_filenames=execution_log_filenames,
-            execution_names=self.eoexecutor.execution_names,
-            code_css=formatter.get_style_defs(),
-        )
-        self.eoexecutor.filesystem.makedirs(report_folder, recreate=True)
-
-        with self.eoexecutor.filesystem.open(self.eoexecutor.get_report_path(full_path=False), "w") as file_handle:
-            file_handle.write(html)
+            with self.eoexecutor.filesystem.open(self.eoexecutor.get_report_path(full_path=False), "w") as file_handle:
+                file_handle.write(html)
 
     def _create_dependency_graph(self) -> str:
         """Provides an image of dependency graph"""
