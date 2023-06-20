@@ -73,13 +73,14 @@ Self = TypeVar("Self", bound="FeatureIO")
 PatchContentType: TypeAlias = Tuple[
     Optional["FeatureIOBBox"],
     Optional["FeatureIOTimestamps"],
-    Optional["FeatureIOJson"],
+    Optional[Dict[str, Any]],
     Dict[Tuple[FeatureType, str], "FeatureIO"],
 ]
 
 
 BBOX_FILENAME = "bbox"
 TIMESTAMPS_FILENAME = "timestamps"
+BBOX_AND_TIMESTAMPS = (FeatureType.BBOX, FeatureType.TIMESTAMPS)
 
 
 @dataclass
@@ -88,7 +89,7 @@ class FilesystemDataInfo:
 
     timestamps: str | None = None
     bbox: str | None = None
-    meta_info: str | None = None
+    old_meta_info: str | None = None
     features: dict[FeatureType, dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
     def iterate_features(self) -> Iterator[tuple[tuple[FeatureType, str], str]]:
@@ -139,7 +140,7 @@ def save_eopatch(
             _remove_old_eopatch(filesystem, patch_location)
 
     filesystem.makedirs(patch_location, recreate=True)
-    folder_based_ftypes = {ftype for ftype, _ in eopatch_features if not ftype.is_meta()}
+    folder_based_ftypes = {ftype for ftype, _ in eopatch_features if ftype not in BBOX_AND_TIMESTAMPS}
     for ftype in folder_based_ftypes:
         filesystem.makedirs(fs.path.join(patch_location, ftype.value), recreate=True)
 
@@ -150,6 +151,8 @@ def save_eopatch(
         warnings.simplefilter("ignore", category=EODeprecationWarning)
         if overwrite_permission is not OverwritePermission.OVERWRITE_PATCH:
             _remove_redundant_files(filesystem, new_files, file_information)
+
+    _remove_old_style_metainfo(filesystem, patch_location, new_files, file_information)
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -176,16 +179,11 @@ def _yield_savers(
         yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
     if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
-        # if temporal selection is enabled timestamps shouldn't be saved?
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
-    if eopatch.meta_info and FeatureType.META_INFO in meta_features:
-        path = get_file_path(FeatureType.META_INFO.value)
-        yield partial(FeatureIOJson.save, eopatch.meta_info, filesystem, path, compress_level)
-
     for ftype, fname in features:
-        if ftype.is_meta():
+        if ftype in BBOX_AND_TIMESTAMPS:
             continue
         io_constructor = _get_feature_io_constructor(ftype, use_zarr)
         feature_saver = partial(
@@ -209,7 +207,7 @@ def _remove_redundant_files(
 ) -> None:
     """Removes files that should have been overwritten but were not due to different file extensions."""
     feature_paths = (path for _, ftype_dict in preexisting_files.features.items() for _, path in ftype_dict.items())
-    meta_paths = (preexisting_files.bbox, preexisting_files.meta_info, preexisting_files.timestamps)
+    meta_paths = (preexisting_files.bbox, preexisting_files.old_meta_info, preexisting_files.timestamps)
     split_paths = map(split_all_extensions, filter(None, itertools.chain(meta_paths, feature_paths)))
     old_path_extension = dict(split_paths)  # maps {path_base: file_extension}
 
@@ -229,6 +227,20 @@ def _remove_redundant_files(
         list(executor.map(_remover, files_to_remove))  # Wrapped in a list to get better exceptions
 
 
+def _remove_old_style_metainfo(
+    filesystem: FS,
+    patch_location: str,
+    new_files: list[str],
+    preexisting_files: FilesystemDataInfo,
+) -> None:
+    """If any new meta-info was saved, this removes the old-style meta-info file."""
+    if preexisting_files.old_meta_info is None:
+        return
+
+    if any(fs.path.relativefrom(patch_location, path).startswith("meta_info") for path in new_files):
+        filesystem.remove(preexisting_files.old_meta_info)
+
+
 def load_eopatch_content(
     filesystem: FS,
     patch_location: str,
@@ -237,11 +249,13 @@ def load_eopatch_content(
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
-    bbox, timestamps, meta_info = _load_meta_features(filesystem, file_information, features, temporal_selection)
+    bbox, timestamps, old_meta_info = _load_meta_features(filesystem, file_information, features, temporal_selection)
 
     features_dict: dict[tuple[FeatureType, str], FeatureIO] = {}
     for ftype, fname in FeatureParser(features).get_feature_specifications():
-        if ftype.is_meta():
+        if ftype in BBOX_AND_TIMESTAMPS:
+            continue
+        if ftype is FeatureType.META_INFO and old_meta_info is not None:  # data provided in old-style file
             continue
 
         if fname is ...:
@@ -253,7 +267,7 @@ def load_eopatch_content(
             path = file_information.features[ftype][fname]
             features_dict[(ftype, fname)] = _get_feature_io(ftype, path, filesystem, temporal_selection)
 
-    return bbox, timestamps, meta_info, features_dict
+    return bbox, timestamps, old_meta_info, features_dict
 
 
 def _get_feature_io(
@@ -271,7 +285,7 @@ def _load_meta_features(
     file_information: FilesystemDataInfo,
     features: FeaturesSpecification,
     temporal_selection: None | slice | list[int],
-) -> tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, FeatureIOJson | None]:
+) -> tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, dict[str, Any] | None]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
@@ -289,17 +303,17 @@ def _load_meta_features(
         elif features is not Ellipsis:
             raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
-    meta_info = None
+    old_meta_info = None
     if FeatureType.META_INFO in requested:
-        if file_information.meta_info is not None:
-            meta_info = FeatureIOJson(file_information.meta_info, filesystem)
-        elif any(
-            ftype == FeatureType.META_INFO and isinstance(fname, str)
-            for ftype, fname in FeatureParser(features).get_feature_specifications()
-        ):
-            raise IOError(err_msg.format(FeatureType.META_INFO))
+        msg = (
+            "Stored EOPatch contains old-style meta-info file, which will no longer be supported in the future. Please"
+            " re-save the EOPatch to correct this issue."
+        )
+        warnings.warn(msg, EODeprecationWarning, stacklevel=2)
+        if file_information.old_meta_info is not None:
+            old_meta_info = FeatureIOJson(file_information.old_meta_info, filesystem).load()
 
-    return bbox, timestamps, meta_info
+    return bbox, timestamps, old_meta_info
 
 
 def get_filesystem_data_info(
@@ -337,13 +351,12 @@ def get_filesystem_data_info(
         elif object_name == TIMESTAMPS_FILENAME:
             result.timestamps = object_path
 
-        elif object_name == FeatureType.META_INFO.value:
-            result.meta_info = object_path
+        elif object_name == FeatureType.META_INFO.value and filesystem.isfile(object_path):
+            result.old_meta_info = object_path
 
         elif FeatureType.has_value(object_name) and FeatureType(object_name) in relevant_feature_types:
             result.features[FeatureType(object_name)] = dict(walk_feature_type_folder(filesystem, object_path))
 
-    # Note: might simplify a few things if we filtered according to features here, especially loading stuff.
     return result
 
 
@@ -360,8 +373,8 @@ def walk_filesystem(
     if file_information.timestamps is not None:
         yield (FeatureType.TIMESTAMPS, ..., file_information.timestamps)
 
-    if file_information.meta_info is not None:
-        yield (FeatureType.META_INFO, ..., file_information.meta_info)
+    if file_information.old_meta_info is not None:
+        yield (FeatureType.META_INFO, ..., file_information.old_meta_info)
 
     for feature, path in file_information.iterate_features():
         yield (*feature, path)

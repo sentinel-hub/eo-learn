@@ -7,6 +7,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import sys
 import tempfile
@@ -170,6 +171,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
         (..., ...),
         ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...)]),
+        ([(FeatureType.META_INFO, ...)], [(FeatureType.META_INFO, "something")]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], ...),
     ],
 )
@@ -190,6 +192,8 @@ def test_save_load_partial(
         for feature in FeatureParser(save_features).get_features(eopatch):
             if feature in features_to_load:
                 assert feature in loaded_eopatch
+            else:
+                assert feature not in loaded_eopatch
 
 
 @mock_s3
@@ -491,7 +495,7 @@ def test_walk_filesystem_interface(fs_loader, features, eopatch, use_zarr: bool)
 
         with pytest.warns(EODeprecationWarning):
             for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
-                feature_key = ftype if ftype.is_meta() else (ftype, fname)
+                feature_key = ftype if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMPS] else (ftype, fname)
                 assert feature_key in loaded_eopatch
 
 
@@ -611,3 +615,24 @@ def test_partial_saving_fails(eopatch: EOPatch):
         with pytest.raises(ValueError):
             # temporal selection outside of saved eopatch
             eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
+
+
+@pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])
+def test_old_style_meta_info(patch_location):
+    with TempFS() as temp_fs:
+        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs)
+        meta_info = {"this": ["list"], "something": "else"}
+        with temp_fs.open(f"{patch_location}/meta_info.json", "w") as old_style_file:
+            json.dump(meta_info, old_style_file)
+
+        with pytest.warns(EODeprecationWarning):
+            loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
+        assert dict(loaded_patch.meta_info.items()) == meta_info
+
+        loaded_patch.meta_info = {"beep": "boop"}
+        loaded_patch.save(path=patch_location, filesystem=temp_fs)
+        assert not temp_fs.exists(f"{patch_location}/meta_info.json")
+        assert temp_fs.exists(f"{patch_location}/meta_info/beep.json")
+
+        loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
+        assert dict(loaded_patch.meta_info.items()) == {"beep": "boop"}
