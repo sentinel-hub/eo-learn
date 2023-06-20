@@ -171,6 +171,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
         (..., ...),
         ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...)]),
+        ([(FeatureType.META_INFO, ...)], [(FeatureType.META_INFO, "something")]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], ...),
     ],
 )
@@ -191,6 +192,8 @@ def test_save_load_partial(
         for feature in FeatureParser(save_features).get_features(eopatch):
             if feature in features_to_load:
                 assert feature in loaded_eopatch
+            else:
+                assert feature not in loaded_eopatch
 
 
 @mock_s3
