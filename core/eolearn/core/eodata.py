@@ -569,6 +569,8 @@ class EOPatch:
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
         filesystem: FS | None = None,
+        *,
+        save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
         temporal_selection: None | slice | list[int] = None,
     ) -> None:
@@ -582,6 +584,8 @@ class EOPatch:
             to 9 (highest compression).
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
+        :save_timestamps: Whether to save the timestamps of the EOPatch. By default they are saved whenever temporal
+            features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
             used for saving data in multiple steps for memory optimization.
@@ -597,6 +601,7 @@ class EOPatch:
             features=features,
             compress_level=compress_level,
             overwrite_permission=OverwritePermission(overwrite_permission),
+            save_timestamps=save_timestamps,
             use_zarr=use_zarr,
             temporal_selection=temporal_selection,
         )
@@ -607,7 +612,9 @@ class EOPatch:
         features: FeaturesSpecification = ...,
         lazy_loading: bool = False,
         filesystem: FS | None = None,
+        *,
         temporal_selection: None | slice | list[int] = None,
+        load_timestamps: bool | Literal["auto"] = "auto",
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
 
@@ -616,6 +623,8 @@ class EOPatch:
         :param lazy_loading: If `True` features will be lazy loaded.
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
+        :save_timestamps: Whether to load the timestamps of the EOPatch. By default they are loaded whenever temporal
+            features are being loaded.
         :param temporal_selection: Only loads data corresponding to the chosen indices.
         :return: Loaded EOPatch
         """
@@ -624,7 +633,7 @@ class EOPatch:
             path = "/"
 
         bbox_io, timestamps_io, old_meta_info, features_dict = load_eopatch_content(
-            filesystem, path, features=features, temporal_selection=temporal_selection
+            filesystem, path, features=features, temporal_selection=temporal_selection, load_timestamps=load_timestamps
         )
         eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 
