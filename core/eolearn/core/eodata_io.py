@@ -73,7 +73,7 @@ Self = TypeVar("Self", bound="FeatureIO")
 PatchContentType: TypeAlias = Tuple[
     Optional["FeatureIOBBox"],
     Optional["FeatureIOTimestamps"],
-    Optional["FeatureIOJson"],
+    Optional[Dict[str, Any]],
     Dict[Tuple[FeatureType, str], "FeatureIO"],
 ]
 
@@ -255,7 +255,7 @@ def load_eopatch_content(
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype in BBOX_AND_TIMESTAMPS:
             continue
-        if ftype is FeatureType.META_INFO and old_meta_info is not None:
+        if ftype is FeatureType.META_INFO and old_meta_info is not None:  # data provided in old-style file
             continue
 
         if fname is ...:
@@ -285,7 +285,7 @@ def _load_meta_features(
     file_information: FilesystemDataInfo,
     features: FeaturesSpecification,
     temporal_selection: None | slice | list[int],
-) -> tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, FeatureIOJson | None]:
+) -> tuple[FeatureIOBBox | None, FeatureIOTimestamps | None, dict[str, Any] | None]:
     requested = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch."
@@ -307,7 +307,7 @@ def _load_meta_features(
     if FeatureType.META_INFO in requested:
         msg = (
             "Stored EOPatch contains old-style meta-info file, which will no longer be supported in the future. Please"
-            " re-save the EOPatch."
+            " re-save the EOPatch to correct this issue."
         )
         warnings.warn(msg, EODeprecationWarning, stacklevel=2)
         if file_information.old_meta_info is not None:
@@ -357,7 +357,6 @@ def get_filesystem_data_info(
         elif FeatureType.has_value(object_name) and FeatureType(object_name) in relevant_feature_types:
             result.features[FeatureType(object_name)] = dict(walk_feature_type_folder(filesystem, object_path))
 
-    # Note: might simplify a few things if we filtered according to features here, especially loading stuff.
     return result
 
 

@@ -613,15 +613,15 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox_io, timestamps_io, meta_info, features_dict = load_eopatch_content(
+        bbox_io, timestamps_io, old_meta_info, features_dict = load_eopatch_content(
             filesystem, path, features=features, temporal_selection=temporal_selection
         )
         eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 
         if timestamps_io is not None:
             eopatch.timestamps = timestamps_io.load()
-        if meta_info is not None:
-            eopatch.meta_info = meta_info  # type: ignore[assignment]
+        if old_meta_info is not None:
+            eopatch.meta_info = old_meta_info
         for feature, feature_io in features_dict.items():
             eopatch[feature] = feature_io
 

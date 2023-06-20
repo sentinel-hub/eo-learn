@@ -628,7 +628,8 @@ def test_old_style_meta_info(patch_location):
 
         loaded_patch.meta_info = {"beep": "boop"}
         loaded_patch.save(path=patch_location, filesystem=temp_fs)
-        assert not temp_fs.exists("patch-folder/meta_info.json")
+        assert not temp_fs.exists(f"{patch_location}/meta_info.json")
+        assert temp_fs.exists(f"{patch_location}/meta_info/beep.json")
 
         loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
         assert dict(loaded_patch.meta_info.items()) == {"beep": "boop"}
