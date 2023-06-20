@@ -177,13 +177,8 @@ def _yield_savers(
         yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
     if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
-        # if temporal selection is enabled timestamps shouldn't be saved?
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
-
-    # if eopatch.meta_info and FeatureType.META_INFO in meta_features:
-    #     path = get_file_path(FeatureType.META_INFO.value)
-    #     yield partial(FeatureIOJson.save, eopatch.meta_info, filesystem, path, compress_level)
 
     for ftype, fname in features:
         if ftype in BBOX_AND_TIMESTAMPS:
@@ -244,6 +239,8 @@ def load_eopatch_content(
     for ftype, fname in FeatureParser(features).get_feature_specifications():
         if ftype in BBOX_AND_TIMESTAMPS:
             continue
+        if ftype is FeatureType.META_INFO and old_meta_info is not None:
+            continue
 
         if fname is ...:
             for fname, path in file_information.features.get(ftype, {}).items():
@@ -290,13 +287,13 @@ def _load_meta_features(
         elif features is not Ellipsis:
             raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
-    meta_info = None
+    old_meta_info = None
     if FeatureType.META_INFO in requested:
         warnings.warn("old style meta-info", EODeprecationWarning)  # TODO: elaborate
         if file_information.old_meta_info is not None:
-            meta_info = FeatureIOJson(file_information.old_meta_info, filesystem).load()
+            old_meta_info = FeatureIOJson(file_information.old_meta_info, filesystem).load()
 
-    return bbox, timestamps, meta_info
+    return bbox, timestamps, old_meta_info
 
 
 def get_filesystem_data_info(

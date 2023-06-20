@@ -7,6 +7,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import sys
 import tempfile
@@ -613,4 +614,13 @@ def test_partial_saving_fails(eopatch: EOPatch):
             eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
 
 
-# TODO: add test that old-style metainfo is still loaded correctly
+def test_old_style_meta_info():
+    with TempFS() as temp_fs:
+        EOPatch(bbox=DUMMY_BBOX).save(path="patch-folder", filesystem=temp_fs)
+        meta_info = {"this": ["list"], "something": "else"}
+        with temp_fs.open("patch-folder/meta_info.json", "w") as old_style_file:
+            json.dump(meta_info, old_style_file)
+
+        with pytest.warns(EODeprecationWarning):
+            loaded_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+        assert dict(loaded_patch.meta_info.items()) == meta_info
