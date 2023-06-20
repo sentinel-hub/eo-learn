@@ -88,7 +88,7 @@ class FilesystemDataInfo:
 
     timestamps: str | None = None
     bbox: str | None = None
-    meta_info: str | None = None
+    old_meta_info: str | None = None
     features: dict[FeatureType, dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
     def iterate_features(self) -> Iterator[tuple[tuple[FeatureType, str], str]]:
@@ -209,7 +209,7 @@ def _remove_redundant_files(
 ) -> None:
     """Removes files that should have been overwritten but were not due to different file extensions."""
     feature_paths = (path for _, ftype_dict in preexisting_files.features.items() for _, path in ftype_dict.items())
-    meta_paths = (preexisting_files.bbox, preexisting_files.meta_info, preexisting_files.timestamps)
+    meta_paths = (preexisting_files.bbox, preexisting_files.old_meta_info, preexisting_files.timestamps)
     split_paths = map(split_all_extensions, filter(None, itertools.chain(meta_paths, feature_paths)))
     old_path_extension = dict(split_paths)  # maps {path_base: file_extension}
 
@@ -291,8 +291,8 @@ def _load_meta_features(
 
     meta_info = None
     if FeatureType.META_INFO in requested:
-        if file_information.meta_info is not None:
-            meta_info = FeatureIOJson(file_information.meta_info, filesystem)
+        if file_information.old_meta_info is not None:
+            meta_info = FeatureIOJson(file_information.old_meta_info, filesystem)
         elif any(
             ftype == FeatureType.META_INFO and isinstance(fname, str)
             for ftype, fname in FeatureParser(features).get_feature_specifications()
@@ -337,8 +337,8 @@ def get_filesystem_data_info(
         elif object_name == TIMESTAMPS_FILENAME:
             result.timestamps = object_path
 
-        elif object_name == FeatureType.META_INFO.value:
-            result.meta_info = object_path
+        elif object_name == FeatureType.META_INFO.value and filesystem.isfile(object_path):
+            result.old_meta_info = object_path
 
         elif FeatureType.has_value(object_name) and FeatureType(object_name) in relevant_feature_types:
             result.features[FeatureType(object_name)] = dict(walk_feature_type_folder(filesystem, object_path))
@@ -360,8 +360,8 @@ def walk_filesystem(
     if file_information.timestamps is not None:
         yield (FeatureType.TIMESTAMPS, ..., file_information.timestamps)
 
-    if file_information.meta_info is not None:
-        yield (FeatureType.META_INFO, ..., file_information.meta_info)
+    if file_information.old_meta_info is not None:
+        yield (FeatureType.META_INFO, ..., file_information.old_meta_info)
 
     for feature, path in file_information.iterate_features():
         yield (*feature, path)
