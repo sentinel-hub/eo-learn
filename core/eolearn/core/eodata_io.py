@@ -251,24 +251,29 @@ def load_eopatch_content(
     patch_location: str,
     *,
     features: FeaturesSpecification,
-    load_timestamps: bool | Literal["auto"] = "auto",  # noqa: ARG001
+    load_timestamps: bool | Literal["auto"] = "auto",
     temporal_selection: None | slice | list[int],
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch at " + patch_location
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
-    requested_meta = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
+    feature_specs = FeatureParser(features).get_feature_specifications()
 
-    features_dict = _load_features(filesystem, features, temporal_selection, err_msg, file_information)
+    features_dict = _load_features(filesystem, feature_specs, temporal_selection, err_msg, file_information)
 
     bbox = None
     if file_information.bbox is not None:
         bbox = FeatureIOBBox(file_information.bbox, filesystem)
-    elif FeatureType.BBOX in requested_meta and features is not Ellipsis:
+    elif (FeatureType.BBOX, ...) in feature_specs and features is not Ellipsis:
         raise IOError(err_msg.format(FeatureType.BBOX))
 
+    if load_timestamps == "auto":
+        should_load = any(ftype.is_temporal() for ftype, _ in features_dict)
+        backwards_compatibility_load = (FeatureType.TIMESTAMPS, ...) in feature_specs
+        load_timestamps = should_load or backwards_compatibility_load
+
     timestamps = None
-    if FeatureType.TIMESTAMPS in requested_meta:
+    if load_timestamps:
         if file_information.timestamps is not None:
             timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, temporal_selection)
         elif features is not Ellipsis:
@@ -279,15 +284,13 @@ def load_eopatch_content(
 
 def _load_features(
     filesystem: FS,
-    features: FeaturesSpecification,
+    feature_specs: list[tuple[FeatureType, str | EllipsisType]],
     temporal_selection: None | slice | list[int],
     err_msg: str,
     file_information: FilesystemDataInfo,
 ) -> dict[tuple[FeatureType, str], FeatureIO]:
-    requested_meta = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
-
     features_dict = {}
-    if FeatureType.META_INFO in requested_meta and file_information.old_meta_info is not None:
+    if file_information.old_meta_info is not None and any(ftype is FeatureType.META_INFO for ftype, _ in feature_specs):
         msg = (
             "Stored EOPatch contains old-style meta-info file, which will no longer be supported in the future. Please"
             " re-save the EOPatch to correct this issue."
@@ -296,7 +299,7 @@ def _load_features(
         old_meta: dict[str, Any] = FeatureIOJson(file_information.old_meta_info, filesystem).load()
         features_dict = {(FeatureType.META_INFO, name): value for name, value in old_meta.items()}
 
-    for ftype, fname in FeatureParser(features).get_feature_specifications():
+    for ftype, fname in feature_specs:
         if ftype in BBOX_AND_TIMESTAMPS:
             continue
         if ftype is FeatureType.META_INFO and (ftype, fname) in features_dict:  # data provided in old-style file

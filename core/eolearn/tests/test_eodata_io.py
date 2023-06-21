@@ -170,10 +170,11 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
     [
         (..., ...),
         ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
-        ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...)]),
+        ([(FeatureType.DATA, "data"), FeatureType.MASK_TIMELESS], [(FeatureType.DATA, ...)]),
         ([(FeatureType.META_INFO, ...)], [(FeatureType.META_INFO, "something")]),
         ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], ...),
     ],
+    ids=str,
 )
 def test_save_load_partial(
     eopatch: EOPatch,
