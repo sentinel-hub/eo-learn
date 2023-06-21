@@ -177,7 +177,7 @@ def _yield_savers(
         bbox: BBox = eopatch.bbox  # mypy has problems
         yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
-    if eopatch.timestamps and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
+    if eopatch.timestamps is not None and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
