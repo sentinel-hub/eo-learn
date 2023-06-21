@@ -105,7 +105,7 @@ def save_eopatch(
     patch_location: str,
     *,
     features: FeaturesSpecification,
-    save_timestamps: bool | Literal["auto"] = "auto",  # noqa: ARG001
+    save_timestamps: bool | Literal["auto"] = "auto",
     overwrite_permission: OverwritePermission,
     compress_level: int,
     use_zarr: bool,
@@ -122,6 +122,9 @@ def save_eopatch(
 
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
+    if save_timestamps == "auto":
+        save_timestamps = any(ftype.is_temporal() for ftype, _ in eopatch_features)
+
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = list(
         _yield_savers(
@@ -131,6 +134,7 @@ def save_eopatch(
             filesystem=filesystem,
             use_zarr=use_zarr,
             compress_level=compress_level,
+            save_timestamps=save_timestamps,
             temporal_selection=temporal_selection,
         )
     )
@@ -168,18 +172,18 @@ def _yield_savers(
     patch_location: str,
     filesystem: FS,
     compress_level: int,
+    save_timestamps: bool,
     use_zarr: bool,
     temporal_selection: None | slice | list[int] = None,
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
-    meta_features = {ftype for ftype, _ in features if ftype.is_meta()}
 
     if eopatch.bbox is not None:  # remove after BBox is never None
         bbox: BBox = eopatch.bbox  # mypy has problems
         yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
 
-    if eopatch.timestamps is not None and FeatureType.TIMESTAMPS in meta_features and temporal_selection is None:
+    if eopatch.timestamps is not None and save_timestamps:
         path = get_file_path(TIMESTAMPS_FILENAME)
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
