@@ -222,7 +222,7 @@ class EOPatch:
     """
 
     # establish types of property value holders
-    _timestamps: list[dt.datetime]
+    _timestamps: list[dt.datetime] | None
     _bbox: BBox | None
 
     def __init__(
@@ -264,10 +264,10 @@ class EOPatch:
         )
         self.meta_info: MutableMapping[str, Any] = _FeatureDictJson(meta_info or {}, FeatureType.META_INFO)
         self.bbox = bbox
-        self.timestamps = timestamps or []
+        self.timestamps = timestamps
 
     @property
-    def timestamp(self) -> list[dt.datetime]:
+    def timestamp(self) -> list[dt.datetime] | None:
         """A property for handling the deprecated timestamp attribute."""
         warn(TIMESTAMP_RENAME_WARNING, category=EODeprecationWarning, stacklevel=2)
         return self.timestamps
@@ -278,16 +278,26 @@ class EOPatch:
         self.timestamps = value
 
     @property
-    def timestamps(self) -> list[dt.datetime]:
+    def timestamps(self) -> list[dt.datetime] | None:
         """A property for handling the `timestamps` attribute."""
         return self._timestamps
 
     @timestamps.setter
-    def timestamps(self, value: Iterable[dt.datetime]) -> None:
-        if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
+    def timestamps(self, value: Iterable[dt.datetime] | None) -> None:
+        if value is None:
+            self._timestamps = None
+        elif isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
             self._timestamps = [parse_time(time, force_datetime=True) for time in value]
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
+
+    def get_timestamps(
+        self, message_on_failure: str = "This EOPatch does not contain timestamps."
+    ) -> list[dt.datetime]:
+        """Returns the `timestamps` attribute if the EOPatch is temporally defined. Fails otherwise."""
+        if self._timestamps is None:
+            raise RuntimeError(message_on_failure)
+        return self._timestamps
 
     @property
     def bbox(self) -> BBox | None:
@@ -362,7 +372,7 @@ class EOPatch:
         if feature_type == FeatureType.BBOX:
             raise ValueError("The BBox of an EOPatch should never be undefined.")
         if feature_type == FeatureType.TIMESTAMPS:
-            self[feature_type] = []
+            self[feature_type] = None
         else:
             self[feature_type] = {}
 
@@ -674,10 +684,11 @@ class EOPatch:
         :param timestamps: keep frames with date found in this list
         :return: set of removed frames' dates
         """
-        remove_from_patch = set(self.timestamps).difference(timestamps)
-        remove_from_patch_idxs = [self.timestamps.index(rm_date) for rm_date in remove_from_patch]
-        good_timestamp_idxs = [idx for idx, _ in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
-        good_timestamps = [date for idx, date in enumerate(self.timestamps) if idx not in remove_from_patch_idxs]
+        old_timestamps = self.get_timestamps()
+        remove_from_patch = set(old_timestamps).difference(timestamps)
+        remove_from_patch_idxs = [old_timestamps.index(rm_date) for rm_date in remove_from_patch]
+        good_timestamp_idxs = [idx for idx, _ in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
+        good_timestamps = [date for idx, date in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
 
         for ftype in FeatureType:
             if ftype.is_timeless() or ftype.is_meta() or ftype.is_vector():

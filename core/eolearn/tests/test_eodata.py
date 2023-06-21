@@ -264,7 +264,7 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
     eopatch_copy = test_eopatch.copy(features=[feature])
     assert test_eopatch != eopatch_copy
     assert eopatch_copy[feature] is test_eopatch[feature]
-    assert eopatch_copy.timestamps == []
+    assert eopatch_copy.timestamps is None
 
 
 @pytest.mark.parametrize(

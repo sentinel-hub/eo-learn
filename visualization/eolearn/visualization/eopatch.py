@@ -157,7 +157,7 @@ class MatplotlibVisualization:
             return self._plot_bar(data, title=feature_name)
         return self._plot_time_series(data, timestamps=timestamps, title=feature_name)
 
-    def collect_and_prepare_feature(self, eopatch: EOPatch) -> tuple[Any, list[dt.datetime]]:
+    def collect_and_prepare_feature(self, eopatch: EOPatch) -> tuple[Any, list[dt.datetime] | None]:
         """Collects a feature from EOPatch and modifies it according to plotting parameters"""
         feature_type, _ = self.feature
         data = eopatch[self.feature]

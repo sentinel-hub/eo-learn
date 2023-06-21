@@ -84,7 +84,7 @@ class SimpleFilterTask(EOTask):
                 if feature_type.is_array():
                     data = data[good_idxs]
                 else:
-                    data = self._filter_vector_feature(data, good_idxs, eopatch.timestamps)
+                    data = self._filter_vector_feature(data, good_idxs, eopatch.get_timestamps())
 
             filtered_eopatch[feature] = data
 

@@ -384,8 +384,8 @@ class InterpolationTask(EOTask):
 
         # Resample times
         times = self._get_eopatch_time_series(eopatch, scale_time=self.scale_time)
-        new_eopatch.timestamps = self.get_resampled_timestamp(eopatch.timestamps)
-        total_diff = int((new_eopatch.timestamps[0].date() - eopatch.timestamps[0].date()).total_seconds())
+        new_eopatch.timestamps = self.get_resampled_timestamp(eopatch.get_timestamps())
+        total_diff = int((new_eopatch.get_timestamps()[0].date() - eopatch.get_timestamps()[0].date()).total_seconds())
         resampled_times = (
             self._get_eopatch_time_series(new_eopatch, scale_time=self.scale_time) + total_diff // self.scale_time
         )
