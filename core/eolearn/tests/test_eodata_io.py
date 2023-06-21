@@ -254,6 +254,29 @@ def test_save_timestamps(eopatch, fs_loader, save_timestamps, features, should_s
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize(
+    ("load_timestamps", "features", "should_load"),
+    [
+        ("auto", ..., True),
+        ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
+        ("auto", [(FeatureType.DATA, ...)], True),
+        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
+        (False, [(FeatureType.DATA, ...)], False),
+        (True, [(FeatureType.DATA, ...)], True),
+        (True, [], True),
+        (True, {FeatureType.MASK_TIMELESS: ...}, True),
+    ],
+    ids=str,
+)
+def test_load_timestamps(eopatch, fs_loader, load_timestamps, features, should_load):
+    with fs_loader() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs)
+        loaded_patch = EOPatch.load("/", filesystem=temp_fs, features=features, load_timestamps=load_timestamps)
+        assert (loaded_patch.timestamps is not None) == should_load
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_temporally_empty_patch_io(fs_loader, use_zarr: bool):
     _skip_when_appropriate(fs_loader, use_zarr)
