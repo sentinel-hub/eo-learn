@@ -233,6 +233,17 @@ def test_bbox_always_saved(eopatch, fs_loader, use_zarr: bool):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
+def test_temporally_empty_patch_io(fs_loader, use_zarr: bool):
+    _skip_when_appropriate(fs_loader, use_zarr)
+    eopatch = EOPatch(bbox=DUMMY_BBOX, data={"data": np.ones((0, 1, 2, 3))}, timestamps=[])
+    with fs_loader() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
+        assert eopatch == EOPatch.load("/", filesystem=temp_fs)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
 def test_overwrite_failure(fs_loader, use_zarr: bool):
     _skip_when_appropriate(fs_loader, use_zarr)
