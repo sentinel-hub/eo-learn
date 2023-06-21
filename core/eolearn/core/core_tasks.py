@@ -22,7 +22,7 @@ from .constants import FeatureType, OverwritePermission
 from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
-from .types import FeatureSpec, FeaturesSpecification, SingleFeatureSpec
+from .types import EllipsisType, FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
@@ -90,7 +90,9 @@ class SaveTask(IOTask):
         features: FeaturesSpecification = ...,
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
+        *,
         use_zarr: bool = False,
+        temporal_selection: None | slice | list[int] = None,
     ):
         """
         :param path: root path where all EOPatches are saved
@@ -103,21 +105,33 @@ class SaveTask(IOTask):
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
+        :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
+            used for saving data in multiple steps for memory optimization.
         """
         self.features = features
         self.overwrite_permission = overwrite_permission
         self.compress_level = compress_level
         self.use_zarr = use_zarr
+        self.temporal_selection = temporal_selection
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
-    def execute(self, eopatch: EOPatch, *, eopatch_folder: str = "") -> EOPatch:
+    def execute(
+        self,
+        eopatch: EOPatch,
+        *,
+        eopatch_folder: str = "",
+        temporal_selection: None | slice | list[int] | EllipsisType = ...,
+    ) -> EOPatch:
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
         :param eopatch: EOPatch which will be saved
         :param eopatch_folder: Name of EOPatch folder containing data.
+        :param temporal_selection: Overrides the `temporal_selection` parameter of task.
         :return: The same EOPatch
         """
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
+        temporal_selection = self.temporal_selection if temporal_selection is ... else temporal_selection
+
         eopatch.save(
             path,
             filesystem=self.filesystem,
@@ -125,6 +139,7 @@ class SaveTask(IOTask):
             overwrite_permission=self.overwrite_permission,
             compress_level=self.compress_level,
             use_zarr=self.use_zarr,
+            temporal_selection=temporal_selection,
         )
         return eopatch
 
@@ -139,6 +154,7 @@ class LoadTask(IOTask):
         config: SHConfig | None = None,
         features: FeaturesSpecification = ...,
         lazy_loading: bool = False,
+        temporal_selection: None | slice | list[int] = None,
     ):
         """
         :param path: root directory where all EOPatches are saved
@@ -148,22 +164,36 @@ class LoadTask(IOTask):
             default configuration will be taken.
         :param features: A collection of features to be loaded. By default, all features will be loaded.
         :param lazy_loading: If `True` features will be lazy loaded.
+        :param temporal_selection: Only loads data corresponding to the chosen indices.
         """
         self.features = features
         self.lazy_loading = lazy_loading
+        self.temporal_selection = temporal_selection
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
-    def execute(self, eopatch: EOPatch | None = None, *, eopatch_folder: str = "") -> EOPatch:
+    def execute(
+        self,
+        eopatch: EOPatch | None = None,
+        *,
+        eopatch_folder: str = "",
+        temporal_selection: None | slice | list[int] | EllipsisType = ...,
+    ) -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 
         :param eopatch: Optional input EOPatch. If given the loaded features are merged onto it, otherwise a new EOPatch
             is created.
         :param eopatch_folder: Name of EOPatch folder containing data.
+        :param temporal_selection: Overrides the `temporal_selection` parameter of task.
         :return: EOPatch loaded from disk
         """
         path = fs.path.combine(self.filesystem_path, eopatch_folder)
+        temporal_selection = self.temporal_selection if temporal_selection is ... else temporal_selection
         loaded_patch = EOPatch.load(
-            path, filesystem=self.filesystem, features=self.features, lazy_loading=self.lazy_loading
+            path,
+            filesystem=self.filesystem,
+            features=self.features,
+            lazy_loading=self.lazy_loading,
+            temporal_selection=temporal_selection,
         )
         return loaded_patch if eopatch is None else merge_eopatches(eopatch, loaded_patch)
 

@@ -569,6 +569,7 @@ class EOPatch:
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
         filesystem: FS | None = None,
+        *,
         use_zarr: bool = False,
         temporal_selection: None | slice | list[int] = None,
     ) -> None:
@@ -607,6 +608,7 @@ class EOPatch:
         features: FeaturesSpecification = ...,
         lazy_loading: bool = False,
         filesystem: FS | None = None,
+        *,
         temporal_selection: None | slice | list[int] = None,
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
@@ -623,15 +625,13 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox_io, timestamps_io, old_meta_info, features_dict = load_eopatch_content(
+        bbox_io, timestamps_io, features_dict = load_eopatch_content(
             filesystem, path, features=features, temporal_selection=temporal_selection
         )
         eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 
         if timestamps_io is not None:
             eopatch.timestamps = timestamps_io.load()
-        if old_meta_info is not None:
-            eopatch.meta_info = old_meta_info
         for feature, feature_io in features_dict.items():
             eopatch[feature] = feature_io
 
