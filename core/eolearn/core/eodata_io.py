@@ -30,6 +30,7 @@ from typing import (
     Generic,
     Iterator,
     List,
+    Literal,
     Mapping,
     MutableMapping,
     Optional,
@@ -104,6 +105,7 @@ def save_eopatch(
     patch_location: str,
     *,
     features: FeaturesSpecification,
+    save_timestamps: bool | Literal["auto"] = "auto",  # noqa: ARG001
     overwrite_permission: OverwritePermission,
     compress_level: int,
     use_zarr: bool,
@@ -243,7 +245,9 @@ def _remove_old_style_metainfo(
 def load_eopatch_content(
     filesystem: FS,
     patch_location: str,
+    *,
     features: FeaturesSpecification,
+    load_timestamps: bool | Literal["auto"] = "auto",  # noqa: ARG001
     temporal_selection: None | slice | list[int],
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
