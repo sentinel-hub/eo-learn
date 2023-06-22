@@ -23,6 +23,7 @@ from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
+DUMMY_TIMESTAMP = ["2017-03-21"]
 # ruff: noqa: NPY002, SLF001
 
 
@@ -39,7 +40,7 @@ def mini_eopatch_fixture() -> EOPatch:
 
 
 def test_numpy_feature_types() -> None:
-    eop = EOPatch(bbox=DUMMY_BBOX)
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
 
     data_examples = []
     for size in range(6):
@@ -145,7 +146,7 @@ def test_repr_no_crs(test_eopatch: EOPatch) -> None:
 def test_add_feature() -> None:
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
 
-    eop = EOPatch(bbox=DUMMY_BBOX)
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
     eop.data["bands"] = bands
 
     assert np.array_equal(eop.data["bands"], bands), "Data numpy array not stored"
@@ -154,7 +155,7 @@ def test_add_feature() -> None:
 def test_simplified_feature_operations() -> None:
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     feature = FeatureType.DATA, "TEST-BANDS"
-    eop = EOPatch(bbox=DUMMY_BBOX)
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
 
     eop[feature] = bands
     assert np.array_equal(eop[feature], bands), "Data numpy array not stored"
@@ -167,7 +168,6 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.MASK, "C"),
         (FeatureType.MASK_TIMELESS, "E"),
         (FeatureType.META_INFO, "beep"),
-        (FeatureType.TIMESTAMPS, None),
     ],
 )
 def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: EOPatch) -> None:
@@ -181,7 +181,7 @@ def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: E
             assert_feature_data_equal(mini_eopatch[feature], old[feature])
 
 
-@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.TIMESTAMPS])
+@pytest.mark.parametrize("feature_type", [FeatureType.DATA, FeatureType.META_INFO])
 def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
@@ -280,21 +280,22 @@ def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None
     assert ftype in test_eopatch
     assert (ftype, fname) in test_eopatch
 
-    if ftype == FeatureType.BBOX:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", EODeprecationWarning)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", (EODeprecationWarning, RuntimeWarning))
+        if ftype == FeatureType.BBOX:
             test_eopatch.bbox = None
-    elif ftype == FeatureType.TIMESTAMPS:
-        test_eopatch.timestamps = []
-    else:
-        del test_eopatch[ftype, fname]
+        elif ftype == FeatureType.TIMESTAMPS:
+            test_eopatch.timestamps = []
+        else:
+            del test_eopatch[ftype, fname]
 
     assert (ftype, fname) not in test_eopatch
 
 
 def test_equals() -> None:
-    eop1 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
-    eop2 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
+    patch_def = dict(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
+    eop1 = EOPatch(**patch_def, data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
+    eop2 = EOPatch(**patch_def, data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     assert eop1 == eop2
     assert eop1.data == eop2.data
 
@@ -322,8 +323,8 @@ def test_equals() -> None:
 
 @pytest.fixture(name="eopatch_spatial_dim")
 def eopatch_spatial_dim_fixture() -> EOPatch:
-    patch = EOPatch(bbox=DUMMY_BBOX)
-    patch.data["A"] = np.zeros((1, 2, 3, 4))
+    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 4)
+    patch.data["A"] = np.zeros((4, 2, 3, 4))
     patch.mask["B"] = np.ones((4, 3, 2, 1), dtype=np.uint8)
     patch.mask_timeless["C"] = np.zeros((4, 5, 1), dtype=np.uint8)
     return patch
