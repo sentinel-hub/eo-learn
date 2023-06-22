@@ -9,6 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import copy
+import datetime as dt
 from abc import ABCMeta
 from typing import Any, Callable, Iterable, Tuple, Union, cast
 
@@ -154,7 +155,7 @@ class LoadTask(IOTask):
         config: SHConfig | None = None,
         features: FeaturesSpecification = ...,
         lazy_loading: bool = False,
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] = None,
     ):
         """
         :param path: root directory where all EOPatches are saved
@@ -164,7 +165,8 @@ class LoadTask(IOTask):
             default configuration will be taken.
         :param features: A collection of features to be loaded. By default, all features will be loaded.
         :param lazy_loading: If `True` features will be lazy loaded.
-        :param temporal_selection: Only loads data corresponding to the chosen indices.
+        :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
+            given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         """
         self.features = features
         self.lazy_loading = lazy_loading
@@ -176,7 +178,7 @@ class LoadTask(IOTask):
         eopatch: EOPatch | None = None,
         *,
         eopatch_folder: str = "",
-        temporal_selection: None | slice | list[int] | EllipsisType = ...,
+        temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] | EllipsisType = ...,
     ) -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 

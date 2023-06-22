@@ -609,7 +609,7 @@ class EOPatch:
         lazy_loading: bool = False,
         filesystem: FS | None = None,
         *,
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] = None,
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
 
@@ -618,7 +618,8 @@ class EOPatch:
         :param lazy_loading: If `True` features will be lazy loaded.
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :param temporal_selection: Only loads data corresponding to the chosen indices.
+        :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
+            given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         :return: Loaded EOPatch
         """
         if filesystem is None:
