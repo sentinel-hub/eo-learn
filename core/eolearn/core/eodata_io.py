@@ -244,14 +244,23 @@ def load_eopatch_content(
     filesystem: FS,
     patch_location: str,
     features: FeaturesSpecification,
-    temporal_selection: None | slice | list[int],
+    temporal_selection: None | slice | list[int] | Callable[[list[datetime.datetime]], list[bool]],
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch at " + patch_location
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     requested_meta = {ftype for ftype, _ in FeatureParser(features).get_feature_specifications() if ftype.is_meta()}
 
-    features_dict = _load_features(filesystem, features, temporal_selection, err_msg, file_information)
+    # adjust temporal selection if callable is provided
+    if not callable(temporal_selection):
+        selection: None | slice | list[int] | list[bool] = temporal_selection
+    elif file_information.timestamps is None:
+        raise IOError(f"Cannot perform loading temporal selection, EOPatch at {patch_location} has no timestamps.")
+    else:
+        full_timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem).load()
+        selection = temporal_selection(full_timestamps)
+
+    features_dict = _load_features(filesystem, features, selection, err_msg, file_information)
 
     bbox = None
     if file_information.bbox is not None:
@@ -262,7 +271,7 @@ def load_eopatch_content(
     timestamps = None
     if FeatureType.TIMESTAMPS in requested_meta:
         if file_information.timestamps is not None:
-            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, temporal_selection)
+            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, selection)
         elif features is not Ellipsis:
             raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
@@ -272,7 +281,7 @@ def load_eopatch_content(
 def _load_features(
     filesystem: FS,
     features: FeaturesSpecification,
-    temporal_selection: None | slice | list[int],
+    temporal_selection: None | slice | list[int] | list[bool],
     err_msg: str,
     file_information: FilesystemDataInfo,
 ) -> dict[tuple[FeatureType, str], FeatureIO]:
