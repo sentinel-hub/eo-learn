@@ -18,7 +18,7 @@ from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
-from eolearn.core.exceptions import EODeprecationWarning
+from eolearn.core.exceptions import EODeprecationWarning, TemporalDimensionWarning
 from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
@@ -295,7 +295,10 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
     ids=str,
 )
 def test_copy_timestamps(test_eopatch: EOPatch, deep, copy_timestamps, features, should_copy):
-    eopatch_copy = test_eopatch.copy(features=features, deep=deep, copy_timestamps=copy_timestamps)
+    with warnings.catch_warnings():
+        if not copy_timestamps:
+            warnings.simplefilter("ignore", TemporalDimensionWarning)  # produces temporally ill defined patch
+        eopatch_copy = test_eopatch.copy(features=features, deep=deep, copy_timestamps=copy_timestamps)
     assert (eopatch_copy.timestamps is not None) == should_copy
 
 
@@ -313,7 +316,7 @@ def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None
     assert (ftype, fname) in test_eopatch
 
     with warnings.catch_warnings():
-        warnings.simplefilter("ignore", (EODeprecationWarning, RuntimeWarning))
+        warnings.simplefilter("ignore", (EODeprecationWarning, TemporalDimensionWarning))
         if ftype == FeatureType.BBOX:
             test_eopatch.bbox = None
         elif ftype == FeatureType.TIMESTAMPS:
@@ -485,30 +488,30 @@ def test_temporal_warnings():
         EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS, data={"beep": np.ones((2, 3, 4, 5))})
 
     # missmatch in init
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMPS, data={"beep": np.ones((2, 3, 4, 5))})
 
     # no timestamps in init
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         EOPatch(bbox=DUMMY_BBOX, data={"beep": np.ones((2, 3, 4, 5))})
 
     # setting to eopatch without timestamps
     patch = EOPatch(bbox=DUMMY_BBOX)
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         patch.data = {"beep": np.ones((2, 3, 4, 5))}
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         patch[FeatureType.MASK, "boop"] = np.ones((2, 3, 4, 5), dtype=int)
 
     # setting features with wrong dim
     patch = EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMPS)
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         patch.data = {"beep": np.ones((2, 3, 4, 5))}
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         patch[FeatureType.MASK, "boop"] = np.ones((2, 3, 4, 5), dtype=int)
 
     # switching timestamps to wrong dim
     patch = EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS, data={"beep": np.ones((2, 3, 4, 5))})
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(TemporalDimensionWarning):
         patch.timestamps = 3 * DUMMY_TIMESTAMPS
 
     # switching timestamps to wrong dim but no temporal features is OK

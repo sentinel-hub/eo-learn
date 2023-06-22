@@ -80,7 +80,7 @@ def test_copy(task: type[CopyTask], patch: EOPatch) -> None:
     patch_copy.data["bands"][0, 0, 0, 0] += 1
     assert (patch_copy != patch) if task == DeepCopyTask else (patch_copy == patch)
 
-    patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
+    patch_copy.data["new"] = np.ones((len(patch_copy.get_timestamps()), 1, 1, 1))
     assert "new" not in patch.data
 
 
@@ -153,9 +153,7 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
 
-@pytest.mark.parametrize(
-    "features", [(FeatureType.DATA, "bands"), [FeatureType.TIMESTAMPS, FeatureType.DATA, (FeatureType.MASK, "CLM")]]
-)
+@pytest.mark.parametrize("features", [(FeatureType.DATA, "bands"), [FeatureType.DATA, (FeatureType.MASK, "CLM")]])
 def test_remove_feature(features: FeaturesSpecification, patch: EOPatch) -> None:
     original_patch = copy.deepcopy(patch)
     features_to_remove = parse_features(features, patch)
@@ -451,8 +449,12 @@ def test_extract_bands_fails(eopatch_to_explode: EOPatch) -> None:
     "features",
     [
         {"bbox": DUMMY_BBOX},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}, "bbox": DUMMY_BBOX},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
+        {"data_timeless": {"bands_min": np.arange(0, 32).reshape(4, 4, 2)}, "bbox": DUMMY_BBOX},
+        {
+            "data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))},
+            "bbox": DUMMY_BBOX,
+            "timestamps": ["2015-01-03"],
+        },
     ],
 )
 def test_create_eopatch(features: dict[str, Any]) -> None:

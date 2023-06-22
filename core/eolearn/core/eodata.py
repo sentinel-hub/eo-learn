@@ -39,7 +39,7 @@ from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
-from .exceptions import EODeprecationWarning
+from .exceptions import EODeprecationWarning, TemporalDimensionWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
@@ -175,13 +175,13 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
                     f"Adding temporal feature {(self.feature_type, feature_name)} to EOPatch without a temporal"
                     " definition (no timestamps)."
                 )
-                warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
+                warnings.warn(msg, category=TemporalDimensionWarning, stacklevel=4)
             elif self._temporal_dim != value.shape[0]:
                 msg = (
                     f"Missmatch in temporal dimensions when adding {(self.feature_type, feature_name)}: EOPatch has"
                     f" {self._temporal_dim} timestamps while the value has a temporal size of {value.shape[0]}."
                 )
-                warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
+                warnings.warn(msg, category=TemporalDimensionWarning, stacklevel=4)
 
         if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
             raise ValueError(
@@ -197,7 +197,7 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
             if self._content:
                 warnings.warn(
                     f"EOPatch does not have timestamps, but has temporal features of type {self.feature_type}.",
-                    category=RuntimeWarning,
+                    category=TemporalDimensionWarning,
                     stacklevel=4,
                 )
             return
@@ -208,7 +208,7 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
                     f"Missmatch in temporal dimensions. The EOPatch has {self._temporal_dim} timestamps while"
                     f" {(self.feature_type, feature_name)} has a temporal size of {value.shape[0]}."
                 )
-                warnings.warn(msg, category=RuntimeWarning, stacklevel=4)
+                warnings.warn(msg, category=TemporalDimensionWarning, stacklevel=4)
 
 
 class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
@@ -773,7 +773,7 @@ class EOPatch:
         good_timestamps = [date for idx, date in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
 
         with warnings.catch_warnings():  # catch all temporal dimension related warnings
-            warnings.simplefilter("ignore", category=RuntimeWarning)
+            warnings.simplefilter("ignore", category=TemporalDimensionWarning)
             self.timestamps = good_timestamps
 
         for ftype in FeatureType:

@@ -23,6 +23,10 @@ class EORuntimeWarning(RuntimeWarning):
     """A custom runtime warning for eo-learn package."""
 
 
+class TemporalDimensionWarning(RuntimeWarning):
+    """A custom runtime warning for cases where EOPatches are temporally ill defined."""
+
+
 warnings.simplefilter("default", EODeprecationWarning)
 warnings.simplefilter("default", EOUserWarning)
 warnings.simplefilter("always", EORuntimeWarning)
