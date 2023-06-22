@@ -53,7 +53,8 @@ class OutputTask(EOTask):
     def execute(self, data: object) -> object:
         """
         :param data: input data
-        :return: Same data, to be stored in results (for `EOPatch` returns shallow copy containing only `features`)
+        :return: Same data, to be stored in results. For `EOPatch` returns shallow copy containing `features` and
+            possibly BBox and timestamps (see `copy` method of `EOPatch`).
         """
         if isinstance(data, EOPatch):
             return data.copy(features=self.features)
