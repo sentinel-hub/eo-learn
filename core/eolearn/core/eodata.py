@@ -13,6 +13,7 @@ import contextlib
 import copy
 import datetime as dt
 import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from typing import (
     TYPE_CHECKING,
@@ -143,6 +144,10 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
 class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
     """_FeatureDict object specialized for Numpy arrays."""
 
+    def __init__(self, feature_dict: Mapping[str, np.ndarray | FeatureIO[np.ndarray]], feature_type: FeatureType):
+        self._temporal_dim: int | None = None
+        super().__init__(feature_dict, feature_type)
+
     def _parse_feature_value(self, value: object, feature_name: str) -> np.ndarray:
         if not isinstance(value, np.ndarray):
             raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
@@ -154,6 +159,20 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
                 f"dimension{'s' if expected_ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
             )
 
+        if self.feature_type.is_temporal():
+            if self._temporal_dim is None:
+                msg = (
+                    f"Adding temporal feature {(self.feature_type, feature_name)} to EOPatch without a temporal"
+                    " definition (no timestamps)."
+                )
+                warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
+            elif self._temporal_dim != value.shape[0]:
+                msg = (
+                    f"Missmatch in temporal dimensions when adding {(self.feature_type, feature_name)}: EOPatch has"
+                    f" {self._temporal_dim} timestamps while the value has a temporal size of {value.shape[0]}."
+                )
+                warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
+
         if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
             raise ValueError(
                 f"{self.feature_type} is a discrete feature type therefore dtype of data array "
@@ -161,6 +180,25 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
             )
 
         return value
+
+    def _update_temporal_dim(self, new_value: int | None) -> None:
+        self._temporal_dim = new_value
+        if self._temporal_dim is None:
+            if self._content:
+                warnings.warn(
+                    f"EOPatch no longer has timestamps, but has temporal features of type {self.feature_type}.",
+                    category=RuntimeWarning,
+                    stacklevel=2,
+                )
+            return
+
+        for feature_name, value in self._content.items():
+            if not isinstance(value, FeatureIO) and value.shape[0] != self._temporal_dim:
+                msg = (
+                    f"Missmatch in temporal dimensions. The EOPatch has {self._temporal_dim} timestamps while"
+                    f" {(self.feature_type, feature_name)} has a temporal size of {value.shape[0]}."
+                )
+                warnings.warn(msg, category=RuntimeWarning, stacklevel=2)
 
 
 class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
@@ -290,6 +328,11 @@ class EOPatch:
             self._timestamps = [parse_time(time, force_datetime=True) for time in value]
         else:
             raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
+
+        temporal_dim = len(self._timestamps) if self._timestamps is not None else None
+        for ftype in FeatureType:
+            if ftype.is_temporal() and ftype.is_array():
+                self[ftype]._update_temporal_dim(temporal_dim)  # noqa: SLF001 # pylint: disable=protected-access
 
     def get_timestamps(
         self, message_on_failure: str = "This EOPatch does not contain timestamps."
