@@ -121,9 +121,21 @@ def test_timestamps_invalid_feature_type(invalid_timestamps: Any) -> None:
 
 
 def test_invalid_characters():
+    with pytest.raises(ValueError):
+        EOPatch(bbox=DUMMY_BBOX, mask={"mask.npy": np.arange(3 * 3 * 2).reshape(3, 3, 2)})
+
     eop = EOPatch(bbox=DUMMY_BBOX)
     with pytest.raises(ValueError):
         eop.data_timeless["mask.npy"] = np.arange(3 * 3 * 2).reshape(3, 3, 2)
+
+
+def test_invalid_ndim():
+    with pytest.raises(ValueError):
+        EOPatch(bbox=DUMMY_BBOX, mask_timeless={"A": np.ones((2, 4))})
+
+    eop = EOPatch(bbox=DUMMY_BBOX)
+    with pytest.raises(ValueError):
+        eop.mask_timeless["A"] = np.ones((2, 4))
 
 
 def test_repr(test_eopatch_path: str) -> None:
@@ -440,3 +452,32 @@ def test_bbox_none_deprecation():
         eop.bbox = None
 
     assert eop.bbox is None
+
+
+def test_temporal_warnings():
+    # assert no warnings for correct patches
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+
+        EOPatch(bbox=DUMMY_BBOX)
+        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMP)
+        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMP, data_timeless={"beep": np.ones((3, 4, 5))})
+        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMP, data={"beep": np.ones((2, 3, 4, 5))})
+
+    with pytest.warns(RuntimeWarning):
+        EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMP, data={"beep": np.ones((2, 3, 4, 5))})
+
+    with pytest.warns(RuntimeWarning):
+        EOPatch(bbox=DUMMY_BBOX, data={"beep": np.ones((2, 3, 4, 5))})
+
+    patch = EOPatch(bbox=DUMMY_BBOX)
+    with pytest.warns(RuntimeWarning):
+        patch.data = {"beep": np.ones((2, 3, 4, 5))}
+    with pytest.warns(RuntimeWarning):
+        patch[FeatureType.MASK, "boop"] = np.ones((2, 3, 4, 5), dtype=int)
+
+    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMP)
+    with pytest.warns(RuntimeWarning):
+        patch.data = {"beep": np.ones((2, 3, 4, 5))}
+    with pytest.warns(RuntimeWarning):
+        patch[FeatureType.MASK, "boop"] = np.ones((2, 3, 4, 5), dtype=int)

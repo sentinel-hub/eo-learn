@@ -129,7 +129,7 @@ def test_io_task_pickling(filesystem: FS, task_class: type[EOTask]) -> None:
 @pytest.mark.parametrize(
     ("feature", "feature_data"),
     [
-        ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
+        ((FeatureType.MASK_TIMELESS, "CLOUD MASK"), np.arange(10).reshape(2, 5, 1)),
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
         ((FeatureType.TIMESTAMPS, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
