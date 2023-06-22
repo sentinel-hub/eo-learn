@@ -30,14 +30,14 @@ def test_input_task():
 
 def test_output_task(test_eopatch):
     """Tests basic functionalities of OutputTask"""
-    task = OutputTask(name="my-task", features=[FeatureType.BBOX, (FeatureType.DATA, "NDVI")])
+    task = OutputTask(name="my-task", features=[(FeatureType.DATA, "NDVI")])
 
     assert task.name == "my-task"
 
     new_eopatch = task.execute(test_eopatch)
     assert id(new_eopatch) != id(test_eopatch)
 
-    assert len(new_eopatch.get_features()) == 2
+    assert len(new_eopatch.get_features()) == 3
     assert new_eopatch.bbox == test_eopatch.bbox
 
 

@@ -276,7 +276,27 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
     eopatch_copy = test_eopatch.copy(features=[feature])
     assert test_eopatch != eopatch_copy
     assert eopatch_copy[feature] is test_eopatch[feature]
-    assert eopatch_copy.timestamps is None
+    assert len(eopatch_copy.data) == 0
+
+
+@pytest.mark.parametrize("deep", [True, False])
+@pytest.mark.parametrize(
+    ("copy_timestamps", "features", "should_copy"),
+    [
+        ("auto", ..., True),
+        ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
+        ("auto", [(FeatureType.DATA, ...)], True),
+        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
+        (False, [(FeatureType.DATA, ...)], False),
+        (True, [(FeatureType.DATA, ...)], True),
+        (True, [], True),
+        (True, {FeatureType.MASK_TIMELESS: ...}, True),
+    ],
+    ids=str,
+)
+def test_copy_timestamps(test_eopatch: EOPatch, deep, copy_timestamps, features, should_copy):
+    eopatch_copy = test_eopatch.copy(features=features, deep=deep, copy_timestamps=copy_timestamps)
+    assert (eopatch_copy.timestamps is not None) == should_copy
 
 
 @pytest.mark.parametrize(
