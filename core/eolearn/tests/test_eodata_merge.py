@@ -84,6 +84,7 @@ def test_time_dependent_merge_with_missing_features():
     assert eop == eop1
 
 
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
 def test_failed_time_dependent_merge():
     eop1 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))})
     with pytest.raises(ValueError):

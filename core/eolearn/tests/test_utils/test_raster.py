@@ -23,6 +23,7 @@ from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
 @pytest.mark.parametrize("nan_ratio", [0, 0.05, 0.1, 0.5, 0.9, 1])
 @pytest.mark.parametrize("dtype", [np.float64, np.float32, np.int16])
 @pytest.mark.parametrize("method", ["linear", "nearest"])
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtype: type, method: str):
     data_shape = (size, 3, 2, 4)
     data = np.random.rand(*data_shape)

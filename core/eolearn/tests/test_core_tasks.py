@@ -247,7 +247,7 @@ def test_initialize_feature_fails(patch: EOPatch) -> None:
     ],
 )
 def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:
-    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX))
+    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX, timestamps=patch.timestamps))
 
     for feat in features:
         assert feat in patch_dst
@@ -276,6 +276,7 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
         ),
     ],
 )
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
 def test_merge_features(axis: int, features_to_merge: list[FeatureSpec], feature: FeatureSpec, patch: EOPatch) -> None:
     patch = MergeFeatureTask(features_to_merge, feature, axis=axis)(patch)
     expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
