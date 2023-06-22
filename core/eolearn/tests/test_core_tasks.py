@@ -102,7 +102,7 @@ def test_partial_copy(features: list[FeatureSpec], task: type[CopyTask], patch: 
 
 def test_load_task(test_eopatch_path: str) -> None:
     full_patch = LoadTask(test_eopatch_path)(eopatch_folder=".")
-    assert len(full_patch.get_features()) == 30
+    assert len(full_patch.get_features()) == 29
 
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")

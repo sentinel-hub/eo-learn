@@ -208,9 +208,4 @@ def test_temporally_independent_merge(test_eopatch_path):
     part1 = EOPatch.load(test_eopatch_path, temporal_selection=slice(None, 10))
     part2 = EOPatch.load(test_eopatch_path, temporal_selection=slice(10, None))
 
-    # remove pre-existing ill-formed data of wrong temporal size
-    del full_patch[(FeatureType.DATA, "REFERENCE_SCENES")]
-    del part1[(FeatureType.DATA, "REFERENCE_SCENES")]
-    del part2[(FeatureType.DATA, "REFERENCE_SCENES")]
-
     assert full_patch == merge_eopatches(part1, part2, time_dependent_op="concatenate")

@@ -7,6 +7,8 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import copy
+import os
+import warnings
 from datetime import datetime
 
 import numpy as np
@@ -30,9 +32,12 @@ from eolearn.mask import MaskFeatureTask
 
 
 @pytest.fixture(name="eopatch")
-def eopatch_fixture(example_eopatch):
+def eopatch_fixture(example_eopatch, example_data_path):
     np.random.seed(0)
     example_eopatch.mask["SCL"] = np.random.randint(0, 11, example_eopatch.data["BANDS-S2-L1C"].shape, np.uint8)
+    with warnings.catch_warnings():  # temporal inconsistencies
+        warnings.simplefilter("ignore", RuntimeWarning)
+        example_eopatch.data["REFERENCE_SCENES"] = np.load(os.path.join(example_data_path, "REFERENCE_SCENES.npy"))
     blue = BlueCompositingTask(
         (FeatureType.DATA, "REFERENCE_SCENES"),
         (FeatureType.DATA_TIMELESS, "REFERENCE_COMPOSITE"),
