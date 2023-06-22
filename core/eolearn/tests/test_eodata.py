@@ -23,7 +23,7 @@ from eolearn.core.types import FeatureSpec, FeaturesSpecification
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
-DUMMY_TIMESTAMP = ["2017-03-21"]
+DUMMY_TIMESTAMPS = ["2017-03-21"]
 # ruff: noqa: NPY002, SLF001
 
 
@@ -40,7 +40,7 @@ def mini_eopatch_fixture() -> EOPatch:
 
 
 def test_numpy_feature_types() -> None:
-    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMPS * 2)
 
     data_examples = []
     for size in range(6):
@@ -158,7 +158,7 @@ def test_repr_no_crs(test_eopatch: EOPatch) -> None:
 def test_add_feature() -> None:
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
 
-    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMPS * 2)
     eop.data["bands"] = bands
 
     assert np.array_equal(eop.data["bands"], bands), "Data numpy array not stored"
@@ -167,7 +167,7 @@ def test_add_feature() -> None:
 def test_simplified_feature_operations() -> None:
     bands = np.arange(2 * 3 * 3 * 2).reshape(2, 3, 3, 2)
     feature = FeatureType.DATA, "TEST-BANDS"
-    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
+    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMPS * 2)
 
     eop[feature] = bands
     assert np.array_equal(eop[feature], bands), "Data numpy array not stored"
@@ -305,7 +305,7 @@ def test_contains(ftype: FeatureType, fname: str, test_eopatch: EOPatch) -> None
 
 
 def test_equals() -> None:
-    patch_def = dict(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 2)
+    patch_def = dict(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMPS * 2)
     eop1 = EOPatch(**patch_def, data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     eop2 = EOPatch(**patch_def, data={"bands": np.arange(2 * 3 * 3 * 2, dtype=np.float32).reshape(2, 3, 3, 2)})
     assert eop1 == eop2
@@ -335,7 +335,7 @@ def test_equals() -> None:
 
 @pytest.fixture(name="eopatch_spatial_dim")
 def eopatch_spatial_dim_fixture() -> EOPatch:
-    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMP * 4)
+    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMPS * 4)
     patch.data["A"] = np.zeros((4, 2, 3, 4))
     patch.mask["B"] = np.ones((4, 3, 2, 1), dtype=np.uint8)
     patch.mask_timeless["C"] = np.zeros((4, 5, 1), dtype=np.uint8)
@@ -460,24 +460,37 @@ def test_temporal_warnings():
         warnings.simplefilter("error")
 
         EOPatch(bbox=DUMMY_BBOX)
-        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMP)
-        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMP, data_timeless={"beep": np.ones((3, 4, 5))})
-        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMP, data={"beep": np.ones((2, 3, 4, 5))})
+        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS)
+        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS, data_timeless={"beep": np.ones((3, 4, 5))})
+        EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS, data={"beep": np.ones((2, 3, 4, 5))})
 
+    # missmatch in init
     with pytest.warns(RuntimeWarning):
-        EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMP, data={"beep": np.ones((2, 3, 4, 5))})
+        EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMPS, data={"beep": np.ones((2, 3, 4, 5))})
 
+    # no timestamps in init
     with pytest.warns(RuntimeWarning):
         EOPatch(bbox=DUMMY_BBOX, data={"beep": np.ones((2, 3, 4, 5))})
 
+    # setting to eopatch without timestamps
     patch = EOPatch(bbox=DUMMY_BBOX)
     with pytest.warns(RuntimeWarning):
         patch.data = {"beep": np.ones((2, 3, 4, 5))}
     with pytest.warns(RuntimeWarning):
         patch[FeatureType.MASK, "boop"] = np.ones((2, 3, 4, 5), dtype=int)
 
-    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMP)
+    # setting features with wrong dim
+    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=3 * DUMMY_TIMESTAMPS)
     with pytest.warns(RuntimeWarning):
         patch.data = {"beep": np.ones((2, 3, 4, 5))}
     with pytest.warns(RuntimeWarning):
         patch[FeatureType.MASK, "boop"] = np.ones((2, 3, 4, 5), dtype=int)
+
+    # switching timestamps to wrong dim
+    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS, data={"beep": np.ones((2, 3, 4, 5))})
+    with pytest.warns(RuntimeWarning):
+        patch.timestamps = 3 * DUMMY_TIMESTAMPS
+
+    # switching timestamps to wrong dim but no temporal features is OK
+    patch = EOPatch(bbox=DUMMY_BBOX, timestamps=2 * DUMMY_TIMESTAMPS, data_timeless={"beep": np.ones((2, 3, 4))})
+    patch.timestamps = DUMMY_TIMESTAMPS
