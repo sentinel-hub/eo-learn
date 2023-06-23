@@ -153,7 +153,7 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
         feature_dict: Mapping[str, np.ndarray | FeatureIO[np.ndarray]],
         feature_type: FeatureType,
         *,
-        temporal_dim: int | None = None,
+        temporal_dim: int | None,
     ):
         self._temporal_dim = temporal_dim
         super().__init__(feature_dict, feature_type)
