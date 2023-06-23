@@ -126,7 +126,7 @@ class SaveTask(IOTask):
         eopatch: EOPatch,
         *,
         eopatch_folder: str = "",
-        temporal_selection: None | slice | list[int] | EllipsisType = ...,
+        temporal_selection: None | slice | list[int] | Literal["infer"] | EllipsisType = ...,
     ) -> EOPatch:
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
