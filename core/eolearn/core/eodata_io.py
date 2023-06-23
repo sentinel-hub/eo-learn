@@ -72,8 +72,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
 PatchContentType: TypeAlias = Tuple[
-    Optional["FeatureIOBBox"],
-    Optional["FeatureIOTimestamps"],
+    Optional[BBox],
+    Optional[List[datetime.datetime]],
     Dict[Tuple[FeatureType, str], "FeatureIO"],
 ]
 
@@ -259,16 +259,15 @@ def load_eopatch_content(
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     feature_specs = FeatureParser(features).get_feature_specifications()
 
-    # TODO: avoid double loading of timestamps
-    simple_temporal_selection = _extract_temporal_selection(
+    simple_temporal_selection, maybe_timestamps = _extract_temporal_selection(
         filesystem, patch_location, file_information.timestamps, temporal_selection
     )
 
-    features_dict = _load_features(filesystem, features, simple_temporal_selection, err_msg, file_information)
+    features_dict = _load_features(filesystem, feature_specs, simple_temporal_selection, err_msg, file_information)
 
     bbox = None
     if file_information.bbox is not None:
-        bbox = FeatureIOBBox(file_information.bbox, filesystem)
+        bbox = FeatureIOBBox(file_information.bbox, filesystem).load()
     elif (FeatureType.BBOX, ...) in feature_specs and features is not Ellipsis:
         raise IOError(err_msg.format(FeatureType.BBOX))
 
@@ -279,8 +278,10 @@ def load_eopatch_content(
 
     timestamps = None
     if load_timestamps:
-        if file_information.timestamps is not None:
-            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, simple_temporal_selection)
+        if maybe_timestamps is not None:
+            timestamps = maybe_timestamps
+        elif file_information.timestamps is not None:
+            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, simple_temporal_selection).load()
         elif features is not Ellipsis:
             raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
@@ -292,13 +293,14 @@ def _extract_temporal_selection(
     patch_location: str,
     timestamps_path: str | None,
     temporal_selection: None | slice | list[int] | Callable[[list[datetime.datetime]], list[bool]],
-) -> None | slice | list[int] | list[bool]:
+) -> tuple[None | slice | list[int] | list[bool], list[datetime.datetime] | None]:
     """Extracts the temporal selection if available."""
     if not callable(temporal_selection):
-        return temporal_selection
+        return temporal_selection, None
     if timestamps_path is not None:
         full_timestamps = FeatureIOTimestamps(timestamps_path, filesystem).load()
-        return temporal_selection(full_timestamps)
+        simple_selection = temporal_selection(full_timestamps)
+        return simple_selection, [timestamp for timestamp, include in zip(full_timestamps, simple_selection) if include]
     raise IOError(f"Cannot perform loading temporal selection, EOPatch at {patch_location} has no timestamps.")
 
 

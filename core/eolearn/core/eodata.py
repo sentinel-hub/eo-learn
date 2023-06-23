@@ -660,13 +660,11 @@ class EOPatch:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox_io, timestamps_io, features_dict = load_eopatch_content(
+        bbox, timestamps, features_dict = load_eopatch_content(
             filesystem, path, features=features, temporal_selection=temporal_selection, load_timestamps=load_timestamps
         )
-        eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
+        eopatch = EOPatch(bbox=bbox, timestamps=timestamps)
 
-        if timestamps_io is not None:
-            eopatch.timestamps = timestamps_io.load()
         for feature, feature_io in features_dict.items():
             eopatch[feature] = feature_io
 
