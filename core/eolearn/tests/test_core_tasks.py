@@ -80,7 +80,7 @@ def test_copy(task: type[CopyTask], patch: EOPatch) -> None:
     patch_copy.data["bands"][0, 0, 0, 0] += 1
     assert (patch_copy != patch) if task == DeepCopyTask else (patch_copy == patch)
 
-    patch_copy.data["new"] = np.ones((len(patch_copy.get_timestamps()), 1, 1, 1))
+    patch_copy.data["new"] = np.ones_like(patch_copy.data["bands"])
     assert "new" not in patch.data
 
 
