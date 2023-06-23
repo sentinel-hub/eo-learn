@@ -94,7 +94,7 @@ class SaveTask(IOTask):
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Literal["infer"] = None,
     ):
         """
         :param path: root path where all EOPatches are saved
@@ -110,7 +110,8 @@ class SaveTask(IOTask):
             features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
-            used for saving data in multiple steps for memory optimization.
+            used for saving data in multiple steps for memory optimization. When set to `"infer"` it will match the
+            timestamps of the EOPatch to the timestamps of the stored EOPatch to calculate indices.
         """
         self.features = features
         self.overwrite_permission = overwrite_permission

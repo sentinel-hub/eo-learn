@@ -659,19 +659,38 @@ def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_select
 
 
 @mock_s3
+def test_partial_temporal_saving_infer(eopatch: EOPatch):
+    _skip_when_appropriate(TempFS, True)
+    with TempFS() as temp_fs:
+        io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
+        eopatch.save(**io_kwargs, use_zarr=True)
+
+        partial_patch = eopatch.copy(deep=True)
+        partial_patch.consolidate_timestamps(eopatch.timestamps[1:2] + eopatch.timestamps[3:5])
+
+        partial_patch.data["data"] = np.full_like(partial_patch.data["data"], 2)
+        partial_patch.save(**io_kwargs, use_zarr=True, temporal_selection="infer")
+
+        expected_data = eopatch.data["data"].copy()
+        expected_data[[1, 3, 4]] = 2
+
+        assert_array_equal(EOPatch.load(path="patch-folder", filesystem=temp_fs).data["data"], expected_data)
+
+
+@mock_s3
 def test_partial_temporal_saving_fails(eopatch: EOPatch):
     _skip_when_appropriate(TempFS, True)
     with TempFS() as temp_fs:
         io_kwargs = dict(
             path="patch-folder", filesystem=temp_fs, use_zarr=True, overwrite_permission="OVERWRITE_FEATURES"
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(IOError):
             # patch does not exist yet
             eopatch.save(**io_kwargs, temporal_selection=slice(2, None))
 
         eopatch.save(**io_kwargs)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="without zarr arrays"):
             # saving without zarr
             eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=False, temporal_selection=[1, 2])
 
@@ -682,6 +701,19 @@ def test_partial_temporal_saving_fails(eopatch: EOPatch):
         with pytest.raises(ValueError):
             # temporal selection outside of saved eopatch
             eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
+
+        with pytest.raises(RuntimeError, match=r"Cannot infer temporal selection.*?has no timestamps"):
+            # no timestamps, cannot infer
+            EOPatch(bbox=eopatch.bbox).save(**io_kwargs, temporal_selection="infer")
+
+        with pytest.raises(ValueError, match=r"Cannot infer temporal selection.*?subset"):
+            # wrong timestamps, cannot infer
+            EOPatch(bbox=eopatch.bbox, timestamps=["2012-01-01"]).save(**io_kwargs, temporal_selection="infer")
+
+        EOPatch(bbox=eopatch.bbox).save(path="other-folder", filesystem=temp_fs)
+        with pytest.raises(IOError, match=r"Saved EOPatch does not have timestamps"):
+            # no timestamps saved
+            eopatch.save(path="other-folder", filesystem=temp_fs, use_zarr=True, temporal_selection="infer")
 
 
 @pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])

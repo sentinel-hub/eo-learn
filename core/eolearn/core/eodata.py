@@ -599,7 +599,7 @@ class EOPatch:
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Literal["infer"] = None,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -615,7 +615,8 @@ class EOPatch:
             features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
-            used for saving data in multiple steps for memory optimization.
+            used for saving data in multiple steps for memory optimization. When set to `"infer"` it will match the
+            timestamps of the EOPatch to the timestamps of the stored EOPatch to calculate indices.
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)

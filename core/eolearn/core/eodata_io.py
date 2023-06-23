@@ -105,11 +105,11 @@ def save_eopatch(
     patch_location: str,
     *,
     features: FeaturesSpecification,
-    save_timestamps: bool | Literal["auto"] = "auto",
+    save_timestamps: bool | Literal["auto"],
     overwrite_permission: OverwritePermission,
     compress_level: int,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int] = None,
+    temporal_selection: None | slice | list[int] | Literal["infer"],
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
@@ -135,7 +135,7 @@ def save_eopatch(
             use_zarr=use_zarr,
             compress_level=compress_level,
             save_timestamps=save_timestamps,
-            temporal_selection=temporal_selection,
+            temporal_selection=_infer_temporal_selection(temporal_selection, filesystem, file_information, eopatch),
         )
     )
 
@@ -160,6 +160,28 @@ def save_eopatch(
     _remove_old_style_metainfo(filesystem, patch_location, new_files, file_information)
 
 
+def _infer_temporal_selection(
+    temporal_selection: None | slice | list[int] | Literal["infer"],
+    filesystem: FS,
+    file_information: FilesystemDataInfo,
+    eopatch: EOPatch,
+) -> None | slice | list[int]:
+    if temporal_selection != "infer":
+        return temporal_selection
+
+    patch_timestamps = eopatch.get_timestamps("Cannot infer temporal selection. EOPatch to be saved has no timestamps.")
+    if file_information.timestamps is None:
+        raise IOError("Cannot infer temporal selection. Saved EOPatch does not have timestamps.")
+    full_timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem).load()
+    timestamp_indices = {timestamp: idx for idx, timestamp in enumerate(full_timestamps)}
+    if not all(timestamp in timestamp_indices for timestamp in patch_timestamps):
+        raise ValueError(
+            f"Cannot infer temporal selection. EOPatch timestamps {patch_timestamps} are not a subset of the stored"
+            f" EOPatch timestamps {full_timestamps}."
+        )
+    return [timestamp_indices[timestamp] for timestamp in patch_timestamps]
+
+
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
     filesystem.removetree(patch_location)
     filesystem.makedirs(patch_location, recreate=True)
@@ -174,7 +196,7 @@ def _yield_savers(
     compress_level: int,
     save_timestamps: bool,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int] = None,
+    temporal_selection: None | slice | list[int] | list[bool],
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -251,7 +273,7 @@ def load_eopatch_content(
     patch_location: str,
     *,
     features: FeaturesSpecification,
-    load_timestamps: bool | Literal["auto"] = "auto",
+    load_timestamps: bool | Literal["auto"],
     temporal_selection: None | slice | list[int] | Callable[[list[datetime.datetime]], list[bool]],
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
@@ -758,7 +780,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         try:
             zarray = zarr.open_array(store, "r+")
         except ValueError as error:  # zarr does not expose the proper error...
-            raise ValueError(
+            raise IOError(
                 f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires preexisting zarr."
             ) from error
 
