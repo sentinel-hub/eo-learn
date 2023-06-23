@@ -193,6 +193,8 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
 
     def _update_temporal_dim(self, new_value: int | None) -> None:
         self._temporal_dim = new_value
+        if not self.feature_type.is_temporal():
+            return
         if self._temporal_dim is None:
             if self._content:
                 warnings.warn(
