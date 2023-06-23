@@ -296,6 +296,7 @@ def test_interpolation(test_case: InterpolationTestCase, test_patch):
 
 
 @pytest.mark.parametrize(("test_case", "passes"), COPY_FEATURE_CASES)
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
 def test_copied_fields(test_case, passes, test_patch):
     if passes:
         eopatch = test_case.execute(test_patch)

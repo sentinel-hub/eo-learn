@@ -145,7 +145,7 @@ def test_value_fillout():
     feature = (FeatureType.DATA, "TEST")
     shape = (8, 10, 10, 5)
     data = np.random.randint(0, 100, size=shape).astype(float)
-    eopatch = EOPatch(bbox=DUMMY_BBOX, data={"TEST": data})
+    eopatch = EOPatch(bbox=DUMMY_BBOX, timestamps=["2002-11-11"] * 8, data={"TEST": data})
 
     # nothing to be filled, return the same eopatch object immediately
     eopatch_new = ValueFilloutTask(feature, operations="fb", axis=0)(eopatch)
@@ -196,7 +196,7 @@ def test_value_fillout():
 
 
 def test_linear_function_task():
-    eopatch = EOPatch(bbox=DUMMY_BBOX)
+    eopatch = EOPatch(bbox=DUMMY_BBOX, timestamps=["1994-02-01"] * 8)
 
     data_feature = (FeatureType.DATA, "DATA_TEST")
     data_result_feature = (FeatureType.DATA, "DATA_TRANSFORMED")

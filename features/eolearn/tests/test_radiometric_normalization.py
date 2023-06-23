@@ -17,6 +17,7 @@ import pytest
 from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import FeatureType
+from eolearn.core.exceptions import TemporalDimensionWarning
 from eolearn.features import (
     BlueCompositingTask,
     HistogramMatchingTask,
@@ -31,13 +32,19 @@ from eolearn.mask import MaskFeatureTask
 # ruff: noqa: NPY002
 
 
+@pytest.fixture(autouse=True)
+def _ignore_warnings():
+    """Module has lots of temporally ill defined patches."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", TemporalDimensionWarning)
+        yield
+
+
 @pytest.fixture(name="eopatch")
 def eopatch_fixture(example_eopatch, example_data_path):
     np.random.seed(0)
     example_eopatch.mask["SCL"] = np.random.randint(0, 11, example_eopatch.data["BANDS-S2-L1C"].shape, np.uint8)
-    with warnings.catch_warnings():  # temporal inconsistencies
-        warnings.simplefilter("ignore", RuntimeWarning)
-        example_eopatch.data["REFERENCE_SCENES"] = np.load(os.path.join(example_data_path, "REFERENCE_SCENES.npy"))
+    example_eopatch.data["REFERENCE_SCENES"] = np.load(os.path.join(example_data_path, "REFERENCE_SCENES.npy"))
     blue = BlueCompositingTask(
         (FeatureType.DATA, "REFERENCE_SCENES"),
         (FeatureType.DATA_TIMELESS, "REFERENCE_COMPOSITE"),
