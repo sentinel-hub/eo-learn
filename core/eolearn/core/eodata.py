@@ -464,36 +464,55 @@ class EOPatch:
         cls = value.__class__
         return ".".join([cls.__module__.split(".")[0], cls.__name__])
 
-    def __copy__(self, features: FeaturesSpecification = ...) -> EOPatch:
+    def __copy__(
+        self, features: FeaturesSpecification = ..., copy_timestamps: bool | Literal["auto"] = "auto"
+    ) -> EOPatch:
         """Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
+        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if any
+            temporal features are getting copied.
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
+        patch_features = parse_features(features, eopatch=self)
+        if copy_timestamps == "auto":
+            copy_timestamps = any(ftype.is_temporal() for ftype, _ in patch_features)
 
         new_eopatch = EOPatch(bbox=copy.copy(self.bbox))
-        for feature_type, feature_name in parse_features(features, eopatch=self):
-            if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
-                new_eopatch[feature_type] = copy.copy(self[feature_type])
-            else:
+        if copy_timestamps:
+            new_eopatch.timestamps = copy.copy(self.timestamps)
+
+        for feature_type, feature_name in patch_features:
+            if feature_type not in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 new_eopatch[feature_type][feature_name] = self[feature_type]._get_unloaded(feature_name)  # noqa: SLF001
         return new_eopatch
 
-    def __deepcopy__(self, memo: dict | None = None, features: FeaturesSpecification = ...) -> EOPatch:
+    def __deepcopy__(
+        self,
+        memo: dict | None = None,
+        features: FeaturesSpecification = ...,
+        copy_timestamps: bool | Literal["auto"] = "auto",
+    ) -> EOPatch:
         """Returns a new EOPatch with deep copies of given features.
 
         :param memo: built-in parameter for memoization
         :param features: A collection of features or feature types that will be copied into new EOPatch.
+        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if any
+            temporal features are getting copied.
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
+        patch_features = parse_features(features, eopatch=self)
+        if copy_timestamps == "auto":
+            copy_timestamps = any(ftype.is_temporal() for ftype, _ in patch_features)
 
         new_eopatch = EOPatch(bbox=copy.deepcopy(self.bbox))
+        if copy_timestamps:
+            new_eopatch.timestamps = copy.deepcopy(self.timestamps)
+
         for feature_type, feature_name in parse_features(features, eopatch=self):
-            if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
-                new_eopatch[feature_type] = copy.deepcopy(self[feature_type], memo=memo)
-            else:
+            if feature_type not in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
                 value = self[feature_type]._get_unloaded(feature_name)  # noqa: SLF001
 
                 if isinstance(value, FeatureIO):
@@ -507,18 +526,26 @@ class EOPatch:
 
         return new_eopatch
 
-    def copy(self, features: FeaturesSpecification = ..., deep: bool = False) -> EOPatch:
+    def copy(
+        self,
+        features: FeaturesSpecification = ...,
+        deep: bool = False,
+        copy_timestamps: bool | Literal["auto"] = "auto",
+    ) -> EOPatch:
         """Get a copy of the current `EOPatch`.
 
         :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied. Note that
             `BBOX` is always copied.
         :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
             of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMPS` will be copied even with a shallow copy.
+        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if any
+            temporal features are getting copied.
         :return: An EOPatch copy.
         """
+        # pylint: disable=unnecessary-dunder-call
         if deep:
-            return self.__deepcopy__(features=features)  # pylint: disable=unnecessary-dunder-call
-        return self.__copy__(features=features)  # pylint: disable=unnecessary-dunder-call
+            return self.__deepcopy__(features=features, copy_timestamps=copy_timestamps)
+        return self.__copy__(features=features, copy_timestamps=copy_timestamps)
 
     @deprecated_function(EODeprecationWarning, "Use `del eopatch[feature_type]` or `del eopatch[feature]` instead.")
     def reset_feature_type(self, feature_type: FeatureType) -> None:
@@ -570,6 +597,7 @@ class EOPatch:
         compress_level: int = 0,
         filesystem: FS | None = None,
         *,
+        save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
         temporal_selection: None | slice | list[int] = None,
     ) -> None:
@@ -583,6 +611,8 @@ class EOPatch:
             to 9 (highest compression).
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
+        :save_timestamps: Whether to save the timestamps of the EOPatch. By default they are saved whenever temporal
+            features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
             used for saving data in multiple steps for memory optimization.
@@ -598,6 +628,7 @@ class EOPatch:
             features=features,
             compress_level=compress_level,
             overwrite_permission=OverwritePermission(overwrite_permission),
+            save_timestamps=save_timestamps,
             use_zarr=use_zarr,
             temporal_selection=temporal_selection,
         )
@@ -609,6 +640,7 @@ class EOPatch:
         lazy_loading: bool = False,
         filesystem: FS | None = None,
         *,
+        load_timestamps: bool | Literal["auto"] = "auto",
         temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] = None,
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
@@ -618,6 +650,8 @@ class EOPatch:
         :param lazy_loading: If `True` features will be lazy loaded.
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
+        :load_timestamps: Whether to load the timestamps of the EOPatch. By default they are loaded whenever temporal
+            features are being loaded.
         :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
             given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         :return: Loaded EOPatch
@@ -627,7 +661,7 @@ class EOPatch:
             path = "/"
 
         bbox_io, timestamps_io, features_dict = load_eopatch_content(
-            filesystem, path, features=features, temporal_selection=temporal_selection
+            filesystem, path, features=features, temporal_selection=temporal_selection, load_timestamps=load_timestamps
         )
         eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
 

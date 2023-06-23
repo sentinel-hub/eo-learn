@@ -11,7 +11,7 @@ from __future__ import annotations
 import copy
 import datetime as dt
 from abc import ABCMeta
-from typing import Any, Callable, Iterable, Tuple, Union, cast
+from typing import Any, Callable, Iterable, Literal, Tuple, Union, cast
 
 import fs
 import numpy as np
@@ -92,6 +92,7 @@ class SaveTask(IOTask):
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
         compress_level: int = 0,
         *,
+        save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
         temporal_selection: None | slice | list[int] = None,
     ):
@@ -105,6 +106,8 @@ class SaveTask(IOTask):
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
+        :save_timestamps: Whether to save the timestamps of the EOPatch. By default they are saved whenever temporal
+            features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
             used for saving data in multiple steps for memory optimization.
@@ -114,6 +117,7 @@ class SaveTask(IOTask):
         self.compress_level = compress_level
         self.use_zarr = use_zarr
         self.temporal_selection = temporal_selection
+        self.save_timestamps = save_timestamps
         super().__init__(path, filesystem=filesystem, create=True, config=config)
 
     def execute(
@@ -139,6 +143,7 @@ class SaveTask(IOTask):
             features=self.features,
             overwrite_permission=self.overwrite_permission,
             compress_level=self.compress_level,
+            save_timestamps=self.save_timestamps,
             use_zarr=self.use_zarr,
             temporal_selection=temporal_selection,
         )
@@ -155,6 +160,8 @@ class LoadTask(IOTask):
         config: SHConfig | None = None,
         features: FeaturesSpecification = ...,
         lazy_loading: bool = False,
+        *,
+        load_timestamps: bool | Literal["auto"] = "auto",
         temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] = None,
     ):
         """
@@ -165,12 +172,15 @@ class LoadTask(IOTask):
             default configuration will be taken.
         :param features: A collection of features to be loaded. By default, all features will be loaded.
         :param lazy_loading: If `True` features will be lazy loaded.
+        :load_timestamps: Whether to load the timestamps of the EOPatch. By default they are loaded whenever temporal
+            features are being loaded.
         :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
             given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         """
         self.features = features
         self.lazy_loading = lazy_loading
         self.temporal_selection = temporal_selection
+        self.load_timestamps = load_timestamps
         super().__init__(path, filesystem=filesystem, create=False, config=config)
 
     def execute(
@@ -196,6 +206,7 @@ class LoadTask(IOTask):
             features=self.features,
             lazy_loading=self.lazy_loading,
             temporal_selection=temporal_selection,
+            load_timestamps=self.load_timestamps,
         )
         return loaded_patch if eopatch is None else merge_eopatches(eopatch, loaded_patch)
 
