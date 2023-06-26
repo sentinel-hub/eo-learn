@@ -7,6 +7,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import logging
+import sys
 
 import numpy as np
 import pytest
@@ -46,7 +47,8 @@ def test_clustering(example_eopatch):
 
     assert len(np.unique(clusters)) == 22, "Wrong number of clusters."
     assert np.median(clusters) == 2
-    assert np.mean(clusters) == pytest.approx(2.19109)
+
+    assert np.mean(clusters) == pytest.approx(2.19109 if sys.version_info < (3, 9) else 2.201188)
 
     clusters = example_eopatch.data_timeless["clusters_mask"].squeeze()
 
