@@ -48,7 +48,7 @@ def test_clustering(example_eopatch):
     assert len(np.unique(clusters)) == 22, "Wrong number of clusters."
     assert np.median(clusters) == 2
 
-    expected_cluster_mean = 2.19109 if sys.version_info < (3, 11) else 2.201188
+    expected_cluster_mean = 2.19109 if sys.version_info < (3, 10) else 2.201188
     assert np.mean(clusters) == pytest.approx(expected_cluster_mean)
 
     clusters = example_eopatch.data_timeless["clusters_mask"].squeeze()
