@@ -13,6 +13,7 @@ import contextlib
 import copy
 import datetime as dt
 import logging
+import warnings
 from abc import ABCMeta, abstractmethod
 from typing import (
     TYPE_CHECKING,
@@ -38,7 +39,7 @@ from sentinelhub.exceptions import deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
-from .exceptions import EODeprecationWarning
+from .exceptions import EODeprecationWarning, TemporalDimensionWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
@@ -78,7 +79,11 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
         super().__init__()
 
         self.feature_type = feature_type
-        self._content = dict(feature_dict.items())
+
+        # we need trigger parsing and validation
+        self._content: dict[str, T | FeatureIO[T]] = {}
+        for key, value in feature_dict.items():
+            self[key] = value
 
     def __setitem__(self, feature_name: str, value: T | FeatureIO[T]) -> None:
         """Before setting value to the dictionary it checks that value is of correct type and dimension and tries to
@@ -143,6 +148,16 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
 class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
     """_FeatureDict object specialized for Numpy arrays."""
 
+    def __init__(
+        self,
+        feature_dict: Mapping[str, np.ndarray | FeatureIO[np.ndarray]],
+        feature_type: FeatureType,
+        *,
+        temporal_dim: int | None,
+    ):
+        self._temporal_dim = temporal_dim
+        super().__init__(feature_dict, feature_type)
+
     def _parse_feature_value(self, value: object, feature_name: str) -> np.ndarray:
         if not isinstance(value, np.ndarray):
             raise ValueError(f"{self.feature_type} feature has to be a numpy array.")
@@ -154,6 +169,20 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
                 f"dimension{'s' if expected_ndim > 1 else ''} but feature {feature_name} has {value.ndim}."
             )
 
+        if self.feature_type.is_temporal():
+            if self._temporal_dim is None:
+                msg = (
+                    f"Adding temporal feature {(self.feature_type, feature_name)} to EOPatch without a temporal"
+                    " definition (no timestamps)."
+                )
+                warnings.warn(msg, category=TemporalDimensionWarning, stacklevel=4)
+            elif self._temporal_dim != value.shape[0]:
+                msg = (
+                    f"Missmatch in temporal dimensions when adding {(self.feature_type, feature_name)}: EOPatch has"
+                    f" {self._temporal_dim} timestamps while the value has a temporal size of {value.shape[0]}."
+                )
+                warnings.warn(msg, category=TemporalDimensionWarning, stacklevel=4)
+
         if self.feature_type.is_discrete() and not is_discrete_type(value.dtype):
             raise ValueError(
                 f"{self.feature_type} is a discrete feature type therefore dtype of data array "
@@ -161,6 +190,27 @@ class _FeatureDictNumpy(_FeatureDict[np.ndarray]):
             )
 
         return value
+
+    def _update_temporal_dim(self, new_value: int | None) -> None:
+        self._temporal_dim = new_value
+        if not self.feature_type.is_temporal():
+            return
+        if self._temporal_dim is None:
+            if self._content:
+                warnings.warn(
+                    f"EOPatch does not have timestamps, but has temporal features of type {self.feature_type}.",
+                    category=TemporalDimensionWarning,
+                    stacklevel=4,
+                )
+            return
+
+        for feature_name, value in self._content.items():
+            if not isinstance(value, FeatureIO) and value.shape[0] != self._temporal_dim:
+                msg = (
+                    f"Missmatch in temporal dimensions. The EOPatch has {self._temporal_dim} timestamps while"
+                    f" {(self.feature_type, feature_name)} has a temporal size of {value.shape[0]}."
+                )
+                warnings.warn(msg, category=TemporalDimensionWarning, stacklevel=4)
 
 
 class _FeatureDictGeoDf(_FeatureDict[gpd.GeoDataFrame]):
@@ -190,15 +240,6 @@ class _FeatureDictJson(_FeatureDict[Any]):
 
     def _parse_feature_value(self, value: object, _: str) -> Any:
         return value
-
-
-def _create_feature_dict(feature_type: FeatureType, value: Mapping[str, Any]) -> _FeatureDict:
-    """Creates the correct FeatureDict, corresponding to the FeatureType."""
-    if feature_type.is_vector():
-        return _FeatureDictGeoDf(value, feature_type)
-    if feature_type is FeatureType.META_INFO:
-        return _FeatureDictJson(value, feature_type)
-    return _FeatureDictNumpy(value, feature_type)
 
 
 class EOPatch:
@@ -242,29 +283,21 @@ class EOPatch:
         bbox: BBox | None = None,
         timestamps: list[dt.datetime] | None = None,
     ):
-        self.data: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(data or {}, FeatureType.DATA)
-        self.mask: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(mask or {}, FeatureType.MASK)
-        self.scalar: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(scalar or {}, FeatureType.SCALAR)
-        self.label: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(label or {}, FeatureType.LABEL)
-        self.vector: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(vector or {}, FeatureType.VECTOR)
-        self.data_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            data_timeless or {}, FeatureType.DATA_TIMELESS
-        )
-        self.mask_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            mask_timeless or {}, FeatureType.MASK_TIMELESS
-        )
-        self.scalar_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            scalar_timeless or {}, FeatureType.SCALAR_TIMELESS
-        )
-        self.label_timeless: MutableMapping[str, np.ndarray] = _FeatureDictNumpy(
-            label_timeless or {}, FeatureType.LABEL_TIMELESS
-        )
-        self.vector_timeless: MutableMapping[str, gpd.GeoDataFrame] = _FeatureDictGeoDf(
-            vector_timeless or {}, FeatureType.VECTOR_TIMELESS
-        )
-        self.meta_info: MutableMapping[str, Any] = _FeatureDictJson(meta_info or {}, FeatureType.META_INFO)
         self.bbox = bbox
-        self.timestamps = timestamps
+        self._timestamps = self._parse_timestamps(timestamps)  # see timestamps setter why this is direct
+
+        # the __setattr__ transforms the below to FeatureDicts and checks temporal dimensions if necessary
+        self.data: MutableMapping[str, np.ndarray] = dict(data or {})
+        self.mask: MutableMapping[str, np.ndarray] = dict(mask or {})
+        self.scalar: MutableMapping[str, np.ndarray] = dict(scalar or {})
+        self.label: MutableMapping[str, np.ndarray] = dict(label or {})
+        self.vector: MutableMapping[str, gpd.GeoDataFrame] = dict(vector or {})
+        self.data_timeless: MutableMapping[str, np.ndarray] = dict(data_timeless or {})
+        self.mask_timeless: MutableMapping[str, np.ndarray] = dict(mask_timeless or {})
+        self.scalar_timeless: MutableMapping[str, np.ndarray] = dict(scalar_timeless or {})
+        self.label_timeless: MutableMapping[str, np.ndarray] = dict(label_timeless or {})
+        self.vector_timeless: MutableMapping[str, gpd.GeoDataFrame] = dict(vector_timeless or {})
+        self.meta_info: MutableMapping[str, Any] = dict(meta_info or {})
 
     @property
     def timestamp(self) -> list[dt.datetime] | None:
@@ -284,12 +317,21 @@ class EOPatch:
 
     @timestamps.setter
     def timestamps(self, value: Iterable[dt.datetime] | None) -> None:
+        # The first setting of timestamps is done directly to `_timestamps` to avoid updating temporal dims of
+        # nonexisting feature-dict attributes
+        self._timestamps = self._parse_timestamps(value)
+
+        temporal_dim = len(self._timestamps) if self._timestamps is not None else None
+        for ftype in FeatureType:
+            if ftype.is_temporal() and ftype.is_array():
+                self[ftype]._update_temporal_dim(temporal_dim)  # noqa: SLF001 # pylint: disable=protected-access
+
+    def _parse_timestamps(self, value: Iterable[dt.datetime | str] | None) -> list[dt.datetime] | None:
         if value is None:
-            self._timestamps = None
-        elif isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
-            self._timestamps = [parse_time(time, force_datetime=True) for time in value]
-        else:
-            raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
+            return None
+        if isinstance(value, Iterable) and all(isinstance(time, (dt.date, str)) for time in value):
+            return [parse_time(time, force_datetime=True) for time in value]
+        raise TypeError(f"Cannot assign {value} as timestamps. Should be a sequence of datetime.datetime objects.")
 
     def get_timestamps(
         self, message_on_failure: str = "This EOPatch does not contain timestamps."
@@ -318,7 +360,15 @@ class EOPatch:
         if FeatureType.has_value(key) and FeatureType(key) not in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
             if not isinstance(value, (dict, _FeatureDict)):
                 raise TypeError(f"Cannot parse {value} for attribute {key}. Should be a dictionary.")
-            value = _create_feature_dict(FeatureType(key), value)
+
+            feature_type = FeatureType(key)
+            if feature_type.is_vector():
+                value = _FeatureDictGeoDf(value, feature_type)
+            elif feature_type is FeatureType.META_INFO:
+                value = _FeatureDictJson(value, feature_type)
+            else:
+                temporal_dim = None if self.timestamps is None else len(self.timestamps)
+                value = _FeatureDictNumpy(value, feature_type, temporal_dim=temporal_dim)
 
         super().__setattr__(key, value)
 
@@ -724,13 +774,16 @@ class EOPatch:
         good_timestamp_idxs = [idx for idx, _ in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
         good_timestamps = [date for idx, date in enumerate(old_timestamps) if idx not in remove_from_patch_idxs]
 
+        with warnings.catch_warnings():  # catch all temporal dimension related warnings
+            warnings.simplefilter("ignore", category=TemporalDimensionWarning)
+            self.timestamps = good_timestamps
+
         for ftype in FeatureType:
             if ftype.is_timeless() or ftype.is_meta() or ftype.is_vector():
                 continue
             for feature_name, value in self[ftype].items():
                 self[ftype, feature_name] = value[good_timestamp_idxs, ...]
 
-        self.timestamps = good_timestamps
         return remove_from_patch
 
     def plot(

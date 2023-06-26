@@ -84,6 +84,7 @@ def test_time_dependent_merge_with_missing_features():
     assert eop == eop1
 
 
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
 def test_failed_time_dependent_merge():
     eop1 = EOPatch(bbox=DUMMY_BBOX, data={"bands": np.ones((6, 4, 5, 2))})
     with pytest.raises(ValueError):
@@ -207,10 +208,5 @@ def test_temporally_independent_merge(test_eopatch_path):
     full_patch = EOPatch.load(test_eopatch_path)
     part1 = EOPatch.load(test_eopatch_path, temporal_selection=slice(None, 10))
     part2 = EOPatch.load(test_eopatch_path, temporal_selection=slice(10, None))
-
-    # remove pre-existing ill-formed data of wrong temporal size
-    del full_patch[(FeatureType.DATA, "REFERENCE_SCENES")]
-    del part1[(FeatureType.DATA, "REFERENCE_SCENES")]
-    del part2[(FeatureType.DATA, "REFERENCE_SCENES")]
 
     assert full_patch == merge_eopatches(part1, part2, time_dependent_op="concatenate")

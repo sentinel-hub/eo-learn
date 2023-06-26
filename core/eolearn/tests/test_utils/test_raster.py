@@ -6,7 +6,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-import warnings
 from typing import Literal
 
 import numpy as np
@@ -23,6 +22,7 @@ from eolearn.core.utils.raster import constant_pad, fast_nanpercentile
 @pytest.mark.parametrize("nan_ratio", [0, 0.05, 0.1, 0.5, 0.9, 1])
 @pytest.mark.parametrize("dtype", [np.float64, np.float32, np.int16])
 @pytest.mark.parametrize("method", ["linear", "nearest"])
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtype: type, method: str):
     data_shape = (size, 3, 2, 4)
     data = np.random.rand(*data_shape)
@@ -33,9 +33,7 @@ def test_fast_nanpercentile(size: int, percentile: float, nan_ratio: float, dtyp
     data = data.astype(dtype)
 
     method_kwargs = {"method" if np.__version__ >= "1.22.0" else "interpolation": method}
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=RuntimeWarning)
-        expected_result = np.nanpercentile(data, q=percentile, axis=0, **method_kwargs).astype(data.dtype)
+    expected_result = np.nanpercentile(data, q=percentile, axis=0, **method_kwargs).astype(data.dtype)
 
     result = fast_nanpercentile(data, percentile, method=method)
 

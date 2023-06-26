@@ -80,7 +80,7 @@ def test_copy(task: type[CopyTask], patch: EOPatch) -> None:
     patch_copy.data["bands"][0, 0, 0, 0] += 1
     assert (patch_copy != patch) if task == DeepCopyTask else (patch_copy == patch)
 
-    patch_copy.data["new"] = np.arange(1).reshape(1, 1, 1, 1)
+    patch_copy.data["new"] = np.ones_like(patch_copy.data["bands"])
     assert "new" not in patch.data
 
 
@@ -102,7 +102,7 @@ def test_partial_copy(features: list[FeatureSpec], task: type[CopyTask], patch: 
 
 def test_load_task(test_eopatch_path: str) -> None:
     full_patch = LoadTask(test_eopatch_path)(eopatch_folder=".")
-    assert len(full_patch.get_features()) == 30
+    assert len(full_patch.get_features()) == 29
 
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
@@ -129,7 +129,7 @@ def test_io_task_pickling(filesystem: FS, task_class: type[EOTask]) -> None:
 @pytest.mark.parametrize(
     ("feature", "feature_data"),
     [
-        ((FeatureType.MASK, "CLOUD MASK"), np.arange(10).reshape(5, 2, 1, 1)),
+        ((FeatureType.MASK_TIMELESS, "CLOUD MASK"), np.arange(10).reshape(2, 5, 1)),
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
         ((FeatureType.TIMESTAMPS, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
@@ -153,9 +153,7 @@ def test_rename_feature(patch: EOPatch) -> None:
     assert (f_type, f_name) not in patch, "Feature was not removed from patch. "
 
 
-@pytest.mark.parametrize(
-    "features", [(FeatureType.DATA, "bands"), [FeatureType.TIMESTAMPS, FeatureType.DATA, (FeatureType.MASK, "CLM")]]
-)
+@pytest.mark.parametrize("features", [(FeatureType.DATA, "bands"), [FeatureType.DATA, (FeatureType.MASK, "CLM")]])
 def test_remove_feature(features: FeaturesSpecification, patch: EOPatch) -> None:
     original_patch = copy.deepcopy(patch)
     features_to_remove = parse_features(features, patch)
@@ -249,7 +247,7 @@ def test_initialize_feature_fails(patch: EOPatch) -> None:
     ],
 )
 def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:
-    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX))
+    patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX, timestamps=patch.timestamps))
 
     for feat in features:
         assert feat in patch_dst
@@ -278,6 +276,7 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
         ),
     ],
 )
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
 def test_merge_features(axis: int, features_to_merge: list[FeatureSpec], feature: FeatureSpec, patch: EOPatch) -> None:
     patch = MergeFeatureTask(features_to_merge, feature, axis=axis)(patch)
     expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
@@ -451,8 +450,12 @@ def test_extract_bands_fails(eopatch_to_explode: EOPatch) -> None:
     "features",
     [
         {"bbox": DUMMY_BBOX},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2)}, "bbox": DUMMY_BBOX},
-        {"data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))}, "bbox": DUMMY_BBOX},
+        {"data_timeless": {"bands_min": np.arange(0, 32).reshape(4, 4, 2)}, "bbox": DUMMY_BBOX},
+        {
+            "data": {"bands": np.arange(0, 32).reshape(1, 4, 4, 2), "CLP": np.ones((1, 4, 4, 2))},
+            "bbox": DUMMY_BBOX,
+            "timestamps": ["2015-01-03"],
+        },
     ],
 )
 def test_create_eopatch(features: dict[str, Any]) -> None:
