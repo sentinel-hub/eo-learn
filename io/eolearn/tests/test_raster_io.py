@@ -28,11 +28,10 @@ from sentinelhub import CRS, BBox, read_data
 from sentinelhub.time_utils import serialize_time
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.exceptions import EORuntimeWarning, TemporalDimensionWarning
 from eolearn.io import ExportToTiffTask, ImportFromTiffTask
 
 logging.basicConfig(level=logging.DEBUG)
-
 
 BUCKET_NAME = "mocked-test-bucket"
 PATH_ON_BUCKET = f"s3://{BUCKET_NAME}/some-folder"
@@ -43,6 +42,14 @@ def _create_s3_bucket_fixture():
     with mock_s3():
         s3resource = boto3.resource("s3", region_name="eu-central-1")
         s3resource.create_bucket(Bucket=BUCKET_NAME, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _ignore_warnings():
+    """Module has lots of temporally ill defined patches."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", TemporalDimensionWarning)
         yield
 
 
@@ -367,6 +374,7 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
 
 
 @pytest.mark.parametrize(("no_data_value", "data_type"), [(np.nan, float), (0, int), (None, float), (1, np.byte)])
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.EORuntimeWarning")
 def test_export_import_sequence(no_data_value, data_type):
     """Tests import and export tiff tasks on generated array with different values of no_data_value."""
     eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), crs=CRS.WGS84))

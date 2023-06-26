@@ -28,6 +28,7 @@ OUTPUT_FEATURE = (FeatureType.DATA, "lbp")
         ),
     ],
 )
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning", "ignore::UserWarning")
 def test_local_binary_pattern(small_ndvi_eopatch, task, expected_statistics):
     eopatch = copy.deepcopy(small_ndvi_eopatch)
     task.execute(eopatch)

@@ -70,17 +70,17 @@ class SimpleFilterTask(EOTask):
         :param eopatch: An input EOPatch.
         :return: A new EOPatch with filtered features.
         """
-        filtered_eopatch = EOPatch(bbox=eopatch.bbox)
         good_idxs = self._get_filtered_indices(eopatch[self.feature])
+        timestamps = None if eopatch.timestamps is None else [eopatch.timestamps[idx] for idx in good_idxs]
+        filtered_eopatch = EOPatch(bbox=eopatch.bbox, timestamps=timestamps)
 
         for feature in self.filter_features_parser.get_features(eopatch):
+            if feature[0] is FeatureType.TIMESTAMPS:
+                continue
             feature_type, _ = feature
             data = eopatch[feature]
 
-            if feature_type is FeatureType.TIMESTAMPS:
-                data = [data[idx] for idx in good_idxs]
-
-            elif feature_type.is_temporal():
+            if feature_type.is_temporal():
                 if feature_type.is_array():
                     data = data[good_idxs]
                 else:

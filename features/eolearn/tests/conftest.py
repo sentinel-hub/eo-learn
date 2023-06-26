@@ -17,18 +17,22 @@ from eolearn.core import EOPatch
 
 pytest.register_assert_rewrite("sentinelhub.testing_utils")  # makes asserts in helper functions work with pytest
 
-EXAMPLE_DATA_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data")
-EXAMPLE_EOPATCH_PATH = os.path.join(EXAMPLE_DATA_PATH, "TestEOPatch")
+
+@pytest.fixture(scope="session", name="example_data_path")
+def example_data_path_fixture() -> str:
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data")
 
 
 @pytest.fixture(name="example_eopatch")
 def example_eopatch_fixture():
-    return EOPatch.load(EXAMPLE_EOPATCH_PATH, lazy_loading=True)
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data", "TestEOPatch")
+    return EOPatch.load(path, lazy_loading=True)
 
 
 @pytest.fixture(name="small_ndvi_eopatch")
-def small_ndvi_eopatch_fixture(example_eopatch):
-    ndvi = example_eopatch.data["NDVI"][:10, :20, :20]
+def small_ndvi_eopatch_fixture(example_eopatch: EOPatch):
+    ndvi = example_eopatch.data["NDVI"][:, :20, :20]
     ndvi[np.isnan(ndvi)] = 0
     example_eopatch.data["NDVI"] = ndvi
+    example_eopatch.consolidate_timestamps(example_eopatch.get_timestamps()[:10])
     return example_eopatch

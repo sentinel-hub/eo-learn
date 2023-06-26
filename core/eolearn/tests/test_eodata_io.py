@@ -474,7 +474,7 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch, use_
         eopatch.save(folder_name, filesystem=temp_fs)
 
         lazy_eopatch = EOPatch.load(folder_name, filesystem=temp_fs, lazy_loading=True)
-        lazy_eopatch.data["whatever"] = np.empty((2, 3, 3, 2))
+        lazy_eopatch.data["whatever"] = np.empty((5, 3, 3, 2))
         del lazy_eopatch[FeatureType.MASK_TIMELESS, "mask"]
 
         lazy_eopatch.save(

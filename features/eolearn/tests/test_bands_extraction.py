@@ -20,7 +20,7 @@ INPUT_FEATURE = (FeatureType.DATA, "TEST")
 
 
 def test_euclidean_norm():
-    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)), timestamps=["1234-05-06"] * 5)
 
     data = np.zeros(5 * 10 * 10 * 7).reshape(5, 10, 10, 7)
     bands = [0, 1, 2, 4, 6]
@@ -39,7 +39,7 @@ def test_bad_input(bad_input):
 
 
 def test_ndi():
-    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)))
+    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)), timestamps=["1234-05-06"] * 4)
     eopatch[INPUT_FEATURE] = np.zeros((4, 3, 3, 9))
 
     band_a, band_b = 4.123, 3.321
