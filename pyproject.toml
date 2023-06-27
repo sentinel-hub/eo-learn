@@ -227,6 +227,7 @@ disable = [
     "unspecified-encoding",
     "unnecessary-ellipsis",
     "use-dict-literal",
+    "cyclic-import",
 ]
 
 [tool.pylint.design]
