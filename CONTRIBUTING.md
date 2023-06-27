@@ -22,7 +22,7 @@ For any question, feel free to contact us at [eoresearch@sinergise.com](eoresear
 
 We strive to provide high-quality working code, but bugs happen nevertheless.
 
-When reporting a bug, please check [here][open-bug-list] whether the bug was already reported. If not, open an issue with the **bug** label and report the following information:
+When reporting a bug, please check [the issue tracker][open-bug-list] whether the bug was already reported. If not, open an issue with the **bug** label and report the following information:
 
 * Issue description
 * How to reproduce the issue
@@ -36,7 +36,7 @@ This information helps us to reproduce, pinpoint, and fix the reported issue. If
 
 ## Feature Requests
 
-Existing feature requests can be found [here][existing-feature-requests].
+Existing feature requests can be found [in the issues][existing-feature-requests].
 
 A new feature request can be created by opening a new issue with the **enhancement** label, and describing how the feature would benefit the **eo-learn** community. Providing an example use-case would help assessing the scope of the feature request.
 

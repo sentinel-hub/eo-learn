@@ -15,7 +15,6 @@
 import os
 import shutil
 import sys
-from collections import defaultdict
 from typing import Any, Dict, Optional
 
 import sphinx.ext.autodoc
@@ -43,11 +42,13 @@ doc_title = "eo-learn Documentation"
 # built documents.
 #
 # The release is read from __init__ file and version is shortened release string.
-with open(os.path.join(os.path.dirname(__file__), "../../setup.py")) as setup_file:
-    for line in setup_file:
-        if "version=" in line:
-            release = line.split("=")[1].strip('", \n').strip("'")
-            version = release.rsplit(".", 1)[0]
+with open(os.path.join(os.path.dirname(__file__), "../../eolearn/__init__.py")) as init_file:
+    for line in init_file:
+        if line.find("__version__") >= 0:
+            release = line.split("=")[1].strip()
+            release = release.strip('"').strip("'")
+
+version = release.rsplit(".", 1)[0]
 
 # -- General configuration ---------------------------------------------------
 
@@ -221,9 +222,6 @@ epub_copyright = copyright
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ["search.html"]
 
-# Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {"https://docs.python.org/3.8/": None}
-
 
 # -- Custom settings ----------------------------------------------
 
@@ -356,10 +354,10 @@ custom_reference_dir = os.path.join(current_dir, "custom_reference")
 custom_reference_files = {filename.rsplit(".", 1)[0] for filename in os.listdir(custom_reference_dir)}
 
 repository_dir = os.path.join(current_dir, "..", "..")
-modules = ["core", "coregistration", "features", "geometry", "io", "mask", "ml_tools", "visualization"]
+module = "eolearn"
 
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
-APIDOC_EXCLUDE = defaultdict(list, {"core": ["graph.py", "eodata_io.py", "eodata_merge.py"]})
+APIDOC_EXCLUDE = ["graph.py", "eodata_io.py", "eodata_merge.py"]
 
 shutil.rmtree(reference_dir, ignore_errors=True)
 shutil.copytree(custom_reference_dir, reference_dir)
@@ -369,13 +367,9 @@ def run_apidoc(_):
     from sphinx.ext.apidoc import main
 
     sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-    for module in modules:
-        module_dir = os.path.join(current_dir, "..", "..", module)
-
-        exclude = [os.path.join(module_dir, "eolearn", module, filename) for filename in APIDOC_EXCLUDE[module]]
-        exclude.extend([os.path.join(module_dir, "setup.py"), os.path.join(module_dir, "eolearn", "tests")])
-
-        main(["-e", "-o", reference_dir, module_dir, *exclude, *APIDOC_OPTIONS])
+    module_dir = os.path.join(current_dir, "..", "..", module)
+    exclude = [os.path.join(module_dir, "core", filename) for filename in APIDOC_EXCLUDE]
+    main(["-e", "-o", reference_dir, module_dir, *exclude, *APIDOC_OPTIONS])
 
 
 def configure_github_link(_app: Any, pagename: str, _templatename: Any, context: Dict[str, Any], _doctree: Any) -> None:
