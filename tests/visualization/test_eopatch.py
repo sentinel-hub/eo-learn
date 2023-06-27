@@ -20,7 +20,7 @@ from eolearn.visualization import PlotConfig
 
 @pytest.fixture(name="eopatch", scope="module")
 def eopatch_fixture():
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data", "TestEOPatch")
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "example_data", "TestEOPatch")
     return EOPatch.load(path)
 
 

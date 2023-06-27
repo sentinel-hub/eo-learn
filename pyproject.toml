@@ -82,7 +82,6 @@ geometry = [
 io = [
     "affine",
     "boto3",
-    "eo-learn-core",
     "fiona>=1.8.18",
     "geopandas>=0.8.1",
     "rasterio>=1.2.7",

@@ -21,7 +21,7 @@ from eolearn.core import EOPatch
 
 @pytest.fixture(scope="session", name="test_eopatch_path")
 def test_eopatch_path_fixture() -> str:
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data", "TestEOPatch")
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "example_data", "TestEOPatch")
 
 
 @pytest.fixture(name="test_eopatch")

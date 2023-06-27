@@ -20,12 +20,12 @@ pytest.register_assert_rewrite("sentinelhub.testing_utils")  # makes asserts in 
 
 @pytest.fixture(scope="session", name="example_data_path")
 def example_data_path_fixture() -> str:
-    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data")
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "example_data")
 
 
 @pytest.fixture(name="example_eopatch")
 def example_eopatch_fixture():
-    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "..", "example_data", "TestEOPatch")
+    path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "example_data", "TestEOPatch")
     return EOPatch.load(path, lazy_loading=True)
 
 
