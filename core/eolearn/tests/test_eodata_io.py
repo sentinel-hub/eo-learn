@@ -655,7 +655,9 @@ def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_select
         expected_data = eopatch.data["data"].copy()
         expected_data[temporal_selection] = 2
 
-        assert_array_equal(EOPatch.load(path="patch-folder", filesystem=temp_fs).data["data"], expected_data)
+        loaded_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+        assert_array_equal(loaded_patch.data["data"], expected_data)
+        assert_array_equal(loaded_patch.timestamps, eopatch.timestamps)
 
 
 @mock_s3
@@ -674,7 +676,9 @@ def test_partial_temporal_saving_infer(eopatch: EOPatch):
         expected_data = eopatch.data["data"].copy()
         expected_data[[1, 3, 4]] = 2
 
-        assert_array_equal(EOPatch.load(path="patch-folder", filesystem=temp_fs).data["data"], expected_data)
+        loaded_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+        assert_array_equal(loaded_patch.data["data"], expected_data)
+        assert_array_equal(loaded_patch.timestamps, eopatch.timestamps)
 
 
 @mock_s3
