@@ -599,8 +599,11 @@ def test_zarr_and_numpy_combined_loading(eopatch):
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
-@pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
-def test_partial_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+@pytest.mark.parametrize(
+    "temporal_selection",
+    [None, slice(None, 3), slice(2, 4, 2), [3, 4], lambda ts: [i % 2 == 0 for i, _ in enumerate(ts)]],
+)
+def test_partial_temporal_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
     _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
         eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
@@ -609,7 +612,14 @@ def test_partial_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, 
         partial_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
 
         assert full_patch == eopatch
-        adjusted_selection = slice(None) if temporal_selection is None else temporal_selection
+
+        if temporal_selection is None:
+            adjusted_selection = slice(None)
+        elif callable(temporal_selection):
+            adjusted_selection = temporal_selection(full_patch.get_timestamps())
+        else:
+            adjusted_selection = temporal_selection
+
         assert_array_equal(full_patch.data["data"][adjusted_selection, ...], partial_patch.data["data"])
         assert_array_equal(full_patch.mask_timeless["mask"], partial_patch.mask_timeless["mask"])
         assert_array_equal(np.array(full_patch.timestamps)[adjusted_selection], partial_patch.timestamps)
@@ -619,7 +629,7 @@ def test_partial_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, 
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize("temporal_selection", [[3, 4, 10]])
-def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
+def test_partial_temporal_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
     _skip_when_appropriate(fs_loader, use_zarr)
     with fs_loader() as temp_fs:
         eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
@@ -630,7 +640,7 @@ def test_partial_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: 
 
 @mock_s3
 @pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
-def test_partial_saving_into_existing(eopatch: EOPatch, temporal_selection):
+def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_selection):
     _skip_when_appropriate(TempFS, True)
     with TempFS() as temp_fs:
         io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
@@ -649,19 +659,38 @@ def test_partial_saving_into_existing(eopatch: EOPatch, temporal_selection):
 
 
 @mock_s3
-def test_partial_saving_fails(eopatch: EOPatch):
+def test_partial_temporal_saving_infer(eopatch: EOPatch):
+    _skip_when_appropriate(TempFS, True)
+    with TempFS() as temp_fs:
+        io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
+        eopatch.save(**io_kwargs, use_zarr=True)
+
+        partial_patch = eopatch.copy(deep=True)
+        partial_patch.consolidate_timestamps(eopatch.timestamps[1:2] + eopatch.timestamps[3:5])
+
+        partial_patch.data["data"] = np.full_like(partial_patch.data["data"], 2)
+        partial_patch.save(**io_kwargs, use_zarr=True, temporal_selection="infer")
+
+        expected_data = eopatch.data["data"].copy()
+        expected_data[[1, 3, 4]] = 2
+
+        assert_array_equal(EOPatch.load(path="patch-folder", filesystem=temp_fs).data["data"], expected_data)
+
+
+@mock_s3
+def test_partial_temporal_saving_fails(eopatch: EOPatch):
     _skip_when_appropriate(TempFS, True)
     with TempFS() as temp_fs:
         io_kwargs = dict(
             path="patch-folder", filesystem=temp_fs, use_zarr=True, overwrite_permission="OVERWRITE_FEATURES"
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(IOError):
             # patch does not exist yet
             eopatch.save(**io_kwargs, temporal_selection=slice(2, None))
 
         eopatch.save(**io_kwargs)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="without zarr arrays"):
             # saving without zarr
             eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=False, temporal_selection=[1, 2])
 
@@ -672,6 +701,19 @@ def test_partial_saving_fails(eopatch: EOPatch):
         with pytest.raises(ValueError):
             # temporal selection outside of saved eopatch
             eopatch.save(**io_kwargs, temporal_selection=slice(12, None))
+
+        with pytest.raises(RuntimeError, match=r"Cannot infer temporal selection.*?has no timestamps"):
+            # no timestamps, cannot infer
+            EOPatch(bbox=eopatch.bbox).save(**io_kwargs, temporal_selection="infer")
+
+        with pytest.raises(ValueError, match=r"Cannot infer temporal selection.*?subset"):
+            # wrong timestamps, cannot infer
+            EOPatch(bbox=eopatch.bbox, timestamps=["2012-01-01"]).save(**io_kwargs, temporal_selection="infer")
+
+        EOPatch(bbox=eopatch.bbox).save(path="other-folder", filesystem=temp_fs)
+        with pytest.raises(IOError, match=r"Saved EOPatch does not have timestamps"):
+            # no timestamps saved
+            eopatch.save(path="other-folder", filesystem=temp_fs, use_zarr=True, temporal_selection="infer")
 
 
 @pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])

@@ -649,7 +649,7 @@ class EOPatch:
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Literal["infer"] = None,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -665,7 +665,8 @@ class EOPatch:
             features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
-            used for saving data in multiple steps for memory optimization.
+            used for saving data in multiple steps for memory optimization. When set to `"infer"` it will match the
+            timestamps of the EOPatch to the timestamps of the stored EOPatch to calculate indices.
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)
@@ -691,7 +692,7 @@ class EOPatch:
         filesystem: FS | None = None,
         *,
         load_timestamps: bool | Literal["auto"] = "auto",
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] = None,
     ) -> EOPatch:
         """Method to load an EOPatch from a storage into memory.
 
@@ -702,20 +703,19 @@ class EOPatch:
             parameter.
         :load_timestamps: Whether to load the timestamps of the EOPatch. By default they are loaded whenever temporal
             features are being loaded.
-        :param temporal_selection: Only loads data corresponding to the chosen indices.
+        :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
+            given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         :return: Loaded EOPatch
         """
         if filesystem is None:
             filesystem = get_filesystem(path, create=False)
             path = "/"
 
-        bbox_io, timestamps_io, features_dict = load_eopatch_content(
+        bbox, timestamps, features_dict = load_eopatch_content(
             filesystem, path, features=features, temporal_selection=temporal_selection, load_timestamps=load_timestamps
         )
-        eopatch = EOPatch(bbox=None if bbox_io is None else bbox_io.load())
+        eopatch = EOPatch(bbox=bbox, timestamps=timestamps)
 
-        if timestamps_io is not None:
-            eopatch.timestamps = timestamps_io.load()
         for feature, feature_io in features_dict.items():
             eopatch[feature] = feature_io
 

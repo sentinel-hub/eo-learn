@@ -9,6 +9,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import copy
+import datetime as dt
 from abc import ABCMeta
 from typing import Any, Callable, Iterable, Literal, Tuple, Union, cast
 
@@ -93,7 +94,7 @@ class SaveTask(IOTask):
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Literal["infer"] = None,
     ):
         """
         :param path: root path where all EOPatches are saved
@@ -109,7 +110,8 @@ class SaveTask(IOTask):
             features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
-            used for saving data in multiple steps for memory optimization.
+            used for saving data in multiple steps for memory optimization. When set to `"infer"` it will match the
+            timestamps of the EOPatch to the timestamps of the stored EOPatch to calculate indices.
         """
         self.features = features
         self.overwrite_permission = overwrite_permission
@@ -124,7 +126,7 @@ class SaveTask(IOTask):
         eopatch: EOPatch,
         *,
         eopatch_folder: str = "",
-        temporal_selection: None | slice | list[int] | EllipsisType = ...,
+        temporal_selection: None | slice | list[int] | Literal["infer"] | EllipsisType = ...,
     ) -> EOPatch:
         """Saves the EOPatch to disk: `folder/eopatch_folder`.
 
@@ -161,7 +163,7 @@ class LoadTask(IOTask):
         lazy_loading: bool = False,
         *,
         load_timestamps: bool | Literal["auto"] = "auto",
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] = None,
     ):
         """
         :param path: root directory where all EOPatches are saved
@@ -173,7 +175,8 @@ class LoadTask(IOTask):
         :param lazy_loading: If `True` features will be lazy loaded.
         :load_timestamps: Whether to load the timestamps of the EOPatch. By default they are loaded whenever temporal
             features are being loaded.
-        :param temporal_selection: Only loads data corresponding to the chosen indices.
+        :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
+            given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         """
         self.features = features
         self.lazy_loading = lazy_loading
@@ -186,7 +189,7 @@ class LoadTask(IOTask):
         eopatch: EOPatch | None = None,
         *,
         eopatch_folder: str = "",
-        temporal_selection: None | slice | list[int] | EllipsisType = ...,
+        temporal_selection: None | slice | list[int] | Callable[[list[dt.datetime]], list[bool]] | EllipsisType = ...,
     ) -> EOPatch:
         """Loads the EOPatch from disk: `folder/eopatch_folder`.
 

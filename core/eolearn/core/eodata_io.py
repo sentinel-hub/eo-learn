@@ -72,8 +72,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 Self = TypeVar("Self", bound="FeatureIO")
 PatchContentType: TypeAlias = Tuple[
-    Optional["FeatureIOBBox"],
-    Optional["FeatureIOTimestamps"],
+    Optional[BBox],
+    Optional[List[datetime.datetime]],
     Dict[Tuple[FeatureType, str], "FeatureIO"],
 ]
 
@@ -105,11 +105,11 @@ def save_eopatch(
     patch_location: str,
     *,
     features: FeaturesSpecification,
-    save_timestamps: bool | Literal["auto"] = "auto",
+    save_timestamps: bool | Literal["auto"],
     overwrite_permission: OverwritePermission,
     compress_level: int,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int] = None,
+    temporal_selection: None | slice | list[int] | Literal["infer"],
 ) -> None:
     """A utility function used by `EOPatch.save` method."""
     patch_exists = filesystem.exists(patch_location)
@@ -135,7 +135,7 @@ def save_eopatch(
             use_zarr=use_zarr,
             compress_level=compress_level,
             save_timestamps=save_timestamps,
-            temporal_selection=temporal_selection,
+            temporal_selection=_infer_temporal_selection(temporal_selection, filesystem, file_information, eopatch),
         )
     )
 
@@ -160,6 +160,28 @@ def save_eopatch(
     _remove_old_style_metainfo(filesystem, patch_location, new_files, file_information)
 
 
+def _infer_temporal_selection(
+    temporal_selection: None | slice | list[int] | Literal["infer"],
+    filesystem: FS,
+    file_information: FilesystemDataInfo,
+    eopatch: EOPatch,
+) -> None | slice | list[int]:
+    if temporal_selection != "infer":
+        return temporal_selection
+
+    patch_timestamps = eopatch.get_timestamps("Cannot infer temporal selection. EOPatch to be saved has no timestamps.")
+    if file_information.timestamps is None:
+        raise IOError("Cannot infer temporal selection. Saved EOPatch does not have timestamps.")
+    full_timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem).load()
+    timestamp_indices = {timestamp: idx for idx, timestamp in enumerate(full_timestamps)}
+    if not all(timestamp in timestamp_indices for timestamp in patch_timestamps):
+        raise ValueError(
+            f"Cannot infer temporal selection. EOPatch timestamps {patch_timestamps} are not a subset of the stored"
+            f" EOPatch timestamps {full_timestamps}."
+        )
+    return [timestamp_indices[timestamp] for timestamp in patch_timestamps]
+
+
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
     filesystem.removetree(patch_location)
     filesystem.makedirs(patch_location, recreate=True)
@@ -174,7 +196,7 @@ def _yield_savers(
     compress_level: int,
     save_timestamps: bool,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int] = None,
+    temporal_selection: None | slice | list[int] | list[bool],
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -251,19 +273,23 @@ def load_eopatch_content(
     patch_location: str,
     *,
     features: FeaturesSpecification,
-    load_timestamps: bool | Literal["auto"] = "auto",
-    temporal_selection: None | slice | list[int],
+    load_timestamps: bool | Literal["auto"],
+    temporal_selection: None | slice | list[int] | Callable[[list[datetime.datetime]], list[bool]],
 ) -> PatchContentType:
     """A utility function used by `EOPatch.load` method."""
     err_msg = "Feature {} is specified to be loaded but does not exist in EOPatch at " + patch_location
     file_information = get_filesystem_data_info(filesystem, patch_location, features)
     feature_specs = FeatureParser(features).get_feature_specifications()
 
-    features_dict = _load_features(filesystem, feature_specs, temporal_selection, err_msg, file_information)
+    simple_temporal_selection, maybe_timestamps = _extract_temporal_selection(
+        filesystem, patch_location, file_information.timestamps, temporal_selection
+    )
+
+    features_dict = _load_features(filesystem, feature_specs, simple_temporal_selection, err_msg, file_information)
 
     bbox = None
     if file_information.bbox is not None:
-        bbox = FeatureIOBBox(file_information.bbox, filesystem)
+        bbox = FeatureIOBBox(file_information.bbox, filesystem).load()
     elif (FeatureType.BBOX, ...) in feature_specs and features is not Ellipsis:
         raise IOError(err_msg.format(FeatureType.BBOX))
 
@@ -274,18 +300,36 @@ def load_eopatch_content(
 
     timestamps = None
     if load_timestamps:
-        if file_information.timestamps is not None:
-            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, temporal_selection)
+        if maybe_timestamps is not None:
+            timestamps = maybe_timestamps
+        elif file_information.timestamps is not None:
+            timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, simple_temporal_selection).load()
         elif features is not Ellipsis:
             raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
     return bbox, timestamps, features_dict
 
 
+def _extract_temporal_selection(
+    filesystem: FS,
+    patch_location: str,
+    timestamps_path: str | None,
+    temporal_selection: None | slice | list[int] | Callable[[list[datetime.datetime]], list[bool]],
+) -> tuple[None | slice | list[int] | list[bool], list[datetime.datetime] | None]:
+    """Extracts the temporal selection if available."""
+    if not callable(temporal_selection):
+        return temporal_selection, None
+    if timestamps_path is not None:
+        full_timestamps = FeatureIOTimestamps(timestamps_path, filesystem).load()
+        simple_selection = temporal_selection(full_timestamps)
+        return simple_selection, [timestamp for timestamp, include in zip(full_timestamps, simple_selection) if include]
+    raise IOError(f"Cannot perform loading temporal selection, EOPatch at {patch_location} has no timestamps.")
+
+
 def _load_features(
     filesystem: FS,
     feature_specs: list[tuple[FeatureType, str | EllipsisType]],
-    temporal_selection: None | slice | list[int],
+    temporal_selection: None | slice | list[int] | list[bool],
     err_msg: str,
     file_information: FilesystemDataInfo,
 ) -> dict[tuple[FeatureType, str], FeatureIO]:
@@ -317,7 +361,7 @@ def _load_features(
 
 
 def _get_feature_io(
-    ftype: FeatureType, path: str, filesystem: FS, temporal_selection: None | slice | list[int]
+    ftype: FeatureType, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool]
 ) -> FeatureIO:
     use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
     constructor = _get_feature_io_constructor(ftype, use_zarr)
@@ -575,7 +619,7 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
 class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
+    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
         self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
         super().__init__(path, filesystem)
 
@@ -594,7 +638,7 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
 class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
+    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
         self.temporal_selection = temporal_selection  # temporal selection currently does nothing
         super().__init__(path, filesystem)
 
@@ -654,7 +698,7 @@ class FeatureIOJson(FeatureIOGZip[T]):
 class FeatureIOTimestamps(FeatureIOJson[List[datetime.datetime]]):
     """FeatureIOJson object specialized for List[dt.datetime]."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
+    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
         self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
         super().__init__(path, filesystem)
 
@@ -684,7 +728,7 @@ class FeatureIOBBox(FeatureIOGZip[BBox]):
 class FeatureIOZarr(FeatureIO[np.ndarray]):
     """FeatureIO object specialized for Zarr arrays."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] = None):
+    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
         self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
         super().__init__(path, filesystem)
 
@@ -736,7 +780,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         try:
             zarray = zarr.open_array(store, "r+")
         except ValueError as error:  # zarr does not expose the proper error...
-            raise ValueError(
+            raise IOError(
                 f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires preexisting zarr."
             ) from error
 
