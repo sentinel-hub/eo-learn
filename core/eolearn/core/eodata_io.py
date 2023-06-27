@@ -123,7 +123,7 @@ def save_eopatch(
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
     if save_timestamps == "auto":
-        save_timestamps = any(ftype.is_temporal() for ftype, _ in eopatch_features)
+        save_timestamps = any(ftype.is_temporal() for ftype, _ in eopatch_features) and temporal_selection is None
 
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = list(
