@@ -21,7 +21,7 @@ RUN pip3 install --no-cache-dir shapely --no-binary :all:
 WORKDIR /tmp
 
 COPY eolearn eolearn
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE ./
 
 RUN pip3 install --no-cache-dir .[FULL]
 
