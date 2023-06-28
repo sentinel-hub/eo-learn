@@ -56,7 +56,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-all = ["eo-learn[COREGISTRATION,FEATURES,GEOMETRY,IO,MASK,MLTOOLS,VISUALIZATION]"]
+all = [
+    "eo-learn[COREGISTRATION,FEATURES,GEOMETRY,IO,MASK,MLTOOLS,VISUALIZATION]",
+]
 full = ["eo-learn[ALL,RAY,ZARR,METEOBLUE,TDIGEST]"]
 ray = ["ray[default]"]
 zarr = ["s3fs", "zarr"]
@@ -65,43 +67,20 @@ coregistration = [
 ] # using headless version of opencv, otherwise gitlab runners fail
 features = [
     "numba>=0.53.0",
-    "numpy",
     "pillow>=9.1.0",
-    "python-dateutil",
     "scikit-image>=0.19.0",
     "scikit-learn",
     "scipy",
-    "typing-extensions",
 ]
-geometry = [
-    "geopandas>=0.8.1",
-    "rasterio>=1.2.7",
-    "scikit-image>=0.15.0",
-    "shapely",
-]
-io = [
-    "affine",
-    "boto3",
-    "fiona>=1.8.18",
-    "geopandas>=0.8.1",
-    "rasterio>=1.2.7",
-    "sentinelhub>=3.8.0",
-    "typing-extensions",
-]
+geometry = ["rasterio>=1.2.7", "scikit-image>=0.15.0", "shapely"]
+io = ["affine", "fiona>=1.8.18", "rasterio>=1.2.7"]
 geodb = [
     "python-dotenv",
     "xcube-geodb @ git+git://github.com/dcs4cop/xcube-geodb.git",
 ]
 meteoblue = ["meteoblue_dataset_sdk>=1,<2"]
-mask = [
-    "lightgbm>=2.0.11",
-    "numpy",
-    "opencv-python-headless",
-    "scikit-image>=0.13.0",
-    "sentinelhub",
-    "typing-extensions",
-]
-mltools = ["numpy", "shapely"]
+mask = ["lightgbm>=2.0.11", "opencv-python-headless", "scikit-image>=0.13.0"]
+mltools = ["shapely"]
 tdigest = ["tdigest==0.5.2.2"]
 mltoolsplotting = ["matplotlib"]
 visualization = ["graphviz>=0.10.1", "jinja2", "matplotlib", "pygments"]
