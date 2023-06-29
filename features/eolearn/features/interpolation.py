@@ -95,10 +95,10 @@ class InterpolationTask(EOTask):
     the feature will contain interpolated and resampled values and corresponding new timestamps.
 
     Examples of `interpolation_object:
-        - `scipy.interpolate.interp1d`, supply the kind as a kwarg, e.g. `kind="cubic"`
-        - `scipy.interpolate.UnivariateSpline`
-        - `scipy.interpolate.make_interp_spline`
-        - `scipy.interpolate.Akima1DInterpolator`
+    - `scipy.interpolate.interp1d`, supply the kind as a kwarg, e.g. `kind="cubic"`
+    - `scipy.interpolate.UnivariateSpline`
+    - `scipy.interpolate.make_interp_spline`
+    - `scipy.interpolate.Akima1DInterpolator`
 
     :param feature: A feature to be interpolated with optional new feature name
     :param interpolation_object: Interpolation class which is initialized with `interpolation_parameters`
