@@ -364,8 +364,8 @@ def test_fail_loading_nonexistent_feature(fs_loader):
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_nonexistent_location(fs_loader, use_zarr: bool):
-    _skip_when_appropriate(fs_loader, use_zarr)
     """In the event of a path not existing all save actions should create the path, and loads should fail."""
+    _skip_when_appropriate(fs_loader, use_zarr)
     path = "./folder/subfolder/new-eopatch/"
     eopatch = EOPatch(bbox=DUMMY_BBOX)
 
@@ -658,6 +658,30 @@ def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_select
         loaded_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
         assert_array_equal(loaded_patch.data["data"], expected_data)
         assert_array_equal(loaded_patch.timestamps, eopatch.timestamps)
+
+
+@mock_s3
+@pytest.mark.parametrize("dtype", [float, np.float32, np.int8])
+def test_partial_temporal_saving_just_timestamps(dtype):
+    _skip_when_appropriate(TempFS, True)
+    patch_skeleton = generate_eopatch(seed=17)
+    partial_patch = EOPatch(
+        data={"beep": np.full((2, 117, 97, 3), 2, dtype=dtype)},
+        bbox=patch_skeleton.bbox,
+        timestamps=[patch_skeleton.timestamps[1], patch_skeleton.timestamps[2]],
+    )
+    expected_data = np.zeros((5, 117, 97, 3), dtype=dtype)
+    expected_data[[1, 2]] = 2
+
+    with TempFS() as temp_fs:
+        io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
+        patch_skeleton.save(**io_kwargs, save_timestamps=True)
+
+        partial_patch.save(**io_kwargs, use_zarr=True, temporal_selection="infer")
+
+        loaded_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
+        assert_array_equal(loaded_patch.data["beep"], expected_data)
+        assert_array_equal(loaded_patch.timestamps, patch_skeleton.timestamps)
 
 
 @mock_s3
