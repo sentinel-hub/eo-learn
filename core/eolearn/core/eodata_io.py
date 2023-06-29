@@ -100,8 +100,9 @@ class FilesystemDataInfo:
 
 
 @dataclass
-class InferredSelection:
-    """Temporal selection that was inferred from timestamps. Also carries info on how to initialize Zarr if needed."""
+class TemporalSelection:
+    """Defines which temporal slices a temporally-partial EOPatch represents. Also carries info on how to initialize
+    Zarr arrays if inferred."""
 
     selection: None | slice | list[int]
     full_size: int | None  # None means unknown
@@ -173,9 +174,9 @@ def _infer_temporal_selection(
     filesystem: FS,
     file_information: FilesystemDataInfo,
     eopatch: EOPatch,
-) -> InferredSelection:
+) -> TemporalSelection:
     if temporal_selection != "infer":
-        return InferredSelection(temporal_selection, None)
+        return TemporalSelection(temporal_selection, None)
 
     patch_timestamps = eopatch.get_timestamps("Cannot infer temporal selection. EOPatch to be saved has no timestamps.")
     if file_information.timestamps is None:
@@ -187,7 +188,7 @@ def _infer_temporal_selection(
             f"Cannot infer temporal selection. EOPatch timestamps {patch_timestamps} are not a subset of the stored"
             f" EOPatch timestamps {full_timestamps}."
         )
-    return InferredSelection([timestamp_indices[timestamp] for timestamp in patch_timestamps], len(full_timestamps))
+    return TemporalSelection([timestamp_indices[timestamp] for timestamp in patch_timestamps], len(full_timestamps))
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -204,7 +205,7 @@ def _yield_savers(
     compress_level: int,
     save_timestamps: bool,
     use_zarr: bool,
-    temporal_selection: InferredSelection,
+    temporal_selection: TemporalSelection,
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -774,7 +775,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         filesystem: FS,
         feature_path: str,
         compress_level: int = 0,  # noqa: ARG003
-        temporal_selection: None | InferredSelection = None,
+        temporal_selection: None | TemporalSelection = None,
     ) -> str:
         cls._check_dependencies_imported(feature_path)
         path = feature_path + cls.get_file_extension()
