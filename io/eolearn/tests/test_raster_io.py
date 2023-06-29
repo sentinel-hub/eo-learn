@@ -321,6 +321,7 @@ def test_import_tiff_intersecting(test_eopatch, example_data_path):
     assert unique_values == [no_data_value], f"No data values should all be equal to {no_data_value}"
 
 
+@pytest.mark.skip()  # rasterio 1.3.8 and moto have some issues, wait for it to be resolved
 def test_timeless_feature(test_eopatch):
     feature = FeatureType.DATA_TIMELESS, "DEM"
     filename = "relative-path/my-filename.tiff"
