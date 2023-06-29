@@ -99,6 +99,14 @@ class FilesystemDataInfo:
                 yield (ftype, fname), path
 
 
+@dataclass
+class InferredSelection:
+    """Temporal selection that was inferred from timestamps. Also carries info on how to initialize Zarr if needed."""
+
+    selection: None | slice | list[int]
+    full_size: int | None  # None means unknown
+
+
 def save_eopatch(
     eopatch: EOPatch,
     filesystem: FS,
@@ -165,9 +173,9 @@ def _infer_temporal_selection(
     filesystem: FS,
     file_information: FilesystemDataInfo,
     eopatch: EOPatch,
-) -> None | slice | list[int]:
+) -> InferredSelection:
     if temporal_selection != "infer":
-        return temporal_selection
+        return InferredSelection(temporal_selection, None)
 
     patch_timestamps = eopatch.get_timestamps("Cannot infer temporal selection. EOPatch to be saved has no timestamps.")
     if file_information.timestamps is None:
@@ -179,7 +187,7 @@ def _infer_temporal_selection(
             f"Cannot infer temporal selection. EOPatch timestamps {patch_timestamps} are not a subset of the stored"
             f" EOPatch timestamps {full_timestamps}."
         )
-    return [timestamp_indices[timestamp] for timestamp in patch_timestamps]
+    return InferredSelection([timestamp_indices[timestamp] for timestamp in patch_timestamps], len(full_timestamps))
 
 
 def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
@@ -196,7 +204,7 @@ def _yield_savers(
     compress_level: int,
     save_timestamps: bool,
     use_zarr: bool,
-    temporal_selection: None | slice | list[int] | list[bool],
+    temporal_selection: InferredSelection,
 ) -> Iterator[Callable[[], str]]:
     """Prepares callables that save the data and return the path to where the data was saved."""
     get_file_path = partial(fs.path.join, patch_location)
@@ -766,25 +774,32 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         filesystem: FS,
         feature_path: str,
         compress_level: int = 0,  # noqa: ARG003
-        temporal_selection: None | slice | list[int] = None,
+        temporal_selection: None | InferredSelection = None,
     ) -> str:
         cls._check_dependencies_imported(feature_path)
         path = feature_path + cls.get_file_extension()
         store = cls._get_mapping(path, filesystem)
+        chunk_size = (1, *data.shape[1:])
 
-        if temporal_selection is None:
-            chunk_size = (1, *data.shape[1:])
+        if temporal_selection is None or temporal_selection.selection is None:
             zarr.save_array(store, data, chunks=chunk_size)
             return path
+
+        selection, full_size = temporal_selection.selection, temporal_selection.full_size
 
         try:
             zarray = zarr.open_array(store, "r+")
         except ValueError as error:  # zarr does not expose the proper error...
-            raise IOError(
-                f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires preexisting zarr."
-            ) from error
+            if full_size is not None:
+                zarr_shape = (full_size, *data.shape[1:])
+                zarray = zarr.create(zarr_shape, dtype=data.dtype, chunks=chunk_size, store=store)
+            else:
+                raise IOError(
+                    f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires an initialized"
+                    ' zarr array. You can also try saving with `temporal_selection="infer"`.'
+                ) from error
 
-        zarray.oindex[temporal_selection] = data
+        zarray.oindex[selection] = data
         return path
 
     @staticmethod
