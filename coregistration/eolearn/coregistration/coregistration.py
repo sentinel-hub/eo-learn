@@ -212,8 +212,8 @@ def get_gradient(src: np.ndarray) -> np.ndarray:
     """
     # Calculate the x and y gradients using Sobel operator
     src = src.astype(np.float32)
-    grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
+    grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)  # type: ignore[attr-defined]
+    grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)  # type: ignore[attr-defined]
 
     # Combine and return the two gradients
     return cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)
