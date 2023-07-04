@@ -18,11 +18,13 @@ import numpy as np
 from fs.base import FS
 
 from sentinelhub import SHConfig
+from sentinelhub.exceptions import deprecated_class
 
 from .constants import FeatureType, OverwritePermission
 from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
+from .exceptions import EODeprecationWarning
 from .types import EllipsisType, FeatureSpec, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
@@ -33,16 +35,19 @@ class CopyTask(EOTask):
     It copies feature type dictionaries but not the data itself.
     """
 
-    def __init__(self, features: FeaturesSpecification = ...):
+    def __init__(self, features: FeaturesSpecification = ..., *, deep: bool = False):
         """
         :param features: A collection of features or feature types that will be copied into a new EOPatch.
+        :param deep: Whether the copy should be a deep or shallow copy.
         """
         self.features = features
+        self.deep = deep
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        return eopatch.copy(features=self.features)
+        return eopatch.copy(features=self.features, deep=self.deep)
 
 
+@deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")
 class DeepCopyTask(CopyTask):
     """Makes a deep copy of the given EOPatch."""
 

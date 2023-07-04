@@ -11,20 +11,16 @@ from datetime import datetime
 
 import numpy as np
 import pytest
+import scipy.interpolate
 
 from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.features import (
-    AkimaInterpolationTask,
-    BSplineInterpolationTask,
-    CubicInterpolationTask,
-    CubicResamplingTask,
+    InterpolationTask,
     KrigingInterpolationTask,
     LinearInterpolationTask,
-    LinearResamplingTask,
-    NearestResamplingTask,
-    SplineInterpolationTask,
+    ResamplingTask,
 )
 
 
@@ -106,8 +102,10 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "cubic",
-        CubicInterpolationTask(
+        InterpolationTask(
             (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.interp1d,
+            kind="cubic",
             result_interval=(0.0, 1.0),
             mask_feature=(FeatureType.MASK, "IS_VALID"),
             resample_range=("2015-01-01", "2018-01-01", 16),
@@ -119,13 +117,14 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "spline",
-        SplineInterpolationTask(
+        InterpolationTask(
             (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.UnivariateSpline,
             result_interval=(-0.3, 1.0),
             mask_feature=(FeatureType.MASK, "IS_VALID"),
             resample_range=("2016-01-01", "2018-01-01", 5),
-            spline_degree=3,
-            smoothing_factor=0,
+            k=3,
+            s=0,
             unknown_value=0,
         ),
         result_len=147,
@@ -133,23 +132,25 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "bspline",
-        BSplineInterpolationTask(
+        InterpolationTask(
             (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.make_interp_spline,
             unknown_value=-3,
             mask_feature=(FeatureType.MASK, "IS_VALID"),
             resample_range=("2017-01-01", "2017-02-01", 50),
-            spline_degree=5,
+            k=5,
         ),
         result_len=1,
         expected_statistics=dict(exp_min=-0.0162962, exp_max=0.62323, exp_mean=0.319117, exp_median=0.3258836),
     ),
     InterpolationTestCase(
         "bspline-p",
-        BSplineInterpolationTask(
+        InterpolationTask(
             (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.make_interp_spline,
             unknown_value=-3,
             mask_feature=(FeatureType.MASK, "IS_VALID"),
-            spline_degree=5,
+            k=5,
             resample_range=("2017-01-01", "2017-02-01", 50),
             interpolate_pixel_wise=True,
         ),
@@ -158,8 +159,11 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "akima",
-        AkimaInterpolationTask(
-            (FeatureType.DATA, "NDVI"), unknown_value=0, mask_feature=(FeatureType.MASK, "IS_VALID")
+        InterpolationTask(
+            (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.Akima1DInterpolator,
+            unknown_value=0,
+            mask_feature=(FeatureType.MASK, "IS_VALID"),
         ),
         result_len=68,
         expected_statistics=dict(exp_min=-0.091035, exp_max=0.8283603, exp_mean=0.51427454, exp_median=0.59095883),
@@ -174,8 +178,12 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "nearest resample",
-        NearestResamplingTask(
-            (FeatureType.DATA, "NDVI"), result_interval=(0.0, 1.0), resample_range=("2016-01-01", "2018-01-01", 5)
+        ResamplingTask(
+            (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.interp1d,
+            kind="nearest",
+            result_interval=(0.0, 1.0),
+            resample_range=("2016-01-01", "2018-01-01", 5),
         ),
         result_len=147,
         expected_statistics=dict(exp_min=-0.2, exp_max=0.8283603, exp_mean=0.32318678, exp_median=0.2794411),
@@ -183,8 +191,12 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "linear resample",
-        LinearResamplingTask(
-            (FeatureType.DATA, "NDVI"), result_interval=(0.0, 1.0), resample_range=("2016-01-01", "2018-01-01", 5)
+        ResamplingTask(
+            (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.interp1d,
+            kind="linear",
+            result_interval=(0.0, 1.0),
+            resample_range=("2016-01-01", "2018-01-01", 5),
         ),
         result_len=147,
         expected_statistics=dict(exp_min=-0.2, exp_max=0.82643485, exp_mean=0.32218185, exp_median=0.29093677),
@@ -192,8 +204,10 @@ INTERPOLATION_TEST_CASES = [
     ),
     InterpolationTestCase(
         "cubic resample",
-        CubicResamplingTask(
+        ResamplingTask(
             (FeatureType.DATA, "NDVI"),
+            interpolation_object=scipy.interpolate.interp1d,
+            kind="cubic",
             result_interval=(-0.2, 1.0),
             resample_range=("2015-01-01", "2018-01-01", 16),
             unknown_value=5,
@@ -236,8 +250,10 @@ COPY_FEATURE_CASES = [
     (
         InterpolationTestCase(
             "cubic_copy_success",
-            CubicInterpolationTask(
+            InterpolationTask(
                 (FeatureType.DATA, "NDVI"),
+                interpolation_object=scipy.interpolate.interp1d,
+                kind="cubic",
                 result_interval=(0.0, 1.0),
                 mask_feature=(FeatureType.MASK, "IS_VALID"),
                 resample_range=("2015-01-01", "2018-01-01", 16),
@@ -257,8 +273,10 @@ COPY_FEATURE_CASES = [
     (
         InterpolationTestCase(
             "cubic_copy_fail",
-            CubicInterpolationTask(
+            InterpolationTask(
                 (FeatureType.DATA, "NDVI"),
+                interpolation_object=scipy.interpolate.interp1d,
+                kind="cubic",
                 result_interval=(0.0, 1.0),
                 mask_feature=(FeatureType.MASK, "IS_VALID"),
                 resample_range=("2015-01-01", "2018-01-01", 16),
