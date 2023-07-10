@@ -18,7 +18,7 @@ import numpy as np
 from lightgbm import Booster
 from skimage.morphology import disk
 
-from sentinelhub import BBox, bbox_to_resolution
+from sentinelhub import BBox, DataCollection, bbox_to_resolution
 
 from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
 from eolearn.core.utils.common import _apply_to_spatial_axes
@@ -108,7 +108,9 @@ class CloudMaskTask(EOTask):
 
         self.data_indices = None
         if data_indices is None:
-            self.data_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12)  # TODO use indices from collection
+            s2_l1c_bands = [band.name for band in DataCollection.SENTINEL2_L1C.bands]
+            model_bands = ["B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12"]
+            self.data_indices = [s2_l1c_bands.index(band) for band in model_bands]
 
         self.output_mask_feature = self.parse_feature(output_mask_feature)
         self.output_proba_feature = None
