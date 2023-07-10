@@ -284,10 +284,10 @@ class CloudMaskTask(EOTask):
 
         if mono_mask_feature is not None:
             mono_mask = self._dilate_all(mono_mask)
-            eopatch.mask[mono_mask_feature] = (mono_mask * is_data).astype(bool)
+            eopatch.mask[mono_mask_feature] = (mono_mask * is_data_sm).astype(bool)
 
         if mono_proba_feature is not None:
-            eopatch.data[mono_proba_feature] = (mono_proba * is_data).astype(np.float32)
+            eopatch.data[mono_proba_feature] = (mono_proba * is_data_sm).astype(np.float32)
 
         return eopatch
 
