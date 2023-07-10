@@ -157,20 +157,20 @@ class CloudMaskTask(EOTask):
 
         return prediction if is_booster else prediction[..., 1]
 
-    def _scale_factors(
-        self, reference_shape: tuple[int, int], bbox: BBox
-    ) -> tuple[float, float]:  # TODO: is never none
+    def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[float, float] | None:
         """Compute the resampling factors for height and width of the input array
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
         :param bbox: An EOPatch bounding box
-        :return: Rescale factor for rows and columns
+        :return: Rescale factor for rows and columns or None
         """
         height, width = reference_shape
         res_x, res_y = bbox_to_resolution(bbox, width=width, height=height)
 
-        process_res_x, process_res_y = (res_x, res_y) if self.proc_resolution is None else self.proc_resolution
+        if self.proc_resolution is None:
+            return None
 
+        process_res_x, process_res_y = self.proc_resolution
         return res_y / process_res_y, res_x / process_res_x
 
     def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
@@ -222,9 +222,10 @@ class CloudMaskTask(EOTask):
         patch_bbox = eopatch.bbox
         if patch_bbox is None:
             raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
-        scale_factors = self._scale_factors(image_size, patch_bbox)
 
+        scale_factors = self._scale_factors(image_size, patch_bbox)
         valid_data_sm = valid_data
+
         # Downscale if specified
         if scale_factors is not None:
             data = resize_images(data.astype(np.float32), scale_factors=scale_factors)
