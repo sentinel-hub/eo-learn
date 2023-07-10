@@ -47,7 +47,6 @@ def test_mono_temporal_cloud_detection(test_eopatch):
         all_bands=True,
         is_data_feature=(FeatureType.MASK, "IS_DATA"),
         mono_features=("CLP_TEST", "CLM_TEST"),
-        mask_feature=None,
         average_over=4,
         dilation_size=2,
         mono_threshold=0.4,
