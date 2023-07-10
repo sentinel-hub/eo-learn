@@ -41,11 +41,8 @@ class ClassifierType(Protocol):
 
 
 class CloudMaskTask(EOTask):
-    """Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
-
-    Its intended output is a cloud mask that is based on the outputs of both
-    individual classifiers (a dilated intersection of individual binary masks).
-    Additional cloud masks and probabilities can be added for either classifier or both.
+    """Cloud masking with the s2cloudless model. Outputs a cloud mask, while the output of cloud probabilities
+    is optional.
 
     Prior to feature extraction and classification, it is recommended that the input be
     downscaled by specifying the source and processing resolutions. This should be done
@@ -60,108 +57,76 @@ class CloudMaskTask(EOTask):
     with masking operations.
 
     Example usage:
-
     .. code-block:: python
-
-        # Only output the combined mask
-        task1 = CloudMaskTask(processing_resolution='120m',
-                              mask_feature='CLM_INTERSSIM',
-                              average_over=16,
-                              dilation_size=8)
-
-        # Only output monotemporal masks. Only monotemporal processing is done.
-        task2 = CloudMaskTask(processing_resolution='120m',
-                              mono_features=(None, 'CLM_S2C'),
-                              mask_feature=None,
-                              average_over=16,
-                              dilation_size=8)
+        task = CloudMaskTask(processing_resolution=120,
+                             output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
+                             output_mask_feature=(FeatureType.DATA, 'CLP_S2C'),
+                             average_over=16,
+                             dilation_size=8)
     """
 
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
-    MONO_CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
+    CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
 
     def __init__(
         self,
-        data_feature: tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature: tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
-        all_bands: bool = True,
+        data_feature: tuple[FeatureType, str],
+        valid_data_feature: tuple[FeatureType, str],
+        output_mask_feature: tuple[FeatureType, str],
+        output_proba_feature: tuple[FeatureType, str] | None = None,
+        data_indices: list[int] | None = None,
         processing_resolution: None | float | tuple[float, float] = None,
         max_proc_frames: int = 11,
-        mono_features: tuple[str | None, str | None] | None = None,
-        mono_threshold: float = 0.4,
+        threshold: float = 0.4,
         average_over: int | None = 4,
         dilation_size: int | None = 2,
-        mono_classifier: ClassifierType | None = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
-            Default value: `'BANDS-S2-L1C'`.
-        :param is_data_feature: A mask feature which indicates whether data is valid.
-            Default value: `'IS_DATA'`.
-        :param all_bands: Flag, which indicates whether images will consist of all 13 Sentinel-2 bands or only
-            the required 10.
+        :param valid_data_feature: A mask feature which indicates whether data is valid.
+        :param output_mask_feature: The output feature containing cloud masks.
+        :param output_proba_feature: The output feature containing cloud probabilities. By default this is not saved.
+        :param data_indices: List of indices to use in case of custom input data. Defaults to 10 band indices used in
+            s2cloudless '("B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12")'.
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
             expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
             it is used for both dimensions. Default `None` represents source resolution.
         :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
             considered in a single batch iteration (To keep memory usage at agreeable levels, the task operates on
             smaller batches of time frames).
-        :param mono_features: Tuple of keys to be used for storing cloud probabilities and masks (in that order!) of
-            the mono classifier. The probabilities are added as a data feature, while masks are added as a mask
-            feature. By default, none of them are added.
-        :param multi_features: Tuple of keys used for storing cloud probabilities and masks of the multi classifier.
-            The probabilities are added as a data feature, while masks are added as a mask feature. By default,
-            none of them are added.
-        :param mask_feature: Name of the output intersection feature. Default value: `'CLM_INTERSSIM'`. If `None` the
-            intersection feature is not computed.
-        :param mono_threshold: Cloud probability threshold for the mono classifier.
-        :param multi_threshold: Cloud probability threshold for the multi classifier.
+        :param threshold: Cloud probability threshold for the classifier. Defaults to `0.4`.
         :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
             A value of `0` skips this post-processing step. Default value mimics the default for
             s2cloudless: `4`.
         :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
             post-processing step. Default value mimics the default for s2cloudless: `2`.
-        :param mono_classifier: Classifier used for mono-temporal cloud detection (`s2cloudless` or equivalent).
-            Must work on the 10 selected reflectance bands as features `("B01", "B02", "B04", "B05", "B08", "B8A",
-            "B09", "B10", "B11", "B12")`. Default value: `None` (s2cloudless is used)
-        :param multi_classifier: Classifier used for multi-temporal cloud detection.
-            Must work on the 90 multi-temporal features:
-
-            - raw reflectance value in the target frame,
-            - average value within a spatial window in the target frame,
-            - maximum, mean and standard deviation of the structural similarity (SSIM)
-            - indices between a spatial window in the target frame and every other,
-            - minimum and mean reflectance of all available time frames,
-            - maximum and mean difference in reflectances between the target frame and every other.
-
-            Default value: None (SSIM-based model is used)
+        :param classifier: Custom classifier used for cloud detection. Must work on the provided reflectance bands
+            as features. By default `s2cloudless` is used.
         """
-        self.proc_resolution = self._parse_resolution_arg(processing_resolution)
-
-        self._mono_classifier = mono_classifier
-
         self.data_feature = self.parse_feature(data_feature)
-        self.is_data_feature = self.parse_feature(is_data_feature)
-        self.band_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
+        self.valid_data_feature = self.parse_feature(valid_data_feature)
 
+        self.data_indices = None
+        if data_indices is None:
+            self.data_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12)  # TODO use indices from collection
+
+        self.output_mask_feature = self.parse_feature(output_mask_feature)
+        self.output_proba_feature = None
+        if output_proba_feature is not None:
+            self.output_proba_feature = self.parse_feature(output_proba_feature)
+
+        self._classifier: ClassifierType | None = None
+        self.proc_resolution = self._parse_resolution_arg(processing_resolution)
         self.max_proc_frames = max_proc_frames
+        self.threshold = threshold
 
-        if mono_features is not None and isinstance(mono_features, tuple):
-            self.mono_features = mono_features
-        else:
-            self.mono_features = (None, None)
-
-        self.mono_threshold = mono_threshold
-
+        self.avg_kernel = None
         if average_over is not None and average_over > 0:
             self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
-        else:
-            self.avg_kernel = None
 
+        self.dil_kernel = None
         if dilation_size is not None and dilation_size > 0:
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
-        else:
-            self.dil_kernel = None
 
     @staticmethod
     def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
@@ -172,13 +137,13 @@ class CloudMaskTask(EOTask):
         return resolution
 
     @property
-    def mono_classifier(self) -> ClassifierType:
+    def classifier(self) -> ClassifierType:
         """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
-        if self._mono_classifier is None:
-            path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
-            self._mono_classifier = Booster(model_file=path)
+        if self._classifier is None:
+            path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
+            self._classifier = Booster(model_file=path)
 
-        return self._mono_classifier
+        return self._classifier
 
     @staticmethod
     def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
@@ -190,8 +155,10 @@ class CloudMaskTask(EOTask):
 
         return prediction if is_booster else prediction[..., 1]
 
-    def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[tuple[float, float], float]:
-        """Compute the resampling factors for height and width of the input array and sigma
+    def _scale_factors(
+        self, reference_shape: tuple[int, int], bbox: BBox
+    ) -> tuple[float, float]:  # TODO: is never none
+        """Compute the resampling factors for height and width of the input array
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
         :param bbox: An EOPatch bounding box
@@ -202,29 +169,23 @@ class CloudMaskTask(EOTask):
 
         process_res_x, process_res_y = (res_x, res_y) if self.proc_resolution is None else self.proc_resolution
 
-        rescale = res_y / process_res_y, res_x / process_res_x
-        sigma = 200 / (process_res_x + process_res_y)
-
-        return rescale, sigma
+        return res_y / process_res_y, res_x / process_res_x
 
     def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
         """Performs a cloud detection process on each scene separately"""
         n_times, height, width, n_bands = bands.shape
         img_size = height * width
-        mono_proba = np.empty(n_times * img_size)
+        proba = np.empty(n_times * img_size)
 
         for t_i in range(0, n_times, self.max_proc_frames):
             # Extract mono features
             nt_min = t_i
             nt_max = min(t_i + self.max_proc_frames, n_times)
 
-            mono_features = bands[nt_min:nt_max].reshape(-1, n_bands)
+            features = bands[nt_min:nt_max].reshape(-1, n_bands)
+            proba[nt_min * img_size : nt_max * img_size] = self._run_prediction(self.classifier, features)
 
-            mono_proba[nt_min * img_size : nt_max * img_size] = self._run_prediction(
-                self.mono_classifier, mono_features
-            )
-
-        return mono_proba[..., None]
+        return proba[..., None]
 
     def _average(self, data: np.ndarray) -> np.ndarray:
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
@@ -252,42 +213,36 @@ class CloudMaskTask(EOTask):
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
         """
-        bands = eopatch[self.data_feature][..., self.band_indices].astype(np.float32)
+        data = eopatch[self.data_feature][..., self.data_indices].astype(np.float32)
+        valid_data = eopatch[self.valid_data_feature].astype(bool)
 
-        is_data = eopatch[self.is_data_feature].astype(bool)
-
-        image_size = bands.shape[1:-1]
+        image_size = data.shape[1:-1]
         patch_bbox = eopatch.bbox
         if patch_bbox is None:
             raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
-        scale_factors, sigma = self._scale_factors(image_size, patch_bbox)
+        scale_factors = self._scale_factors(image_size, patch_bbox)
 
-        is_data_sm = is_data
+        valid_data_sm = valid_data
         # Downscale if specified
         if scale_factors is not None:
-            bands = resize_images(bands.astype(np.float32), scale_factors=scale_factors)
-            is_data_sm = resize_images(is_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
+            data = resize_images(data.astype(np.float32), scale_factors=scale_factors)
+            valid_data_sm = resize_images(valid_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
-        mono_proba_feature, mono_mask_feature = self.mono_features
+        cloud_proba = self._do_single_temporal_cloud_detection(data)
+        cloud_proba = cloud_proba.reshape(*data.shape[:-1], 1)
 
-        # Run s2cloudless if needed
-        if any([mono_mask_feature, mono_proba_feature]):
-            mono_proba = self._do_single_temporal_cloud_detection(bands)
-            mono_proba = mono_proba.reshape(*bands.shape[:-1], 1)
+        # Upscale if necessary
+        if scale_factors is not None:
+            cloud_proba = resize_images(cloud_proba, new_size=image_size)
 
-            # Upscale if necessary
-            if scale_factors is not None:
-                mono_proba = resize_images(mono_proba, new_size=image_size)
+        # Average over and threshold
+        cloud_mask = self._average_all(cloud_proba) >= self.threshold
 
-            # Average over and threshold
-            mono_mask = self._average_all(mono_proba) >= self.mono_threshold
+        cloud_mask = self._dilate_all(cloud_mask)
+        eopatch[self.output_mask_feature] = (cloud_mask * valid_data_sm).astype(bool)
 
-        if mono_mask_feature is not None:
-            mono_mask = self._dilate_all(mono_mask)
-            eopatch.mask[mono_mask_feature] = (mono_mask * is_data_sm).astype(bool)
-
-        if mono_proba_feature is not None:
-            eopatch.data[mono_proba_feature] = (mono_proba * is_data_sm).astype(np.float32)
+        if self.output_proba_feature is not None:
+            eopatch[self.output_proba_feature] = (cloud_proba * valid_data_sm).astype(np.float32)
 
         return eopatch
 

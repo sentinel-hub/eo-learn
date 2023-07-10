@@ -44,12 +44,12 @@ def test_window_indices_function(num_of_elements, middle_idx, window_size, expec
 def test_mono_temporal_cloud_detection(test_eopatch):
     add_tcm = CloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
-        all_bands=True,
-        is_data_feature=(FeatureType.MASK, "IS_DATA"),
-        mono_features=("CLP_TEST", "CLM_TEST"),
+        valid_data_feature=(FeatureType.MASK, "IS_DATA"),
+        output_mask_feature=(FeatureType.MASK, "CLM_TEST"),
+        output_proba_feature=(FeatureType.DATA, "CLP_TEST"),
         average_over=4,
         dilation_size=2,
-        mono_threshold=0.4,
+        threshold=0.4,
     )
     eop_clm = add_tcm(test_eopatch)
 
@@ -61,7 +61,7 @@ def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
     add_tcm = CloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
         processing_resolution=120,
-        mono_features=("CLP_TEST", "CLM_TEST"),
+        output_mask_feature=("CLP_TEST", "CLM_TEST"),
         multi_features=("CLP_MULTI_TEST", "CLM_MULTI_TEST"),
         mask_feature=(FeatureType.MASK, "CLM_INTERSSIM_TEST"),
         average_over=8,
