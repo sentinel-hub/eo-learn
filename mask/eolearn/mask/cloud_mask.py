@@ -79,6 +79,7 @@ class CloudMaskTask(EOTask):
         threshold: float = 0.4,
         average_over: int | None = 4,
         dilation_size: int | None = 2,
+        classifier: ClassifierType | None = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
@@ -113,7 +114,7 @@ class CloudMaskTask(EOTask):
         if output_proba_feature is not None:
             self.output_proba_feature = self.parse_feature(output_proba_feature)
 
-        self._classifier: ClassifierType | None = None
+        self._classifier = classifier
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
         self.threshold = threshold
 
