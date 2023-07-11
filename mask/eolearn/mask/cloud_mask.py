@@ -76,7 +76,6 @@ class CloudMaskTask(EOTask):
         output_proba_feature: tuple[FeatureType, str] | None = None,
         data_indices: list[int] | None = None,
         processing_resolution: None | float | tuple[float, float] = None,
-        max_proc_frames: int = 11,
         threshold: float = 0.4,
         average_over: int | None = 4,
         dilation_size: int | None = 2,
@@ -91,9 +90,6 @@ class CloudMaskTask(EOTask):
         :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
             expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
             it is used for both dimensions. Default `None` represents source resolution.
-        :param max_proc_frames: Maximum number of frames (including the target, for multi-temporal classification)
-            considered in a single batch iteration (To keep memory usage at agreeable levels, the task operates on
-            smaller batches of time frames).
         :param threshold: Cloud probability threshold for the classifier. Defaults to `0.4`.
         :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
             A value of `0` skips this post-processing step. Default value mimics the default for
@@ -109,8 +105,8 @@ class CloudMaskTask(EOTask):
         self.data_indices = None
         if data_indices is None:
             s2_l1c_bands = [band.name for band in DataCollection.SENTINEL2_L1C.bands]
-            model_bands = ["B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12"]
-            self.data_indices = [s2_l1c_bands.index(band) for band in model_bands]
+            s2_l1c_model_bands = ["B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12"]
+            self.data_indices = [s2_l1c_bands.index(band) for band in s2_l1c_model_bands]
 
         self.output_mask_feature = self.parse_feature(output_mask_feature)
         self.output_proba_feature = None
@@ -119,7 +115,6 @@ class CloudMaskTask(EOTask):
 
         self._classifier: ClassifierType | None = None
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
-        self.max_proc_frames = max_proc_frames
         self.threshold = threshold
 
         self.avg_kernel = None
@@ -175,19 +170,15 @@ class CloudMaskTask(EOTask):
 
     def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
         """Performs a cloud detection process on each scene separately"""
-        n_times, height, width, n_bands = bands.shape
-        img_size = height * width
-        proba = np.empty(n_times * img_size)
+        output_proba = []
+        _, height, width, n_bands = bands.shape
 
-        for t_i in range(0, n_times, self.max_proc_frames):
-            # Extract mono features
-            nt_min = t_i
-            nt_max = min(t_i + self.max_proc_frames, n_times)
+        for img in bands:
+            features = img.reshape(height * width, n_bands)
+            proba = self._run_prediction(self.classifier, features)
+            output_proba.append(proba.reshape(height, width, 1))
 
-            features = bands[nt_min:nt_max].reshape(-1, n_bands)
-            proba[nt_min * img_size : nt_max * img_size] = self._run_prediction(self.classifier, features)
-
-        return proba[..., None]
+        return np.array(output_proba)
 
     def _average(self, data: np.ndarray) -> np.ndarray:
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
@@ -232,7 +223,6 @@ class CloudMaskTask(EOTask):
             valid_data_sm = resize_images(valid_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
         cloud_proba = self._do_single_temporal_cloud_detection(data)
-        cloud_proba = cloud_proba.reshape(*data.shape[:-1], 1)
 
         # Upscale if necessary
         if scale_factors is not None:
