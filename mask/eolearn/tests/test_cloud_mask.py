@@ -90,3 +90,19 @@ def test_legacy_multi_temporal_cloud_detection_downscaled(test_eopatch):
     assert_array_equal(eop_clm.data["CLP_MULTI_TEST"], test_eopatch.data["CLP_MULTI"])
     assert_array_equal(eop_clm.mask["CLM_MULTI_TEST"], test_eopatch.mask["CLM_MULTI"])
     assert_array_equal(eop_clm.mask["CLM_INTERSSIM_TEST"], test_eopatch.mask["CLM_INTERSSIM"])
+
+
+def test_mono_temporal_cloud_detection(test_eopatch):
+    add_tcm = CloudMaskTask(
+        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
+        valid_data_feature=(FeatureType.MASK, "IS_DATA"),
+        output_mask_feature=(FeatureType.MASK, "CLM_TEST"),
+        output_proba_feature=(FeatureType.DATA, "CLP_TEST"),
+        average_over=4,
+        dilation_size=2,
+        threshold=0.4,
+    )
+    eop_clm = add_tcm(test_eopatch)
+
+    assert_array_equal(eop_clm.mask["CLM_TEST"], test_eopatch.mask["CLM_S2C"])
+    assert_array_equal(eop_clm.data["CLP_TEST"], test_eopatch.data["CLP_S2C"])
