@@ -282,12 +282,11 @@ class CloudMaskTask(BaseCloudMaskTask):
         return eopatch
 
 
-class TemporalCloudMaskTask(EOTask):
-    """Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
+class TemporalCloudMaskTask(BaseCloudMaskTask):
+    """Cloud masking with the SSIM-based multi-temporal classifier.
 
-    Its intended output is a cloud mask that is based on the outputs of both
-    individual classifiers (a dilated intersection of individual binary masks).
-    Additional cloud masks and probabilities can be added for either classifier or both.
+    It is possible to use a pre-existing mask in the intersection step with the mask produced by this task.
+    The intersected masks are then dillated.
 
     Prior to feature extraction and classification, it is recommended that the input be
     downscaled by specifying the source and processing resolutions. This should be done
@@ -304,19 +303,15 @@ class TemporalCloudMaskTask(EOTask):
     Example usage:
 
     .. code-block:: python
-
-        # Only output the combined mask
-        task1 = CloudMaskTask(processing_resolution='120m',
-                              mask_feature='CLM_INTERSSIM',
-                              average_over=16,
-                              dilation_size=8)
-
-        # Only output monotemporal masks. Only monotemporal processing is done.
-        task2 = CloudMaskTask(processing_resolution='120m',
-                              mono_features=(None, 'CLM_S2C'),
-                              mask_feature=None,
-                              average_over=16,
-                              dilation_size=8)
+        task = TemporalCloudMaskTask(
+            data_feature = (FeatureType.DATA, 'BANDS'),
+            valid_data_feature = (FeatureType.MASK, 'IS_DATA'),
+            output_mask_feature=(FeatureType.MASK, 'CLM_TEMPORAL'),
+            output_proba_feature=(FeatureType.DATA, 'CLP_TEMPORAL'),
+            processing_resolution=120,
+            average_over=16,
+            dilation_size=8
+        )
     """
 
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
@@ -357,44 +352,25 @@ class TemporalCloudMaskTask(EOTask):
         :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
             post-processing step. Default value mimics the default for s2cloudless: `2`.
         """
-        self.data_feature = self.parse_feature(data_feature)
-        self.valid_data_feature = self.parse_feature(valid_data_feature)
-
-        self.data_indices = None
-        if data_indices is None:
-            s2_l1c_bands = [band.name for band in DataCollection.SENTINEL2_L1C.bands]
-            s2_l1c_model_bands = ["B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12"]
-            self.data_indices = [s2_l1c_bands.index(band) for band in s2_l1c_model_bands]
-
-        self.output_mask_feature = self.parse_feature(output_mask_feature)
-        self.output_proba_feature = None
-        if output_proba_feature is not None:
-            self.output_proba_feature = self.parse_feature(output_proba_feature)
 
         self.intersect_mask_feature = None
         if intersect_mask_feature is not None:
             self.intersect_mask_feature = self.parse_feature(intersect_mask_feature)
 
-        self._classifier = None
-        self.proc_resolution = self._parse_resolution_arg(processing_resolution)
         self.max_proc_frames = max_proc_frames
-        self.threshold = threshold
+        self._classifier = None
 
-        self.avg_kernel = None
-        if average_over is not None and average_over > 0:
-            self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
-
-        self.dil_kernel = None
-        if dilation_size is not None and dilation_size > 0:
-            self.dil_kernel = disk(dilation_size).astype(np.uint8)
-
-    @staticmethod
-    def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
-        """Parses initialization resolution argument"""
-        if isinstance(resolution, (int, float)):
-            resolution = resolution, resolution
-
-        return resolution
+        super().__init__(
+            data_feature,
+            valid_data_feature,
+            output_mask_feature,
+            output_proba_feature,
+            data_indices,
+            processing_resolution,
+            threshold,
+            average_over,
+            dilation_size,
+        )
 
     @property
     def classifier(self) -> ClassifierType:
@@ -404,36 +380,6 @@ class TemporalCloudMaskTask(EOTask):
             self._classifier = Booster(model_file=path)
 
         return self._classifier
-
-    @staticmethod
-    def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
-        """Uses classifier object on given data"""
-        is_booster = isinstance(classifier, Booster)
-
-        predict_method = classifier.predict if is_booster else classifier.predict_proba
-        prediction = execute_with_mp_lock(predict_method, features)
-
-        return prediction if is_booster else prediction[..., 1]
-
-    def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[tuple[float, float], float]:
-        """Compute the resampling factors for height and width of the input array
-
-        :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
-        :param bbox: An EOPatch bounding box
-        :return: Rescale factor for rows and columns or None
-        """
-        height, width = reference_shape
-        res_x, res_y = bbox_to_resolution(bbox, width=width, height=height)
-
-        if self.proc_resolution is None:
-            return None
-
-        process_res_x, process_res_y = self.proc_resolution
-
-        rescale = res_y / process_res_y, res_x / process_res_x
-        sigma = 200 / (process_res_x + process_res_y)
-
-        return rescale, sigma
 
     def _red_ssim(
         self,
@@ -476,26 +422,6 @@ class TemporalCloudMaskTask(EOTask):
     def _win_prevar(self, data: np.ndarray, sigma: float) -> np.ndarray:
         """Incomplete spatial window variance"""
         return cv2.GaussianBlur((data * data).astype(np.float64), (0, 0), sigma, borderType=cv2.BORDER_REFLECT)
-
-    def _average(self, data: np.ndarray) -> np.ndarray:
-        return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
-
-    def _dilate(self, data: np.ndarray) -> np.ndarray:
-        return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
-
-    def _average_all(self, data: np.ndarray) -> np.ndarray:
-        """Average over each spatial slice of data"""
-        if self.avg_kernel is not None:
-            return _apply_to_spatial_axes(self._average, data, (1, 2))
-
-        return data
-
-    def _dilate_all(self, data: np.ndarray) -> np.ndarray:
-        """Dilate over each spatial slice of data"""
-        if self.dil_kernel is not None:
-            return _apply_to_spatial_axes(self._dilate, data, (1, 2))
-
-        return data
 
     def _ssim_stats(
         self,
