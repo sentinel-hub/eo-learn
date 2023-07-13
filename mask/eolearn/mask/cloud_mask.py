@@ -113,11 +113,7 @@ class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
         """
         height, width = reference_shape
         res_x, res_y = bbox_to_resolution(bbox, width=width, height=height)
-
-        if self.proc_resolution is None:
-            return None
-
-        process_res_x, process_res_y = self.proc_resolution
+        process_res_x, process_res_y = (res_x, res_y) if self.proc_resolution is None else self.proc_resolution
 
         rescale = res_y / process_res_y, res_x / process_res_x
         sigma = 200 / (process_res_x + process_res_y)
@@ -262,13 +258,13 @@ class CloudMaskTask(BaseCloudMaskTask):
         scale_factors, _ = self._scale_factors(image_size, patch_bbox)
 
         # Downscale if specified
-        if scale_factors is not None:
+        if self.proc_resolution is not None:
             data = resize_images(data.astype(np.float32), scale_factors=scale_factors)
 
         cloud_proba = self._do_single_temporal_cloud_detection(data)
 
         # Upscale if necessary
-        if scale_factors is not None:
+        if self.proc_resolution is not None:
             cloud_proba = resize_images(cloud_proba, new_size=image_size)
 
         # Average over and threshold
@@ -358,7 +354,7 @@ class TemporalCloudMaskTask(BaseCloudMaskTask):
             self.intersect_mask_feature = self.parse_feature(intersect_mask_feature)
 
         self.max_proc_frames = max_proc_frames
-        self._classifier = None
+        self._classifier: ClassifierType | None = None
 
         super().__init__(
             data_feature,
@@ -615,7 +611,7 @@ class TemporalCloudMaskTask(BaseCloudMaskTask):
 
         # Downscale if specified
         valid_data_sm = valid_data
-        if scale_factors is not None:
+        if self.proc_resolution is not None:
             data = resize_images(data.astype(np.float32), scale_factors=scale_factors)
             valid_data_sm = resize_images(valid_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
@@ -623,7 +619,7 @@ class TemporalCloudMaskTask(BaseCloudMaskTask):
         cloud_proba = self._do_multi_temporal_cloud_detection(data, valid_data_sm, sigma)
 
         # Upscale if necessary
-        if scale_factors is not None:
+        if self.proc_resolution is not None:
             cloud_proba = resize_images(cloud_proba, new_size=image_size)
 
         # Average over and threshold
