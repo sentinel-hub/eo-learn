@@ -163,11 +163,15 @@ class CloudMaskTask(BaseCloudMaskTask):
 
     Example usage:
     .. code-block:: python
-        task = CloudMaskTask(processing_resolution=120,
-                             output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
-                             output_mask_feature=(FeatureType.DATA, 'CLP_S2C'),
-                             average_over=16,
-                             dilation_size=8)
+        task = CloudMaskTask(
+            data_feature = (FeatureType.DATA, 'BANDS'),
+            valid_data_feature = (FeatureType.MASK, 'IS_DATA'),
+            output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
+            output_proba_feature=(FeatureType.DATA, 'CLP_S2C'),
+            processing_resolution=120,
+            average_over=16,
+            dilation_size=8
+        )
     """
 
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
