@@ -11,7 +11,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
-from eolearn.mask import CloudMaskTask
+from eolearn.mask import CloudMaskTask, OldCloudMaskTask
 from eolearn.mask.cloud_mask import _get_window_indices
 
 
@@ -41,15 +41,16 @@ def test_window_indices_function(num_of_elements, middle_idx, window_size, expec
     assert len(test_list[min_idx:max_idx]) == min(num_of_elements, window_size)
 
 
-def test_mono_temporal_cloud_detection(test_eopatch):
-    add_tcm = CloudMaskTask(
+def test_legacy_mono_temporal_cloud_detection(test_eopatch):
+    add_tcm = OldCloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
-        valid_data_feature=(FeatureType.MASK, "IS_DATA"),
-        output_mask_feature=(FeatureType.MASK, "CLM_TEST"),
-        output_proba_feature=(FeatureType.DATA, "CLP_TEST"),
+        all_bands=True,
+        is_data_feature=(FeatureType.MASK, "IS_DATA"),
+        mono_features=("CLP_TEST", "CLM_TEST"),
+        mask_feature=None,
         average_over=4,
         dilation_size=2,
-        threshold=0.4,
+        mono_threshold=0.4,
     )
     eop_clm = add_tcm(test_eopatch)
 
@@ -57,11 +58,11 @@ def test_mono_temporal_cloud_detection(test_eopatch):
     assert_array_equal(eop_clm.data["CLP_TEST"], test_eopatch.data["CLP_S2C"])
 
 
-def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
-    add_tcm = CloudMaskTask(
+def test_legacy_multi_temporal_cloud_detection_downscaled(test_eopatch):
+    add_tcm = OldCloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
         processing_resolution=120,
-        output_mask_feature=("CLP_TEST", "CLM_TEST"),
+        mono_features=("CLP_TEST", "CLM_TEST"),
         multi_features=("CLP_MULTI_TEST", "CLM_MULTI_TEST"),
         mask_feature=(FeatureType.MASK, "CLM_INTERSSIM_TEST"),
         average_over=8,
