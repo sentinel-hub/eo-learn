@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+from abc import ABCMeta, abstractmethod
 from functools import partial
 from typing import Protocol, cast
 
@@ -40,33 +41,8 @@ class ClassifierType(Protocol):
         ...
 
 
-class CloudMaskTask(EOTask):
-    """Cloud masking with the s2cloudless model. Outputs a cloud mask, while the output of cloud probabilities
-    is optional.
-
-    Prior to feature extraction and classification, it is recommended that the input be
-    downscaled by specifying the source and processing resolutions. This should be done
-    for the following reasons:
-
-    - faster execution
-    - lower memory consumption
-    - noise mitigation
-
-    Resizing is performed with linear interpolation. After classification, the cloud
-    probabilities are themselves upscaled to the original dimensions, before proceeding
-    with masking operations.
-
-    Example usage:
-    .. code-block:: python
-        task = CloudMaskTask(processing_resolution=120,
-                             output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
-                             output_mask_feature=(FeatureType.DATA, 'CLP_S2C'),
-                             average_over=16,
-                             dilation_size=8)
-    """
-
-    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
-    CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
+class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
+    """A base class for the single- and multi-temporal cloud masking tasks"""
 
     def __init__(
         self,
@@ -79,27 +55,7 @@ class CloudMaskTask(EOTask):
         threshold: float = 0.4,
         average_over: int | None = 4,
         dilation_size: int | None = 2,
-        classifier: ClassifierType | None = None,
     ):
-        """
-        :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
-        :param valid_data_feature: A mask feature which indicates whether data is valid.
-        :param output_mask_feature: The output feature containing cloud masks.
-        :param output_proba_feature: The output feature containing cloud probabilities. By default this is not saved.
-        :param data_indices: List of indices to use in case of custom input data. Defaults to 10 band indices used in
-            s2cloudless '("B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12")'.
-        :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
-            expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
-            it is used for both dimensions. Default `None` represents source resolution.
-        :param threshold: Cloud probability threshold for the classifier. Defaults to `0.4`.
-        :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
-            A value of `0` skips this post-processing step. Default value mimics the default for
-            s2cloudless: `4`.
-        :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
-            post-processing step. Default value mimics the default for s2cloudless: `2`.
-        :param classifier: Custom classifier used for cloud detection. Must work on the provided reflectance bands
-            as features. By default `s2cloudless` is used.
-        """
         self.data_feature = self.parse_feature(data_feature)
         self.valid_data_feature = self.parse_feature(valid_data_feature)
 
@@ -114,7 +70,6 @@ class CloudMaskTask(EOTask):
         if output_proba_feature is not None:
             self.output_proba_feature = self.parse_feature(output_proba_feature)
 
-        self._classifier = classifier
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
         self.threshold = threshold
 
@@ -135,13 +90,9 @@ class CloudMaskTask(EOTask):
         return resolution
 
     @property
+    @abstractmethod
     def classifier(self) -> ClassifierType:
-        """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
-        if self._classifier is None:
-            path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
-            self._classifier = Booster(model_file=path)
-
-        return self._classifier
+        """An instance of a custom-provided cloud classifier. Loaded only the first time it is required."""
 
     @staticmethod
     def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
@@ -153,7 +104,7 @@ class CloudMaskTask(EOTask):
 
         return prediction if is_booster else prediction[..., 1]
 
-    def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[float, float] | None:
+    def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[tuple[float, float], float]:
         """Compute the resampling factors for height and width of the input array
 
         :param reference_shape: Tuple specifying height and width in pixels of high-resolution array
@@ -167,19 +118,11 @@ class CloudMaskTask(EOTask):
             return None
 
         process_res_x, process_res_y = self.proc_resolution
-        return res_y / process_res_y, res_x / process_res_x
 
-    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
-        """Performs a cloud detection process on each scene separately"""
-        output_proba = []
-        _, height, width, n_bands = bands.shape
+        rescale = res_y / process_res_y, res_x / process_res_x
+        sigma = 200 / (process_res_x + process_res_y)
 
-        for img in bands:
-            features = img.reshape(height * width, n_bands)
-            proba = self._run_prediction(self.classifier, features)
-            output_proba.append(proba.reshape(height, width, 1))
-
-        return np.array(output_proba)
+        return rescale, sigma
 
     def _average(self, data: np.ndarray) -> np.ndarray:
         return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
