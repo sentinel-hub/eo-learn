@@ -144,6 +144,103 @@ class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
 
         return data
 
+
+class CloudMaskTask(BaseCloudMaskTask):
+    """Cloud masking with the s2cloudless model. Outputs a cloud mask, while the output of cloud probabilities
+    is optional.
+
+    Prior to feature extraction and classification, it is recommended that the input be
+    downscaled by specifying the source and processing resolutions. This should be done
+    for the following reasons:
+
+    - faster execution
+    - lower memory consumption
+    - noise mitigation
+
+    Resizing is performed with linear interpolation. After classification, the cloud
+    probabilities are themselves upscaled to the original dimensions, before proceeding
+    with masking operations.
+
+    Example usage:
+    .. code-block:: python
+        task = CloudMaskTask(processing_resolution=120,
+                             output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
+                             output_mask_feature=(FeatureType.DATA, 'CLP_S2C'),
+                             average_over=16,
+                             dilation_size=8)
+    """
+
+    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
+    CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
+
+    def __init__(
+        self,
+        data_feature: tuple[FeatureType, str],
+        valid_data_feature: tuple[FeatureType, str],
+        output_mask_feature: tuple[FeatureType, str],
+        output_proba_feature: tuple[FeatureType, str] | None = None,
+        data_indices: list[int] | None = None,
+        processing_resolution: None | float | tuple[float, float] = None,
+        threshold: float = 0.4,
+        average_over: int | None = 4,
+        dilation_size: int | None = 2,
+        classifier: ClassifierType | None = None,
+    ):
+        """
+        :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
+        :param valid_data_feature: A mask feature which indicates whether data is valid.
+        :param output_mask_feature: The output feature containing cloud masks.
+        :param output_proba_feature: The output feature containing cloud probabilities. By default this is not saved.
+        :param data_indices: List of indices to use in case of custom input data. Defaults to 10 band indices used in
+            s2cloudless '("B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12")'.
+        :param processing_resolution: Resolution to be used during the computation of cloud probabilities and masks,
+            expressed in meters. Resolution is given as a pair of x and y resolutions. If a single value is given,
+            it is used for both dimensions. Default `None` represents source resolution.
+        :param threshold: Cloud probability threshold for the classifier. Defaults to `0.4`.
+        :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
+            A value of `0` skips this post-processing step. Default value mimics the default for
+            s2cloudless: `4`.
+        :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
+            post-processing step. Default value mimics the default for s2cloudless: `2`.
+        :param classifier: Custom classifier used for cloud detection. Must work on the provided reflectance bands
+            as features. By default `s2cloudless` is used.
+        """
+
+        self._classifier = classifier
+
+        super().__init__(
+            data_feature,
+            valid_data_feature,
+            output_mask_feature,
+            output_proba_feature,
+            data_indices,
+            processing_resolution,
+            threshold,
+            average_over,
+            dilation_size,
+        )
+
+    @property
+    def classifier(self) -> ClassifierType:
+        """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
+        if self._classifier is None:
+            path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
+            self._classifier = Booster(model_file=path)
+
+        return self._classifier
+
+    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
+        """Performs a cloud detection process on each scene separately"""
+        output_proba = []
+        _, height, width, n_bands = bands.shape
+
+        for img in bands:
+            features = img.reshape(height * width, n_bands)
+            proba = self._run_prediction(self.classifier, features)
+            output_proba.append(proba.reshape(height, width, 1))
+
+        return np.array(output_proba)
+
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """Add selected features (cloud probabilities and masks) to an EOPatch instance.
 
@@ -158,7 +255,7 @@ class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
         if patch_bbox is None:
             raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
 
-        scale_factors = self._scale_factors(image_size, patch_bbox)
+        scale_factors, _ = self._scale_factors(image_size, patch_bbox)
 
         # Downscale if specified
         if scale_factors is not None:
