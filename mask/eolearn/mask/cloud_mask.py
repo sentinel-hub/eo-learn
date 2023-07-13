@@ -216,12 +216,10 @@ class CloudMaskTask(EOTask):
             raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
 
         scale_factors = self._scale_factors(image_size, patch_bbox)
-        valid_data_sm = valid_data
 
         # Downscale if specified
         if scale_factors is not None:
             data = resize_images(data.astype(np.float32), scale_factors=scale_factors)
-            valid_data_sm = resize_images(valid_data.astype(np.uint8), scale_factors=scale_factors).astype(bool)
 
         cloud_proba = self._do_single_temporal_cloud_detection(data)
 
@@ -231,12 +229,11 @@ class CloudMaskTask(EOTask):
 
         # Average over and threshold
         cloud_mask = self._average_all(cloud_proba) >= self.threshold
-
         cloud_mask = self._dilate_all(cloud_mask)
-        eopatch[self.output_mask_feature] = (cloud_mask * valid_data_sm).astype(bool)
+        eopatch[self.output_mask_feature] = (cloud_mask * valid_data).astype(bool)
 
         if self.output_proba_feature is not None:
-            eopatch[self.output_proba_feature] = (cloud_proba * valid_data_sm).astype(np.float32)
+            eopatch[self.output_proba_feature] = (cloud_proba * valid_data).astype(np.float32)
 
         return eopatch
 
