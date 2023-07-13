@@ -112,8 +112,9 @@ def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
     # calculate temporal cloud mask from scratch
     add_tcm_regular = TemporalCloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature=(FeatureType.MASK, "IS_DATA"),
-        multi_features=("CLP_MULTI_TEST", "CLM_MULTI_TEST"),
+        valid_data_feature=(FeatureType.MASK, "IS_DATA"),
+        output_mask_feature=(FeatureType.MASK, "CLM_MULTI_TEST"),
+        output_proba_feature=(FeatureType.DATA, "CLP_MULTI_TEST"),
         processing_resolution=120,
         average_over=8,
         dilation_size=4,
@@ -132,9 +133,10 @@ def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
     )
     add_tcm_intersect = TemporalCloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature=(FeatureType.MASK, "IS_DATA"),
-        mono_mask_feature=(FeatureType.MASK, "CLM_TEST"),
-        multi_features=("CLP_INTERSECT_TEST", "CLM_INTERSECT_TEST"),
+        valid_data_feature=(FeatureType.MASK, "IS_DATA"),
+        intersect_mask_feature=(FeatureType.MASK, "CLM_TEST"),
+        output_mask_feature=(FeatureType.MASK, "CLM_INTERSECT_TEST"),
+        output_proba_feature=(FeatureType.DATA, "CLP_INTERSECT_TEST"),
         processing_resolution=120,
         average_over=8,
         dilation_size=4,
