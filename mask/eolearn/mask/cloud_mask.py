@@ -639,7 +639,7 @@ class TemporalCloudMaskTask(BaseCloudMaskTask):
         return eopatch
 
 
-class OldCloudMaskTask(EOTask):
+class _OldCloudMaskTask(EOTask):
     """Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
 
     Its intended output is a cloud mask that is based on the outputs of both

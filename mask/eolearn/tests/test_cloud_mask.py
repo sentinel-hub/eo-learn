@@ -11,7 +11,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
-from eolearn.mask import CloudMaskTask, OldCloudMaskTask, TemporalCloudMaskTask
+from eolearn.mask import CloudMaskTask, TemporalCloudMaskTask, _OldCloudMaskTask
 from eolearn.mask.cloud_mask import _get_window_indices
 
 
@@ -42,7 +42,7 @@ def test_window_indices_function(num_of_elements, middle_idx, window_size, expec
 
 
 def test_legacy_mono_temporal_cloud_detection(test_eopatch):
-    add_tcm = OldCloudMaskTask(
+    add_tcm = _OldCloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
         all_bands=True,
         is_data_feature=(FeatureType.MASK, "IS_DATA"),
@@ -59,7 +59,7 @@ def test_legacy_mono_temporal_cloud_detection(test_eopatch):
 
 
 def test_legacy_multi_temporal_cloud_detection_downscaled(test_eopatch):
-    add_tcm = OldCloudMaskTask(
+    add_tcm = _OldCloudMaskTask(
         data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
         processing_resolution=120,
         mono_features=("CLP_TEST", "CLM_TEST"),
