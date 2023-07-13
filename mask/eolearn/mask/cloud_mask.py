@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import os
-from abc import ABCMeta, abstractmethod
 from functools import partial
 from typing import Protocol, cast
 
@@ -41,7 +40,7 @@ class ClassifierType(Protocol):
         ...
 
 
-class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
+class BaseCloudMaskTask(EOTask):
     """A base class for the single- and multi-temporal cloud masking tasks"""
 
     def __init__(
@@ -81,6 +80,9 @@ class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
         if dilation_size is not None and dilation_size > 0:
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
 
+        self._classifier: ClassifierType | None
+        self._classifier_path: str
+
     @staticmethod
     def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
         """Parses initialization resolution argument"""
@@ -90,9 +92,12 @@ class BaseCloudMaskTask(EOTask, metaclass=ABCMeta):
         return resolution
 
     @property
-    @abstractmethod
     def classifier(self) -> ClassifierType:
         """An instance of a custom-provided cloud classifier. Loaded only the first time it is required."""
+        if self._classifier is None:
+            self._classifier = Booster(model_file=self._classifier_path)
+
+        return self._classifier
 
     @staticmethod
     def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
@@ -207,6 +212,7 @@ class CloudMaskTask(BaseCloudMaskTask):
         """
 
         self._classifier = classifier
+        self._classifier_path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
 
         super().__init__(
             data_feature,
@@ -219,15 +225,6 @@ class CloudMaskTask(BaseCloudMaskTask):
             average_over,
             dilation_size,
         )
-
-    @property
-    def classifier(self) -> ClassifierType:
-        """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
-        if self._classifier is None:
-            path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
-            self._classifier = Booster(model_file=path)
-
-        return self._classifier
 
     def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
         """Performs a cloud detection process on each scene separately"""
@@ -355,6 +352,7 @@ class TemporalCloudMaskTask(BaseCloudMaskTask):
 
         self.max_proc_frames = max_proc_frames
         self._classifier: ClassifierType | None = None
+        self._classifier_path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
 
         super().__init__(
             data_feature,
