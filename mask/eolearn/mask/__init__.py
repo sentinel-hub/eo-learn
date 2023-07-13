@@ -2,7 +2,7 @@
 Public classes and functions of mask subpackage
 """
 
-from .cloud_mask import CloudMaskTask
+from .cloud_mask import CloudMaskTask, OldCloudMaskTask, TemporalCloudMaskTask
 from .mask_counting import ClassFrequencyTask
 from .masking import JoinMasksTask, MaskFeatureTask
 from .snow_mask import SnowMaskTask, TheiaSnowMaskTask
