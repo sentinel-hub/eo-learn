@@ -11,7 +11,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
-from eolearn.mask import CloudMaskTask, OldCloudMaskTask
+from eolearn.mask import CloudMaskTask, OldCloudMaskTask, TemporalCloudMaskTask
 from eolearn.mask.cloud_mask import _get_window_indices
 
 
@@ -106,3 +106,59 @@ def test_mono_temporal_cloud_detection(test_eopatch):
 
     assert_array_equal(eop_clm.mask["CLM_TEST"], test_eopatch.mask["CLM_S2C"])
     assert_array_equal(eop_clm.data["CLP_TEST"], test_eopatch.data["CLP_S2C"])
+
+
+def test_multi_temporal_cloud_detection_downscaled(test_eopatch):
+    # calculate temporal cloud mask from scratch
+    add_tcm_regular = TemporalCloudMaskTask(
+        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature=(FeatureType.MASK, "IS_DATA"),
+        multi_features=("CLP_MULTI_TEST", "CLM_MULTI_TEST"),
+        processing_resolution=120,
+        average_over=8,
+        dilation_size=4,
+    )
+    eop_clm_regular = add_tcm_regular(test_eopatch)
+
+    # calculate temporal cloud mask intersected with the mono temporal mask
+    add_cm = CloudMaskTask(
+        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
+        valid_data_feature=(FeatureType.MASK, "IS_DATA"),
+        output_mask_feature=(FeatureType.MASK, "CLM_TEST"),
+        output_proba_feature=(FeatureType.DATA, "CLP_TEST"),
+        processing_resolution=120,
+        average_over=8,
+        dilation_size=4,
+    )
+    add_tcm_intersect = TemporalCloudMaskTask(
+        data_feature=(FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature=(FeatureType.MASK, "IS_DATA"),
+        mono_mask_feature=(FeatureType.MASK, "CLM_TEST"),
+        multi_features=("CLP_INTERSECT_TEST", "CLM_INTERSECT_TEST"),
+        processing_resolution=120,
+        average_over=8,
+        dilation_size=4,
+    )
+    eop_clm = add_cm(test_eopatch)
+    eop_clm_intersect = add_tcm_intersect(eop_clm)
+
+    # Check shape and type
+    for feature in ((FeatureType.MASK, "CLM_TEST"), (FeatureType.DATA, "CLP_TEST")):
+        assert eop_clm[feature].ndim == 4
+        assert eop_clm[feature].shape[:-1] == eop_clm.data["BANDS-S2-L1C"].shape[:-1]
+        assert eop_clm[feature].shape[-1] == 1
+    assert eop_clm.mask["CLM_TEST"].dtype == bool
+    assert eop_clm.data["CLP_TEST"].dtype == np.float32
+
+    # Compare mean cloud coverage with provided reference
+    assert np.mean(eop_clm.mask["CLM_TEST"]) == pytest.approx(np.mean(eop_clm.mask["CLM_S2C"]), abs=0.01)
+    assert np.mean(eop_clm.data["CLP_TEST"]) == pytest.approx(np.mean(eop_clm.data["CLP_S2C"]), abs=0.01)
+
+    # Check if most of the same times are flagged as cloudless
+    cloudless = np.mean(eop_clm.mask["CLM_TEST"], axis=(1, 2, 3)) == 0
+    assert np.mean(cloudless == eop_clm.label["IS_CLOUDLESS"][:, 0]) > 0.94
+
+    # Check multi-temporal results and final mask
+    assert_array_equal(eop_clm_regular.data["CLP_MULTI_TEST"], test_eopatch.data["CLP_MULTI"])
+    assert_array_equal(eop_clm_regular.mask["CLM_MULTI_TEST"], test_eopatch.mask["CLM_MULTI"])
+    assert_array_equal(eop_clm_intersect.mask["CLM_INTERSECT_TEST"], test_eopatch.mask["CLM_INTERSSIM"])
