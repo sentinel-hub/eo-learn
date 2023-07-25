@@ -143,8 +143,8 @@ class CloudMaskTask(EOTask):
         """
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
-        self._mono_classifier: ClassifierType | Booster | None = mono_classifier
-        self._multi_classifier: ClassifierType | Booster | None = multi_classifier
+        self._mono_classifier = mono_classifier
+        self._multi_classifier = multi_classifier
 
         self.data_feature = self.parse_feature(data_feature)
         self.is_data_feature = self.parse_feature(is_data_feature)
