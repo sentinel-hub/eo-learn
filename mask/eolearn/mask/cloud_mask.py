@@ -95,8 +95,8 @@ class CloudMaskTask(EOTask):
         multi_threshold: float = 0.5,
         average_over: int | None = 4,
         dilation_size: int | None = 2,
-        mono_classifier: ClassifierType | None = None,
-        multi_classifier: ClassifierType | None = None,
+        mono_classifier: ClassifierType | Booster | None = None,
+        multi_classifier: ClassifierType | Booster | None = None,
     ):
         """
         :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
@@ -143,8 +143,8 @@ class CloudMaskTask(EOTask):
         """
         self.proc_resolution = self._parse_resolution_arg(processing_resolution)
 
-        self._mono_classifier = mono_classifier
-        self._multi_classifier = multi_classifier
+        self._mono_classifier: ClassifierType | Booster | None = mono_classifier
+        self._multi_classifier: ClassifierType | Booster | None = multi_classifier
 
         self.data_feature = self.parse_feature(data_feature)
         self.is_data_feature = self.parse_feature(is_data_feature)
@@ -186,7 +186,7 @@ class CloudMaskTask(EOTask):
         return resolution
 
     @property
-    def mono_classifier(self) -> ClassifierType:
+    def mono_classifier(self) -> ClassifierType | Booster:
         """An instance of pre-trained mono-temporal cloud classifier. Loaded only the first time it is required."""
         if self._mono_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MONO_CLASSIFIER_NAME)
@@ -195,7 +195,7 @@ class CloudMaskTask(EOTask):
         return self._mono_classifier
 
     @property
-    def multi_classifier(self) -> ClassifierType:
+    def multi_classifier(self) -> ClassifierType | Booster:
         """An instance of pre-trained multi-temporal cloud classifier. Loaded only the first time it is required."""
         if self._multi_classifier is None:
             path = os.path.join(self.MODELS_FOLDER, self.MULTI_CLASSIFIER_NAME)
@@ -204,14 +204,13 @@ class CloudMaskTask(EOTask):
         return self._multi_classifier
 
     @staticmethod
-    def _run_prediction(classifier: ClassifierType, features: np.ndarray) -> np.ndarray:
+    def _run_prediction(classifier: ClassifierType | Booster, features: np.ndarray) -> np.ndarray:
         """Uses classifier object on given data"""
-        is_booster = isinstance(classifier, Booster)
 
-        predict_method = classifier.predict if is_booster else classifier.predict_proba
-        prediction = execute_with_mp_lock(predict_method, features)
+        predict_method = classifier.predict if isinstance(classifier, Booster) else classifier.predict_proba
+        prediction: np.ndarray = execute_with_mp_lock(predict_method, features)
 
-        return prediction if is_booster else prediction[..., 1]
+        return prediction if isinstance(classifier, Booster) else prediction[..., 1]
 
     def _scale_factors(self, reference_shape: tuple[int, int], bbox: BBox) -> tuple[tuple[float, float], float]:
         """Compute the resampling factors for height and width of the input array and sigma
