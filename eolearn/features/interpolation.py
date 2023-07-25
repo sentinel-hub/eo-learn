@@ -20,8 +20,10 @@ import numpy as np
 import scipy.interpolate
 from sklearn.gaussian_process import GaussianProcessRegressor
 
+from sentinelhub.exceptions import deprecated_class
+
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.exceptions import EOUserWarning
+from eolearn.core.exceptions import EODeprecationWarning, EOUserWarning
 from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
 from eolearn.core.utils.parsing import parse_renamed_feature
 
@@ -91,6 +93,12 @@ class InterpolationTask(EOTask):
 
     In the process the interpolated feature is overwritten and so are the timestamps. After the execution of the task
     the feature will contain interpolated and resampled values and corresponding new timestamps.
+
+    Examples of `interpolation_object:
+    - `scipy.interpolate.interp1d`, supply the kind as a kwarg, e.g. `kind="cubic"`
+    - `scipy.interpolate.UnivariateSpline`
+    - `scipy.interpolate.make_interp_spline`
+    - `scipy.interpolate.Akima1DInterpolator`
 
     :param feature: A feature to be interpolated with optional new feature name
     :param interpolation_object: Interpolation class which is initialized with `interpolation_parameters`
@@ -434,6 +442,10 @@ class LinearInterpolationTask(InterpolationTask):
         return interpolation_function(data, times, resampled_times)
 
 
+@deprecated_class(
+    EODeprecationWarning,
+    "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='cubic'`",
+)
 class CubicInterpolationTask(InterpolationTask):
     """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
 
@@ -441,6 +453,9 @@ class CubicInterpolationTask(InterpolationTask):
         super().__init__(feature, scipy.interpolate.interp1d, kind="cubic", **kwargs)
 
 
+@deprecated_class(
+    EODeprecationWarning, "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.UnivariateSpline`"
+)
 class SplineInterpolationTask(InterpolationTask):
     """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`"""
 
@@ -450,6 +465,9 @@ class SplineInterpolationTask(InterpolationTask):
         super().__init__(feature, scipy.interpolate.UnivariateSpline, k=spline_degree, s=smoothing_factor, **kwargs)
 
 
+@deprecated_class(
+    EODeprecationWarning, "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.make_interp_spline`"
+)
 class BSplineInterpolationTask(InterpolationTask):
     """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`"""
 
@@ -457,6 +475,9 @@ class BSplineInterpolationTask(InterpolationTask):
         super().__init__(feature, scipy.interpolate.make_interp_spline, k=spline_degree, **kwargs)
 
 
+@deprecated_class(
+    EODeprecationWarning, "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.Akima1DInterpolator`"
+)
 class AkimaInterpolationTask(InterpolationTask):
     """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`"""
 
@@ -501,6 +522,9 @@ class ResamplingTask(InterpolationTask):
     """A subclass of InterpolationTask task that works only with data with no missing, masked or invalid values.
 
     It always resamples timeseries to different timestamps.
+
+    For example, to perform interpolation with the 'nearest' resampling use the values
+    `interpolation_object=scipy.interpolate.interp1d` with `kind="nearest"`.
     """
 
     def __init__(
@@ -552,6 +576,10 @@ class ResamplingTask(InterpolationTask):
         return self.interpolation_object(times, series, axis=0, **self.interpolation_parameters)
 
 
+@deprecated_class(
+    EODeprecationWarning,
+    "Use `ResamplingTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='nearest'`.",
+)
 class NearestResamplingTask(ResamplingTask):
     """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`"""
 
@@ -559,6 +587,10 @@ class NearestResamplingTask(ResamplingTask):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="nearest", **kwargs)
 
 
+@deprecated_class(
+    EODeprecationWarning,
+    "Use `ResamplingTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='linear'`.",
+)
 class LinearResamplingTask(ResamplingTask):
     """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`"""
 
@@ -566,6 +598,10 @@ class LinearResamplingTask(ResamplingTask):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="linear", **kwargs)
 
 
+@deprecated_class(
+    EODeprecationWarning,
+    "Use `ResamplingTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='cubic'`.",
+)
 class CubicResamplingTask(ResamplingTask):
     """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
 

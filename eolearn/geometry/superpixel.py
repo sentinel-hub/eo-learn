@@ -15,8 +15,10 @@ from typing import Any, Callable
 import numpy as np
 import skimage.segmentation
 
+from sentinelhub.exceptions import deprecated_class
+
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.exceptions import EODeprecationWarning, EORuntimeWarning
 from eolearn.core.types import SingleFeatureSpec
 
 LOGGER = logging.getLogger(__name__)
@@ -27,6 +29,10 @@ class SuperpixelSegmentationTask(EOTask):
 
     Given a raster feature it will segment data into super-pixels. Representation of super-pixels will be returned as
     a mask timeless feature where all pixels with the same value belong to one super-pixel
+
+    Examples of `segmentation_object` values:
+    - `skimage.segmentation.felzenszwalb` (the defalt)
+    - `skimage.segmentation.slic`
     """
 
     def __init__(
@@ -78,6 +84,10 @@ class SuperpixelSegmentationTask(EOTask):
         return eopatch
 
 
+@deprecated_class(
+    EODeprecationWarning,
+    "Use `SuperpixelSegmentationTask` with `segmentation_object=skimage.segmentation.felzenszwalb`.",
+)
 class FelzenszwalbSegmentationTask(SuperpixelSegmentationTask):
     """Super-pixel segmentation which uses Felzenszwalb's method of segmentation
 
@@ -90,6 +100,10 @@ class FelzenszwalbSegmentationTask(SuperpixelSegmentationTask):
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.felzenszwalb, **kwargs)
 
 
+@deprecated_class(
+    EODeprecationWarning,
+    "Use `SuperpixelSegmentationTask` with `segmentation_object=skimage.segmentation.slic` and `start_label=0`.",
+)
 class SlicSegmentationTask(SuperpixelSegmentationTask):
     """Super-pixel segmentation which uses SLIC method of segmentation
 
