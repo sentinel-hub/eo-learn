@@ -239,7 +239,6 @@ def test_bbox_always_saved(eopatch, fs_loader, use_zarr: bool):
         ("auto", ..., True),
         ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
         ("auto", [(FeatureType.DATA, ...)], True),
-        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
         (False, [(FeatureType.DATA, ...)], False),
         (True, [(FeatureType.DATA, ...)], True),
         (True, [], True),

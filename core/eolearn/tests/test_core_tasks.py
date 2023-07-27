@@ -86,22 +86,22 @@ def test_copy(patch: EOPatch, deep: bool) -> None:
 @pytest.mark.parametrize(
     "features",
     [
-        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.BBOX, None)],
-        [(FeatureType.TIMESTAMPS, None), (FeatureType.SCALAR, "values")],
+        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.META_INFO, "something")],
+        [(FeatureType.SCALAR, "values")],
     ],
 )
 @pytest.mark.parametrize("deep", [True, False])
 def test_partial_copy(features: list[FeatureSpec], deep: bool, patch: EOPatch) -> None:
     patch_copy = CopyTask(features=features, deep=deep)(patch)
 
-    assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
+    assert set(patch_copy.get_features()) == {*features}
     for feature in features:
         assert_feature_data_equal(patch[feature], patch_copy[feature])
 
 
 def test_load_task(test_eopatch_path: str) -> None:
     full_patch = LoadTask(test_eopatch_path)(eopatch_folder=".")
-    assert len(full_patch.get_features()) == 29
+    assert len(full_patch.get_features()) == 27
 
     partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
@@ -130,11 +130,9 @@ def test_io_task_pickling(filesystem: FS, task_class: type[EOTask]) -> None:
     [
         ((FeatureType.MASK_TIMELESS, "CLOUD MASK"), np.arange(10).reshape(2, 5, 1)),
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
-        ((FeatureType.TIMESTAMPS, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
 def test_add_feature(feature: FeatureSpec, feature_data: Any) -> None:
-    # this test should fail for bbox and timestamps after rework
     patch = EOPatch(bbox=DUMMY_BBOX)
     assert feature not in patch
     patch = AddFeatureTask(feature)(patch, feature_data)
@@ -161,11 +159,6 @@ def test_remove_feature(features: FeaturesSpecification, patch: EOPatch) -> None
     patch = RemoveFeatureTask(features)(patch)
     for feature in original_patch.get_features():
         assert (feature not in patch) if feature in features_to_remove else (feature in patch)
-
-
-def test_remove_fails(patch: EOPatch) -> None:
-    with pytest.raises(ValueError):
-        RemoveFeatureTask((FeatureType.BBOX, None))(patch)
 
 
 @pytest.mark.parametrize(
@@ -242,7 +235,6 @@ def test_initialize_feature_fails(patch: EOPatch) -> None:
     [
         [(FeatureType.DATA, "bands")],
         [(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")],
-        [(FeatureType.DATA, "bands"), (FeatureType.BBOX, None)],
     ],
 )
 def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:

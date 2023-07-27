@@ -286,7 +286,6 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
         ("auto", ..., True),
         ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
         ("auto", [(FeatureType.DATA, ...)], True),
-        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
         (False, [(FeatureType.DATA, ...)], False),
         (True, [(FeatureType.DATA, ...)], True),
         (True, [], True),
@@ -391,11 +390,9 @@ def test_get_spatial_dimension(
                 (FeatureType.MASK, "D"),
                 (FeatureType.MASK_TIMELESS, "E"),
                 (FeatureType.META_INFO, "beep"),
-                (FeatureType.BBOX, None),
-                (FeatureType.TIMESTAMPS, None),
             ],
         ),
-        (EOPatch(bbox=DUMMY_BBOX), [(FeatureType.BBOX, None)]),
+        (EOPatch(bbox=DUMMY_BBOX), []),
     ],
 )
 def test_get_features(patch: EOPatch, expected_features: list[FeatureSpec]) -> None:

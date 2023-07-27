@@ -37,7 +37,7 @@ def test_output_task(test_eopatch):
     new_eopatch = task.execute(test_eopatch)
     assert id(new_eopatch) != id(test_eopatch)
 
-    assert len(new_eopatch.get_features()) == 3
+    assert len(new_eopatch.get_features()) == 1
     assert new_eopatch.bbox == test_eopatch.bbox
 
 
