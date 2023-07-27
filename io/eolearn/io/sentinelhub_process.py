@@ -35,7 +35,7 @@ from sentinelhub.evalscript import generate_evalscript, parse_data_collection_ba
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
@@ -242,7 +242,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
-    def _parse_and_validate_features(self, features: FeaturesSpecification) -> list[FeatureRenameSpec]:
+    def _parse_and_validate_features(self, features: FeaturesSpecification) -> list[tuple[FeatureType, str, str]]:
         _features = parse_renamed_features(
             features, allowed_feature_types=lambda fty: fty.is_array() or fty == FeatureType.META_INFO
         )
@@ -441,7 +441,7 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             self.requested_bands = parse_data_collection_bands(data_collection, bands)
 
         self.requested_additional_bands = []
-        self.additional_data: list[FeatureRenameSpec] | None = None
+        self.additional_data: list[tuple[FeatureType, str, str]] | None = None
         if additional_data is not None:
             self.additional_data = parse_renamed_features(additional_data)  # parser gives too general type
             additional_bands = cast(List[str], [band for _, band, _ in self.additional_data])
@@ -541,7 +541,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self, eopatch: EOPatch, images: Iterable[np.ndarray], shape: tuple[int, ...]
     ) -> None:
         """Extracts additional features from response into an EOPatch"""
-        additional_data = cast(List[FeatureRenameSpec], self.additional_data)  # verified by `if` in _extract_data
+        additional_data = cast(
+            List[Tuple[FeatureType, str, str]], self.additional_data
+        )  # verified by `if` in _extract_data
         for (ftype, _, new_name), band_info in zip(additional_data, self.requested_additional_bands):
             tiffs = [tar[band_info.name + ".tif"] for tar in images]
             eopatch[ftype, new_name] = self._extract_array(tiffs, 0, shape, band_info.output_types[0])
@@ -572,7 +574,7 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
 
     def __init__(
         self,
-        feature: None | str | FeatureSpec = None,
+        feature: None | str | tuple[FeatureType, str] = None,
         data_collection: DataCollection = DataCollection.DEM,
         **kwargs: Any,
     ):

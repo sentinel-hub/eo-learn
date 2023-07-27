@@ -25,7 +25,7 @@ from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification, SingleFeatureSpec
+from .types import EllipsisType, FeaturesSpecification, SingleFeatureSpec
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
@@ -227,7 +227,7 @@ class LoadTask(IOTask):
 class AddFeatureTask(EOTask):
     """Adds a feature to the given EOPatch."""
 
-    def __init__(self, feature: FeatureSpec):
+    def __init__(self, feature: tuple[FeatureType, str]):
         """
         :param feature: Feature to be added
         """
@@ -335,7 +335,7 @@ class InitializeFeatureTask(EOTask):
     def __init__(
         self,
         features: FeaturesSpecification,
-        shape: tuple[int, ...] | FeatureSpec,
+        shape: tuple[int, ...] | tuple[FeatureType, str],
         init_value: int = 0,
         dtype: np.dtype | type = np.uint8,
     ):

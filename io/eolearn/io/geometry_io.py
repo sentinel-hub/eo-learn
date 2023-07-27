@@ -23,8 +23,7 @@ from fs_s3fs import S3FS
 
 from sentinelhub import CRS, BBox, GeopediaFeatureIterator, SHConfig
 
-from eolearn.core import EOPatch, EOTask, pickle_fs, unpickle_fs
-from eolearn.core.types import FeatureSpec
+from eolearn.core import EOPatch, EOTask, FeatureType, pickle_fs, unpickle_fs
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +33,11 @@ class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
     """Base Vector Import Task, implementing common methods"""
 
     def __init__(
-        self, feature: FeatureSpec, reproject: bool = True, clip: bool = False, config: SHConfig | None = None
+        self,
+        feature: tuple[FeatureType, str],
+        reproject: bool = True,
+        clip: bool = False,
+        config: SHConfig | None = None,
     ):
         """
         :param feature: A vector feature into which to import data
@@ -101,7 +104,7 @@ class VectorImportTask(_BaseVectorImportTask):
 
     def __init__(
         self,
-        feature: FeatureSpec,
+        feature: tuple[FeatureType, str],
         path: str,
         reproject: bool = True,
         clip: bool = False,
@@ -187,7 +190,7 @@ class GeopediaVectorImportTask(_BaseVectorImportTask):
 
     def __init__(
         self,
-        feature: FeatureSpec,
+        feature: tuple[FeatureType, str],
         geopedia_table: str | int,
         reproject: bool = True,
         clip: bool = False,

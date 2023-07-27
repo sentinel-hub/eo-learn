@@ -24,7 +24,7 @@ from sentinelhub.exceptions import deprecated_function
 from .constants import FeatureType
 from .eodata import EOPatch
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification, SingleFeatureSpec
+from .types import EllipsisType, FeaturesSpecification, SingleFeatureSpec
 from .utils.parsing import FeatureParser, parse_feature, parse_features, parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ class EOTask(metaclass=ABCMeta):
         features: FeaturesSpecification,
         eopatch: EOPatch | None = None,
         allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-    ) -> list[FeatureSpec]:
+    ) -> list[tuple[FeatureType, str]]:
         """See `eolearn.core.utils.parse_features`."""
         return parse_features(features, eopatch, allowed_feature_types)
 

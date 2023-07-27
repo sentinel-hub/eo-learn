@@ -15,7 +15,6 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.feature_extraction.image import grid_to_graph
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeatureSpec
 
 
 class ClusteringTask(EOTask):
@@ -29,7 +28,7 @@ class ClusteringTask(EOTask):
 
     def __init__(
         self,
-        features: FeatureSpec,
+        features: tuple[FeatureType, str],
         new_feature_name: str,
         distance_threshold: float | None = None,
         n_clusters: int | None = None,
