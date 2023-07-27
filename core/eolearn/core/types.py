@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 
 # pylint: disable=unused-import
-from typing import Dict, Iterable, Literal, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, Optional, Sequence, Tuple, Union
 
 from .constants import FeatureType
 
@@ -29,11 +29,10 @@ else:
 # DEVELOPER NOTE: the #: comments are applied as docstrings
 
 #: Specification describing a single feature
-FeatureSpec: TypeAlias = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMPS], None], Tuple[FeatureType, str]]
+FeatureSpec: TypeAlias = Tuple[FeatureType, str]
 #: Specification describing a feature with its current and desired new name
-FeatureRenameSpec: TypeAlias = Union[
-    Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMPS], None, None], Tuple[FeatureType, str, str]
-]
+FeatureRenameSpec: TypeAlias = Tuple[FeatureType, str, str]
+
 SingleFeatureSpec: TypeAlias = Union[FeatureSpec, FeatureRenameSpec]
 
 SequenceFeatureSpec: TypeAlias = Sequence[

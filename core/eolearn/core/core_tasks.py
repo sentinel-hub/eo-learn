@@ -35,16 +35,23 @@ class CopyTask(EOTask):
     It copies feature type dictionaries but not the data itself.
     """
 
-    def __init__(self, features: FeaturesSpecification = ..., *, deep: bool = False):
+    def __init__(
+        self,
+        features: FeaturesSpecification = ...,
+        *,
+        deep: bool = False,
+        copy_timestamps: bool | Literal["auto"] = "auto",
+    ):
         """
         :param features: A collection of features or feature types that will be copied into a new EOPatch.
         :param deep: Whether the copy should be a deep or shallow copy.
         """
         self.features = features
         self.deep = deep
+        self.copy_timestamps = copy_timestamps
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        return eopatch.copy(features=self.features, deep=self.deep)
+        return eopatch.copy(features=self.features, deep=self.deep, copy_timestamps=self.copy_timestamps)
 
 
 @deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")

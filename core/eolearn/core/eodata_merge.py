@@ -86,7 +86,6 @@ def merge_eopatches(
             merged_eopatch[feature] = _merge_vector_feature(eopatches, feature)
 
         if feature_type is FeatureType.META_INFO:
-            feature_name = cast(str, feature_name)  # parser makes sure of it
             merged_eopatch[feature] = _select_meta_info_feature(eopatches, feature_name)
 
     return merged_eopatch

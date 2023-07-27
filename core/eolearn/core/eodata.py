@@ -632,8 +632,7 @@ class EOPatch:
         feature_list: list[FeatureSpec] = []
         for feature_type in FeatureType:
             if feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMPS:
-                if feature_type in self:
-                    feature_list.append((feature_type, None))
+                pass
             else:
                 for feature_name in self[feature_type]:
                     feature_list.append((feature_type, feature_name))
