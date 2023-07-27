@@ -19,7 +19,7 @@ import numpy as np
 from geopandas import GeoDataFrame
 from pyproj import CRS
 
-from eolearn.core import EOPatch, FeatureType
+from eolearn.core import EOPatch
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.common import is_discrete_type
@@ -134,9 +134,6 @@ class MatplotlibVisualization:
         """Plots the given feature"""
         feature_type, feature_name = self.feature
         data, timestamps = self.collect_and_prepare_feature(self.eopatch)
-
-        if feature_type is FeatureType.BBOX:
-            return self._plot_bbox()
 
         if feature_type.is_vector():
             return self._plot_vector_feature(

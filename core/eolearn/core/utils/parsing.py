@@ -15,7 +15,6 @@ from ..constants import FeatureType
 from ..types import (
     DictFeatureSpec,
     EllipsisType,
-    FeatureRenameSpec,
     FeaturesSpecification,
     SequenceFeatureSpec,
     SingleFeatureSpec,
@@ -303,7 +302,7 @@ def parse_feature(
     feature: SingleFeatureSpec,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> tuple[FeatureType, str | None]:
+) -> tuple[FeatureType, str]:
     """Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
@@ -319,7 +318,7 @@ def parse_renamed_feature(
     feature: SingleFeatureSpec,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> FeatureRenameSpec:
+) -> tuple[FeatureType, str, str]:
     """Parses input describing a single feature into a `(feature_type, old_name, new_name)` triple.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.

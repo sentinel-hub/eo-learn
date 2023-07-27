@@ -84,7 +84,7 @@ class EOTask(metaclass=ABCMeta):
         feature: SingleFeatureSpec,
         eopatch: EOPatch | None = None,
         allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-    ) -> tuple[FeatureType, str | None]:
+    ) -> tuple[FeatureType, str]:
         """See `eolearn.core.utils.parse_feature`."""
         return parse_feature(feature, eopatch, allowed_feature_types)
 

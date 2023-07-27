@@ -231,7 +231,7 @@ class AddFeatureTask(EOTask):
         """
         :param feature: Feature to be added
         """
-        self.feature_type, self.feature_name = self.parse_feature(feature)
+        self.feature = self.parse_feature(feature)
 
     def execute(self, eopatch: EOPatch, data: object) -> EOPatch:
         """Returns the EOPatch with added features.
@@ -240,11 +240,7 @@ class AddFeatureTask(EOTask):
         :param data: data to be added to the feature
         :return: input EOPatch with the specified feature
         """
-        if self.feature_name is None:
-            eopatch[self.feature_type] = data
-        else:
-            eopatch[self.feature_type][self.feature_name] = data
-
+        eopatch[self.feature] = data
         return eopatch
 
 

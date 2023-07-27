@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from math import sqrt
-from typing import Any, Dict, Union, cast
+from typing import Any, Dict, Union
 
 import numpy as np
 from shapely.geometry import Point, Polygon
@@ -145,7 +145,7 @@ class BaseSamplingTask(EOTask, metaclass=ABCMeta):
 
         self.mask_of_samples = mask_of_samples
         if mask_of_samples is not None:
-            self.mask_of_samples = self.parse_feature(  # type: ignore[assignment]
+            self.mask_of_samples = self.parse_feature(
                 mask_of_samples, allowed_feature_types={FeatureType.MASK_TIMELESS}
             )
 
@@ -288,7 +288,7 @@ class BlockSamplingTask(BaseSamplingTask):
         """Generate a mask consisting entirely of `values` entries, used for sampling on whole raster"""
 
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
-        height, width = eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))
+        height, width = eopatch.get_spatial_dimension(feature_type, feature_name)
         height -= self.sample_size[0] - 1
         width -= self.sample_size[1] - 1
 
@@ -367,7 +367,7 @@ class GridSamplingTask(BaseSamplingTask):
         """
         feature_type, feature_name = self.features_parser.get_features(eopatch)[0]
 
-        image_shape = eopatch.get_spatial_dimension(feature_type, cast(str, feature_name))
+        image_shape = eopatch.get_spatial_dimension(feature_type, feature_name)
         rows, columns = self._sample_regular_grid(image_shape)
         size_x, size_y = self.sample_size  # this way it also works for lists
         row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))

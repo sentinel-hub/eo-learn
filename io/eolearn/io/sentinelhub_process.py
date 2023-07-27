@@ -258,7 +258,6 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         responses = []
         for feat_type, feat_name, _ in self.features:
             if feat_type.is_array():
-                feat_name = cast(str, feat_name)  # can only be string since it's an array type
                 responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
             elif feat_type.is_meta():
                 responses.append(SentinelHubRequest.output_response("userdata", MimeType.JSON))
