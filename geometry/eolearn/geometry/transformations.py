@@ -60,12 +60,12 @@ class VectorToRasterTask(EOTask):
 
     def __init__(
         self,
-        vector_input: GeoDataFrame | SingleFeatureSpec,
-        raster_feature: SingleFeatureSpec,
+        vector_input: GeoDataFrame | tuple[FeatureType, str],
+        raster_feature: tuple[FeatureType, str],
         *,
         values: None | float | list[float] = None,
         values_column: str | None = None,
-        raster_shape: None | tuple[int, int] | SingleFeatureSpec = None,
+        raster_shape: None | tuple[int, int] | tuple[FeatureType, str] = None,
         raster_resolution: None | float | tuple[float, float] = None,
         raster_dtype: np.dtype | type = np.uint8,
         no_data_value: float = 0,

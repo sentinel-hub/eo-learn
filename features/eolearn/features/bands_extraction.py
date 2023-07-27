@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from eolearn.core import MapFeatureTask
-from eolearn.core.types import SingleFeatureSpec
+from eolearn.core import FeatureType, MapFeatureTask
 
 
 class EuclideanNormTask(MapFeatureTask):
@@ -23,7 +22,10 @@ class EuclideanNormTask(MapFeatureTask):
     """
 
     def __init__(
-        self, input_feature: SingleFeatureSpec, output_feature: SingleFeatureSpec, bands: list[int] | None = None
+        self,
+        input_feature: tuple[FeatureType, str],
+        output_feature: tuple[FeatureType, str],
+        bands: list[int] | None = None,
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.
@@ -53,8 +55,8 @@ class NormalizedDifferenceIndexTask(MapFeatureTask):
 
     def __init__(
         self,
-        input_feature: SingleFeatureSpec,
-        output_feature: SingleFeatureSpec,
+        input_feature: tuple[FeatureType, str],
+        output_feature: tuple[FeatureType, str],
         bands: tuple[int, int],
         acorvi_constant: float = 0,
         undefined_value: float = np.nan,

@@ -21,7 +21,7 @@ from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
-from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_features
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
@@ -132,7 +132,7 @@ class ValueFilloutTask(EOTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         operations: Literal["f", "b", "fb", "bf"] = "fb",
         value: float = np.nan,
         axis: int = 0,

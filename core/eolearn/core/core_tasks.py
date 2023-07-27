@@ -25,7 +25,7 @@ from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeaturesSpecification, SingleFeatureSpec
+from .types import EllipsisType, FeaturesSpecification
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
@@ -530,7 +530,7 @@ class ZipFeatureTask(EOTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: SingleFeatureSpec,
+        output_feature: tuple[FeatureType, str],
         zip_function: Callable | None = None,
         **kwargs: Any,
     ):

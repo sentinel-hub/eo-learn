@@ -16,7 +16,7 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification
 
 _FractionType = Union[float, Dict[int, float]]
 
@@ -178,7 +178,7 @@ class FractionSamplingTask(BaseSamplingTask):
     def __init__(
         self,
         features_to_sample: FeaturesSpecification,
-        sampling_feature: SingleFeatureSpec,
+        sampling_feature: tuple[FeatureType, str],
         fraction: _FractionType,
         exclude_values: list[int] | None = None,
         replace: bool = False,
