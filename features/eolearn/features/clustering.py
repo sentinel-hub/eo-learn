@@ -97,7 +97,7 @@ class ClusteringTask(EOTask):
 
         model = AgglomerativeClustering(
             distance_threshold=self.distance_threshold,
-            affinity=self.affinity,
+            metric=self.affinity,
             linkage=self.linkage,
             connectivity=self.connectivity,
             n_clusters=self.n_clusters,
