@@ -47,12 +47,11 @@ class FeatureParser:
 
     1. Ellipsis `...` signify that all features of all types should be parsed.
 
-    2. Input representing a single feature, either `FeatureType.BBOX`, `FeatureType.TIMESTAMPS` or a tuple where the
-       first element is a `FeatureType` element and the other (or two for renaming) is a string.
+    2. Input representing a single feature, where the first element is a `FeatureType` element and the other
+       (or two for renaming) is a string.
 
     3. Dictionary mapping `feature_type` keys to sequences of feature names. Feature names are either a sequence of
-       strings, pairs of shape `(old_name, new_name)` or `...`. For feature types with no names (BBox and timestamps)
-       one should use `None` in place of the sequence. Example:
+       strings, pairs of shape `(old_name, new_name)` or `...`. Example:
 
         .. code-block:: python
 
@@ -64,7 +63,6 @@ class FeatureParser:
                     'NDWI',
                 },
                 FeatureType.MASK: ...
-                FeatureType.BBOX: None
             }
 
     4. Sequences of elements, each describing a feature. When describing all features of a given feature type use
@@ -76,7 +74,6 @@ class FeatureParser:
             [
                 (FeatureType.DATA, 'BANDS'),
                 (FeatureType.MASK, 'CLOUD_MASK', 'NEW_CLOUD_MASK'),
-                FeatureType.BBOX
             ]
 
     Outputs of the FeatureParser are:
