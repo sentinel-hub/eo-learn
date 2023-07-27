@@ -16,7 +16,6 @@ from ..types import (
     DictFeatureSpec,
     EllipsisType,
     FeatureRenameSpec,
-    FeatureSpec,
     FeaturesSpecification,
     SequenceFeatureSpec,
     SingleFeatureSpec,
@@ -186,7 +185,7 @@ class FeatureParser:
 
         return feature_specs
 
-    def _parse_singleton(self, feature: Sequence) -> FeatureRenameSpec:
+    def _parse_singleton(self, feature: Sequence) -> _ParserFeaturesSpec:
         """Parses a pair or triple specifying a single feature or a get-all request."""
         feature_type, *feature_name = feature
         feature_type = self._parse_feature_type(feature_type, message_about_position="first elements of tuples")
@@ -254,7 +253,7 @@ class FeatureParser:
         """
         return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
 
-    def get_features(self, eopatch: EOPatch | None = None) -> list[FeatureSpec]:
+    def get_features(self, eopatch: EOPatch | None = None) -> list[tuple[FeatureType, str]]:
         """Returns a list of `(feature_type, feature_name)` pairs.
 
         For features that specify renaming, the new name of the feature is ignored.
@@ -264,10 +263,9 @@ class FeatureParser:
 
         If `eopatch` is not provided the method fails if an all-feature request is in the specification.
         """
-        renamed_features = self.get_renamed_features(eopatch)
-        return [feature[:2] for feature in renamed_features]  # pattern unpacking messes with typechecking
+        return [(ftype, fname) for ftype, fname, _ in self.get_renamed_features(eopatch)]
 
-    def get_renamed_features(self, eopatch: EOPatch | None = None) -> list[FeatureRenameSpec]:
+    def get_renamed_features(self, eopatch: EOPatch | None = None) -> list[tuple[FeatureType, str, str]]:
         """Returns a list of `(feature_type, old_name, new_name)` triples.
 
         For features without a specified renaming the new name is equal to the old one.
@@ -278,12 +276,12 @@ class FeatureParser:
 
         If `eopatch` is not provided the method fails if an all-feature request is in the specification.
         """
-        parsed_features: list[FeatureRenameSpec] = []
+        parsed_features: list[tuple[FeatureType, str, str]] = []
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
             if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMPS:
-                parsed_features.append((ftype, None, None))
+                pass
 
             elif old_name is not None and new_name is not None:
                 # checking both is redundant, but typechecker has difficulties otherwise
@@ -337,7 +335,7 @@ def parse_features(
     features: FeaturesSpecification,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> list[FeatureSpec]:
+) -> list[tuple[FeatureType, str]]:
     """Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
@@ -349,7 +347,7 @@ def parse_renamed_features(
     features: FeaturesSpecification,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> list[FeatureRenameSpec]:
+) -> list[tuple[FeatureType, str, str]]:
     """Parses input describing features into a list of `(feature_type, old_name, new_name)` triples.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
