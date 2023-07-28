@@ -775,12 +775,12 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         filesystem: FS,
         feature_path: str,
         compress_level: int = 0,  # noqa: ARG003
-        temporal_selection: None | TemporalSelection = None,
+        temporal_selection: None | TemporalSelection = None,  # None means no sub-chunking (timeless)
     ) -> str:
         cls._check_dependencies_imported(feature_path)
         path = feature_path + cls.get_file_extension()
         store = cls._get_mapping(path, filesystem)
-        chunk_size = (1, *data.shape[1:])
+        chunk_size = data.shape if temporal_selection is None else (1, *data.shape[1:])
 
         if temporal_selection is None or temporal_selection.selection is None:
             zarr.save_array(store, data, chunks=chunk_size)
