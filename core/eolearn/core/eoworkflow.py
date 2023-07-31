@@ -23,7 +23,7 @@ import datetime as dt
 import logging
 import traceback
 from dataclasses import dataclass, field, fields
-from typing import Sequence, Tuple, cast
+from typing import Literal, Sequence, Tuple, cast, overload
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
@@ -304,7 +304,15 @@ class EOWorkflow:
         """
         return self._nodes[:]
 
-    def get_node_with_uid(self, uid: str | None, fail_if_missing: bool = False) -> EONode | None:
+    @overload
+    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[True] = ...) -> EONode:
+        ...
+
+    @overload
+    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[False] = ...) -> EONode | None:
+        ...
+
+    def get_node_with_uid(self, uid: str, fail_if_missing: bool = False) -> EONode | None:
         """Returns node with give uid, if it exists in the workflow."""
         if uid in self._uid_dict:
             return self._uid_dict[uid]
