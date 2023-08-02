@@ -99,6 +99,8 @@ class FeatureParser:
             self.allowed_feature_types = (
                 set(allowed_feature_types) if isinstance(allowed_feature_types, Iterable) else set(FeatureType)
             )
+        # needed until we remove the feature types
+        self.allowed_feature_types = self.allowed_feature_types - {FeatureType.BBOX, FeatureType.TIMESTAMPS}
         self._feature_specs = self._parse_features(features)
 
     def _parse_features(self, features: FeaturesSpecification) -> list[_ParserFeaturesSpec]:

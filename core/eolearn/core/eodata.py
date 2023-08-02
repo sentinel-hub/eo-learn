@@ -591,7 +591,7 @@ class EOPatch:
         :return: List of non-empty features
         """
         feature_list: list[tuple[FeatureType, str]] = []
-        for feature_type in FeatureType:
+        for feature_type in (ftype for ftype in FeatureType if ftype not in {FeatureType.BBOX, FeatureType.TIMESTAMPS}):
             for feature_name in self[feature_type]:
                 feature_list.append((feature_type, feature_name))
         return feature_list

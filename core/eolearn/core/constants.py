@@ -83,8 +83,8 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
     LABEL_TIMELESS = "label_timeless"
     VECTOR_TIMELESS = "vector_timeless"
     META_INFO = "meta_info"
-    # BBOX = "bbox"
-    # TIMESTAMPS = "timestamps"
+    BBOX = "bbox"
+    TIMESTAMPS = "timestamps"
 
     @classmethod
     def has_value(cls, value: str) -> bool:
@@ -110,6 +110,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
             FeatureType.SCALAR,
             FeatureType.LABEL,
             FeatureType.VECTOR,
+            FeatureType.TIMESTAMPS,
         ]
 
     def is_timeless(self) -> bool:
@@ -122,7 +123,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
     def is_meta(self) -> bool:
         """True if FeatureType is for storing metadata info and False otherwise."""
-        return self in [FeatureType.META_INFO]
+        return self in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS]
 
     def is_vector(self) -> bool:
         """True if FeatureType is vector feature type. False otherwise."""
