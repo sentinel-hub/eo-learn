@@ -6,19 +6,15 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-import pytest
 
-from eolearn.core import FeatureType
-
-
-@pytest.mark.parametrize(
-    ("old_ftype", "new_ftype"),
-    [
-        (FeatureType.TIMESTAMP, FeatureType.TIMESTAMPS),
-        (FeatureType["TIMESTAMP"], FeatureType["TIMESTAMPS"]),
-        (FeatureType("timestamp"), FeatureType("timestamps")),
-    ],
-    ids=["attribute access", "name access", "value access"],
-)
-def test_timestamp_featuretype(old_ftype, new_ftype) -> None:
-    assert old_ftype is new_ftype
+# @pytest.mark.parametrize(
+#     ("old_ftype", "new_ftype"),
+#     [
+#         (FeatureType.TIMESTAMP, FeatureType.TIMESTAMPS),
+#         (FeatureType["TIMESTAMP"], FeatureType["TIMESTAMPS"]),
+#         (FeatureType("timestamp"), FeatureType("timestamps")),
+#     ],
+#     ids=["attribute access", "name access", "value access"],
+# )
+# def test_timestamp_featuretype(old_ftype, new_ftype) -> None:
+#     assert old_ftype is new_ftype

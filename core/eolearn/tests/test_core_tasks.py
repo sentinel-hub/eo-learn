@@ -103,15 +103,15 @@ def test_load_task(test_eopatch_path: str) -> None:
     full_patch = LoadTask(test_eopatch_path)(eopatch_folder=".")
     assert len(full_patch.get_features()) == 27
 
-    partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
+    partial_load = LoadTask(test_eopatch_path, features=[FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
-    assert FeatureType.BBOX in partial_patch
-    assert FeatureType.TIMESTAMPS not in partial_patch
+    assert partial_patch.bbox is not None
+    assert partial_patch.timestamps is None
 
-    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMPS])
+    load_more = LoadTask(test_eopatch_path, features=[], load_timestamps=True)
     upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
-    assert FeatureType.BBOX in upgraded_partial_patch
-    assert FeatureType.TIMESTAMPS in upgraded_partial_patch
+    assert upgraded_partial_patch.bbox is not None
+    assert upgraded_partial_patch.timestamps is not None
     assert FeatureType.DATA not in upgraded_partial_patch
 
 

@@ -142,8 +142,6 @@ class FeatureParser:
                 feature_specs.append((feature_type, None, None))
                 continue
 
-            self._fail_for_noname_features(feature_type, feature_names)
-
             if not isinstance(feature_names, Sequence):
                 raise ValueError("Values of dictionary must be `...` or sequences with feature names.")
 
@@ -189,8 +187,6 @@ class FeatureParser:
         if len(feature_name) == 1 and feature_name[0] in (..., None):
             return (feature_type, None, None)
 
-        self._fail_for_noname_features(feature_type, feature_name)
-
         feature_name = feature_name[0] if len(feature_name) == 1 else feature_name
         parsed_name = self._parse_feature_name(feature_type, feature_name)
         return (feature_type, *parsed_name)
@@ -230,18 +226,6 @@ class FeatureParser:
             " strings or pairs of form `(old_name, new_name)`"
         )
 
-    @staticmethod
-    def _fail_for_noname_features(feature_type: FeatureType, specification: object) -> None:
-        """Fails if the feature type does not support names.
-
-        Should only be used after the viable names `...` and `None` have already been handled.
-        """
-        if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
-            raise ValueError(
-                f"For features of type {feature_type} the only acceptable specification is `...` or `None`, got"
-                f" {specification} instead."
-            )
-
     def get_feature_specifications(self) -> list[tuple[FeatureType, str | EllipsisType]]:
         """Returns the feature specifications in a more streamlined fashion.
 
@@ -276,10 +260,7 @@ class FeatureParser:
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
-            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMPS:
-                pass
-
-            elif old_name is not None and new_name is not None:
+            if old_name is not None and new_name is not None:
                 # checking both is redundant, but typechecker has difficulties otherwise
                 if eopatch is not None and (ftype, old_name) not in eopatch:
                     raise ValueError(f"Requested feature {(ftype, old_name)} not part of eopatch.")
