@@ -40,7 +40,7 @@ from sentinelhub.exceptions import deprecated_function
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .exceptions import EODeprecationWarning, TemporalDimensionWarning
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification
+from .types import EllipsisType, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
@@ -408,7 +408,7 @@ class EOPatch:
         else:
             setattr(self, ftype_attr, value)
 
-    def __delitem__(self, feature: FeatureType | FeatureSpec) -> None:
+    def __delitem__(self, feature: FeatureType | tuple[FeatureType, str]) -> None:
         """Deletes the selected feature type or feature."""
         if isinstance(feature, tuple):
             feature_type, feature_name = feature
@@ -624,16 +624,15 @@ class EOPatch:
 
         raise ValueError(f"Features of type {feature_type} do not have a spatial dimension or are not arrays.")
 
-    def get_features(self) -> list[FeatureSpec]:
+    def get_features(self) -> list[tuple[FeatureType, str]]:
         """Returns a list of all non-empty features of EOPatch.
 
         :return: List of non-empty features
         """
-        feature_list: list[FeatureSpec] = []
+        feature_list: list[tuple[FeatureType, str]] = []
         for feature_type in FeatureType:
             if feature_type is FeatureType.BBOX or feature_type is FeatureType.TIMESTAMPS:
-                if feature_type in self:
-                    feature_list.append((feature_type, None))
+                pass
             else:
                 for feature_name in self[feature_type]:
                     feature_list.append((feature_type, feature_name))
@@ -788,7 +787,7 @@ class EOPatch:
 
     def plot(
         self,
-        feature: FeatureSpec,
+        feature: tuple[FeatureType, str],
         *,
         times: list[int] | slice | None = None,
         channels: list[int] | slice | None = None,

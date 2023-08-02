@@ -231,7 +231,7 @@ class EOWorkflow:
         :return: The result and statistics of the task in the node.
         """
         # EOPatches are copied beforehand
-        task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in node_input_values]
+        task_args = [(arg.copy(copy_timestamps=True) if isinstance(arg, EOPatch) else arg) for arg in node_input_values]
 
         LOGGER.debug("Computing %s(*%s, **%s)", node.task.__class__.__name__, str(task_args), str(node_input_kwargs))
         start_time = dt.datetime.now()

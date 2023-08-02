@@ -33,7 +33,6 @@ from sentinelhub import CRS, BBox, SHConfig, parse_time_interval
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.core_tasks import IOTask
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         folder: str,
         *,
         filesystem: FS | None = None,
@@ -147,7 +146,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         folder: str,
         *,
         date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
@@ -393,7 +392,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         folder: str,
         *,
         use_vsi: bool = False,

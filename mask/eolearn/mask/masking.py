@@ -23,7 +23,7 @@ class JoinMasksTask(ZipFeatureTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: SingleFeatureSpec,
+        output_feature: tuple[FeatureType, str],
         join_operation: Literal["and", "or", "xor"] | Callable = "and",
     ):
         """
@@ -69,7 +69,7 @@ class MaskFeatureTask(EOTask):
     def __init__(
         self,
         feature: SingleFeatureSpec,
-        mask_feature: SingleFeatureSpec,
+        mask_feature: tuple[FeatureType, str],
         mask_values: Iterable[int],
         no_data_value: float = np.nan,
     ):

@@ -60,12 +60,12 @@ class VectorToRasterTask(EOTask):
 
     def __init__(
         self,
-        vector_input: GeoDataFrame | SingleFeatureSpec,
-        raster_feature: SingleFeatureSpec,
+        vector_input: GeoDataFrame | tuple[FeatureType, str],
+        raster_feature: tuple[FeatureType, str],
         *,
         values: None | float | list[float] = None,
         values_column: str | None = None,
-        raster_shape: None | tuple[int, int] | SingleFeatureSpec = None,
+        raster_shape: None | tuple[int, int] | tuple[FeatureType, str] = None,
         raster_resolution: None | float | tuple[float, float] = None,
         raster_dtype: np.dtype | type = np.uint8,
         no_data_value: float = 0,
@@ -131,7 +131,7 @@ class VectorToRasterTask(EOTask):
             vector_input = self.parse_feature(vector_input, allowed_feature_types=lambda fty: fty.is_vector())
 
         parsed_raster_feature = self.parse_feature(raster_feature, allowed_feature_types=lambda fty: fty.is_image())
-        return vector_input, parsed_raster_feature  # type: ignore[return-value]
+        return vector_input, parsed_raster_feature
 
     def _get_vector_data_iterator(
         self, eopatch: EOPatch, join_per_value: bool
@@ -221,7 +221,7 @@ class VectorToRasterTask(EOTask):
                 return self.raster_shape
 
             ftype, fname = self.parse_feature(self.raster_shape, allowed_feature_types=lambda fty: fty.is_array())
-            return eopatch.get_spatial_dimension(ftype, cast(str, fname))  # cast verified in parser
+            return eopatch.get_spatial_dimension(ftype, fname)
 
         if self.raster_resolution:
             # parsing from strings is not denoted in types, so an explicit upcast is required

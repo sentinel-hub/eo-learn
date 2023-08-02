@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 
 # pylint: disable=unused-import
-from typing import Dict, Iterable, Literal, Optional, Sequence, Tuple, Union
+from typing import Dict, Iterable, Sequence, Tuple, Union
 
 from .constants import FeatureType
 
@@ -28,18 +28,10 @@ else:
 
 # DEVELOPER NOTE: the #: comments are applied as docstrings
 
-#: Specification describing a single feature
-FeatureSpec: TypeAlias = Union[Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMPS], None], Tuple[FeatureType, str]]
-#: Specification describing a feature with its current and desired new name
-FeatureRenameSpec: TypeAlias = Union[
-    Tuple[Literal[FeatureType.BBOX, FeatureType.TIMESTAMPS], None, None], Tuple[FeatureType, str, str]
-]
-SingleFeatureSpec: TypeAlias = Union[FeatureSpec, FeatureRenameSpec]
+SingleFeatureSpec: TypeAlias = Union[Tuple[FeatureType, str], Tuple[FeatureType, str, str]]
 
-SequenceFeatureSpec: TypeAlias = Sequence[
-    Union[SingleFeatureSpec, FeatureType, Tuple[FeatureType, Optional[EllipsisType]]]
-]
-DictFeatureSpec: TypeAlias = Dict[FeatureType, Union[None, EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]
+SequenceFeatureSpec: TypeAlias = Sequence[Union[SingleFeatureSpec, FeatureType, Tuple[FeatureType, EllipsisType]]]
+DictFeatureSpec: TypeAlias = Dict[FeatureType, Union[EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]
 MultiFeatureSpec: TypeAlias = Union[
     EllipsisType, FeatureType, Tuple[FeatureType, EllipsisType], SequenceFeatureSpec, DictFeatureSpec
 ]

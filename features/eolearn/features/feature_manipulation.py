@@ -21,7 +21,7 @@ from sentinelhub import bbox_to_dimensions
 
 from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
-from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_features
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
@@ -39,7 +39,7 @@ class SimpleFilterTask(EOTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str] | Literal["timestamps"],
         filter_func: Callable[[np.ndarray], bool] | Callable[[dt.datetime], bool],
         filter_features: FeaturesSpecification = ...,
     ):
@@ -48,10 +48,12 @@ class SimpleFilterTask(EOTask):
         :param filter_func: A callable that takes a numpy evaluates to bool.
         :param filter_features: A collection of features which will be filtered into a new EOPatch
         """
-
-        self.feature = self.parse_feature(
-            feature, allowed_feature_types=lambda fty: fty.is_temporal() and not fty.is_vector()
-        )
+        if feature == "timestamps":
+            self.feature: tuple[FeatureType, str] | Literal["timestamps"] = "timestamps"
+        else:
+            self.feature = self.parse_feature(
+                feature, allowed_feature_types=lambda fty: fty.is_temporal() and fty.is_array()
+            )
         self.filter_func = filter_func
         self.filter_features_parser = self.get_feature_parser(filter_features)
 
@@ -70,13 +72,12 @@ class SimpleFilterTask(EOTask):
         :param eopatch: An input EOPatch.
         :return: A new EOPatch with filtered features.
         """
-        good_idxs = self._get_filtered_indices(eopatch[self.feature])
+        selector_data = eopatch.timestamps if self.feature == "timestamps" else eopatch[self.feature]
+        good_idxs = self._get_filtered_indices(selector_data)
         timestamps = None if eopatch.timestamps is None else [eopatch.timestamps[idx] for idx in good_idxs]
         filtered_eopatch = EOPatch(bbox=eopatch.bbox, timestamps=timestamps)
 
         for feature in self.filter_features_parser.get_features(eopatch):
-            if feature[0] is FeatureType.TIMESTAMPS:
-                continue
             feature_type, _ = feature
             data = eopatch[feature]
 
@@ -111,7 +112,7 @@ class FilterTimeSeriesTask(SimpleFilterTask):
         if not isinstance(start_date, dt.datetime) or not isinstance(end_date, dt.datetime):
             raise ValueError("Both start_date and end_date must be datetime.datetime objects.")
 
-        super().__init__((FeatureType.TIMESTAMPS, None), self._filter_func, filter_features)
+        super().__init__("timestamps", self._filter_func, filter_features)
 
 
 class ValueFilloutTask(EOTask):
@@ -131,7 +132,7 @@ class ValueFilloutTask(EOTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         operations: Literal["f", "b", "fb", "bf"] = "fb",
         value: float = np.nan,
         axis: int = 0,

@@ -14,7 +14,6 @@ from typing import Any
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import SingleFeatureSpec
 
 # switching to np.random.Generator would change results
 # ruff: noqa: NPY002
@@ -66,8 +65,8 @@ class TrainTestSplitTask(EOTask):
 
     def __init__(
         self,
-        input_feature: SingleFeatureSpec,
-        output_feature: SingleFeatureSpec,
+        input_feature: tuple[FeatureType, str],
+        output_feature: tuple[FeatureType, str],
         bins: float | list[Any],
         split_type: TrainTestSplitType = TrainTestSplitType.PER_PIXEL,
         ignore_values: list[int] | None = None,

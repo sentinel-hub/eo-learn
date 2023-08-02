@@ -19,7 +19,7 @@ from sentinelhub import CRS, BBox
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning, TemporalDimensionWarning
-from eolearn.core.types import FeatureSpec, FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
@@ -182,7 +182,7 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.META_INFO, "beep"),
     ],
 )
-def test_delete_existing_feature(feature_to_delete: FeatureSpec, mini_eopatch: EOPatch) -> None:
+def test_delete_existing_feature(feature_to_delete: tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
     del mini_eopatch[feature_to_delete]
@@ -206,7 +206,7 @@ def test_delete_existing_feature_type(feature_type: FeatureType, mini_eopatch: E
 
 
 @pytest.mark.parametrize("bbox_feature", [FeatureType.BBOX, (FeatureType.BBOX, None)])
-def test_cannot_delete_bbox(bbox_feature: FeatureType | FeatureSpec, mini_eopatch: EOPatch) -> None:
+def test_cannot_delete_bbox(bbox_feature: FeatureType | tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
     with pytest.raises(ValueError):
         del mini_eopatch[bbox_feature]
 
@@ -286,7 +286,6 @@ def test_copy_features(test_eopatch: EOPatch) -> None:
         ("auto", ..., True),
         ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
         ("auto", [(FeatureType.DATA, ...)], True),
-        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
         (False, [(FeatureType.DATA, ...)], False),
         (True, [(FeatureType.DATA, ...)], True),
         (True, [], True),
@@ -391,14 +390,12 @@ def test_get_spatial_dimension(
                 (FeatureType.MASK, "D"),
                 (FeatureType.MASK_TIMELESS, "E"),
                 (FeatureType.META_INFO, "beep"),
-                (FeatureType.BBOX, None),
-                (FeatureType.TIMESTAMPS, None),
             ],
         ),
-        (EOPatch(bbox=DUMMY_BBOX), [(FeatureType.BBOX, None)]),
+        (EOPatch(bbox=DUMMY_BBOX), []),
     ],
 )
-def test_get_features(patch: EOPatch, expected_features: list[FeatureSpec]) -> None:
+def test_get_features(patch: EOPatch, expected_features: list[tuple[FeatureType, str]]) -> None:
     assert patch.get_features() == expected_features
 
 

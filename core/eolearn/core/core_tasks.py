@@ -25,7 +25,7 @@ from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification, SingleFeatureSpec
+from .types import EllipsisType, FeaturesSpecification
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
@@ -35,16 +35,23 @@ class CopyTask(EOTask):
     It copies feature type dictionaries but not the data itself.
     """
 
-    def __init__(self, features: FeaturesSpecification = ..., *, deep: bool = False):
+    def __init__(
+        self,
+        features: FeaturesSpecification = ...,
+        *,
+        deep: bool = False,
+        copy_timestamps: bool | Literal["auto"] = "auto",
+    ):
         """
         :param features: A collection of features or feature types that will be copied into a new EOPatch.
         :param deep: Whether the copy should be a deep or shallow copy.
         """
         self.features = features
         self.deep = deep
+        self.copy_timestamps = copy_timestamps
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        return eopatch.copy(features=self.features, deep=self.deep)
+        return eopatch.copy(features=self.features, deep=self.deep, copy_timestamps=self.copy_timestamps)
 
 
 @deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")
@@ -220,11 +227,11 @@ class LoadTask(IOTask):
 class AddFeatureTask(EOTask):
     """Adds a feature to the given EOPatch."""
 
-    def __init__(self, feature: FeatureSpec):
+    def __init__(self, feature: tuple[FeatureType, str]):
         """
         :param feature: Feature to be added
         """
-        self.feature_type, self.feature_name = self.parse_feature(feature)
+        self.feature = self.parse_feature(feature)
 
     def execute(self, eopatch: EOPatch, data: object) -> EOPatch:
         """Returns the EOPatch with added features.
@@ -233,11 +240,7 @@ class AddFeatureTask(EOTask):
         :param data: data to be added to the feature
         :return: input EOPatch with the specified feature
         """
-        if self.feature_name is None:
-            eopatch[self.feature_type] = data
-        else:
-            eopatch[self.feature_type][self.feature_name] = data
-
+        eopatch[self.feature] = data
         return eopatch
 
 
@@ -332,7 +335,7 @@ class InitializeFeatureTask(EOTask):
     def __init__(
         self,
         features: FeaturesSpecification,
-        shape: tuple[int, ...] | FeatureSpec,
+        shape: tuple[int, ...] | tuple[FeatureType, str],
         init_value: int = 0,
         dtype: np.dtype | type = np.uint8,
     ):
@@ -527,7 +530,7 @@ class ZipFeatureTask(EOTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: SingleFeatureSpec,
+        output_feature: tuple[FeatureType, str],
         zip_function: Callable | None = None,
         **kwargs: Any,
     ):

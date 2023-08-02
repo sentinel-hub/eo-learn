@@ -55,7 +55,7 @@ from sentinelhub.exceptions import SHUserWarning, deprecated_function
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification
+from .types import EllipsisType, FeaturesSpecification
 from .utils.fs import get_full_path, split_all_extensions
 from .utils.parsing import FeatureParser
 
@@ -76,6 +76,7 @@ PatchContentType: TypeAlias = Tuple[
     Optional[List[datetime.datetime]],
     Dict[Tuple[FeatureType, str], "FeatureIO"],
 ]
+Features: TypeAlias = List[Tuple[FeatureType, str]]
 
 
 BBOX_FILENAME = "bbox"
@@ -199,7 +200,7 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 def _yield_savers(
     *,
     eopatch: EOPatch,
-    features: list[FeatureSpec],
+    features: Features,
     patch_location: str,
     filesystem: FS,
     compress_level: int,
@@ -453,7 +454,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[tuple
 
 
 def _check_collisions(
-    overwrite_permission: OverwritePermission, eopatch_features: list[FeatureSpec], existing_files: FilesystemDataInfo
+    overwrite_permission: OverwritePermission, eopatch_features: Features, existing_files: FilesystemDataInfo
 ) -> None:
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
@@ -467,7 +468,7 @@ def _check_collisions(
         _check_letter_case_collisions(eopatch_features, FilesystemDataInfo())
 
 
-def _check_add_only_permission(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_add_only_permission(eopatch_features: Features, filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {_to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()}
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
@@ -477,7 +478,7 @@ def _check_add_only_permission(eopatch_features: list[FeatureSpec], filesystem_f
         raise ValueError(f"Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY")
 
 
-def _check_letter_case_collisions(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_letter_case_collisions(eopatch_features: Features, filesystem_features: FilesystemDataInfo) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
