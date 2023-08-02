@@ -221,7 +221,7 @@ class VectorToRasterTask(EOTask):
                 return self.raster_shape
 
             ftype, fname = self.parse_feature(self.raster_shape, allowed_feature_types=lambda fty: fty.is_array())
-            return eopatch.get_spatial_dimension(ftype, fname)  # cast verified in parser
+            return eopatch.get_spatial_dimension(ftype, fname)
 
         if self.raster_resolution:
             # parsing from strings is not denoted in types, so an explicit upcast is required
