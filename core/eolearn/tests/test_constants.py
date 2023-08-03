@@ -13,18 +13,20 @@ import pytest
 from eolearn.core.constants import FeatureType
 from eolearn.core.exceptions import EODeprecationWarning
 
-
 # ruff: noqa:B018
 
-
-@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.EODeprecationWarning")
-@pytest.mark.parametrize(
-    ("old_ftype", "new_ftype"),
-    [
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    TEST_CASES = [
         (FeatureType.TIMESTAMP, FeatureType.TIMESTAMPS),
         (FeatureType["TIMESTAMP"], FeatureType["TIMESTAMPS"]),
         (FeatureType("timestamp"), FeatureType("timestamps")),
-    ],
+    ]
+
+
+@pytest.mark.parametrize(
+    ("old_ftype", "new_ftype"),
+    TEST_CASES,
     ids=["attribute access", "name access", "value access"],
 )
 def test_timestamp_featuretype(old_ftype, new_ftype) -> None:
