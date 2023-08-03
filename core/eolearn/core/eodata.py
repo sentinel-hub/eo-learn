@@ -36,7 +36,7 @@ from fs.base import FS
 from sentinelhub import CRS, BBox, parse_time
 from sentinelhub.exceptions import deprecated_function
 
-from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
+from .constants import FEATURETYPE_DEPRECATION_MSG, TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .exceptions import EODeprecationWarning, TemporalDimensionWarning
 from .types import EllipsisType, FeaturesSpecification
@@ -591,7 +591,10 @@ class EOPatch:
         :return: List of non-empty features
         """
         feature_list: list[tuple[FeatureType, str]] = []
-        for feature_type in (ftype for ftype in FeatureType if ftype not in {FeatureType.BBOX, FeatureType.TIMESTAMPS}):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
+            removed_ftypes = {FeatureType.BBOX, FeatureType.TIMESTAMPS}  # list comprehensions make ignoring hard
+        for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes):
             for feature_name in self[feature_type]:
                 feature_list.append((feature_type, feature_name))
         return feature_list

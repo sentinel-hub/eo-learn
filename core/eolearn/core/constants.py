@@ -20,18 +20,24 @@ from .exceptions import EODeprecationWarning
 TIMESTAMP_COLUMN = "TIMESTAMP"
 T = TypeVar("T")
 
+FEATURETYPE_DEPRECATION_MSG = (
+    "The `FeatureType.{}` has been deprecated and will be removed in the future. Use the EOPatch attribute `{}`"
+    " directly."
+)
+
 
 def _warn_and_adjust(name: T) -> T:
     # since we stick with `UPPER` for attributes and `lower` for values, we include both to reuse function
-    if name in ("TIMESTAMP", "timestamp"):
-        name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"
+    if isinstance(name, str):  # to avoid type issues
+        if name in ("TIMESTAMP", "timestamp"):
+            name = "TIMESTAMPS" if name == "TIMESTAMP" else "timestamps"  # type: ignore[assignment]
 
-    # if name.upper() in ("TIMESTAMPS", "BBOX"):
-    #     deprecation_msg = (
-    #         f"The `FeatureType.{name.upper()}` has been deprecated and will be removed in the future. Use the EOPatch"
-    #         f" attribute `{name.lower()}` directly."
-    #     )
-    #     warnings.warn(deprecation_msg, category=EODeprecationWarning, stacklevel=3)
+        if name in ("TIMESTAMPS", "BBOX", "timestamps", "bbox"):
+            warnings.warn(
+                FEATURETYPE_DEPRECATION_MSG.format(name.upper(), name.lower()),
+                category=EODeprecationWarning,
+                stacklevel=3,
+            )
     return name
 
 
@@ -104,14 +110,16 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
     def is_temporal(self) -> bool:
         """True if FeatureType has a time component. False otherwise."""
-        return self in [
-            FeatureType.DATA,
-            FeatureType.MASK,
-            FeatureType.SCALAR,
-            FeatureType.LABEL,
-            FeatureType.VECTOR,
-            FeatureType.TIMESTAMPS,
-        ]
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
+            return self in [
+                FeatureType.DATA,
+                FeatureType.MASK,
+                FeatureType.SCALAR,
+                FeatureType.LABEL,
+                FeatureType.VECTOR,
+                FeatureType.TIMESTAMPS,
+            ]
 
     def is_timeless(self) -> bool:
         """True if FeatureType doesn't have a time component and is not a meta feature. False otherwise."""
@@ -123,7 +131,9 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
 
     def is_meta(self) -> bool:
         """True if FeatureType is for storing metadata info and False otherwise."""
-        return self in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS]
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
+            return self in [FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS]
 
     def is_vector(self) -> bool:
         """True if FeatureType is vector feature type. False otherwise."""

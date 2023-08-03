@@ -9,9 +9,10 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import contextlib
+import warnings
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Tuple, Union, cast
 
-from ..constants import FeatureType
+from ..constants import FEATURETYPE_DEPRECATION_MSG, FeatureType
 from ..types import (
     DictFeatureSpec,
     EllipsisType,
@@ -100,7 +101,9 @@ class FeatureParser:
                 set(allowed_feature_types) if isinstance(allowed_feature_types, Iterable) else set(FeatureType)
             )
         # needed until we remove the feature types
-        self.allowed_feature_types = self.allowed_feature_types - {FeatureType.BBOX, FeatureType.TIMESTAMPS}
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
+            self.allowed_feature_types = self.allowed_feature_types - {FeatureType.BBOX, FeatureType.TIMESTAMPS}
         self._feature_specs = self._parse_features(features)
 
     def _parse_features(self, features: FeaturesSpecification) -> list[_ParserFeaturesSpec]:
