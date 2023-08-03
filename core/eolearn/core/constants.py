@@ -238,75 +238,77 @@ class DeprecatedCollectionClass(type):
         return super().__getattribute__(name)
 
 
-class FeatureTypeSet(metaclass=DeprecatedCollectionClass):
-    """A collection of immutable sets of feature types, grouped together by certain properties."""
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
 
+    class FeatureTypeSet(metaclass=DeprecatedCollectionClass):
+        """A collection of immutable sets of feature types, grouped together by certain properties."""
 
-#     SPATIAL_TYPES = frozenset(
-#         [
-#             FeatureType.DATA,
-#             FeatureType.MASK,
-#             FeatureType.VECTOR,
-#             FeatureType.DATA_TIMELESS,
-#             FeatureType.MASK_TIMELESS,
-#             FeatureType.VECTOR_TIMELESS,
-#         ]
-#     )
-#     TEMPORAL_TYPES = frozenset(
-#         [
-#             FeatureType.DATA,
-#             FeatureType.MASK,
-#             FeatureType.SCALAR,
-#             FeatureType.LABEL,
-#             FeatureType.VECTOR,
-#             FeatureType.TIMESTAMPS,
-#         ]
-#     )
-#     TIMELESS_TYPES = frozenset(
-#         [
-#             FeatureType.DATA_TIMELESS,
-#             FeatureType.MASK_TIMELESS,
-#             FeatureType.SCALAR_TIMELESS,
-#             FeatureType.LABEL_TIMELESS,
-#             FeatureType.VECTOR_TIMELESS,
-#         ]
-#     )
-#     DISCRETE_TYPES = frozenset(
-#         [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
-#     )
-#     META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS])
-#     VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
-#     RASTER_TYPES = frozenset(
-#         [
-#             FeatureType.DATA,
-#             FeatureType.MASK,
-#             FeatureType.SCALAR,
-#             FeatureType.LABEL,
-#             FeatureType.DATA_TIMELESS,
-#             FeatureType.MASK_TIMELESS,
-#             FeatureType.SCALAR_TIMELESS,
-#             FeatureType.LABEL_TIMELESS,
-#         ]
-#     )
-#     DICT_TYPES = frozenset(
-#         [
-#             FeatureType.DATA,
-#             FeatureType.MASK,
-#             FeatureType.SCALAR,
-#             FeatureType.LABEL,
-#             FeatureType.VECTOR,
-#             FeatureType.DATA_TIMELESS,
-#             FeatureType.MASK_TIMELESS,
-#             FeatureType.SCALAR_TIMELESS,
-#             FeatureType.LABEL_TIMELESS,
-#             FeatureType.VECTOR_TIMELESS,
-#             FeatureType.META_INFO,
-#         ]
-#     )
-#     RASTER_TYPES_4D = frozenset([FeatureType.DATA, FeatureType.MASK])
-#     RASTER_TYPES_3D = frozenset([FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS])
-#     RASTER_TYPES_2D = frozenset([FeatureType.SCALAR, FeatureType.LABEL])
-#     RASTER_TYPES_1D = frozenset([FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS])
+        SPATIAL_TYPES = frozenset(
+            [
+                FeatureType.DATA,
+                FeatureType.MASK,
+                FeatureType.VECTOR,
+                FeatureType.DATA_TIMELESS,
+                FeatureType.MASK_TIMELESS,
+                FeatureType.VECTOR_TIMELESS,
+            ]
+        )
+        TEMPORAL_TYPES = frozenset(
+            [
+                FeatureType.DATA,
+                FeatureType.MASK,
+                FeatureType.SCALAR,
+                FeatureType.LABEL,
+                FeatureType.VECTOR,
+                FeatureType.TIMESTAMPS,
+            ]
+        )
+        TIMELESS_TYPES = frozenset(
+            [
+                FeatureType.DATA_TIMELESS,
+                FeatureType.MASK_TIMELESS,
+                FeatureType.SCALAR_TIMELESS,
+                FeatureType.LABEL_TIMELESS,
+                FeatureType.VECTOR_TIMELESS,
+            ]
+        )
+        DISCRETE_TYPES = frozenset(
+            [FeatureType.MASK, FeatureType.MASK_TIMELESS, FeatureType.LABEL, FeatureType.LABEL_TIMELESS]
+        )
+        META_TYPES = frozenset([FeatureType.META_INFO, FeatureType.BBOX, FeatureType.TIMESTAMPS])
+        VECTOR_TYPES = frozenset([FeatureType.VECTOR, FeatureType.VECTOR_TIMELESS])
+        RASTER_TYPES = frozenset(
+            [
+                FeatureType.DATA,
+                FeatureType.MASK,
+                FeatureType.SCALAR,
+                FeatureType.LABEL,
+                FeatureType.DATA_TIMELESS,
+                FeatureType.MASK_TIMELESS,
+                FeatureType.SCALAR_TIMELESS,
+                FeatureType.LABEL_TIMELESS,
+            ]
+        )
+        DICT_TYPES = frozenset(
+            [
+                FeatureType.DATA,
+                FeatureType.MASK,
+                FeatureType.SCALAR,
+                FeatureType.LABEL,
+                FeatureType.VECTOR,
+                FeatureType.DATA_TIMELESS,
+                FeatureType.MASK_TIMELESS,
+                FeatureType.SCALAR_TIMELESS,
+                FeatureType.LABEL_TIMELESS,
+                FeatureType.VECTOR_TIMELESS,
+                FeatureType.META_INFO,
+            ]
+        )
+        RASTER_TYPES_4D = frozenset([FeatureType.DATA, FeatureType.MASK])
+        RASTER_TYPES_3D = frozenset([FeatureType.DATA_TIMELESS, FeatureType.MASK_TIMELESS])
+        RASTER_TYPES_2D = frozenset([FeatureType.SCALAR, FeatureType.LABEL])
+        RASTER_TYPES_1D = frozenset([FeatureType.SCALAR_TIMELESS, FeatureType.LABEL_TIMELESS])
 
 
 def _warn_and_adjust_permissions(name: T) -> T:

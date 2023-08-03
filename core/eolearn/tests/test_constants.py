@@ -37,14 +37,14 @@ def test_timestamps_bbox_deprecation() -> None:
     with warnings.catch_warnings():  # make warnings errors
         warnings.simplefilter("error")
 
-    FeatureType.DATA
-    FeatureType["MASK"]
-    FeatureType("label")
-    FeatureType(FeatureType.META_INFO)
+        FeatureType.DATA
+        FeatureType["MASK"]
+        FeatureType("label")
+        FeatureType(FeatureType.META_INFO)
 
-    with pytest.warns(EODeprecationWarning):
-        FeatureType.TIMESTAMPS
-    with pytest.warns(EODeprecationWarning):
-        FeatureType["BBOX"]
-    with pytest.warns(EODeprecationWarning):
-        FeatureType("bbox")
+        with pytest.warns(EODeprecationWarning):
+            FeatureType.TIMESTAMPS
+        with pytest.warns(EODeprecationWarning):
+            FeatureType["BBOX"]
+        with pytest.warns(EODeprecationWarning):
+            FeatureType("bbox")
