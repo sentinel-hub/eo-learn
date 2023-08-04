@@ -615,7 +615,7 @@ class TestSentinelHubInputTaskDataCollections:
         }
     """
 
-    test_cases = [
+    test_cases = [  # noqa: RUF012
         IoTestCase(
             name="Sentinel-2 L2A",
             task=SentinelHubInputTask(

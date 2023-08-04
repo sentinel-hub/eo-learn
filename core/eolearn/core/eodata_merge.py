@@ -269,10 +269,8 @@ def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: tuple[FeatureTy
         raise ValueError(f"Cannot merge feature {feature} because dataframes are defined for different CRS")
 
     merged_dataframe = GeoDataFrame(pd.concat(dataframes, ignore_index=True), crs=crs_list[0])
-    merged_dataframe = merged_dataframe.drop_duplicates(ignore_index=True)
-    # In future a support for vector operations could be added here
 
-    return merged_dataframe
+    return merged_dataframe.drop_duplicates(ignore_index=True)
 
 
 def _select_meta_info_feature(eopatches: Sequence[EOPatch], feature_name: str) -> Any:

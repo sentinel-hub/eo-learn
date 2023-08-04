@@ -230,7 +230,7 @@ intersphinx_mapping = {"https://docs.python.org/3.8/": None}
 # When Sphinx documents class signature it prioritizes __new__ method over __init__ method. The following hack puts
 # EOTask.__new__ method to the blacklist so that __init__ method signature will be taken instead. This seems the
 # cleanest way even though a private object is accessed.
-sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append("{0.__module__}.{0.__qualname__}".format(EOTask.__new__))  # noqa[SLF001]
+sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append("{0.__module__}.{0.__qualname__}".format(EOTask.__new__))  # noqa: SLF001
 
 
 EXAMPLES_FOLDER = "./examples"

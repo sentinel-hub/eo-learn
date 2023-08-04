@@ -44,13 +44,13 @@ def _warn_and_adjust(name: T) -> T:
 class EnumWithDeprecations(EnumMeta):
     """A custom EnumMeta class for catching the deprecated Enum members of the FeatureType Enum class."""
 
-    def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
+    def __getattribute__(cls, name: str) -> Any:  # noqa: N805
         return super().__getattribute__(_warn_and_adjust(name))
 
-    def __getitem__(cls, name: str) -> Any:  # noqa[N805]
+    def __getitem__(cls, name: str) -> Any:  # noqa: N805
         return super().__getitem__(_warn_and_adjust(name))
 
-    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa[N805]
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa: N805
         return super().__call__(_warn_and_adjust(value), *args, **kwargs)
 
 
@@ -234,13 +234,13 @@ def _warn_and_adjust_permissions(name: T) -> T:
 class PermissionsWithDeprecations(EnumMeta):
     """A custom EnumMeta class for catching the deprecated Enum members of the OverwritePermission Enum class."""
 
-    def __getattribute__(cls, name: str) -> Any:  # noqa[N805]
+    def __getattribute__(cls, name: str) -> Any:  # noqa: N805
         return super().__getattribute__(_warn_and_adjust_permissions(name))
 
-    def __getitem__(cls, name: str) -> Any:  # noqa[N805]
+    def __getitem__(cls, name: str) -> Any:  # noqa: N805
         return super().__getitem__(_warn_and_adjust_permissions(name))
 
-    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa[N805]
+    def __call__(cls, value: str, *args: Any, **kwargs: Any) -> Any:  # noqa: N805
         return super().__call__(_warn_and_adjust_permissions(value), *args, **kwargs)
 
 

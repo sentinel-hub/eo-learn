@@ -32,11 +32,11 @@ class ClassifierType(Protocol):
     """Defines the necessary classifier interface."""
 
     # pylint: disable-next=missing-function-docstring,invalid-name
-    def predict(self, X: np.ndarray) -> np.ndarray:  # noqa[N803]
+    def predict(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
         ...
 
     # pylint: disable-next=missing-function-docstring,invalid-name
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # noqa[N803]
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
         ...
 
 

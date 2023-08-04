@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import itertools as it
 import warnings
+from typing import ClassVar
 
 import numpy as np
 import skimage.feature
@@ -28,8 +29,15 @@ class HaralickTask(EOTask):
     The task uses `skimage.feature.greycomatrix` and `skimage.feature.greycoprops` to extract the texture features.
     """
 
-    AVAILABLE_TEXTURES_SKIMAGE = {"contrast", "dissimilarity", "homogeneity", "ASM", "energy", "correlation"}
-    AVAILABLE_TEXTURES = {
+    AVAILABLE_TEXTURES_SKIMAGE: ClassVar[set[str]] = {
+        "contrast",
+        "dissimilarity",
+        "homogeneity",
+        "ASM",
+        "energy",
+        "correlation",
+    }
+    AVAILABLE_TEXTURES: ClassVar[set[str]] = {
         "sum_of_square_variance",
         "inverse_difference_moment",
         "sum_average",

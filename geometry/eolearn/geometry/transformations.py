@@ -13,7 +13,7 @@ import itertools as it
 import logging
 import warnings
 from functools import partial
-from typing import Any, Callable, Iterator, Tuple, cast
+from typing import Any, Callable, ClassVar, Iterator, Tuple, cast
 
 import numpy as np
 import pandas as pd
@@ -49,7 +49,7 @@ class VectorToRasterTask(EOTask):
 
     # A mapping between types that are not supported by rasterio into types that are. After rasterization the task
     # will cast results back into the original dtype.
-    _RASTERIO_DTYPES_MAP = {
+    _RASTERIO_DTYPES_MAP: ClassVar[dict[type | np.dtype, type]] = {
         bool: np.uint8,
         np.dtype(bool): np.uint8,
         np.int8: np.int16,

@@ -4,7 +4,9 @@ from __future__ import annotations
 from warnings import warn
 
 from ..exceptions import EODeprecationWarning
-from ..types import *  # noqa: 403 # pylint: disable=wildcard-import,unused-wildcard-import
+
+# pylint: disable-next=wildcard-import,unused-wildcard-import
+from ..types import *  # noqa: F403
 
 warn(
     "The module `eolearn.core.utils.types` is deprecated, use `eolearn.core.types` instead.",

@@ -250,8 +250,7 @@ class FractionSamplingTask(BaseSamplingTask):
         rows, columns = sample_by_values(sampling_image, amount_per_value, rng=rng, replace=self.replace)
         row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(1, 1))
 
-        eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
-        return eopatch
+        return self._apply_sampling(eopatch, row_grid, column_grid)
 
 
 class BlockSamplingTask(BaseSamplingTask):
@@ -317,8 +316,7 @@ class BlockSamplingTask(BaseSamplingTask):
         size_x, size_y = self.sample_size  # this way it also works for lists
         row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
-        eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
-        return eopatch
+        return self._apply_sampling(eopatch, row_grid, column_grid)
 
 
 class GridSamplingTask(BaseSamplingTask):
@@ -372,5 +370,4 @@ class GridSamplingTask(BaseSamplingTask):
         size_x, size_y = self.sample_size  # this way it also works for lists
         row_grid, column_grid = expand_to_grids(rows, columns, sample_size=(size_x, size_y))
 
-        eopatch = self._apply_sampling(eopatch, row_grid, column_grid)
-        return eopatch
+        return self._apply_sampling(eopatch, row_grid, column_grid)
