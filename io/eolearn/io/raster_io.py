@@ -408,9 +408,9 @@ class ImportFromTiffTask(BaseRasterIoTask):
             smaller chunk of a larger image, especially if it is a Cloud-optimized GeoTIFF (COG). In other cases the
             reading might be faster if the flag remains set to `False`.
         :param timestamp_size: In case data will be imported into a time-dependant feature this parameter can be used to
-            specify time dimension. If not specified, time dimension will be the same as size of the
-            `FeatureType.TIMESTAMPS` feature. If `FeatureType.TIMESTAMPS` does not exist this value will be set to 1.
-            When converting data into a feature channels of given tiff image should be in order
+            specify time dimension. If not specified, time dimension will be the same as size of the timestamps
+            attribute. If timestamps do not exist this value will be set to 1. When converting data into a feature
+            channels of given tiff image should be in order
             T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
             where T and B are the time and band indices.
         :param kwargs: Keyword arguments to be propagated to `BaseRasterIoTask`.

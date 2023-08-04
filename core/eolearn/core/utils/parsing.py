@@ -9,9 +9,10 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import contextlib
+import warnings
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence, Tuple, Union, cast
 
-from ..constants import FeatureType
+from ..constants import FEATURETYPE_DEPRECATION_MSG, FeatureType
 from ..types import (
     DictFeatureSpec,
     EllipsisType,
@@ -99,6 +100,10 @@ class FeatureParser:
             self.allowed_feature_types = (
                 set(allowed_feature_types) if isinstance(allowed_feature_types, Iterable) else set(FeatureType)
             )
+        # needed until we remove the feature types
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
+            self.allowed_feature_types = self.allowed_feature_types - {FeatureType.BBOX, FeatureType.TIMESTAMPS}
         self._feature_specs = self._parse_features(features)
 
     def _parse_features(self, features: FeaturesSpecification) -> list[_ParserFeaturesSpec]:
@@ -141,8 +146,6 @@ class FeatureParser:
             if feature_names in (..., None):
                 feature_specs.append((feature_type, None, None))
                 continue
-
-            self._fail_for_noname_features(feature_type, feature_names)
 
             if not isinstance(feature_names, Sequence):
                 raise ValueError("Values of dictionary must be `...` or sequences with feature names.")
@@ -189,8 +192,6 @@ class FeatureParser:
         if len(feature_name) == 1 and feature_name[0] in (..., None):
             return (feature_type, None, None)
 
-        self._fail_for_noname_features(feature_type, feature_name)
-
         feature_name = feature_name[0] if len(feature_name) == 1 else feature_name
         parsed_name = self._parse_feature_name(feature_type, feature_name)
         return (feature_type, *parsed_name)
@@ -230,18 +231,6 @@ class FeatureParser:
             " strings or pairs of form `(old_name, new_name)`"
         )
 
-    @staticmethod
-    def _fail_for_noname_features(feature_type: FeatureType, specification: object) -> None:
-        """Fails if the feature type does not support names.
-
-        Should only be used after the viable names `...` and `None` have already been handled.
-        """
-        if feature_type in (FeatureType.BBOX, FeatureType.TIMESTAMPS):
-            raise ValueError(
-                f"For features of type {feature_type} the only acceptable specification is `...` or `None`, got"
-                f" {specification} instead."
-            )
-
     def get_feature_specifications(self) -> list[tuple[FeatureType, str | EllipsisType]]:
         """Returns the feature specifications in a more streamlined fashion.
 
@@ -276,10 +265,7 @@ class FeatureParser:
         for feature_spec in self._feature_specs:
             ftype, old_name, new_name = feature_spec
 
-            if ftype is FeatureType.BBOX or ftype is FeatureType.TIMESTAMPS:
-                pass
-
-            elif old_name is not None and new_name is not None:
+            if old_name is not None and new_name is not None:
                 # checking both is redundant, but typechecker has difficulties otherwise
                 if eopatch is not None and (ftype, old_name) not in eopatch:
                     raise ValueError(f"Requested feature {(ftype, old_name)} not part of eopatch.")
