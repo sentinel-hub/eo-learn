@@ -109,9 +109,7 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
 
         abs_diff = np.where(np.isnan(data_perc_low), np.inf, abs(data - data_perc_low))
 
-        indices = np.where(np.isnan(data_perc_low), self.max_index, np.nanargmin(abs_diff, axis=0))
-
-        return indices
+        return np.where(np.isnan(data_perc_low), self.max_index, np.nanargmin(abs_diff, axis=0))
 
     def _geoville_index_by_percentile(self, data: np.ndarray, percentile: int) -> np.ndarray:
         """Calculate percentile of numpy stack and return the index of the chosen pixel."""

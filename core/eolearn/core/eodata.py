@@ -19,6 +19,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Iterable,
     Iterator,
     Literal,
@@ -68,7 +69,7 @@ class _FeatureDict(MutableMapping[str, T], metaclass=ABCMeta):
     feature value, which is then called when the feature is accessed.
     """
 
-    FORBIDDEN_CHARS = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
+    FORBIDDEN_CHARS: ClassVar[set[str]] = {".", "/", "\\", "|", ";", ":", "\n", "\t"}
 
     def __init__(self, feature_dict: Mapping[str, T | FeatureIO[T]], feature_type: FeatureType):
         """

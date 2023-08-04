@@ -202,9 +202,8 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         time_dim, height, width, band_dim = data_array.shape
         new_shape = (time_dim * band_dim, height, width)
-        data_array = np.moveaxis(data_array, -1, 1).reshape(new_shape)
 
-        return data_array
+        return np.moveaxis(data_array, -1, 1).reshape(new_shape)
 
     def _reduce_by_bands(self, array: np.ndarray) -> np.ndarray:
         """Reduces the array by selecting a subset of bands."""
