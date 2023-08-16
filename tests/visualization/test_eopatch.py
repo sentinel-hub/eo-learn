@@ -44,11 +44,10 @@ def eopatch_fixture():
         ((FeatureType.LABEL_TIMELESS, "LULC_COUNTS"), {}),
         ((FeatureType.LABEL_TIMELESS, "LULC_COUNTS"), {"channels": [0]}),
         ((FeatureType.VECTOR_TIMELESS, "LULC"), {}),
-        (FeatureType.BBOX, {}),
     ],
 )
 @pytest.mark.sh_integration()
-def test_eopatch_plot(eopatch, feature, params):
+def test_eopatch_plot(eopatch: EOPatch, feature, params):
     """A simple test of EOPatch plotting for different features."""
     # We reduce width and height otherwise running matplotlib.pyplot.subplots in combination with pytest would
     # kill the Python kernel.

@@ -6,15 +6,15 @@ from typing import Callable, Iterable
 import pytest
 
 from eolearn.core import EOPatch, FeatureParser, FeatureType
-from eolearn.core.types import EllipsisType, FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.types import EllipsisType, FeaturesSpecification
 from eolearn.core.utils.testing import generate_eopatch
 
 
 @dataclass
 class ParserTestCase:
     parser_input: FeaturesSpecification
-    features: list[FeatureSpec]
-    renaming: list[FeatureRenameSpec]
+    features: list[tuple[FeatureType, str]]
+    renaming: list[tuple[FeatureType, str, str]]
     specifications: list[tuple[FeatureType, str | EllipsisType]] | None = None
     description: str = ""
 
@@ -35,13 +35,6 @@ def get_test_case_description(test_case: ParserTestCase) -> str:
             description="Singleton feature",
         ),
         ParserTestCase(
-            parser_input=FeatureType.BBOX,
-            features=[(FeatureType.BBOX, None)],
-            renaming=[(FeatureType.BBOX, None, None)],
-            specifications=[(FeatureType.BBOX, ...)],
-            description="BBox feature",
-        ),
-        ParserTestCase(
             parser_input=(FeatureType.MASK, "CLM", "new_CLM"),
             features=[(FeatureType.MASK, "CLM")],
             renaming=[(FeatureType.MASK, "CLM", "new_CLM")],
@@ -49,55 +42,44 @@ def get_test_case_description(test_case: ParserTestCase) -> str:
             description="Renamed feature",
         ),
         ParserTestCase(
-            parser_input=[FeatureType.BBOX, (FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
-            features=[(FeatureType.BBOX, None), (FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
+            parser_input=[(FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
+            features=[(FeatureType.DATA, "bands"), (FeatureType.VECTOR_TIMELESS, "geoms")],
             renaming=[
-                (FeatureType.BBOX, None, None),
                 (FeatureType.DATA, "bands", "bands"),
                 (FeatureType.VECTOR_TIMELESS, "geoms", "geoms"),
             ],
             specifications=[
-                (FeatureType.BBOX, ...),
                 (FeatureType.DATA, "bands"),
                 (FeatureType.VECTOR_TIMELESS, "geoms"),
             ],
             description="List of inputs",
         ),
         ParserTestCase(
-            parser_input=((FeatureType.TIMESTAMPS, ...), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a", "b")),
-            features=[(FeatureType.TIMESTAMPS, None), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a")],
+            parser_input=((FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a", "b")),
+            features=[(FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a")],
             renaming=[
-                (FeatureType.TIMESTAMPS, None, None),
                 (FeatureType.MASK, "CLM", "CLM"),
                 (FeatureType.SCALAR, "a", "b"),
             ],
-            specifications=[(FeatureType.TIMESTAMPS, ...), (FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a")],
+            specifications=[(FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "a")],
             description="Tuple of inputs with rename",
         ),
         ParserTestCase(
             parser_input={
                 FeatureType.DATA: ["bands_S2", ("bands_l8", "BANDS_L8")],
                 FeatureType.MASK_TIMELESS: [],
-                FeatureType.BBOX: ...,
-                FeatureType.TIMESTAMPS: None,
             },
             features=[
                 (FeatureType.DATA, "bands_S2"),
                 (FeatureType.DATA, "bands_l8"),
-                (FeatureType.BBOX, None),
-                (FeatureType.TIMESTAMPS, None),
             ],
             renaming=[
                 (FeatureType.DATA, "bands_S2", "bands_S2"),
                 (FeatureType.DATA, "bands_l8", "BANDS_L8"),
-                (FeatureType.BBOX, None, None),
-                (FeatureType.TIMESTAMPS, None, None),
             ],
             specifications=[
                 (FeatureType.DATA, "bands_S2"),
                 (FeatureType.DATA, "bands_l8"),
-                (FeatureType.BBOX, ...),
-                (FeatureType.TIMESTAMPS, ...),
             ],
             description="Dictionary",
         ),
@@ -117,12 +99,12 @@ def test_feature_parser_no_eopatch(test_case: ParserTestCase):
     [
         ((FeatureType.DATA, ...), [(FeatureType.DATA, ...)]),
         (
-            [FeatureType.BBOX, (FeatureType.MASK, "CLM"), FeatureType.DATA],
-            [(FeatureType.BBOX, ...), (FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
+            [(FeatureType.MASK, "CLM"), FeatureType.DATA],
+            [(FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
         ),
         (
-            {FeatureType.BBOX: None, FeatureType.MASK: ["CLM"], FeatureType.DATA: ...},
-            [(FeatureType.BBOX, ...), (FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
+            {FeatureType.MASK: ["CLM"], FeatureType.DATA: ...},
+            [(FeatureType.MASK, "CLM"), (FeatureType.DATA, ...)],
         ),
     ],
 )
@@ -152,8 +134,8 @@ def test_feature_parser_no_eopatch_failure(
         (
             {
                 FeatureType.MASK: ["CLM", "IS_VALID"],
+                FeatureType.MASK_TIMELESS: ...,
                 FeatureType.DATA: [("bands", "new_bands")],
-                FeatureType.BBOX: None,
             },
             (
                 FeatureType.MASK,
@@ -231,24 +213,20 @@ def test_all_features_allowed_feature_types(
         ParserTestCase(
             parser_input=...,
             features=[
-                (FeatureType.BBOX, None),
                 (FeatureType.DATA, "data"),
                 (FeatureType.DATA, "CLP"),
                 (FeatureType.MASK, "data"),
                 (FeatureType.MASK, "IS_VALID"),
                 (FeatureType.MASK_TIMELESS, "LULC"),
                 (FeatureType.META_INFO, "something"),
-                (FeatureType.TIMESTAMPS, None),
             ],
             renaming=[
-                (FeatureType.BBOX, None, None),
                 (FeatureType.DATA, "data", "data"),
                 (FeatureType.DATA, "CLP", "CLP"),
                 (FeatureType.MASK, "data", "data"),
                 (FeatureType.MASK, "IS_VALID", "IS_VALID"),
                 (FeatureType.MASK_TIMELESS, "LULC", "LULC"),
                 (FeatureType.META_INFO, "something", "something"),
-                (FeatureType.TIMESTAMPS, None, None),
             ],
             description="Get-all",
         ),
@@ -260,20 +238,17 @@ def test_all_features_allowed_feature_types(
         ),
         ParserTestCase(
             parser_input=[
-                FeatureType.BBOX,
                 FeatureType.MASK,
                 (FeatureType.META_INFO, ...),
                 (FeatureType.MASK_TIMELESS, "LULC", "new_LULC"),
             ],
             features=[
-                (FeatureType.BBOX, None),
                 (FeatureType.MASK, "data"),
                 (FeatureType.MASK, "IS_VALID"),
                 (FeatureType.META_INFO, "something"),
                 (FeatureType.MASK_TIMELESS, "LULC"),
             ],
             renaming=[
-                (FeatureType.BBOX, None, None),
                 (FeatureType.MASK, "data", "data"),
                 (FeatureType.MASK, "IS_VALID", "IS_VALID"),
                 (FeatureType.META_INFO, "something", "something"),

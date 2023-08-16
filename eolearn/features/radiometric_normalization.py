@@ -12,7 +12,7 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
-from eolearn.core import EOPatch, EOTask
+from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.parsing import parse_renamed_feature
 
@@ -35,7 +35,7 @@ class ReferenceScenesTask(EOTask):
     def __init__(
         self,
         feature: SingleFeatureSpec,
-        valid_fraction_feature: SingleFeatureSpec,
+        valid_fraction_feature: tuple[FeatureType, str],
         max_scene_number: int | None = None,
     ):
         self.renamed_feature = parse_renamed_feature(feature)
@@ -63,8 +63,8 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
 
     Contributor: Johannes Schmid, GeoVille Information Systems GmbH, 2018
 
-    :param feature: Feature holding the input time-series. Default type is FeatureType.DATA
-    :param feature_composite: Type and name of output composite image. Default type is FeatureType.DATA_TIMELESS
+    :param feature: Feature holding the input time-series.
+    :param feature_composite: Type and name of output composite image.
     :param percentile: Percentile along the time dimension used for compositing. Methods use different percentiles
     :param max_index: Value used to flag indices with NaNs. Could be integer or NaN. Default is 255
     :param interpolation: Method used to compute percentile. Allowed values are {'geoville', 'linear', 'lower',
@@ -75,8 +75,8 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        feature_composite: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
+        feature_composite: tuple[FeatureType, str],
         percentile: int,
         max_index: int = 255,
         interpolation: str = "lower",
@@ -109,9 +109,7 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
 
         abs_diff = np.where(np.isnan(data_perc_low), np.inf, abs(data - data_perc_low))
 
-        indices = np.where(np.isnan(data_perc_low), self.max_index, np.nanargmin(abs_diff, axis=0))
-
-        return indices
+        return np.where(np.isnan(data_perc_low), self.max_index, np.nanargmin(abs_diff, axis=0))
 
     def _geoville_index_by_percentile(self, data: np.ndarray, percentile: int) -> np.ndarray:
         """Calculate percentile of numpy stack and return the index of the chosen pixel."""
@@ -185,8 +183,8 @@ class BlueCompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        feature_composite: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
+        feature_composite: tuple[FeatureType, str],
         blue_idx: int,
         interpolation: str = "lower",
     ):
@@ -219,8 +217,8 @@ class HOTCompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        feature_composite: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
+        feature_composite: tuple[FeatureType, str],
         blue_idx: int,
         red_idx: int,
         interpolation: str = "lower",
@@ -251,8 +249,8 @@ class MaxNDVICompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        feature_composite: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
+        feature_composite: tuple[FeatureType, str],
         red_idx: int,
         nir_idx: int,
         interpolation: str = "lower",
@@ -294,8 +292,8 @@ class MaxNDWICompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        feature_composite: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
+        feature_composite: tuple[FeatureType, str],
         nir_idx: int,
         swir1_idx: int,
         interpolation: str = "lower",
@@ -329,8 +327,8 @@ class MaxRatioCompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        feature_composite: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
+        feature_composite: tuple[FeatureType, str],
         blue_idx: int,
         nir_idx: int,
         swir1_idx: int,
@@ -369,7 +367,7 @@ class HistogramMatchingTask(EOTask):
         Should be of the FeatureType "DATA_TIMELESS".
     """
 
-    def __init__(self, feature: SingleFeatureSpec, reference: SingleFeatureSpec):
+    def __init__(self, feature: SingleFeatureSpec, reference: tuple[FeatureType, str]):
         self.renamed_feature = parse_renamed_feature(feature)
         self.reference = self.parse_feature(reference)
 

@@ -413,9 +413,8 @@ class InterpolationTask(EOTask):
         feature_data[np.isnan(feature_data)] = self.unknown_value
 
         new_eopatch[feature_type, new_feature_name] = np.reshape(feature_data, (-1, height, width, band_num))
-        new_eopatch = self._copy_old_features(new_eopatch, eopatch)
 
-        return new_eopatch
+        return self._copy_old_features(new_eopatch, eopatch)
 
 
 class LinearInterpolationTask(InterpolationTask):

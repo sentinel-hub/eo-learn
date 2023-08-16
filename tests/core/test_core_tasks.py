@@ -43,7 +43,7 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
-from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
@@ -86,32 +86,32 @@ def test_copy(patch: EOPatch, deep: bool) -> None:
 @pytest.mark.parametrize(
     "features",
     [
-        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.BBOX, None)],
-        [(FeatureType.TIMESTAMPS, None), (FeatureType.SCALAR, "values")],
+        [(FeatureType.MASK_TIMELESS, "mask"), (FeatureType.META_INFO, "something")],
+        [(FeatureType.SCALAR, "values")],
     ],
 )
 @pytest.mark.parametrize("deep", [True, False])
-def test_partial_copy(features: list[FeatureSpec], deep: bool, patch: EOPatch) -> None:
+def test_partial_copy(features: list[tuple[FeatureType, str]], deep: bool, patch: EOPatch) -> None:
     patch_copy = CopyTask(features=features, deep=deep)(patch)
 
-    assert set(patch_copy.get_features()) == {(FeatureType.BBOX, None), *features}
+    assert set(patch_copy.get_features()) == {*features}
     for feature in features:
         assert_feature_data_equal(patch[feature], patch_copy[feature])
 
 
 def test_load_task(test_eopatch_path: str) -> None:
     full_patch = LoadTask(test_eopatch_path)(eopatch_folder=".")
-    assert len(full_patch.get_features()) == 29
+    assert len(full_patch.get_features()) == 27
 
-    partial_load = LoadTask(test_eopatch_path, features=[FeatureType.BBOX, FeatureType.MASK_TIMELESS])
+    partial_load = LoadTask(test_eopatch_path, features=[FeatureType.MASK_TIMELESS])
     partial_patch = partial_load.execute(eopatch_folder=".")
-    assert FeatureType.BBOX in partial_patch
-    assert FeatureType.TIMESTAMPS not in partial_patch
+    assert partial_patch.bbox is not None
+    assert partial_patch.timestamps is None
 
-    load_more = LoadTask(test_eopatch_path, features=[FeatureType.TIMESTAMPS])
+    load_more = LoadTask(test_eopatch_path, features=[], load_timestamps=True)
     upgraded_partial_patch = load_more.execute(partial_patch, eopatch_folder=".")
-    assert FeatureType.BBOX in upgraded_partial_patch
-    assert FeatureType.TIMESTAMPS in upgraded_partial_patch
+    assert upgraded_partial_patch.bbox is not None
+    assert upgraded_partial_patch.timestamps is not None
     assert FeatureType.DATA not in upgraded_partial_patch
 
 
@@ -130,11 +130,9 @@ def test_io_task_pickling(filesystem: FS, task_class: type[EOTask]) -> None:
     [
         ((FeatureType.MASK_TIMELESS, "CLOUD MASK"), np.arange(10).reshape(2, 5, 1)),
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
-        ((FeatureType.TIMESTAMPS, None), [datetime(2022, 1, 1, 10, 4, 7), datetime(2022, 1, 4, 10, 14, 5)]),
     ],
 )
-def test_add_feature(feature: FeatureSpec, feature_data: Any) -> None:
-    # this test should fail for bbox and timestamps after rework
+def test_add_feature(feature: tuple[FeatureType, str], feature_data: Any) -> None:
     patch = EOPatch(bbox=DUMMY_BBOX)
     assert feature not in patch
     patch = AddFeatureTask(feature)(patch, feature_data)
@@ -163,11 +161,6 @@ def test_remove_feature(features: FeaturesSpecification, patch: EOPatch) -> None
         assert (feature not in patch) if feature in features_to_remove else (feature in patch)
 
 
-def test_remove_fails(patch: EOPatch) -> None:
-    with pytest.raises(ValueError):
-        RemoveFeatureTask((FeatureType.BBOX, None))(patch)
-
-
 @pytest.mark.parametrize(
     "feature_specification",
     [
@@ -177,7 +170,9 @@ def test_remove_fails(patch: EOPatch) -> None:
     ],
 )
 @pytest.mark.parametrize("deep", [True, False])
-def test_duplicate_feature(feature_specification: list[FeatureRenameSpec], deep: bool, patch: EOPatch) -> None:
+def test_duplicate_feature(
+    feature_specification: list[tuple[FeatureType, str, str]], deep: bool, patch: EOPatch
+) -> None:
     patch = DuplicateFeatureTask(feature_specification, deep)(patch)
 
     for f_type, f_name, f_dup_name in feature_specification:
@@ -222,7 +217,7 @@ def test_initialize_feature(
     ],
 )
 def test_initialize_feature_with_spec(
-    init_val: float, shape: FeatureSpec, feature_spec: FeaturesSpecification, patch: EOPatch
+    init_val: float, shape: tuple[FeatureType, str], feature_spec: FeaturesSpecification, patch: EOPatch
 ) -> None:
     expected_data = init_val * np.ones(patch[shape].shape)
 
@@ -242,10 +237,9 @@ def test_initialize_feature_fails(patch: EOPatch) -> None:
     [
         [(FeatureType.DATA, "bands")],
         [(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")],
-        [(FeatureType.DATA, "bands"), (FeatureType.BBOX, None)],
     ],
 )
-def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None:
+def test_move_feature(features: tuple[FeatureType, str], deep: bool, patch: EOPatch) -> None:
     patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX, timestamps=patch.timestamps))
 
     for feat in features:
@@ -276,7 +270,9 @@ def test_move_feature(features: FeatureSpec, deep: bool, patch: EOPatch) -> None
     ],
 )
 @pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
-def test_merge_features(axis: int, features_to_merge: list[FeatureSpec], feature: FeatureSpec, patch: EOPatch) -> None:
+def test_merge_features(
+    axis: int, features_to_merge: list[tuple[FeatureType, str]], feature: tuple[FeatureType, str], patch: EOPatch
+) -> None:
     patch = MergeFeatureTask(features_to_merge, feature, axis=axis)(patch)
     expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
 
@@ -305,7 +301,7 @@ def test_merge_features(axis: int, features_to_merge: list[FeatureSpec], feature
 )
 def test_zip_features(
     input_features: FeaturesSpecification,
-    output_feature: FeatureSpec,
+    output_feature: tuple[FeatureType, str],
     zip_function: Callable,
     kwargs: dict[str, Any],
     patch: EOPatch,
@@ -388,7 +384,7 @@ def test_map_features_fails(patch: EOPatch) -> None:
         ((FeatureType.DATA, "bands"), {"axis": -1, "name": "fun_name", "bands": [4, 3, 2]}),
     ],
 )
-def test_map_kwargs_passing(input_feature: FeatureSpec, kwargs: dict[str, Any], patch: EOPatch) -> None:
+def test_map_kwargs_passing(input_feature: tuple[FeatureType, str], kwargs: dict[str, Any], patch: EOPatch) -> None:
     def kwargs_map(_, *, some=3, **kwargs) -> tuple:
         return some, kwargs
 

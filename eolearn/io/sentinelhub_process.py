@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Iterable, List, Literal, Tuple, cast
+from typing import Any, Callable, Iterable, Literal, Tuple, cast
 
 import numpy as np
 
@@ -35,7 +35,7 @@ from sentinelhub.evalscript import generate_evalscript, parse_data_collection_ba
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeatureRenameSpec, FeatureSpec, FeaturesSpecification
+from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
@@ -242,7 +242,7 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         self.mosaicking_order = None if mosaicking_order is None else MosaickingOrder(mosaicking_order)
         self.aux_request_args = aux_request_args
 
-    def _parse_and_validate_features(self, features: FeaturesSpecification) -> list[FeatureRenameSpec]:
+    def _parse_and_validate_features(self, features: FeaturesSpecification) -> list[tuple[FeatureType, str, str]]:
         _features = parse_renamed_features(
             features, allowed_feature_types=lambda fty: fty.is_array() or fty == FeatureType.META_INFO
         )
@@ -258,7 +258,6 @@ class SentinelHubEvalscriptTask(SentinelHubInputBaseTask):
         responses = []
         for feat_type, feat_name, _ in self.features:
             if feat_type.is_array():
-                feat_name = cast(str, feat_name)  # can only be string since it's an array type
                 responses.append(SentinelHubRequest.output_response(feat_name, MimeType.TIFF))
             elif feat_type.is_meta():
                 responses.append(SentinelHubRequest.output_response("userdata", MimeType.JSON))
@@ -442,10 +441,10 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
             self.requested_bands = parse_data_collection_bands(data_collection, bands)
 
         self.requested_additional_bands = []
-        self.additional_data: list[FeatureRenameSpec] | None = None
+        self.additional_data: list[tuple[FeatureType, str, str]] | None = None
         if additional_data is not None:
-            self.additional_data = parse_renamed_features(additional_data)  # parser gives too general type
-            additional_bands = cast(List[str], [band for _, band, _ in self.additional_data])
+            self.additional_data = parse_renamed_features(additional_data)
+            additional_bands = [band for _, band, _ in self.additional_data]
             self.requested_additional_bands = parse_data_collection_bands(data_collection, additional_bands)
 
     def _get_timestamps(self, time_interval: RawTimeIntervalType | None, bbox: BBox) -> list[dt.datetime]:
@@ -542,10 +541,10 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         self, eopatch: EOPatch, images: Iterable[np.ndarray], shape: tuple[int, ...]
     ) -> None:
         """Extracts additional features from response into an EOPatch"""
-        additional_data = cast(List[FeatureRenameSpec], self.additional_data)  # verified by `if` in _extract_data
-        for (ftype, _, new_name), band_info in zip(additional_data, self.requested_additional_bands):
-            tiffs = [tar[band_info.name + ".tif"] for tar in images]
-            eopatch[ftype, new_name] = self._extract_array(tiffs, 0, shape, band_info.output_types[0])
+        if self.additional_data is not None:
+            for (ftype, _, new_name), band_info in zip(self.additional_data, self.requested_additional_bands):
+                tiffs = [tar[band_info.name + ".tif"] for tar in images]
+                eopatch[ftype, new_name] = self._extract_array(tiffs, 0, shape, band_info.output_types[0])
 
     def _extract_bands_feature(self, eopatch: EOPatch, images: Iterable[np.ndarray], shape: tuple[int, ...]) -> None:
         """Extract the bands feature arrays and concatenate them along the last axis"""
@@ -573,7 +572,7 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
 
     def __init__(
         self,
-        feature: None | str | FeatureSpec = None,
+        feature: None | str | tuple[FeatureType, str] = None,
         data_collection: DataCollection = DataCollection.DEM,
         **kwargs: Any,
     ):

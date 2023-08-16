@@ -23,7 +23,7 @@ import datetime as dt
 import logging
 import traceback
 from dataclasses import dataclass, field, fields
-from typing import Sequence, Tuple, cast
+from typing import Literal, Sequence, Tuple, cast, overload
 
 from .eodata import EOPatch
 from .eonode import EONode, NodeStats
@@ -231,7 +231,7 @@ class EOWorkflow:
         :return: The result and statistics of the task in the node.
         """
         # EOPatches are copied beforehand
-        task_args = [(arg.copy() if isinstance(arg, EOPatch) else arg) for arg in node_input_values]
+        task_args = [(arg.copy(copy_timestamps=True) if isinstance(arg, EOPatch) else arg) for arg in node_input_values]
 
         LOGGER.debug("Computing %s(*%s, **%s)", node.task.__class__.__name__, str(task_args), str(node_input_kwargs))
         start_time = dt.datetime.now()
@@ -304,7 +304,15 @@ class EOWorkflow:
         """
         return self._nodes[:]
 
-    def get_node_with_uid(self, uid: str | None, fail_if_missing: bool = False) -> EONode | None:
+    @overload
+    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[True] = ...) -> EONode:
+        ...
+
+    @overload
+    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[False] = ...) -> EONode | None:
+        ...
+
+    def get_node_with_uid(self, uid: str, fail_if_missing: bool = False) -> EONode | None:
         """Returns node with give uid, if it exists in the workflow."""
         if uid in self._uid_dict:
             return self._uid_dict[uid]

@@ -58,10 +58,8 @@ class EOExecutorVisualization:
             except graphviz.backend.ExecutableNotFound as ex:
                 dependency_graph = None
                 warnings.warn(
-                    (
-                        f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to"
-                        " have the dependency graph in the final report!"
-                    ),
+                    f"{ex}.\nPlease install the system package 'graphviz' (in addition to the python package) to"
+                    " have the dependency graph in the final report!",
                     EOUserWarning,
                 )
 

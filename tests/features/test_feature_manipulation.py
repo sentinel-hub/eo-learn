@@ -24,9 +24,7 @@ DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
 # ruff: noqa: NPY002
 
 
-@pytest.mark.parametrize(
-    "feature", [(FeatureType.DATA, "BANDS-S2-L1C"), FeatureType.TIMESTAMPS, (FeatureType.LABEL, "IS_CLOUDLESS")]
-)
+@pytest.mark.parametrize("feature", [(FeatureType.DATA, "BANDS-S2-L1C"), (FeatureType.LABEL, "IS_CLOUDLESS")])
 def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
     filter_all_task = SimpleFilterTask(feature, filter_func=lambda _: False)
     filtered_eopatch = filter_all_task.execute(example_eopatch)
@@ -39,9 +37,7 @@ def test_simple_filter_task_filter_all(example_eopatch: EOPatch, feature):
     assert filtered_eopatch.timestamps == []
 
 
-@pytest.mark.parametrize(
-    "feature", [(FeatureType.MASK, "CLM"), FeatureType.TIMESTAMPS, (FeatureType.SCALAR, "CLOUD_COVERAGE")]
-)
+@pytest.mark.parametrize("feature", [(FeatureType.MASK, "CLM"), (FeatureType.SCALAR, "CLOUD_COVERAGE")])
 def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
     filter_all_task = SimpleFilterTask(feature, filter_func=lambda _: True)
     filtered_eopatch = filter_all_task.execute(example_eopatch)

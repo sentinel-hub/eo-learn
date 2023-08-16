@@ -126,7 +126,7 @@ def test_del_vertex():
 def test_resolve_dependencies(edges):
     graph = DirectedGraph.from_edges(edges)
 
-    if DirectedGraph._is_cyclic(graph):  # noqa[SLF001]
+    if DirectedGraph._is_cyclic(graph):  # noqa: SLF001
         with pytest.raises(CyclicDependencyError):
             graph.topologically_ordered_vertices()
     else:

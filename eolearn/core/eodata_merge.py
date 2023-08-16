@@ -23,7 +23,7 @@ from sentinelhub import BBox
 from .constants import FeatureType
 from .eodata import EOPatch
 from .exceptions import EORuntimeWarning
-from .types import FeatureSpec, FeaturesSpecification
+from .types import FeaturesSpecification
 from .utils.parsing import FeatureParser
 
 OperationInputType = Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable]
@@ -86,7 +86,6 @@ def merge_eopatches(
             merged_eopatch[feature] = _merge_vector_feature(eopatches, feature)
 
         if feature_type is FeatureType.META_INFO:
-            feature_name = cast(str, feature_name)  # parser makes sure of it
             merged_eopatch[feature] = _select_meta_info_feature(eopatches, feature_name)
 
     return merged_eopatch
@@ -162,7 +161,7 @@ def _check_if_optimize(eopatches: Sequence[EOPatch], operation_input: OperationI
 
 def _merge_time_dependent_raster_feature(
     eopatches: Sequence[EOPatch],
-    feature: FeatureSpec,
+    feature: tuple[FeatureType, str],
     operation: Callable,
     order_mask_per_eopatch: Sequence[np.ndarray],
     optimize: bool,
@@ -205,7 +204,7 @@ def _merge_time_dependent_raster_feature(
 
 def _extract_and_join_time_dependent_feature_values(
     eopatches: Sequence[EOPatch],
-    feature: FeatureSpec,
+    feature: tuple[FeatureType, str],
     order_mask_per_eopatch: Sequence[np.ndarray],
     optimize: bool,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -239,7 +238,7 @@ def _is_strictly_increasing(array: np.ndarray) -> bool:
 
 
 def _merge_timeless_raster_feature(
-    eopatches: Sequence[EOPatch], feature: FeatureSpec, operation: Callable
+    eopatches: Sequence[EOPatch], feature: tuple[FeatureType, str], operation: Callable
 ) -> np.ndarray:
     """Merges numpy arrays of a timeless raster feature with a given operation."""
     arrays = _extract_feature_values(eopatches, feature)
@@ -256,7 +255,7 @@ def _merge_timeless_raster_feature(
         ) from exception
 
 
-def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> GeoDataFrame:
+def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: tuple[FeatureType, str]) -> GeoDataFrame:
     """Merges GeoDataFrames of a vector feature."""
     dataframes = _extract_feature_values(eopatches, feature)
 
@@ -270,10 +269,8 @@ def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: FeatureSpec) ->
         raise ValueError(f"Cannot merge feature {feature} because dataframes are defined for different CRS")
 
     merged_dataframe = GeoDataFrame(pd.concat(dataframes, ignore_index=True), crs=crs_list[0])
-    merged_dataframe = merged_dataframe.drop_duplicates(ignore_index=True)
-    # In future a support for vector operations could be added here
 
-    return merged_dataframe
+    return merged_dataframe.drop_duplicates(ignore_index=True)
 
 
 def _select_meta_info_feature(eopatches: Sequence[EOPatch], feature_name: str) -> Any:
@@ -302,7 +299,7 @@ def _get_common_bbox(eopatches: Sequence[EOPatch]) -> BBox | None:
     raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes.")
 
 
-def _extract_feature_values(eopatches: Sequence[EOPatch], feature: FeatureSpec) -> list[Any]:
+def _extract_feature_values(eopatches: Sequence[EOPatch], feature: tuple[FeatureType, str]) -> list[Any]:
     """A helper function that extracts a feature values from those EOPatches where a feature exists."""
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]

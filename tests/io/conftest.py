@@ -16,9 +16,9 @@ from botocore.exceptions import ClientError, NoCredentialsError
 
 pytest.register_assert_rewrite("sentinelhub.testing_utils")  # makes asserts in helper functions work with pytest
 
-from sentinelhub import SHConfig  # noqa[E402]
+from sentinelhub import SHConfig  # noqa: E402
 
-from eolearn.core import EOPatch  # noqa[E402]
+from eolearn.core import EOPatch  # noqa: E402
 
 EXAMPLE_DATA_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "example_data")
 TEST_EOPATCH_PATH = os.path.join(EXAMPLE_DATA_PATH, "TestEOPatch")

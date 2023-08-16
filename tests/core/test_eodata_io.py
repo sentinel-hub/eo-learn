@@ -37,7 +37,6 @@ from eolearn.core.eodata_io import (
     FeatureIOJson,
     FeatureIONumpy,
     FeatureIOTimestamps,
-    walk_filesystem,
 )
 from eolearn.core.exceptions import EODeprecationWarning
 from eolearn.core.types import FeaturesSpecification
@@ -169,10 +168,10 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
     ("save_features", "load_features"),
     [
         (..., ...),
-        ([(FeatureType.DATA, ...), FeatureType.TIMESTAMPS], [(FeatureType.DATA, ...), FeatureType.TIMESTAMPS]),
+        ([(FeatureType.DATA, ...)], [(FeatureType.DATA, ...)]),
         ([(FeatureType.DATA, "data"), FeatureType.MASK_TIMELESS], [(FeatureType.DATA, ...)]),
         ([(FeatureType.META_INFO, ...)], [(FeatureType.META_INFO, "something")]),
-        ([(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS], ...),
+        ([(FeatureType.DATA, "data")], ...),
     ],
     ids=str,
 )
@@ -208,7 +207,6 @@ def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
         FeatureType.VECTOR,
         (FeatureType.SCALAR, ...),
         (FeatureType.META_INFO, "something"),
-        FeatureType.BBOX,
     ]
 
     with fs_loader() as temp_fs:
@@ -239,7 +237,6 @@ def test_bbox_always_saved(eopatch, fs_loader, use_zarr: bool):
         ("auto", ..., True),
         ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
         ("auto", [(FeatureType.DATA, ...)], True),
-        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
         (False, [(FeatureType.DATA, ...)], False),
         (True, [(FeatureType.DATA, ...)], True),
         (True, [], True),
@@ -261,7 +258,6 @@ def test_save_timestamps(eopatch, fs_loader, save_timestamps, features, should_s
         ("auto", ..., True),
         ("auto", [(FeatureType.MASK_TIMELESS, ...)], False),
         ("auto", [(FeatureType.DATA, ...)], True),
-        ("auto", [(FeatureType.TIMESTAMPS, ...)], True),  # provides backwards compatibility
         (False, [(FeatureType.DATA, ...)], False),
         (True, [(FeatureType.DATA, ...)], True),
         (True, [], True),
@@ -530,30 +526,6 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
         temp_fs.remove(file_name + file_extension)
         cache_data = feat_io.load()
         assert_feature_data_equal(loaded_data, cache_data)
-
-
-@mock_s3
-@pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
-@pytest.mark.parametrize(
-    "features",
-    [
-        ...,
-        [(FeatureType.DATA, "data"), FeatureType.TIMESTAMPS],
-        [(FeatureType.META_INFO, "something"), (FeatureType.SCALAR_TIMELESS, ...)],
-    ],
-)
-def test_walk_filesystem_interface(fs_loader, features, eopatch, use_zarr: bool):
-    _skip_when_appropriate(fs_loader, use_zarr)
-    with fs_loader() as temp_fs:
-        io_kwargs = dict(path="./", filesystem=temp_fs, features=features)
-        eopatch.save(**io_kwargs, use_zarr=use_zarr)
-        loaded_eopatch = EOPatch.load(**io_kwargs)
-
-        with pytest.warns(EODeprecationWarning):
-            for ftype, fname, _ in walk_filesystem(temp_fs, io_kwargs["path"], features):
-                feature_key = ftype if ftype in [FeatureType.BBOX, FeatureType.TIMESTAMPS] else (ftype, fname)
-                assert feature_key in loaded_eopatch
 
 
 def test_zarr_and_numpy_overwrite(eopatch):

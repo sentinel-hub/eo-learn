@@ -33,7 +33,6 @@ from sentinelhub import CRS, BBox, SHConfig, parse_time_interval
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.core_tasks import IOTask
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.types import SingleFeatureSpec
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
@@ -44,7 +43,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         folder: str,
         *,
         filesystem: FS | None = None,
@@ -147,7 +146,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         folder: str,
         *,
         date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
@@ -203,9 +202,8 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         time_dim, height, width, band_dim = data_array.shape
         new_shape = (time_dim * band_dim, height, width)
-        data_array = np.moveaxis(data_array, -1, 1).reshape(new_shape)
 
-        return data_array
+        return np.moveaxis(data_array, -1, 1).reshape(new_shape)
 
     def _reduce_by_bands(self, array: np.ndarray) -> np.ndarray:
         """Reduces the array by selecting a subset of bands."""
@@ -393,7 +391,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
+        feature: tuple[FeatureType, str],
         folder: str,
         *,
         use_vsi: bool = False,
@@ -409,9 +407,9 @@ class ImportFromTiffTask(BaseRasterIoTask):
             smaller chunk of a larger image, especially if it is a Cloud-optimized GeoTIFF (COG). In other cases the
             reading might be faster if the flag remains set to `False`.
         :param timestamp_size: In case data will be imported into a time-dependant feature this parameter can be used to
-            specify time dimension. If not specified, time dimension will be the same as size of the
-            `FeatureType.TIMESTAMPS` feature. If `FeatureType.TIMESTAMPS` does not exist this value will be set to 1.
-            When converting data into a feature channels of given tiff image should be in order
+            specify time dimension. If not specified, time dimension will be the same as size of the timestamps
+            attribute. If timestamps do not exist this value will be set to 1. When converting data into a feature
+            channels of given tiff image should be in order
             T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
             where T and B are the time and band indices.
         :param kwargs: Keyword arguments to be propagated to `BaseRasterIoTask`.

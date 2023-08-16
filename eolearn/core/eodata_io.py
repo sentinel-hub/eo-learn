@@ -51,11 +51,11 @@ from fs.tempfs import TempFS
 from typing_extensions import TypeAlias
 
 from sentinelhub import CRS, BBox, Geometry, MimeType
-from sentinelhub.exceptions import SHUserWarning, deprecated_function
+from sentinelhub.exceptions import SHUserWarning
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeatureSpec, FeaturesSpecification
+from .types import EllipsisType, FeaturesSpecification
 from .utils.fs import get_full_path, split_all_extensions
 from .utils.parsing import FeatureParser
 
@@ -76,11 +76,11 @@ PatchContentType: TypeAlias = Tuple[
     Optional[List[datetime.datetime]],
     Dict[Tuple[FeatureType, str], "FeatureIO"],
 ]
+Features: TypeAlias = List[Tuple[FeatureType, str]]
 
 
 BBOX_FILENAME = "bbox"
 TIMESTAMPS_FILENAME = "timestamps"
-BBOX_AND_TIMESTAMPS = (FeatureType.BBOX, FeatureType.TIMESTAMPS)
 
 
 @dataclass
@@ -154,8 +154,7 @@ def save_eopatch(
             _remove_old_eopatch(filesystem, patch_location)
 
     filesystem.makedirs(patch_location, recreate=True)
-    folder_based_ftypes = {ftype for ftype, _ in eopatch_features if ftype not in BBOX_AND_TIMESTAMPS}
-    for ftype in folder_based_ftypes:
+    for ftype in {ftype for ftype, _ in eopatch_features}:
         filesystem.makedirs(fs.path.join(patch_location, ftype.value), recreate=True)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -199,7 +198,7 @@ def _remove_old_eopatch(filesystem: FS, patch_location: str) -> None:
 def _yield_savers(
     *,
     eopatch: EOPatch,
-    features: list[FeatureSpec],
+    features: Features,
     patch_location: str,
     filesystem: FS,
     compress_level: int,
@@ -219,8 +218,6 @@ def _yield_savers(
         yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
 
     for ftype, fname in features:
-        if ftype in BBOX_AND_TIMESTAMPS:
-            continue
         io_constructor = _get_feature_io_constructor(ftype, use_zarr)
         feature_saver = partial(
             io_constructor.save,
@@ -299,13 +296,9 @@ def load_eopatch_content(
     bbox = None
     if file_information.bbox is not None:
         bbox = FeatureIOBBox(file_information.bbox, filesystem).load()
-    elif (FeatureType.BBOX, ...) in feature_specs and features is not Ellipsis:
-        raise IOError(err_msg.format(FeatureType.BBOX))
 
     if load_timestamps == "auto":
-        should_load = any(ftype.is_temporal() for ftype, _ in features_dict)
-        backwards_compatibility_load = (FeatureType.TIMESTAMPS, ...) in feature_specs
-        load_timestamps = should_load or backwards_compatibility_load
+        load_timestamps = any(ftype.is_temporal() for ftype, _ in features_dict)
 
     timestamps = None
     if load_timestamps:
@@ -313,8 +306,6 @@ def load_eopatch_content(
             timestamps = maybe_timestamps
         elif file_information.timestamps is not None:
             timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, simple_temporal_selection).load()
-        elif features is not Ellipsis:
-            raise IOError(err_msg.format(FeatureType.TIMESTAMPS))
 
     return bbox, timestamps, features_dict
 
@@ -353,8 +344,6 @@ def _load_features(
         features_dict = {(FeatureType.META_INFO, name): value for name, value in old_meta.items()}
 
     for ftype, fname in feature_specs:
-        if ftype in BBOX_AND_TIMESTAMPS:
-            continue
         if ftype is FeatureType.META_INFO and (ftype, fname) in features_dict:  # data provided in old-style file
             continue
 
@@ -394,11 +383,9 @@ def get_filesystem_data_info(
 
         if object_name == "timestamp":
             warnings.warn(
-                (
-                    f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
-                    " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
-                    " update it."
-                ),
+                f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
+                " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
+                " update it.",
                 category=EODeprecationWarning,
                 stacklevel=2,
             )
@@ -423,26 +410,6 @@ def get_filesystem_data_info(
     return result
 
 
-@deprecated_function(category=EODeprecationWarning)
-def walk_filesystem(
-    filesystem: FS, patch_location: str, features: FeaturesSpecification = ...
-) -> Iterator[tuple[FeatureType, str | EllipsisType, str]]:
-    """Interface to the old walk_filesystem function which yields tuples of (feature_type, feature_name, file_path)."""
-    file_information = get_filesystem_data_info(filesystem, patch_location, features)
-
-    if file_information.bbox is not None:  # remove after BBox is never None
-        yield (FeatureType.BBOX, ..., file_information.bbox)
-
-    if file_information.timestamps is not None:
-        yield (FeatureType.TIMESTAMPS, ..., file_information.timestamps)
-
-    if file_information.old_meta_info is not None:
-        yield (FeatureType.META_INFO, ..., file_information.old_meta_info)
-
-    for feature, path in file_information.iterate_features():
-        yield (*feature, path)
-
-
 def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[tuple[str, str]]:
     """Walks a feature type subfolder of EOPatch and yields tuples (feature name, path in filesystem).
     Skips folders and files in subfolders.
@@ -453,7 +420,7 @@ def walk_feature_type_folder(filesystem: FS, folder_path: str) -> Iterator[tuple
 
 
 def _check_collisions(
-    overwrite_permission: OverwritePermission, eopatch_features: list[FeatureSpec], existing_files: FilesystemDataInfo
+    overwrite_permission: OverwritePermission, eopatch_features: Features, existing_files: FilesystemDataInfo
 ) -> None:
     """Checks for possible name collisions to avoid unintentional overwriting."""
     if overwrite_permission is OverwritePermission.ADD_ONLY:
@@ -467,7 +434,7 @@ def _check_collisions(
         _check_letter_case_collisions(eopatch_features, FilesystemDataInfo())
 
 
-def _check_add_only_permission(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_add_only_permission(eopatch_features: Features, filesystem_features: FilesystemDataInfo) -> None:
     """Checks that no existing feature will be overwritten."""
     unique_filesystem_features = {_to_lowercase(*feature) for feature, _ in filesystem_features.iterate_features()}
     unique_eopatch_features = {_to_lowercase(*feature) for feature in eopatch_features}
@@ -477,7 +444,7 @@ def _check_add_only_permission(eopatch_features: list[FeatureSpec], filesystem_f
         raise ValueError(f"Cannot save features {intersection} with overwrite_permission=OverwritePermission.ADD_ONLY")
 
 
-def _check_letter_case_collisions(eopatch_features: list[FeatureSpec], filesystem_features: FilesystemDataInfo) -> None:
+def _check_letter_case_collisions(eopatch_features: Features, filesystem_features: FilesystemDataInfo) -> None:
     """Check that features have no name clashes (ignoring case) with other EOPatch features and saved features."""
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
@@ -775,12 +742,12 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
         filesystem: FS,
         feature_path: str,
         compress_level: int = 0,  # noqa: ARG003
-        temporal_selection: None | TemporalSelection = None,
+        temporal_selection: None | TemporalSelection = None,  # None means no sub-chunking (timeless)
     ) -> str:
         cls._check_dependencies_imported(feature_path)
         path = feature_path + cls.get_file_extension()
         store = cls._get_mapping(path, filesystem)
-        chunk_size = (1, *data.shape[1:])
+        chunk_size = data.shape if temporal_selection is None else (1, *data.shape[1:])
 
         if temporal_selection is None or temporal_selection.selection is None:
             zarr.save_array(store, data, chunks=chunk_size)
@@ -821,12 +788,8 @@ def _better_jsonify(param: object) -> Any:
 
 def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
     """Creates the correct FeatureIO, corresponding to the FeatureType."""
-    if ftype is FeatureType.BBOX:
-        return FeatureIOBBox
     if ftype is FeatureType.META_INFO:
         return FeatureIOJson
-    if ftype is FeatureType.TIMESTAMPS:
-        return FeatureIOTimestamps
     if ftype.is_vector():
         return FeatureIOGeoDf
     return FeatureIOZarr if use_zarr else FeatureIONumpy

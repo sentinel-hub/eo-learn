@@ -14,7 +14,6 @@ import numpy as np
 from scipy.optimize import curve_fit
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import SingleFeatureSpec
 
 
 def doubly_logistic(middle, initial_value, scale, a1, a2, a3, a4, a5) -> np.ndarray:  # type: ignore[no-untyped-def]
@@ -36,10 +35,10 @@ class DoublyLogisticApproximationTask(EOTask):
 
     def __init__(
         self,
-        feature: SingleFeatureSpec,
-        new_feature: SingleFeatureSpec = (FeatureType.DATA_TIMELESS, "DOUBLY_LOGISTIC_PARAM"),
+        feature: tuple[FeatureType, str],
+        new_feature: tuple[FeatureType, str] = (FeatureType.DATA_TIMELESS, "DOUBLY_LOGISTIC_PARAM"),
         initial_parameters: list[float] | None = None,
-        valid_mask: SingleFeatureSpec | None = None,
+        valid_mask: tuple[FeatureType, str] | None = None,
     ):
         self.initial_parameters = initial_parameters
         self.feature = self.parse_feature(feature)
