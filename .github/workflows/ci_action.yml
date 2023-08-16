@@ -6,6 +6,7 @@ on:
     branches:
       - "master"
       - "develop"
+      - "fix-mirror-CI" # remove afterwards
   workflow_call:
 
 concurrency:
