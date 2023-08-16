@@ -6,6 +6,7 @@ on:
     branches:
       - "master"
       - "develop"
+      - "fix-codecov"
   workflow_call:
 
 concurrency:
@@ -95,7 +96,7 @@ jobs:
             --sh_client_id "${{ secrets.SH_CLIENT_ID }}" \
             --sh_client_secret "${{ secrets.SH_CLIENT_SECRET }}"
           if [ ${{ github.event_name }} == 'push' ]; then
-            pytest -m "not geopedia" --cov --cov-report=term --cov-report=xml
+            pytest -m "not geopedia" --cov=eolearn --cov-report=term --cov-report=xml
           else
             pytest -m "not geopedia"
           fi
