@@ -149,7 +149,7 @@ Examples and introductions to the package can be found [here](https://github.com
 
 ## Contributions
 
-The list of all `eo-learn` contributors can be found [here](./CONTRIBUTING.md). If you would like to contribute to `eo-learn`, please check our [contribution guidelines](./CONTRIBUTING.md).
+The list of all `eo-learn` contributors are listed in the [credits file](./CREDITS.md). If you would like to contribute to `eo-learn`, please check our [contribution guidelines](./CONTRIBUTING.md).
 
 ## Blog posts and papers
 

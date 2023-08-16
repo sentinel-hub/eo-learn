@@ -1,3 +1,120 @@
+[build-system]
+requires = ['hatchling']
+build-backend = 'hatchling.build'
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.version]
+path = 'eolearn/__init__.py'
+
+[tool.hatch.build.targets.sdist]
+include = ['/README.md', '/LICENSE.md', '/eolearn']
+
+[tool.hatch.build.targets.wheel]
+include = ['/eolearn']
+
+[project]
+name = "eo-learn"
+dynamic = ["version"]
+description = "Earth observation processing framework for machine learning in Python"
+readme = "README.md"
+requires-python = ">= 3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Sinergise EO research team", email = "eoresearch@sinergise.com" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "boto3",
+    "fs",
+    "fs-s3fs",
+    "geopandas>=0.11.0",
+    "numpy>=1.20.0",
+    "python-dateutil",
+    "sentinelhub>=3.9.0",
+    "tqdm>=4.27",
+    "typing-extensions",
+]
+
+[project.optional-dependencies]
+all = [
+    "eo-learn[COREGISTRATION,FEATURES,GEOMETRY,IO,MASK,MLTOOLS,VISUALIZATION]",
+]
+full = ["eo-learn[ALL,RAY,ZARR,METEOBLUE,TDIGEST]"]
+ray = ["ray[default]"]
+zarr = ["s3fs", "zarr"]
+coregistration = [
+    "opencv-python-headless",
+] # using headless version of opencv, otherwise gitlab runners fail
+features = [
+    "numba>=0.53.0",
+    "pillow>=9.1.0",
+    "scikit-image>=0.19.0",
+    "scikit-learn",
+    "scipy",
+]
+geometry = ["rasterio>=1.2.7", "scikit-image>=0.15.0", "shapely"]
+io = ["affine", "fiona>=1.8.18", "rasterio>=1.2.7"]
+geodb = [
+    "python-dotenv",
+    "xcube-geodb @ git+git://github.com/dcs4cop/xcube-geodb.git",
+]
+meteoblue = ["meteoblue_dataset_sdk>=1,<2"]
+mask = ["lightgbm>=2.0.11, <4", "opencv-python-headless", "scikit-image>=0.13.0"]
+mltools = ["shapely"]
+tdigest = ["tdigest==0.5.2.2"]
+mltoolsplotting = ["matplotlib"]
+visualization = ["graphviz>=0.10.1", "jinja2", "matplotlib", "pygments"]
+docs = [
+    "eo-learn[ALL]",
+    "jupyter",
+    "nbsphinx",
+    "sphinx",
+    "sphinx_mdinclude",
+    "sphinx_rtd_theme",
+]
+dev = [
+    "build",
+    "eo-learn[FULL]",
+    "hypothesis",
+    "moto",
+    "mypy>=0.990",
+    "pylint>=2.14.0",
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "pytest-lazy-fixture",
+    "pytest-mock",
+    "twine",
+    "types-python-dateutil",
+]
+
+[project.urls]
+Homepage = "https://github.com/sentinel-hub/eo-learn"
+Documentation = "https://eo-learn.readthedocs.io"
+Issues = "https://github.com/sentinel-hub/eo-learn/issues"
+Source = "https://github.com/sentinel-hub/eo-learn"
+Forum = "https://forum.sentinel-hub.com"
+
+
 [tool.black]
 line-length = 120
 preview = true
@@ -89,6 +206,7 @@ disable = [
     "unspecified-encoding",
     "unnecessary-ellipsis",
     "use-dict-literal",
+    "cyclic-import",
 ]
 
 [tool.pylint.design]

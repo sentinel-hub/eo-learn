@@ -51,26 +51,14 @@ jobs:
           # caching the entire environment is faster when cache exists but slower for cache creation
 
       - name: Install packages
-        run: |
-          pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
-          python install_all.py
-          pip install -r ml_tools/requirements-tdigest.txt
+        run: pip install .[DEV] --upgrade --upgrade-strategy eager
 
       - name: Run pylint
-        run: make pylint
+        run: pylint eolearn
 
       - name: Run mypy
         if: success() || failure()
-        run: |
-          mypy \
-            core/eolearn/core \
-            coregistration/eolearn/coregistration \
-            geometry/eolearn/geometry \
-            features/eolearn/features \
-            io/eolearn/io \
-            mask/eolearn/mask \
-            ml_tools/eolearn/ml_tools \
-            visualization/eolearn/visualization
+        run: mypy eolearn
 
   test-on-github:
     runs-on: ubuntu-latest
@@ -95,19 +83,10 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          # cache: pip # uncomment when all requirements are in `pyproject.toml`
+          cache: pip
 
       - name: Install packages
-        if: matrix.python-version != '3.9'
-        run: |
-          pip install -r requirements-dev.txt --upgrade --upgrade-strategy eager
-          python install_all.py -e
-
-      - name: Install zarr backend # this will run Zarr backend tests on 3.9
-        if: matrix.python-version == '3.9'
-        run: |
-          pip install -r requirements-dev.txt -r core/requirements-zarr.txt --upgrade --upgrade-strategy eager
-          python install_all.py -e
+        run: pip install -e .[DEV] --upgrade --upgrade-strategy eager
 
       - name: Run full tests and code coverage
         if: ${{ matrix.full_test_suite }}

@@ -10,7 +10,6 @@ run_sh_integration_tests:
     - apt-get update
     - apt-get install -y build-essential libgdal-dev graphviz proj-bin gcc libproj-dev libspatialindex-dev
   script:
-    - pip install -r requirements-dev.txt --upgrade
-    - python install_all.py
+    - pip install eolearn[DEV]
     - sentinelhub.config --sh_client_id "$SH_CLIENT_ID" --sh_client_secret "$SH_CLIENT_SECRET" > /dev/null # Gitlab can't mask SH_CLIENT_SECRET in logs
     - pytest -m sh_integration

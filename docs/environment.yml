@@ -1,22 +1,15 @@
 name: eo-learn-docs
 channels:
-- conda-forge
+  - conda-forge
 dependencies:
-- rasterio
-- pip
-- python=3.10
-- pip:
-  - Sphinx
-  - sphinx_rtd_theme
-  - nbsphinx
-  - jupyter
-  - sphinx_mdinclude
+  - rasterio
+  - pip
+  - python=3.10
+  - pip:
+      - Sphinx
+      - sphinx_rtd_theme
+      - nbsphinx
+      - jupyter
+      - sphinx_mdinclude
 
-  - ./../core
-  - ./../coregistration
-  - ./../features
-  - ./../geometry
-  - ./../io[METEOBLUE]
-  - ./../mask
-  - ./../ml_tools[TDIGEST]
-  - ./../visualization
+      - ./../.[FULL]
