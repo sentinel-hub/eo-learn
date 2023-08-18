@@ -570,15 +570,14 @@ def test_zarr_and_numpy_combined_loading(eopatch):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize(
     "temporal_selection",
     [None, slice(None, 3), slice(2, 4, 2), [3, 4], lambda ts: [i % 2 == 0 for i, _ in enumerate(ts)]],
 )
-def test_partial_temporal_loading(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
-    _skip_when_appropriate(fs_loader, use_zarr)
+def test_partial_temporal_loading(fs_loader: type[FS], eopatch: EOPatch, temporal_selection):
+    _skip_when_appropriate(fs_loader, True)
     with fs_loader() as temp_fs:
-        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=True)
 
         full_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs)
         partial_patch = EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
@@ -599,12 +598,22 @@ def test_partial_temporal_loading(fs_loader: type[FS], eopatch: EOPatch, use_zar
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
-@pytest.mark.parametrize("temporal_selection", [[3, 4, 10]])
-def test_partial_temporal_loading_fails(fs_loader: type[FS], eopatch: EOPatch, use_zarr: bool, temporal_selection):
-    _skip_when_appropriate(fs_loader, use_zarr)
+def test_partial_temporal_loading_fails_for_numpy(fs_loader: type[FS], eopatch: EOPatch):
+    _skip_when_appropriate(fs_loader, True)
     with fs_loader() as temp_fs:
-        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=use_zarr)
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=False)
+
+        with pytest.raises(IOError):
+            EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=[0])
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("temporal_selection", [[3, 4, 10]])
+def test_partial_temporal_loading_fails(fs_loader: type[FS], eopatch: EOPatch, temporal_selection):
+    _skip_when_appropriate(fs_loader, True)
+    with fs_loader() as temp_fs:
+        eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=True)
 
         with pytest.raises(IndexError):
             EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)

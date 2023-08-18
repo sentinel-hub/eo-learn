@@ -374,11 +374,19 @@ def _get_feature_io(
         return FeatureIOJson(path, filesystem)
     if ftype.is_vector():
         return FeatureIOGeoDf(path, filesystem)
+
     use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
-    constructor = FeatureIOZarr if use_zarr else FeatureIONumpy
+
     if ftype.is_temporal():
-        return constructor(path, filesystem, temporal_selection)  # type: ignore[call-arg]
-    return constructor(path, filesystem)
+        if use_zarr:
+            return FeatureIOZarr(path, filesystem, temporal_selection)
+        if temporal_selection is None:
+            return FeatureIONumpy(path, filesystem)
+        raise IOError(
+            f"Cannot perform loading with temporal selection for numpy data at {path}. Resave feature with"
+            " `use_zarr=True` to enable loading with temporal selections."
+        )
+    return (FeatureIOZarr if use_zarr else FeatureIONumpy)(path, filesystem)
 
 
 def get_filesystem_data_info(
@@ -608,16 +616,12 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
 class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
-        self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
-        super().__init__(path, filesystem)
-
     @classmethod
     def _get_uncompressed_file_extension(cls) -> str:
         return ".npy"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> np.ndarray:
-        return np.load(file, allow_pickle=True)[self.temporal_selection, ...]
+        return np.load(file, allow_pickle=True)
 
     @classmethod
     def _write_to_file(cls, data: np.ndarray, file: BinaryIO | gzip.GzipFile, _: str) -> None:
