@@ -57,5 +57,5 @@ class OutputTask(EOTask):
             possibly BBox and timestamps (see `copy` method of `EOPatch`).
         """
         if isinstance(data, EOPatch):
-            return data.copy(features=self.features)
+            return data.copy(features=self.features, copy_timestamps=True)
         return data
