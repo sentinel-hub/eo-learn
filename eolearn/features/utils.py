@@ -11,14 +11,18 @@ from __future__ import annotations
 import warnings
 from enum import Enum
 from functools import partial
+from typing import TYPE_CHECKING
 
+import cv2
 import numpy as np
-from PIL import Image
 
 from eolearn.core.exceptions import EORuntimeWarning
 from eolearn.core.utils.common import _apply_to_spatial_axes
 
-_CV2_IMPORT_MESSAGE = "The CV2 backend is not installed by default. We suggest you install the `opencv-python` package."
+_PIL_IMPORT_MESSAGE = "The PIL backend is not installed by default. Please install the `pillow` package."
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 
 class ResizeParam(Enum):
@@ -38,10 +42,7 @@ class ResizeMethod(Enum):
 
     def get_cv2_method(self, dtype: np.dtype | type) -> int:
         """Obtain the constant specifying the interpolation method for the CV2 library."""
-        try:
-            import cv2  # pylint: disable=import-outside-toplevel
-        except ImportError as exception:
-            raise ImportError(_CV2_IMPORT_MESSAGE) from exception
+
         number_dtype = np.dtype(dtype)
         if np.issubdtype(number_dtype, np.floating):
             choices = {
@@ -64,6 +65,10 @@ class ResizeMethod(Enum):
 
     def get_pil_method(self) -> Image.Resampling:
         """Obtain the constant specifying the interpolation method for the PIL library."""
+        try:
+            from PIL import Image  # pylint: disable=import-outside-toplevel
+        except ImportError as exception:
+            raise ImportError(_PIL_IMPORT_MESSAGE) from exception
         choices = {
             ResizeMethod.NEAREST: Image.Resampling.NEAREST,
             ResizeMethod.LINEAR: Image.Resampling.BILINEAR,
@@ -113,7 +118,7 @@ def spatially_resize_image(
     scale_factors: tuple[float, float] | None = None,
     spatial_axes: tuple[int, int] | None = None,
     resize_method: ResizeMethod = ResizeMethod.LINEAR,
-    resize_library: ResizeLib = ResizeLib.PIL,
+    resize_library: ResizeLib = ResizeLib.CV2,
 ) -> np.ndarray:
     """Resizes the image(s) according to given size or scale factors.
 
@@ -125,8 +130,8 @@ def spatially_resize_image(
     :param spatial_axes: Which two axes of input data represent height and width. If left as `None` they are selected
         according to standards of eo-learn features.
     :param resize_method: Interpolation method used for resizing.
-    :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
-        features anti-aliasing. For cases where execution speed is crucial one can use CV2.
+    :param resize_library: Which Python library to use for resizing. Default is CV2 because it is faster, but one can
+        use PIL, which features anti-aliasing.
     """
 
     resize_method = ResizeMethod(resize_method)
@@ -154,10 +159,6 @@ def spatially_resize_image(
     data = data.astype(new_dtype)
 
     if resize_library is ResizeLib.CV2:
-        try:
-            import cv2  # pylint: disable=import-outside-toplevel
-        except ImportError as exception:
-            raise ImportError(_CV2_IMPORT_MESSAGE) from exception
         resize_function = partial(cv2.resize, dsize=size, interpolation=resize_method.get_cv2_method(data.dtype))
     else:
         resize_function = partial(_pil_resize_ndarray, size=size, method=resize_method.get_pil_method())
@@ -171,4 +172,8 @@ def spatially_resize_image(
 
 
 def _pil_resize_ndarray(image: np.ndarray, size: tuple[int, int], method: Image.Resampling) -> np.ndarray:
+    try:
+        from PIL import Image  # pylint: disable=import-outside-toplevel
+    except ImportError as exception:
+        raise ImportError(_PIL_IMPORT_MESSAGE) from exception
     return np.array(Image.fromarray(image).resize(size, method))

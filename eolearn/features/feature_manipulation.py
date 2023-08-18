@@ -257,7 +257,7 @@ class SpatialResizeTask(EOTask):
         width_param: float,
         features: FeaturesSpecification = ...,
         resize_method: ResizeMethod = ResizeMethod.LINEAR,
-        resize_library: ResizeLib = ResizeLib.PIL,
+        resize_library: ResizeLib = ResizeLib.CV2,
     ):
         """
         :param features: Which features to resize. Supports new names for features.
@@ -271,8 +271,8 @@ class SpatialResizeTask(EOTask):
         :param height_param: Parameter to be applied to the height in combination with the resize_type
         :param width_param: Parameter to be applied to the width in combination with the resize_type
         :param resize_method: Interpolation method used for resizing.
-        :param resize_library: Which Python library to use for resizing. Default is PIL, as it supports all dtypes and
-            features anti-aliasing. For cases where execution speed is crucial one can use CV2.
+        :param resize_library: Which Python library to use for resizing. Default is CV2 because it is faster, but one
+            can use PIL, which features anti-aliasing.
         """
         self.features = features
         self.resize_type = ResizeParam(resize_type)

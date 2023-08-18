@@ -67,7 +67,7 @@ coregistration = [
 ] # using headless version of opencv, otherwise gitlab runners fail
 features = [
     "numba>=0.53.0",
-    "pillow>=9.1.0",
+    "opencv-python-headless",
     "scikit-image>=0.19.0",
     "scikit-learn",
     "scipy",
