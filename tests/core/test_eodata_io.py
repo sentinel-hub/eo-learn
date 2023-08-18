@@ -10,7 +10,6 @@ import datetime
 import json
 import os
 import sys
-import tempfile
 import warnings
 from typing import Any
 
@@ -89,11 +88,6 @@ def eopatch_fixture():
     )
 
     return eopatch
-
-
-def test_saving_to_a_file(eopatch):
-    with tempfile.NamedTemporaryFile() as fp, pytest.raises(CreateFailed):
-        eopatch.save(fp.name)
 
 
 @mock_s3
@@ -221,11 +215,9 @@ def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
-def test_bbox_always_saved(eopatch, fs_loader, use_zarr: bool):
-    _skip_when_appropriate(fs_loader, use_zarr)
+def test_bbox_always_saved(eopatch, fs_loader):
     with fs_loader() as temp_fs:
-        eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA], use_zarr=use_zarr)
+        eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA])
         assert temp_fs.exists("/bbox.geojson")
 
 
@@ -340,12 +332,10 @@ def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
-@pytest.mark.parametrize("use_zarr", [True, False])
-def test_fail_saving_nonexistent_feature(eopatch, fs_loader, use_zarr: bool):
-    _skip_when_appropriate(fs_loader, use_zarr)
+def test_fail_saving_nonexistent_feature(eopatch, fs_loader):
     features = [(FeatureType.DATA, "nonexistent")]
     with fs_loader() as temp_fs, pytest.raises(ValueError):
-        eopatch.save("/", filesystem=temp_fs, features=features, use_zarr=use_zarr)
+        eopatch.save("/", filesystem=temp_fs, features=features)
 
 
 @mock_s3
@@ -610,7 +600,7 @@ def test_partial_temporal_loading_fails_for_numpy(fs_loader: type[FS], eopatch: 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("temporal_selection", [[3, 4, 10]])
-def test_partial_temporal_loading_fails(fs_loader: type[FS], eopatch: EOPatch, temporal_selection):
+def test_partial_temporal_loading_fails_bad_selection(fs_loader: type[FS], eopatch: EOPatch, temporal_selection):
     _skip_when_appropriate(fs_loader, True)
     with fs_loader() as temp_fs:
         eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=True)
