@@ -233,6 +233,15 @@ def _yield_savers(
         yield feature_saver
 
 
+def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
+    """Creates the correct FeatureIO, corresponding to the FeatureType."""
+    if ftype is FeatureType.META_INFO:
+        return FeatureIOJson
+    if ftype.is_vector():
+        return FeatureIOGeoDf
+    return FeatureIOZarr if use_zarr else FeatureIONumpy
+
+
 def _remove_redundant_files(
     filesystem: FS,
     new_files: list[str],
@@ -361,8 +370,12 @@ def _load_features(
 def _get_feature_io(
     ftype: FeatureType, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool]
 ) -> FeatureIO:
+    if ftype is FeatureType.META_INFO:
+        return FeatureIOJson(path, filesystem)
+    if ftype.is_vector():
+        return FeatureIOGeoDf(path, filesystem)
     use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
-    constructor = _get_feature_io_constructor(ftype, use_zarr)
+    constructor = FeatureIOZarr if use_zarr else FeatureIONumpy
     if ftype.is_temporal():
         return constructor(path, filesystem, temporal_selection)  # type: ignore[call-arg]
     return constructor(path, filesystem)
@@ -614,10 +627,6 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
 class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
-        self.temporal_selection = temporal_selection  # temporal selection currently does nothing
-        super().__init__(path, filesystem)
-
     @classmethod
     def _get_uncompressed_file_extension(cls) -> str:
         return ".gpkg"
@@ -784,12 +793,3 @@ def _better_jsonify(param: object) -> Any:
     if isinstance(param, Mapping):
         return dict(param.items())
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
-
-
-def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
-    """Creates the correct FeatureIO, corresponding to the FeatureType."""
-    if ftype is FeatureType.META_INFO:
-        return FeatureIOJson
-    if ftype.is_vector():
-        return FeatureIOGeoDf
-    return FeatureIOZarr if use_zarr else FeatureIONumpy
