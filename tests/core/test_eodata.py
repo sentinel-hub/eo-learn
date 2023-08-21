@@ -232,6 +232,20 @@ def test_deep_copy(test_eopatch: EOPatch) -> None:
     assert test_eopatch != eopatch_copy
 
 
+@pytest.mark.parametrize("deep", [True, False])
+def test_copy_full_when_no_featuers_specified(test_eopatch: EOPatch, deep: bool) -> None:
+    """In case no features are specified timestamps should be automatically copied."""
+    micro_patch = test_eopatch.copy(features=[FeatureType.MASK_TIMELESS], copy_timestamps=True)
+
+    assert (
+        micro_patch.copy(
+            deep=deep,
+        ).timestamps
+        is not None
+    )
+    assert micro_patch.copy(deep=deep, features=[FeatureType.MASK_TIMELESS]).timestamps is None
+
+
 @pytest.mark.parametrize("features", [..., [(FeatureType.MASK, "CLM")]])
 def test_copy_lazy_loaded_patch(test_eopatch_path: str, features: FeaturesSpecification) -> None:
     # shallow copy

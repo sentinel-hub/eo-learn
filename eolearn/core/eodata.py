@@ -498,14 +498,14 @@ class EOPatch:
         """Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if any
-            temporal features are getting copied.
+        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if all
+            features are copied or if any temporal features are getting copied.
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
         patch_features = parse_features(features, eopatch=self)
         if copy_timestamps == "auto":
-            copy_timestamps = any(ftype.is_temporal() for ftype, _ in patch_features)
+            copy_timestamps = features is ... or any(ftype.is_temporal() for ftype, _ in patch_features)
 
         new_eopatch = EOPatch(bbox=copy.copy(self.bbox))
         if copy_timestamps:
@@ -525,14 +525,14 @@ class EOPatch:
 
         :param memo: built-in parameter for memoization
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if any
-            temporal features are getting copied.
+        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if all
+            features are copied or if any temporal features are getting copied.
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
             features = ...
         patch_features = parse_features(features, eopatch=self)
         if copy_timestamps == "auto":
-            copy_timestamps = any(ftype.is_temporal() for ftype, _ in patch_features)
+            copy_timestamps = features is ... or any(ftype.is_temporal() for ftype, _ in patch_features)
 
         new_eopatch = EOPatch(bbox=copy.deepcopy(self.bbox))
         if copy_timestamps:
@@ -560,12 +560,11 @@ class EOPatch:
     ) -> EOPatch:
         """Get a copy of the current `EOPatch`.
 
-        :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied. Note that
-            `BBOX` is always copied.
+        :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied.
         :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
             of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMPS` will be copied even with a shallow copy.
-        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if any
-            temporal features are getting copied.
+        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if all
+            features are copied or if any temporal features are getting copied.
         :return: An EOPatch copy.
         """
         # pylint: disable=unnecessary-dunder-call
