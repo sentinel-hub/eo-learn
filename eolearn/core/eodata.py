@@ -505,7 +505,7 @@ class EOPatch:
             features = ...
         patch_features = parse_features(features, eopatch=self)
         if copy_timestamps == "auto":
-            copy_timestamps = any(ftype.is_temporal() for ftype, _ in patch_features)
+            copy_timestamps = features is ... or any(ftype.is_temporal() for ftype, _ in patch_features)
 
         new_eopatch = EOPatch(bbox=copy.copy(self.bbox))
         if copy_timestamps:
@@ -532,7 +532,7 @@ class EOPatch:
             features = ...
         patch_features = parse_features(features, eopatch=self)
         if copy_timestamps == "auto":
-            copy_timestamps = any(ftype.is_temporal() for ftype, _ in patch_features)
+            copy_timestamps = features is ... or any(ftype.is_temporal() for ftype, _ in patch_features)
 
         new_eopatch = EOPatch(bbox=copy.deepcopy(self.bbox))
         if copy_timestamps:
