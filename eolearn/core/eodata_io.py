@@ -233,6 +233,15 @@ def _yield_savers(
         yield feature_saver
 
 
+def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
+    """Creates the correct FeatureIO, corresponding to the FeatureType."""
+    if ftype is FeatureType.META_INFO:
+        return FeatureIOJson
+    if ftype.is_vector():
+        return FeatureIOGeoDf
+    return FeatureIOZarr if use_zarr else FeatureIONumpy  # type: ignore[return-value] # not sure why
+
+
 def _remove_redundant_files(
     filesystem: FS,
     new_files: list[str],
@@ -361,11 +370,23 @@ def _load_features(
 def _get_feature_io(
     ftype: FeatureType, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool]
 ) -> FeatureIO:
+    if ftype is FeatureType.META_INFO:
+        return FeatureIOJson(path, filesystem)
+    if ftype.is_vector():
+        return FeatureIOGeoDf(path, filesystem)
+
     use_zarr = path.endswith(FeatureIOZarr.get_file_extension())
-    constructor = _get_feature_io_constructor(ftype, use_zarr)
+
     if ftype.is_temporal():
-        return constructor(path, filesystem, temporal_selection)  # type: ignore[call-arg]
-    return constructor(path, filesystem)
+        if use_zarr:
+            return FeatureIOZarr(path, filesystem, temporal_selection)
+        if temporal_selection is None:
+            return FeatureIONumpy(path, filesystem)
+        raise IOError(
+            f"Cannot perform loading with temporal selection for numpy data at {path}. Resave feature with"
+            " `use_zarr=True` to enable loading with temporal selections."
+        )
+    return (FeatureIOZarr if use_zarr else FeatureIONumpy)(path, filesystem)
 
 
 def get_filesystem_data_info(
@@ -595,16 +616,12 @@ class FeatureIOGZip(FeatureIO[T], metaclass=ABCMeta):
 class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
     """FeatureIO object specialized for Numpy arrays."""
 
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
-        self.temporal_selection = slice(None) if temporal_selection is None else temporal_selection
-        super().__init__(path, filesystem)
-
     @classmethod
     def _get_uncompressed_file_extension(cls) -> str:
         return ".npy"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> np.ndarray:
-        return np.load(file, allow_pickle=True)[self.temporal_selection, ...]
+        return np.load(file, allow_pickle=True)
 
     @classmethod
     def _write_to_file(cls, data: np.ndarray, file: BinaryIO | gzip.GzipFile, _: str) -> None:
@@ -613,10 +630,6 @@ class FeatureIONumpy(FeatureIOGZip[np.ndarray]):
 
 class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
     """FeatureIO object specialized for GeoDataFrames."""
-
-    def __init__(self, path: str, filesystem: FS, temporal_selection: None | slice | list[int] | list[bool] = None):
-        self.temporal_selection = temporal_selection  # temporal selection currently does nothing
-        super().__init__(path, filesystem)
 
     @classmethod
     def _get_uncompressed_file_extension(cls) -> str:
@@ -784,12 +797,3 @@ def _better_jsonify(param: object) -> Any:
     if isinstance(param, Mapping):
         return dict(param.items())
     raise TypeError(f"Object of type {type(param)} is not yet supported in jsonify utility function")
-
-
-def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[FeatureIO]:
-    """Creates the correct FeatureIO, corresponding to the FeatureType."""
-    if ftype is FeatureType.META_INFO:
-        return FeatureIOJson
-    if ftype.is_vector():
-        return FeatureIOGeoDf
-    return FeatureIOZarr if use_zarr else FeatureIONumpy
