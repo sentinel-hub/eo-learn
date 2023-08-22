@@ -88,9 +88,9 @@ docs = [
     "eo-learn[ALL]",
     "jupyter",
     "nbsphinx",
-    "sphinx",
+    "sphinx==7.1.2",
     "sphinx_mdinclude",
-    "sphinx_rtd_theme",
+    "sphinx_rtd_theme==1.3.0",
 ]
 dev = [
     "build",
