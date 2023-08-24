@@ -98,10 +98,10 @@ class EOExecutorVisualization:
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
-    def _get_exception_stats(self) -> list[tuple[str, str, list[tuple[str, int]]]]:
+    def _get_exception_stats(self) -> list[tuple[str, str, list[tuple[str, str, int]]]]:
         """Creates aggregated stats about exceptions
 
-        Returns {node_uid: {exception_origin: (example_message, num_occurences)}}.
+        Returns tuples of form (name, uid, [exception_origin, example_message, num_occurences])
         """
         formatter = HtmlFormatter()
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
@@ -114,7 +114,7 @@ class EOExecutorVisualization:
 
             error_node = workflow_results.stats[workflow_results.error_node_uid]
             exception_info: ExceptionInfo = error_node.exception_info  # type: ignore[union-attr]
-            origin_str = f"{exception_info.exception.__class__.__name__} raised from {exception_info.origin}"
+            origin_str = f"<b>{exception_info.exception.__class__.__name__}</b> raised from {exception_info.origin}"
 
             example_message, num_occurences = exception_stats[error_node.node_uid].get(origin_str, (None, 0))
             if example_message is None:

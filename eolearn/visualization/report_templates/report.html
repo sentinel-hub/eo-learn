@@ -118,7 +118,7 @@
                     <ul>
                     {% for exception_origin, example_message, count in exception_list %}
                         <li>
-                            {{ count }} times: {{ exception_origin }} similar to {{example_message}}
+                            {{ count }} times: {{ exception_origin }} <br> Example message: {{example_message}}
                         </li>
                     {% endfor %}
                     </ul>
