@@ -109,9 +109,8 @@ class EOExecutorVisualization:
                 continue
 
             error_node = workflow_results.stats[workflow_results.error_node_uid]
-            exception_str = pygments.highlight(
-                f"{error_node.exception.__class__.__name__}: {error_node.exception}", lexer, formatter
-            )
+            exception = error_node.exception_info.exception  # type: ignore[union-attr]
+            exception_str = pygments.highlight(f"{exception.__class__.__name__}: {exception}", lexer, formatter)
             exception_stats[error_node.node_uid][exception_str] += 1
 
         return self._to_ordered_stats(exception_stats)
@@ -197,7 +196,8 @@ class EOExecutorVisualization:
             if results.workflow_failed() and results.error_node_uid is not None:
                 # second part of above check needed only for typechecking purposes
                 failed_node_stats = results.stats[results.error_node_uid]
-                traceback = pygments.highlight(failed_node_stats.exception_traceback, tb_lexer, formatter)
+                traceback_str = failed_node_stats.exception_info.traceback  # type: ignore[union-attr]
+                traceback = pygments.highlight(traceback_str, tb_lexer, formatter)
             else:
                 traceback = None
 

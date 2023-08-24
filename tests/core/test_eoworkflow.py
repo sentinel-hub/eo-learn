@@ -291,8 +291,7 @@ def test_exception_handling():
         assert node_stats.node_name == node.name
 
         if node is exception_node:
-            assert isinstance(node_stats.exception, CustomExceptionError)
-            assert node_stats.exception_traceback.startswith("Traceback")
+            assert isinstance(node_stats.exception_info.exception, CustomExceptionError)
+            assert node_stats.exception_info.traceback.startswith("Traceback")
         else:
-            assert node_stats.exception is None
-            assert node_stats.exception_traceback is None
+            assert node_stats.exception_info is None

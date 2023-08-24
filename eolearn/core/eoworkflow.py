@@ -23,10 +23,10 @@ import datetime as dt
 import logging
 import traceback
 from dataclasses import dataclass, field, fields
-from typing import Literal, Sequence, Tuple, cast, overload
+from typing import Literal, Sequence, overload
 
 from .eodata import EOPatch
-from .eonode import EONode, NodeStats
+from .eonode import EONode, ExceptionInfo, NodeStats
 from .eotask import EOTask
 from .eoworkflow_tasks import OutputTask
 from .graph import DirectedGraph
@@ -209,7 +209,7 @@ class EOWorkflow:
             )
 
             stats_dict[node.uid] = stats
-            if stats.exception is not None:
+            if stats.exception_info is not None:
                 break
 
             intermediate_results[node.uid] = result
@@ -235,43 +235,45 @@ class EOWorkflow:
 
         LOGGER.debug("Computing %s(*%s, **%s)", node.task.__class__.__name__, str(task_args), str(node_input_kwargs))
         start_time = dt.datetime.now()
-        result, is_success = self._execute_task(node.task, task_args, node_input_kwargs, raise_errors=raise_errors)
+        result = self._execute_task(node.task, task_args, node_input_kwargs, raise_errors=raise_errors)
         end_time = dt.datetime.now()
 
-        if is_success:
-            exception, exception_traceback = None, None
-        else:
-            exception, exception_traceback = cast(Tuple[BaseException, str], result)  # temporary fix until 3.8
-            result = None
+        if isinstance(result, ExceptionInfo):
+            exception_info, result = result, None
             LOGGER.error(
-                "Task '%s' with id %s failed with stack trace:\n%s", node.get_name(), node.uid, exception_traceback
+                "Task '%s' with id %s failed with stack trace:\n%s",
+                node.get_name(),
+                node.uid,
+                exception_info.traceback,
             )
+        else:
+            exception_info = None
 
         node_stats = NodeStats(
             node_uid=node.uid,
             node_name=node.get_name(),
             start_time=start_time,
             end_time=end_time,
-            exception=exception,
-            exception_traceback=exception_traceback,
+            exception_info=exception_info,
         )
         return result, node_stats
 
     @staticmethod
     def _execute_task(
         task: EOTask, task_args: list[object], task_kwargs: dict[str, object], raise_errors: bool
-    ) -> tuple[object, bool]:
+    ) -> object | ExceptionInfo:
         """Executes an EOTask and handles any potential exceptions."""
         if raise_errors:
-            return task.execute(*task_args, **task_kwargs), True
+            return task.execute(*task_args, **task_kwargs)
 
         try:
-            return task.execute(*task_args, **task_kwargs), True
+            return task.execute(*task_args, **task_kwargs)
         except KeyboardInterrupt as exception:
             raise KeyboardInterrupt from exception
         except BaseException as exception:
             exception_traceback = traceback.format_exc()
-            return (exception, exception_traceback), False
+            origin = "TODO"
+            return ExceptionInfo(exception, traceback=exception_traceback, origin=origin)
 
     @staticmethod
     def _relax_dependencies(
@@ -363,7 +365,7 @@ class WorkflowResults:
     def __post_init__(self) -> None:
         """Checks if there is any node that failed during the workflow execution."""
         for node_uid, node_stats in self.stats.items():
-            if node_stats.exception is not None:
+            if node_stats.exception_info is not None:
                 super().__setattr__("error_node_uid", node_uid)
                 break
 

@@ -100,5 +100,13 @@ class NodeStats:
     node_name: str
     start_time: dt.datetime
     end_time: dt.datetime
-    exception: BaseException | None = None
-    exception_traceback: str | None = None
+    exception_info: ExceptionInfo | None = None
+
+
+@dataclass(frozen=True)
+class ExceptionInfo:
+    """Contains information on exceptions that occur when executing a node."""
+
+    exception: BaseException
+    traceback: str
+    origin: str
