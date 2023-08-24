@@ -118,7 +118,18 @@
                     <ul>
                     {% for error_summary in error_summary_list %}
                         <li>
-                            {{ error_summary.num_failed }} times: {{ error_summary.origin }} <br> Example message: {{error_summary.example_message}}
+                            {{ error_summary.num_failed }} times: {{ error_summary.origin }}
+                            <br>
+                            Example message: <pre>{{ error_summary.example_message }}</pre>
+                            <br>
+                            <button class="collapsible">Failed executions</button>
+                            <div class="collapsible-content">
+                                <ul>
+                                    {% for idx, execution in error_summary.failed_indexed_executions %}
+                                    <li><a href="#execution{{ idx }}">{{ execution }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                         </li>
                     {% endfor %}
                     </ul>
