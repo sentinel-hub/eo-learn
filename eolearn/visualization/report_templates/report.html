@@ -116,9 +116,9 @@
                 <li>
                     <b>{{ node_name }} ({{ node_uid }}):</b>
                     <ul>
-                    {% for exception_string, count in exception_list %}
+                    {% for exception_origin, example_message, count in exception_list %}
                         <li>
-                            {{ count }} times: {{ exception_string }}
+                            {{ count }} times: {{ exception_origin }} similar to {{example_message}}
                         </li>
                     {% endfor %}
                     </ul>

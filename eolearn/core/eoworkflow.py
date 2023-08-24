@@ -271,9 +271,9 @@ class EOWorkflow:
         except KeyboardInterrupt as exception:
             raise KeyboardInterrupt from exception
         except BaseException as exception:
-            exception_traceback = traceback.format_exc()
-            origin = "TODO"
-            return ExceptionInfo(exception, traceback=exception_traceback, origin=origin)
+            trace = traceback.extract_tb(exception.__traceback__)
+            origin = f"line {trace[-1].lineno} in {trace[-1].filename}." if trace else "unknown origin."
+            return ExceptionInfo(exception, traceback=traceback.format_exc(), origin=origin)
 
     @staticmethod
     def _relax_dependencies(

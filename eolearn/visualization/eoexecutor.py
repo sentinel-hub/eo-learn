@@ -28,6 +28,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 from pygments.formatters.html import HtmlFormatter
 
 from eolearn.core import EOExecutor
+from eolearn.core.eonode import ExceptionInfo
 from eolearn.core.exceptions import EOUserWarning
 
 
@@ -98,28 +99,38 @@ class EOExecutorVisualization:
         return base64.b64encode(dot.pipe()).decode()
 
     def _get_exception_stats(self) -> list[tuple[str, str, list[tuple[str, int]]]]:
-        """Creates aggregated stats about exceptions"""
+        """Creates aggregated stats about exceptions
+
+        Returns {node_uid: {exception_origin: (example_message, num_occurences)}}.
+        """
         formatter = HtmlFormatter()
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
 
-        exception_stats: defaultdict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(lambda: 0))
+        exception_stats: defaultdict[str, dict[str, tuple[str, int]]] = defaultdict(dict)
 
         for workflow_results in self.eoexecutor.execution_results:
             if not workflow_results.error_node_uid:
                 continue
 
             error_node = workflow_results.stats[workflow_results.error_node_uid]
-            exception = error_node.exception_info.exception  # type: ignore[union-attr]
-            exception_str = pygments.highlight(f"{exception.__class__.__name__}: {exception}", lexer, formatter)
-            exception_stats[error_node.node_uid][exception_str] += 1
+            exception_info: ExceptionInfo = error_node.exception_info  # type: ignore[union-attr]
+            origin_str = f"{exception_info.exception.__class__.__name__} raised from {exception_info.origin}"
+
+            example_message, num_occurences = exception_stats[error_node.node_uid].get(origin_str, (None, 0))
+            if example_message is None:
+                example_message = pygments.highlight(str(exception_info.exception), lexer, formatter)
+
+            exception_stats[error_node.node_uid][origin_str] = (example_message, num_occurences + 1)
 
         return self._to_ordered_stats(exception_stats)
 
     def _to_ordered_stats(
-        self, exception_stats: defaultdict[str, defaultdict[str, int]]
-    ) -> list[tuple[str, str, list[tuple[str, int]]]]:
+        self, exception_stats: defaultdict[str, dict[str, tuple[str, int]]]
+    ) -> list[tuple[str, str, list[tuple[str, str, int]]]]:
         """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
         for the same node get ordered by number of occurrences in a decreasing order.
+
+        Returns tuples of form (name, uid, [exception_origin, example_message, num_occurences])
         """
         ordered_exception_stats = []
         for node in self.eoexecutor.workflow.get_nodes():
@@ -127,8 +138,9 @@ class EOExecutorVisualization:
                 continue
 
             node_stats = exception_stats[node.uid]
+            node_exceptions = ((origin, example, num) for origin, (example, num) in node_stats.items())
             ordered_exception_stats.append(
-                (node.get_name(), node.uid, sorted(node_stats.items(), key=lambda item: -item[1]))
+                (node.get_name(), node.uid, sorted(node_exceptions, key=lambda item: -item[2]))
             )
 
         return ordered_exception_stats
