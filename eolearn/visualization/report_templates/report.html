@@ -112,13 +112,13 @@
 
         <div class="indent">
             <ul>
-            {% for node_name, node_uid, exception_list in exception_stats %}
+            {% for node_name, node_uid, error_summary_list in exception_stats %}
                 <li>
                     <b>{{ node_name }} ({{ node_uid }}):</b>
                     <ul>
-                    {% for exception_origin, example_message, count in exception_list %}
+                    {% for error_summary in error_summary_list %}
                         <li>
-                            {{ count }} times: {{ exception_origin }} <br> Example message: {{example_message}}
+                            {{ error_summary.num_failed }} times: {{ error_summary.origin }} <br> Example message: {{error_summary.example_message}}
                         </li>
                     {% endfor %}
                     </ul>

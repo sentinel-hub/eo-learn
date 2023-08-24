@@ -16,6 +16,7 @@ import os
 import warnings
 from collections import defaultdict
 from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import Any, cast
 
 import fs
@@ -98,35 +99,35 @@ class EOExecutorVisualization:
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
-    def _get_exception_stats(self) -> list[tuple[str, str, list[tuple[str, str, int]]]]:
+    def _get_exception_stats(self) -> list[tuple[str, str, list[ErrorSummary]]]:
         """Creates aggregated stats about exceptions
 
-        Returns tuples of form (name, uid, [exception_origin, example_message, num_occurences])
+        Returns tuples of form (name, uid, [error_summary])
         """
         formatter = HtmlFormatter()
         lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
 
-        exception_stats: defaultdict[str, dict[str, tuple[str, int]]] = defaultdict(dict)
+        exception_stats: defaultdict[str, dict[str, ErrorSummary]] = defaultdict(dict)
 
-        for workflow_results in self.eoexecutor.execution_results:
+        for execution_name, workflow_results in zip(self.eoexecutor.execution_names, self.eoexecutor.execution_results):
             if not workflow_results.error_node_uid:
                 continue
 
             error_node = workflow_results.stats[workflow_results.error_node_uid]
-            exception_info: ExceptionInfo = error_node.exception_info  # type: ignore[union-attr]
+            exception_info: ExceptionInfo = error_node.exception_info  # type: ignore[assignment]
             origin_str = f"<b>{exception_info.exception.__class__.__name__}</b> raised from {exception_info.origin}"
 
-            example_message, num_occurences = exception_stats[error_node.node_uid].get(origin_str, (None, 0))
-            if example_message is None:
+            if origin_str not in exception_stats[error_node.node_uid]:
                 example_message = pygments.highlight(str(exception_info.exception), lexer, formatter)
+                exception_stats[error_node.node_uid][origin_str] = ErrorSummary(origin_str, example_message, [])
 
-            exception_stats[error_node.node_uid][origin_str] = (example_message, num_occurences + 1)
+            exception_stats[error_node.node_uid][origin_str].add_execution(execution_name)
 
         return self._to_ordered_stats(exception_stats)
 
     def _to_ordered_stats(
-        self, exception_stats: defaultdict[str, dict[str, tuple[str, int]]]
-    ) -> list[tuple[str, str, list[tuple[str, str, int]]]]:
+        self, exception_stats: defaultdict[str, dict[str, ErrorSummary]]
+    ) -> list[tuple[str, str, list[ErrorSummary]]]:
         """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
         for the same node get ordered by number of occurrences in a decreasing order.
 
@@ -138,10 +139,8 @@ class EOExecutorVisualization:
                 continue
 
             node_stats = exception_stats[node.uid]
-            node_exceptions = ((origin, example, num) for origin, (example, num) in node_stats.items())
-            ordered_exception_stats.append(
-                (node.get_name(), node.uid, sorted(node_exceptions, key=lambda item: -item[2]))
-            )
+            error_summaries = sorted(node_stats.values(), key=lambda summary: -len(summary.failed_executions))
+            ordered_exception_stats.append((node.get_name(), node.uid, error_summaries))
 
         return ordered_exception_stats
 
@@ -235,3 +234,17 @@ class EOExecutorVisualization:
     def _format_timedelta(value1: dt.datetime, value2: dt.datetime) -> str:
         """Method for formatting time delta into report"""
         return str(value2 - value1)
+
+
+@dataclass()
+class ErrorSummary:
+    origin: str
+    example_message: str
+    failed_executions: list[str]
+
+    def add_execution(self, name: str) -> None:
+        self.failed_executions.append(name)
+
+    @property
+    def num_failed(self) -> int:
+        return len(self.failed_executions)
