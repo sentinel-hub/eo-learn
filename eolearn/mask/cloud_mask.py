@@ -16,6 +16,7 @@ from typing import Protocol, cast
 import cv2
 import numpy as np
 from lightgbm import Booster
+from s2cloudless import S2PixelCloudDetector
 from skimage.morphology import disk
 
 from sentinelhub import BBox, bbox_to_resolution
@@ -42,9 +43,6 @@ class ClassifierType(Protocol):
 
 class CloudMaskTask(EOTask):
     """Cloud masking with the s2cloudless model. Outputs a cloud mask and optionally the cloud probabilities."""
-
-    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
-    CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
 
     def __init__(
         self,
@@ -89,58 +87,9 @@ class CloudMaskTask(EOTask):
         if dilation_size is not None and dilation_size > 0:
             self.dil_kernel = disk(dilation_size).astype(np.uint8)
 
-        self._classifier: ClassifierType | Booster | None = None
-
-    @property
-    def classifier(self) -> ClassifierType | Booster:
-        """An instance of a custom-provided cloud classifier. Loaded only the first time it is required."""
-        if self._classifier is None:
-            path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
-            self._classifier = Booster(model_file=path)
-
-        return self._classifier
-
-    @staticmethod
-    def _run_prediction(classifier: ClassifierType | Booster, features: np.ndarray) -> np.ndarray:
-        """Uses classifier object on given data"""
-        is_booster = isinstance(classifier, Booster)
-
-        predict_method = classifier.predict if is_booster else classifier.predict_proba
-        prediction: np.ndarray = execute_with_mp_lock(predict_method, features)
-
-        return prediction if is_booster else prediction[..., 1]
-
-    def _average(self, data: np.ndarray) -> np.ndarray:
-        return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
-
-    def _dilate(self, data: np.ndarray) -> np.ndarray:
-        return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
-
-    def _average_all(self, data: np.ndarray) -> np.ndarray:
-        """Average over each spatial slice of data"""
-        if self.avg_kernel is not None:
-            return _apply_to_spatial_axes(self._average, data, (1, 2))
-
-        return data
-
-    def _dilate_all(self, data: np.ndarray) -> np.ndarray:
-        """Dilate over each spatial slice of data"""
-        if self.dil_kernel is not None:
-            return _apply_to_spatial_axes(self._dilate, data, (1, 2))
-
-        return data
-
-    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
-        """Performs a cloud detection process on each scene separately"""
-        output_proba = []
-        _, height, width, n_bands = bands.shape
-
-        for img in bands:
-            features = img.reshape(height * width, n_bands)
-            proba = self._run_prediction(self.classifier, features)
-            output_proba.append(proba.reshape(height, width, 1))
-
-        return np.array(output_proba)
+        self.classifier = S2PixelCloudDetector(
+            threshold=threshold, average_over=average_over, dilation_size=dilation_size, all_bands=all_bands
+        )
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         """Add selected features (cloud probabilities and masks) to an EOPatch instance.
@@ -148,22 +97,19 @@ class CloudMaskTask(EOTask):
         :param eopatch: Input `EOPatch` instance
         :return: `EOPatch` with additional features
         """
-        data = eopatch[self.data_feature][..., self.data_indices].astype(np.float32)
+        data = eopatch[self.data_feature].astype(np.float32)
         valid_data = eopatch[self.valid_data_feature].astype(bool)
 
         patch_bbox = eopatch.bbox
         if patch_bbox is None:
             raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
 
-        cloud_proba = self._do_single_temporal_cloud_detection(data)
+        cloud_proba = self.classifier.get_cloud_probability_maps(data)
+        cloud_mask = self.classifier.get_mask_from_prob(cloud_proba, threshold=self.threshold)
 
-        # Average over and threshold
-        cloud_mask = self._average_all(cloud_proba) >= self.threshold
-        cloud_mask = self._dilate_all(cloud_mask)
-        eopatch[self.output_mask_feature] = (cloud_mask * valid_data).astype(bool)
-
+        eopatch[self.output_mask_feature] = (cloud_mask[..., np.newaxis] * valid_data).astype(bool)
         if self.output_proba_feature is not None:
-            eopatch[self.output_proba_feature] = (cloud_proba * valid_data).astype(np.float32)
+            eopatch[self.output_proba_feature] = (cloud_proba[..., np.newaxis] * valid_data).astype(np.float32)
 
         return eopatch
 

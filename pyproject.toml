@@ -79,7 +79,7 @@ geodb = [
     "xcube-geodb @ git+git://github.com/dcs4cop/xcube-geodb.git",
 ]
 meteoblue = ["meteoblue_dataset_sdk>=1,<2"]
-mask = ["lightgbm>=2.0.11, <4", "opencv-python-headless", "scikit-image>=0.13.0"]
+mask = ["lightgbm>=2.0.11, <4", "opencv-python-headless", "s2cloudless", "scikit-image>=0.13.0"]
 mltools = ["shapely"]
 tdigest = ["tdigest==0.5.2.2"]
 mltoolsplotting = ["matplotlib"]
