@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
-import importlib
-import inspect
 import os
 import warnings
 from collections import defaultdict
@@ -81,7 +79,6 @@ class EOExecutorVisualization:
                 general_stats=self.eoexecutor.general_stats,
                 exception_stats=self._get_exception_stats(),
                 task_descriptions=self._get_node_descriptions(),
-                task_sources=self._render_task_sources(formatter),
                 execution_results=self.eoexecutor.execution_results,
                 execution_tracebacks=self._render_execution_tracebacks(formatter),
                 execution_logs=execution_logs,
@@ -166,38 +163,6 @@ class EOExecutorVisualization:
             )
 
         return descriptions
-
-    def _render_task_sources(self, formatter: pygments.formatter.Formatter) -> dict[str, Any]:
-        """Renders source code of EOTasks"""
-        lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
-        sources = {}
-
-        for node in self.eoexecutor.workflow.get_nodes():
-            task = node.task
-
-            key = f"{task.__class__.__name__} ({task.__module__})"
-            if key in sources:
-                continue
-
-            source: Any
-            if task.__module__.startswith("eolearn"):
-                subpackage_name = ".".join(task.__module__.split(".")[:2])
-                subpackage = importlib.import_module(subpackage_name)
-                subpackage_version = subpackage.__version__ if hasattr(subpackage, "__version__") else "unknown"
-                source = subpackage_name, subpackage_version
-            else:
-                try:
-                    source = inspect.getsource(task.__class__)
-                    source = pygments.highlight(source, lexer, formatter)
-                except (TypeError, OSError):
-                    # Jupyter notebook does not have __file__ method to collect source code
-                    # StackOverflow provides no solutions
-                    # Could be investigated further by looking into Jupyter Notebook source code
-                    source = None
-
-            sources[key] = source
-
-        return sources
 
     def _render_execution_tracebacks(self, formatter: pygments.formatter.Formatter) -> list:
         """Renders stack traces of those executions which failed"""
