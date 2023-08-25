@@ -12,7 +12,6 @@ import base64
 import datetime as dt
 import importlib
 import inspect
-import itertools as it
 import os
 import warnings
 from collections import defaultdict
@@ -108,8 +107,8 @@ class EOExecutorVisualization:
 
         exception_stats: defaultdict[str, dict[str, _ErrorSummary]] = defaultdict(dict)
 
-        for execution, results, execution_idx in zip(
-            self.eoexecutor.execution_names, self.eoexecutor.execution_results, it.count()
+        for execution_idx, (execution, results) in enumerate(
+            zip(self.eoexecutor.execution_names, self.eoexecutor.execution_results)
         ):
             if not results.error_node_uid:
                 continue
