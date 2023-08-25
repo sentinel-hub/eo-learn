@@ -112,13 +112,24 @@
 
         <div class="indent">
             <ul>
-            {% for node_name, node_uid, exception_list in exception_stats %}
+            {% for node_name, node_uid, error_summary_list in exception_stats %}
                 <li>
                     <b>{{ node_name }} ({{ node_uid }}):</b>
                     <ul>
-                    {% for exception_string, count in exception_list %}
+                    {% for error_summary in error_summary_list %}
                         <li>
-                            {{ count }} times: {{ exception_string }}
+                            {{ error_summary.num_failed }} times: {{ error_summary.origin }}
+                            <br>
+                            Example message: <pre>{{ error_summary.example_message }}</pre>
+                            <br>
+                            <button class="collapsible">Failed executions</button>
+                            <div class="collapsible-content">
+                                <ul>
+                                    {% for idx, execution in error_summary.failed_indexed_executions %}
+                                    <li><a href="#execution{{ idx }}">{{ execution }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
                         </li>
                     {% endfor %}
                     </ul>

@@ -16,6 +16,7 @@ import os
 import warnings
 from collections import defaultdict
 from contextlib import nullcontext
+from dataclasses import dataclass
 from typing import Any, cast
 
 import fs
@@ -28,6 +29,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 from pygments.formatters.html import HtmlFormatter
 
 from eolearn.core import EOExecutor
+from eolearn.core.eonode import ExceptionInfo
 from eolearn.core.exceptions import EOUserWarning
 
 
@@ -97,30 +99,40 @@ class EOExecutorVisualization:
         dot = self.eoexecutor.workflow.dependency_graph()
         return base64.b64encode(dot.pipe()).decode()
 
-    def _get_exception_stats(self) -> list[tuple[str, str, list[tuple[str, int]]]]:
-        """Creates aggregated stats about exceptions"""
-        formatter = HtmlFormatter()
-        lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
+    def _get_exception_stats(self) -> list[tuple[str, str, list[_ErrorSummary]]]:
+        """Creates aggregated stats about exceptions
 
-        exception_stats: defaultdict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(lambda: 0))
+        Returns tuples of form (name, uid, [error_summary])
+        """
 
-        for workflow_results in self.eoexecutor.execution_results:
-            if not workflow_results.error_node_uid:
+        exception_stats: defaultdict[str, dict[str, _ErrorSummary]] = defaultdict(dict)
+
+        for execution_idx, (execution, results) in enumerate(
+            zip(self.eoexecutor.execution_names, self.eoexecutor.execution_results)
+        ):
+            if not results.error_node_uid:
                 continue
 
-            error_node = workflow_results.stats[workflow_results.error_node_uid]
-            exception_str = pygments.highlight(
-                f"{error_node.exception.__class__.__name__}: {error_node.exception}", lexer, formatter
-            )
-            exception_stats[error_node.node_uid][exception_str] += 1
+            error_node = results.stats[results.error_node_uid]
+            exception_info: ExceptionInfo = error_node.exception_info  # type: ignore[assignment]
+            origin_str = f"<b>{exception_info.exception.__class__.__name__}</b> raised from {exception_info.origin}"
+
+            if origin_str not in exception_stats[error_node.node_uid]:
+                exception_stats[error_node.node_uid][origin_str] = _ErrorSummary(
+                    origin_str, str(exception_info.exception), []
+                )
+
+            exception_stats[error_node.node_uid][origin_str].add_execution(execution_idx, execution)
 
         return self._to_ordered_stats(exception_stats)
 
     def _to_ordered_stats(
-        self, exception_stats: defaultdict[str, defaultdict[str, int]]
-    ) -> list[tuple[str, str, list[tuple[str, int]]]]:
+        self, exception_stats: defaultdict[str, dict[str, _ErrorSummary]]
+    ) -> list[tuple[str, str, list[_ErrorSummary]]]:
         """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
         for the same node get ordered by number of occurrences in a decreasing order.
+
+        Returns tuples of form (name, uid, [_error_summary])
         """
         ordered_exception_stats = []
         for node in self.eoexecutor.workflow.get_nodes():
@@ -128,9 +140,8 @@ class EOExecutorVisualization:
                 continue
 
             node_stats = exception_stats[node.uid]
-            ordered_exception_stats.append(
-                (node.get_name(), node.uid, sorted(node_stats.items(), key=lambda item: -item[1]))
-            )
+            error_summaries = sorted(node_stats.values(), key=lambda summary: -len(summary.failed_indexed_executions))
+            ordered_exception_stats.append((node.get_name(), node.uid, error_summaries))
 
         return ordered_exception_stats
 
@@ -197,7 +208,8 @@ class EOExecutorVisualization:
             if results.workflow_failed() and results.error_node_uid is not None:
                 # second part of above check needed only for typechecking purposes
                 failed_node_stats = results.stats[results.error_node_uid]
-                traceback = pygments.highlight(failed_node_stats.exception_traceback, tb_lexer, formatter)
+                traceback_str = failed_node_stats.exception_info.traceback  # type: ignore[union-attr]
+                traceback = pygments.highlight(traceback_str, tb_lexer, formatter)
             else:
                 traceback = None
 
@@ -223,3 +235,21 @@ class EOExecutorVisualization:
     def _format_timedelta(value1: dt.datetime, value2: dt.datetime) -> str:
         """Method for formatting time delta into report"""
         return str(value2 - value1)
+
+
+@dataclass()
+class _ErrorSummary:
+    """Contains data for errors of a node."""
+
+    origin: str
+    example_message: str
+    failed_indexed_executions: list[tuple[int, str]]
+
+    def add_execution(self, index: int, name: str) -> None:
+        """Adds an execution to the summary."""
+        self.failed_indexed_executions.append((index, name))
+
+    @property
+    def num_failed(self) -> int:
+        """Helps with jinja"""
+        return len(self.failed_indexed_executions)
