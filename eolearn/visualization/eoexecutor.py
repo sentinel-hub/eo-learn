@@ -20,6 +20,7 @@ from typing import Any, cast
 import fs
 import graphviz
 import matplotlib as mpl
+import numpy as np
 import pygments
 import pygments.formatter
 import pygments.lexers
@@ -141,6 +142,16 @@ class EOExecutorVisualization:
             node_name = node.get_name(name_counts[node.get_name()])
             name_counts[node.get_name()] += 1
 
+            node_stats = filter(None, (results.stats.get(node.uid) for results in self.eoexecutor.execution_results))
+            durations = np.array([(stats.end_time - stats.start_time).total_seconds() for stats in node_stats])
+            if len(durations) == 0:
+                duration_report = "unknown"
+            else:
+                duration_report = (
+                    f"Between {np.min(durations):.4g} and {np.max(durations):.4g} seconds,"
+                    f" usually {np.mean(durations):.4g} ± {np.std(durations):.4g} seconds"
+                )
+
             descriptions.append(
                 {
                     "name": f"{node_name} ({node.uid})",
@@ -149,9 +160,9 @@ class EOExecutorVisualization:
                         key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
                         for key, value in node.task.private_task_config.init_args.items()
                     },
+                    "duration_report": duration_report,
                 }
             )
-
         return descriptions
 
     def _render_execution_tracebacks(self, formatter: pygments.formatter.Formatter) -> list:

@@ -140,30 +140,31 @@
         {% endif %}
     </div>
 
-    <h2> EOTasks </h2>
+    <h2> EONodes </h2>
 
     <div class="indent">
 
-        <h3> Initialization parameters </h3>
-
-        <div class="indent">
         {% for task in task_descriptions %}
-            <h4 id="{{ task['uid'] }}"> {{ task['name'] }} </h4>
+            <h3 id="{{ task['uid'] }}"> {{ task['name'] }} </h3>
 
-            {% if  task['args'] %}
-                <ul>
-                    {% for key, value in task['args'].items() %}
-                        <li> <pre> {{ key }} = {{ value }} </pre> </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <div class="indent">
-                    <p>
-                        No initialization parameters
-                    </p>
-                </div>
-            {% endif %}
+            <div class="indent">
+                <b>Execution duration:</b> {{ task['duration_report'] }} <br>
 
+                <h4> Initialization parameters </h4>
+                {% if  task['args'] %}
+                    <ul>
+                        {% for key, value in task['args'].items() %}
+                            <li> <pre> {{ key }} = {{ value }} </pre> </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="indent">
+                        <p>
+                            No initialization parameters
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
         {% endfor %}
         </div>
 
