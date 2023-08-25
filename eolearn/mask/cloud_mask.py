@@ -108,14 +108,6 @@ class CloudMaskTask(EOTask):
 
         self._classifier: ClassifierType | Booster | None = None
 
-    @staticmethod
-    def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
-        """Parses initialization resolution argument"""
-        if isinstance(resolution, (int, float)):
-            resolution = resolution, resolution
-
-        return resolution
-
     @property
     def classifier(self) -> ClassifierType | Booster:
         """An instance of a custom-provided cloud classifier. Loaded only the first time it is required."""
