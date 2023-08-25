@@ -41,18 +41,7 @@ class ClassifierType(Protocol):
 
 
 class CloudMaskTask(EOTask):
-    """Cloud masking with the s2cloudless model. Outputs a cloud mask, while the output of cloud probabilities
-    is optional.
-
-    Example usage:
-    .. code-block:: python
-        task = CloudMaskTask(
-            data_feature = (FeatureType.DATA, 'BANDS'),
-            valid_data_feature = (FeatureType.MASK, 'IS_DATA'),
-            output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
-            output_proba_feature=(FeatureType.DATA, 'CLP_S2C')
-        )
-    """
+    """Cloud masking with the s2cloudless model. Outputs a cloud mask and optionally the cloud probabilities."""
 
     MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
     CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
@@ -75,12 +64,11 @@ class CloudMaskTask(EOTask):
         :param output_proba_feature: The output feature containing cloud probabilities. By default this is not saved.
         :param data_indices: List of indices to use in case of custom input data. Defaults to 10 band indices used in
             s2cloudless '("B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12")'.
-        :param threshold: Cloud probability threshold for the classifier. Defaults to `0.4`.
-        :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
-            A value of `0` skips this post-processing step. Default value mimics the default for
-            s2cloudless: `4`.
-        :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
-            post-processing step. Default value mimics the default for s2cloudless: `2`.
+        :param threshold: Cloud probability threshold for the classifier.
+        :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step. Set to `None`
+            to skip this post-processing step.
+        :param dilation_size: Size of the dilation post-processing step. Set to `None` to skip this post-processing
+            step.
         """
         self.data_feature = self.parse_feature(data_feature)
         self.valid_data_feature = self.parse_feature(valid_data_feature)
