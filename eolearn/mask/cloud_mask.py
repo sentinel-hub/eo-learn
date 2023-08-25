@@ -18,7 +18,7 @@ import numpy as np
 from lightgbm import Booster
 from skimage.morphology import disk
 
-from sentinelhub import BBox, DataCollection, bbox_to_resolution
+from sentinelhub import BBox, bbox_to_resolution
 
 from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
 from eolearn.core.utils.common import _apply_to_spatial_axes
@@ -52,7 +52,7 @@ class CloudMaskTask(EOTask):
         valid_data_feature: tuple[FeatureType, str],
         output_mask_feature: tuple[FeatureType, str],
         output_proba_feature: tuple[FeatureType, str] | None = None,
-        data_indices: list[int] | None = None,
+        all_bands: bool = True,
         threshold: float = 0.4,
         average_over: int | None = 4,
         dilation_size: int | None = 2,
@@ -62,8 +62,8 @@ class CloudMaskTask(EOTask):
         :param valid_data_feature: A mask feature which indicates whether data is valid.
         :param output_mask_feature: The output feature containing cloud masks.
         :param output_proba_feature: The output feature containing cloud probabilities. By default this is not saved.
-        :param data_indices: List of indices to use in case of custom input data. Defaults to 10 band indices used in
-            s2cloudless '("B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12")'.
+        :param all_bands: Flag which indicates whether images will consist of all 13 Sentinel-2 L1C bands or only
+            the required 10.
         :param threshold: Cloud probability threshold for the classifier.
         :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step. Set to `None`
             to skip this post-processing step.
@@ -71,13 +71,8 @@ class CloudMaskTask(EOTask):
             step.
         """
         self.data_feature = self.parse_feature(data_feature)
+        self.data_indices = (0, 1, 3, 4, 7, 8, 9, 10, 11, 12) if all_bands else tuple(range(10))
         self.valid_data_feature = self.parse_feature(valid_data_feature)
-
-        self.data_indices = None
-        if data_indices is None:
-            s2_l1c_bands = [band.name for band in DataCollection.SENTINEL2_L1C.bands]
-            s2_l1c_model_bands = ["B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12"]
-            self.data_indices = [s2_l1c_bands.index(band) for band in s2_l1c_model_bands]
 
         self.output_mask_feature = self.parse_feature(output_mask_feature)
         self.output_proba_feature = None
