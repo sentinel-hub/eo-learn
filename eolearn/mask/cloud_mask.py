@@ -18,7 +18,7 @@ import numpy as np
 from lightgbm import Booster
 from skimage.morphology import disk
 
-from sentinelhub import BBox, bbox_to_resolution
+from sentinelhub import BBox, DataCollection, bbox_to_resolution
 
 from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
 from eolearn.core.utils.common import _apply_to_spatial_axes
@@ -41,6 +41,159 @@ class ClassifierType(Protocol):
 
 
 class CloudMaskTask(EOTask):
+    """Cloud masking with the s2cloudless model. Outputs a cloud mask, while the output of cloud probabilities
+    is optional.
+
+    Example usage:
+    .. code-block:: python
+        task = CloudMaskTask(
+            data_feature = (FeatureType.DATA, 'BANDS'),
+            valid_data_feature = (FeatureType.MASK, 'IS_DATA'),
+            output_mask_feature=(FeatureType.MASK, 'CLM_S2C'),
+            output_proba_feature=(FeatureType.DATA, 'CLP_S2C')
+        )
+    """
+
+    MODELS_FOLDER = os.path.join(os.path.dirname(__file__), "models")
+    CLASSIFIER_NAME = "pixel_s2_cloud_detector_lightGBM_v0.2.txt"
+
+    def __init__(
+        self,
+        data_feature: tuple[FeatureType, str],
+        valid_data_feature: tuple[FeatureType, str],
+        output_mask_feature: tuple[FeatureType, str],
+        output_proba_feature: tuple[FeatureType, str] | None = None,
+        data_indices: list[int] | None = None,
+        threshold: float = 0.4,
+        average_over: int | None = 4,
+        dilation_size: int | None = 2,
+    ):
+        """
+        :param data_feature: A data feature which stores raw Sentinel-2 reflectance bands.
+        :param valid_data_feature: A mask feature which indicates whether data is valid.
+        :param output_mask_feature: The output feature containing cloud masks.
+        :param output_proba_feature: The output feature containing cloud probabilities. By default this is not saved.
+        :param data_indices: List of indices to use in case of custom input data. Defaults to 10 band indices used in
+            s2cloudless '("B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12")'.
+        :param threshold: Cloud probability threshold for the classifier. Defaults to `0.4`.
+        :param average_over: Size of the pixel neighbourhood used in the averaging post-processing step.
+            A value of `0` skips this post-processing step. Default value mimics the default for
+            s2cloudless: `4`.
+        :param dilation_size: Size of the dilation post-processing step. A value of `0` or `None` skips this
+            post-processing step. Default value mimics the default for s2cloudless: `2`.
+        """
+        self.data_feature = self.parse_feature(data_feature)
+        self.valid_data_feature = self.parse_feature(valid_data_feature)
+
+        self.data_indices = None
+        if data_indices is None:
+            s2_l1c_bands = [band.name for band in DataCollection.SENTINEL2_L1C.bands]
+            s2_l1c_model_bands = ["B01", "B02", "B04", "B05", "B08", "B8A", "B09", "B10", "B11", "B12"]
+            self.data_indices = [s2_l1c_bands.index(band) for band in s2_l1c_model_bands]
+
+        self.output_mask_feature = self.parse_feature(output_mask_feature)
+        self.output_proba_feature = None
+        if output_proba_feature is not None:
+            self.output_proba_feature = self.parse_feature(output_proba_feature)
+
+        self.threshold = threshold
+
+        self.avg_kernel = None
+        if average_over is not None and average_over > 0:
+            self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
+
+        self.dil_kernel = None
+        if dilation_size is not None and dilation_size > 0:
+            self.dil_kernel = disk(dilation_size).astype(np.uint8)
+
+        self._classifier: ClassifierType | Booster | None = None
+
+    @staticmethod
+    def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
+        """Parses initialization resolution argument"""
+        if isinstance(resolution, (int, float)):
+            resolution = resolution, resolution
+
+        return resolution
+
+    @property
+    def classifier(self) -> ClassifierType | Booster:
+        """An instance of a custom-provided cloud classifier. Loaded only the first time it is required."""
+        if self._classifier is None:
+            path = os.path.join(self.MODELS_FOLDER, self.CLASSIFIER_NAME)
+            self._classifier = Booster(model_file=path)
+
+        return self._classifier
+
+    @staticmethod
+    def _run_prediction(classifier: ClassifierType | Booster, features: np.ndarray) -> np.ndarray:
+        """Uses classifier object on given data"""
+        is_booster = isinstance(classifier, Booster)
+
+        predict_method = classifier.predict if is_booster else classifier.predict_proba
+        prediction: np.ndarray = execute_with_mp_lock(predict_method, features)
+
+        return prediction if is_booster else prediction[..., 1]
+
+    def _average(self, data: np.ndarray) -> np.ndarray:
+        return cv2.filter2D(data.astype(np.float64), -1, self.avg_kernel, borderType=cv2.BORDER_REFLECT)
+
+    def _dilate(self, data: np.ndarray) -> np.ndarray:
+        return (cv2.dilate(data.astype(np.uint8), self.dil_kernel) > 0).astype(np.uint8)
+
+    def _average_all(self, data: np.ndarray) -> np.ndarray:
+        """Average over each spatial slice of data"""
+        if self.avg_kernel is not None:
+            return _apply_to_spatial_axes(self._average, data, (1, 2))
+
+        return data
+
+    def _dilate_all(self, data: np.ndarray) -> np.ndarray:
+        """Dilate over each spatial slice of data"""
+        if self.dil_kernel is not None:
+            return _apply_to_spatial_axes(self._dilate, data, (1, 2))
+
+        return data
+
+    def _do_single_temporal_cloud_detection(self, bands: np.ndarray) -> np.ndarray:
+        """Performs a cloud detection process on each scene separately"""
+        output_proba = []
+        _, height, width, n_bands = bands.shape
+
+        for img in bands:
+            features = img.reshape(height * width, n_bands)
+            proba = self._run_prediction(self.classifier, features)
+            output_proba.append(proba.reshape(height, width, 1))
+
+        return np.array(output_proba)
+
+    def execute(self, eopatch: EOPatch) -> EOPatch:
+        """Add selected features (cloud probabilities and masks) to an EOPatch instance.
+
+        :param eopatch: Input `EOPatch` instance
+        :return: `EOPatch` with additional features
+        """
+        data = eopatch[self.data_feature][..., self.data_indices].astype(np.float32)
+        valid_data = eopatch[self.valid_data_feature].astype(bool)
+
+        patch_bbox = eopatch.bbox
+        if patch_bbox is None:
+            raise ValueError("Cannot run cloud masking on an EOPatch without a BBox.")
+
+        cloud_proba = self._do_single_temporal_cloud_detection(data)
+
+        # Average over and threshold
+        cloud_mask = self._average_all(cloud_proba) >= self.threshold
+        cloud_mask = self._dilate_all(cloud_mask)
+        eopatch[self.output_mask_feature] = (cloud_mask * valid_data).astype(bool)
+
+        if self.output_proba_feature is not None:
+            eopatch[self.output_proba_feature] = (cloud_proba * valid_data).astype(np.float32)
+
+        return eopatch
+
+
+class _OldCloudMaskTask(EOTask):
     """Cloud masking with an improved s2cloudless model and the SSIM-based multi-temporal classifier.
 
     Its intended output is a cloud mask that is based on the outputs of both
