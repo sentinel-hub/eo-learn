@@ -121,16 +121,6 @@ class EOExecutorVisualization:
 
             exception_stats[error_node.node_uid][origin_str].add_execution(execution_idx, execution)
 
-        return self._to_ordered_stats(exception_stats)
-
-    def _to_ordered_stats(
-        self, exception_stats: defaultdict[str, dict[str, _ErrorSummary]]
-    ) -> list[tuple[str, str, list[_ErrorSummary]]]:
-        """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
-        for the same node get ordered by number of occurrences in a decreasing order.
-
-        Returns tuples of form (name, uid, [_error_summary])
-        """
         ordered_exception_stats = []
         for node in self.eoexecutor.workflow.get_nodes():
             if node.uid not in exception_stats:
