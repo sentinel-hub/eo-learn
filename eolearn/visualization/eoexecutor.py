@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
-import importlib
-import inspect
 import os
 import warnings
 from collections import defaultdict
@@ -22,6 +20,7 @@ from typing import Any, cast
 import fs
 import graphviz
 import matplotlib as mpl
+import numpy as np
 import pygments
 import pygments.formatter
 import pygments.lexers
@@ -81,7 +80,6 @@ class EOExecutorVisualization:
                 general_stats=self.eoexecutor.general_stats,
                 exception_stats=self._get_exception_stats(),
                 task_descriptions=self._get_node_descriptions(),
-                task_sources=self._render_task_sources(formatter),
                 execution_results=self.eoexecutor.execution_results,
                 execution_tracebacks=self._render_execution_tracebacks(formatter),
                 execution_logs=execution_logs,
@@ -124,16 +122,6 @@ class EOExecutorVisualization:
 
             exception_stats[error_node.node_uid][origin_str].add_execution(execution_idx, execution)
 
-        return self._to_ordered_stats(exception_stats)
-
-    def _to_ordered_stats(
-        self, exception_stats: defaultdict[str, dict[str, _ErrorSummary]]
-    ) -> list[tuple[str, str, list[_ErrorSummary]]]:
-        """Exception stats get ordered by nodes in their execution order in workflows. Exception stats that happen
-        for the same node get ordered by number of occurrences in a decreasing order.
-
-        Returns tuples of form (name, uid, [_error_summary])
-        """
         ordered_exception_stats = []
         for node in self.eoexecutor.workflow.get_nodes():
             if node.uid not in exception_stats:
@@ -154,6 +142,16 @@ class EOExecutorVisualization:
             node_name = node.get_name(name_counts[node.get_name()])
             name_counts[node.get_name()] += 1
 
+            node_stats = filter(None, (results.stats.get(node.uid) for results in self.eoexecutor.execution_results))
+            durations = np.array([(stats.end_time - stats.start_time).total_seconds() for stats in node_stats])
+            if len(durations) == 0:
+                duration_report = "unknown"
+            else:
+                duration_report = (
+                    f"Between {np.min(durations):.4g} and {np.max(durations):.4g} seconds,"
+                    f" usually {np.mean(durations):.4g} ± {np.std(durations):.4g} seconds"
+                )
+
             descriptions.append(
                 {
                     "name": f"{node_name} ({node.uid})",
@@ -162,42 +160,10 @@ class EOExecutorVisualization:
                         key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
                         for key, value in node.task.private_task_config.init_args.items()
                     },
+                    "duration_report": duration_report,
                 }
             )
-
         return descriptions
-
-    def _render_task_sources(self, formatter: pygments.formatter.Formatter) -> dict[str, Any]:
-        """Renders source code of EOTasks"""
-        lexer = pygments.lexers.get_lexer_by_name("python", stripall=True)
-        sources = {}
-
-        for node in self.eoexecutor.workflow.get_nodes():
-            task = node.task
-
-            key = f"{task.__class__.__name__} ({task.__module__})"
-            if key in sources:
-                continue
-
-            source: Any
-            if task.__module__.startswith("eolearn"):
-                subpackage_name = ".".join(task.__module__.split(".")[:2])
-                subpackage = importlib.import_module(subpackage_name)
-                subpackage_version = subpackage.__version__ if hasattr(subpackage, "__version__") else "unknown"
-                source = subpackage_name, subpackage_version
-            else:
-                try:
-                    source = inspect.getsource(task.__class__)
-                    source = pygments.highlight(source, lexer, formatter)
-                except (TypeError, OSError):
-                    # Jupyter notebook does not have __file__ method to collect source code
-                    # StackOverflow provides no solutions
-                    # Could be investigated further by looking into Jupyter Notebook source code
-                    source = None
-
-            sources[key] = source
-
-        return sources
 
     def _render_execution_tracebacks(self, formatter: pygments.formatter.Formatter) -> list:
         """Renders stack traces of those executions which failed"""
