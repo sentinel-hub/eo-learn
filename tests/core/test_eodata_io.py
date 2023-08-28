@@ -264,6 +264,17 @@ def test_load_timestamps(eopatch, fs_loader, load_timestamps, features, should_l
         assert (loaded_patch.timestamps is not None) == should_load
 
 
+@pytest.mark.parametrize("features", [..., [FeatureType.DATA_TIMELESS]])
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
+def test_load_timestamps_when_nonexistant(eopatch, features):
+    with TempFS() as temp_fs:
+        eopatch.save("/", filesystem=temp_fs, save_timestamps=False)
+        loaded_patch = EOPatch.load("/", filesystem=temp_fs, features=features, load_timestamps="auto")
+        assert loaded_patch.timestamps is None
+        with pytest.raises(OSError):
+            loaded_patch = EOPatch.load("/", filesystem=temp_fs, features=features, load_timestamps=True)
+
+
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
