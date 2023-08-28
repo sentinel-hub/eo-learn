@@ -24,8 +24,6 @@ import numpy as np
 import pandas as pd
 import shapely.geometry
 
-from eolearn.core.types import Feature
-
 try:
     import meteoblue_dataset_sdk
     from meteoblue_dataset_sdk.caching import FileCache
@@ -38,6 +36,7 @@ from sentinelhub.types import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
+from eolearn.core.types import Feature
 
 
 class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
