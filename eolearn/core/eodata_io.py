@@ -306,15 +306,16 @@ def load_eopatch_content(
     if file_information.bbox is not None:
         bbox = FeatureIOBBox(file_information.bbox, filesystem).load()
 
-    if load_timestamps == "auto":
-        load_timestamps = any(ftype.is_temporal() for ftype, _ in features_dict)
+    auto_load = load_timestamps == "auto" and any(ftype.is_temporal() for ftype, _ in features_dict)
 
     timestamps = None
-    if load_timestamps:
+    if load_timestamps is True or auto_load:
         if maybe_timestamps is not None:
             timestamps = maybe_timestamps
         elif file_information.timestamps is not None:
             timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem, simple_temporal_selection).load()
+        elif load_timestamps is True:  # this means that timestamps were requested but dont exist
+            raise OSError(f"No timestamps found when loading EOPatch at {patch_location} with `load_timestamps=True`.")
 
     return bbox, timestamps, features_dict
 
