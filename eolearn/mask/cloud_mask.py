@@ -22,6 +22,7 @@ from skimage.morphology import disk
 from sentinelhub import BBox, bbox_to_resolution
 
 from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
+from eolearn.core.types import Feature
 from eolearn.core.utils.common import _apply_to_spatial_axes
 
 from .utils import resize_images
@@ -46,10 +47,10 @@ class CloudMaskTask(EOTask):
 
     def __init__(
         self,
-        data_feature: tuple[FeatureType, str],
-        valid_data_feature: tuple[FeatureType, str],
-        output_mask_feature: tuple[FeatureType, str],
-        output_proba_feature: tuple[FeatureType, str] | None = None,
+        data_feature: Feature,
+        valid_data_feature: Feature,
+        output_mask_feature: Feature,
+        output_proba_feature: Feature | None = None,
         all_bands: bool = True,
         threshold: float = 0.4,
         average_over: int | None = 4,
@@ -157,14 +158,14 @@ class _OldCloudMaskTask(EOTask):
 
     def __init__(
         self,
-        data_feature: tuple[FeatureType, str] = (FeatureType.DATA, "BANDS-S2-L1C"),
-        is_data_feature: tuple[FeatureType, str] = (FeatureType.MASK, "IS_DATA"),
+        data_feature: Feature = (FeatureType.DATA, "BANDS-S2-L1C"),
+        is_data_feature: Feature = (FeatureType.MASK, "IS_DATA"),
         all_bands: bool = True,
         processing_resolution: None | float | tuple[float, float] = None,
         max_proc_frames: int = 11,
         mono_features: tuple[str | None, str | None] | None = None,
         multi_features: tuple[str | None, str | None] | None = None,
-        mask_feature: tuple[FeatureType, str] | None = (FeatureType.MASK, "CLM_INTERSSIM"),
+        mask_feature: Feature | None = (FeatureType.MASK, "CLM_INTERSSIM"),
         mono_threshold: float = 0.4,
         multi_threshold: float = 0.5,
         average_over: int | None = 4,

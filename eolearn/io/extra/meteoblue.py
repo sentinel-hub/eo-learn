@@ -35,7 +35,8 @@ from sentinelhub import CRS, BBox, Geometry, parse_time_interval, serialize_time
 from sentinelhub.types import RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask
-from eolearn.core.constants import TIMESTAMP_COLUMN, FeatureType
+from eolearn.core.constants import TIMESTAMP_COLUMN
+from eolearn.core.types import Feature
 
 
 class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
@@ -43,7 +44,7 @@ class BaseMeteoblueTask(EOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         apikey: str,
         query: dict | None = None,
         units: dict | None = None,

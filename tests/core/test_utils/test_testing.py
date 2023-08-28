@@ -11,7 +11,7 @@ from sentinelhub import CRS, BBox
 from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core.constants import FeatureType
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, generate_eopatch
 
@@ -77,7 +77,7 @@ def test_generate_eopatch_seed(seed: int, features: FeaturesSpecification) -> No
 class GenerateTestCase:
     data_features: FeaturesSpecification
     seed: int
-    expected_statistics: dict[tuple[FeatureType, str], dict[str, Any]]
+    expected_statistics: dict[Feature, dict[str, Any]]
 
 
 @pytest.mark.parametrize(

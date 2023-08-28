@@ -27,8 +27,9 @@ else:
 
 
 # DEVELOPER NOTE: the #: comments are applied as docstrings
+Feature: TypeAlias = Tuple[FeatureType, str]
 
-SingleFeatureSpec: TypeAlias = Union[Tuple[FeatureType, str], Tuple[FeatureType, str, str]]
+SingleFeatureSpec: TypeAlias = Union[Feature, Tuple[FeatureType, str, str]]
 
 SequenceFeatureSpec: TypeAlias = Sequence[Union[SingleFeatureSpec, FeatureType, Tuple[FeatureType, EllipsisType]]]
 DictFeatureSpec: TypeAlias = Dict[FeatureType, Union[EllipsisType, Iterable[Union[str, Tuple[str, str]]]]]

@@ -12,8 +12,8 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
-from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import SingleFeatureSpec
+from eolearn.core import EOPatch, EOTask
+from eolearn.core.types import Feature, SingleFeatureSpec
 from eolearn.core.utils.parsing import parse_renamed_feature
 
 
@@ -35,7 +35,7 @@ class ReferenceScenesTask(EOTask):
     def __init__(
         self,
         feature: SingleFeatureSpec,
-        valid_fraction_feature: tuple[FeatureType, str],
+        valid_fraction_feature: Feature,
         max_scene_number: int | None = None,
     ):
         self.renamed_feature = parse_renamed_feature(feature)
@@ -75,8 +75,8 @@ class BaseCompositingTask(EOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        feature_composite: tuple[FeatureType, str],
+        feature: Feature,
+        feature_composite: Feature,
         percentile: int,
         max_index: int = 255,
         interpolation: str = "lower",
@@ -183,8 +183,8 @@ class BlueCompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        feature_composite: tuple[FeatureType, str],
+        feature: Feature,
+        feature_composite: Feature,
         blue_idx: int,
         interpolation: str = "lower",
     ):
@@ -217,8 +217,8 @@ class HOTCompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        feature_composite: tuple[FeatureType, str],
+        feature: Feature,
+        feature_composite: Feature,
         blue_idx: int,
         red_idx: int,
         interpolation: str = "lower",
@@ -249,8 +249,8 @@ class MaxNDVICompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        feature_composite: tuple[FeatureType, str],
+        feature: Feature,
+        feature_composite: Feature,
         red_idx: int,
         nir_idx: int,
         interpolation: str = "lower",
@@ -292,8 +292,8 @@ class MaxNDWICompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        feature_composite: tuple[FeatureType, str],
+        feature: Feature,
+        feature_composite: Feature,
         nir_idx: int,
         swir1_idx: int,
         interpolation: str = "lower",
@@ -327,8 +327,8 @@ class MaxRatioCompositingTask(BaseCompositingTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        feature_composite: tuple[FeatureType, str],
+        feature: Feature,
+        feature_composite: Feature,
         blue_idx: int,
         nir_idx: int,
         swir1_idx: int,
@@ -367,7 +367,7 @@ class HistogramMatchingTask(EOTask):
         Should be of the FeatureType "DATA_TIMELESS".
     """
 
-    def __init__(self, feature: SingleFeatureSpec, reference: tuple[FeatureType, str]):
+    def __init__(self, feature: SingleFeatureSpec, reference: Feature):
         self.renamed_feature = parse_renamed_feature(feature)
         self.reference = self.parse_feature(reference)
 

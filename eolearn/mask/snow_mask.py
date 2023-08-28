@@ -17,6 +17,7 @@ import numpy as np
 from skimage.morphology import binary_dilation, disk
 
 from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.types import Feature
 
 from .utils import resize_images
 
@@ -28,7 +29,7 @@ class BaseSnowMaskTask(EOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        data_feature: tuple[FeatureType, str],
+        data_feature: Feature,
         band_indices: list[int],
         dilation_size: int = 0,
         undefined_value: int = 0,
@@ -64,7 +65,7 @@ class SnowMaskTask(BaseSnowMaskTask):
 
     def __init__(
         self,
-        data_feature: tuple[FeatureType, str],
+        data_feature: Feature,
         band_indices: list[int],
         ndsi_threshold: float = 0.4,
         brightness_threshold: float = 0.3,
@@ -126,10 +127,10 @@ class TheiaSnowMaskTask(BaseSnowMaskTask):
 
     def __init__(
         self,
-        data_feature: tuple[FeatureType, str],
+        data_feature: Feature,
         band_indices: list[int],
-        cloud_mask_feature: tuple[FeatureType, str],
-        dem_feature: tuple[FeatureType, str],
+        cloud_mask_feature: Feature,
+        dem_feature: Feature,
         dem_params: tuple[float, float] = (100, 0.1),
         red_params: tuple[float, float, float, float, float] = (12, 0.3, 0.1, 0.2, 0.040),
         ndsi_params: tuple[float, float, float] = (0.4, 0.15, 0.001),

@@ -14,7 +14,7 @@ from typing import Any
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import FeatureType
+from eolearn.core.types import Feature
 
 from ..geometry_io import _BaseVectorImportTask
 
@@ -26,7 +26,7 @@ class GeoDBVectorImportTask(_BaseVectorImportTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         geodb_client: Any,
         geodb_collection: str,
         geodb_db: str,

@@ -13,7 +13,7 @@ from typing import Callable, Iterable, Literal
 import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType, ZipFeatureTask
-from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import Feature, FeaturesSpecification, SingleFeatureSpec
 from eolearn.core.utils.parsing import parse_renamed_feature
 
 
@@ -23,7 +23,7 @@ class JoinMasksTask(ZipFeatureTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: tuple[FeatureType, str],
+        output_feature: Feature,
         join_operation: Literal["and", "or", "xor"] | Callable = "and",
     ):
         """
@@ -69,7 +69,7 @@ class MaskFeatureTask(EOTask):
     def __init__(
         self,
         feature: SingleFeatureSpec,
-        mask_feature: tuple[FeatureType, str],
+        mask_feature: Feature,
         mask_values: Iterable[int],
         no_data_value: float = np.nan,
     ):

@@ -43,7 +43,7 @@ from eolearn.core import (
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_features
 from eolearn.core.utils.testing import PatchGeneratorConfig, assert_feature_data_equal, generate_eopatch
 
@@ -91,7 +91,7 @@ def test_copy(patch: EOPatch, deep: bool) -> None:
     ],
 )
 @pytest.mark.parametrize("deep", [True, False])
-def test_partial_copy(features: list[tuple[FeatureType, str]], deep: bool, patch: EOPatch) -> None:
+def test_partial_copy(features: list[Feature], deep: bool, patch: EOPatch) -> None:
     patch_copy = CopyTask(features=features, deep=deep)(patch)
 
     assert set(patch_copy.get_features()) == {*features}
@@ -132,7 +132,7 @@ def test_io_task_pickling(filesystem: FS, task_class: type[EOTask]) -> None:
         ((FeatureType.META_INFO, "something_else"), np.random.rand(10, 1)),
     ],
 )
-def test_add_feature(feature: tuple[FeatureType, str], feature_data: Any) -> None:
+def test_add_feature(feature: Feature, feature_data: Any) -> None:
     patch = EOPatch(bbox=DUMMY_BBOX)
     assert feature not in patch
     patch = AddFeatureTask(feature)(patch, feature_data)
@@ -217,7 +217,7 @@ def test_initialize_feature(
     ],
 )
 def test_initialize_feature_with_spec(
-    init_val: float, shape: tuple[FeatureType, str], feature_spec: FeaturesSpecification, patch: EOPatch
+    init_val: float, shape: Feature, feature_spec: FeaturesSpecification, patch: EOPatch
 ) -> None:
     expected_data = init_val * np.ones(patch[shape].shape)
 
@@ -239,7 +239,7 @@ def test_initialize_feature_fails(patch: EOPatch) -> None:
         [(FeatureType.DATA, "bands"), (FeatureType.MASK_TIMELESS, "mask")],
     ],
 )
-def test_move_feature(features: tuple[FeatureType, str], deep: bool, patch: EOPatch) -> None:
+def test_move_feature(features: Feature, deep: bool, patch: EOPatch) -> None:
     patch_dst = MoveFeatureTask(features, deep_copy=deep)(patch, EOPatch(bbox=DUMMY_BBOX, timestamps=patch.timestamps))
 
     for feat in features:
@@ -270,9 +270,7 @@ def test_move_feature(features: tuple[FeatureType, str], deep: bool, patch: EOPa
     ],
 )
 @pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.TemporalDimensionWarning")
-def test_merge_features(
-    axis: int, features_to_merge: list[tuple[FeatureType, str]], feature: tuple[FeatureType, str], patch: EOPatch
-) -> None:
+def test_merge_features(axis: int, features_to_merge: list[Feature], feature: Feature, patch: EOPatch) -> None:
     patch = MergeFeatureTask(features_to_merge, feature, axis=axis)(patch)
     expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
 
@@ -301,7 +299,7 @@ def test_merge_features(
 )
 def test_zip_features(
     input_features: FeaturesSpecification,
-    output_feature: tuple[FeatureType, str],
+    output_feature: Feature,
     zip_function: Callable,
     kwargs: dict[str, Any],
     patch: EOPatch,
@@ -384,7 +382,7 @@ def test_map_features_fails(patch: EOPatch) -> None:
         ((FeatureType.DATA, "bands"), {"axis": -1, "name": "fun_name", "bands": [4, 3, 2]}),
     ],
 )
-def test_map_kwargs_passing(input_feature: tuple[FeatureType, str], kwargs: dict[str, Any], patch: EOPatch) -> None:
+def test_map_kwargs_passing(input_feature: Feature, kwargs: dict[str, Any], patch: EOPatch) -> None:
     def kwargs_map(_, *, some=3, **kwargs) -> tuple:
         return some, kwargs
 
@@ -410,8 +408,8 @@ def test_map_kwargs_passing(input_feature: tuple[FeatureType, str], kwargs: dict
 )
 def test_explode_bands(
     eopatch_to_explode: EOPatch,
-    feature: tuple[FeatureType, str],
-    task_input: dict[tuple[FeatureType, str], int | Iterable[int]],
+    feature: Feature,
+    task_input: dict[Feature, int | Iterable[int]],
 ) -> None:
     patch = ExplodeBandsTask(feature, task_input)(eopatch_to_explode)
     assert all(new_feature in patch for new_feature in task_input)

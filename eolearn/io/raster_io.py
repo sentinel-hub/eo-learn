@@ -30,9 +30,10 @@ from rasterio.windows import Window, from_bounds
 
 from sentinelhub import CRS, BBox, SHConfig, parse_time_interval
 
-from eolearn.core import EOPatch, FeatureType
+from eolearn.core import EOPatch
 from eolearn.core.core_tasks import IOTask
 from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.types import Feature
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
 LOGGER = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         folder: str,
         *,
         filesystem: FS | None = None,
@@ -146,7 +147,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         folder: str,
         *,
         date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
@@ -182,7 +183,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         self.fail_on_missing = fail_on_missing
         self.compress = compress
 
-    def _prepare_image_array(self, eopatch: EOPatch, feature: tuple[FeatureType, str]) -> np.ndarray:
+    def _prepare_image_array(self, eopatch: EOPatch, feature: Feature) -> np.ndarray:
         """Collects a feature from EOPatch and prepares the array of an image which will be rasterized. The resulting
         array has shape (channels, height, width) and is of correct dtype.
         """
@@ -247,7 +248,7 @@ class ExportToTiffTask(BaseRasterIoTask):
 
         raise ValueError(f"Invalid format in {self.date_indices}, expected tuple or list")
 
-    def _set_export_dtype(self, data_array: np.ndarray, feature: tuple[FeatureType, str]) -> np.ndarray:
+    def _set_export_dtype(self, data_array: np.ndarray, feature: Feature) -> np.ndarray:
         """To a given array it sets a dtype in which data will be exported"""
         image_dtype = data_array.dtype if self.image_dtype is None else self.image_dtype
 
@@ -391,7 +392,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         folder: str,
         *,
         use_vsi: bool = False,

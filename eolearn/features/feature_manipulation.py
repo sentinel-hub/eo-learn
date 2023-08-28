@@ -19,9 +19,9 @@ from geopandas import GeoDataFrame
 
 from sentinelhub import bbox_to_dimensions
 
-from eolearn.core import EOPatch, EOTask, FeatureType, MapFeatureTask
+from eolearn.core import EOPatch, EOTask, MapFeatureTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_features
 
 from .utils import ResizeLib, ResizeMethod, ResizeParam, spatially_resize_image
@@ -39,7 +39,7 @@ class SimpleFilterTask(EOTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str] | Literal["timestamps"],
+        feature: Feature | Literal["timestamps"],
         filter_func: Callable[[np.ndarray], bool] | Callable[[dt.datetime], bool],
         filter_features: FeaturesSpecification = ...,
     ):
@@ -49,7 +49,7 @@ class SimpleFilterTask(EOTask):
         :param filter_features: A collection of features which will be filtered into a new EOPatch
         """
         if feature == "timestamps":
-            self.feature: tuple[FeatureType, str] | Literal["timestamps"] = "timestamps"
+            self.feature: Feature | Literal["timestamps"] = "timestamps"
         else:
             self.feature = self.parse_feature(
                 feature, allowed_feature_types=lambda fty: fty.is_temporal() and fty.is_array()
@@ -132,7 +132,7 @@ class ValueFilloutTask(EOTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         operations: Literal["f", "b", "fb", "bf"] = "fb",
         value: float = np.nan,
         axis: int = 0,

@@ -40,7 +40,7 @@ from sentinelhub.exceptions import deprecated_function
 from .constants import FEATURETYPE_DEPRECATION_MSG, TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
 from .exceptions import EODeprecationWarning, TemporalDimensionWarning
-from .types import EllipsisType, FeaturesSpecification
+from .types import EllipsisType, Feature, FeaturesSpecification
 from .utils.common import deep_eq, is_discrete_type
 from .utils.fs import get_filesystem
 from .utils.parsing import parse_features
@@ -394,7 +394,7 @@ class EOPatch:
         else:
             setattr(self, ftype_attr, value)
 
-    def __delitem__(self, feature: FeatureType | tuple[FeatureType, str]) -> None:
+    def __delitem__(self, feature: FeatureType | Feature) -> None:
         """Deletes the selected feature type or feature."""
         if isinstance(feature, tuple):
             feature_type, feature_name = feature
@@ -585,12 +585,12 @@ class EOPatch:
 
         raise ValueError(f"Features of type {feature_type} do not have a spatial dimension or are not arrays.")
 
-    def get_features(self) -> list[tuple[FeatureType, str]]:
+    def get_features(self) -> list[Feature]:
         """Returns a list of all non-empty features of EOPatch.
 
         :return: List of non-empty features
         """
-        feature_list: list[tuple[FeatureType, str]] = []
+        feature_list: list[Feature] = []
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
             removed_ftypes = {FeatureType.BBOX, FeatureType.TIMESTAMPS}  # list comprehensions make ignoring hard
@@ -748,7 +748,7 @@ class EOPatch:
 
     def plot(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         *,
         times: list[int] | slice | None = None,
         channels: list[int] | slice | None = None,
