@@ -297,7 +297,7 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
     eopatch.mask_timeless["mask"] = mask
     eopatch.mask_timeless["Mask"] = mask
 
-    with fs_loader() as temp_fs, pytest.raises(IOError):
+    with fs_loader() as temp_fs, pytest.raises(OSError):
         eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
 
     with fs_loader() as temp_fs:
@@ -309,7 +309,7 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
             use_zarr=use_zarr,
         )
 
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             eopatch.save(
                 "/",
                 filesystem=temp_fs,
@@ -353,7 +353,7 @@ def test_fail_saving_nonexistent_feature(eopatch, fs_loader):
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_fail_loading_nonexistent_feature(fs_loader):
     for features in [[(FeatureType.DATA, "nonexistent")], [(FeatureType.META_INFO, "nonexistent")]]:
-        with fs_loader() as temp_fs, pytest.raises(IOError):
+        with fs_loader() as temp_fs, pytest.raises(OSError):
             EOPatch.load("/", filesystem=temp_fs, features=features)
 
 
@@ -604,7 +604,7 @@ def test_partial_temporal_loading_fails_for_numpy(fs_loader: type[FS], eopatch: 
     with fs_loader() as temp_fs:
         eopatch.save(path="patch-folder", filesystem=temp_fs, use_zarr=False)
 
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=[0])
 
 
@@ -694,7 +694,7 @@ def test_partial_temporal_saving_fails(eopatch: EOPatch):
         io_kwargs = dict(
             path="patch-folder", filesystem=temp_fs, use_zarr=True, overwrite_permission="OVERWRITE_FEATURES"
         )
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             # patch does not exist yet
             eopatch.save(**io_kwargs, temporal_selection=slice(2, None))
 
@@ -721,7 +721,7 @@ def test_partial_temporal_saving_fails(eopatch: EOPatch):
             EOPatch(bbox=eopatch.bbox, timestamps=["2012-01-01"]).save(**io_kwargs, temporal_selection="infer")
 
         EOPatch(bbox=eopatch.bbox).save(path="other-folder", filesystem=temp_fs)
-        with pytest.raises(IOError, match=r"Saved EOPatch does not have timestamps"):
+        with pytest.raises(OSError, match=r"Saved EOPatch does not have timestamps"):
             # no timestamps saved
             eopatch.save(path="other-folder", filesystem=temp_fs, use_zarr=True, temporal_selection="infer")
 

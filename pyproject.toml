@@ -173,7 +173,6 @@ ignore = [
     "B904",  # want `raise ... from None` instead of just `raise ...`
     "B028",  # always demands a stacklevel argument when warning
     "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
-    "UP024", # wants to switch IOError with OSError
 ]
 per-file-ignores = { "__init__.py" = ["F401", "I002"], "conf.py" = ["I002", "FA100"] }
 exclude = [".git", "__pycache__", "build", "dist"]

@@ -179,7 +179,7 @@ def _infer_temporal_selection(
 
     patch_timestamps = eopatch.get_timestamps("Cannot infer temporal selection. EOPatch to be saved has no timestamps.")
     if file_information.timestamps is None:
-        raise IOError("Cannot infer temporal selection. Saved EOPatch does not have timestamps.")
+        raise OSError("Cannot infer temporal selection. Saved EOPatch does not have timestamps.")
     full_timestamps = FeatureIOTimestamps(file_information.timestamps, filesystem).load()
     timestamp_indices = {timestamp: idx for idx, timestamp in enumerate(full_timestamps)}
     if not all(timestamp in timestamp_indices for timestamp in patch_timestamps):
@@ -333,7 +333,7 @@ def _extract_temporal_selection(
         full_timestamps = FeatureIOTimestamps(timestamps_path, filesystem).load()
         simple_selection = temporal_selection(full_timestamps)
         return simple_selection, [timestamp for timestamp, include in zip(full_timestamps, simple_selection) if include]
-    raise IOError(f"Cannot perform loading temporal selection, EOPatch at {patch_location} has no timestamps.")
+    raise OSError(f"Cannot perform loading temporal selection, EOPatch at {patch_location} has no timestamps.")
 
 
 def _load_features(
@@ -362,7 +362,7 @@ def _load_features(
                 features_dict[(ftype, fname)] = _get_feature_io(ftype, path, filesystem, temporal_selection)
         else:
             if ftype not in file_information.features or fname not in file_information.features[ftype]:
-                raise IOError(err_msg.format((ftype, fname)))
+                raise OSError(err_msg.format((ftype, fname)))
             path = file_information.features[ftype][fname]
             features_dict[(ftype, fname)] = _get_feature_io(ftype, path, filesystem, temporal_selection)
     return features_dict
@@ -383,7 +383,7 @@ def _get_feature_io(
             return FeatureIOZarr(path, filesystem, temporal_selection)
         if temporal_selection is None:
             return FeatureIONumpy(path, filesystem)
-        raise IOError(
+        raise OSError(
             f"Cannot perform loading with temporal selection for numpy data at {path}. Resave feature with"
             " `use_zarr=True` to enable loading with temporal selections."
         )
@@ -471,11 +471,11 @@ def _check_letter_case_collisions(eopatch_features: Features, filesystem_feature
     lowercase_features = {_to_lowercase(*feature) for feature in eopatch_features}
 
     if len(lowercase_features) != len(eopatch_features):
-        raise IOError("Some features differ only in casing and cannot be saved in separate files.")
+        raise OSError("Some features differ only in casing and cannot be saved in separate files.")
 
     for feature, _ in filesystem_features.iterate_features():
         if feature not in eopatch_features and _to_lowercase(*feature) in lowercase_features:
-            raise IOError(
+            raise OSError(
                 f"There already exists a feature {feature} in the filesystem that only differs in "
                 "casing from a feature that should be saved."
             )
@@ -776,7 +776,7 @@ class FeatureIOZarr(FeatureIO[np.ndarray]):
                 zarr_shape = (full_size, *data.shape[1:])
                 zarray = zarr.create(zarr_shape, dtype=data.dtype, chunks=chunk_size, store=store)
             else:
-                raise IOError(
+                raise OSError(
                     f"Unable to open Zarr array at {path!r}. Saving with `temporal_selection` requires an initialized"
                     ' zarr array. You can also try saving with `temporal_selection="infer"`.'
                 ) from error
