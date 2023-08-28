@@ -18,6 +18,7 @@ import rasterio.warp
 from sentinelhub import CRS, BBox, GeopediaWmsRequest, MimeType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
+from eolearn.core.types import Feature
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class AddGeopediaFeatureTask(EOTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         layer: str | int,
         theme: str,
         raster_value: dict[str, tuple[float, list[float]]] | float,

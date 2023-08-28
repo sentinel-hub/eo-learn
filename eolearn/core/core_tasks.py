@@ -25,7 +25,7 @@ from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeaturesSpecification
+from .types import EllipsisType, Feature, FeaturesSpecification
 from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
@@ -227,7 +227,7 @@ class LoadTask(IOTask):
 class AddFeatureTask(EOTask):
     """Adds a feature to the given EOPatch."""
 
-    def __init__(self, feature: tuple[FeatureType, str]):
+    def __init__(self, feature: Feature):
         """
         :param feature: Feature to be added
         """
@@ -335,7 +335,7 @@ class InitializeFeatureTask(EOTask):
     def __init__(
         self,
         features: FeaturesSpecification,
-        shape: tuple[int, ...] | tuple[FeatureType, str],
+        shape: tuple[int, ...] | Feature,
         init_value: int = 0,
         dtype: np.dtype | type = np.uint8,
     ):
@@ -530,7 +530,7 @@ class ZipFeatureTask(EOTask):
     def __init__(
         self,
         input_features: FeaturesSpecification,
-        output_feature: tuple[FeatureType, str],
+        output_feature: Feature,
         zip_function: Callable | None = None,
         **kwargs: Any,
     ):
@@ -597,8 +597,8 @@ class ExplodeBandsTask(EOTask):
 
     def __init__(
         self,
-        input_feature: tuple[FeatureType, str],
-        output_mapping: dict[tuple[FeatureType, str], int | Iterable[int]],
+        input_feature: Feature,
+        output_mapping: dict[Feature, int | Iterable[int]],
     ):
         """
         :param input_feature: A source feature from which to take the subset of bands.

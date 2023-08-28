@@ -19,7 +19,7 @@ from sentinelhub import CRS, BBox
 from eolearn.core import EOPatch, FeatureType
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning, TemporalDimensionWarning
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS(3857))
@@ -182,7 +182,7 @@ def test_simplified_feature_operations() -> None:
         (FeatureType.META_INFO, "beep"),
     ],
 )
-def test_delete_existing_feature(feature_to_delete: tuple[FeatureType, str], mini_eopatch: EOPatch) -> None:
+def test_delete_existing_feature(feature_to_delete: Feature, mini_eopatch: EOPatch) -> None:
     old = mini_eopatch.copy(deep=True)
 
     del mini_eopatch[feature_to_delete]
@@ -373,9 +373,7 @@ def eopatch_spatial_dim_fixture() -> EOPatch:
         ((FeatureType.MASK_TIMELESS, "C"), (4, 5)),
     ],
 )
-def test_get_spatial_dimension(
-    feature: tuple[FeatureType, str], expected_dim: tuple[int, int], eopatch_spatial_dim: EOPatch
-) -> None:
+def test_get_spatial_dimension(feature: Feature, expected_dim: tuple[int, int], eopatch_spatial_dim: EOPatch) -> None:
     assert eopatch_spatial_dim.get_spatial_dimension(*feature) == expected_dim
 
 
@@ -396,7 +394,7 @@ def test_get_spatial_dimension(
         (EOPatch(bbox=DUMMY_BBOX), []),
     ],
 )
-def test_get_features(patch: EOPatch, expected_features: list[tuple[FeatureType, str]]) -> None:
+def test_get_features(patch: EOPatch, expected_features: list[Feature]) -> None:
     assert patch.get_features() == expected_features
 
 

@@ -16,6 +16,7 @@ from ..constants import FEATURETYPE_DEPRECATION_MSG, FeatureType
 from ..types import (
     DictFeatureSpec,
     EllipsisType,
+    Feature,
     FeaturesSpecification,
     SequenceFeatureSpec,
     SingleFeatureSpec,
@@ -238,7 +239,7 @@ class FeatureParser:
         """
         return [(ftype, ... if fname is None else fname) for ftype, fname, _ in self._feature_specs]
 
-    def get_features(self, eopatch: EOPatch | None = None) -> list[tuple[FeatureType, str]]:
+    def get_features(self, eopatch: EOPatch | None = None) -> list[Feature]:
         """Returns a list of `(feature_type, feature_name)` pairs.
 
         For features that specify renaming, the new name of the feature is ignored.
@@ -285,7 +286,7 @@ def parse_feature(
     feature: SingleFeatureSpec,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> tuple[FeatureType, str]:
+) -> Feature:
     """Parses input describing a single feature into a `(feature_type, feature_name)` pair.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.
@@ -317,7 +318,7 @@ def parse_features(
     features: FeaturesSpecification,
     eopatch: EOPatch | None = None,
     allowed_feature_types: EllipsisType | Iterable[FeatureType] | Callable[[FeatureType], bool] = ...,
-) -> list[tuple[FeatureType, str]]:
+) -> list[Feature]:
     """Parses input describing features into a list of `(feature_type, feature_name)` pairs.
 
     See :class:`FeatureParser<eolearn.core.utilities.FeatureParser>` for viable inputs.

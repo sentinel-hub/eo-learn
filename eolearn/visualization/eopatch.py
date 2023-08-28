@@ -19,8 +19,9 @@ import numpy as np
 from geopandas import GeoDataFrame
 from pyproj import CRS
 
-from eolearn.core import EOPatch, FeatureType
+from eolearn.core import EOPatch
 from eolearn.core.constants import TIMESTAMP_COLUMN
+from eolearn.core.types import Feature
 from eolearn.core.utils.common import is_discrete_type
 from eolearn.core.utils.parsing import parse_feature
 
@@ -84,7 +85,7 @@ class MatplotlibVisualization:
     def __init__(
         self,
         eopatch: EOPatch,
-        feature: tuple[FeatureType, str],
+        feature: Feature,
         *,
         axes: np.ndarray | None = None,
         config: PlotConfig | None = None,

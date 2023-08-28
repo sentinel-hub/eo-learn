@@ -16,6 +16,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.types import Feature
 from eolearn.features import FilterTimeSeriesTask, LinearFunctionTask, SimpleFilterTask, ValueFilloutTask
 from eolearn.features.feature_manipulation import SpatialResizeTask
 from eolearn.features.utils import ResizeParam
@@ -50,7 +51,7 @@ def test_simple_filter_task_filter_nothing(example_eopatch: EOPatch, feature):
     "invalid_feature",
     [(FeatureType.VECTOR, "foo"), (FeatureType.VECTOR_TIMELESS, "bar"), (FeatureType.MASK_TIMELESS, "foobar")],
 )
-def test_simple_filter_invalid_feature(invalid_feature: tuple[FeatureType, str]):
+def test_simple_filter_invalid_feature(invalid_feature: Feature):
     with pytest.raises(ValueError):
         SimpleFilterTask(invalid_feature, filter_func=lambda _: True)
 

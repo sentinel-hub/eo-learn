@@ -35,7 +35,7 @@ from sentinelhub.evalscript import generate_evalscript, parse_data_collection_ba
 from sentinelhub.types import JsonDict, RawTimeIntervalType
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_feature, parse_renamed_features
 
 LOGGER = logging.getLogger(__name__)
@@ -367,9 +367,9 @@ class SentinelHubInputTask(SentinelHubInputBaseTask):
         data_collection: DataCollection,
         size: tuple[int, int] | None = None,
         resolution: float | tuple[float, float] | None = None,
-        bands_feature: tuple[FeatureType, str] | None = None,
+        bands_feature: Feature | None = None,
         bands: list[str] | None = None,
-        additional_data: list[tuple[FeatureType, str]] | None = None,
+        additional_data: list[Feature] | None = None,
         evalscript: str | None = None,
         maxcc: float | None = None,
         time_difference: dt.timedelta | None = None,
@@ -572,7 +572,7 @@ class SentinelHubDemTask(SentinelHubEvalscriptTask):
 
     def __init__(
         self,
-        feature: None | str | tuple[FeatureType, str] = None,
+        feature: None | str | Feature = None,
         data_collection: DataCollection = DataCollection.DEM,
         **kwargs: Any,
     ):
@@ -637,5 +637,5 @@ class SentinelHubSen2corTask(SentinelHubInputTask):
         if data_collection != DataCollection.SENTINEL2_L2A:
             raise ValueError("Sen2Cor classification layers are only available on Sentinel-2 L2A data.")
 
-        features: list[tuple[FeatureType, str]] = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
+        features: list[Feature] = [(classification_types[s2c], s2c) for s2c in sen2cor_classification]
         super().__init__(additional_data=features, data_collection=data_collection, **kwargs)

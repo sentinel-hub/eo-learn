@@ -16,7 +16,7 @@ import numpy as np
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,10 +36,10 @@ class ECCRegistrationTask(EOTask):
 
     def __init__(
         self,
-        registration_feature: tuple[FeatureType, str],
-        reference_feature: tuple[FeatureType, str],
+        registration_feature: Feature,
+        reference_feature: Feature,
         channel: int,
-        valid_mask_feature: tuple[FeatureType, str] | None = None,
+        valid_mask_feature: Feature | None = None,
         apply_to_features: FeaturesSpecification = ...,
         interpolation_mode: int = cv2.INTER_LINEAR,
         warp_mode: int = cv2.MOTION_TRANSLATION,

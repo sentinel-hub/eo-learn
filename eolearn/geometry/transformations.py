@@ -31,7 +31,7 @@ from sentinelhub import CRS, BBox, bbox_to_dimensions, parse_time
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.exceptions import EORuntimeWarning
-from eolearn.core.types import FeaturesSpecification, SingleFeatureSpec
+from eolearn.core.types import Feature, FeaturesSpecification, SingleFeatureSpec
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,12 +60,12 @@ class VectorToRasterTask(EOTask):
 
     def __init__(
         self,
-        vector_input: GeoDataFrame | tuple[FeatureType, str],
-        raster_feature: tuple[FeatureType, str],
+        vector_input: GeoDataFrame | Feature,
+        raster_feature: Feature,
         *,
         values: None | float | list[float] = None,
         values_column: str | None = None,
-        raster_shape: None | tuple[int, int] | tuple[FeatureType, str] = None,
+        raster_shape: None | tuple[int, int] | Feature = None,
         raster_resolution: None | float | tuple[float, float] = None,
         raster_dtype: np.dtype | type = np.uint8,
         no_data_value: float = 0,
@@ -125,7 +125,7 @@ class VectorToRasterTask(EOTask):
 
     def _parse_main_params(
         self, vector_input: GeoDataFrame | SingleFeatureSpec, raster_feature: SingleFeatureSpec
-    ) -> tuple[GeoDataFrame | tuple[FeatureType, str], tuple[FeatureType, str]]:
+    ) -> tuple[GeoDataFrame | Feature, Feature]:
         """Parsing first 2 parameters - what vector data will be used and in which raster feature it will be saved"""
         if not _is_geopandas_object(vector_input):
             vector_input = self.parse_feature(vector_input, allowed_feature_types=lambda fty: fty.is_vector())

@@ -19,6 +19,7 @@ from sentinelhub.exceptions import deprecated_class
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.exceptions import EODeprecationWarning, EORuntimeWarning
+from eolearn.core.types import Feature
 
 LOGGER = logging.getLogger(__name__)
 
@@ -36,8 +37,8 @@ class SuperpixelSegmentationTask(EOTask):
 
     def __init__(
         self,
-        feature: tuple[FeatureType, str],
-        superpixel_feature: tuple[FeatureType, str],
+        feature: Feature,
+        superpixel_feature: Feature,
         *,
         segmentation_object: Callable = skimage.segmentation.felzenszwalb,
         **segmentation_params: Any,
@@ -94,7 +95,7 @@ class FelzenszwalbSegmentationTask(SuperpixelSegmentationTask):
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.felzenszwalb
     """
 
-    def __init__(self, feature: tuple[FeatureType, str], superpixel_feature: tuple[FeatureType, str], **kwargs: Any):
+    def __init__(self, feature: Feature, superpixel_feature: Feature, **kwargs: Any):
         """Arguments are passed to `SuperpixelSegmentationTask` task"""
         super().__init__(feature, superpixel_feature, segmentation_object=skimage.segmentation.felzenszwalb, **kwargs)
 
@@ -110,7 +111,7 @@ class SlicSegmentationTask(SuperpixelSegmentationTask):
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.slic
     """
 
-    def __init__(self, feature: tuple[FeatureType, str], superpixel_feature: tuple[FeatureType, str], **kwargs: Any):
+    def __init__(self, feature: Feature, superpixel_feature: Feature, **kwargs: Any):
         """Arguments are passed to `SuperpixelSegmentationTask` task"""
         super().__init__(
             feature, superpixel_feature, segmentation_object=skimage.segmentation.slic, start_label=0, **kwargs
@@ -132,7 +133,7 @@ class MarkSegmentationBoundariesTask(EOTask):
     https://scikit-image.org/docs/dev/api/skimage.segmentation.html#skimage.segmentation.mark_boundaries
     """
 
-    def __init__(self, feature: tuple[FeatureType, str], new_feature: tuple[FeatureType, str], **params: Any):
+    def __init__(self, feature: Feature, new_feature: Feature, **params: Any):
         """
         :param feature: Input feature - super-pixel mask
         :param new_feature: Output feature - a new feature where new mask with boundaries will be put

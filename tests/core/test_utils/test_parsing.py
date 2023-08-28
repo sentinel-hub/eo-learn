@@ -6,14 +6,14 @@ from typing import Callable, Iterable
 import pytest
 
 from eolearn.core import EOPatch, FeatureParser, FeatureType
-from eolearn.core.types import EllipsisType, FeaturesSpecification
+from eolearn.core.types import EllipsisType, Feature, FeaturesSpecification
 from eolearn.core.utils.testing import generate_eopatch
 
 
 @dataclass
 class ParserTestCase:
     parser_input: FeaturesSpecification
-    features: list[tuple[FeatureType, str]]
+    features: list[Feature]
     renaming: list[tuple[FeatureType, str, str]]
     specifications: list[tuple[FeatureType, str | EllipsisType]] | None = None
     description: str = ""

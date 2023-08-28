@@ -55,7 +55,7 @@ from sentinelhub.exceptions import SHUserWarning
 
 from .constants import TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .exceptions import EODeprecationWarning
-from .types import EllipsisType, FeaturesSpecification
+from .types import EllipsisType, Feature, FeaturesSpecification
 from .utils.fs import get_full_path, split_all_extensions
 from .utils.parsing import FeatureParser
 
@@ -92,7 +92,7 @@ class FilesystemDataInfo:
     old_meta_info: str | None = None
     features: dict[FeatureType, dict[str, str]] = field(default_factory=lambda: defaultdict(dict))
 
-    def iterate_features(self) -> Iterator[tuple[tuple[FeatureType, str], str]]:
+    def iterate_features(self) -> Iterator[tuple[Feature, str]]:
         """Yields `(ftype, fname), path` tuples from `features`."""
         for ftype, ftype_dict in self.features.items():
             for fname, path in ftype_dict.items():
@@ -342,7 +342,7 @@ def _load_features(
     temporal_selection: None | slice | list[int] | list[bool],
     err_msg: str,
     file_information: FilesystemDataInfo,
-) -> dict[tuple[FeatureType, str], FeatureIO]:
+) -> dict[Feature, FeatureIO]:
     features_dict = {}
     if file_information.old_meta_info is not None and any(ftype is FeatureType.META_INFO for ftype, _ in feature_specs):
         msg = (

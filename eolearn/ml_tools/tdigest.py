@@ -17,7 +17,7 @@ import numpy as np
 import tdigest as td
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.core.types import FeaturesSpecification
+from eolearn.core.types import Feature, FeaturesSpecification
 
 ModeTypes = Union[Literal["standard", "timewise", "monthly", "total"], Callable]
 
@@ -121,8 +121,8 @@ def _is_output_ftype(feature_type: FeatureType, mode: ModeTypes, pixelwise: bool
 
 
 def _looper(
-    in_feature: list[tuple[FeatureType, str]], out_feature: list[tuple[FeatureType, str]], eopatch: EOPatch
-) -> Generator[tuple[tuple[FeatureType, str], tuple[FeatureType, str], np.ndarray], None, None]:
+    in_feature: list[Feature], out_feature: list[Feature], eopatch: EOPatch
+) -> Generator[tuple[Feature, Feature, np.ndarray], None, None]:
     for in_feature_, out_feature_ in zip(in_feature, out_feature):
         shape = np.array(eopatch[in_feature_].shape)
         yield in_feature_, out_feature_, shape

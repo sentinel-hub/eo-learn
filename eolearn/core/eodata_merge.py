@@ -23,7 +23,7 @@ from sentinelhub import BBox
 from .constants import FeatureType
 from .eodata import EOPatch
 from .exceptions import EORuntimeWarning
-from .types import FeaturesSpecification
+from .types import Feature, FeaturesSpecification
 from .utils.parsing import FeatureParser
 
 OperationInputType = Union[Literal[None, "concatenate", "min", "max", "mean", "median"], Callable]
@@ -161,7 +161,7 @@ def _check_if_optimize(eopatches: Sequence[EOPatch], operation_input: OperationI
 
 def _merge_time_dependent_raster_feature(
     eopatches: Sequence[EOPatch],
-    feature: tuple[FeatureType, str],
+    feature: Feature,
     operation: Callable,
     order_mask_per_eopatch: Sequence[np.ndarray],
     optimize: bool,
@@ -204,7 +204,7 @@ def _merge_time_dependent_raster_feature(
 
 def _extract_and_join_time_dependent_feature_values(
     eopatches: Sequence[EOPatch],
-    feature: tuple[FeatureType, str],
+    feature: Feature,
     order_mask_per_eopatch: Sequence[np.ndarray],
     optimize: bool,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -237,9 +237,7 @@ def _is_strictly_increasing(array: np.ndarray) -> bool:
     return (np.diff(array) > 0).all().astype(bool)
 
 
-def _merge_timeless_raster_feature(
-    eopatches: Sequence[EOPatch], feature: tuple[FeatureType, str], operation: Callable
-) -> np.ndarray:
+def _merge_timeless_raster_feature(eopatches: Sequence[EOPatch], feature: Feature, operation: Callable) -> np.ndarray:
     """Merges numpy arrays of a timeless raster feature with a given operation."""
     arrays = _extract_feature_values(eopatches, feature)
 
@@ -255,7 +253,7 @@ def _merge_timeless_raster_feature(
         ) from exception
 
 
-def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: tuple[FeatureType, str]) -> GeoDataFrame:
+def _merge_vector_feature(eopatches: Sequence[EOPatch], feature: Feature) -> GeoDataFrame:
     """Merges GeoDataFrames of a vector feature."""
     dataframes = _extract_feature_values(eopatches, feature)
 
@@ -299,7 +297,7 @@ def _get_common_bbox(eopatches: Sequence[EOPatch]) -> BBox | None:
     raise ValueError("Cannot merge EOPatches because they are defined for different bounding boxes.")
 
 
-def _extract_feature_values(eopatches: Sequence[EOPatch], feature: tuple[FeatureType, str]) -> list[Any]:
+def _extract_feature_values(eopatches: Sequence[EOPatch], feature: Feature) -> list[Any]:
     """A helper function that extracts a feature values from those EOPatches where a feature exists."""
     feature_type, feature_name = feature
     return [eopatch[feature] for eopatch in eopatches if feature_name in eopatch[feature_type]]
