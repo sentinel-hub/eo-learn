@@ -100,11 +100,11 @@ def test_saving_in_empty_folder(eopatch, fs_loader, use_zarr: bool):
             eopatch.save(temp_fs.root_path, use_zarr=use_zarr)
         else:
             eopatch.save("/", filesystem=temp_fs, use_zarr=use_zarr)
-        assert temp_fs.exists(f"/mask_timeless/mask.{'zarr' if use_zarr else 'npy'}")
+        assert temp_fs.exists(f"/mask_timeless/mask.{'zarr' if use_zarr else 'npy.gz'}")
 
         subfolder = "new-subfolder"
         eopatch.save("new-subfolder", filesystem=temp_fs, use_zarr=use_zarr)
-        assert temp_fs.exists(f"/{subfolder}/bbox.geojson")
+        assert temp_fs.exists(f"/{subfolder}/bbox.geojson.gz")
 
 
 @mock_s3
@@ -218,7 +218,7 @@ def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
 def test_bbox_always_saved(eopatch, fs_loader):
     with fs_loader() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA])
-        assert temp_fs.exists("/bbox.geojson")
+        assert temp_fs.exists("/bbox.geojson.gz")
 
 
 @mock_s3
@@ -239,7 +239,7 @@ def test_bbox_always_saved(eopatch, fs_loader):
 def test_save_timestamps(eopatch, fs_loader, save_timestamps, features, should_save):
     with fs_loader() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, features=features, save_timestamps=save_timestamps)
-        assert temp_fs.exists("/timestamps.json") == should_save
+        assert temp_fs.exists("/timestamps.json.gz") == should_save
 
 
 @mock_s3
@@ -477,8 +477,9 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch, use_
         lazy_eopatch.save(
             folder_name, filesystem=temp_fs, overwrite_permission=OverwritePermission.OVERWRITE_PATCH, use_zarr=use_zarr
         )
-        assert temp_fs.exists(fs.path.join(folder_name, "data", f"whatever.{'zarr' if use_zarr else 'npy'}"))
-        assert not temp_fs.exists(fs.path.join(folder_name, "mask_timeless", f"mask.{'zarr' if use_zarr else 'npy'}"))
+        data_extension = "zarr" if use_zarr else "npy.gz"
+        assert temp_fs.exists(fs.path.join(folder_name, "data", f"whatever.{data_extension}"))
+        assert not temp_fs.exists(fs.path.join(folder_name, "mask_timeless", f"mask.{data_extension}"))
 
 
 @pytest.mark.parametrize(
@@ -537,10 +538,10 @@ def test_zarr_and_numpy_overwrite(eopatch):
         assert temp_fs.exists(fs.path.join("data", "data.zarr"))
         eopatch.save("/", filesystem=temp_fs, use_zarr=False, **save_kwargs)
         assert not temp_fs.exists(fs.path.join("data", "data.zarr"))
-        assert temp_fs.exists(fs.path.join("data", "data.npy"))
+        assert temp_fs.exists(fs.path.join("data", "data.npy.gz"))
         eopatch.save("/", filesystem=temp_fs, use_zarr=True, **save_kwargs)
         assert temp_fs.exists(fs.path.join("data", "data.zarr"))
-        assert not temp_fs.exists(fs.path.join("data", "data.npy"))
+        assert not temp_fs.exists(fs.path.join("data", "data.npy.gz"))
 
 
 @pytest.mark.parametrize("zarr_file_exists", [True, False])
@@ -565,7 +566,7 @@ def test_zarr_and_numpy_combined_loading(eopatch):
             overwrite_permission=OverwritePermission.OVERWRITE_FEATURES,
         )
         assert temp_fs.exists("mask_timeless/mask.zarr")
-        assert temp_fs.exists("mask_timeless/mask2.npy")
+        assert temp_fs.exists("mask_timeless/mask2.npy.gz")
         assert EOPatch.load("/", filesystem=temp_fs) == eopatch
 
 
@@ -729,7 +730,7 @@ def test_partial_temporal_saving_fails(eopatch: EOPatch):
 @pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])
 def test_old_style_meta_info(patch_location):
     with TempFS() as temp_fs:
-        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs)
+        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs, compress_level=0)
         meta_info = {"this": ["list"], "something": "else"}
         with temp_fs.open(f"{patch_location}/meta_info.json", "w") as old_style_file:
             json.dump(meta_info, old_style_file)
@@ -739,7 +740,7 @@ def test_old_style_meta_info(patch_location):
         assert dict(loaded_patch.meta_info.items()) == meta_info
 
         loaded_patch.meta_info = {"beep": "boop"}
-        loaded_patch.save(path=patch_location, filesystem=temp_fs)
+        loaded_patch.save(path=patch_location, filesystem=temp_fs, compress_level=0)
         assert not temp_fs.exists(f"{patch_location}/meta_info.json")
         assert temp_fs.exists(f"{patch_location}/meta_info/beep.json")
 

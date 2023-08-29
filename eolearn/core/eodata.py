@@ -604,7 +604,7 @@ class EOPatch:
         path: str,
         features: FeaturesSpecification = ...,
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
-        compress_level: int = 0,
+        compress_level: int = 1,
         filesystem: FS | None = None,
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
