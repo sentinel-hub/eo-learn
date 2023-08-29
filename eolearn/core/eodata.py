@@ -604,7 +604,6 @@ class EOPatch:
         path: str,
         features: FeaturesSpecification = ...,
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
-        compress_level: int = 1,
         filesystem: FS | None = None,
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
@@ -617,8 +616,6 @@ class EOPatch:
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
-        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
-            to 9 (highest compression).
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
         :save_timestamps: Whether to save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
@@ -637,7 +634,6 @@ class EOPatch:
             filesystem,
             path,
             features=features,
-            compress_level=compress_level,
             overwrite_permission=OverwritePermission(overwrite_permission),
             save_timestamps=save_timestamps,
             use_zarr=use_zarr,

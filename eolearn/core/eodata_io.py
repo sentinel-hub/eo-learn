@@ -116,7 +116,6 @@ def save_eopatch(
     features: FeaturesSpecification,
     save_timestamps: bool | Literal["auto"],
     overwrite_permission: OverwritePermission,
-    compress_level: int,
     use_zarr: bool,
     temporal_selection: None | slice | list[int] | Literal["infer"],
 ) -> None:
@@ -144,7 +143,6 @@ def save_eopatch(
             patch_location=patch_location,
             filesystem=filesystem,
             use_zarr=use_zarr,
-            compress_level=compress_level,
             save_timestamps=save_timestamps,
             temporal_selection=_infer_temporal_selection(temporal_selection, filesystem, file_information, eopatch),
         )
@@ -409,9 +407,11 @@ def get_filesystem_data_info(
 
         if object_name == "timestamp":
             warnings.warn(
-                f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
-                " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
-                " update it.",
+                (
+                    f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
+                    " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
+                    " update it."
+                ),
                 category=EODeprecationWarning,
                 stacklevel=2,
             )

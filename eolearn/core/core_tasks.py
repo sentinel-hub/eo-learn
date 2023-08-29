@@ -102,7 +102,6 @@ class SaveTask(IOTask):
         config: SHConfig | None = None,
         features: FeaturesSpecification = ...,
         overwrite_permission: OverwritePermission = OverwritePermission.ADD_ONLY,
-        compress_level: int = 1,
         *,
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
@@ -116,7 +115,6 @@ class SaveTask(IOTask):
         :param features: A collection of features types specifying features of which type will be saved. By default,
             all features will be saved.
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
-        :param compress_level: A level of data compression and can be specified with an integer from 0 (no compression)
             to 9 (highest compression).
         :save_timestamps: Whether to save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
             if `features=...` or if other temporal features are being saved.
@@ -127,7 +125,6 @@ class SaveTask(IOTask):
         """
         self.features = features
         self.overwrite_permission = overwrite_permission
-        self.compress_level = compress_level
         self.use_zarr = use_zarr
         self.temporal_selection = temporal_selection
         self.save_timestamps = save_timestamps
@@ -155,7 +152,6 @@ class SaveTask(IOTask):
             filesystem=self.filesystem,
             features=self.features,
             overwrite_permission=self.overwrite_permission,
-            compress_level=self.compress_level,
             save_timestamps=self.save_timestamps,
             use_zarr=self.use_zarr,
             temporal_selection=temporal_selection,
