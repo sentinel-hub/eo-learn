@@ -418,11 +418,9 @@ def get_filesystem_data_info(
 
         if object_name == "timestamp":
             warnings.warn(
-                (
-                    f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
-                    " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
-                    " update it."
-                ),
+                f"EOPatch at {patch_location} contains the deprecated naming `timestamp` for the `timestamps`"
+                " feature. The old name will no longer be valid in the future. You can re-save the `EOPatch` to"
+                " update it.",
                 category=EODeprecationWarning,
                 stacklevel=2,
             )
