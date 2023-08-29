@@ -621,8 +621,8 @@ class EOPatch:
             to 9 (highest compression).
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :save_timestamps: Whether to save the timestamps of the EOPatch. By default they are saved whenever temporal
-            features are being saved.
+        :save_timestamps: Whether to save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
+            if `features=...` or if other temporal features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
             used for saving data in multiple steps for memory optimization. When set to `"infer"` it will match the
@@ -661,8 +661,8 @@ class EOPatch:
         :param lazy_loading: If `True` features will be lazy loaded.
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :load_timestamps: Whether to load the timestamps of the EOPatch. By default they are loaded whenever temporal
-            features are being loaded.
+        :load_timestamps: Whether to load the timestamps of the EOPatch. With the `"auto"` setting timestamps are loaded
+            if `features=...` or if other temporal features are being loaded.
         :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
             given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
         :return: Loaded EOPatch
