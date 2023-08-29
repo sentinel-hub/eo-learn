@@ -242,6 +242,15 @@ def test_save_timestamps(eopatch, fs_loader, save_timestamps, features, should_s
         assert temp_fs.exists("/timestamps.json.gz") == should_save
 
 
+def test_auto_save_load_timestamps(eopatch):
+    """Saving and loading with default values should process timestamps."""
+    test_patch = EOPatch(bbox=eopatch.bbox, timestamps=eopatch.timestamps)  # no temporal stuff
+    with TempFS() as temp_fs:
+        test_patch.save("/", filesystem=temp_fs)
+        assert temp_fs.exists("/timestamps.json.gz")
+        assert EOPatch.load("/", filesystem=temp_fs).timestamps is not None
+
+
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize(
