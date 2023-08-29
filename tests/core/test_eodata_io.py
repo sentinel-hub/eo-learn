@@ -338,7 +338,7 @@ def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
     with fs_loader() as temp_fs:
         temp_fs.makedir(folder)
 
-        save_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, use_zarr=use_zarr)
+        save_task = SaveTask(folder, filesystem=temp_fs, use_zarr=use_zarr)
         load_task = LoadTask(folder, filesystem=temp_fs, lazy_loading=False)
 
         saved_eop = save_task(eopatch, eopatch_folder=patch_folder)
@@ -411,10 +411,10 @@ def test_cleanup_different_compression(fs_loader, eopatch):
         temp_fs.makedir(folder)
 
         save_compressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES"
+            folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES"
         )
         save_noncompressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES"
+            folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES"
         )
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
         compressed_bbox_path = bbox_path + ".gz"
@@ -445,10 +445,10 @@ def test_cleanup_different_compression_zarr(eopatch):
         temp_fs.makedir(folder)
 
         save_compressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
+            folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
         )
         save_noncompressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
+            folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
         )
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
         compressed_bbox_path = bbox_path + ".gz"
@@ -520,17 +520,16 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch, use_
         (FeatureIOTimestamps, [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]),
     ],
 )
-@pytest.mark.parametrize("compress_level", [0, 1])
-def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int) -> None:
+def test_feature_io(constructor: type[FeatureIO], data: Any) -> None:
     """
     Tests verifying that FeatureIO subclasses correctly save, load, and lazy-load data.
     Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
     """
-    file_extension = constructor.get_file_extension(compress_level=compress_level)
+    file_extension = constructor.get_file_extension(compress_level=1)
     file_name = "name"
     with TempFS("testing_file_sistem") as temp_fs:
         feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
-        constructor.save(data, temp_fs, file_name, compress_level)
+        constructor.save(data, temp_fs, file_name)
         loaded_data = feat_io.load()
         assert_feature_data_equal(loaded_data, data)
 
@@ -739,7 +738,7 @@ def test_partial_temporal_saving_fails(eopatch: EOPatch):
 @pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])
 def test_old_style_meta_info(patch_location):
     with TempFS() as temp_fs:
-        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs, compress_level=0)
+        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs)
         meta_info = {"this": ["list"], "something": "else"}
         with temp_fs.open(f"{patch_location}/meta_info.json", "w") as old_style_file:
             json.dump(meta_info, old_style_file)
@@ -749,7 +748,7 @@ def test_old_style_meta_info(patch_location):
         assert dict(loaded_patch.meta_info.items()) == meta_info
 
         loaded_patch.meta_info = {"beep": "boop"}
-        loaded_patch.save(path=patch_location, filesystem=temp_fs, compress_level=0)
+        loaded_patch.save(path=patch_location, filesystem=temp_fs)
         assert not temp_fs.exists(f"{patch_location}/meta_info.json")
         assert temp_fs.exists(f"{patch_location}/meta_info/beep.json")
 
