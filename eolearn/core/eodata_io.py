@@ -132,7 +132,9 @@ def save_eopatch(
     _check_collisions(overwrite_permission, eopatch_features, file_information)
 
     if save_timestamps == "auto":
-        save_timestamps = any(ftype.is_temporal() for ftype, _ in eopatch_features) and temporal_selection is None
+        save_timestamps = (
+            features is ... or any(ftype.is_temporal() for ftype, _ in eopatch_features)
+        ) and temporal_selection is None
 
     # Data must be collected before any tinkering with files due to lazy-loading
     data_for_saving = list(
@@ -306,7 +308,9 @@ def load_eopatch_content(
     if file_information.bbox is not None:
         bbox = FeatureIOBBox(file_information.bbox, filesystem).load()
 
-    auto_load = load_timestamps == "auto" and any(ftype.is_temporal() for ftype, _ in features_dict)
+    auto_load = load_timestamps == "auto" and (
+        features is ... or any(ftype.is_temporal() for ftype, _ in features_dict)
+    )
 
     timestamps = None
     if load_timestamps is True or auto_load:
