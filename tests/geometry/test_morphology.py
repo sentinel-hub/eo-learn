@@ -28,25 +28,15 @@ def test_erosion_value_error(invalid_input):
 
 
 def test_erosion_full(test_eopatch):
-    mask_before = test_eopatch.mask_timeless["LULC"].copy()
-
     erosion_task = ErosionTask((FeatureType.MASK_TIMELESS, "LULC", "LULC_ERODED"), 1)
     eopatch = erosion_task.execute(test_eopatch)
 
-    mask_after = eopatch.mask_timeless["LULC_ERODED"].copy()
+    mask_after = eopatch.mask_timeless["LULC_ERODED"]
 
-    assert not np.all(mask_before == mask_after)
-
-    for label in CLASSES:
-        if label == 0:
-            assert np.sum(mask_after == label) >= np.sum(mask_before == label), "Error in the erosion process"
-        else:
-            assert np.sum(mask_after == label) <= np.sum(mask_before == label), "Error in the erosion process"
+    assert_array_equal(np.unique(mask_after, return_counts=True)[1], [1942, 6950, 1069, 87, 52])
 
 
 def test_erosion_partial(test_eopatch):
-    mask_before = test_eopatch.mask_timeless["LULC"].copy()
-
     # skip forest and artificial surface
     specific_labels = [0, 1, 3, 4]
     erosion_task = ErosionTask(
@@ -54,17 +44,9 @@ def test_erosion_partial(test_eopatch):
     )
     eopatch = erosion_task.execute(test_eopatch)
 
-    mask_after = eopatch.mask_timeless["LULC_ERODED"].copy()
+    mask_after = eopatch.mask_timeless["LULC_ERODED"]
 
-    assert not np.all(mask_before == mask_after)
-
-    for label in CLASSES:
-        if label == 0:
-            assert np.sum(mask_after == label) >= np.sum(mask_before == label), "Error in the erosion process"
-        elif label in specific_labels:
-            assert np.sum(mask_after == label) <= np.sum(mask_before == label), "Error in the erosion process"
-        else:
-            assert_array_equal(mask_after == label, mask_before == label, err_msg="Error in the erosion process")
+    assert_array_equal(np.unique(mask_after, return_counts=True)[1], [1145, 7601, 1069, 87, 198])
 
 
 @pytest.mark.parametrize("morph_operation", MorphologicalOperations)
