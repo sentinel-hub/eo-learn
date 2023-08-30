@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 from lightgbm import Booster
 from s2cloudless import S2PixelCloudDetector
-from s2cloudless.utils import cv2_disk
+from skimage.morphology import disk
 
 from sentinelhub import BBox, bbox_to_resolution
 
@@ -234,13 +234,15 @@ class _OldCloudMaskTask(EOTask):
         self.mono_threshold = mono_threshold
         self.multi_threshold = multi_threshold
 
-        self.avg_kernel: np.ndarray | None = None
         if average_over is not None and average_over > 0:
-            self.avg_kernel = cv2_disk(average_over) / np.sum(cv2_disk(average_over))
+            self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
+        else:
+            self.avg_kernel = None
 
-        self.dil_kernel: np.ndarray | None = None
         if dilation_size is not None and dilation_size > 0:
-            self.dil_kernel = cv2_disk(dilation_size).astype(np.uint8)
+            self.dil_kernel = disk(dilation_size).astype(np.uint8)
+        else:
+            self.dil_kernel = None
 
     @staticmethod
     def _parse_resolution_arg(resolution: None | float | tuple[float, float]) -> tuple[float, float] | None:
