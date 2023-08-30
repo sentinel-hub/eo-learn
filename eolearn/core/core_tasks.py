@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import datetime as dt
+import warnings
 from abc import ABCMeta
 from typing import Any, Callable, Iterable, Literal, Tuple, Union, cast
 
@@ -106,6 +107,7 @@ class SaveTask(IOTask):
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
         temporal_selection: None | slice | list[int] | Literal["infer"] = None,
+        compress_level: int | None = None,
     ):
         """
         :param path: root path where all EOPatches are saved
@@ -129,6 +131,13 @@ class SaveTask(IOTask):
         self.temporal_selection = temporal_selection
         self.save_timestamps = save_timestamps
         super().__init__(path, filesystem=filesystem, create=True, config=config)
+
+        if compress_level is not None:
+            warnings.warn(
+                "The `compress_level` parameter has been deprecated, data is now compressed by default.",
+                category=EODeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(
         self,

@@ -609,6 +609,7 @@ class EOPatch:
         save_timestamps: bool | Literal["auto"] = "auto",
         use_zarr: bool = False,
         temporal_selection: None | slice | list[int] | Literal["infer"] = None,
+        compress_level: int | None = None,
     ) -> None:
         """Method to save an EOPatch from memory to a storage.
 
@@ -628,6 +629,13 @@ class EOPatch:
         if filesystem is None:
             filesystem = get_filesystem(path, create=True)
             path = "/"
+
+        if compress_level is not None:
+            warnings.warn(
+                "The `compress_level` parameter has been deprecated, data is now compressed by default.",
+                category=EODeprecationWarning,
+                stacklevel=2,
+            )
 
         save_eopatch(
             self,
