@@ -1,5 +1,5 @@
 # eolearn.visualization subpackage
 
-A collection of data visualization utilities.
+The deprecated way to install `eolearn.visualization`. See [migration guide](https://github.com/sentinel-hub/eo-learn/issues/733) on how to correctly install the `eo-learn` package.
 
-For more information about the module visit [readthedocs](https://eo-learn.readthedocs.io/en/latest/reference/eolearn.visualization.html).
+Installs requirements and a dummy package that is detected by `eo-learn` but otherwise does not change anything.
