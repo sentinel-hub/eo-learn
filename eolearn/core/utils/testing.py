@@ -23,7 +23,7 @@ from sentinelhub import CRS, BBox
 
 from ..constants import FeatureType
 from ..eodata import EOPatch
-from ..types import Feature
+from ..types import FeaturesSpecification
 from ..utils.parsing import FeatureParser
 
 DEFAULT_BBOX = BBox((0, 0, 100, 100), crs=CRS("EPSG:32633"))
@@ -46,7 +46,7 @@ class PatchGeneratorConfig:
 
 
 def generate_eopatch(
-    features: list[Feature] | None = None,
+    features: FeaturesSpecification | None = None,
     bbox: BBox = DEFAULT_BBOX,
     timestamps: list[dt.datetime] | None = None,
     seed: int = 42,
