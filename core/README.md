@@ -1,5 +1,5 @@
 # eolearn.core subpackage
 
-The main subpackage which implements basic building blocks (EOPatch, EOTask and EOWorkflow) and commonly used functionalities.
+The deprecated way to install `eolearn.core`. See [migration guide](https://github.com/sentinel-hub/eo-learn/issues/733) on how to correctly install the `eo-learn` package.
 
-For more information about the module visit [readthedocs](https://eo-learn.readthedocs.io/en/latest/reference/eolearn.core.html), or see the [module task index](https://eo-learn.readthedocs.io/en/latest/eotasks.html#core).
+Installs requirements and a dummy package that is detected by `eo-learn` but otherwise does not change anything.
