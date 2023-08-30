@@ -18,7 +18,7 @@ def parse_requirements(file):
 
 
 def get_version():
-    path = os.path.join(os.path.dirname(__file__), "eolearn", "features", "__init__.py")
+    path = os.path.join(os.path.dirname(__file__), "deprecated_eolearn_features", "__init__.py")
     with open(path) as version_file:
         for line in version_file:
             if line.find("__version__") >= 0:
