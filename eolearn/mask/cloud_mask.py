@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 from lightgbm import Booster
 from s2cloudless import S2PixelCloudDetector
-from skimage.morphology import disk
+from s2cloudless.utils import cv2_disk
 
 from sentinelhub import BBox, bbox_to_resolution
 
@@ -79,14 +79,6 @@ class CloudMaskTask(EOTask):
             self.output_proba_feature = self.parse_feature(output_proba_feature)
 
         self.threshold = threshold
-
-        self.avg_kernel = None
-        if average_over is not None and average_over > 0:
-            self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
-
-        self.dil_kernel = None
-        if dilation_size is not None and dilation_size > 0:
-            self.dil_kernel = disk(dilation_size).astype(np.uint8)
 
         self.classifier = S2PixelCloudDetector(
             threshold=threshold, average_over=average_over, dilation_size=dilation_size, all_bands=all_bands
@@ -243,12 +235,12 @@ class _OldCloudMaskTask(EOTask):
         self.multi_threshold = multi_threshold
 
         if average_over is not None and average_over > 0:
-            self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
+            self.avg_kernel = cv2_disk(average_over) / np.sum(cv2_disk(average_over))
         else:
             self.avg_kernel = None
 
         if dilation_size is not None and dilation_size > 0:
-            self.dil_kernel = disk(dilation_size).astype(np.uint8)
+            self.dil_kernel = cv2_disk(dilation_size).astype(np.uint8)
         else:
             self.dil_kernel = None
 
