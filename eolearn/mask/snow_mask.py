@@ -13,8 +13,8 @@ import logging
 from abc import ABCMeta
 from typing import Any
 
+import cv2
 import numpy as np
-from skimage.morphology import binary_dilation, disk
 
 from eolearn.core import EOPatch, EOTask, FeatureType
 from eolearn.core.types import Feature
@@ -43,15 +43,16 @@ class BaseSnowMaskTask(EOTask, metaclass=ABCMeta):
         """
         self.bands_feature = self.parse_feature(data_feature, allowed_feature_types={FeatureType.DATA})
         self.band_indices = band_indices
-        self.dilation_size = dilation_size
+        self.disk_size = 2 * dilation_size + 1
         self.undefined_value = undefined_value
         self.mask_feature = (FeatureType.MASK, mask_name)
 
     def _apply_dilation(self, snow_masks: np.ndarray) -> np.ndarray:
         """Apply binary dilation for each mask in the series"""
-        if self.dilation_size:
-            snow_masks = np.array([binary_dilation(mask, disk(self.dilation_size)) for mask in snow_masks])
-        return snow_masks
+        if self.disk_size > 0:
+            disk = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (self.disk_size, self.disk_size))
+            snow_masks = np.array([cv2.dilate(mask.astype(np.uint8), disk) for mask in snow_masks])
+        return snow_masks.astype(bool)
 
 
 class SnowMaskTask(BaseSnowMaskTask):
