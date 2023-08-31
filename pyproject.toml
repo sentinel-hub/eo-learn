@@ -72,8 +72,8 @@ features = [
     "scikit-learn",
     "scipy",
 ]
-geometry = ["rasterio>=1.2.7", "scikit-image>=0.15.0", "shapely"]
-io = ["affine", "fiona>=1.8.18", "rasterio>=1.2.7"]
+geometry = ["rasterio>=1.2.7, <1.3.8", "scikit-image>=0.15.0", "shapely"]
+io = ["affine", "fiona>=1.8.18", "rasterio>=1.2.7, <1.3.8"]
 geodb = [
     "python-dotenv",
     "xcube-geodb @ git+git://github.com/dcs4cop/xcube-geodb.git",
