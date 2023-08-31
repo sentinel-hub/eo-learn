@@ -333,11 +333,17 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
 def test_compression_deprecation(eopatch, fs_loader, compress_level: int | None):
     folder = "foo-folder"
 
-    with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
-        SaveTask(folder, filesystem=temp_fs, compress_level=compress_level)
+    with warnings.catch_warnings():  # make warnings errors
+        warnings.simplefilter("error")
 
-    with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
-        eopatch.save(folder, filesystem=temp_fs, compress_level=compress_level)
+        with fs_loader() as temp_fs:
+            SaveTask(folder, filesystem=temp_fs)
+
+        with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+            SaveTask(folder, filesystem=temp_fs, compress_level=compress_level)
+
+        with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+            eopatch.save(folder, filesystem=temp_fs, compress_level=compress_level)
 
 
 @mock_s3
@@ -420,23 +426,29 @@ def test_cleanup_different_compression(fs_loader, eopatch):
     folder = "foo-folder"
     patch_folder = "patch-folder"
     with fs_loader() as temp_fs:
+        temp_fs.makedirs(fs.path.join(folder, patch_folder))
         save_task = SaveTask(folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
+
+        # need to manually save uncompressed features
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
+        FeatureIOBBox.save(eopatch.bbox, temp_fs, bbox_path, compress_level=0)
+
         timestamps_path = fs.path.join(folder, patch_folder, "timestamps.json")
+        FeatureIOTimestamps.save(eopatch.timestamps, temp_fs, timestamps_path, compress_level=0)
 
-        # need to manually save uncompressed feature
         ftype, fname = (FeatureType.MASK_TIMELESS, "mask")
-        ftype_path = fs.path.join(folder, patch_folder, ftype.value)
-        temp_fs.makedirs(ftype_path)
-        feature_io = FeatureIONumpy(os.path.join(ftype_path, fname + ".npy"), filesystem=temp_fs)
-        feature_io.save(eopatch[(ftype, fname)], temp_fs, os.path.join(ftype_path, fname), compress_level=0)
+        temp_fs.makedir(fs.path.join(folder, patch_folder, ftype.value))
+        mask_timeless_path = fs.path.join(folder, patch_folder, ftype.value, f"{fname}.npy")
+        FeatureIONumpy.save(eopatch[(ftype, fname)], temp_fs, mask_timeless_path, compress_level=0)
 
-        # re-save compressed and check cleanup
+        # re-save compressed and check cleanup, bbox and timestamps are not compressed
         save_task(eopatch, eopatch_folder=patch_folder)
         assert temp_fs.exists(bbox_path)
         assert temp_fs.exists(timestamps_path)
-        assert temp_fs.exists(os.path.join(ftype_path, fname) + ".npy.gz")
-        assert not temp_fs.exists(os.path.join(ftype_path, fname) + ".npy")
+        assert temp_fs.exists(mask_timeless_path + ".gz")
+        assert not temp_fs.exists(bbox_path + ".gz")
+        assert not temp_fs.exists(timestamps_path + ".gz")
+        assert not temp_fs.exists(mask_timeless_path)
 
 
 @mock_s3
@@ -490,16 +502,17 @@ def test_lazy_loading_plus_overwrite_patch(fs_loader, folder_name, eopatch, use_
         (FeatureIOTimestamps, [datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.datetime(2017, 1, 4, 10, 14, 5)]),
     ],
 )
-def test_feature_io(constructor: type[FeatureIO], data: Any) -> None:
+@pytest.mark.parametrize("compress_level", [0, 1])
+def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int) -> None:
     """
     Tests verifying that FeatureIO subclasses correctly save, load, and lazy-load data.
     Test cases do not include subfolders, because subfolder management is currently done by the `save_eopatch` function.
     """
-    file_extension = constructor.get_file_extension(compress_level=1)
+    file_extension = constructor.get_file_extension(compress_level=compress_level)
     file_name = "name"
     with TempFS("testing_file_sistem") as temp_fs:
         feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
-        constructor.save(data, temp_fs, file_name, compress_level=1)
+        constructor.save(data, temp_fs, file_name, compress_level=compress_level)
         loaded_data = feat_io.load()
         assert_feature_data_equal(loaded_data, data)
 
