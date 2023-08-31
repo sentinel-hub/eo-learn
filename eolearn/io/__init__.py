@@ -12,5 +12,3 @@ from .sentinelhub_process import (
     SentinelHubSen2corTask,
     get_available_timestamps,
 )
-
-__version__ = "1.4.2"

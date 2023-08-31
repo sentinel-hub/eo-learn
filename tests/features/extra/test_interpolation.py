@@ -16,7 +16,7 @@ import scipy.interpolate
 from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.features import (
+from eolearn.features.extra.interpolation import (
     InterpolationTask,
     KrigingInterpolationTask,
     LinearInterpolationTask,

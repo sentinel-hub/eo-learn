@@ -59,15 +59,15 @@ dependencies = [
 all = [
     "eo-learn[COREGISTRATION,FEATURES,GEOMETRY,IO,MASK,MLTOOLS,VISUALIZATION]",
 ]
-full = ["eo-learn[ALL,RAY,ZARR,METEOBLUE,TDIGEST]"]
+full = ["eo-learn[ALL,RAY,ZARR,METEOBLUE,TDIGEST,FEATURES_EXTRA,MASK_EXTRA]"]
 ray = ["ray[default]"]
 zarr = ["s3fs", "zarr"]
 coregistration = [
     "opencv-python-headless",
-] # using headless version of opencv, otherwise gitlab runners fail
-features = [
+] # using headless, otherwise gitlab runners fail
+features = ["opencv-python-headless"]
+features_extra = [
     "numba>=0.53.0",
-    "opencv-python-headless",
     "scikit-image>=0.19.0",
     "scikit-learn",
     "scipy",
@@ -79,7 +79,8 @@ geodb = [
     "xcube-geodb @ git+git://github.com/dcs4cop/xcube-geodb.git",
 ]
 meteoblue = ["meteoblue_dataset_sdk>=1,<2"]
-mask = ["lightgbm>=2.0.11, <4", "opencv-python-headless", "s2cloudless", "scikit-image>=0.13.0"]
+mask = ["opencv-python-headless"]
+mask_extra = ["lightgbm>=2.0.11, <4", "s2cloudless", "scikit-image>=0.13.0"]
 mltools = ["shapely"]
 tdigest = ["tdigest==0.5.2.2"]
 mltoolsplotting = ["matplotlib"]
@@ -174,7 +175,13 @@ ignore = [
     "B028",  # always demands a stacklevel argument when warning
     "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
 ]
-per-file-ignores = { "__init__.py" = ["F401", "I002"], "conf.py" = ["I002", "FA100"] }
+per-file-ignores = { "__init__.py" = [
+    "F401",
+    "I002",
+], "conf.py" = [
+    "I002",
+    "FA100",
+] }
 exclude = [".git", "__pycache__", "build", "dist"]
 
 

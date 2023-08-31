@@ -11,8 +11,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from eolearn.core import FeatureType
-from eolearn.mask import CloudMaskTask
-from eolearn.mask.cloud_mask import _get_window_indices, _OldCloudMaskTask
+from eolearn.mask.extra.cloud_mask import CloudMaskTask, _get_window_indices, _OldCloudMaskTask
 
 
 @pytest.mark.parametrize(

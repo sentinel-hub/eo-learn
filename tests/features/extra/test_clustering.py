@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from eolearn.core import FeatureType
-from eolearn.features import ClusteringTask
+from eolearn.features.extra.clustering import ClusteringTask
 
 logging.basicConfig(level=logging.DEBUG)
 
