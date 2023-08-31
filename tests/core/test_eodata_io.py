@@ -441,6 +441,9 @@ def test_cleanup_different_compression(fs_loader, eopatch):
         mask_timeless_path = fs.path.join(folder, patch_folder, ftype.value, f"{fname}.npy")
         FeatureIONumpy.save(eopatch[(ftype, fname)], temp_fs, mask_timeless_path, compress_level=0)
 
+        # test EOPatch load of uncompressed features
+        EOPatch.load(fs.path.join(folder, patch_folder), filesystem=temp_fs)
+
         # re-save compressed and check cleanup, bbox and timestamps are not compressed
         save_task(eopatch, eopatch_folder=patch_folder)
         assert temp_fs.exists(bbox_path)
