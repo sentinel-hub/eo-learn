@@ -116,7 +116,6 @@ def save_eopatch(
     features: FeaturesSpecification,
     save_timestamps: bool | Literal["auto"],
     overwrite_permission: OverwritePermission,
-    compress_level: int,
     use_zarr: bool,
     temporal_selection: None | slice | list[int] | Literal["infer"],
 ) -> None:
@@ -144,7 +143,6 @@ def save_eopatch(
             patch_location=patch_location,
             filesystem=filesystem,
             use_zarr=use_zarr,
-            compress_level=compress_level,
             save_timestamps=save_timestamps,
             temporal_selection=_infer_temporal_selection(temporal_selection, filesystem, file_information, eopatch),
         )
@@ -203,7 +201,6 @@ def _yield_savers(
     features: Features,
     patch_location: str,
     filesystem: FS,
-    compress_level: int,
     save_timestamps: bool,
     use_zarr: bool,
     temporal_selection: TemporalSelection,
@@ -213,20 +210,32 @@ def _yield_savers(
 
     if eopatch.bbox is not None:  # remove after BBox is never None
         bbox: BBox = eopatch.bbox  # mypy has problems
-        yield partial(FeatureIOBBox.save, bbox, filesystem, get_file_path(BBOX_FILENAME), compress_level)
+        yield partial(
+            FeatureIOBBox.save,
+            data=bbox,
+            filesystem=filesystem,
+            feature_path=get_file_path(BBOX_FILENAME),
+            compress_level=0,
+        )
 
     if eopatch.timestamps is not None and save_timestamps:
         path = get_file_path(TIMESTAMPS_FILENAME)
-        yield partial(FeatureIOTimestamps.save, eopatch.timestamps, filesystem, path, compress_level)
+        yield partial(
+            FeatureIOTimestamps.save,
+            data=eopatch.timestamps,
+            filesystem=filesystem,
+            feature_path=path,
+            compress_level=0,
+        )
 
     for ftype, fname in features:
         io_constructor = _get_feature_io_constructor(ftype, use_zarr)
         feature_saver = partial(
             io_constructor.save,
-            compress_level=compress_level,
-            filesystem=filesystem,
             data=eopatch[ftype, fname],
+            filesystem=filesystem,
             feature_path=get_file_path(ftype.value, fname),
+            compress_level=1,
         )
 
         if ftype.is_temporal() and issubclass(io_constructor, FeatureIOZarr):

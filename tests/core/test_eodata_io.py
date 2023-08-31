@@ -7,7 +7,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import datetime
-import json
 import os
 import sys
 import warnings
@@ -104,7 +103,7 @@ def test_saving_in_empty_folder(eopatch, fs_loader, use_zarr: bool):
 
         subfolder = "new-subfolder"
         eopatch.save("new-subfolder", filesystem=temp_fs, use_zarr=use_zarr)
-        assert temp_fs.exists(f"/{subfolder}/bbox.geojson.gz")
+        assert temp_fs.exists(f"/{subfolder}/bbox.geojson")
 
 
 @mock_s3
@@ -218,7 +217,7 @@ def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
 def test_bbox_always_saved(eopatch, fs_loader):
     with fs_loader() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, features=[FeatureType.DATA])
-        assert temp_fs.exists("/bbox.geojson.gz")
+        assert temp_fs.exists("/bbox.geojson")
 
 
 @mock_s3
@@ -239,7 +238,7 @@ def test_bbox_always_saved(eopatch, fs_loader):
 def test_save_timestamps(eopatch, fs_loader, save_timestamps, features, should_save):
     with fs_loader() as temp_fs:
         eopatch.save("/", filesystem=temp_fs, features=features, save_timestamps=save_timestamps)
-        assert temp_fs.exists("/timestamps.json.gz") == should_save
+        assert temp_fs.exists("/timestamps.json") == should_save
 
 
 def test_auto_save_load_timestamps(eopatch):
@@ -247,7 +246,7 @@ def test_auto_save_load_timestamps(eopatch):
     test_patch = EOPatch(bbox=eopatch.bbox, timestamps=eopatch.timestamps)  # no temporal stuff
     with TempFS() as temp_fs:
         test_patch.save("/", filesystem=temp_fs)
-        assert temp_fs.exists("/timestamps.json.gz")
+        assert temp_fs.exists("/timestamps.json")
         assert EOPatch.load("/", filesystem=temp_fs).timestamps is not None
 
 
@@ -330,6 +329,25 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("compress_level", [0, 1])
+def test_compression_deprecation(eopatch, fs_loader, compress_level: int | None):
+    folder = "foo-folder"
+
+    with warnings.catch_warnings():  # make warnings errors
+        warnings.simplefilter("error")
+
+        with fs_loader() as temp_fs:
+            SaveTask(folder, filesystem=temp_fs)
+
+        with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+            SaveTask(folder, filesystem=temp_fs, compress_level=compress_level)
+
+        with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+            eopatch.save(folder, filesystem=temp_fs, compress_level=compress_level)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
     _skip_when_appropriate(fs_loader, use_zarr)
@@ -338,11 +356,11 @@ def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
     with fs_loader() as temp_fs:
         temp_fs.makedir(folder)
 
-        save_task = SaveTask(folder, filesystem=temp_fs, compress_level=9, use_zarr=use_zarr)
+        save_task = SaveTask(folder, filesystem=temp_fs, use_zarr=use_zarr)
         load_task = LoadTask(folder, filesystem=temp_fs, lazy_loading=False)
 
         saved_eop = save_task(eopatch, eopatch_folder=patch_folder)
-        bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson.gz")
+        bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
         assert temp_fs.exists(bbox_path)
         assert saved_eop == eopatch
 
@@ -408,65 +426,32 @@ def test_cleanup_different_compression(fs_loader, eopatch):
     folder = "foo-folder"
     patch_folder = "patch-folder"
     with fs_loader() as temp_fs:
-        temp_fs.makedir(folder)
+        temp_fs.makedirs(fs.path.join(folder, patch_folder))
+        save_task = SaveTask(folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
 
-        save_compressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES"
-        )
-        save_noncompressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES"
-        )
+        # need to manually save uncompressed features
         bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
-        compressed_bbox_path = bbox_path + ".gz"
-        mask_timeless_path = fs.path.join(folder, patch_folder, "mask_timeless", "mask.npy")
-        compressed_mask_timeless_path = mask_timeless_path + ".gz"
+        FeatureIOBBox.save(eopatch.bbox, temp_fs, bbox_path, compress_level=0)
 
-        save_compressed_task(eopatch, eopatch_folder=patch_folder)
-        save_noncompressed_task(eopatch, eopatch_folder=patch_folder)
+        timestamps_path = fs.path.join(folder, patch_folder, "timestamps.json")
+        FeatureIOTimestamps.save(eopatch.timestamps, temp_fs, timestamps_path, compress_level=0)
+
+        ftype, fname = (FeatureType.MASK_TIMELESS, "mask")
+        temp_fs.makedir(fs.path.join(folder, patch_folder, ftype.value))
+        mask_timeless_path = fs.path.join(folder, patch_folder, ftype.value, f"{fname}.npy")
+        FeatureIONumpy.save(eopatch[(ftype, fname)], temp_fs, mask_timeless_path, compress_level=0)
+
+        # test EOPatch load of uncompressed features
+        EOPatch.load(fs.path.join(folder, patch_folder), filesystem=temp_fs)
+
+        # re-save compressed and check cleanup, bbox and timestamps are not compressed
+        save_task(eopatch, eopatch_folder=patch_folder)
         assert temp_fs.exists(bbox_path)
-        assert temp_fs.exists(mask_timeless_path)
-        assert not temp_fs.exists(compressed_bbox_path)
-        assert not temp_fs.exists(compressed_mask_timeless_path)
-
-        save_compressed_task(eopatch, eopatch_folder=patch_folder)
-        assert not temp_fs.exists(bbox_path)
+        assert temp_fs.exists(timestamps_path)
+        assert temp_fs.exists(mask_timeless_path + ".gz")
+        assert not temp_fs.exists(bbox_path + ".gz")
+        assert not temp_fs.exists(timestamps_path + ".gz")
         assert not temp_fs.exists(mask_timeless_path)
-        assert temp_fs.exists(compressed_bbox_path)
-        assert temp_fs.exists(compressed_mask_timeless_path)
-
-
-def test_cleanup_different_compression_zarr(eopatch):
-    # zarr and moto dont work atm anyway
-    # slightly different than regular one, since zarr does not use gzip to compress itself
-    _skip_when_appropriate(None, True)
-    folder = "foo-folder"
-    patch_folder = "patch-folder"
-    with TempFS() as temp_fs:
-        temp_fs.makedir(folder)
-
-        save_compressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=9, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
-        )
-        save_noncompressed_task = SaveTask(
-            folder, filesystem=temp_fs, compress_level=0, overwrite_permission="OVERWRITE_FEATURES", use_zarr=True
-        )
-        bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
-        compressed_bbox_path = bbox_path + ".gz"
-        mask_timeless_path = fs.path.join(folder, patch_folder, "mask_timeless", "mask.zarr")
-        wrong_compressed_mask_timeless_path = mask_timeless_path + ".gz"
-
-        save_compressed_task(eopatch, eopatch_folder=patch_folder)
-        save_noncompressed_task(eopatch, eopatch_folder=patch_folder)
-        assert temp_fs.exists(bbox_path)
-        assert temp_fs.exists(mask_timeless_path)
-        assert not temp_fs.exists(compressed_bbox_path)
-        assert not temp_fs.exists(wrong_compressed_mask_timeless_path)
-
-        save_compressed_task(eopatch, eopatch_folder=patch_folder)
-        assert not temp_fs.exists(bbox_path)
-        assert temp_fs.exists(mask_timeless_path)
-        assert temp_fs.exists(compressed_bbox_path)
-        assert not temp_fs.exists(wrong_compressed_mask_timeless_path)
 
 
 @mock_s3
@@ -530,7 +515,7 @@ def test_feature_io(constructor: type[FeatureIO], data: Any, compress_level: int
     file_name = "name"
     with TempFS("testing_file_sistem") as temp_fs:
         feat_io = constructor(file_name + file_extension, filesystem=temp_fs)
-        constructor.save(data, temp_fs, file_name, compress_level)
+        constructor.save(data, temp_fs, file_name, compress_level=compress_level)
         loaded_data = feat_io.load()
         assert_feature_data_equal(loaded_data, data)
 
@@ -739,19 +724,20 @@ def test_partial_temporal_saving_fails(eopatch: EOPatch):
 @pytest.mark.parametrize("patch_location", [".", "patch-folder", "some/long/path"])
 def test_old_style_meta_info(patch_location):
     with TempFS() as temp_fs:
-        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs, compress_level=0)
+        EOPatch(bbox=DUMMY_BBOX).save(path=patch_location, filesystem=temp_fs)
         meta_info = {"this": ["list"], "something": "else"}
-        with temp_fs.open(f"{patch_location}/meta_info.json", "w") as old_style_file:
-            json.dump(meta_info, old_style_file)
+        file_name, file_extension = f"{patch_location}/meta_info", ".json.gz"
+        old_style_io = FeatureIOJson(file_name + file_extension, filesystem=temp_fs)
+        old_style_io.save(meta_info, temp_fs, file_name, compress_level=1)
 
         with pytest.warns(EODeprecationWarning):
             loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
         assert dict(loaded_patch.meta_info.items()) == meta_info
 
         loaded_patch.meta_info = {"beep": "boop"}
-        loaded_patch.save(path=patch_location, filesystem=temp_fs, compress_level=0)
-        assert not temp_fs.exists(f"{patch_location}/meta_info.json")
-        assert temp_fs.exists(f"{patch_location}/meta_info/beep.json")
+        loaded_patch.save(path=patch_location, filesystem=temp_fs)
+        assert not temp_fs.exists(f"{patch_location}/meta_info.json.gz")
+        assert temp_fs.exists(f"{patch_location}/meta_info/beep.json.gz")
 
         loaded_patch = EOPatch.load(path=patch_location, filesystem=temp_fs)
         assert dict(loaded_patch.meta_info.items()) == {"beep": "boop"}
