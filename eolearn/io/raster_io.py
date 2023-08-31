@@ -13,7 +13,7 @@ import functools
 import logging
 import warnings
 from abc import ABCMeta
-from typing import Any, BinaryIO
+from typing import BinaryIO
 
 import fs
 import numpy as np
@@ -155,7 +155,10 @@ class ExportToTiffTask(BaseRasterIoTask):
         crs: CRS | int | str | None = None,
         fail_on_missing: bool = True,
         compress: str | None = None,
-        **kwargs: Any,
+        filesystem: FS | None = None,
+        image_dtype: np.dtype | type | None = None,
+        no_data_value: float | None = None,
+        config: SHConfig | None = None,
     ):
         """
         :param feature: A feature to be exported.
@@ -173,9 +176,22 @@ class ExportToTiffTask(BaseRasterIoTask):
         :param fail_on_missing: A flag to specify if the task should fail if a feature is missing or if it should
             just show a warning.
         :param compress: A type of compression that rasterio should apply to an exported image.
-        :param kwargs: Keyword arguments to be propagated to `BaseRasterIoTask`.
+        :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
+        :param image_dtype: A data type of data in exported images or data imported from images.
+        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
+            When importing this value is assigned to the pixels with NoData.
+        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
+            default configuration will be taken.
         """
-        super().__init__(feature, folder=folder, create=True, **kwargs)
+        super().__init__(
+            feature,
+            folder=folder,
+            create=True,
+            filesystem=filesystem,
+            image_dtype=image_dtype,
+            no_data_value=no_data_value,
+            config=config,
+        )
 
         self.date_indices = date_indices
         self.band_indices = band_indices
@@ -397,7 +413,10 @@ class ImportFromTiffTask(BaseRasterIoTask):
         *,
         use_vsi: bool = False,
         timestamp_size: int | None = None,
-        **kwargs: Any,
+        filesystem: FS | None = None,
+        image_dtype: np.dtype | type | None = None,
+        no_data_value: float | None = None,
+        config: SHConfig | None = None,
     ):
         """
         :param feature: EOPatch feature into which data will be imported
@@ -413,9 +432,21 @@ class ImportFromTiffTask(BaseRasterIoTask):
             channels of given tiff image should be in order
             T(1)B(1), T(1)B(2), ..., T(1)B(N), T(2)B(1), T(2)B(2), ..., T(2)B(N), ..., ..., T(M)B(N)
             where T and B are the time and band indices.
-        :param kwargs: Keyword arguments to be propagated to `BaseRasterIoTask`.
+        :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
+        :param image_dtype: A data type of data in exported images or data imported from images.
+        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
+            When importing this value is assigned to the pixels with NoData.
+        :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
+            default configuration will be taken.
         """
-        super().__init__(feature, folder=folder, **kwargs)
+        super().__init__(
+            feature,
+            folder=folder,
+            filesystem=filesystem,
+            image_dtype=image_dtype,
+            no_data_value=no_data_value,
+            config=config,
+        )
 
         self.use_vsi = use_vsi
         self.timestamp_size = timestamp_size
