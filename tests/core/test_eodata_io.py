@@ -416,6 +416,31 @@ def test_nonexistent_location(fs_loader, use_zarr: bool):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+def test_cleanup_different_compression(fs_loader, eopatch):
+    folder = "foo-folder"
+    patch_folder = "patch-folder"
+    with fs_loader() as temp_fs:
+        save_task = SaveTask(folder, filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
+        bbox_path = fs.path.join(folder, patch_folder, "bbox.geojson")
+        timestamps_path = fs.path.join(folder, patch_folder, "timestamps.json")
+
+        # need to manually save uncompressed feature
+        ftype, fname = (FeatureType.MASK_TIMELESS, "mask")
+        ftype_path = fs.path.join(folder, patch_folder, ftype.value)
+        temp_fs.makedirs(ftype_path)
+        feature_io = FeatureIONumpy(os.path.join(ftype_path, fname + ".npy"), filesystem=temp_fs)
+        feature_io.save(eopatch[(ftype, fname)], temp_fs, os.path.join(ftype_path, fname), compress_level=0)
+
+        # re-save compressed and check cleanup
+        save_task(eopatch, eopatch_folder=patch_folder)
+        assert temp_fs.exists(bbox_path)
+        assert temp_fs.exists(timestamps_path)
+        assert temp_fs.exists(os.path.join(ftype_path, fname) + ".npy.gz")
+        assert not temp_fs.exists(os.path.join(ftype_path, fname) + ".npy")
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize("folder_name", ["/", "foo", "foo/bar"])
 @pytest.mark.usefixtures("_silence_warnings")
