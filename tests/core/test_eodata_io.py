@@ -329,6 +329,19 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
 
 @mock_s3
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
+@pytest.mark.parametrize("compress_level", [0, 1])
+def test_compression_deprecation(eopatch, fs_loader, compress_level: int | None):
+    folder = "foo-folder"
+
+    with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+        SaveTask(folder, filesystem=temp_fs, compress_level=compress_level)
+
+    with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+        eopatch.save(folder, filesystem=temp_fs, compress_level=compress_level)
+
+
+@mock_s3
+@pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
     _skip_when_appropriate(fs_loader, use_zarr)
