@@ -59,7 +59,7 @@ dependencies = [
 all = [
     "eo-learn[COREGISTRATION,FEATURES,GEOMETRY,IO,MASK,MLTOOLS,VISUALIZATION]",
 ]
-full = ["eo-learn[ALL,RAY,ZARR,METEOBLUE,TDIGEST,FEATURES_EXTRA]"]
+full = ["eo-learn[ALL,RAY,ZARR,METEOBLUE,TDIGEST,FEATURES_EXTRA,MASK_EXTRA]"]
 ray = ["ray[default]"]
 zarr = ["s3fs", "zarr"]
 coregistration = [
