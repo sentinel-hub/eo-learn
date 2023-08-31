@@ -1,5 +1,5 @@
 # eolearn.io subpackage
 
-Input/output subpackage that deals with obtaining data from Sentinel Hub services or saving and loading data locally.
+The deprecated way to install `eolearn.io`. See [migration guide](https://github.com/sentinel-hub/eo-learn/issues/733) on how to correctly install the `eo-learn` package.
 
-For more information about the module visit [readthedocs](https://eo-learn.readthedocs.io/en/latest/reference/eolearn.io.html), or see the [module task index](https://eo-learn.readthedocs.io/en/latest/eotasks.html#io).
+Installs requirements and a dummy package that is detected by `eo-learn` but otherwise does not change anything.

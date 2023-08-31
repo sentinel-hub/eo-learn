@@ -1,3 +1,2 @@
-eo-learn-core
 numpy
 shapely

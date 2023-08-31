@@ -18,7 +18,7 @@ def parse_requirements(file):
 
 
 def get_version():
-    path = os.path.join(os.path.dirname(__file__), "eolearn", "ml_tools", "__init__.py")
+    path = os.path.join(os.path.dirname(__file__), "deprecated_eolearn_ml_tools", "__init__.py")
     with open(path) as version_file:
         for line in version_file:
             if line.find("__version__") >= 0:
@@ -45,13 +45,11 @@ setup(
     author_email="eoresearch@sinergise.com",
     license="MIT",
     packages=find_packages(),
-    include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     extras_require={
         "PLOTTING": parse_requirements("requirements-plotting.txt"),
         "TDIGEST": parse_requirements("requirements-tdigest.txt"),
     },
-    zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",

@@ -1,5 +1,5 @@
 # eolearn.ml_tools subpackage
 
-Various tools that can be used before or after the machine learning process.
+The deprecated way to install `eolearn.ml_tools`. See [migration guide](https://github.com/sentinel-hub/eo-learn/issues/733) on how to correctly install the `eo-learn` package.
 
-For more information about the module visit [readthedocs](https://eo-learn.readthedocs.io/en/latest/reference/eolearn.ml-tools.html), or see the [module task index](https://eo-learn.readthedocs.io/en/latest/eotasks.html#ml-tools).
+Installs requirements and a dummy package that is detected by `eo-learn` but otherwise does not change anything.
