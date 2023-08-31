@@ -25,7 +25,7 @@ from eolearn.core import EOPatch, EOTask, FeatureType, execute_with_mp_lock
 from eolearn.core.types import Feature
 from eolearn.core.utils.common import _apply_to_spatial_axes
 
-from .utils import resize_images
+from ..utils import resize_images
 
 LOGGER = logging.getLogger(__name__)
 
