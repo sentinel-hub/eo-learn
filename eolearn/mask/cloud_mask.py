@@ -80,14 +80,6 @@ class CloudMaskTask(EOTask):
 
         self.threshold = threshold
 
-        self.avg_kernel = None
-        if average_over is not None and average_over > 0:
-            self.avg_kernel = disk(average_over) / np.sum(disk(average_over))
-
-        self.dil_kernel = None
-        if dilation_size is not None and dilation_size > 0:
-            self.dil_kernel = disk(dilation_size).astype(np.uint8)
-
         self.classifier = S2PixelCloudDetector(
             threshold=threshold, average_over=average_over, dilation_size=dilation_size, all_bands=all_bands
         )
