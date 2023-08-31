@@ -10,5 +10,3 @@ from .superpixel import (
     SuperpixelSegmentationTask,
 )
 from .transformations import RasterToVectorTask, VectorToRasterTask
-
-__version__ = "1.4.2"
