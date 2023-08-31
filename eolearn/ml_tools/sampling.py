@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from math import sqrt
-from typing import Any, Dict, Union
+from typing import Dict, Union
 
 import numpy as np
 from shapely.geometry import Point, Polygon
@@ -182,7 +182,7 @@ class FractionSamplingTask(BaseSamplingTask):
         fraction: _FractionType,
         exclude_values: list[int] | None = None,
         replace: bool = False,
-        **kwargs: Any,
+        mask_of_samples: Feature | None = None,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -190,9 +190,9 @@ class FractionSamplingTask(BaseSamplingTask):
         :param fraction: Fraction of points to sample. Can be dictionary mapping values of mask to fractions.
         :param exclude_values: Skips points that have these values in `sampling_mask`
         :param replace: Whether to sample with replacement. False means each value can only be chosen once.
-        :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
+        :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
-        super().__init__(features_to_sample, **kwargs)
+        super().__init__(features_to_sample, mask_of_samples=mask_of_samples)
 
         self.sampling_feature = self.parse_feature(sampling_feature, allowed_feature_types={FeatureType.MASK_TIMELESS})
 
@@ -267,7 +267,7 @@ class BlockSamplingTask(BaseSamplingTask):
         amount: float,
         sample_size: tuple[int, int] = (1, 1),
         replace: bool = False,
-        **kwargs: Any,
+        mask_of_samples: Feature | None = None,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -275,9 +275,9 @@ class BlockSamplingTask(BaseSamplingTask):
         :param sample_size: A tuple describing a size of sampled blocks. The size is defined as a tuple of number of
             rows and number of columns.
         :param replace: Whether to sample with replacement. False means each value can only be chosen once.
-        :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
+        :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
-        super().__init__(features_to_sample, **kwargs)
+        super().__init__(features_to_sample, mask_of_samples=mask_of_samples)
 
         self.amount = amount
         self.sample_size = tuple(sample_size)
@@ -330,7 +330,7 @@ class GridSamplingTask(BaseSamplingTask):
         features_to_sample: FeaturesSpecification,
         sample_size: tuple[int, int] = (1, 1),
         stride: tuple[int, int] = (1, 1),
-        **kwargs: Any,
+        mask_of_samples: Feature | None = None,
     ):
         """
         :param features_to_sample: Features that will be spatially sampled according to given sampling parameters.
@@ -339,9 +339,9 @@ class GridSamplingTask(BaseSamplingTask):
         :param stride: A tuple describing a distance between upper left corners of two consecutive sampled blocks.
             The first number is the vertical distance and the second number the horizontal distance. If stride in
             smaller than sample_size in any dimensions then sampled blocks will overlap.
-        :param kwargs: Arguments for :class:`BaseSamplingTask<eolearn.geometry.sampling.BaseSamplingTask>`
+        :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
-        super().__init__(features_to_sample, **kwargs)
+        super().__init__(features_to_sample, mask_of_samples=mask_of_samples)
 
         self.sample_size = tuple(sample_size)
         self.stride = tuple(stride)
