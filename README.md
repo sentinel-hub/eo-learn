@@ -35,11 +35,11 @@ to use any of the available tasks and is encouraged to improve the, develop new 
 
 ## Package Overview
 
-**`eo-learn`** package is structured into several topical subfolders according to different functionalities. Some subfolders contain extension modules under `extra` subfolder. Those modules typically require additional package dependencies which don't get installed by default, since they are usually very specific to the task.
+**`eo-learn`** package is structured into several modules according to different functionalities. Some modules contain extensions under the `extra` subfolder. Those modules typically require additional package dependencies which don't get installed by default, since they are usually very specific to the task.
 
-The subfolders are:
+The modules are:
 
-- **`core`** - The main folder which implements basic building blocks (`EOPatch`, `EOTask` and `EOWorkflow`) and commonly used functionalities.
+- **`core`** - The main module which implements basic building blocks (`EOPatch`, `EOTask` and `EOWorkflow`) and commonly used functionalities.
 - **`coregistration`** - Tasks which deal with image co-registration.
 - **`features`** - A collection of utilities for extracting data properties and feature manipulation.
 - **`geometry`** - Geometry-related tasks used for transformation and conversion between vector and raster data.
@@ -52,11 +52,14 @@ The subfolders are:
 
 ### Requirements
 
+#### Linux / Mac OS
+
 Before installing `eo-learn` on **Linux** it is recommended to install the following system libraries:
 
 ```bash
 sudo apt-get install gcc libgdal-dev graphviz proj-bin libproj-dev libspatialindex-dev
 ```
+#### Windows
 
 Before installing `eo-learn` on **Windows** it is recommended to install the following packages from [Unofficial Windows wheels repository](https://www.lfd.uci.edu/~gohlke/pythonlibs/):
 
@@ -71,13 +74,20 @@ One of the `[MASK_EXTRA]` dependencies is the `lightgbm` package. On Windows it 
 
 ### PyPi distribution
 
-The package requires Python version **>=3.8** . It can be installed with:
+The package requires Python version **>=3.8** . If this is your first time installing `eo-learn`, or you aren't sure what kind of installation you require, than feel free to install it with:
+
+```bash
+pip install "eo-learn[ALL]"
+```
+
+This will install the package and all the default modules. Otherwise, if you're interested in a super light, core-only installation of `eo-learn`, then install it via:
 
 ```bash
 pip install eo-learn
+# pip install "eo-learn[CORE]"  # this does the same thing
 ```
 
-In order to avoid heavy package dependencies it is possible to install various scopes of package dependencies. Dependencies for each of the subfolders above (or their extra dependencies) can be installed via e.g.:
+In order to avoid heavy environments, it is possible to install various scopes of package dependencies. Dependencies for each of the subfolders above (or their extra dependencies) can be installed via e.g.:
 
 ```bash
 pip install "eo-learn[FEATURES]"
