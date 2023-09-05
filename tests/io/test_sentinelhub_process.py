@@ -20,7 +20,7 @@ from sentinelhub import CRS, Band, BBox, DataCollection, Geometry, MosaickingOrd
 from sentinelhub.testing_utils import assert_statistics_match
 
 from eolearn.core import EOPatch, EOTask, FeatureType
-from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask, SentinelHubSen2corTask
+from eolearn.io import SentinelHubDemTask, SentinelHubEvalscriptTask, SentinelHubInputTask
 
 
 @pytest.fixture(name="cache_folder")
@@ -413,25 +413,6 @@ class TestProcessingIO:
     def test_dem_wrong_feature(self):
         with pytest.raises(ValueError):
             SentinelHubDemTask(resolution=10, feature=(FeatureType.DATA, "DEM"), max_threads=3)
-
-    def test_sen2cor(self):
-        task = SentinelHubSen2corTask(
-            sen2cor_classification=["SCL", "CLD"],
-            size=self.size,
-            maxcc=self.maxcc,
-            time_difference=self.time_difference,
-            data_collection=DataCollection.SENTINEL2_L2A,
-            max_threads=self.max_threads,
-        )
-
-        eopatch = task.execute(bbox=self.bbox, time_interval=self.time_interval)
-
-        scl = eopatch[(FeatureType.MASK, "SCL")]
-        cld = eopatch[(FeatureType.DATA, "CLD")]
-
-        width, height = self.size
-        assert scl.shape == (4, height, width, 1)
-        assert cld.shape == (4, height, width, 1)
 
     def test_metadata(self):
         evalscript = """

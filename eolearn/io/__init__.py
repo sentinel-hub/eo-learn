@@ -8,6 +8,5 @@ from .sentinelhub_process import (
     SentinelHubDemTask,
     SentinelHubEvalscriptTask,
     SentinelHubInputTask,
-    SentinelHubSen2corTask,
     get_available_timestamps,
 )
