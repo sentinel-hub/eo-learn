@@ -21,7 +21,7 @@ from fiona.session import AWSSession
 from fs.base import FS
 from fs_s3fs import S3FS
 
-from sentinelhub import CRS, BBox, GeopediaFeatureIterator, SHConfig
+from sentinelhub import CRS, BBox, SHConfig
 
 from eolearn.core import EOPatch, EOTask, pickle_fs, unpickle_fs
 from eolearn.core.types import Feature
@@ -184,48 +184,3 @@ class VectorImportTask(_BaseVectorImportTask):
                 )
 
         return gpd.read_file(self.full_path, bbox=bbox_bounds, **self.fiona_kwargs)
-
-
-class GeopediaVectorImportTask(_BaseVectorImportTask):
-    """A task for importing `Geopedia <https://geopedia.world>`__ features into EOPatch vector features"""
-
-    def __init__(
-        self,
-        feature: Feature,
-        geopedia_table: str | int,
-        reproject: bool = True,
-        clip: bool = False,
-        **kwargs: Any,
-    ):
-        """
-        :param feature: A vector feature into which to import data
-        :param geopedia_table: A Geopedia table from which to retrieve features
-        :param reproject: Should the geometries be transformed to coordinate reference system of the requested bbox?
-        :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
-        :param kwargs: Additional args that will be passed to `GeopediaFeatureIterator`
-        """
-        self.geopedia_table = geopedia_table
-        self.geopedia_kwargs = kwargs
-        self.dataset_crs: CRS | None = None
-        super().__init__(feature=feature, reproject=reproject, clip=clip)
-
-    def _load_vector_data(self, bbox: BBox | None) -> gpd.GeoDataFrame:
-        """Loads vector data from geopedia table"""
-        prepared_bbox = bbox.transform_bounds(CRS.POP_WEB) if bbox else None
-
-        geopedia_iterator = GeopediaFeatureIterator(
-            layer=self.geopedia_table,
-            bbox=prepared_bbox,
-            offset=0,
-            gpd_session=None,
-            config=self.config,
-            **self.geopedia_kwargs,
-        )
-        geopedia_features = list(geopedia_iterator)
-
-        geometry = geopedia_features[0].get("geometry")
-        if not geometry:
-            raise ValueError(f'Geopedia table "{self.geopedia_table}" does not contain geometries!')
-
-        self.dataset_crs = CRS(geometry["crs"]["properties"]["name"])  # always WGS84
-        return gpd.GeoDataFrame.from_features(geopedia_features, crs=self.dataset_crs.pyproj_crs())
