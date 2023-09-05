@@ -9,7 +9,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import logging
-from typing import Protocol
 
 import numpy as np
 from s2cloudless import S2PixelCloudDetector
@@ -18,18 +17,6 @@ from eolearn.core import EOPatch, EOTask
 from eolearn.core.types import Feature
 
 LOGGER = logging.getLogger(__name__)
-
-
-class ClassifierType(Protocol):
-    """Defines the necessary classifier interface."""
-
-    # pylint: disable-next=missing-function-docstring,invalid-name
-    def predict(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
-        ...
-
-    # pylint: disable-next=missing-function-docstring,invalid-name
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:  # noqa: N803
-        ...
 
 
 class CloudMaskTask(EOTask):
