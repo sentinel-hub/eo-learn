@@ -10,24 +10,13 @@ import numpy as np
 import pytest
 
 from eolearn.core import FeatureType
-from eolearn.mask import SnowMaskTask, TheiaSnowMaskTask
+from eolearn.mask import SnowMaskTask
 
 
 @pytest.mark.parametrize(
     ("task", "result"),
     [
         (SnowMaskTask((FeatureType.DATA, "BANDS-S2-L1C"), [2, 3, 7, 11], mask_name="TEST_SNOW_MASK"), (50468, 1405)),
-        (
-            TheiaSnowMaskTask(
-                (FeatureType.DATA, "BANDS-S2-L1C"),
-                [2, 3, 11],
-                (FeatureType.MASK, "CLM"),
-                (FeatureType.DATA_TIMELESS, "DEM"),
-                b10_index=10,
-                mask_name="TEST_THEIA_SNOW_MASK",
-            ),
-            (60682, 10088),
-        ),
     ],
 )
 def test_snow_coverage(task, result, test_eopatch):

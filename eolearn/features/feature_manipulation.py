@@ -12,14 +12,14 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from functools import partial
-from typing import Any, Callable, Iterable, Literal, cast
+from typing import Any, Callable, Iterable, Literal
 
 import numpy as np
 from geopandas import GeoDataFrame
 
 from sentinelhub import bbox_to_dimensions
 
-from eolearn.core import EOPatch, EOTask, MapFeatureTask
+from eolearn.core import EOPatch, EOTask
 from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.types import Feature, FeaturesSpecification
 from eolearn.core.utils.parsing import parse_renamed_features
@@ -113,137 +113,6 @@ class FilterTimeSeriesTask(SimpleFilterTask):
             raise ValueError("Both start_date and end_date must be datetime.datetime objects.")
 
         super().__init__("timestamps", self._filter_func, filter_features)
-
-
-class ValueFilloutTask(EOTask):
-    """Overwrites occurrences of a desired value with their neighbor values in either forward, backward direction or
-    both, along an axis.
-
-    Possible fillout operations are 'f' (forward), 'b' (backward) or both, 'fb' or 'bf':
-
-        'f': nan, nan, nan, 8, 5, nan, 1, 0, nan, nan -> nan, nan, nan, 8, 5, 5, 1, 0, 0, 0
-
-        'b': nan, nan, nan, 8, 5, nan, 1, 0, nan, nan -> 8, 8, 8, 8, 5, 1, 1, 0, nan, nan
-
-        'fb': nan, nan, nan, 8, 5, nan, 1, 0, nan, nan -> 8, 8, 8, 8, 5, 5, 1, 0, 0, 0
-
-        'bf': nan, nan, nan, 8, 5, nan, 1, 0, nan, nan -> 8, 8, 8, 8, 5, 1, 1, 0, 0, 0
-    """
-
-    def __init__(
-        self,
-        feature: Feature,
-        operations: Literal["f", "b", "fb", "bf"] = "fb",
-        value: float = np.nan,
-        axis: int = 0,
-    ):
-        """
-        :param feature: A feature that must be value-filled.
-        :param operations: Fill directions, which should be one of ['f', 'b', 'fb', 'bf'].
-        :param value: Which value to fill by its neighbors.
-        :param axis: An axis along which to fill values.
-        """
-        if operations not in ["f", "b", "fb", "bf"]:
-            raise ValueError("'operations' parameter should be one of the following options: f, b, fb, bf.")
-
-        self.feature = self.parse_feature(feature)
-        self.operations = operations
-        self.value = value
-        self.axis = axis
-
-    @staticmethod
-    def fill(data: np.ndarray, value: float = np.nan, operation: Literal["f", "b"] = "f") -> np.ndarray:
-        """Fills occurrences of a desired value in a 2d array with their neighbors in either forward or backward
-        direction.
-
-        :param data: A 2d numpy array.
-        :param value: Which value to fill by its neighbors.
-        :param operation: Fill directions, which should be either 'f' or 'b'.
-        :return: Value-filled numpy array.
-        """
-        if not isinstance(data, np.ndarray) or data.ndim != 2:
-            raise ValueError("Wrong data input")
-
-        if operation not in ["f", "b"]:
-            raise ValueError("'operation' parameter should either be 'f' (forward) or 'b' (backward)!")
-
-        n_rows, n_frames = data.shape
-
-        value_mask = np.isnan(data) if np.isnan(value) else (data == value)
-        init_index = 0 if operation == "f" else (n_frames - 1)
-
-        idx = np.where(value_mask, init_index, np.arange(n_frames))
-
-        if operation == "f":
-            idx = np.maximum.accumulate(idx, axis=1)
-        else:
-            idx = idx[:, ::-1]
-            idx = np.minimum.accumulate(idx, axis=1)
-            idx = idx[:, ::-1]
-
-        return data[np.arange(n_rows)[:, np.newaxis], idx]
-
-    def execute(self, eopatch: EOPatch) -> EOPatch:
-        """
-        :param eopatch: Source EOPatch from which to read the feature data.
-        :return: An eopatch with the value-filled feature.
-        """
-        data = eopatch[self.feature]
-
-        value_mask = np.isnan(data) if np.isnan(self.value) else (data == self.value)
-
-        if not value_mask.any():
-            return eopatch
-
-        data = np.swapaxes(data, self.axis, -1)
-        original_shape = data.shape
-        data = data.reshape(np.prod(original_shape[:-1]), original_shape[-1])
-
-        for operation in self.operations:  # iterates over string that represents the operation
-            operation = cast(Literal["f", "b"], operation)
-            data = self.fill(data, value=self.value, operation=operation)
-
-        data = data.reshape(*original_shape)
-        data = np.swapaxes(data, self.axis, -1)
-
-        eopatch[self.feature] = data
-
-        return eopatch
-
-
-class LinearFunctionTask(MapFeatureTask):
-    """Applies a linear function to the values of input features.
-
-    Each value in the feature is modified as `x -> x * slope + intercept`. The `dtype` of the result can be customized.
-    """
-
-    def __init__(
-        self,
-        input_features: FeaturesSpecification,
-        output_features: FeaturesSpecification | None = None,
-        slope: float = 1,
-        intercept: float = 0,
-        dtype: str | type | np.dtype | None = None,
-    ):
-        """
-        :param input_features: Feature or features on which the function is used.
-        :param output_features: Feature or features for saving the result. If not provided the input_features are
-            overwritten.
-        :param slope: Slope of the function i.e. the multiplication factor.
-        :param intercept: Intercept of the function i.e. the value added.
-        :param dtype: Numpy dtype of the output feature. If not provided the dtype is determined by Numpy, so it is
-            recommended to set manually.
-        """
-        if output_features is None:
-            output_features = input_features
-        self.dtype = dtype if dtype is None else np.dtype(dtype)
-
-        super().__init__(input_features, output_features, slope=slope, intercept=intercept)
-
-    def map_method(self, feature: np.ndarray, slope: float, intercept: float) -> np.ndarray:  # type:ignore[override]
-        """A method where feature is multiplied by a slope"""
-        rescaled_feature = feature * slope + intercept
-        return rescaled_feature if self.dtype is None else rescaled_feature.astype(self.dtype)
 
 
 class SpatialResizeTask(EOTask):
