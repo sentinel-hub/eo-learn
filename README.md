@@ -99,6 +99,7 @@ Collections of dependencies are also available, some of them are:
 - `[ALL]` for installing the basic dependencies without extras
 - `[FULL]` for installing every dependency, including the extras
 - `[RAY]` for installing ray and its dependencies
+- `[ZARR]` for installing the zarr functionality for chunked timestamp saving/loading.
 - `[DOCS]` for developers, dependencies for building docs
 - `[DEV]` for developers, dependencies for testing and contributing
 
@@ -144,6 +145,8 @@ For more information on the package content, visit [readthedocs](https://eo-lear
 ## More Examples
 
 Examples and introductions to the package can be found [here](https://github.com/sentinel-hub/eo-learn/tree/master/examples). A larger collection of examples is available at the [`eo-learn-examples`](https://github.com/sentinel-hub/eo-learn-examples) repository. While the examples there are not always up-to-date they can be a great source of ideas.
+
+In the past, `eo-learn` served as a collection of many useful tasks, originating from various contributors or projects. When the mission and purpose of `eo-learn` changed, we have decided to move these specific tasks to [`eo-learn-examples/extra-tasks`](https://github.com/sentinel-hub/eo-learn-examples/tree/main/extra-tasks), in order to keep `eo-learn` light and easier to maintain.
 
 ## Contributions
 
