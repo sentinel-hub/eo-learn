@@ -35,41 +35,22 @@ to use any of the available tasks and is encouraged to improve the, develop new 
 
 ## Package Overview
 
-**`eo-learn`** is divided into several subpackages according to different functionalities and external package dependencies. Therefore it is not necessary for user to install entire package but only the parts that he needs.
+**`eo-learn`** package is structured into several topical subfolders according to different functionalities. Some subfolders contain extension modules under `extra` subfolder. Those modules typically require additional package dependencies which don't get installed by default, since they are usually very specific to the task.
 
-At the moment there are the following subpackages:
+The subfolders are:
 
-- **`eo-learn-core`** - The main subpackage which implements basic building blocks (`EOPatch`, `EOTask` and `EOWorkflow`) and commonly used functionalities.
-- **`eo-learn-coregistration`** - The subpackage that deals with image co-registration.
-- **`eo-learn-features`** - A collection of utilities for extracting data properties and feature manipulation.
-- **`eo-learn-geometry`** - Geometry subpackage used for geometric transformation and conversion between vector and raster data.
-- **`eo-learn-io`** - Input/output subpackage that deals with obtaining data from Sentinel Hub services or saving and loading data locally.
-- **`eo-learn-mask`** - The subpackage used for masking of data and calculation of cloud masks.
-- **`eo-learn-ml-tools`** - Various tools that can be used before or after the machine learning process.
-- **`eo-learn-visualization`** - Visualization tools for core elements of eo-learn.
+- **`core`** - The main folder which implements basic building blocks (`EOPatch`, `EOTask` and `EOWorkflow`) and commonly used functionalities.
+- **`coregistration`** - Tasks which deal with image co-registration.
+- **`features`** - A collection of utilities for extracting data properties and feature manipulation.
+- **`geometry`** - Geometry-related tasks used for transformation and conversion between vector and raster data.
+- **`io`** - Input/output tasks that deal with obtaining data from Sentinel Hub services or saving and loading data locally.
+- **`mask`** - Tasks used for masking of data and calculation of cloud/snow/other masks.
+- **`ml-tools`** - Various tools that can be used before or after the machine learning process.
+- **`visualization`** - Visualization tools for the core elements of eo-learn.
 
 ## Installation
 
-### PyPi distribution
-
-The package requires Python version **>=3.8** . It can be installed with:
-
-```bash
-pip install eo-learn
-```
-
-In order to avoid heavy package dependencies it is possible to install each subpackage separately:
-
-```bash
-pip install eo-learn-core
-pip install eo-learn-coregistration
-pip install eo-learn-features
-pip install eo-learn-geometry
-pip install eo-learn-io
-pip install eo-learn-mask
-pip install eo-learn-ml-tools
-pip install eo-learn-visualization
-```
+### Requirements
 
 Before installing `eo-learn` on **Linux** it is recommended to install the following system libraries:
 
@@ -86,9 +67,30 @@ shapely
 fiona
 ```
 
-One of dependencies of `eo-learn-mask` subpackage is `lightgbm` package. On Windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
+One of the `[MASK_EXTRA]` dependencies is the `lightgbm` package. On Windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
 
-Some subpackages contain extension modules under `extra` subfolder. Those modules typically require additional package dependencies which don't get installed by default.
+### PyPi distribution
+
+The package requires Python version **>=3.8** . It can be installed with:
+
+```bash
+pip install eo-learn
+```
+
+In order to avoid heavy package dependencies it is possible to install various scopes of package dependencies. Dependencies for each of the subfolders above (or their extra dependencies) can be installed via e.g.:
+
+```bash
+pip install "eo-learn[FEATURES]"
+pip install "eo-learn[FEATURES_EXTRA]"
+```
+
+Collections of dependencies are also available, some of them are:
+
+- `[ALL]` for installing the basic dependencies without extras
+- `[FULL]` for installing every dependency, including the extras
+- `[RAY]` for installing ray and its dependencies
+- `[DOCS]` for developers, dependencies for building docs
+- `[DEV]` for developers, dependencies for testing and contributing
 
 ### Conda Forge distribution
 
@@ -99,21 +101,7 @@ be installed using `conda-forge` as follows:
 
 ```bash
 conda config --add channels conda-forge
-
 conda install eo-learn
-```
-
-In order to avoid heavy package dependencies it is possible to install each subpackage separately:
-
-```bash
-conda install eo-learn-core
-conda install eo-learn-coregistration
-conda install eo-learn-features
-conda install eo-learn-geometry
-conda install eo-learn-io
-conda install eo-learn-mask
-conda install eo-learn-ml-tools
-conda install eo-learn-visualization
 ```
 
 ### Run with Docker
@@ -145,7 +133,7 @@ For more information on the package content, visit [readthedocs](https://eo-lear
 
 ## More Examples
 
-Examples and introductions to the package can be found [here](https://github.com/sentinel-hub/eo-learn/tree/master/examples). A large collection of examples is available at the [`eo-learn-examples`](https://github.com/sentinel-hub/eo-learn-examples) repository. While the examples there are not always up-to-date they can be a great source of ideas.
+Examples and introductions to the package can be found [here](https://github.com/sentinel-hub/eo-learn/tree/master/examples). A larger collection of examples is available at the [`eo-learn-examples`](https://github.com/sentinel-hub/eo-learn-examples) repository. While the examples there are not always up-to-date they can be a great source of ideas.
 
 ## Contributions
 
