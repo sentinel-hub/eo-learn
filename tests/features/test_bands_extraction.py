@@ -14,22 +14,9 @@ import pytest
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
-from eolearn.features import EuclideanNormTask, NormalizedDifferenceIndexTask
+from eolearn.features import NormalizedDifferenceIndexTask
 
 INPUT_FEATURE = (FeatureType.DATA, "TEST")
-
-
-def test_euclidean_norm():
-    eopatch = EOPatch(bbox=BBox((0, 0, 1, 1), CRS(3857)), timestamps=["1234-05-06"] * 5)
-
-    data = np.zeros(5 * 10 * 10 * 7).reshape(5, 10, 10, 7)
-    bands = [0, 1, 2, 4, 6]
-    data[..., bands] = 1
-
-    eopatch[INPUT_FEATURE] = data
-
-    eopatch = EuclideanNormTask(INPUT_FEATURE, (FeatureType.DATA, "NORM"), bands)(eopatch)
-    assert (eopatch.data["NORM"] == np.sqrt(len(bands))).all()
 
 
 @pytest.mark.parametrize("bad_input", [(1, 2, 3), "test", 0.5])
