@@ -13,7 +13,7 @@ import sys
 import warnings
 
 if __name__ == "__main__":
-    subprocess.check_call([sys.executable, "-m", "pip", "install", *sys.argv[1:], ".[ALL]"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", *sys.argv[1:], "."])
     warnings.warn(
         "Installing via `install_all.py` is no longer necessary and has been deprecated. Use `pip install"
         " eo-learn` instead."
