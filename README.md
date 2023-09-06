@@ -52,12 +52,22 @@ The modules are:
 
 ### Requirements
 
-#### Linux / Mac OS
+The package requires Python version **>=3.8**.
+
+#### Linux
 
 Before installing `eo-learn` on **Linux** it is recommended to install the following system libraries:
 
 ```bash
 sudo apt-get install gcc libgdal-dev graphviz proj-bin libproj-dev libspatialindex-dev
+```
+
+#### Mac OS
+
+Before installing `eo-learn` on `Mac OS` it is recommended to install the following system libraries with [Homebrew](https://brew.sh/):
+
+```bash
+brew install graphviz gcc gdal cmake spatialindex proj
 ```
 
 #### Windows
@@ -73,45 +83,31 @@ fiona
 
 One of the `[MASK_EXTRA]` dependencies is the `lightgbm` package. On Windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
 
-### PyPi distribution
+### PyPI distribution
 
-The package requires Python version **>=3.8** . If this is your first time installing `eo-learn`, or you aren't sure what kind of installation you require, then you can safely install it with:
-
-```bash
-pip install "eo-learn[ALL]"
-```
-
-To better control your dependencies, you can install just the core dependencies of `eo-learn` with:
+`eo-learn` is available on PyPI and can be installed with:
 
 ```bash
 pip install eo-learn
 ```
 
-Alternatively, you can decide for yourself which modules you want to be operational by providing the corresponding extras. E.g., if you are only interested in the `io` and `mask` modules, or in the extra dependencies of the `features` module, you can install them with:
+For some modules there are extra dependencies available, related to specific tasks. These were kept separate in order to keep the `eo-learn` installation light. You can install these with, e.g.:
 
 ```bash
-pip install "eo-learn[IO, MASK]"
-pip install "eo-learn[FEATURES_EXTRA]"
+pip install "eo-learn[MASK_EXTRA]"
+pip install "eo-learn[VISUALIZATION]"
 ```
 
-Here is a full list of all the modules' dependencies and their extras:
+The full list (including their descriptions) is available here:
 
-- `COREGISTRATION`
-- `FEATURES` and `FEATURES_EXTRA`
-- `GEOMETRY`
-- `IO`
-- `MASK` and `MASK_EXTRA`
-- `MLTOOLS`
-- `VISUALIZATION`
-
-We also provide a few collections of dependencies:
-
-- `ALL` for installing the basic dependencies without extras
-- `FULL` for installing every dependency, including the extras
 - `RAY` for installing ray and its dependencies
-- `ZARR` for installing the zarr functionality for chunked timestamp saving/loading.
-- `DOCS` for developers, dependencies for building docs
-- `DEV` for developers, dependencies for testing and contributing
+- `ZARR` for installing the zarr functionality for chunked timestamp saving/loading
+- `FEATURES_EXTRA` for installing interpolation- and clustering-specific dependencies
+- `MASK_EXTRA` for installing `s2cloudless` for cloud masking
+- `VISUALIZATION` for using plotting libraries and utilities
+- `FULL` for installing all dependencies described so far
+- `DOCS` for developers, dependencies for building documentation
+- `DEV` for developers, dependencies for testing and code contribution
 
 ### Conda Forge distribution
 
