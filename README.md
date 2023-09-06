@@ -59,6 +59,7 @@ Before installing `eo-learn` on **Linux** it is recommended to install the follo
 ```bash
 sudo apt-get install gcc libgdal-dev graphviz proj-bin libproj-dev libspatialindex-dev
 ```
+
 #### Windows
 
 Before installing `eo-learn` on **Windows** it is recommended to install the following packages from [Unofficial Windows wheels repository](https://www.lfd.uci.edu/~gohlke/pythonlibs/):
@@ -74,27 +75,38 @@ One of the `[MASK_EXTRA]` dependencies is the `lightgbm` package. On Windows it 
 
 ### PyPi distribution
 
-The package requires Python version **>=3.8** . If this is your first time installing `eo-learn`, or you aren't sure what kind of installation you require, than feel free to install it with:
+The package requires Python version **>=3.8** . If this is your first time installing `eo-learn`, or you aren't sure what kind of installation you require, then you can safely install it with:
 
 ```bash
 pip install "eo-learn[ALL]"
 ```
 
-This will install the package and all the default modules. Otherwise, if you're interested in a super light, core-only installation of `eo-learn`, then install it via:
+To better control your dependencies, you can install just the core dependencies of `eo-learn` with:
 
 ```bash
 pip install eo-learn
-# pip install "eo-learn[CORE]"  # this does the same thing
 ```
 
-In order to avoid heavy environments, it is possible to install various scopes of package dependencies. Dependencies for each of the subfolders above (or their extra dependencies) can be installed via e.g.:
+Alternatively, you can decide for yourself which modules you want to be operational by providing the corresponding extras. E.g., if you are only interested in the `io` and `mask` modules, or in the extra dependencies of the `features` module, you can install them with:
 
 ```bash
-pip install "eo-learn[FEATURES]"
+pip install "eo-learn[IO, MASK]"
 pip install "eo-learn[FEATURES_EXTRA]"
 ```
 
-Collections of dependencies are also available, some of them are:
+Here is a full list of all the modules' dependencies and their extras:
+
+- `COREGISTRATION`
+- `FEATURES`
+- `FEATURES_EXTRA`
+- `GEOMETRY`
+- `IO`
+- `MASK`
+- `MASK_EXTRA`
+- `MLTOOLS`
+- `VISUALIZATION`
+
+We also provide a few collections of dependencies:
 
 - `[ALL]` for installing the basic dependencies without extras
 - `[FULL]` for installing every dependency, including the extras
