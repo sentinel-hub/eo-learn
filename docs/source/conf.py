@@ -13,12 +13,16 @@ from typing import Any, Dict, Optional
 
 import sphinx.ext.autodoc
 
+# we import all submodules so that we can collect all tasks into a list
 import eolearn.core
 import eolearn.coregistration
 import eolearn.features
+import eolearn.features.extra.clustering
+import eolearn.features.extra.interpolation
 import eolearn.geometry
 import eolearn.io
 import eolearn.mask
+import eolearn.mask.extra.cloud_mask
 import eolearn.ml_tools
 import eolearn.visualization  # noqa: F401
 from eolearn.core import EOTask
@@ -222,6 +226,8 @@ with open(f"{EOTASKS_PATH}.rst", "w") as f:
 
     for eotask_cls in get_subclasses(EOTask):
         eopackage = eotask_cls.__module__.split(".")[1]
+        if eotask_cls.__module__.split(".")[2] == "extra":
+            eopackage += ".extra"
         eotask = eotask_cls.__module__ + "." + eotask_cls.__name__
 
         if eopackage not in eopackage_tasks:
