@@ -1,2 +1,1 @@
-# using headless version of opencv, otherwise gitlab runners fail
-opencv-python-headless
+eo-learn[ALL]

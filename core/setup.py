@@ -48,7 +48,6 @@ setup(
     install_requires=parse_requirements("requirements.txt"),
     extras_require={
         "RAY": parse_requirements("requirements-ray.txt"),
-        "ZARR": parse_requirements("requirements-zarr.txt"),
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",

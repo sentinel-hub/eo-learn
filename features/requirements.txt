@@ -1,8 +1,1 @@
-numba>=0.53.0
-numpy
-pillow>=9.1.0
-python-dateutil
-scikit-image>=0.19.0
-scikit-learn
-scipy
-typing-extensions
+eo-learn[ALL]
