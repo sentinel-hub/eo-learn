@@ -9,7 +9,6 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 
 from __future__ import annotations
 
-import abc
 import logging
 from contextlib import nullcontext
 from typing import Any
@@ -30,77 +29,7 @@ from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 LOGGER = logging.getLogger(__name__)
 
 
-class _BaseVectorImportTask(EOTask, metaclass=abc.ABCMeta):
-    """Base Vector Import Task, implementing common methods"""
-
-    def __init__(
-        self,
-        feature: Feature,
-        reproject: bool = True,
-        clip: bool = False,
-        config: SHConfig | None = None,
-    ):
-        """
-        :param feature: A vector feature into which to import data
-        :param reproject: Should the geometries be transformed to coordinate reference system of the requested bbox?
-        :param clip: Should the geometries be clipped to the requested bbox, or should be geometries kept as they are?
-        :param config: A configuration object with credentials
-        """
-        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_vector())
-        self.config = config or SHConfig()
-        self.reproject = reproject
-        self.clip = clip
-
-    @abc.abstractmethod
-    def _load_vector_data(self, bbox: BBox | None) -> gpd.GeoDataFrame:
-        """Loads vector data given a bounding box"""
-
-    def _reproject_and_clip(self, vectors: gpd.GeoDataFrame, bbox: BBox | None) -> gpd.GeoDataFrame:
-        """Method to reproject and clip vectors to the EOPatch crs and bbox"""
-
-        if self.reproject:
-            if not bbox:
-                raise ValueError("To reproject vector data, eopatch.bbox has to be defined!")
-
-            vectors = vectors.to_crs(bbox.crs.pyproj_crs())
-
-        if self.clip:
-            if not bbox:
-                raise ValueError("To clip vector data, eopatch.bbox has to be defined!")
-
-            bbox_crs = bbox.crs.pyproj_crs()
-            if vectors.crs != bbox_crs:
-                raise ValueError("To clip, vectors should be in same CRS as EOPatch bbox!")
-
-            extent = gpd.GeoSeries([bbox.geometry], crs=bbox_crs)
-            vectors = gpd.clip(vectors, extent, keep_geom_type=True)
-
-        return vectors
-
-    def execute(self, eopatch: EOPatch | None = None, *, bbox: BBox | None = None) -> EOPatch:
-        """
-        :param eopatch: An existing EOPatch. If none is provided it will create a new one.
-        :param bbox: A bounding box for which to load data. By default, if none is provided, it will take a bounding box
-            of given EOPatch. If given EOPatch is not provided it will load the entire dataset.
-        :return: An EOPatch with an additional vector feature
-        """
-        if bbox is None and eopatch is not None:
-            bbox = eopatch.bbox
-
-        vectors = self._load_vector_data(bbox)
-        minx, miny, maxx, maxy = vectors.total_bounds
-        final_bbox = bbox or BBox((minx, miny, maxx, maxy), crs=CRS(vectors.crs))
-
-        eopatch = eopatch or EOPatch(bbox=final_bbox)
-        if eopatch.bbox is None:
-            eopatch.bbox = final_bbox
-
-        eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
-
-        return eopatch
-
-
-class VectorImportTask(_BaseVectorImportTask):
+class VectorImportTask(EOTask):
     """A task for importing (Fiona readable) vector data files into an EOPatch"""
 
     def __init__(
@@ -134,7 +63,10 @@ class VectorImportTask(_BaseVectorImportTask):
         self._aws_session = None
         self._dataset_crs: CRS | None = None
 
-        super().__init__(feature=feature, reproject=reproject, clip=clip, config=config)
+        self.feature = self.parse_feature(feature, allowed_feature_types=lambda fty: fty.is_vector())
+        self.config = config or SHConfig()
+        self.reproject = reproject
+        self.clip = clip
 
     @property
     def aws_session(self) -> AWSSession:
@@ -184,3 +116,47 @@ class VectorImportTask(_BaseVectorImportTask):
                 )
 
         return gpd.read_file(self.full_path, bbox=bbox_bounds, **self.fiona_kwargs)
+
+    def _reproject_and_clip(self, vectors: gpd.GeoDataFrame, bbox: BBox | None) -> gpd.GeoDataFrame:
+        """Method to reproject and clip vectors to the EOPatch crs and bbox"""
+
+        if self.reproject:
+            if not bbox:
+                raise ValueError("To reproject vector data, eopatch.bbox has to be defined!")
+
+            vectors = vectors.to_crs(bbox.crs.pyproj_crs())
+
+        if self.clip:
+            if not bbox:
+                raise ValueError("To clip vector data, eopatch.bbox has to be defined!")
+
+            bbox_crs = bbox.crs.pyproj_crs()
+            if vectors.crs != bbox_crs:
+                raise ValueError("To clip, vectors should be in same CRS as EOPatch bbox!")
+
+            extent = gpd.GeoSeries([bbox.geometry], crs=bbox_crs)
+            vectors = gpd.clip(vectors, extent, keep_geom_type=True)
+
+        return vectors
+
+    def execute(self, eopatch: EOPatch | None = None, *, bbox: BBox | None = None) -> EOPatch:
+        """
+        :param eopatch: An existing EOPatch. If none is provided it will create a new one.
+        :param bbox: A bounding box for which to load data. By default, if none is provided, it will take a bounding box
+            of given EOPatch. If given EOPatch is not provided it will load the entire dataset.
+        :return: An EOPatch with an additional vector feature
+        """
+        if bbox is None and eopatch is not None:
+            bbox = eopatch.bbox
+
+        vectors = self._load_vector_data(bbox)
+        minx, miny, maxx, maxy = vectors.total_bounds
+        final_bbox = bbox or BBox((minx, miny, maxx, maxy), crs=CRS(vectors.crs))
+
+        eopatch = eopatch or EOPatch(bbox=final_bbox)
+        if eopatch.bbox is None:
+            eopatch.bbox = final_bbox
+
+        eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
+
+        return eopatch
