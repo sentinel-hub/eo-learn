@@ -347,7 +347,7 @@ class EOWorkflow:
             from eolearn.visualization.eoworkflow import EOWorkflowVisualization
         except ImportError:
             raise RuntimeError(
-                "Subpackage eo-learn-visualization has to be installed in order to use EOWorkflow visualization methods"
+                "Dependencies `eo-learn[VISUALIZATION]` have to be installed in order to use EOWorkflow visualization."
             )
         return EOWorkflowVisualization(self._nodes)
 
