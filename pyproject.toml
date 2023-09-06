@@ -62,11 +62,10 @@ dependencies = [
 
 [project.optional-dependencies]
 
-full = ["eo-learn[RAY,ZARR,FEATURES_EXTRA,MASK_EXTRA,VISUALIZATION]"]
+full = ["eo-learn[RAY,ZARR,EXTRA,VISUALIZATION]"]
 ray = ["ray[default]"]
 zarr = ["s3fs", "zarr"]
-features_extra = ["numba>=0.53.0", "scikit-learn", "scipy"]
-mask_extra = ["s2cloudless"]
+extra = ["numba>=0.53.0", "scikit-learn", "scipy", "s2cloudless"]
 visualization = ["graphviz>=0.10.1", "jinja2", "matplotlib", "pygments"]
 docs = [
     "eo-learn[FULL]",
