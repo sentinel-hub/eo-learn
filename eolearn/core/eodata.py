@@ -782,7 +782,7 @@ class EOPatch:
             from eolearn.visualization.eopatch import plot_eopatch
         except ImportError:
             raise RuntimeError(
-                "Subpackage eo-learn-visualization has to be installed in order to use EOPatch visualization method"
+                "Dependencies `eo-learn[VISUALIZATION]` have to be installed in order to use EOPatch plotting."
             )
 
         return plot_eopatch(

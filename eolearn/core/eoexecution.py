@@ -358,7 +358,7 @@ class EOExecutor:
             from eolearn.visualization.eoexecutor import EOExecutorVisualization
         except ImportError:
             raise RuntimeError(
-                "Subpackage eo-learn-visualization has to be installed in order to create EOExecutor reports."
+                "Dependencies `eo-learn[VISUALIZATION]` have to be installed in order to create EOExecutor reports."
             )
 
         return EOExecutorVisualization(self).make_report(include_logs=include_logs)
