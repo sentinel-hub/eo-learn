@@ -1,3 +1,103 @@
+[build-system]
+requires = ['hatchling']
+build-backend = 'hatchling.build'
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.version]
+path = 'eolearn/__init__.py'
+
+[tool.hatch.build.targets.sdist]
+include = ['/README.md', '/LICENSE.md', '/eolearn']
+
+[tool.hatch.build.targets.wheel]
+include = ['/eolearn']
+
+[project]
+name = "eo-learn"
+dynamic = ["version"]
+description = "Earth observation processing framework for machine learning in Python"
+readme = "README.md"
+requires-python = ">= 3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Sinergise EO research team", email = "eoresearch@sinergise.com" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "boto3",
+    "fs",
+    "fs-s3fs",
+    "geopandas>=0.11.0",
+    "numpy>=1.20.0",
+    "python-dateutil",
+    "sentinelhub>=3.9.0",
+    "tqdm>=4.27",
+    "typing-extensions",
+    "opencv-python-headless",
+    "affine",
+    "rasterio>=1.2.7, <1.3.8",
+    "shapely",
+    "fiona>=1.8.18",
+]
+
+[project.optional-dependencies]
+
+full = ["eo-learn[RAY,ZARR,EXTRA,VISUALIZATION]"]
+ray = ["ray[default]"]
+zarr = ["s3fs", "zarr"]
+extra = ["numba>=0.53.0", "scikit-learn", "scipy", "s2cloudless"]
+visualization = ["graphviz>=0.10.1", "jinja2", "matplotlib", "pygments"]
+docs = [
+    "eo-learn[FULL]",
+    "jupyter",
+    "nbsphinx",
+    "sphinx==7.1.2",
+    "sphinx_mdinclude",
+    "sphinx_rtd_theme==1.3.0",
+]
+dev = [
+    "build",
+    "eo-learn[FULL]",
+    "hypothesis",
+    "moto",
+    "mypy>=0.990",
+    "pylint>=2.14.0",
+    "pytest>=7.0.0",
+    "pytest-cov",
+    "pytest-lazy-fixture",
+    "pytest-mock",
+    "twine",
+    "types-python-dateutil",
+]
+
+[project.urls]
+Homepage = "https://github.com/sentinel-hub/eo-learn"
+Documentation = "https://eo-learn.readthedocs.io"
+Issues = "https://github.com/sentinel-hub/eo-learn/issues"
+Source = "https://github.com/sentinel-hub/eo-learn"
+Forum = "https://forum.sentinel-hub.com"
+
+
 [tool.black]
 line-length = 120
 preview = true
@@ -56,13 +156,19 @@ ignore = [
     "B904",  # want `raise ... from None` instead of just `raise ...`
     "B028",  # always demands a stacklevel argument when warning
     "PT011", # complains for `pytest.raises(ValueError)` but we use it a lot
-    "UP024", # wants to switch IOError with OSError
 ]
-per-file-ignores = { "__init__.py" = ["F401"] }
+per-file-ignores = { "__init__.py" = [
+    "F401",
+    "I002",
+], "conf.py" = [
+    "I002",
+    "FA100",
+] }
 exclude = [".git", "__pycache__", "build", "dist"]
 
 
 [tool.ruff.isort]
+required-imports = ["from __future__ import annotations"]
 section-order = [
     "future",
     "standard-library",
@@ -88,6 +194,7 @@ disable = [
     "unspecified-encoding",
     "unnecessary-ellipsis",
     "use-dict-literal",
+    "cyclic-import",
 ]
 
 [tool.pylint.design]
@@ -110,7 +217,10 @@ overgeneral-exceptions = "builtins.Exception"
 max-nested-blocks = 7
 
 [tool.pytest.ini_options]
-markers = ["sh_integration: marks integration tests with Sentinel Hub service"]
+markers = [
+    "sh_integration: marks integration tests with Sentinel Hub service",
+    "geopedia: marks integration tests with Geopedia",
+]
 
 [tool.coverage.run]
 source = [
@@ -128,13 +238,14 @@ source = [
 omit = ["*/setup.py", "*/tests/*", "*/__init__.py"]
 
 [tool.nbqa.addopts]
-ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002,UP,FA"]
+ruff = ["--extend-ignore=E402,T201,B015,B018,NPY002,UP,FA,I002"]
 # E402 -> imports on top
 # T201 -> print found
 # B015 & B018 -> useless expression (used to show values in ipynb)
 # NPY002 -> use RNG instead of old numpy.random
 # UP -> suggestions for new-style classes (future import might confuse readers)
 # FA -> necessary future annotations import
+# I002 -> auto-inserts future annotations
 
 [tool.mypy]
 follow_imports = "normal"

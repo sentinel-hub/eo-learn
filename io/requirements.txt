@@ -1,8 +1,1 @@
-affine
-boto3
-eo-learn-core
-fiona>=1.8.18
-geopandas>=0.8.1
-rasterio>=1.2.7
-sentinelhub>=3.8.0
-typing-extensions
+eo-learn

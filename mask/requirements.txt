@@ -1,8 +1,1 @@
-# using headless version of opencv, otherwise gitlab runners fail
-eo-learn-core
-lightgbm>=2.0.11
-numpy
-opencv-python-headless
-scikit-image>=0.13.0
-sentinelhub
-typing-extensions
+eo-learn

@@ -1,5 +1,5 @@
 # eolearn.features subpackage
 
-A collection of utilities for extracting data properties and feature manipulation.
+The deprecated way to install `eolearn.features`. See [migration guide](https://github.com/sentinel-hub/eo-learn/issues/733) on how to correctly install the `eo-learn` package.
 
-For more information about the module visit [readthedocs](https://eo-learn.readthedocs.io/en/latest/reference/eolearn.features.html), or see the [module task index](https://eo-learn.readthedocs.io/en/latest/eotasks.html#features).
+Installs requirements and a dummy package that is detected by `eo-learn` but otherwise does not change anything.

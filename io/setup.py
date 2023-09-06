@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 from setuptools import find_packages, setup
@@ -16,7 +18,7 @@ def parse_requirements(file):
 
 
 def get_version():
-    path = os.path.join(os.path.dirname(__file__), "eolearn", "io", "__init__.py")
+    path = os.path.join(os.path.dirname(__file__), "deprecated_eolearn_io", "__init__.py")
     with open(path) as version_file:
         for line in version_file:
             if line.find("__version__") >= 0:
@@ -43,10 +45,8 @@ setup(
     author_email="eoresearch@sinergise.com",
     license="MIT",
     packages=find_packages(),
-    include_package_data=True,
     install_requires=parse_requirements("requirements.txt"),
     extras_require={"METEOBLUE": parse_requirements("requirements-meteoblue.txt")},
-    zip_safe=False,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",

@@ -4,12 +4,12 @@ LABEL maintainer="Sinergise EO research team <eoresearch@sinergise.com>"
 LABEL description="An official eo-learn docker image with a full eo-learn installation and Jupyter notebook."
 
 RUN apt-get update && apt-get install -y \
-        gcc \
-        libgdal-dev \
-        graphviz \
-        proj-bin \
-        libproj-dev \
-        libspatialindex-dev \
+    gcc \
+    libgdal-dev \
+    graphviz \
+    proj-bin \
+    libproj-dev \
+    libspatialindex-dev \
     && apt-get clean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
@@ -20,25 +20,10 @@ RUN pip3 install --no-cache-dir shapely --no-binary :all:
 
 WORKDIR /tmp
 
-COPY core core
-COPY coregistration coregistration
-COPY features features
-COPY geometry geometry
-COPY io io
-COPY mask mask
-COPY ml_tools ml_tools
-COPY visualization visualization
-COPY setup.py README.md requirements-dev.txt ./
+COPY eolearn eolearn
+COPY pyproject.toml README.md LICENSE ./
 
-RUN pip3 install --no-cache-dir \
-    ./core[RAY] \
-    ./coregistration \
-    ./features \
-    ./geometry \
-    ./io[METEOBLUE] \
-    ./mask \
-    ./ml_tools \
-    ./visualization
+RUN pip3 install --no-cache-dir .[FULL]
 
 RUN pip3 install --no-cache-dir \
     . \
@@ -56,4 +41,4 @@ WORKDIR /home/eolearner
 
 EXPOSE 8888
 CMD ["/usr/local/bin/jupyter", "notebook", "--no-browser", "--port=8888", "--ip=0.0.0.0", \
-     "--NotebookApp.token=''", "--allow-root"]
+    "--NotebookApp.token=''", "--allow-root"]

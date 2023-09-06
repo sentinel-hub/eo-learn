@@ -1,6 +1,0 @@
-include requirements*.txt
-include eolearn/visualization/report_templates/report.html
-include LICENSE
-include README.md
-include eolearn/visualization/py.typed
-exclude eolearn/tests/*
