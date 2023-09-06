@@ -81,8 +81,6 @@ shapely
 fiona
 ```
 
-One of the `[MASK_EXTRA]` dependencies is the `lightgbm` package. On Windows it requires 64 bit Python distribution. If having problems during installation please check [LightGBM installation guide](https://lightgbm.readthedocs.io/en/latest/Installation-Guide.html).
-
 ### PyPI distribution
 
 `eo-learn` is available on PyPI and can be installed with:
@@ -94,7 +92,7 @@ pip install eo-learn
 For some modules there are extra dependencies available, related to specific tasks. These were kept separate in order to keep the `eo-learn` installation light. You can install these with, e.g.:
 
 ```bash
-pip install "eo-learn[MASK_EXTRA]"
+pip install "eo-learn[EXTRA]"
 pip install "eo-learn[VISUALIZATION]"
 ```
 
@@ -102,8 +100,7 @@ The full list (including their descriptions) is available here:
 
 - `RAY` for installing ray and its dependencies
 - `ZARR` for installing the zarr functionality for chunked timestamp saving/loading
-- `FEATURES_EXTRA` for installing interpolation- and clustering-specific dependencies
-- `MASK_EXTRA` for installing `s2cloudless` for cloud masking
+- `EXTRA` for installing interpolation- and clustering-specific dependencies, or for installing `s2cloudless` in cloud masking
 - `VISUALIZATION` for using plotting libraries and utilities
 - `FULL` for installing all dependencies described so far
 - `DOCS` for developers, dependencies for building documentation
