@@ -1,5 +1,5 @@
 """
-The module provides some utility functions for ML specific plotting
+The module provides some utility functions for plotting
 
 Copyright (c) 2017- Sinergise and contributors
 For the full list of contributors, see the CREDITS file in the root directory of this source tree.
@@ -11,13 +11,9 @@ from __future__ import annotations
 
 import itertools
 
+import matplotlib.pyplot as plt
 import numpy as np
-
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.colors import Colormap
-except ImportError as exception:
-    raise ImportError("This module requires an installation of matplotlib package") from exception
+from matplotlib.colors import Colormap
 
 
 def plot_confusion_matrix(
