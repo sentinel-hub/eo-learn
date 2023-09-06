@@ -97,12 +97,10 @@ pip install "eo-learn[FEATURES_EXTRA]"
 Here is a full list of all the modules' dependencies and their extras:
 
 - `COREGISTRATION`
-- `FEATURES`
-- `FEATURES_EXTRA`
+- `FEATURES` and `FEATURES_EXTRA`
 - `GEOMETRY`
 - `IO`
-- `MASK`
-- `MASK_EXTRA`
+- `MASK` and `MASK_EXTRA`
 - `MLTOOLS`
 - `VISUALIZATION`
 
