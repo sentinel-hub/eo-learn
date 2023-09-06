@@ -57,7 +57,7 @@ class CopyTask(EOTask):
 
 @deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")
 class DeepCopyTask(CopyTask):
-    """Makes a deep copy of the given EOPatch."""
+    """[DEPRECATED] Makes a deep copy of the given EOPatch."""
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         return eopatch.copy(features=self.features, deep=True)

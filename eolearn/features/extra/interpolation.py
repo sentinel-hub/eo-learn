@@ -446,7 +446,9 @@ class LinearInterpolationTask(InterpolationTask):
     "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='cubic'`",
 )
 class CubicInterpolationTask(InterpolationTask):
-    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
+    """
+    [DEPRECATED] Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.interp1d(kind='cubic')`
+    """
 
     def __init__(self, feature: SingleFeatureSpec, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, kind="cubic", **kwargs)
@@ -456,7 +458,7 @@ class CubicInterpolationTask(InterpolationTask):
     EODeprecationWarning, "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.UnivariateSpline`"
 )
 class SplineInterpolationTask(InterpolationTask):
-    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`"""
+    """[DEPRECATED] Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.UnivariateSpline`"""
 
     def __init__(
         self, feature: SingleFeatureSpec, *, spline_degree: int = 3, smoothing_factor: float = 0, **kwargs: Any
@@ -468,7 +470,7 @@ class SplineInterpolationTask(InterpolationTask):
     EODeprecationWarning, "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.make_interp_spline`"
 )
 class BSplineInterpolationTask(InterpolationTask):
-    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`"""
+    """[DEPRECATED] Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.BSpline`"""
 
     def __init__(self, feature: SingleFeatureSpec, *, spline_degree: int = 3, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.make_interp_spline, k=spline_degree, **kwargs)
@@ -478,7 +480,7 @@ class BSplineInterpolationTask(InterpolationTask):
     EODeprecationWarning, "Use `InterpolationTask` with `interpolation_object=scipy.interpolate.Akima1DInterpolator`"
 )
 class AkimaInterpolationTask(InterpolationTask):
-    """Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`"""
+    """[DEPRECATED] Implements `eolearn.features.InterpolationTask` by using `scipy.interpolate.Akima1DInterpolator`"""
 
     def __init__(self, feature: SingleFeatureSpec, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.Akima1DInterpolator, **kwargs)
@@ -580,7 +582,9 @@ class ResamplingTask(InterpolationTask):
     "Use `ResamplingTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='nearest'`.",
 )
 class NearestResamplingTask(ResamplingTask):
-    """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`"""
+    """
+    [DEPRECATED] Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='nearest')`
+    """
 
     def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="nearest", **kwargs)
@@ -591,7 +595,7 @@ class NearestResamplingTask(ResamplingTask):
     "Use `ResamplingTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='linear'`.",
 )
 class LinearResamplingTask(ResamplingTask):
-    """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`"""
+    """[DEPRECATED] Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='linear')`"""
 
     def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="linear", **kwargs)
@@ -602,7 +606,7 @@ class LinearResamplingTask(ResamplingTask):
     "Use `ResamplingTask` with `interpolation_object=scipy.interpolate.interp1d` and `kind='cubic'`.",
 )
 class CubicResamplingTask(ResamplingTask):
-    """Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
+    """[DEPRECATED] Implements `eolearn.features.ResamplingTask` by using `scipy.interpolate.interp1d(kind='cubic')`"""
 
     def __init__(self, feature: SingleFeatureSpec, resample_range: ResampleRangeType, **kwargs: Any):
         super().__init__(feature, scipy.interpolate.interp1d, resample_range, kind="cubic", **kwargs)
