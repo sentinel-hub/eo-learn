@@ -1,3 +1,31 @@
+## [Version 1.5.0] - 2023-09-06
+
+The release focuses on making `eo-learn` much simpler to install, reducing the number of dependencies, and improving validation of soundness of `EOPatch` data.
+
+- `eo-learn` is now distributed as a single package. Installation of `eo-learn-mask` and similar is no longer necessary and users are warned when such installations are detected.
+- Changes to `timestamps` and `bbox` attributes of `EOPatch` objects:
+    - `FeatureType.TIMESTAMPS` and `FeatureType.BBOX` have been deprecated, data should be accessed via attributes. Feature parsers no longer return these values (for instance when calling `EOPatch.get_features`).
+    - EOPatches without temporal information now have a timestamp value of `None`, whereas a timestamp value `[]` signifies that the EOPatch has a temporal dimension of 0.
+    - Introduced a `get_timestamps` method that will fail if `timestamps` are `None`. This can be used in cases where timestamps are assumed to be present (to avoid issues with type-checking and ill formed inputs).
+    - Loading, saving, and copying of EOPatches will take `timestamps` into account either when processing the full eopatch (i.e. `features=...`) or if the selection contains a temporal feature. The behavior can be controlled via the `load_timestamps`/`save_timestamps`/`copy_timestamps` parameter.
+- Saving and loading of `FeatureType.META_INFO` now processes each feature as a separate file, allowing better filtering and preventing accidental overwriting.
+- The default backend for `SpatialResizeTask` has been switched to `cv2` to reduce the number of dependencies.
+- `eolearn.geometry.morphology` tasks now use `cv2` instead of `scikit-image` to reduce the number of dependencies. The task interfaces have been slightly adjusted.
+- Improved reports:
+  - Exception grouping is now done by exception origin instead of exception message, resulting in shorter reports.
+  - Added execution time statistics per node
+- `CloudMaskTask` has been restricted to mono-temporal predictions using the `s2cloudless` package. For the multi-temporal one check [here](https://github.com/sentinel-hub/eo-learn-examples/blob/main/extra-tasks/cloud_mask/cloud_mask.py).
+- Certain tasks (for instance `SaveTask` and `LoadTask`) no longer pass arguments to the super-class via **kwargs in order to improve documentation and type-checking.
+- `SaveTask` and `LoadTask` now raise `OSError` exceptions instead of `IOError`.
+- Project-specific and outdated EOTasks were moved to extras or to the example repository [eo-learn-examples/extra-tasks](https://github.com/sentinel-hub/eo-learn-examples/tree/main/extra-tasks).
+- The submodule `eolearn.features.bands_extraction` has been renamed to `eolearn.features.ndi`.
+- The submodule `eolearn.ml_tools.extra.plotting` has been moved to `eolearn.visualization.utils`.
+- Compression of EOPatch files has been hardcoded. The parameter `compression_level` has been deprecated and has no effect.
+- Introduced experimental `zarr` support for loading/saving temporal slices of temporal features. The API might be changed in future releases.
+- Limited `rasterio` to 1.3.7 due to an issue with importing rasters from AWS S3
+- Updated examples, simplified tests, various improvements.
+
+
 ## [Version 1.4.2] - 2023-03-14
 
 - Introduced support for Python 3.11.
