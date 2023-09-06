@@ -16,5 +16,5 @@ if __name__ == "__main__":
     subprocess.check_call([sys.executable, "-m", "pip", "install", *sys.argv[1:], ".[ALL]"])
     warnings.warn(
         "Installing via `install_all.py` is no longer necessary and has been deprecated. Use `pip install"
-        " eo-learn[ALL]` instead."
+        " eo-learn` instead."
     )
