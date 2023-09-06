@@ -108,12 +108,12 @@ Here is a full list of all the modules' dependencies and their extras:
 
 We also provide a few collections of dependencies:
 
-- `[ALL]` for installing the basic dependencies without extras
-- `[FULL]` for installing every dependency, including the extras
-- `[RAY]` for installing ray and its dependencies
-- `[ZARR]` for installing the zarr functionality for chunked timestamp saving/loading.
-- `[DOCS]` for developers, dependencies for building docs
-- `[DEV]` for developers, dependencies for testing and contributing
+- `ALL` for installing the basic dependencies without extras
+- `FULL` for installing every dependency, including the extras
+- `RAY` for installing ray and its dependencies
+- `ZARR` for installing the zarr functionality for chunked timestamp saving/loading.
+- `DOCS` for developers, dependencies for building docs
+- `DEV` for developers, dependencies for testing and contributing
 
 ### Conda Forge distribution
 
