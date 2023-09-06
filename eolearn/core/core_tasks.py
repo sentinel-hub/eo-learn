@@ -31,7 +31,7 @@ from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
 class CopyTask(EOTask):
-    """Makes a shallow copy of the given EOPatch.
+    """Makes a (shallow or deep) copy of the given EOPatch.
 
     It copies feature type dictionaries but not the data itself.
     """
@@ -57,7 +57,7 @@ class CopyTask(EOTask):
 
 @deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")
 class DeepCopyTask(CopyTask):
-    """Makes a deep copy of the given EOPatch."""
+    """[DEPRECATED] Makes a deep copy of the given EOPatch."""
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         return eopatch.copy(features=self.features, deep=True)
