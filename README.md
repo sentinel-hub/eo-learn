@@ -146,7 +146,7 @@ For more information on the package content, visit [readthedocs](https://eo-lear
 
 Examples and introductions to the package can be found [here](https://github.com/sentinel-hub/eo-learn/tree/master/examples). A larger collection of examples is available at the [`eo-learn-examples`](https://github.com/sentinel-hub/eo-learn-examples) repository. While the examples there are not always up-to-date they can be a great source of ideas.
 
-In the past, `eo-learn` served as a collection of many useful tasks, originating from various contributors or projects. When the mission and purpose of `eo-learn` changed, we have decided to move these specific tasks to [`eo-learn-examples/extra-tasks`](https://github.com/sentinel-hub/eo-learn-examples/tree/main/extra-tasks), in order to keep `eo-learn` light and easier to maintain.
+In the past, `eo-learn` served as a collection of many useful tasks, originating from various contributors or projects. In order to keep `eo-learn` light and easy to maintain, we have decided to move these specific tasks to [`eo-learn-examples/extra-tasks`](https://github.com/sentinel-hub/eo-learn-examples/tree/main/extra-tasks), .
 
 ## Contributions
 
