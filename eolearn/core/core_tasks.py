@@ -31,7 +31,7 @@ from .utils.fs import get_filesystem, pickle_fs, unpickle_fs
 
 
 class CopyTask(EOTask):
-    """Makes a shallow copy of the given EOPatch.
+    """Makes a (shallow or deep) copy of the given EOPatch.
 
     It copies feature type dictionaries but not the data itself.
     """
