@@ -753,9 +753,12 @@ class EOPatch:
     def temporal_subset(
         self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
     ) -> EOPatch:
-        """TODO
+        """Returns an EOPatch that only contains data for the temporal subset defined by `timestamps`.
 
-        :param timestamps: TODO
+        For array based data appropriate temporal slices are extracted. For vector data a filtration is performed.
+
+        :param timestamps: Parameter that defines the temporal subset. Can be a collection of timestamps, a
+            collection of timestamp indices, or a callable that returns whether a timestamp should be kept.
         """
         timestamp_indices = self._parse_temporal_subset_input(timestamps)
         new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in set(timestamp_indices)]
@@ -775,6 +778,7 @@ class EOPatch:
     def _parse_temporal_subset_input(
         self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
     ) -> list[int]:
+        """Parses input into a list of timestamp indices. Also adds implicit support for strings via `parse_time`."""
         if callable(timestamps):
             return [i for i, ts in enumerate(self.get_timestamps()) if timestamps(ts)]
         ts_or_idx = list(timestamps)
