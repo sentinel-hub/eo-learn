@@ -750,6 +750,39 @@ class EOPatch:
 
         return remove_from_patch
 
+    def temporal_subset(
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
+    ) -> EOPatch:
+        """TODO
+
+        :param timestamps: TODO
+        """
+        timestamp_indices = self._parse_temporal_subset_input(timestamps)
+        new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in set(timestamp_indices)]
+        new_patch = EOPatch(bbox=self.bbox, timestamps=new_timestamps)
+
+        for ftype, fname in self.get_features():
+            if ftype.is_timeless():
+                new_patch[ftype, fname] = self[ftype, fname]
+            elif ftype.is_vector():
+                gdf: gpd.GeoDataFrame = self[ftype, fname]
+                new_patch[ftype, fname] = gdf[gdf[TIMESTAMP_COLUMN].isin(new_timestamps)]
+            else:
+                new_patch[ftype, fname] = self[ftype, fname][timestamp_indices, ...]
+
+        return new_patch
+
+    def _parse_temporal_subset_input(
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
+    ) -> list[int]:
+        if callable(timestamps):
+            return [i for i, ts in enumerate(self.get_timestamps()) if timestamps(ts)]
+        ts_or_idx = list(timestamps)
+        if all(isinstance(ts, int) for ts in ts_or_idx):
+            return ts_or_idx  # type: ignore[return-value]
+        parsed_timestamps = {parse_time(ts, force_datetime=True) for ts in ts_or_idx}  # type: ignore[call-overload]
+        return [i for i, ts in enumerate(self.get_timestamps()) if ts in parsed_timestamps]
+
     def plot(
         self,
         feature: Feature,
