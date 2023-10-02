@@ -726,6 +726,7 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
+    @deprecated_function(EODeprecationWarning, "Please use the method `temporal_subset` instead.")
     def consolidate_timestamps(self, timestamps: list[dt.datetime]) -> set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
@@ -765,7 +766,7 @@ class EOPatch:
         new_patch = EOPatch(bbox=self.bbox, timestamps=new_timestamps)
 
         for ftype, fname in self.get_features():
-            if ftype.is_timeless():
+            if ftype.is_timeless() or ftype.is_meta():
                 new_patch[ftype, fname] = self[ftype, fname]
             elif ftype.is_vector():
                 gdf: gpd.GeoDataFrame = self[ftype, fname]

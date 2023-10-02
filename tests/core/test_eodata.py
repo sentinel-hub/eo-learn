@@ -398,6 +398,7 @@ def test_get_features(patch: EOPatch, expected_features: list[Feature]) -> None:
     assert patch.get_features() == expected_features
 
 
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.EODeprecationWarning")
 def test_timestamp_consolidation() -> None:
     # 10 frames
     timestamps = [

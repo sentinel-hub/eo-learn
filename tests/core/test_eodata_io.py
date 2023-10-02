@@ -623,8 +623,7 @@ def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_select
         io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
         eopatch.save(**io_kwargs, use_zarr=True)
 
-        partial_patch = eopatch.copy(deep=True)
-        partial_patch.consolidate_timestamps(np.array(partial_patch.timestamps)[temporal_selection or ...])
+        partial_patch = eopatch.copy(deep=True).temporal_subset(np.array(eopatch.timestamps)[temporal_selection or ...])
 
         partial_patch.data["data"] = np.full_like(partial_patch.data["data"], 2)
         partial_patch.save(**io_kwargs, use_zarr=True, temporal_selection=temporal_selection)
@@ -668,8 +667,7 @@ def test_partial_temporal_saving_infer(eopatch: EOPatch):
         io_kwargs = dict(path="patch-folder", filesystem=temp_fs, overwrite_permission="OVERWRITE_FEATURES")
         eopatch.save(**io_kwargs, use_zarr=True)
 
-        partial_patch = eopatch.copy(deep=True)
-        partial_patch.consolidate_timestamps(eopatch.timestamps[1:2] + eopatch.timestamps[3:5])
+        partial_patch = eopatch.copy(deep=True).temporal_subset([1, 3, 4])
 
         partial_patch.data["data"] = np.full_like(partial_patch.data["data"], 2)
         partial_patch.save(**io_kwargs, use_zarr=True, temporal_selection="infer")
