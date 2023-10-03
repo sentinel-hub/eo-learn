@@ -726,6 +726,7 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
+    @deprecated_function(EODeprecationWarning, "Please use the method `temporal_subset` instead.")
     def consolidate_timestamps(self, timestamps: list[dt.datetime]) -> set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
@@ -749,6 +750,43 @@ class EOPatch:
                 self[ftype, feature_name] = value[good_timestamp_idxs, ...]
 
         return remove_from_patch
+
+    def temporal_subset(
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
+    ) -> EOPatch:
+        """Returns an EOPatch that only contains data for the temporal subset corresponding to `timestamps`.
+
+        For array-based data appropriate temporal slices are extracted. For vector data a filtration is performed.
+
+        :param timestamps: Parameter that defines the temporal subset. Can be a collection of timestamps, a
+            collection of timestamp indices, or a callable that returns whether a timestamp should be kept.
+        """
+        timestamp_indices = self._parse_temporal_subset_input(timestamps)
+        new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in timestamp_indices]
+        new_patch = EOPatch(bbox=self.bbox, timestamps=new_timestamps)
+
+        for ftype, fname in self.get_features():
+            if ftype.is_timeless() or ftype.is_meta():
+                new_patch[ftype, fname] = self[ftype, fname]
+            elif ftype.is_vector():
+                gdf: gpd.GeoDataFrame = self[ftype, fname]
+                new_patch[ftype, fname] = gdf[gdf[TIMESTAMP_COLUMN].isin(new_timestamps)]
+            else:
+                new_patch[ftype, fname] = self[ftype, fname][timestamp_indices]
+
+        return new_patch
+
+    def _parse_temporal_subset_input(
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
+    ) -> list[int]:
+        """Parses input into a list of timestamp indices. Also adds implicit support for strings via `parse_time`."""
+        if callable(timestamps):
+            return [i for i, ts in enumerate(self.get_timestamps()) if timestamps(ts)]
+        ts_or_idx = list(timestamps)
+        if all(isinstance(ts, int) for ts in ts_or_idx):
+            return ts_or_idx  # type: ignore[return-value]
+        parsed_timestamps = {parse_time(ts, force_datetime=True) for ts in ts_or_idx}  # type: ignore[call-overload]
+        return [i for i, ts in enumerate(self.get_timestamps()) if ts in parsed_timestamps]
 
     def plot(
         self,
