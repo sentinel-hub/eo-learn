@@ -754,15 +754,15 @@ class EOPatch:
     def temporal_subset(
         self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
     ) -> EOPatch:
-        """Returns an EOPatch that only contains data for the temporal subset defined by `timestamps`.
+        """Returns an EOPatch that only contains data for the temporal subset corresponding to `timestamps`.
 
-        For array based data appropriate temporal slices are extracted. For vector data a filtration is performed.
+        For array-based data appropriate temporal slices are extracted. For vector data a filtration is performed.
 
         :param timestamps: Parameter that defines the temporal subset. Can be a collection of timestamps, a
             collection of timestamp indices, or a callable that returns whether a timestamp should be kept.
         """
         timestamp_indices = self._parse_temporal_subset_input(timestamps)
-        new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in set(timestamp_indices)]
+        new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in timestamp_indices]
         new_patch = EOPatch(bbox=self.bbox, timestamps=new_timestamps)
 
         for ftype, fname in self.get_features():
@@ -772,7 +772,7 @@ class EOPatch:
                 gdf: gpd.GeoDataFrame = self[ftype, fname]
                 new_patch[ftype, fname] = gdf[gdf[TIMESTAMP_COLUMN].isin(new_timestamps)]
             else:
-                new_patch[ftype, fname] = self[ftype, fname][timestamp_indices, ...]
+                new_patch[ftype, fname] = self[ftype, fname][timestamp_indices]
 
         return new_patch
 

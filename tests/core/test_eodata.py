@@ -17,6 +17,7 @@ from geopandas import GeoDataFrame, GeoSeries
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning, TemporalDimensionWarning
 from eolearn.core.types import Feature, FeaturesSpecification
@@ -470,7 +471,7 @@ def test_temporal_subset(method_input):
         ],
     )
     vector_data = GeoDataFrame(
-        {"TIMESTAMP": eop.get_timestamps()}, geometry=[eop.bbox.geometry.buffer(i) for i in range(5)], crs=32633
+        {TIMESTAMP_COLUMN: eop.get_timestamps()}, geometry=[eop.bbox.geometry.buffer(i) for i in range(5)], crs=32633
     )
     eop.vector["vector"] = vector_data
     subset_timestamps = eop.timestamps[1:3]
