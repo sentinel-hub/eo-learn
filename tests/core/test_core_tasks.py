@@ -40,6 +40,7 @@ from eolearn.core import (
     RemoveFeatureTask,
     RenameFeatureTask,
     SaveTask,
+    TemporalSubsetTask,
     ZipFeatureTask,
 )
 from eolearn.core.core_tasks import ExplodeBandsTask
@@ -275,6 +276,20 @@ def test_merge_features(axis: int, features_to_merge: list[Feature], feature: Fe
     expected = np.concatenate([patch[f] for f in features_to_merge], axis=axis)
 
     assert_array_equal(patch[feature], expected)
+
+
+@pytest.mark.parametrize("timestamps", [[1, 2, 4]])
+def test_temporal_subset_task(patch: EOPatch, timestamps):
+    """The correctness is tested in the method test, so we focus on testing that parameters are passed correctly."""
+    task_init = TemporalSubsetTask(timestamps)
+    result_init = task_init.execute(patch)
+
+    task_exec = TemporalSubsetTask()
+    result_exec = task_exec.execute(patch, timestamps=timestamps)
+
+    assert result_init == result_exec
+    assert len(result_exec.get_timestamps()) == 3
+    assert_array_equal(result_exec.data["bands"], patch.data["bands"][[1, 2, 4]])
 
 
 @pytest.mark.parametrize(
