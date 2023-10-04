@@ -278,7 +278,14 @@ def test_merge_features(axis: int, features_to_merge: list[Feature], feature: Fe
     assert_array_equal(patch[feature], expected)
 
 
-@pytest.mark.parametrize("timestamps", [[1, 2, 4]])
+@pytest.mark.parametrize(
+    "timestamps",
+    [
+        [1, 2, 4],
+        [datetime(2019, 4, 2), datetime(2019, 7, 2), datetime(2019, 12, 31)],
+        lambda _: [False, True, True, False, True],
+    ],
+)
 def test_temporal_subset_task(patch: EOPatch, timestamps):
     """The correctness is tested in the method test, so we focus on testing that parameters are passed correctly."""
     task_init = TemporalSubsetTask(timestamps)

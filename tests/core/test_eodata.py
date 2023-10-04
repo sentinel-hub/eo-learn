@@ -451,7 +451,7 @@ def test_timestamp_consolidation() -> None:
     [
         ["2017-04-08", "2017-09-17"],
         [1, 2],
-        lambda x: (x > dt.datetime(2017, 4, 1) and x < dt.datetime(2017, 10, 10)),
+        lambda dates: (dt.datetime(2017, 4, 1) < x < dt.datetime(2017, 10, 10) for x in dates),
     ],
 )
 def test_temporal_subset(method_input):

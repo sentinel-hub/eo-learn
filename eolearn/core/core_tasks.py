@@ -416,7 +416,9 @@ class MoveFeatureTask(EOTask):
 class TemporalSubsetTask(EOTask):
     """Extracts a temporal subset of the EOPatch."""
 
-    def __init__(self, timestamps: None | list[dt.datetime] | list[int] | Callable[[dt.datetime], bool] = None):
+    def __init__(
+        self, timestamps: None | list[dt.datetime] | list[int] | Callable[[list[dt.datetime]], Iterable[bool]] = None
+    ):
         """
         :param timestamps: Input for the `temporal_subset` method of EOPatch. Can also be provided in execution
             arguments. Value in execution arguments takes precedence.
@@ -427,7 +429,7 @@ class TemporalSubsetTask(EOTask):
         self,
         eopatch: EOPatch,
         *,
-        timestamps: None | list[dt.datetime] | list[int] | Callable[[dt.datetime], bool] = None,
+        timestamps: None | list[dt.datetime] | list[int] | Callable[[list[dt.datetime]], Iterable[bool]] = None,
     ) -> EOPatch:
         timestamps = timestamps if timestamps is not None else self.timestamps
         if timestamps is None:
