@@ -752,14 +752,15 @@ class EOPatch:
         return remove_from_patch
 
     def temporal_subset(
-        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[list[dt.datetime]], Iterable[bool]]
     ) -> EOPatch:
         """Returns an EOPatch that only contains data for the temporal subset corresponding to `timestamps`.
 
         For array-based data appropriate temporal slices are extracted. For vector data a filtration is performed.
 
         :param timestamps: Parameter that defines the temporal subset. Can be a collection of timestamps, a
-            collection of timestamp indices, or a callable that returns whether a timestamp should be kept.
+            collection of timestamp indices. It is possible to also provide a callable that maps a list of timestamps
+            to a sequence of booleans, which determine if a given timestamp is included in the subset or not.
         """
         timestamp_indices = self._parse_temporal_subset_input(timestamps)
         new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in timestamp_indices]
@@ -777,11 +778,12 @@ class EOPatch:
         return new_patch
 
     def _parse_temporal_subset_input(
-        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[dt.datetime], bool]
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[list[dt.datetime]], Iterable[bool]]
     ) -> list[int]:
         """Parses input into a list of timestamp indices. Also adds implicit support for strings via `parse_time`."""
         if callable(timestamps):
-            return [i for i, ts in enumerate(self.get_timestamps()) if timestamps(ts)]
+            accepted_timestamps = timestamps(self.get_timestamps())
+            return [i for i, accepted in enumerate(accepted_timestamps) if accepted]
         ts_or_idx = list(timestamps)
         if all(isinstance(ts, int) for ts in ts_or_idx):
             return ts_or_idx  # type: ignore[return-value]
