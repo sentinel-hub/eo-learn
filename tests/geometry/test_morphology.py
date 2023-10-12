@@ -104,5 +104,6 @@ def test_morphological_filter(patch, morph_operation, struct_element, mask_count
 
     assert patch[MASK_FEATURE].shape == (5, 50, 100, 3)
     assert patch[MASK_TIMELESS_FEATURE].shape == (50, 100, 3)
+    assert patch[MASK_TIMELESS_FEATURE].dtype == bool
     assert_array_equal(np.unique(patch[MASK_FEATURE], return_counts=True)[1], mask_counts)
     assert_array_equal(np.unique(patch[MASK_TIMELESS_FEATURE], return_counts=True)[1], mask_timeless_counts)
