@@ -48,7 +48,7 @@ class ErosionTask(EOTask):
         self.no_data_label = no_data_label
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
-        feature_array = eopatch[(self.mask_type, self.mask_name)].squeeze().copy()
+        feature_array = eopatch[(self.mask_type, self.mask_name)].squeeze(axis=-1).copy()
 
         all_labels = np.unique(feature_array)
         erode_labels = self.erode_labels if self.erode_labels else all_labels
@@ -148,6 +148,10 @@ class MorphologicalFilterTask(MapFeatureTask):
     def map_method(self, feature: np.ndarray) -> np.ndarray:
         """Applies the morphological operation to a raster feature."""
         feature = feature.copy()
+        is_bool = feature.dtype == bool
+        if is_bool:
+            feature = feature.astype(np.uint8)
+
         morph_func = partial(cv2.morphologyEx, kernel=self.struct_elem, op=self.morph_operation)
         if feature.ndim == 3:
             for channel in range(feature.shape[2]):
@@ -158,4 +162,4 @@ class MorphologicalFilterTask(MapFeatureTask):
         else:
             raise ValueError(f"Invalid number of dimensions: {feature.ndim}")
 
-        return feature
+        return feature.astype(bool) if is_bool else feature
