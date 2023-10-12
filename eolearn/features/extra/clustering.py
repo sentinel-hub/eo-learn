@@ -88,7 +88,7 @@ class ClusteringTask(EOTask):
 
         # All connections to masked pixels are removed
         if self.mask_name is not None:
-            mask = eopatch.mask_timeless[self.mask_name].squeeze()
+            mask = eopatch.mask_timeless[self.mask_name].squeeze(axis=-1)
             graph_args["mask"] = mask
             data = data[np.ravel(mask) != 0]
 
