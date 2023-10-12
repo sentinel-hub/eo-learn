@@ -24,8 +24,11 @@ MASK_TIMELESS_FEATURE = FeatureType.MASK_TIMELESS, "timeless_mask"
 def patch_fixture() -> EOPatch:
     config = PatchGeneratorConfig(max_integer_value=10, raster_shape=(50, 100), depth_range=(3, 4))
     patch = generate_eopatch([MASK_FEATURE, MASK_TIMELESS_FEATURE], config=config)
-    for feat in [MASK_FEATURE, MASK_TIMELESS_FEATURE]:
-        patch[feat] = patch[feat].astype(np.uint8)
+    patch[MASK_FEATURE] = patch[MASK_FEATURE].astype(np.uint8)
+    patch[MASK_TIMELESS_FEATURE] = patch[MASK_TIMELESS_FEATURE] < 1
+    patch[MASK_TIMELESS_FEATURE][10:20, 20:32] = 0
+    patch[MASK_TIMELESS_FEATURE][30:, 50:] = 1
+
     return patch
 
 
@@ -64,22 +67,32 @@ def test_erosion_partial(test_eopatch):
             MorphologicalOperations.DILATION,
             None,
             [6, 34, 172, 768, 2491, 7405, 19212, 44912],
-            [1, 2, 16, 104, 466, 1490, 3870, 9051],
+            [4882, 10118],
         ),
-        (MorphologicalOperations.EROSION, MorphologicalStructFactory.get_disk(11), [74957, 42, 1], [14994, 6]),
-        (MorphologicalOperations.OPENING, MorphologicalStructFactory.get_disk(11), [73899, 1051, 50], [14837, 163]),
-        (MorphologicalOperations.CLOSING, MorphologicalStructFactory.get_disk(11), [770, 74230], [425, 14575]),
+        (
+            MorphologicalOperations.EROSION,
+            MorphologicalStructFactory.get_disk(4),
+            [54555, 15639, 3859, 770, 153, 19, 5],
+            [12391, 2609],
+        ),
         (
             MorphologicalOperations.OPENING,
-            MorphologicalStructFactory.get_rectangle(5, 6),
-            [48468, 24223, 2125, 169, 15],
-            [10146, 4425, 417, 3, 9],
+            MorphologicalStructFactory.get_disk(3),
+            [8850, 13652, 16866, 14632, 11121, 6315, 2670, 761, 133],
+            [11981, 3019],
+        ),
+        (MorphologicalOperations.CLOSING, MorphologicalStructFactory.get_disk(11), [770, 74230], [661, 14339]),
+        (
+            MorphologicalOperations.OPENING,
+            MorphologicalStructFactory.get_rectangle(3, 3),
+            [15026, 23899, 20363, 9961, 4328, 1128, 280, 15],
+            [12000, 3000],
         ),
         (
             MorphologicalOperations.DILATION,
             MorphologicalStructFactory.get_rectangle(5, 6),
             [2, 19, 198, 3929, 70852],
-            [32, 743, 14225],
+            [803, 14197],
         ),
     ],
 )
