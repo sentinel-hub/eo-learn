@@ -307,12 +307,10 @@ class EOWorkflow:
         return self._nodes[:]
 
     @overload
-    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[True] = ...) -> EONode:
-        ...
+    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[True] = ...) -> EONode: ...
 
     @overload
-    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[False] = ...) -> EONode | None:
-        ...
+    def get_node_with_uid(self, uid: str, fail_if_missing: Literal[False] = ...) -> EONode | None: ...
 
     def get_node_with_uid(self, uid: str, fail_if_missing: bool = False) -> EONode | None:
         """Returns node with give uid, if it exists in the workflow."""
