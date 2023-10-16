@@ -36,8 +36,7 @@ from .utils.parallelize import _decide_processing_type, _ProcessingType, paralle
 class _HandlerWithFsFactoryType(Protocol):
     """Type definition for a callable that accepts a path and a filesystem object"""
 
-    def __call__(self, path: str, filesystem: FS, **kwargs: Any) -> Handler:
-        ...
+    def __call__(self, path: str, filesystem: FS, **kwargs: Any) -> Handler: ...
 
 
 # pylint: disable=invalid-name
