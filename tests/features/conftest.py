@@ -34,5 +34,4 @@ def small_ndvi_eopatch_fixture(example_eopatch: EOPatch):
     ndvi = example_eopatch.data["NDVI"][:, :20, :20]
     ndvi[np.isnan(ndvi)] = 0
     example_eopatch.data["NDVI"] = ndvi
-    example_eopatch.consolidate_timestamps(example_eopatch.get_timestamps()[:10])
-    return example_eopatch
+    return example_eopatch.temporal_subset(range(10))

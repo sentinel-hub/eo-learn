@@ -206,8 +206,7 @@ def test_lazy_loading(test_eopatch_path):
 
 def test_temporally_independent_merge(test_eopatch_path):
     full_patch = EOPatch.load(test_eopatch_path)
-    part1, part2 = full_patch.copy(deep=True), full_patch.copy(deep=True)
-    part1.consolidate_timestamps(full_patch.get_timestamps()[:10])
-    part2.consolidate_timestamps(full_patch.get_timestamps()[10:])
+    part1 = full_patch.copy(deep=True).temporal_subset(range(10))
+    part2 = full_patch.copy(deep=True).temporal_subset(range(10, len(full_patch.timestamps)))
 
     assert full_patch == merge_eopatches(part1, part2, time_dependent_op="concatenate")

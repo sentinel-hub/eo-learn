@@ -413,6 +413,30 @@ class MoveFeatureTask(EOTask):
         return dst_eopatch
 
 
+class TemporalSubsetTask(EOTask):
+    """Extracts a temporal subset of the EOPatch."""
+
+    def __init__(
+        self, timestamps: None | list[dt.datetime] | list[int] | Callable[[list[dt.datetime]], Iterable[bool]] = None
+    ):
+        """
+        :param timestamps: Input for the `temporal_subset` method of EOPatch. Can also be provided in execution
+            arguments. Value in execution arguments takes precedence.
+        """
+        self.timestamps = timestamps
+
+    def execute(
+        self,
+        eopatch: EOPatch,
+        *,
+        timestamps: None | list[dt.datetime] | list[int] | Callable[[list[dt.datetime]], Iterable[bool]] = None,
+    ) -> EOPatch:
+        timestamps = timestamps if timestamps is not None else self.timestamps
+        if timestamps is None:
+            raise ValueError("Value for `timestamps` must be provided on initialization or as an execution argument.")
+        return eopatch.temporal_subset(timestamps)
+
+
 class MapFeatureTask(EOTask):
     """Applies a function to each feature in input_features of a patch and stores the results in a set of
     output_features.

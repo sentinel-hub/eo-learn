@@ -19,6 +19,7 @@ from .core_tasks import (
     RemoveFeatureTask,
     RenameFeatureTask,
     SaveTask,
+    TemporalSubsetTask,
     ZipFeatureTask,
 )
 from .eodata import EOPatch

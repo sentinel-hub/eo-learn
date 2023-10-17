@@ -61,7 +61,7 @@ class RayExecutor(EOExecutor):
 def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
     """Called to execute a workflow on a ray worker"""
     # pylint: disable=protected-access
-    return RayExecutor._execute_workflow(workflow_args)
+    return RayExecutor._execute_workflow(workflow_args)  # noqa: SLF001
 
 
 def parallelize_with_ray(

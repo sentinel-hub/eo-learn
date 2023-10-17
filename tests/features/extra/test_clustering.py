@@ -43,14 +43,14 @@ def test_clustering(example_eopatch):
         remove_small=10,
     ).execute(example_eopatch)
 
-    clusters = example_eopatch.data_timeless["clusters_small"].squeeze()
+    clusters = example_eopatch.data_timeless["clusters_small"].squeeze(axis=-1)
 
     assert len(np.unique(clusters)) == 22, "Wrong number of clusters."
     assert np.median(clusters) == 2
 
     assert np.mean(clusters) == pytest.approx(2.19109 if sys.version_info < (3, 9) else 2.201188)
 
-    clusters = example_eopatch.data_timeless["clusters_mask"].squeeze()
+    clusters = example_eopatch.data_timeless["clusters_mask"].squeeze(axis=-1)
 
     assert len(np.unique(clusters)) == 8, "Wrong number of clusters."
     assert np.median(clusters) == 0

@@ -19,7 +19,21 @@ from logging import FileHandler
 import pytest
 from fs.base import FS
 
-from eolearn.core import EOExecutor, EONode, EOTask, EOWorkflow, OutputTask, WorkflowResults, execute_with_mp_lock
+from sentinelhub import CRS, BBox
+
+from eolearn.core import (
+    CreateEOPatchTask,
+    EOExecutor,
+    EONode,
+    EOTask,
+    EOWorkflow,
+    FeatureType,
+    InitializeFeatureTask,
+    OutputTask,
+    WorkflowResults,
+    execute_with_mp_lock,
+    linearly_connect_tasks,
+)
 from eolearn.core.utils.fs import get_full_path
 
 FULL_LOG_LINE_COUNT = 12
@@ -251,3 +265,21 @@ def test_without_lock(num_workers):
         assert len(lines) == 2 * num_workers
         assert len(set(lines[:num_workers])) == num_workers, "All processes should start"
         assert len(set(lines[num_workers:])) == num_workers, "All processes should finish"
+
+
+@pytest.mark.parametrize("multiprocess", [True, False])
+def test_temporal_dim_error(multiprocess):
+    workflow = EOWorkflow(
+        linearly_connect_tasks(
+            CreateEOPatchTask(bbox=BBox((0, 0, 1, 1), CRS.POP_WEB)),
+            InitializeFeatureTask([FeatureType.DATA, "data"], (2, 5, 5, 1)),
+        )
+    )
+
+    executor = EOExecutor(workflow, [{}, {}])
+    for result in executor.run(workers=2, multiprocess=multiprocess):
+        assert result.error_node_uid is None
+
+    executor = EOExecutor(workflow, [{}, {}], raise_on_temporal_mismatch=True)
+    for result in executor.run(workers=2, multiprocess=multiprocess):
+        assert result.error_node_uid is not None

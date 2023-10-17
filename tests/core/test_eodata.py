@@ -6,7 +6,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 """
 from __future__ import annotations
 
-import datetime
+import datetime as dt
 import warnings
 from typing import Any
 
@@ -17,6 +17,7 @@ from geopandas import GeoDataFrame, GeoSeries
 from sentinelhub import CRS, BBox
 
 from eolearn.core import EOPatch, FeatureType
+from eolearn.core.constants import TIMESTAMP_COLUMN
 from eolearn.core.eodata_io import FeatureIO
 from eolearn.core.exceptions import EODeprecationWarning, TemporalDimensionWarning
 from eolearn.core.types import Feature, FeaturesSpecification
@@ -96,7 +97,7 @@ def test_bbox_feature_type(invalid_bbox: Any) -> None:
 
 
 @pytest.mark.parametrize(
-    "valid_entry", [["2018-01-01", "15.2.1992"], (datetime.datetime(2017, 1, 1, 10, 4, 7), datetime.date(2017, 1, 11))]
+    "valid_entry", [["2018-01-01", "15.2.1992"], (dt.datetime(2017, 1, 1, 10, 4, 7), dt.date(2017, 1, 11))]
 )
 def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
     eop = EOPatch(bbox=DUMMY_BBOX, timestamps=valid_entry)
@@ -106,9 +107,9 @@ def test_timestamp_valid_feature_type(valid_entry: Any) -> None:
 @pytest.mark.parametrize(
     "invalid_timestamps",
     [
-        [datetime.datetime(2017, 1, 1, 10, 4, 7), None, datetime.datetime(2017, 1, 11, 10, 3, 51)],
+        [dt.datetime(2017, 1, 1, 10, 4, 7), None, dt.datetime(2017, 1, 11, 10, 3, 51)],
         "something",
-        datetime.datetime(2017, 1, 1, 10, 4, 7),
+        dt.datetime(2017, 1, 1, 10, 4, 7),
     ],
 )
 def test_timestamps_invalid_feature_type(invalid_timestamps: Any) -> None:
@@ -398,19 +399,20 @@ def test_get_features(patch: EOPatch, expected_features: list[Feature]) -> None:
     assert patch.get_features() == expected_features
 
 
+@pytest.mark.filterwarnings("ignore::eolearn.core.exceptions.EODeprecationWarning")
 def test_timestamp_consolidation() -> None:
     # 10 frames
     timestamps = [
-        datetime.datetime(2017, 1, 1, 10, 4, 7),
-        datetime.datetime(2017, 1, 4, 10, 14, 5),
-        datetime.datetime(2017, 1, 11, 10, 3, 51),
-        datetime.datetime(2017, 1, 14, 10, 13, 46),
-        datetime.datetime(2017, 1, 24, 10, 14, 7),
-        datetime.datetime(2017, 2, 10, 10, 1, 32),
-        datetime.datetime(2017, 2, 20, 10, 6, 35),
-        datetime.datetime(2017, 3, 2, 10, 0, 20),
-        datetime.datetime(2017, 3, 12, 10, 7, 6),
-        datetime.datetime(2017, 3, 15, 10, 12, 14),
+        dt.datetime(2017, 1, 1, 10, 4, 7),
+        dt.datetime(2017, 1, 4, 10, 14, 5),
+        dt.datetime(2017, 1, 11, 10, 3, 51),
+        dt.datetime(2017, 1, 14, 10, 13, 46),
+        dt.datetime(2017, 1, 24, 10, 14, 7),
+        dt.datetime(2017, 2, 10, 10, 1, 32),
+        dt.datetime(2017, 2, 20, 10, 6, 35),
+        dt.datetime(2017, 3, 2, 10, 0, 20),
+        dt.datetime(2017, 3, 12, 10, 7, 6),
+        dt.datetime(2017, 3, 15, 10, 12, 14),
     ]
 
     data = np.random.rand(10, 100, 100, 3)
@@ -430,7 +432,7 @@ def test_timestamp_consolidation() -> None:
     good_timestamps = timestamps.copy()
     del good_timestamps[0]
     del good_timestamps[-1]
-    good_timestamps.append(datetime.datetime(2017, 12, 1))
+    good_timestamps.append(dt.datetime(2017, 12, 1))
 
     removed_frames = eop.consolidate_timestamps(good_timestamps)
 
@@ -444,20 +446,48 @@ def test_timestamp_consolidation() -> None:
     assert np.array_equal(mask_timeless, eop.mask_timeless["MASK_TIMELESS"])
 
 
-def test_timestamps_deprecation():
-    eop = EOPatch(bbox=DUMMY_BBOX, timestamps=[datetime.datetime(1234, 5, 6)])
+@pytest.mark.parametrize(
+    "method_input",
+    [
+        ["2017-04-08", "2017-09-17"],
+        [1, 2],
+        lambda dates: (dt.datetime(2017, 4, 1) < x < dt.datetime(2017, 10, 10) for x in dates),
+    ],
+)
+def test_temporal_subset(method_input):
+    eop = generate_eopatch(
+        {
+            FeatureType.DATA: ["data1", "data2"],
+            FeatureType.MASK_TIMELESS: ["mask_timeless"],
+            FeatureType.SCALAR_TIMELESS: ["scalar_timeless"],
+            FeatureType.MASK: ["mask"],
+        },
+        timestamps=[
+            dt.datetime(2017, 1, 5),
+            dt.datetime(2017, 4, 8),
+            dt.datetime(2017, 9, 17),
+            dt.datetime(2018, 1, 5),
+            dt.datetime(2018, 12, 1),
+        ],
+    )
+    vector_data = GeoDataFrame(
+        {TIMESTAMP_COLUMN: eop.get_timestamps()}, geometry=[eop.bbox.geometry.buffer(i) for i in range(5)], crs=32633
+    )
+    eop.vector["vector"] = vector_data
+    subset_timestamps = eop.timestamps[1:3]
 
-    with pytest.warns(EODeprecationWarning):
-        assert eop.timestamp == [datetime.datetime(1234, 5, 6)]
+    subset_eop = eop.temporal_subset(method_input)
+    assert subset_eop.timestamps == subset_timestamps
+    for feature in eop.get_features():
+        if feature[0].is_timeless():
+            assert_feature_data_equal(eop[feature], subset_eop[feature])
+        elif feature[0].is_array():
+            assert_feature_data_equal(eop[feature][1:3, ...], subset_eop[feature])
 
-    with pytest.warns(EODeprecationWarning):
-        eop.timestamp = [datetime.datetime(4321, 5, 6)]
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=EODeprecationWarning)
-        # so the warnings get ignored in pytest summary
-        assert eop.timestamp == [datetime.datetime(4321, 5, 6)]
-        assert eop.timestamp == eop.timestamps
+    assert_feature_data_equal(
+        subset_eop.vector["vector"],
+        vector_data[1:3],
+    )
 
 
 def test_bbox_none_deprecation():

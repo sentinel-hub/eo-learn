@@ -455,11 +455,7 @@ class EOPatch:
 
     @staticmethod
     def _repr_value(value: object) -> str:
-        """Creates a representation string for different types of data.
-
-        :param value: data in any type
-        :return: representation string
-        """
+        """Creates a representation string for different types of data."""
         if isinstance(value, np.ndarray):
             return f"{EOPatch._repr_value_class(value)}(shape={value.shape}, dtype={value.dtype})"
 
@@ -467,24 +463,28 @@ class EOPatch:
             crs = CRS(value.crs).ogc_string() if value.crs else value.crs
             return f"{EOPatch._repr_value_class(value)}(columns={list(value)}, length={len(value)}, crs={crs})"
 
+        repr_str = str(value)
+        if len(repr_str) <= MAX_DATA_REPR_LEN:
+            return repr_str
+
         if isinstance(value, (list, tuple, dict)) and value:
-            repr_str = str(value)
-            if len(repr_str) <= MAX_DATA_REPR_LEN:
-                return repr_str
+            lb, rb = ("[", "]") if isinstance(value, list) else ("(", ")") if isinstance(value, tuple) else ("{", "}")
 
-            l_bracket, r_bracket = ("[", "]") if isinstance(value, list) else ("(", ")")
-            if isinstance(value, (list, tuple)) and len(value) > 2:
-                repr_str = f"{l_bracket}{value[0]!r}, ..., {value[-1]!r}{r_bracket}"
+            if isinstance(value, dict):  # generate representation of first element or (key, value) pair
+                some_key = next(iter(value))
+                repr_of_el = f"{EOPatch._repr_value(some_key)}: {EOPatch._repr_value(value[some_key])}"
+            else:
+                repr_of_el = EOPatch._repr_value(value[0])
 
-            if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
-                repr_str = f"{l_bracket}{value[0]!r}, ...{r_bracket}"
+            many_elements_visual = ", ..." if len(value) > 1 else ""  # add ellipsis if there are multiple elements
+            repr_str = f"{lb}{repr_of_el}{many_elements_visual}{rb}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
 
-            return f"{repr_str}, length={len(value)}"
+            return f"{repr_str}<length={len(value)}>"
 
-        return repr(value)
+        return str(type(value))
 
     @staticmethod
     def _repr_value_class(value: object) -> str:
@@ -726,6 +726,7 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
+    @deprecated_function(EODeprecationWarning, "Please use the method `temporal_subset` instead.")
     def consolidate_timestamps(self, timestamps: list[dt.datetime]) -> set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
@@ -749,6 +750,45 @@ class EOPatch:
                 self[ftype, feature_name] = value[good_timestamp_idxs, ...]
 
         return remove_from_patch
+
+    def temporal_subset(
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[list[dt.datetime]], Iterable[bool]]
+    ) -> EOPatch:
+        """Returns an EOPatch that only contains data for the temporal subset corresponding to `timestamps`.
+
+        For array-based data appropriate temporal slices are extracted. For vector data a filtration is performed.
+
+        :param timestamps: Parameter that defines the temporal subset. Can be a collection of timestamps, a
+            collection of timestamp indices. It is possible to also provide a callable that maps a list of timestamps
+            to a sequence of booleans, which determine if a given timestamp is included in the subset or not.
+        """
+        timestamp_indices = self._parse_temporal_subset_input(timestamps)
+        new_timestamps = [ts for i, ts in enumerate(self.get_timestamps()) if i in timestamp_indices]
+        new_patch = EOPatch(bbox=self.bbox, timestamps=new_timestamps)
+
+        for ftype, fname in self.get_features():
+            if ftype.is_timeless() or ftype.is_meta():
+                new_patch[ftype, fname] = self[ftype, fname]
+            elif ftype.is_vector():
+                gdf: gpd.GeoDataFrame = self[ftype, fname]
+                new_patch[ftype, fname] = gdf[gdf[TIMESTAMP_COLUMN].isin(new_timestamps)]
+            else:
+                new_patch[ftype, fname] = self[ftype, fname][timestamp_indices]
+
+        return new_patch
+
+    def _parse_temporal_subset_input(
+        self, timestamps: Iterable[dt.datetime] | Iterable[int] | Callable[[list[dt.datetime]], Iterable[bool]]
+    ) -> list[int]:
+        """Parses input into a list of timestamp indices. Also adds implicit support for strings via `parse_time`."""
+        if callable(timestamps):
+            accepted_timestamps = timestamps(self.get_timestamps())
+            return [i for i, accepted in enumerate(accepted_timestamps) if accepted]
+        ts_or_idx = list(timestamps)
+        if all(isinstance(ts, int) for ts in ts_or_idx):
+            return ts_or_idx  # type: ignore[return-value]
+        parsed_timestamps = {parse_time(ts, force_datetime=True) for ts in ts_or_idx}  # type: ignore[call-overload]
+        return [i for i, ts in enumerate(self.get_timestamps()) if ts in parsed_timestamps]
 
     def plot(
         self,
