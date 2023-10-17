@@ -455,11 +455,7 @@ class EOPatch:
 
     @staticmethod
     def _repr_value(value: object) -> str:
-        """Creates a representation string for different types of data.
-
-        :param value: data in any type
-        :return: representation string
-        """
+        """Creates a representation string for different types of data."""
         if isinstance(value, np.ndarray):
             return f"{EOPatch._repr_value_class(value)}(shape={value.shape}, dtype={value.dtype})"
 
@@ -467,24 +463,28 @@ class EOPatch:
             crs = CRS(value.crs).ogc_string() if value.crs else value.crs
             return f"{EOPatch._repr_value_class(value)}(columns={list(value)}, length={len(value)}, crs={crs})"
 
+        repr_str = str(value)
+        if len(repr_str) <= MAX_DATA_REPR_LEN:
+            return repr_str
+
         if isinstance(value, (list, tuple, dict)) and value:
-            repr_str = str(value)
-            if len(repr_str) <= MAX_DATA_REPR_LEN:
-                return repr_str
+            lb, rb = ("[", "]") if isinstance(value, list) else ("(", ")") if isinstance(value, tuple) else ("{", "}")
 
-            l_bracket, r_bracket = ("[", "]") if isinstance(value, list) else ("(", ")")
-            if isinstance(value, (list, tuple)) and len(value) > 2:
-                repr_str = f"{l_bracket}{value[0]!r}, ..., {value[-1]!r}{r_bracket}"
+            if isinstance(value, dict):  # generate representation of first element or (key, value) pair
+                some_key = next(iter(value))
+                repr_of_el = f"{EOPatch._repr_value(some_key)}: {EOPatch._repr_value(value[some_key])}"
+            else:
+                repr_of_el = EOPatch._repr_value(value[0])
 
-            if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
-                repr_str = f"{l_bracket}{value[0]!r}, ...{r_bracket}"
+            many_elements_visual = ", ..." if len(value) > 1 else ""  # add ellipsis if there are multiple elements
+            repr_str = f"{lb}{repr_of_el}{many_elements_visual}{rb}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
 
-            return f"{repr_str}, length={len(value)}"
+            return f"{repr_str}<length={len(value)}>"
 
-        return repr(value)
+        return str(type(value))
 
     @staticmethod
     def _repr_value_class(value: object) -> str:
