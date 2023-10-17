@@ -280,6 +280,6 @@ def test_temporal_dim_error(multiprocess):
     for result in executor.run(workers=2, multiprocess=multiprocess):
         assert result.error_node_uid is None
 
-    executor = EOExecutor(workflow, [{}, {}], temporal_dimension_warning_is_error=True)
+    executor = EOExecutor(workflow, [{}, {}], raise_on_temporal_mismatch=True)
     for result in executor.run(workers=2, multiprocess=multiprocess):
         assert result.error_node_uid is not None
