@@ -27,7 +27,7 @@ from fs.base import FS
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
-from .exceptions import EORuntimeWarning
+from .exceptions import EORuntimeWarning, TemporalDimensionWarning
 from .utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, unpickle_fs
 from .utils.logging import LogFileFilter
 from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
@@ -55,6 +55,7 @@ class _ProcessingData:
     filter_logs_by_thread: bool
     logs_filter: Filter | None
     logs_handler_factory: _HandlerFactoryType
+    raise_on_temporal_mismatch: bool
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,7 @@ class EOExecutor:
         filesystem: FS | None = None,
         logs_filter: Filter | None = None,
         logs_handler_factory: _HandlerFactoryType = FileHandler,
+        raise_on_temporal_mismatch: bool = False,
     ):
         """
         :param workflow: A prepared instance of EOWorkflow class
@@ -108,6 +110,7 @@ class EOExecutor:
               object.
 
             The 2nd option is chosen only if `filesystem` parameter exists in the signature.
+        :param raise_on_temporal_mismatch: Whether to treat `TemporalDimensionWarning` as an exception.
         """
         self.workflow = workflow
         self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
@@ -116,6 +119,7 @@ class EOExecutor:
         self.filesystem, self.logs_folder = self._parse_logs_filesystem(filesystem, logs_folder)
         self.logs_filter = logs_filter
         self.logs_handler_factory = logs_handler_factory
+        self.raise_on_temporal_mismatch = raise_on_temporal_mismatch
 
         self.start_time: dt.datetime | None = None
         self.report_folder: str | None = None
@@ -193,6 +197,7 @@ class EOExecutor:
                 filter_logs_by_thread=filter_logs_by_thread,
                 logs_filter=self.logs_filter,
                 logs_handler_factory=self.logs_handler_factory,
+                raise_on_temporal_mismatch=self.raise_on_temporal_mismatch,
             )
             for workflow_kwargs, log_path in zip(self.execution_kwargs, log_paths)
         ]
@@ -263,7 +268,10 @@ class EOExecutor:
             data.logs_handler_factory,
         )
 
-        results = data.workflow.execute(data.workflow_kwargs, raise_errors=False)
+        with warnings.catch_warnings():
+            if data.raise_on_temporal_mismatch:
+                warnings.simplefilter("error", TemporalDimensionWarning)
+            results = data.workflow.execute(data.workflow_kwargs, raise_errors=False)
 
         cls._try_remove_logging(data.log_path, logger, handler)
         return results

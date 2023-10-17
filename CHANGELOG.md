@@ -2,6 +2,7 @@
 
 - `MorphologicalFilterTask` adapted to work on boolean values.
 - Added `temporal_subset` method to `EOPatch`, which can be used to extract a subset of an `EOPatch` by filtering out temporal slices. Also added a corresponding `TemporalSubsetTask`.
+- `EOExecutor` now has an option to treat `TemporalDimensionWarning` as an exception.
 
 ## [Version 1.5.0] - 2023-09-06
 
