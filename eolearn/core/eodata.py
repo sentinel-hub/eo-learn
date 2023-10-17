@@ -470,7 +470,7 @@ class EOPatch:
         if isinstance(value, (list, tuple, dict)) and value:
             lb, rb = ("[", "]") if isinstance(value, list) else ("(", ")") if isinstance(value, tuple) else ("{", "}")
 
-            if isinstance(value, dict):  # generate representation of first element or key, value pair
+            if isinstance(value, dict):  # generate representation of first element or (key, value) pair
                 some_key = next(iter(value))
                 repr_of_el = f"{EOPatch._repr_value(some_key)}: {EOPatch._repr_value(value[some_key])}"
             else:
