@@ -471,23 +471,17 @@ class EOPatch:
         if len(repr_str) <= MAX_DATA_REPR_LEN:
             return repr_str
 
-        if isinstance(value, (list, tuple)) and value:
-            l_bracket, r_bracket = ("[", "]") if isinstance(value, list) else ("(", ")")
+        if isinstance(value, (list, tuple, dict)) and value:
+            lb, rb = ("[", "]") if isinstance(value, list) else ("(", ")") if isinstance(value, tuple) else ("{", "}")
 
-            repr_of_some_element = EOPatch._repr_value(value[0])
-            many_elements_visual = ", ..." if len(value) > 1 else ""
-            repr_str = f"{l_bracket}{repr_of_some_element}{many_elements_visual}{r_bracket}"
+            if isinstance(value, dict):  # generate representation of first element or key, value pair
+                some_key = next(iter(value))
+                repr_of_el = f"{EOPatch._repr_value(some_key)}: {EOPatch._repr_value(value[some_key])}"
+            else:
+                repr_of_el = EOPatch._repr_value(value[0])
 
-            if len(repr_str) > MAX_DATA_REPR_LEN:
-                repr_str = str(type(value))
-
-            return f"{repr_str}<length={len(value)}>"
-
-        if isinstance(value, dict) and value:
-            some_key = next(iter(value))
-            key_repr, value_repr = EOPatch._repr_value(some_key), EOPatch._repr_value(value[some_key])
-            many_elements_visual = ", ..." if len(value) > 1 else ""
-            repr_str = f"{{{key_repr}: {value_repr}{many_elements_visual}}}"
+            many_elements_visual = ", ..." if len(value) > 1 else ""  # add ellipsis if there are multiple elements
+            repr_str = f"{lb}{repr_of_el}{many_elements_visual}{rb}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
