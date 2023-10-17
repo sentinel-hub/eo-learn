@@ -467,16 +467,14 @@ class EOPatch:
             crs = CRS(value.crs).ogc_string() if value.crs else value.crs
             return f"{EOPatch._repr_value_class(value)}(columns={list(value)}, length={len(value)}, crs={crs})"
 
-        if isinstance(value, (list, tuple, dict)) and value:
-            repr_str = str(value)
-            if len(repr_str) <= MAX_DATA_REPR_LEN:
-                return repr_str
+        repr_str = str(value)
+        if len(repr_str) <= MAX_DATA_REPR_LEN:
+            return repr_str
 
+        if isinstance(value, (list, tuple)) and value:
             l_bracket, r_bracket = ("[", "]") if isinstance(value, list) else ("(", ")")
-            if isinstance(value, (list, tuple)) and len(value) > 2:
-                repr_str = f"{l_bracket}{value[0]!r}, ..., {value[-1]!r}{r_bracket}"
 
-            if len(repr_str) > MAX_DATA_REPR_LEN and isinstance(value, (list, tuple)) and len(value) > 1:
+            if len(repr_str) > MAX_DATA_REPR_LEN and len(value) > 1:
                 repr_str = f"{l_bracket}{value[0]!r}, ...{r_bracket}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
@@ -484,7 +482,17 @@ class EOPatch:
 
             return f"{repr_str}, length={len(value)}"
 
-        return repr(value)
+        if isinstance(value, dict) and value:
+            if len(value) > 1:
+                some_key = next(iter(value))
+                repr_str = f"{{{some_key!r}: {value[some_key]!r}, ...}}"
+
+            if len(repr_str) > MAX_DATA_REPR_LEN:
+                repr_str = str(type(value))
+
+            return f"{repr_str}, length={len(value)}"
+
+        return str(type(value))
 
     @staticmethod
     def _repr_value_class(value: object) -> str:
