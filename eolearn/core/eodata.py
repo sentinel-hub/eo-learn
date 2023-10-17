@@ -455,11 +455,7 @@ class EOPatch:
 
     @staticmethod
     def _repr_value(value: object) -> str:
-        """Creates a representation string for different types of data.
-
-        :param value: data in any type
-        :return: representation string
-        """
+        """Creates a representation string for different types of data."""
         if isinstance(value, np.ndarray):
             return f"{EOPatch._repr_value_class(value)}(shape={value.shape}, dtype={value.dtype})"
 
