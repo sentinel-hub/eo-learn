@@ -474,23 +474,25 @@ class EOPatch:
         if isinstance(value, (list, tuple)) and value:
             l_bracket, r_bracket = ("[", "]") if isinstance(value, list) else ("(", ")")
 
-            if len(repr_str) > MAX_DATA_REPR_LEN and len(value) > 1:
-                repr_str = f"{l_bracket}{value[0]!r}, ...{r_bracket}"
+            repr_of_some_element = EOPatch._repr_value(value[0])
+            many_elements_visual = ", ..." if len(value) > 1 else ""
+            repr_str = f"{l_bracket}{repr_of_some_element}{many_elements_visual}{r_bracket}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
 
-            return f"{repr_str}, length={len(value)}"
+            return f"{repr_str}<length={len(value)}>"
 
         if isinstance(value, dict) and value:
-            if len(value) > 1:
-                some_key = next(iter(value))
-                repr_str = f"{{{some_key!r}: {value[some_key]!r}, ...}}"
+            some_key = next(iter(value))
+            key_repr, value_repr = EOPatch._repr_value(some_key), EOPatch._repr_value(value[some_key])
+            many_elements_visual = ", ..." if len(value) > 1 else ""
+            repr_str = f"{{{key_repr}: {value_repr}{many_elements_visual}}}"
 
             if len(repr_str) > MAX_DATA_REPR_LEN:
                 repr_str = str(type(value))
 
-            return f"{repr_str}, length={len(value)}"
+            return f"{repr_str}<length={len(value)}>"
 
         return str(type(value))
 
