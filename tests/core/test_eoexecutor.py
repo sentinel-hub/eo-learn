@@ -142,9 +142,8 @@ def test_logs(test_args, execution_names, workflow, execution_kwargs, logs_handl
         )
         executor.run(workers=workers, multiprocess=multiprocess)
 
-        log_paths = executor.get_log_paths()
         execution_logs = []
-        for log_path in log_paths:
+        for log_path in executor.get_log_paths():
             with open(log_path) as f:
                 execution_logs.append(f.read())
 

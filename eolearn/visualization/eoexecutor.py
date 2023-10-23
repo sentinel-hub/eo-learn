@@ -69,8 +69,13 @@ class EOExecutorVisualization:
             template = self._get_template()
 
             execution_log_filenames = [fs.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
-            if self.eoexecutor.save_logs:
-                execution_logs = self.eoexecutor.read_logs() if include_logs else None
+            if not include_logs:
+                execution_logs = None
+            elif self.eoexecutor.save_logs:
+                execution_logs = []
+                for log_path in self.eoexecutor.get_log_paths():
+                    with self.eoexecutor.filesystem.open(log_path, "r") as file_handle:
+                        execution_logs.append(file_handle.read())
             else:
                 execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
 
