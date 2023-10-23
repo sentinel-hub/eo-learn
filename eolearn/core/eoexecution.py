@@ -204,12 +204,13 @@ class EOExecutor:
 
         return full_execution_results
 
+    @classmethod
     def _run_execution(
-        self, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
+        cls, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
     ) -> list[WorkflowResults]:
         """Parallelizes the execution for each item of processing_args list."""
         return parallelize(
-            self._execute_workflow,
+            cls._execute_workflow,
             processing_args,
             workers=run_params.workers,
             multiprocess=run_params.multiprocess,
