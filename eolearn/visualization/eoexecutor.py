@@ -98,7 +98,7 @@ class EOExecutorVisualization:
 
     def _read_log_file(self, log_path: str) -> str:
         try:
-            with self.filesystem.open(log_path, "r") as file_handle:
+            with self.eoexecutor.filesystem.open(log_path, "r") as file_handle:
                 return file_handle.read()
         except BaseException as exception:
             warnings.warn(f"Failed to load logs with exception: {exception!r}", category=EORuntimeWarning)
