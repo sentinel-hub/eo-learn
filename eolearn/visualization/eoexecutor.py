@@ -68,7 +68,7 @@ class EOExecutorVisualization:
 
             template = self._get_template()
 
-            log_paths = self.eoexecutor.get_log_paths()
+            log_paths = self.eoexecutor.get_log_paths(full_path=False)
             if not include_logs:
                 execution_logs = None
             elif self.eoexecutor.save_logs:
