@@ -48,7 +48,6 @@ class EOExecutorVisualization:
             raise RuntimeError(
                 "Cannot produce a report without running the executor first, check EOExecutor.run method"
             )
-
         # These should be set automatically after a run
         start_time = cast(dt.datetime, self.eoexecutor.start_time)
         report_folder = cast(str, self.eoexecutor.report_folder)
@@ -69,15 +68,14 @@ class EOExecutorVisualization:
 
             template = self._get_template()
 
-            execution_log_filenames = [fs.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
+            log_paths = self.eoexecutor.get_log_paths()
             if not include_logs:
                 execution_logs = None
             elif self.eoexecutor.save_logs:
                 with ThreadPoolExecutor() as executor:
-                    execution_logs = list(executor.map(self._read_log_file, execution_log_filenames))
+                    execution_logs = list(executor.map(self._read_log_file, log_paths))
             else:
                 execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
-
             html = template.render(
                 title=f"Report {self._format_datetime(start_time)}",
                 dependency_graph=dependency_graph,
@@ -87,7 +85,7 @@ class EOExecutorVisualization:
                 execution_results=self.eoexecutor.execution_results,
                 execution_tracebacks=self._render_execution_tracebacks(formatter),
                 execution_logs=execution_logs,
-                execution_log_filenames=execution_log_filenames,
+                execution_log_filenames=[fs.path.basename(log_path) for log_path in log_paths],
                 execution_names=self.eoexecutor.execution_names,
                 code_css=formatter.get_style_defs(),
             )
