@@ -15,22 +15,25 @@ from __future__ import annotations
 import concurrent.futures
 import datetime as dt
 import inspect
+import itertools as it
 import logging
 import threading
 import warnings
 from dataclasses import dataclass
 from logging import FileHandler, Filter, Handler, Logger
-from typing import Any, Callable, Protocol, Sequence, Union
+from typing import Any, Callable, Iterable, Protocol, Union
 
 import fs
 from fs.base import FS
 
+from sentinelhub.exceptions import deprecated_function
+
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
-from .exceptions import EORuntimeWarning, TemporalDimensionWarning
+from .exceptions import EODeprecationWarning, EORuntimeWarning, TemporalDimensionWarning
 from .utils.fs import get_base_filesystem_and_path, get_full_path, pickle_fs, unpickle_fs
 from .utils.logging import LogFileFilter
-from .utils.parallelize import _decide_processing_type, _ProcessingType, parallelize
+from .utils.parallelize import parallelize
 
 
 class _HandlerWithFsFactoryType(Protocol):
@@ -79,9 +82,9 @@ class EOExecutor:
     def __init__(
         self,
         workflow: EOWorkflow,
-        execution_kwargs: Sequence[dict[EONode, dict[str, object]]],
+        execution_kwargs: Iterable[dict[EONode, dict[str, object]]],
         *,
-        execution_names: list[str] | None = None,
+        execution_names: Iterable[str] | None = None,
         save_logs: bool = False,
         logs_folder: str = ".",
         filesystem: FS | None = None,
@@ -128,27 +131,23 @@ class EOExecutor:
 
     @staticmethod
     def _parse_and_validate_execution_kwargs(
-        execution_kwargs: Sequence[dict[EONode, dict[str, object]]]
+        execution_kwargs: Iterable[dict[EONode, dict[str, object]]]
     ) -> list[dict[EONode, dict[str, object]]]:
         """Parses and validates execution arguments provided by user and raises an error if something is wrong."""
-        if not isinstance(execution_kwargs, (list, tuple)):
-            raise ValueError("Parameter 'execution_kwargs' should be a list.")
-
         for input_kwargs in execution_kwargs:
             EOWorkflow.validate_input_kwargs(input_kwargs)
 
-        return [input_kwargs or {} for input_kwargs in execution_kwargs]
+        return list(execution_kwargs)
 
     @staticmethod
-    def _parse_execution_names(execution_names: list[str] | None, execution_kwargs: Sequence) -> list[str]:
+    def _parse_execution_names(execution_names: Iterable[str] | None, execution_kwargs: list) -> list[str]:
         """Parses a list of execution names."""
         if execution_names is None:
             return [str(num) for num in range(1, len(execution_kwargs) + 1)]
 
-        if not isinstance(execution_names, (list, tuple)) or len(execution_names) != len(execution_kwargs):
-            raise ValueError(
-                "Parameter 'execution_names' has to be a list of the same size as the list of execution arguments."
-            )
+        execution_names = list(execution_names)
+        if len(execution_names) != len(execution_kwargs):
+            raise ValueError("Parameter 'execution_names' has to be of the same size as `execution_kwargs`.")
         return execution_names
 
     @staticmethod
@@ -181,11 +180,7 @@ class EOExecutor:
         if self.save_logs:
             self.filesystem.makedirs(self.report_folder, recreate=True)
 
-        log_paths: Sequence[str | None]
-        if self.save_logs:
-            log_paths = self.get_log_paths(full_path=False)
-        else:
-            log_paths = [None] * len(self.execution_kwargs)
+        log_paths = self.get_log_paths(full_path=False) if self.save_logs else it.repeat(None)
 
         filter_logs_by_thread = not multiprocess and workers is not None and workers > 1
         processing_args = [
@@ -205,8 +200,7 @@ class EOExecutor:
         full_execution_results = self._run_execution(processing_args, run_params)
 
         self.execution_results = [results.drop_outputs() for results in full_execution_results]
-        processing_type = self._get_processing_type(workers=workers, multiprocess=multiprocess)
-        self.general_stats = self._prepare_general_stats(workers, processing_type)
+        self.general_stats = self._prepare_general_stats(workers)
 
         return full_execution_results
 
@@ -306,12 +300,7 @@ class EOExecutor:
 
         return handler
 
-    @staticmethod
-    def _get_processing_type(workers: int | None, multiprocess: bool) -> _ProcessingType:
-        """Provides a type of processing according to given parameters."""
-        return _decide_processing_type(workers=workers, multiprocess=multiprocess)
-
-    def _prepare_general_stats(self, workers: int | None, processing_type: _ProcessingType) -> dict[str, object]:
+    def _prepare_general_stats(self, workers: int | None) -> dict[str, object]:
         """Prepares a dictionary with a general statistics about executions."""
         failed_count = sum(results.workflow_failed() for results in self.execution_results)
         return {
@@ -319,39 +308,31 @@ class EOExecutor:
             self.STATS_END_TIME: dt.datetime.now(),
             "finished": len(self.execution_results) - failed_count,
             "failed": failed_count,
-            "processing_type": processing_type.value,
             "workers": workers,
         }
 
     def get_successful_executions(self) -> list[int]:
         """Returns a list of IDs of successful executions. The IDs are integers from interval
         `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
-
-        :return: List of successful execution IDs
         """
         return [idx for idx, results in enumerate(self.execution_results) if not results.workflow_failed()]
 
     def get_failed_executions(self) -> list[int]:
         """Returns a list of IDs of failed executions. The IDs are integers from interval
         `[0, len(execution_kwargs) - 1]`, sorted in increasing order.
-
-        :return: List of failed execution IDs
         """
         return [idx for idx, results in enumerate(self.execution_results) if results.workflow_failed()]
 
     def get_report_path(self, full_path: bool = True) -> str:
         """Returns the filename and file path of the report.
 
-        :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
-            filesystem object.
+        :param full_path: Whether to return full absolute paths or paths relative to the filesystem object.
         :return: Report filename
         """
         if self.report_folder is None:
             raise RuntimeError("Executor has to be run before the report path is created.")
         report_path = fs.path.combine(self.report_folder, self.REPORT_FILENAME)
-        if full_path:
-            return get_full_path(self.filesystem, report_path)
-        return report_path
+        return get_full_path(self.filesystem, report_path) if full_path else report_path
 
     def make_report(self, include_logs: bool = True) -> None:
         """Makes a html report and saves it into the same folder where logs are stored.
@@ -373,17 +354,15 @@ class EOExecutor:
     def get_log_paths(self, full_path: bool = True) -> list[str]:
         """Returns a list of file paths containing logs.
 
-        :param full_path: A flag to specify if it should return full absolute paths or paths relative to the
-            filesystem object.
+        :param full_path: Whether to return full absolute paths or paths relative to the filesystem object.
         :return: A list of paths to log files.
         """
         if self.report_folder is None:
             raise RuntimeError("Executor has to be run before log paths are created.")
         log_paths = [fs.path.combine(self.report_folder, f"eoexecution-{name}.log") for name in self.execution_names]
-        if full_path:
-            return [get_full_path(self.filesystem, path) for path in log_paths]
-        return log_paths
+        return [get_full_path(self.filesystem, path) for path in log_paths] if full_path else log_paths
 
+    @deprecated_function(EODeprecationWarning)
     def read_logs(self) -> list[str | None]:
         """Loads the content of log files if logs have been saved."""
         if not self.save_logs:

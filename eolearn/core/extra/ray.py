@@ -19,7 +19,7 @@ except ImportError as exception:
 
 from ..eoexecution import EOExecutor, _ExecutionRunParams, _ProcessingData
 from ..eoworkflow import WorkflowResults
-from ..utils.parallelize import _base_join_futures_iter, _ProcessingType
+from ..utils.parallelize import _base_join_futures_iter
 
 # pylint: disable=invalid-name
 InputType = TypeVar("InputType")
@@ -50,11 +50,6 @@ class RayExecutor(EOExecutor):
         """Runs ray execution"""
         futures = [_ray_workflow_executor.remote(workflow_args) for workflow_args in processing_args]
         return join_ray_futures(futures, **run_params.tqdm_kwargs)
-
-    @staticmethod
-    def _get_processing_type(*_: Any, **__: Any) -> _ProcessingType:
-        """Provides a type of processing for later references."""
-        return _ProcessingType.RAY
 
 
 @ray.remote
