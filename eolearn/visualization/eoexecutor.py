@@ -13,6 +13,7 @@ import datetime as dt
 import os
 import warnings
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any, cast
@@ -29,7 +30,7 @@ from pygments.formatters.html import HtmlFormatter
 
 from eolearn.core import EOExecutor
 from eolearn.core.eonode import ExceptionInfo
-from eolearn.core.exceptions import EOUserWarning
+from eolearn.core.exceptions import EORuntimeWarning, EOUserWarning
 
 
 class EOExecutorVisualization:
@@ -72,10 +73,8 @@ class EOExecutorVisualization:
             if not include_logs:
                 execution_logs = None
             elif self.eoexecutor.save_logs:
-                execution_logs = []
-                for log_path in self.eoexecutor.get_log_paths():
-                    with self.eoexecutor.filesystem.open(log_path, "r") as file_handle:
-                        execution_logs.append(file_handle.read())
+                with ThreadPoolExecutor() as executor:
+                    execution_logs = list(executor.map(self._read_log_file, execution_log_filenames))
             else:
                 execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
 
@@ -96,6 +95,14 @@ class EOExecutorVisualization:
 
             with self.eoexecutor.filesystem.open(self.eoexecutor.get_report_path(full_path=False), "w") as file_handle:
                 file_handle.write(html)
+
+    def _read_log_file(self, log_path: str) -> str:
+        try:
+            with self.filesystem.open(log_path, "r") as file_handle:
+                return file_handle.read()
+        except BaseException as exception:
+            warnings.warn(f"Failed to load logs with exception: {exception!r}", category=EORuntimeWarning)
+            return "Failed to load logs"
 
     def _create_dependency_graph(self) -> str:
         """Provides an image of dependency graph"""
