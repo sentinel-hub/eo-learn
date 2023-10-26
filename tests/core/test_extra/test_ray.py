@@ -107,7 +107,11 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs):
         )
         executor.run()
 
-        execution_logs = executor.read_logs()
+        execution_logs = []
+        for log_path in executor.get_log_paths():
+            with open(log_path) as f:
+                execution_logs.append(f.read())
+
         assert len(execution_logs) == 4
         for log in execution_logs:
             assert len(log.split()) >= 3

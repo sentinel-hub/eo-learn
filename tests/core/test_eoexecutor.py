@@ -32,7 +32,6 @@ from eolearn.core import (
     OutputTask,
     WorkflowResults,
     execute_with_mp_lock,
-    linearly_connect_tasks,
 )
 from eolearn.core.utils.fs import get_full_path
 
@@ -129,7 +128,7 @@ class DummyFilesystemFileHandler(FileHandler):
 )
 @pytest.mark.parametrize("execution_names", [None, [4, "x", "y", "z"]])
 @pytest.mark.parametrize("logs_handler_factory", [FileHandler, DummyFilesystemFileHandler])
-def test_read_logs(test_args, execution_names, workflow, execution_kwargs, logs_handler_factory):
+def test_logs(test_args, execution_names, workflow, execution_kwargs, logs_handler_factory):
     workers, multiprocess, filter_logs = test_args
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         executor = EOExecutor(
@@ -143,7 +142,11 @@ def test_read_logs(test_args, execution_names, workflow, execution_kwargs, logs_
         )
         executor.run(workers=workers, multiprocess=multiprocess)
 
-        execution_logs = executor.read_logs()
+        execution_logs = []
+        for log_path in executor.get_log_paths():
+            with open(log_path) as f:
+                execution_logs.append(f.read())
+
         assert len(execution_logs) == 4
         for log in execution_logs:
             assert len(log.split()) >= 3
@@ -201,11 +204,9 @@ def test_execution_results2(workflow, execution_kwargs):
             assert workflow_results.outputs["output"] == 42
 
 
-def test_exceptions(workflow, execution_kwargs):
+def test_exception_wrong_length_execution_names(workflow, execution_kwargs):
     with pytest.raises(ValueError):
-        EOExecutor(workflow, {})
-    with pytest.raises(ValueError):
-        EOExecutor(workflow, execution_kwargs, execution_names={1, 2, 3, 4})
+        EOExecutor(workflow, execution_kwargs, execution_names={1, 2, 3, 4, 5})
     with pytest.raises(ValueError):
         EOExecutor(workflow, execution_kwargs, execution_names=["a", "b"])
 
@@ -269,17 +270,16 @@ def test_without_lock(num_workers):
 
 @pytest.mark.parametrize("multiprocess", [True, False])
 def test_temporal_dim_error(multiprocess):
-    workflow = EOWorkflow(
-        linearly_connect_tasks(
-            CreateEOPatchTask(bbox=BBox((0, 0, 1, 1), CRS.POP_WEB)),
-            InitializeFeatureTask([FeatureType.DATA, "data"], (2, 5, 5, 1)),
-        )
-    )
+    create_node = EONode(CreateEOPatchTask())
+    init_node = EONode(InitializeFeatureTask((FeatureType.DATA, "data"), (2, 5, 5, 1)), inputs=[create_node])
+    workflow = EOWorkflow([create_node, init_node])
+    exec_kwargs = [{create_node: {"bbox": BBox((0, 0, 1, 1), CRS.POP_WEB)}}] * 2
 
-    executor = EOExecutor(workflow, [{}, {}])
-    for result in executor.run(workers=2, multiprocess=multiprocess):
+    executor = EOExecutor(workflow, exec_kwargs)
+    results = executor.run(workers=2, multiprocess=multiprocess)
+    for result in results:
         assert result.error_node_uid is None
 
-    executor = EOExecutor(workflow, [{}, {}], raise_on_temporal_mismatch=True)
+    executor = EOExecutor(workflow, exec_kwargs, raise_on_temporal_mismatch=True)
     for result in executor.run(workers=2, multiprocess=multiprocess):
         assert result.error_node_uid is not None
