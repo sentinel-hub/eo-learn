@@ -80,10 +80,8 @@ class RayExecutor(EOExecutor):
     ) -> list[WorkflowResults]:
         """Runs ray execution"""
         remote_kwargs = self.ray_remote_kwargs or {}
-
-        futures = [
-            _ray_workflow_executor.options(**remote_kwargs).remote(workflow_args) for workflow_args in processing_args
-        ]
+        exec_func = _ray_workflow_executor.options(**remote_kwargs)  # type: ignore[attr-defined]
+        futures = [exec_func.remote(workflow_args) for workflow_args in processing_args]
         return join_ray_futures(futures, **run_params.tqdm_kwargs)
 
 

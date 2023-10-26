@@ -103,7 +103,7 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs):
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
             execution_names=execution_names,
-            ray_kwargs={"resources": {"resourceA": 0.5}},
+            ray_remote_kwargs={"resources": {"resourceA": 0.5}},
         )
         executor.run()
 
