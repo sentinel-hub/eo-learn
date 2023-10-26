@@ -46,7 +46,7 @@ class RayExecutor(EOExecutor):
         logs_filter: Filter | None = None,
         logs_handler_factory: _HandlerFactoryType = FileHandler,
         raise_on_temporal_mismatch: bool = False,
-        ray_kwargs: dict[str, Any] | None = None,
+        ray_remote_kwargs: dict[str, Any] | None = None,
     ):
         super().__init__(
             workflow,
@@ -59,7 +59,7 @@ class RayExecutor(EOExecutor):
             logs_handler_factory=logs_handler_factory,
             raise_on_temporal_mismatch=raise_on_temporal_mismatch,
         )
-        self.ray_kwargs = ray_kwargs
+        self.ray_remote_kwargs = ray_remote_kwargs
 
     def run(self, **tqdm_kwargs: Any) -> list[WorkflowResults]:  # type: ignore[override]
         """Runs the executor using a Ray cluster
@@ -79,10 +79,10 @@ class RayExecutor(EOExecutor):
         self, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
     ) -> list[WorkflowResults]:
         """Runs ray execution"""
-        ray_kwargs = self.ray_kwargs or {}
+        remote_kwargs = self.ray_remote_kwargs or {}
 
         futures = [
-            _ray_workflow_executor.options(**ray_kwargs).remote(workflow_args) for workflow_args in processing_args
+            _ray_workflow_executor.options(**remote_kwargs).remote(workflow_args) for workflow_args in processing_args
         ]
         return join_ray_futures(futures, **run_params.tqdm_kwargs)
 
