@@ -93,7 +93,10 @@ def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
 
 
 def parallelize_with_ray(
-    function: Callable[[InputType], OutputType], *params: Iterable[InputType], **tqdm_kwargs: Any
+    function: Callable[[InputType], OutputType],
+    *params: Iterable[InputType],
+    ray_remote_kwargs: dict[str, Any] | None = None,
+    **tqdm_kwargs: Any,
 ) -> list[OutputType]:
     """Parallelizes function execution with Ray.
 
@@ -108,7 +111,7 @@ def parallelize_with_ray(
     if not ray.is_initialized():
         raise RuntimeError("Please initialize a Ray cluster before calling this method")
 
-    ray_function = ray.remote(function)
+    ray_function = ray.remote(function, **ray_remote_kwargs)
     futures = [ray_function.remote(*function_params) for function_params in zip(*params)]
     return join_ray_futures(futures, **tqdm_kwargs)
 
