@@ -105,9 +105,11 @@ def parallelize_with_ray(
 
     :param function: A normal function that is not yet decorated by `ray.remote`.
     :param params: Iterables of parameters that will be used with given function.
+    :param ray_remote_kwargs: Keyword arguments passed to `ray.remote`.
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `params`.
     """
+    ray_remote_kwargs = ray_remote_kwargs or {}
     if not ray.is_initialized():
         raise RuntimeError("Please initialize a Ray cluster before calling this method")
 
