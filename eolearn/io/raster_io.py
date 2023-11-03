@@ -32,7 +32,7 @@ from sentinelhub import CRS, BBox, SHConfig, parse_time_interval
 
 from eolearn.core import EOPatch
 from eolearn.core.core_tasks import IOTask
-from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.exceptions import EODeprecationWarning, EORuntimeWarning
 from eolearn.core.types import Feature
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
@@ -45,39 +45,43 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     def __init__(
         self,
         feature: Feature,
-        folder: str,
+        path: str = ...,  # type: ignore[assignment]
         *,
         filesystem: FS | None = None,
         image_dtype: np.dtype | type | None = None,
         no_data_value: float | None = None,
         create: bool = False,
         config: SHConfig | None = None,
+        folder: str | None = None,
     ):
         """
         :param feature: Feature which will be exported or imported
-        :param folder: A path to a main folder containing all image, potentially in its subfolders. If `filesystem`
-            parameter is defined, then `folder` should be a path relative to filesystem object. Otherwise, it should be
-            an absolute path.
+        :param path: A path to the image(s). If `filesystem` is defined, then `folder` should be given relative to the
+            filesystem object. Otherwise, it should be an absolute path.
         :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
-        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
-            When importing this value is assigned to the pixels with NoData.
+        :param no_data_value: When exporting this is the `NoData` value of pixels in exported images. When importing
+            this value is assigned to the pixels with `NoData`.
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error.
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
-        ftype, fname = self.parse_feature(feature)
-        if fname is None:
-            raise ValueError(f"Feature {feature} is not eligible for this task.")
-        self.feature = ftype, fname
+        if folder is not None:
+            warnings.warn("The parameter `folder` has been renamed to `path`.", EODeprecationWarning, stacklevel=3)
+            path = folder
+
+        if path is ...:  # type: ignore[comparison-overlap]
+            raise TypeError(f"{type(self).__name__} is missing a required positional argument 'path'.")
+
+        self.feature = self.parse_feature(feature)
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
         if filesystem is None:
-            filesystem, folder = get_base_filesystem_and_path(folder, create=create, config=config)
+            filesystem, path = get_base_filesystem_and_path(path, create=create, config=config)
 
         # the super-class takes care of filesystem pickling
-        super().__init__(folder, filesystem=filesystem, create=create, config=config)
+        super().__init__(path, filesystem=filesystem, create=create, config=config)
 
     def _get_filename_paths(
         self, filename_template: str | list[str], timestamps: list[dt.datetime] | None
@@ -148,7 +152,7 @@ class ExportToTiffTask(BaseRasterIoTask):
     def __init__(
         self,
         feature: Feature,
-        folder: str,
+        path: str = ...,  # type: ignore[assignment]
         *,
         date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
         band_indices: list[int] | tuple[int, int] | None = None,
@@ -159,12 +163,12 @@ class ExportToTiffTask(BaseRasterIoTask):
         image_dtype: np.dtype | type | None = None,
         no_data_value: float | None = None,
         config: SHConfig | None = None,
+        folder: str | None = None,
     ):
         """
         :param feature: A feature to be exported.
-        :param folder: A path to a main folder containing all image, potentially in its subfolders. If `filesystem`
-            parameter is defined, then `folder` should be a path relative to filesystem object. Otherwise, it should be
-            an absolute path.
+        :param path: A path to the image(s). If `filesystem` is defined, then `folder` should be given relative to the
+            filesystem object. Otherwise, it should be an absolute path.
         :param date_indices: Indices of those time frames from the give feature that will be exported to a tiff image.
             It can be either a list of indices or a tuple of `2` indices defining an interval of indices or a tuple of
             `2` datetime object also defining a time interval. By default, all time frames will be exported.
@@ -178,19 +182,19 @@ class ExportToTiffTask(BaseRasterIoTask):
         :param compress: A type of compression that rasterio should apply to an exported image.
         :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
-        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
-            When importing this value is assigned to the pixels with NoData.
+        :param no_data_value: The `NoData` value of pixels in exported images.
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
         super().__init__(
             feature,
-            folder=folder,
+            path=path,
             create=True,
             filesystem=filesystem,
             image_dtype=image_dtype,
             no_data_value=no_data_value,
             config=config,
+            folder=folder,
         )
 
         self.date_indices = date_indices
@@ -409,7 +413,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
     def __init__(
         self,
         feature: Feature,
-        folder: str,
+        path: str = ...,  # type: ignore[assignment]
         *,
         use_vsi: bool = False,
         timestamp_size: int | None = None,
@@ -417,10 +421,11 @@ class ImportFromTiffTask(BaseRasterIoTask):
         image_dtype: np.dtype | type | None = None,
         no_data_value: float | None = None,
         config: SHConfig | None = None,
+        folder: str | None = None,
     ):
         """
         :param feature: EOPatch feature into which data will be imported
-        :param folder: A directory containing image files or a path of an image file
+        :param path: A directory containing image files or a path of an image file
         :param use_vsi: A flag to define if reading should be done with GDAL/rasterio virtual system (VSI)
             functionality. The flag only has an effect when the task is used to read an image from a remote storage
             (i.e. AWS S3 bucket). For a performance improvement it is recommended to set this to `True` when reading a
@@ -441,11 +446,12 @@ class ImportFromTiffTask(BaseRasterIoTask):
         """
         super().__init__(
             feature,
-            folder=folder,
+            path=path,
             filesystem=filesystem,
             image_dtype=image_dtype,
             no_data_value=no_data_value,
             config=config,
+            folder=folder,
         )
 
         self.use_vsi = use_vsi
