@@ -13,7 +13,6 @@ import functools
 import logging
 import warnings
 from abc import ABCMeta
-from typing import BinaryIO
 
 import fs
 import numpy as np
@@ -21,8 +20,6 @@ import rasterio
 import rasterio.warp
 from affine import Affine
 from fs.base import FS
-from fs.osfs import OSFS
-from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 from rasterio.io import DatasetReader
 from rasterio.session import AWSSession
@@ -414,7 +411,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         feature: Feature,
         path: str = ...,  # type: ignore[assignment]
         *,
-        use_vsi: bool = False,
+        use_vsi: bool | None = None,
         timestamp_size: int | None = None,
         filesystem: FS | None = None,
         image_dtype: np.dtype | type | None = None,
@@ -425,11 +422,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
         """
         :param feature: EOPatch feature into which data will be imported
         :param path: A directory containing image files or a path of an image file
-        :param use_vsi: A flag to define if reading should be done with GDAL/rasterio virtual system (VSI)
-            functionality. The flag only has an effect when the task is used to read an image from a remote storage
-            (i.e. AWS S3 bucket). For a performance improvement it is recommended to set this to `True` when reading a
-            smaller chunk of a larger image, especially if it is a Cloud-optimized GeoTIFF (COG). In other cases the
-            reading might be faster if the flag remains set to `False`.
+        :param use_vsi: Deprecated.
         :param timestamp_size: In case data will be imported into a time-dependant feature this parameter can be used to
             specify time dimension. If not specified, time dimension will be the same as size of the timestamps
             attribute. If timestamps do not exist this value will be set to 1. When converting data into a feature
@@ -453,49 +446,27 @@ class ImportFromTiffTask(BaseRasterIoTask):
             folder=folder,
         )
 
-        self.use_vsi = use_vsi
+        if use_vsi is not None:
+            warnings.warn(
+                "The parameter `use_vsi` has been deprecated and has no effect.", EODeprecationWarning, stacklevel=2
+            )
         self.timestamp_size = timestamp_size
 
-    def _get_session(self, filesystem: FS) -> AWSSession:
-        """Creates a session object with credentials from a config object."""
-        if not isinstance(filesystem, S3FS):
-            raise NotImplementedError("A rasterio session for VSI reading for now only works for AWS S3 filesystems")
-
-        return AWSSession(
-            aws_access_key_id=filesystem.aws_access_key_id,
-            aws_secret_access_key=filesystem.aws_secret_access_key,
-            aws_session_token=filesystem.aws_session_token,
-            region_name=filesystem.region,
-            endpoint_url=filesystem.endpoint_url,
-        )
-
     def _load_from_image(self, path: str, filesystem: FS, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
-        """The method decides in what way data will be loaded from the image.
+        """The method decides in what way data will be loaded from the image."""
+        full_path = get_full_path(filesystem, path)
 
-        The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
-        benchmarks show that without `filesystem.openbin` in some cases `rasterio` can read much faster. Otherwise,
-        reading depends on `use_vsi` flag. In some cases where a sub-image window is read and the image is in certain
-        format (e.g. COG), benchmarks show that reading with virtual system (VSI) is much faster. In other cases,
-        reading with `filesystem.openbin` is faster.
-        """
-        if isinstance(filesystem, (OSFS, TempFS)):
-            full_path = filesystem.getsyspath(path)
-            with rasterio.Env():
-                return self._read_image(full_path, bbox)
+        env_kwargs = {}
+        if isinstance(filesystem, S3FS):
+            env_kwargs["session"] = AWSSession(
+                aws_access_key_id=filesystem.aws_access_key_id,
+                aws_secret_access_key=filesystem.aws_secret_access_key,
+                aws_session_token=filesystem.aws_session_token,
+                region_name=filesystem.region,
+                endpoint_url=filesystem.endpoint_url,
+            )
 
-        if self.use_vsi:
-            session = self._get_session(filesystem)
-            with rasterio.Env(session=session):
-                full_path = get_full_path(filesystem, path)
-                return self._read_image(full_path, bbox)
-
-        with rasterio.Env(), filesystem.openbin(path, "r") as file_handle:
-            return self._read_image(file_handle, bbox)
-
-    def _read_image(self, file_object: str | BinaryIO, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
-        """Reads data from the image."""
-        src: DatasetReader
-        with rasterio.open(file_object) as src:
+        with rasterio.Env(**env_kwargs), rasterio.open(full_path) as src:
             read_window, read_bbox = self._get_reading_window_and_bbox(src, bbox)
             boundless_reading = read_window is not None
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox
