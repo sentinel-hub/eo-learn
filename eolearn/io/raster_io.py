@@ -121,8 +121,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     @classmethod
     def _generate_paths(cls, path_template: str, timestamps: list[dt.datetime] | None) -> list[str]:
         """Uses a filename path template to create a list of actual filename paths."""
-        has_tiff_file_extensions = path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")
-        if not has_tiff_file_extensions:
+        if not path_template.lower().endswith((".tif", ".tiff")):
             path_template = f"{path_template}.tif"
 
         if not timestamps:
