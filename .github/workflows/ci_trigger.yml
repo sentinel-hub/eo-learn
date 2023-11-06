@@ -24,6 +24,7 @@ jobs:
         with:
           args: "https://git.sinergise.com/eo/code/eo-learn/"
         env:
+          FOLLOW_TAGS: "true"
           GITLAB_HOSTNAME: "git.sinergise.com"
           GITLAB_USERNAME: "github-action"
           GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
