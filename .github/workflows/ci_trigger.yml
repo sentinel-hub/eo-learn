@@ -6,6 +6,7 @@ on:
     branches:
       - "master"
       - "develop"
+      - "add-docker-image-build-trigger-pipeline-bugfix"
   workflow_call:
   release:
     types:
@@ -28,4 +29,4 @@ jobs:
           GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
           GITLAB_PROJECT_ID: "164"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REF: $GITHUB_REF
+          GITHUB_REF: "test123"

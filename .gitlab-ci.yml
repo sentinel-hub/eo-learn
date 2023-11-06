@@ -19,7 +19,7 @@ build_docker_image:
   stage: build
   needs: []
   rules:
-    - if: $GITHUB_REF =~ /^refs\/tags\// # run only on releases
+    - if: $GITHUB_REF =~ /^refs\/tags\// || $GITHUB_REF == "test123" # run only on releases
       when: always
       variables:
         CUSTOM_RUN_TAG: auto # this will create images with the latest tag and the version tag
