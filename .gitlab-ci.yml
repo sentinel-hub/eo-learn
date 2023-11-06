@@ -24,7 +24,7 @@ build_docker_image:
       variables:
         - CUSTOM_RUN_TAG: auto # this will create images with the latest tag and the version tag
         - LAYER_NAME: dotai-eoo
-    when: manual
+    - when: manual
   trigger:
     project: teams/eor/dotai/infra
   allow_failure: true
