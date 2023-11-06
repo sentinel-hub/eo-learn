@@ -53,7 +53,8 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     ):
         """
         :param feature: Feature which will be exported or imported
-        :param path: Path pointing to an image file or to a directory of image files. If `filesystem` is not defined, absolute paths should be provided.
+        :param path: Path pointing to an image file or to a directory of image files. If `filesystem` is not defined,
+            absolute paths should be provided.
         :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
         :param no_data_value: When exporting this is the `NoData` value of pixels in exported images. When importing
@@ -162,7 +163,8 @@ class ExportToTiffTask(BaseRasterIoTask):
     ):
         """
         :param feature: A feature to be exported.
-        :param path: Path pointing to an image file or to a directory of image files to be exported. If `filesystem` is not defined, absolute paths should be provided.
+        :param path: Path pointing to an image file or to a directory of image files to be exported. If `filesystem` is
+            not defined, absolute paths should be provided.
         :param date_indices: Indices of those time frames from the give feature that will be exported to a tiff image.
             It can be either a list of indices or a tuple of `2` indices defining an interval of indices or a tuple of
             `2` datetime object also defining a time interval. By default, all time frames will be exported.
@@ -419,7 +421,8 @@ class ImportFromTiffTask(BaseRasterIoTask):
     ):
         """
         :param feature: EOPatch feature into which data will be imported
-        :param path: Path pointing to an image file or to a directory of image files to be imported. If `filesystem` is not defined, absolute paths should be provided.
+        :param path: Path pointing to an image file or to a directory of image files to be imported. If `filesystem` is
+            not defined, absolute paths should be provided.
         :param use_vsi: Deprecated.
         :param timestamp_size: In case data will be imported into a time-dependant feature this parameter can be used to
             specify time dimension. If not specified, time dimension will be the same as size of the timestamps
