@@ -111,19 +111,3 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: true
           verbose: false
-
-  mirror-and-integration-test-on-gitlab:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - name: Mirror + trigger CI
-        uses: SvanBoxel/gitlab-mirror-and-ci-action@master
-        with:
-          args: "https://git.sinergise.com/eo/code/eo-learn/"
-        env:
-          GITLAB_HOSTNAME: "git.sinergise.com"
-          GITLAB_USERNAME: "github-action"
-          GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
-          GITLAB_PROJECT_ID: "164"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
