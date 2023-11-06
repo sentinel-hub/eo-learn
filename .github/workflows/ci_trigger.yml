@@ -12,6 +12,7 @@ on:
       - created # draft release
     # - published
 
+jobs:
   mirror-and-integration-test-on-gitlab:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
