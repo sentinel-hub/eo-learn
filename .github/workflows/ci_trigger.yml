@@ -6,12 +6,10 @@ on:
     branches:
       - "master"
       - "develop"
-      - "add-docker-image-build-trigger-pipeline-bugfix"
   workflow_call:
   release:
     types:
-      - created # draft release
-    # - published
+      - published
 
 jobs:
   mirror-and-integration-test-on-gitlab:
