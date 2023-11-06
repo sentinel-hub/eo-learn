@@ -133,13 +133,13 @@ def test_export_import(test_case, test_eopatch):
         feature = test_case.feature_type, test_case.name
 
         export_task = ExportToTiffTask(
-            feature, folder=tmp_dir_name, band_indices=test_case.bands, date_indices=test_case.times
+            feature, path=tmp_dir_name, band_indices=test_case.bands, date_indices=test_case.times
         )
         _execute_with_warning_control(export_task, test_case.warning, test_eopatch, filename=tmp_file_name)
 
         export_task = ExportToTiffTask(
             feature,
-            folder=tmp_dir_name,
+            path=tmp_dir_name,
             band_indices=test_case.bands,
             date_indices=test_case.times,
             crs="EPSG:4326",
@@ -148,7 +148,7 @@ def test_export_import(test_case, test_eopatch):
         _execute_with_warning_control(export_task, test_case.warning, test_eopatch, filename=tmp_file_name_reproject)
 
         import_task = ImportFromTiffTask(
-            feature, folder=tmp_dir_name, timestamp_size=test_case.get_expected_timestamp_size()
+            feature, path=tmp_dir_name, timestamp_size=test_case.get_expected_timestamp_size()
         )
 
         expected_raster = test_case.get_expected()
@@ -196,7 +196,7 @@ def test_export2tiff_wrong_format(bands, times, test_eopatch):
     with tempfile.TemporaryDirectory() as tmp_dir_name:
         tmp_file_name = "temp_file.tiff"
         task = ExportToTiffTask(
-            (FeatureType.DATA, "data"), folder=tmp_dir_name, band_indices=bands, date_indices=times, image_dtype=float
+            (FeatureType.DATA, "data"), path=tmp_dir_name, band_indices=bands, date_indices=times, image_dtype=float
         )
         with pytest.raises(ValueError):
             task.execute(test_eopatch, filename=tmp_file_name)
@@ -209,7 +209,7 @@ def test_export2tiff_wrong_feature(mocker, test_eopatch):
         tmp_file_name = "temp_file.tiff"
         feature = FeatureType.MASK_TIMELESS, "feature-not-present"
 
-        export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=False)
+        export_task = ExportToTiffTask(feature, path=tmp_dir_name, fail_on_missing=False)
         export_task(test_eopatch, filename=tmp_file_name)
 
         assert logging.Logger.warning.call_count == 1
@@ -220,7 +220,7 @@ def test_export2tiff_wrong_feature(mocker, test_eopatch):
             == "Feature (<FeatureType.MASK_TIMELESS: 'mask_timeless'>, 'feature-not-present') was not found in EOPatch"
         )
 
-        failing_export_task = ExportToTiffTask(feature, folder=tmp_dir_name, fail_on_missing=True)
+        failing_export_task = ExportToTiffTask(feature, path=tmp_dir_name, fail_on_missing=True)
         with pytest.raises(ValueError):
             failing_export_task(test_eopatch, filename=tmp_file_name)
 
@@ -248,7 +248,7 @@ def test_export2tiff_separate_timestamps(test_eopatch):
         full_path = os.path.join(tmp_dir_name, tmp_file_name_reproject)
         export_task = ExportToTiffTask(
             feature,
-            folder=full_path,
+            path=full_path,
             band_indices=test_case.bands,
             date_indices=test_case.times,
             crs="EPSG:4326",
@@ -310,8 +310,8 @@ def test_timeless_feature(test_eopatch):
     filename = "relative-path/my-filename.tiff"
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
-        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name)
+        export_task = ExportToTiffTask(feature, path=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, path=tmp_dir_name)
 
         export_task.execute(test_eopatch, filename=filename)
         new_eopatch = import_task.execute(test_eopatch, filename=filename)
@@ -327,8 +327,8 @@ def test_time_dependent_feature(test_eopatch):
     ]
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
-        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name, timestamp_size=68)
+        export_task = ExportToTiffTask(feature, path=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, path=tmp_dir_name, timestamp_size=68)
 
         export_task(test_eopatch, filename=filename_export)
         new_eopatch = import_task(filename=filename_import)
@@ -349,8 +349,8 @@ def test_time_dependent_feature_with_timestamps(test_eopatch):
     filename = "relative-path/%Y%m%dT%H%M%S.tiff"
 
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        export_task = ExportToTiffTask(feature, folder=tmp_dir_name)
-        import_task = ImportFromTiffTask(feature, folder=tmp_dir_name)
+        export_task = ExportToTiffTask(feature, path=tmp_dir_name)
+        import_task = ImportFromTiffTask(feature, path=tmp_dir_name)
 
         export_task.execute(test_eopatch, filename=filename)
         new_eopatch = import_task(test_eopatch, filename=filename)
@@ -374,7 +374,7 @@ def test_export_import_sequence(no_data_value, data_type):
         filename = "test_seq.tiff"
         file_path = os.path.join(tmp_dir_name, filename)
         export_task = ExportToTiffTask(
-            feature=feature, folder=tmp_dir_name, band_indices=[0], no_data_value=no_data_value
+            feature=feature, path=tmp_dir_name, band_indices=[0], no_data_value=no_data_value
         )
         export_task.execute(eopatch=eopatch, filename=filename)
 
@@ -389,7 +389,7 @@ def test_export_import_sequence(no_data_value, data_type):
 
             assert_array_equal(tif_array.mask, no_data_arr)
 
-        import_task = ImportFromTiffTask(feature=feature, folder=tmp_dir_name, no_data_value=no_data_value)
+        import_task = ImportFromTiffTask(feature=feature, path=tmp_dir_name, no_data_value=no_data_value)
         new_eopatch = import_task.execute(filename=filename)
 
         assert_array_equal(eopatch[feature], new_eopatch[feature])
