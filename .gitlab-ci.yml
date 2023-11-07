@@ -26,5 +26,5 @@ build_docker_image:
         LAYER_NAME: dotai-eo
     - when: manual
   trigger:
-    project: teams/eor/dotai/infra
+    project: eo/infra/infra
   allow_failure: true
