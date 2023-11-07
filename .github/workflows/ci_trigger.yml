@@ -13,7 +13,6 @@ on:
 
 jobs:
   mirror-and-integration-test-on-gitlab:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
