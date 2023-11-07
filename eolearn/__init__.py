@@ -1,4 +1,5 @@
 """Main module of the `eolearn` package."""
+
 __version__ = "1.5.2"
 
 import importlib.util
