@@ -1,0 +1,30 @@
+name: mirror_and_trigger
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "master"
+      - "develop"
+  workflow_call:
+  release:
+    types:
+      - published
+
+jobs:
+  mirror-and-integration-test-on-gitlab:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Mirror + trigger CI
+        uses: SvanBoxel/gitlab-mirror-and-ci-action@master
+        with:
+          args: "https://git.sinergise.com/eo/code/eo-learn/"
+        env:
+          FOLLOW_TAGS: "true"
+          GITLAB_HOSTNAME: "git.sinergise.com"
+          GITLAB_USERNAME: "github-action"
+          GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
+          GITLAB_PROJECT_ID: "164"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

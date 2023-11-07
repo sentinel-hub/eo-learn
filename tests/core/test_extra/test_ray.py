@@ -4,6 +4,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -56,7 +57,7 @@ class CustomLogFilter(logging.Filter):
 
 @pytest.fixture(name="_simple_cluster", scope="module")
 def _simple_cluster_fixture():
-    ray.init(log_to_driver=False)
+    ray.init(log_to_driver=False, resources={"resourceA": 1})
     yield
     ray.shutdown()
 
@@ -103,10 +104,15 @@ def test_read_logs(filter_logs, execution_names, workflow, execution_kwargs):
             logs_folder=tmp_dir_name,
             logs_filter=CustomLogFilter() if filter_logs else None,
             execution_names=execution_names,
+            ray_remote_kwargs={"resources": {"resourceA": 0.5}},
         )
         executor.run()
 
-        execution_logs = executor.read_logs()
+        execution_logs = []
+        for log_path in executor.get_log_paths():
+            with open(log_path) as f:
+                execution_logs.append(f.read())
+
         assert len(execution_logs) == 4
         for log in execution_logs:
             assert len(log.split()) >= 3

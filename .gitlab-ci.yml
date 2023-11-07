@@ -2,6 +2,7 @@ image: python:3.9
 
 stages:
   - test
+  - build
 
 run_sh_integration_tests:
   stage: test
@@ -13,3 +14,17 @@ run_sh_integration_tests:
     - pip install .[DEV]
     - sentinelhub.config --sh_client_id "$SH_CLIENT_ID" --sh_client_secret "$SH_CLIENT_SECRET" > /dev/null # Gitlab can't mask SH_CLIENT_SECRET in logs
     - pytest -m sh_integration
+
+build_docker_image:
+  stage: build
+  needs: []
+  rules:
+    - if: $CI_COMMIT_TAG # run only on releases
+      when: always
+      variables:
+        CUSTOM_RUN_TAG: auto # this will create images with the latest tag and the version tag
+        LAYER_NAME: dotai-eo
+    - when: manual
+  trigger:
+    project: eo/infra/docker
+  allow_failure: true

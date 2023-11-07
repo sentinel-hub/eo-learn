@@ -6,6 +6,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 import base64
@@ -13,6 +14,7 @@ import datetime as dt
 import os
 import warnings
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any, cast
@@ -29,7 +31,7 @@ from pygments.formatters.html import HtmlFormatter
 
 from eolearn.core import EOExecutor
 from eolearn.core.eonode import ExceptionInfo
-from eolearn.core.exceptions import EOUserWarning
+from eolearn.core.exceptions import EORuntimeWarning, EOUserWarning
 
 
 class EOExecutorVisualization:
@@ -47,7 +49,6 @@ class EOExecutorVisualization:
             raise RuntimeError(
                 "Cannot produce a report without running the executor first, check EOExecutor.run method"
             )
-
         # These should be set automatically after a run
         start_time = cast(dt.datetime, self.eoexecutor.start_time)
         report_folder = cast(str, self.eoexecutor.report_folder)
@@ -68,12 +69,14 @@ class EOExecutorVisualization:
 
             template = self._get_template()
 
-            execution_log_filenames = [fs.path.basename(log_path) for log_path in self.eoexecutor.get_log_paths()]
-            if self.eoexecutor.save_logs:
-                execution_logs = self.eoexecutor.read_logs() if include_logs else None
+            log_paths = self.eoexecutor.get_log_paths(full_path=False)
+            if not include_logs:
+                execution_logs = None
+            elif self.eoexecutor.save_logs:
+                with ThreadPoolExecutor() as executor:
+                    execution_logs = list(executor.map(self._read_log_file, log_paths))
             else:
                 execution_logs = ["No logs saved"] * len(self.eoexecutor.execution_kwargs)
-
             html = template.render(
                 title=f"Report {self._format_datetime(start_time)}",
                 dependency_graph=dependency_graph,
@@ -83,7 +86,7 @@ class EOExecutorVisualization:
                 execution_results=self.eoexecutor.execution_results,
                 execution_tracebacks=self._render_execution_tracebacks(formatter),
                 execution_logs=execution_logs,
-                execution_log_filenames=execution_log_filenames,
+                execution_log_filenames=[fs.path.basename(log_path) for log_path in log_paths],
                 execution_names=self.eoexecutor.execution_names,
                 code_css=formatter.get_style_defs(),
             )
@@ -91,6 +94,14 @@ class EOExecutorVisualization:
 
             with self.eoexecutor.filesystem.open(self.eoexecutor.get_report_path(full_path=False), "w") as file_handle:
                 file_handle.write(html)
+
+    def _read_log_file(self, log_path: str) -> str:
+        try:
+            with self.eoexecutor.filesystem.open(log_path, "r") as file_handle:
+                return file_handle.read()
+        except BaseException as exception:
+            warnings.warn(f"Failed to load logs with exception: {exception!r}", category=EORuntimeWarning)
+            return "Failed to load logs"
 
     def _create_dependency_graph(self) -> str:
         """Provides an image of dependency graph"""

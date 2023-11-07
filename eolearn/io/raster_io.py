@@ -6,6 +6,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -13,7 +14,6 @@ import functools
 import logging
 import warnings
 from abc import ABCMeta
-from typing import BinaryIO
 
 import fs
 import numpy as np
@@ -21,8 +21,6 @@ import rasterio
 import rasterio.warp
 from affine import Affine
 from fs.base import FS
-from fs.osfs import OSFS
-from fs.tempfs import TempFS
 from fs_s3fs import S3FS
 from rasterio.io import DatasetReader
 from rasterio.session import AWSSession
@@ -32,7 +30,7 @@ from sentinelhub import CRS, BBox, SHConfig, parse_time_interval
 
 from eolearn.core import EOPatch
 from eolearn.core.core_tasks import IOTask
-from eolearn.core.exceptions import EORuntimeWarning
+from eolearn.core.exceptions import EODeprecationWarning, EORuntimeWarning
 from eolearn.core.types import Feature
 from eolearn.core.utils.fs import get_base_filesystem_and_path, get_full_path
 
@@ -45,39 +43,43 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     def __init__(
         self,
         feature: Feature,
-        folder: str,
+        path: str = ...,  # type: ignore[assignment]
         *,
         filesystem: FS | None = None,
         image_dtype: np.dtype | type | None = None,
         no_data_value: float | None = None,
         create: bool = False,
         config: SHConfig | None = None,
+        folder: str | None = None,
     ):
         """
         :param feature: Feature which will be exported or imported
-        :param folder: A path to a main folder containing all image, potentially in its subfolders. If `filesystem`
-            parameter is defined, then `folder` should be a path relative to filesystem object. Otherwise, it should be
-            an absolute path.
+        :param path: Path pointing to an image file or to a directory of image files. If `filesystem` is not defined,
+            absolute paths should be provided.
         :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
-        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
-            When importing this value is assigned to the pixels with NoData.
+        :param no_data_value: When exporting this is the `NoData` value of pixels in exported images. When importing
+            this value is assigned to the pixels with `NoData`.
         :param create: If the filesystem path doesn't exist this flag indicates to either create it or raise an error.
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
-        ftype, fname = self.parse_feature(feature)
-        if fname is None:
-            raise ValueError(f"Feature {feature} is not eligible for this task.")
-        self.feature = ftype, fname
+        if folder is not None:
+            warnings.warn("The parameter `folder` has been renamed to `path`.", EODeprecationWarning, stacklevel=3)
+            path = folder
+
+        if path is ...:  # type: ignore[comparison-overlap]
+            raise TypeError(f"{type(self).__name__} is missing a required positional argument 'path'.")
+
+        self.feature = self.parse_feature(feature)
         self.image_dtype = image_dtype
         self.no_data_value = no_data_value
 
         if filesystem is None:
-            filesystem, folder = get_base_filesystem_and_path(folder, create=create, config=config)
+            filesystem, path = get_base_filesystem_and_path(path, create=create, config=config)
 
         # the super-class takes care of filesystem pickling
-        super().__init__(folder, filesystem=filesystem, create=create, config=config)
+        super().__init__(path, filesystem=filesystem, create=create, config=config)
 
     def _get_filename_paths(
         self, filename_template: str | list[str], timestamps: list[dt.datetime] | None
@@ -117,8 +119,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     @classmethod
     def _generate_paths(cls, path_template: str, timestamps: list[dt.datetime] | None) -> list[str]:
         """Uses a filename path template to create a list of actual filename paths."""
-        has_tiff_file_extensions = path_template.lower().endswith(".tif") or path_template.lower().endswith(".tiff")
-        if not has_tiff_file_extensions:
+        if not path_template.lower().endswith((".tif", ".tiff")):
             path_template = f"{path_template}.tif"
 
         if not timestamps:
@@ -148,7 +149,7 @@ class ExportToTiffTask(BaseRasterIoTask):
     def __init__(
         self,
         feature: Feature,
-        folder: str,
+        path: str = ...,  # type: ignore[assignment]
         *,
         date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
         band_indices: list[int] | tuple[int, int] | None = None,
@@ -159,12 +160,12 @@ class ExportToTiffTask(BaseRasterIoTask):
         image_dtype: np.dtype | type | None = None,
         no_data_value: float | None = None,
         config: SHConfig | None = None,
+        folder: str | None = None,
     ):
         """
         :param feature: A feature to be exported.
-        :param folder: A path to a main folder containing all image, potentially in its subfolders. If `filesystem`
-            parameter is defined, then `folder` should be a path relative to filesystem object. Otherwise, it should be
-            an absolute path.
+        :param path: Path pointing to an image file or to a directory of image files to be exported. If `filesystem` is
+            not defined, absolute paths should be provided.
         :param date_indices: Indices of those time frames from the give feature that will be exported to a tiff image.
             It can be either a list of indices or a tuple of `2` indices defining an interval of indices or a tuple of
             `2` datetime object also defining a time interval. By default, all time frames will be exported.
@@ -178,19 +179,19 @@ class ExportToTiffTask(BaseRasterIoTask):
         :param compress: A type of compression that rasterio should apply to an exported image.
         :param filesystem: A filesystem object. If not given it will be initialized according to `folder` parameter.
         :param image_dtype: A data type of data in exported images or data imported from images.
-        :param no_data_value: When exporting this is the NoData value of pixels in exported images.
-            When importing this value is assigned to the pixels with NoData.
+        :param no_data_value: The `NoData` value of pixels in exported images.
         :param config: A configuration object with AWS credentials. By default, is set to None and in this case the
             default configuration will be taken.
         """
         super().__init__(
             feature,
-            folder=folder,
+            path=path,
             create=True,
             filesystem=filesystem,
             image_dtype=image_dtype,
             no_data_value=no_data_value,
             config=config,
+            folder=folder,
         )
 
         self.date_indices = date_indices
@@ -409,23 +410,21 @@ class ImportFromTiffTask(BaseRasterIoTask):
     def __init__(
         self,
         feature: Feature,
-        folder: str,
+        path: str = ...,  # type: ignore[assignment]
         *,
-        use_vsi: bool = False,
+        use_vsi: bool | None = None,
         timestamp_size: int | None = None,
         filesystem: FS | None = None,
         image_dtype: np.dtype | type | None = None,
         no_data_value: float | None = None,
         config: SHConfig | None = None,
+        folder: str | None = None,
     ):
         """
         :param feature: EOPatch feature into which data will be imported
-        :param folder: A directory containing image files or a path of an image file
-        :param use_vsi: A flag to define if reading should be done with GDAL/rasterio virtual system (VSI)
-            functionality. The flag only has an effect when the task is used to read an image from a remote storage
-            (i.e. AWS S3 bucket). For a performance improvement it is recommended to set this to `True` when reading a
-            smaller chunk of a larger image, especially if it is a Cloud-optimized GeoTIFF (COG). In other cases the
-            reading might be faster if the flag remains set to `False`.
+        :param path: Path pointing to an image file or to a directory of image files to be imported. If `filesystem` is
+            not defined, absolute paths should be provided.
+        :param use_vsi: Deprecated.
         :param timestamp_size: In case data will be imported into a time-dependant feature this parameter can be used to
             specify time dimension. If not specified, time dimension will be the same as size of the timestamps
             attribute. If timestamps do not exist this value will be set to 1. When converting data into a feature
@@ -441,56 +440,35 @@ class ImportFromTiffTask(BaseRasterIoTask):
         """
         super().__init__(
             feature,
-            folder=folder,
+            path=path,
             filesystem=filesystem,
             image_dtype=image_dtype,
             no_data_value=no_data_value,
             config=config,
+            folder=folder,
         )
 
-        self.use_vsi = use_vsi
+        if use_vsi is not None:
+            warnings.warn(
+                "The parameter `use_vsi` has been deprecated and has no effect.", EODeprecationWarning, stacklevel=2
+            )
         self.timestamp_size = timestamp_size
 
-    def _get_session(self, filesystem: FS) -> AWSSession:
-        """Creates a session object with credentials from a config object."""
-        if not isinstance(filesystem, S3FS):
-            raise NotImplementedError("A rasterio session for VSI reading for now only works for AWS S3 filesystems")
-
-        return AWSSession(
-            aws_access_key_id=filesystem.aws_access_key_id,
-            aws_secret_access_key=filesystem.aws_secret_access_key,
-            aws_session_token=filesystem.aws_session_token,
-            region_name=filesystem.region,
-            endpoint_url=filesystem.endpoint_url,
-        )
-
     def _load_from_image(self, path: str, filesystem: FS, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
-        """The method decides in what way data will be loaded from the image.
+        """The method decides in what way data will be loaded from the image."""
+        full_path = get_full_path(filesystem, path)
 
-        The method always uses `rasterio.Env` to suppress any low-level warnings. In case of a local filesystem
-        benchmarks show that without `filesystem.openbin` in some cases `rasterio` can read much faster. Otherwise,
-        reading depends on `use_vsi` flag. In some cases where a sub-image window is read and the image is in certain
-        format (e.g. COG), benchmarks show that reading with virtual system (VSI) is much faster. In other cases,
-        reading with `filesystem.openbin` is faster.
-        """
-        if isinstance(filesystem, (OSFS, TempFS)):
-            full_path = filesystem.getsyspath(path)
-            with rasterio.Env():
-                return self._read_image(full_path, bbox)
+        env_kwargs = {}
+        if isinstance(filesystem, S3FS):
+            env_kwargs["session"] = AWSSession(
+                aws_access_key_id=filesystem.aws_access_key_id,
+                aws_secret_access_key=filesystem.aws_secret_access_key,
+                aws_session_token=filesystem.aws_session_token,
+                region_name=filesystem.region,
+                endpoint_url=filesystem.endpoint_url,
+            )
 
-        if self.use_vsi:
-            session = self._get_session(filesystem)
-            with rasterio.Env(session=session):
-                full_path = get_full_path(filesystem, path)
-                return self._read_image(full_path, bbox)
-
-        with rasterio.Env(), filesystem.openbin(path, "r") as file_handle:
-            return self._read_image(file_handle, bbox)
-
-    def _read_image(self, file_object: str | BinaryIO, bbox: BBox | None) -> tuple[np.ndarray, BBox | None]:
-        """Reads data from the image."""
-        src: DatasetReader
-        with rasterio.open(file_object) as src:
+        with rasterio.Env(**env_kwargs), rasterio.open(full_path) as src:
             read_window, read_bbox = self._get_reading_window_and_bbox(src, bbox)
             boundless_reading = read_window is not None
             return src.read(window=read_window, boundless=boundless_reading, fill_value=self.no_data_value), read_bbox

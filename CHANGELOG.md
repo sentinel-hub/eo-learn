@@ -1,3 +1,10 @@
+## [Version 1.5.2] - 2023-11-07
+
+- `RayExecutor` can now forward remote kwargs to ray jobs.
+- `ImportTiffTask` no longer uses the `use_vsi` parameter. The IO part was fully off-loaded to `rasterio`.
+- `ImportTiffTask` and `ExportTiffTask` parameter `folder` was renamed to `path`. The renaming is backwards compatible for now.
+
+
 ## [Version 1.5.1] - 2023-10-17
 
 - `MorphologicalFilterTask` adapted to work on boolean values.

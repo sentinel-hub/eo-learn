@@ -8,18 +8,24 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Generator, Iterable, List, TypeVar, cast
+from logging import FileHandler, Filter
+from typing import Any, Callable, Collection, Generator, Iterable, List, Sequence, TypeVar, cast
+
+from fs.base import FS
+
+from eolearn.core.eonode import EONode
 
 try:
     import ray
 except ImportError as exception:
     raise ImportError("This module requires an installation of Ray Python package") from exception
 
-from ..eoexecution import EOExecutor, _ExecutionRunParams, _ProcessingData
-from ..eoworkflow import WorkflowResults
-from ..utils.parallelize import _base_join_futures_iter, _ProcessingType
+from ..eoexecution import EOExecutor, _ExecutionRunParams, _HandlerFactoryType, _ProcessingData
+from ..eoworkflow import EOWorkflow, WorkflowResults
+from ..utils.parallelize import _base_join_futures_iter
 
 # pylint: disable=invalid-name
 InputType = TypeVar("InputType")
@@ -28,6 +34,33 @@ OutputType = TypeVar("OutputType")
 
 class RayExecutor(EOExecutor):
     """A special type of `EOExecutor` that works with Ray framework"""
+
+    def __init__(
+        self,
+        workflow: EOWorkflow,
+        execution_kwargs: Sequence[dict[EONode, dict[str, object]]],
+        *,
+        execution_names: list[str] | None = None,
+        save_logs: bool = False,
+        logs_folder: str = ".",
+        filesystem: FS | None = None,
+        logs_filter: Filter | None = None,
+        logs_handler_factory: _HandlerFactoryType = FileHandler,
+        raise_on_temporal_mismatch: bool = False,
+        ray_remote_kwargs: dict[str, Any] | None = None,
+    ):
+        super().__init__(
+            workflow,
+            execution_kwargs,
+            execution_names=execution_names,
+            save_logs=save_logs,
+            logs_folder=logs_folder,
+            filesystem=filesystem,
+            logs_filter=logs_filter,
+            logs_handler_factory=logs_handler_factory,
+            raise_on_temporal_mismatch=raise_on_temporal_mismatch,
+        )
+        self.ray_remote_kwargs = ray_remote_kwargs
 
     def run(self, **tqdm_kwargs: Any) -> list[WorkflowResults]:  # type: ignore[override]
         """Runs the executor using a Ray cluster
@@ -43,18 +76,14 @@ class RayExecutor(EOExecutor):
         workers = ray.available_resources().get("CPU")
         return super().run(workers=workers, multiprocess=True, **tqdm_kwargs)
 
-    @classmethod
     def _run_execution(
-        cls, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
+        self, processing_args: list[_ProcessingData], run_params: _ExecutionRunParams
     ) -> list[WorkflowResults]:
         """Runs ray execution"""
-        futures = [_ray_workflow_executor.remote(workflow_args) for workflow_args in processing_args]
+        remote_kwargs = self.ray_remote_kwargs or {}
+        exec_func = _ray_workflow_executor.options(**remote_kwargs)  # type: ignore[attr-defined]
+        futures = [exec_func.remote(workflow_args) for workflow_args in processing_args]
         return join_ray_futures(futures, **run_params.tqdm_kwargs)
-
-    @staticmethod
-    def _get_processing_type(*_: Any, **__: Any) -> _ProcessingType:
-        """Provides a type of processing for later references."""
-        return _ProcessingType.RAY
 
 
 @ray.remote
@@ -65,7 +94,10 @@ def _ray_workflow_executor(workflow_args: _ProcessingData) -> WorkflowResults:
 
 
 def parallelize_with_ray(
-    function: Callable[[InputType], OutputType], *params: Iterable[InputType], **tqdm_kwargs: Any
+    function: Callable[[InputType], OutputType],
+    *params: Iterable[InputType],
+    ray_remote_kwargs: dict[str, Any] | None = None,
+    **tqdm_kwargs: Any,
 ) -> list[OutputType]:
     """Parallelizes function execution with Ray.
 
@@ -74,13 +106,15 @@ def parallelize_with_ray(
 
     :param function: A normal function that is not yet decorated by `ray.remote`.
     :param params: Iterables of parameters that will be used with given function.
+    :param ray_remote_kwargs: Keyword arguments passed to `ray.remote`.
     :param tqdm_kwargs: Keyword arguments that will be propagated to `tqdm` progress bar.
     :return: A list of results in the order that corresponds with the order of the given input `params`.
     """
+    ray_remote_kwargs = ray_remote_kwargs or {}
     if not ray.is_initialized():
         raise RuntimeError("Please initialize a Ray cluster before calling this method")
 
-    ray_function = ray.remote(function)
+    ray_function = ray.remote(function, **ray_remote_kwargs)
     futures = [ray_function.remote(*function_params) for function_params in zip(*params)]
     return join_ray_futures(futures, **tqdm_kwargs)
 

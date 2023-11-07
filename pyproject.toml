@@ -55,7 +55,7 @@ dependencies = [
     "typing-extensions",
     "opencv-python-headless",
     "affine",
-    "rasterio>=1.2.7, <1.3.8",
+    "rasterio>=1.3.8",
     "shapely",
     "fiona>=1.8.18",
 ]
