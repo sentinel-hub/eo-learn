@@ -8,6 +8,7 @@ For the full list of contributors, see the CREDITS file in the root directory of
 
 This source code is licensed under the MIT license, see the LICENSE file in the root directory of this source tree.
 """
+
 from __future__ import annotations
 
 from logging import FileHandler, Filter

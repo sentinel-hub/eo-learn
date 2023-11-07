@@ -1,6 +1,7 @@
 """
 The following objects and functions are the core of eo-learn package
 """
+
 from .constants import FeatureType, OverwritePermission
 from .core_tasks import (
     AddFeatureTask,
