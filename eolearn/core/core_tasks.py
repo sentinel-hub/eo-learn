@@ -18,9 +18,9 @@ from typing import Any, Callable, Iterable, Literal, Tuple, Union, cast
 import fs
 import numpy as np
 from fs.base import FS
+from typing_extensions import deprecated
 
 from sentinelhub import SHConfig
-from sentinelhub.exceptions import deprecated_class
 
 from .constants import FeatureType, OverwritePermission
 from .eodata import EOPatch
@@ -56,7 +56,9 @@ class CopyTask(EOTask):
         return eopatch.copy(features=self.features, deep=self.deep, copy_timestamps=self.copy_timestamps)
 
 
-@deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")
+@deprecated(
+    "Use `CopyTask` with the configuration `deep=True` instead of `DeepCopyTask`.", category=EODeprecationWarning
+)
 class DeepCopyTask(CopyTask):
     """[DEPRECATED] Makes a deep copy of the given EOPatch."""
 
