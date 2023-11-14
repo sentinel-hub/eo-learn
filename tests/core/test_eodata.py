@@ -42,10 +42,11 @@ def mini_eopatch_fixture() -> EOPatch:
 def test_numpy_feature_types() -> None:
     eop = EOPatch(bbox=DUMMY_BBOX, timestamps=DUMMY_TIMESTAMPS * 2)
 
-    data_examples = []
-    for size in range(6):
-        for dtype in [np.float32, np.float64, float, np.uint8, np.int64, bool]:
-            data_examples.append(np.zeros((2,) * size, dtype=dtype))
+    data_examples = [
+        np.zeros((2,) * size, dtype=dtype)
+        for size in range(6)
+        for dtype in [np.float32, np.float64, float, np.uint8, np.int64, bool]
+    ]
 
     for feature_type in filter(lambda fty: fty.is_array(), FeatureType):
         valid_count = 0
@@ -54,7 +55,7 @@ def test_numpy_feature_types() -> None:
             try:
                 eop[feature_type]["TEST"] = data
                 valid_count += 1
-            except ValueError:
+            except ValueError:  # noqa: PERF203
                 pass
 
         expected_count = 3 if feature_type.is_discrete() else 6

@@ -594,14 +594,14 @@ class EOPatch:
 
         :return: List of non-empty features
         """
-        feature_list: list[Feature] = []
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
             removed_ftypes = {FeatureType.BBOX, FeatureType.TIMESTAMPS}  # list comprehensions make ignoring hard
-        for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes):
-            for feature_name in self[feature_type]:
-                feature_list.append((feature_type, feature_name))
-        return feature_list
+        return [
+            (feature_type, feature_name)
+            for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes)
+            for feature_name in self[feature_type]
+        ]
 
     def save(
         self,
