@@ -26,8 +26,7 @@ from typing import Any, Callable, Iterable, Protocol, Union
 
 import fs
 from fs.base import FS
-
-from sentinelhub.exceptions import deprecated_function
+from typing_extensions import deprecated
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
@@ -362,7 +361,7 @@ class EOExecutor:
         log_paths = [fs.path.combine(self.report_folder, f"eoexecution-{name}.log") for name in self.execution_names]
         return [get_full_path(self.filesystem, path) for path in log_paths] if full_path else log_paths
 
-    @deprecated_function(EODeprecationWarning)
+    @deprecated("The method `read_logs` has been deprecated.", category=EODeprecationWarning)
     def read_logs(self) -> list[str | None]:
         """Loads the content of log files if logs have been saved."""
         if not self.save_logs:

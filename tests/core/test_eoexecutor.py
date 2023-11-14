@@ -215,9 +215,7 @@ def test_exception_wrong_length_execution_names(workflow, execution_kwargs):
 def test_keyboard_interrupt():
     exception_node = EONode(KeyboardExceptionTask())
     workflow = EOWorkflow([exception_node])
-    execution_kwargs = []
-    for _ in range(10):
-        execution_kwargs.append({exception_node: {"arg1": 1}})
+    execution_kwargs = [{exception_node: {"arg1": 1}} for _ in range(10)]
 
     run_kwargs = [{"workers": 1}, {"workers": 3, "multiprocess": True}, {"workers": 3, "multiprocess": False}]
     for kwarg in run_kwargs:

@@ -34,9 +34,9 @@ from warnings import warn
 import geopandas as gpd
 import numpy as np
 from fs.base import FS
+from typing_extensions import deprecated
 
 from sentinelhub import CRS, BBox, parse_time
-from sentinelhub.exceptions import deprecated_function
 
 from .constants import FEATURETYPE_DEPRECATION_MSG, TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
@@ -427,7 +427,10 @@ class EOPatch:
             "`(feature_type, feature_name)` pairs."
         )
 
-    @deprecated_function(EODeprecationWarning, "Use the `merge` method instead.")
+    @deprecated(
+        "The `+` operator for EOPatches has been deprecated. Use the function `eolearn.core.merge_eopatches` instead.",
+        category=EODeprecationWarning,
+    )
     def __add__(self, other: EOPatch) -> EOPatch:
         """Merges two EOPatches into a new EOPatch."""
         return self.merge(other)
@@ -442,9 +445,9 @@ class EOPatch:
             content = self[feature_type]
 
             content = {k: content._get_unloaded(k) for k in content}  # noqa: SLF001
-            inner_content_repr = "\n    ".join(
-                [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
-            )
+            inner_content_repr = "\n    ".join([
+                f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())
+            ])
             content_str = "{\n    " + inner_content_repr + "\n  }"
 
             feature_repr_list.append(f"{feature_type.value}={content_str}")
@@ -591,14 +594,14 @@ class EOPatch:
 
         :return: List of non-empty features
         """
-        feature_list: list[Feature] = []
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
             removed_ftypes = {FeatureType.BBOX, FeatureType.TIMESTAMPS}  # list comprehensions make ignoring hard
-        for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes):
-            for feature_name in self[feature_type]:
-                feature_list.append((feature_type, feature_name))
-        return feature_list
+        return [
+            (feature_type, feature_name)
+            for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes)
+            for feature_name in self[feature_type]
+        ]
 
     def save(
         self,
@@ -688,7 +691,10 @@ class EOPatch:
             _trigger_loading_for_eopatch_features(eopatch)
         return eopatch
 
-    @deprecated_function(EODeprecationWarning, "Use the function `eolearn.core.merge_eopatches` instead.")
+    @deprecated(
+        "The EOPatch method `merge` has been deprecated. Use the function `eolearn.core.merge_eopatches` instead.",
+        category=EODeprecationWarning,
+    )
     def merge(
         self,
         *eopatches: EOPatch,
@@ -727,7 +733,10 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
-    @deprecated_function(EODeprecationWarning, "Please use the method `temporal_subset` instead.")
+    @deprecated(
+        "The method `consolidate_timestamps` has been deprecated. Use the method `temporal_subset` instead.",
+        category=EODeprecationWarning,
+    )
     def consolidate_timestamps(self, timestamps: list[dt.datetime]) -> set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 
