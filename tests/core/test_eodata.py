@@ -31,14 +31,12 @@ DUMMY_TIMESTAMPS = ["2017-03-21"]
 
 @pytest.fixture(name="mini_eopatch")
 def mini_eopatch_fixture() -> EOPatch:
-    return generate_eopatch(
-        {
-            FeatureType.DATA: ["A", "B"],
-            FeatureType.MASK: ["C", "D"],
-            FeatureType.MASK_TIMELESS: ["E"],
-            FeatureType.META_INFO: ["beep"],
-        }
-    )
+    return generate_eopatch({
+        FeatureType.DATA: ["A", "B"],
+        FeatureType.MASK: ["C", "D"],
+        FeatureType.MASK_TIMELESS: ["E"],
+        FeatureType.META_INFO: ["beep"],
+    })
 
 
 def test_numpy_feature_types() -> None:

@@ -134,7 +134,7 @@ select = [
     "PGH",  # pygrep hooks (useless noqa comments, eval statements etc.)
     "FLY",  # flynt
     "NPY",  # numpy
-    "PERF", # perflint, performance improvements
+    # "PERF", # perflint, performance improvements
     "RUF",  # ruff rules
 ]
 fix = true
