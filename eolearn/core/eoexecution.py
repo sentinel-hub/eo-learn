@@ -114,7 +114,7 @@ class EOExecutor:
               object.
 
             The 2nd option is chosen only if `filesystem` parameter exists in the signature.
-        :param raise_on_temporal_mismatch: Whether to treat `TemporalDimensionWarning` as an exception.
+        :param raise_on_temporal_mismatch: Treat `TemporalDimensionWarning` as an exception.
         """
         self.workflow = workflow
         self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
@@ -326,7 +326,7 @@ class EOExecutor:
     def get_report_path(self, full_path: bool = True) -> str:
         """Returns the filename and file path of the report.
 
-        :param full_path: Whether to return full absolute paths or paths relative to the filesystem object.
+        :param full_path: Return full absolute paths or paths relative to the filesystem object.
         :return: Report filename
         """
         if self.report_folder is None:
@@ -354,7 +354,7 @@ class EOExecutor:
     def get_log_paths(self, full_path: bool = True) -> list[str]:
         """Returns a list of file paths containing logs.
 
-        :param full_path: Whether to return full absolute paths or paths relative to the filesystem object.
+        :param full_path: Return full absolute paths or paths relative to the filesystem object.
         :return: A list of paths to log files.
         """
         if self.report_folder is None:
