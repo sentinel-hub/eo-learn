@@ -148,7 +148,6 @@ fixable = [
 ]
 ignore = [
     "C408",   # complains about `dict()` calls, we use them to avoid too many " in the code
-    "SIM117", # wants to always combine `with` statements, gets ugly for us
     "SIM108", # tries to aggresively inline `if`, not always readable
     "A003",   # complains when ATTRIBUTES shadow builtins, we have objects that implement `filter` and such
     "COM812", # trailing comma missing, fights with black
