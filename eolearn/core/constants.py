@@ -196,6 +196,7 @@ class FeatureType(Enum, metaclass=EnumWithDeprecations):
                 FeatureType.LABEL: 2,
                 FeatureType.DATA_TIMELESS: 3,
                 FeatureType.MASK_TIMELESS: 3,
+                FeatureType.MASK_TIMELESS: 3,
                 FeatureType.SCALAR_TIMELESS: 1,
                 FeatureType.LABEL_TIMELESS: 1,
             }[self]
