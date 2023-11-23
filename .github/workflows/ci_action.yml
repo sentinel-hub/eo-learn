@@ -85,7 +85,9 @@ jobs:
           cache: pip
 
       - name: Install packages
-        run: pip install -e .[DEV] --upgrade --upgrade-strategy eager
+        run: | # must install async-timeout until ray fixes issue
+          pip install -e .[DEV] --upgrade --upgrade-strategy eager
+          pip install async-timeout
 
       - name: Run full tests and code coverage
         if: ${{ matrix.full_test_suite }}
