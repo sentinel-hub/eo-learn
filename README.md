@@ -202,4 +202,4 @@ See [LICENSE](https://github.com/sentinel-hub/eo-learn/blob/master/LICENSE).
 
 ## Acknowledgements
 
-This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreements No. 776115 and No. 101004112.
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreements No. 776115, No. 101004112 and No. 101059548.
