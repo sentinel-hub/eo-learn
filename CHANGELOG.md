@@ -1,5 +1,10 @@
 ## [Version 1.5.2] - 2023-11-07
 
+- Fix `numpy<2` in anticipation of numpy 2.0 release.
+
+
+## [Version 1.5.2] - 2023-11-07
+
 - `RayExecutor` can now forward remote kwargs to ray jobs.
 - `ImportTiffTask` no longer uses the `use_vsi` parameter. The IO part was fully off-loaded to `rasterio`.
 - `ImportTiffTask` and `ExportTiffTask` parameter `folder` was renamed to `path`. The renaming is backwards compatible for now.
