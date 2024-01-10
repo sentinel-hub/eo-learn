@@ -48,11 +48,11 @@ dependencies = [
     "fs",
     "fs-s3fs",
     "geopandas>=0.11.0",
-    "numpy>=1.20.0",
+    "numpy>=1.20.0,<2",
     "python-dateutil",
     "sentinelhub>=3.9.0",
     "tqdm>=4.27",
-    "typing-extensions",
+    "typing-extensions>=4.5.0",
     "opencv-python-headless",
     "affine",
     "rasterio>=1.3.8",
@@ -106,35 +106,36 @@ preview = true
 line-length = 120
 target-version = "py38"
 select = [
-    "F",   # pyflakes
-    "E",   # pycodestyle
-    "W",   # pycodestyle
-    "C90", # mccabe
-    "N",   # naming
-    "YTT", # flake-2020
-    "B",   # bugbear
-    "A",   # built-ins
-    "COM", # commas
-    "C4",  # comprehensions
-    "T10", # debugger statements
-    "ISC", # implicit string concatenation
-    "ICN", # import conventions
-    "G",   # logging format
-    "PIE", # flake8-pie
-    "T20", # print statements
-    "PT",  # pytest style
-    "RET", # returns
-    "SLF", # private member access
-    "SIM", # simplifications
-    "ARG", # unused arguments
-    "PD",  # pandas
-    "PGH", # pygrep hooks (useless noqa comments, eval statements etc.)
-    "FLY", # flynt
-    "RUF", # ruff rules
-    "NPY", # numpy
-    "I",   # isort
-    "UP",  # pyupgrade
-    "FA",  # checks where future import of annotations would make types nicer
+    "F",    # pyflakes
+    "E",    # pycodestyle
+    "W",    # pycodestyle
+    "C90",  # mccabe
+    "I",    # isort
+    "N",    # naming
+    "UP",   # pyupgrade
+    "YTT",  # flake-2020
+    "B",    # bugbear
+    "A",    # built-ins
+    "COM",  # commas
+    "C4",   # comprehensions
+    "T10",  # debugger statements
+    "FA",   # checks where future import of annotations would make types nicer
+    "ISC",  # implicit string concatenation
+    "ICN",  # import conventions
+    "G",    # logging format
+    "PIE",  # flake8-pie
+    "T20",  # print statements
+    "PT",   # pytest style
+    "RET",  # returns
+    "SLF",  # private member access
+    "SIM",  # simplifications
+    "ARG",  # unused arguments
+    "PD",   # pandas
+    "PGH",  # pygrep hooks (useless noqa comments, eval statements etc.)
+    "FLY",  # flynt
+    "NPY",  # numpy
+    "PERF", # perflint, performance improvements
+    "RUF",  # ruff rules
 ]
 fix = true
 fixable = [
@@ -147,7 +148,6 @@ fixable = [
 ]
 ignore = [
     "C408",   # complains about `dict()` calls, we use them to avoid too many " in the code
-    "SIM117", # wants to always combine `with` statements, gets ugly for us
     "SIM108", # tries to aggresively inline `if`, not always readable
     "A003",   # complains when ATTRIBUTES shadow builtins, we have objects that implement `filter` and such
     "COM812", # trailing comma missing, fights with black

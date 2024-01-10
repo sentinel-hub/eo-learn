@@ -310,7 +310,7 @@ class ExportToTiffTask(BaseRasterIoTask):
         src_transform: Affine,
     ) -> None:
         """Export an EOPatch feature to tiff based on input channel range."""
-        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:
+        with rasterio.Env(), filesystem.openbin(path, "w") as file_handle:  # noqa: SIM117
             with rasterio.open(
                 file_handle,
                 "w",

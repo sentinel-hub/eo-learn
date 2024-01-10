@@ -54,7 +54,7 @@ def sample_by_values(
     :param n_samples_per_value: A dictionary specifying the amount of samples per value. Values that are not in the
         dictionary will not be sampled.
     :param rng: A random numbers generator. If not provided it will be initialized without a seed.
-    :param replace: Whether to sample with replacement. False means each value can only be chosen once.
+    :param replace: Sample with replacement. False means each value can only be chosen once.
     :return: A pair of numpy arrays first one containing row indices and second one containing column indices of sampled
         points.
     """
@@ -190,7 +190,7 @@ class FractionSamplingTask(BaseSamplingTask):
         :param sampling_feature: A timeless mask feature according to which points will be sampled.
         :param fraction: Fraction of points to sample. Can be dictionary mapping values of mask to fractions.
         :param exclude_values: Skips points that have these values in `sampling_mask`
-        :param replace: Whether to sample with replacement. False means each value can only be chosen once.
+        :param replace: Sample with replacement. False means each value can only be chosen once.
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
         super().__init__(features_to_sample, mask_of_samples=mask_of_samples)
@@ -275,7 +275,7 @@ class BlockSamplingTask(BaseSamplingTask):
         :param amount: The number of points to sample if integer valued and the fraction of all points if `float`
         :param sample_size: A tuple describing a size of sampled blocks. The size is defined as a tuple of number of
             rows and number of columns.
-        :param replace: Whether to sample with replacement. False means each value can only be chosen once.
+        :param replace: Sample with replacement. False means each value can only be chosen once.
         :param mask_of_samples: An output mask timeless feature of counts how many times each pixel has been sampled.
         """
         super().__init__(features_to_sample, mask_of_samples=mask_of_samples)

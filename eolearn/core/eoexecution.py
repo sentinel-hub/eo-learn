@@ -26,8 +26,7 @@ from typing import Any, Callable, Iterable, Protocol, Union
 
 import fs
 from fs.base import FS
-
-from sentinelhub.exceptions import deprecated_function
+from typing_extensions import deprecated
 
 from .eonode import EONode
 from .eoworkflow import EOWorkflow, WorkflowResults
@@ -114,7 +113,7 @@ class EOExecutor:
               object.
 
             The 2nd option is chosen only if `filesystem` parameter exists in the signature.
-        :param raise_on_temporal_mismatch: Whether to treat `TemporalDimensionWarning` as an exception.
+        :param raise_on_temporal_mismatch: Treat `TemporalDimensionWarning` as an exception.
         """
         self.workflow = workflow
         self.execution_kwargs = self._parse_and_validate_execution_kwargs(execution_kwargs)
@@ -326,7 +325,7 @@ class EOExecutor:
     def get_report_path(self, full_path: bool = True) -> str:
         """Returns the filename and file path of the report.
 
-        :param full_path: Whether to return full absolute paths or paths relative to the filesystem object.
+        :param full_path: Return full absolute paths or paths relative to the filesystem object.
         :return: Report filename
         """
         if self.report_folder is None:
@@ -354,7 +353,7 @@ class EOExecutor:
     def get_log_paths(self, full_path: bool = True) -> list[str]:
         """Returns a list of file paths containing logs.
 
-        :param full_path: Whether to return full absolute paths or paths relative to the filesystem object.
+        :param full_path: Return full absolute paths or paths relative to the filesystem object.
         :return: A list of paths to log files.
         """
         if self.report_folder is None:
@@ -362,7 +361,7 @@ class EOExecutor:
         log_paths = [fs.path.combine(self.report_folder, f"eoexecution-{name}.log") for name in self.execution_names]
         return [get_full_path(self.filesystem, path) for path in log_paths] if full_path else log_paths
 
-    @deprecated_function(EODeprecationWarning)
+    @deprecated("The method `read_logs` has been deprecated.", category=EODeprecationWarning)
     def read_logs(self) -> list[str | None]:
         """Loads the content of log files if logs have been saved."""
         if not self.save_logs:

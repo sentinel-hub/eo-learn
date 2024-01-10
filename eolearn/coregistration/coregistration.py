@@ -104,7 +104,7 @@ class ECCRegistrationTask(EOTask):
         """Method that estimates the transformation between source and target image"""
         criteria = (cv2.TERM_CRITERIA_COUNT, self.max_iter, 0)
         warp_matrix_size = (3, 3) if warp_mode == cv2.MOTION_HOMOGRAPHY else (2, 3)
-        warp_matrix = np.eye(*warp_matrix_size, dtype=np.float32)
+        warp_matrix: np.ndarray = np.eye(*warp_matrix_size, dtype=np.float32)
 
         try:
             cv2.setNumThreads(self.num_threads)
@@ -114,7 +114,7 @@ class ECCRegistrationTask(EOTask):
                 warp_matrix,
                 warp_mode,
                 criteria,
-                valid_mask,
+                valid_mask,  # type: ignore[arg-type]
                 self.gauss_kernel_size,
             )
         except cv2.error as cv2err:
@@ -163,7 +163,7 @@ class ECCRegistrationTask(EOTask):
     def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: tuple[int, int], flags: int) -> np.ndarray:
         """Transform the target image with the estimated transformation matrix"""
         if warp_matrix.shape == (3, 3):
-            return cv2.warpPerspective(
+            return cv2.warpPerspective(  # type: ignore[call-overload]
                 img.astype(np.float32),
                 warp_matrix,
                 shape,
@@ -171,7 +171,7 @@ class ECCRegistrationTask(EOTask):
                 borderMode=self.border_mode,
                 borderValue=self.border_value,
             )
-        return cv2.warpAffine(
+        return cv2.warpAffine(  # type: ignore[call-overload]
             img.astype(np.float32),
             warp_matrix,
             shape,
@@ -213,8 +213,8 @@ def get_gradient(src: np.ndarray) -> np.ndarray:
     """
     # Calculate the x and y gradients using Sobel operator
     src = src.astype(np.float32)
-    grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)  # type: ignore[attr-defined]
-    grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)  # type: ignore[attr-defined]
+    grad_x = cv2.Sobel(src, cv2.CV_32F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(src, cv2.CV_32F, 0, 1, ksize=3)
 
     # Combine and return the two gradients
     return cv2.addWeighted(np.absolute(grad_x), 0.5, np.absolute(grad_y), 0.5, 0)

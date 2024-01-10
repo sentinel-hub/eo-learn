@@ -66,7 +66,7 @@ class EOWorkflowVisualization:
             dot_name_to_nodes[node.get_name()].append(node)
 
         node_to_dot_name = {}
-        for _, same_name_nodes in dot_name_to_nodes.items():
+        for same_name_nodes in dot_name_to_nodes.values():
             if len(same_name_nodes) == 1:
                 node = same_name_nodes[0]
                 node_to_dot_name[node.uid] = node.get_name()

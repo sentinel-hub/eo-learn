@@ -34,9 +34,9 @@ from warnings import warn
 import geopandas as gpd
 import numpy as np
 from fs.base import FS
+from typing_extensions import deprecated
 
 from sentinelhub import CRS, BBox, parse_time
-from sentinelhub.exceptions import deprecated_function
 
 from .constants import FEATURETYPE_DEPRECATION_MSG, TIMESTAMP_COLUMN, FeatureType, OverwritePermission
 from .eodata_io import FeatureIO, load_eopatch_content, save_eopatch
@@ -427,7 +427,10 @@ class EOPatch:
             "`(feature_type, feature_name)` pairs."
         )
 
-    @deprecated_function(EODeprecationWarning, "Use the `merge` method instead.")
+    @deprecated(
+        "The `+` operator for EOPatches has been deprecated. Use the function `eolearn.core.merge_eopatches` instead.",
+        category=EODeprecationWarning,
+    )
     def __add__(self, other: EOPatch) -> EOPatch:
         """Merges two EOPatches into a new EOPatch."""
         return self.merge(other)
@@ -499,7 +502,7 @@ class EOPatch:
         """Returns a new EOPatch with shallow copies of given features.
 
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if all
+        :param copy_timestamps: Copy timestamps to the new EOPatch. By default copies them over if all
             features are copied or if any temporal features are getting copied.
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
@@ -526,7 +529,7 @@ class EOPatch:
 
         :param memo: built-in parameter for memoization
         :param features: A collection of features or feature types that will be copied into new EOPatch.
-        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if all
+        :param copy_timestamps: Copy timestamps to the new EOPatch. By default copies them over if all
             features are copied or if any temporal features are getting copied.
         """
         if not features:  # For some reason deepcopy and copy pass {} by default
@@ -564,7 +567,7 @@ class EOPatch:
         :param features: Features to be copied into a new `EOPatch`. By default, all features will be copied.
         :param deep: If `True` it will make a deep copy of all data inside the `EOPatch`. Otherwise, only a shallow copy
             of `EOPatch` will be made. Note that `BBOX` and `TIMESTAMPS` will be copied even with a shallow copy.
-        :param copy_timestamps: Whether to copy timestamps to the new EOPatch. By default copies them over if all
+        :param copy_timestamps: Copy timestamps to the new EOPatch. By default copies them over if all
             features are copied or if any temporal features are getting copied.
         :return: An EOPatch copy.
         """
@@ -591,14 +594,14 @@ class EOPatch:
 
         :return: List of non-empty features
         """
-        feature_list: list[Feature] = []
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=FEATURETYPE_DEPRECATION_MSG.format(".*?", ".*?"))
             removed_ftypes = {FeatureType.BBOX, FeatureType.TIMESTAMPS}  # list comprehensions make ignoring hard
-        for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes):
-            for feature_name in self[feature_type]:
-                feature_list.append((feature_type, feature_name))
-        return feature_list
+        return [
+            (feature_type, feature_name)
+            for feature_type in (ftype for ftype in FeatureType if ftype not in removed_ftypes)
+            for feature_name in self[feature_type]
+        ]
 
     def save(
         self,
@@ -620,7 +623,7 @@ class EOPatch:
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :save_timestamps: Whether to save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
+        :save_timestamps: Save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
             if `features=...` or if other temporal features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
@@ -666,7 +669,7 @@ class EOPatch:
         :param lazy_loading: If `True` features will be lazy loaded.
         :param filesystem: An existing filesystem object. If not given it will be initialized according to the `path`
             parameter.
-        :load_timestamps: Whether to load the timestamps of the EOPatch. With the `"auto"` setting timestamps are loaded
+        :load_timestamps: Load the timestamps of the EOPatch. With the `"auto"` setting timestamps are loaded
             if `features=...` or if other temporal features are being loaded.
         :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
             given a list of timestamps, returns a list of booleans declaring which temporal slices to load.
@@ -688,7 +691,10 @@ class EOPatch:
             _trigger_loading_for_eopatch_features(eopatch)
         return eopatch
 
-    @deprecated_function(EODeprecationWarning, "Use the function `eolearn.core.merge_eopatches` instead.")
+    @deprecated(
+        "The EOPatch method `merge` has been deprecated. Use the function `eolearn.core.merge_eopatches` instead.",
+        category=EODeprecationWarning,
+    )
     def merge(
         self,
         *eopatches: EOPatch,
@@ -727,7 +733,10 @@ class EOPatch:
             self, *eopatches, features=features, time_dependent_op=time_dependent_op, timeless_op=timeless_op
         )
 
-    @deprecated_function(EODeprecationWarning, "Please use the method `temporal_subset` instead.")
+    @deprecated(
+        "The method `consolidate_timestamps` has been deprecated. Use the method `temporal_subset` instead.",
+        category=EODeprecationWarning,
+    )
     def consolidate_timestamps(self, timestamps: list[dt.datetime]) -> set[dt.datetime]:
         """Removes all frames from the EOPatch with a date not found in the provided timestamps list.
 

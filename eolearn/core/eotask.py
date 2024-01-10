@@ -20,7 +20,7 @@ from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, TypeVar
 
-from sentinelhub.exceptions import deprecated_function
+from typing_extensions import deprecated
 
 from .constants import FeatureType
 from .eodata import EOPatch
@@ -33,7 +33,8 @@ LOGGER = logging.getLogger(__name__)
 Self = TypeVar("Self")
 
 PARSE_RENAMED_DEPRECATE_MSG = (
-    "It will no longer be a method of the `EOTask`, but can be imported from `eolearn.core.utils.parsing`."
+    "The method will no longer be a method of `EOTask`, but can be imported as a function from"
+    " `eolearn.core.utils.parsing`."
 )
 
 
@@ -41,10 +42,10 @@ class EOTask(metaclass=ABCMeta):
     """Base class for EOTask."""
 
     parse_renamed_feature = staticmethod(
-        deprecated_function(EODeprecationWarning, PARSE_RENAMED_DEPRECATE_MSG)(parse_renamed_feature)
+        deprecated(PARSE_RENAMED_DEPRECATE_MSG, category=EODeprecationWarning)(parse_renamed_feature)
     )
     parse_renamed_features = staticmethod(
-        deprecated_function(EODeprecationWarning, PARSE_RENAMED_DEPRECATE_MSG)(parse_renamed_features)
+        deprecated(PARSE_RENAMED_DEPRECATE_MSG, category=EODeprecationWarning)(parse_renamed_features)
     )
 
     def __new__(cls: type[Self], *args: Any, **kwargs: Any) -> Self:

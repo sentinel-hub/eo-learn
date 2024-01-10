@@ -95,9 +95,9 @@ class VectorImportTask(EOTask):
         """Provides a CRS of dataset, it loads it lazily (i.e. the first time it is needed)"""
         if self._dataset_crs is None:
             is_on_s3 = self.full_path.startswith("s3://")
-            with fiona.Env(session=self.aws_session) if is_on_s3 else nullcontext():
-                with fiona.open(self.full_path, **self.fiona_kwargs) as features:
-                    self._dataset_crs = CRS(features.crs)
+            env = fiona.Env(session=self.aws_session) if is_on_s3 else nullcontext()
+            with env, fiona.open(self.full_path, **self.fiona_kwargs) as features:
+                self._dataset_crs = CRS(features.crs)
 
         return self._dataset_crs
 

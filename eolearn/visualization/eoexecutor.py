@@ -163,17 +163,15 @@ class EOExecutorVisualization:
                     f" usually {np.mean(durations):.4g} ± {np.std(durations):.4g} seconds"
                 )
 
-            descriptions.append(
-                {
-                    "name": f"{node_name} ({node.uid})",
-                    "uid": node.uid,
-                    "args": {
-                        key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
-                        for key, value in node.task.private_task_config.init_args.items()
-                    },
-                    "duration_report": duration_report,
-                }
-            )
+            descriptions.append({
+                "name": f"{node_name} ({node.uid})",
+                "uid": node.uid,
+                "args": {
+                    key: value.replace("<", "&lt;").replace(">", "&gt;")  # type: ignore[attr-defined]
+                    for key, value in node.task.private_task_config.init_args.items()
+                },
+                "duration_report": duration_report,
+            })
         return descriptions
 
     def _render_execution_tracebacks(self, formatter: pygments.formatter.Formatter) -> list:

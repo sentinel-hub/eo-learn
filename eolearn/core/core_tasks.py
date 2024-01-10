@@ -18,9 +18,9 @@ from typing import Any, Callable, Iterable, Literal, Tuple, Union, cast
 import fs
 import numpy as np
 from fs.base import FS
+from typing_extensions import deprecated
 
 from sentinelhub import SHConfig
-from sentinelhub.exceptions import deprecated_class
 
 from .constants import FeatureType, OverwritePermission
 from .eodata import EOPatch
@@ -56,7 +56,9 @@ class CopyTask(EOTask):
         return eopatch.copy(features=self.features, deep=self.deep, copy_timestamps=self.copy_timestamps)
 
 
-@deprecated_class(EODeprecationWarning, "Use `CopyTask` with the configuration `deep=True`.")
+@deprecated(
+    "Use `CopyTask` with the configuration `deep=True` instead of `DeepCopyTask`.", category=EODeprecationWarning
+)
 class DeepCopyTask(CopyTask):
     """[DEPRECATED] Makes a deep copy of the given EOPatch."""
 
@@ -119,7 +121,7 @@ class SaveTask(IOTask):
             all features will be saved.
         :param overwrite_permission: A level of permission for overwriting an existing EOPatch
             to 9 (highest compression).
-        :save_timestamps: Whether to save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
+        :save_timestamps: Save the timestamps of the EOPatch. With the `"auto"` setting timestamps are saved
             if `features=...` or if other temporal features are being saved.
         :param use_zarr: Saves numpy-array based features into Zarr files. Requires ZARR extra dependencies.
         :param temporal_selection: Writes all of the data to the chosen temporal indices of preexisting arrays. Can be
@@ -191,7 +193,7 @@ class LoadTask(IOTask):
             default configuration will be taken.
         :param features: A collection of features to be loaded. By default, all features will be loaded.
         :param lazy_loading: If `True` features will be lazy loaded.
-        :load_timestamps: Whether to load the timestamps of the EOPatch. With the `"auto"` setting timestamps are loaded
+        :load_timestamps: Load the timestamps of the EOPatch. With the `"auto"` setting timestamps are loaded
             if `features=...` or if other temporal features are being loaded.
         :param temporal_selection: Only loads data corresponding to the chosen indices. Can also be a callable that,
             given a list of timestamps, returns a list of booleans declaring which temporal slices to load.

@@ -159,7 +159,7 @@ class FeatureParser:
 
     def _parse_sequence(
         self,
-        features: SingleFeatureSpec | SequenceFeatureSpec,
+        features: SingleFeatureSpec | tuple[FeatureType, EllipsisType] | SequenceFeatureSpec,
     ) -> list[_ParserFeaturesSpec]:
         """Implements parsing and validation in case the input is a tuple describing a single feature or a sequence."""
 
