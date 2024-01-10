@@ -1,4 +1,4 @@
-## [Version 1.5.2] - 2023-11-07
+## [Version 1.5.3] - 2024-01-10
 
 - Fix `numpy<2` in anticipation of numpy 2.0 release.
 
