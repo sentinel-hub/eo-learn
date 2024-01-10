@@ -13,18 +13,18 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/psf/black
-    rev: 23.11.0
+    rev: 23.12.1
     hooks:
       - id: black
         language_version: python3
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.1.5"
+    rev: "v0.1.11"
     hooks:
       - id: ruff
 
   - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.7.0
+    rev: 1.7.1
     hooks:
       - id: nbqa-black
       - id: nbqa-ruff
