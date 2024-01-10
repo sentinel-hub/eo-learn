@@ -445,9 +445,9 @@ class EOPatch:
             content = self[feature_type]
 
             content = {k: content._get_unloaded(k) for k in content}  # noqa: SLF001
-            inner_content_repr = "\n    ".join([
-                f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())
-            ])
+            inner_content_repr = "\n    ".join(
+                [f"{label}: {self._repr_value(value)}" for label, value in sorted(content.items())]
+            )
             content_str = "{\n    " + inner_content_repr + "\n  }"
 
             feature_repr_list.append(f"{feature_type.value}={content_str}")
