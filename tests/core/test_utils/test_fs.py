@@ -156,7 +156,7 @@ def test_tempfs_serialization():
 
 
 @mock_aws
-def test_s3fs_serialization(create_mocked_s3fs):
+def test_s3fs_serialization():
     """Makes sure that after serialization and deserialization filesystem object can still be used for reading,
     writing, and listing objects."""
     filesystem = create_mocked_s3fs()
