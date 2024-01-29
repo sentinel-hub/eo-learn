@@ -13,6 +13,7 @@ import unittest.mock as mock
 from _thread import RLock
 from pathlib import Path
 
+import boto3
 import pytest
 from botocore.credentials import Credentials
 from fs.base import FS
@@ -21,12 +22,29 @@ from fs.memoryfs import MemoryFS
 from fs.osfs import OSFS
 from fs.tempfs import TempFS
 from fs_s3fs import S3FS
-from moto import mock_s3
+from moto import mock_aws
 
 from sentinelhub import SHConfig
 
 from eolearn.core import get_filesystem, load_s3_filesystem, pickle_fs, unpickle_fs
 from eolearn.core.utils.fs import get_aws_credentials, get_full_path, join_path, split_all_extensions
+
+
+@mock_aws
+def create_mocked_s3fs(bucket_name: str = "mocked-test-bucket") -> S3FS:
+    """Creates a new empty mocked s3 bucket. If one such bucket already exists it deletes it first."""
+    s3resource = boto3.resource("s3", region_name="eu-central-1")
+
+    bucket = s3resource.Bucket(bucket_name)
+
+    if bucket.creation_date:  # If bucket already exists
+        for key in bucket.objects.all():
+            key.delete()
+        bucket.delete()
+
+    s3resource.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
+
+    return S3FS(bucket_name=bucket_name)
 
 
 def test_get_local_filesystem(tmp_path):
@@ -48,7 +66,7 @@ def test_pathlib_support(tmp_path):
     assert isinstance(filesystem, OSFS)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("aws_session_token", [None, "fake-session-token"])
 def test_s3_filesystem(aws_session_token):
     folder_name = "my_folder"
@@ -137,7 +155,7 @@ def test_tempfs_serialization():
     assert not unpickled_filesystem.exists("/")
 
 
-@mock_s3
+@mock_aws
 def test_s3fs_serialization(create_mocked_s3fs):
     """Makes sure that after serialization and deserialization filesystem object can still be used for reading,
     writing, and listing objects."""
