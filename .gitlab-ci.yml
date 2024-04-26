@@ -1,4 +1,7 @@
-image: python:3.9
+default:
+  image: python:3.9
+  tags:
+    - sinergise-lju
 
 stages:
   - test

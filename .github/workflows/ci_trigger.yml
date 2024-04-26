@@ -16,4 +16,4 @@ jobs:
             -F ref=main \
             -F variables[CUSTOM_RUN_TAG]=auto \
             -F variables[LAYER_NAME]=dotai-eo \
-            https://git.sinergise.com/api/v4/projects/1031/trigger/pipeline
+            https://hello.planet.com/code/api/v4/projects/9723/trigger/pipeline
