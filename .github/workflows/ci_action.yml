@@ -105,13 +105,13 @@ jobs:
         if: ${{ !matrix.full_test_suite }}
         run: pytest -m "not sh_integration and not geopedia"
 
-      - name: Upload code coverage
-        if: ${{ matrix.full_test_suite && github.event_name == 'push' }}
-        uses: codecov/codecov-action@v2
-        with:
-          files: coverage.xml
-          fail_ci_if_error: true
-          verbose: false
+      # - name: Upload code coverage
+      #   if: ${{ matrix.full_test_suite && github.event_name == 'push' }}
+      #   uses: codecov/codecov-action@v2
+      #   with:
+      #     files: coverage.xml
+      #     fail_ci_if_error: true
+      #     verbose: false
 
   mirror-and-integration-test-on-gitlab:
     if: github.event_name == 'push'
@@ -121,11 +121,11 @@ jobs:
       - name: Mirror + trigger CI
         uses: SvanBoxel/gitlab-mirror-and-ci-action@master
         with:
-          args: "https://git.sinergise.com/eo/code/eo-learn/"
+          args: "https://hello.planet.com/code/eo/code/eo-learn"
         env:
           FOLLOW_TAGS: "true"
-          GITLAB_HOSTNAME: "git.sinergise.com"
+          GITLAB_HOSTNAME: "hello.planet.com/code"
           GITLAB_USERNAME: "github-action"
           GITLAB_PASSWORD: ${{ secrets.GITLAB_PASSWORD }}
-          GITLAB_PROJECT_ID: "164"
+          GITLAB_PROJECT_ID: "9715"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

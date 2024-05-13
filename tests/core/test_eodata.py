@@ -31,12 +31,14 @@ DUMMY_TIMESTAMPS = ["2017-03-21"]
 
 @pytest.fixture(name="mini_eopatch")
 def mini_eopatch_fixture() -> EOPatch:
-    return generate_eopatch({
-        FeatureType.DATA: ["A", "B"],
-        FeatureType.MASK: ["C", "D"],
-        FeatureType.MASK_TIMELESS: ["E"],
-        FeatureType.META_INFO: ["beep"],
-    })
+    return generate_eopatch(
+        {
+            FeatureType.DATA: ["A", "B"],
+            FeatureType.MASK: ["C", "D"],
+            FeatureType.MASK_TIMELESS: ["E"],
+            FeatureType.META_INFO: ["beep"],
+        }
+    )
 
 
 def test_numpy_feature_types() -> None:
@@ -382,7 +384,14 @@ def test_get_spatial_dimension(feature: Feature, expected_dim: tuple[int, int], 
     ("patch", "expected_features"),
     [
         (
-            pytest.lazy_fixture("mini_eopatch"),
+            generate_eopatch(
+                {
+                    FeatureType.DATA: ["A", "B"],
+                    FeatureType.MASK: ["C", "D"],
+                    FeatureType.MASK_TIMELESS: ["E"],
+                    FeatureType.META_INFO: ["beep"],
+                }
+            ),
             [
                 (FeatureType.DATA, "A"),
                 (FeatureType.DATA, "B"),

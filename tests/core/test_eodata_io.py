@@ -13,6 +13,7 @@ import sys
 import warnings
 from typing import Any
 
+import boto3
 import fs
 import geopandas as gpd
 import numpy as np
@@ -20,8 +21,9 @@ import pytest
 from fs.base import FS
 from fs.errors import CreateFailed, ResourceNotFound
 from fs.tempfs import TempFS
+from fs_s3fs import S3FS
 from geopandas import GeoDataFrame
-from moto import mock_s3
+from moto import mock_aws
 from numpy.testing import assert_array_equal
 from shapely.geometry import Point
 
@@ -42,7 +44,25 @@ from eolearn.core.types import FeaturesSpecification
 from eolearn.core.utils.parsing import FeatureParser
 from eolearn.core.utils.testing import assert_feature_data_equal, generate_eopatch
 
-FS_LOADERS = [TempFS, pytest.lazy_fixture("create_mocked_s3fs")]
+
+@mock_aws
+def create_mocked_s3fs(bucket_name: str = "mocked-test-bucket") -> S3FS:
+    """Creates a new empty mocked s3 bucket. If one such bucket already exists it deletes it first."""
+    s3resource = boto3.resource("s3", region_name="eu-central-1")
+
+    bucket = s3resource.Bucket(bucket_name)
+
+    if bucket.creation_date:  # If bucket already exists
+        for key in bucket.objects.all():
+            key.delete()
+        bucket.delete()
+
+    s3resource.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": "eu-central-1"})
+
+    return S3FS(bucket_name=bucket_name)
+
+
+FS_LOADERS = [TempFS, create_mocked_s3fs]
 
 DUMMY_BBOX = BBox((0, 0, 1, 1), CRS.WGS84)
 
@@ -66,13 +86,15 @@ def _silence_warnings_fixture():
 
 @pytest.fixture(name="eopatch")
 def eopatch_fixture():
-    eopatch = generate_eopatch({
-        FeatureType.DATA: ["data"],
-        FeatureType.MASK_TIMELESS: ["mask", "mask2"],
-        FeatureType.SCALAR: ["my scalar with spaces"],
-        FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
-        FeatureType.META_INFO: ["something", "something-else"],
-    })
+    eopatch = generate_eopatch(
+        {
+            FeatureType.DATA: ["data"],
+            FeatureType.MASK_TIMELESS: ["mask", "mask2"],
+            FeatureType.SCALAR: ["my scalar with spaces"],
+            FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
+            FeatureType.META_INFO: ["something", "something-else"],
+        }
+    )
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
@@ -88,7 +110,7 @@ def eopatch_fixture():
     return eopatch
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_saving_in_empty_folder(eopatch, fs_loader, use_zarr: bool):
@@ -105,7 +127,7 @@ def test_saving_in_empty_folder(eopatch, fs_loader, use_zarr: bool):
         assert temp_fs.exists(f"/{subfolder}/bbox.geojson")
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
@@ -126,7 +148,7 @@ def test_saving_in_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
         assert not temp_fs.exists(empty_file)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
@@ -153,7 +175,7 @@ def test_overwriting_non_empty_folder(eopatch, fs_loader, use_zarr: bool):
         assert new_eopatch == merge_eopatches(eopatch, add_eopatch)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize(
@@ -188,7 +210,7 @@ def test_save_load_partial(
                 assert feature not in loaded_eopatch
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
@@ -211,7 +233,7 @@ def test_save_add_only_features(eopatch, fs_loader, use_zarr: bool):
         )
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_bbox_always_saved(eopatch, fs_loader):
     with fs_loader() as temp_fs:
@@ -219,7 +241,7 @@ def test_bbox_always_saved(eopatch, fs_loader):
         assert temp_fs.exists("/bbox.geojson")
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize(
     ("save_timestamps", "features", "should_save"),
@@ -249,7 +271,7 @@ def test_auto_save_load_timestamps(eopatch):
         assert EOPatch.load("/", filesystem=temp_fs).timestamps is not None
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize(
     ("load_timestamps", "features", "should_load"),
@@ -282,7 +304,7 @@ def test_load_timestamps_when_nonexistant(eopatch, features):
             loaded_patch = EOPatch.load("/", filesystem=temp_fs, features=features, load_timestamps=True)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_temporally_empty_patch_io(fs_loader, use_zarr: bool):
@@ -293,7 +315,7 @@ def test_temporally_empty_patch_io(fs_loader, use_zarr: bool):
         assert eopatch == EOPatch.load("/", filesystem=temp_fs)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.usefixtures("_silence_warnings")
@@ -326,7 +348,7 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
             )
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("compress_level", [0, 1])
 def test_compression_deprecation(eopatch, fs_loader, compress_level: int | None):
@@ -338,14 +360,14 @@ def test_compression_deprecation(eopatch, fs_loader, compress_level: int | None)
         with fs_loader() as temp_fs:
             SaveTask(folder, filesystem=temp_fs)
 
-        with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
-            SaveTask(folder, filesystem=temp_fs, compress_level=compress_level)
+    with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+        SaveTask(folder, filesystem=temp_fs, compress_level=compress_level)
 
-        with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
-            eopatch.save(folder, filesystem=temp_fs, compress_level=compress_level)
+    with fs_loader() as temp_fs, pytest.warns(EODeprecationWarning):
+        eopatch.save(folder, filesystem=temp_fs, compress_level=compress_level)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
@@ -367,7 +389,7 @@ def test_save_and_load_tasks(eopatch, fs_loader, use_zarr: bool):
         assert eop == eopatch
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_fail_saving_nonexistent_feature(eopatch, fs_loader):
     features = [(FeatureType.DATA, "nonexistent")]
@@ -375,7 +397,7 @@ def test_fail_saving_nonexistent_feature(eopatch, fs_loader):
         eopatch.save("/", filesystem=temp_fs, features=features)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_fail_loading_nonexistent_feature(fs_loader):
     for features in [[(FeatureType.DATA, "nonexistent")], [(FeatureType.META_INFO, "nonexistent")]]:
@@ -383,7 +405,7 @@ def test_fail_loading_nonexistent_feature(fs_loader):
             EOPatch.load("/", filesystem=temp_fs, features=features)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 def test_nonexistent_location(fs_loader, use_zarr: bool):
@@ -419,7 +441,7 @@ def test_nonexistent_location(fs_loader, use_zarr: bool):
         assert os.path.exists(full_path)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_cleanup_different_compression(fs_loader, eopatch):
     folder = "foo-folder"
@@ -453,7 +475,7 @@ def test_cleanup_different_compression(fs_loader, eopatch):
         assert not temp_fs.exists(mask_timeless_path)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("use_zarr", [True, False])
 @pytest.mark.parametrize("folder_name", ["/", "foo", "foo/bar"])
@@ -563,7 +585,7 @@ def test_zarr_and_numpy_combined_loading(eopatch):
         assert EOPatch.load("/", filesystem=temp_fs) == eopatch
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize(
     "temporal_selection",
@@ -591,7 +613,7 @@ def test_partial_temporal_loading(fs_loader: type[FS], eopatch: EOPatch, tempora
         assert_array_equal(np.array(full_patch.timestamps)[adjusted_selection], partial_patch.timestamps)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 def test_partial_temporal_loading_fails_for_numpy(fs_loader: type[FS], eopatch: EOPatch):
     _skip_when_appropriate(fs_loader, True)
@@ -602,7 +624,7 @@ def test_partial_temporal_loading_fails_for_numpy(fs_loader: type[FS], eopatch: 
             EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=[0])
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("temporal_selection", [[3, 4, 10]])
 def test_partial_temporal_loading_fails_bad_selection(fs_loader: type[FS], eopatch: EOPatch, temporal_selection):
@@ -614,7 +636,7 @@ def test_partial_temporal_loading_fails_bad_selection(fs_loader: type[FS], eopat
             EOPatch.load(path="patch-folder", filesystem=temp_fs, temporal_selection=temporal_selection)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("temporal_selection", [None, slice(None, 3), slice(2, 4, 2), [3, 4]])
 def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_selection):
     _skip_when_appropriate(TempFS, True)
@@ -635,7 +657,7 @@ def test_partial_temporal_saving_into_existing(eopatch: EOPatch, temporal_select
         assert_array_equal(loaded_patch.timestamps, eopatch.timestamps)
 
 
-@mock_s3
+@mock_aws
 @pytest.mark.parametrize("dtype", [float, np.float32, np.int8])
 def test_partial_temporal_saving_just_timestamps(dtype):
     _skip_when_appropriate(TempFS, True)
@@ -659,7 +681,7 @@ def test_partial_temporal_saving_just_timestamps(dtype):
         assert_array_equal(loaded_patch.timestamps, patch_skeleton.timestamps)
 
 
-@mock_s3
+@mock_aws
 def test_partial_temporal_saving_infer(eopatch: EOPatch):
     _skip_when_appropriate(TempFS, True)
     with TempFS() as temp_fs:
@@ -679,7 +701,7 @@ def test_partial_temporal_saving_infer(eopatch: EOPatch):
         assert_array_equal(loaded_patch.timestamps, eopatch.timestamps)
 
 
-@mock_s3
+@mock_aws
 def test_partial_temporal_saving_fails(eopatch: EOPatch):
     _skip_when_appropriate(TempFS, True)
     with TempFS() as temp_fs:

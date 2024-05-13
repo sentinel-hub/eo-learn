@@ -1,4 +1,4 @@
-""" Input tasks that collect data from `Sentinel-Hub Process API
+"""Input tasks that collect data from `Sentinel-Hub Process API
 <https://docs.sentinel-hub.com/api/latest/api/process/>`__
 
 Copyright (c) 2017- Sinergise and contributors
