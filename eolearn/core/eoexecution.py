@@ -131,7 +131,7 @@ class EOExecutor:
 
     @staticmethod
     def _parse_and_validate_execution_kwargs(
-        execution_kwargs: Iterable[dict[EONode, dict[str, object]]]
+        execution_kwargs: Iterable[dict[EONode, dict[str, object]]],
     ) -> list[dict[EONode, dict[str, object]]]:
         """Parses and validates execution arguments provided by user and raises an error if something is wrong."""
         for input_kwargs in execution_kwargs:
