@@ -265,7 +265,7 @@ repository_dir = os.path.join(current_dir, "..", "..")
 module = "eolearn"
 
 APIDOC_OPTIONS = ["--module-first", "--separate", "--no-toc", "--templatedir", os.path.join(current_dir, "_templates")]
-APIDOC_EXCLUDE = ["graph.py", "eodata_io.py", "eodata_merge.py"]
+APIDOC_EXCLUDE = ["graph.py", "eodata_io.py"]
 
 shutil.rmtree(reference_dir, ignore_errors=True)
 shutil.copytree(custom_reference_dir, reference_dir)
