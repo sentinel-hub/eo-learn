@@ -86,13 +86,15 @@ def _silence_warnings_fixture():
 
 @pytest.fixture(name="eopatch")
 def eopatch_fixture():
-    eopatch = generate_eopatch({
-        FeatureType.DATA: ["data"],
-        FeatureType.MASK_TIMELESS: ["mask", "mask2"],
-        FeatureType.SCALAR: ["my scalar with spaces"],
-        FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
-        FeatureType.META_INFO: ["something", "something-else"],
-    })
+    eopatch = generate_eopatch(
+        {
+            FeatureType.DATA: ["data"],
+            FeatureType.MASK_TIMELESS: ["mask", "mask2"],
+            FeatureType.SCALAR: ["my scalar with spaces"],
+            FeatureType.SCALAR_TIMELESS: ["my timeless scalar with spaces"],
+            FeatureType.META_INFO: ["something", "something-else"],
+        }
+    )
     eopatch.vector["my-df"] = GeoDataFrame(
         {
             "values": [1, 2],
