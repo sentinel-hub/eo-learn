@@ -66,6 +66,10 @@ class SnowMaskTask(EOTask):
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         bands = eopatch[self.bands_feature][..., self.band_indices]
+        if bands.shape[0] == 0:
+            eopatch[self.mask_feature] = np.zeros((*bands.shape[:-1], 1), dtype=bool)
+            return eopatch
+
         with np.errstate(divide="ignore", invalid="ignore"):
             # (B03 - B11) / (B03 + B11)
             ndsi = (bands[..., 0] - bands[..., 3]) / (bands[..., 0] + bands[..., 3])
