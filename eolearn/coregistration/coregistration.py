@@ -117,7 +117,7 @@ class ECCRegistrationTask(EOTask):
                 valid_mask,  # type: ignore[arg-type]
                 self.gauss_kernel_size,
             )
-        except cv2.error as cv2err:
+        except cv2.error as cv2err:  # pylint: disable=catching-non-exception
             warnings.warn(f"Could not calculate the warp matrix: {cv2err}", EORuntimeWarning)
 
         return warp_matrix
