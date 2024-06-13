@@ -36,9 +36,10 @@ def test_snow_coverage(task, result, test_eopatch):
 
 
 def test_snow_empty_eopatch(test_eopatch):
-    bands = test_eopatch.data["BANDS-S2-L1C"]
-    empty_bands_array = np.array([], dtype=bands.dtype).reshape((0, *bands.shape[1:]))
-    empty_eopatch = EOPatch(bbox=test_eopatch.bbox, timestamps=[], data={"BANDS-S2-L1C": empty_bands_array})
+    _, h, w, c = test_eopatch.data["BANDS-S2-L1C"].shape
+    empty_eopatch = EOPatch(bbox=test_eopatch.bbox, timestamps=[])
+    empty_eopatch.data["BANDS-S2-L1C"] = np.array([], dtype=np.float32).reshape((0, h, w, c))
+
     task = SnowMaskTask((FeatureType.DATA, "BANDS-S2-L1C"), [2, 3, 7, 11], mask_name="TEST_SNOW_MASK")
     resulting_eopatch = task(empty_eopatch)  # checks if the task runs without errors
-    assert resulting_eopatch.mask["TEST_SNOW_MASK"].shape == (*empty_bands_array.shape[:-1], 1)
+    assert resulting_eopatch.mask["TEST_SNOW_MASK"].shape == (0, h, w, 1)
