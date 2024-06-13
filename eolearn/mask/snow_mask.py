@@ -61,15 +61,12 @@ class SnowMaskTask(EOTask):
         """Apply binary dilation for each mask in the series"""
         if self.disk_size > 0:
             disk = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (self.disk_size, self.disk_size))
-            snow_masks = np.array([cv2.dilate(mask.astype(np.uint8), disk) for mask in snow_masks])
+            dilated_masks = np.array([cv2.dilate(mask.astype(np.uint8), disk) for mask in snow_masks])
+            snow_masks = dilated_masks.reshape(snow_masks.shape)  # edge case where data is empty
         return snow_masks.astype(bool)
 
     def execute(self, eopatch: EOPatch) -> EOPatch:
         bands = eopatch[self.bands_feature][..., self.band_indices]
-        if bands.shape[0] == 0:
-            eopatch[self.mask_feature] = np.zeros((*bands.shape[:-1], 1), dtype=bool)
-            return eopatch
-
         with np.errstate(divide="ignore", invalid="ignore"):
             # (B03 - B11) / (B03 + B11)
             ndsi = (bands[..., 0] - bands[..., 3]) / (bands[..., 0] + bands[..., 3])
