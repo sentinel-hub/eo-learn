@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eolearn.core import FeatureType
+from eolearn.core import FeatureType, EOPatch
 from eolearn.mask import SnowMaskTask
 
 
@@ -33,3 +33,12 @@ def test_snow_coverage(task, result, test_eopatch):
     snow_pixels = np.sum(output, axis=(1, 2, 3))
     assert np.sum(snow_pixels) == result[0], "Sum of snowy pixels does not match"
     assert snow_pixels[-4] == result[1], "Snowy pixels on specified frame do not match"
+
+
+def test_snow_empty_eopatch(test_eopatch):
+    bands = test_eopatch.data["BANDS-S2-L1C"]
+    empty_bands_array = np.array([], dtype=bands.dtype).reshape((0, *bands.shape[1:]))
+    empty_eopatch = EOPatch(bbox=test_eopatch.bbox, timestamps=[], data={"BANDS-S2-L1C": empty_bands_array})
+    task = SnowMaskTask((FeatureType.DATA, "BANDS-S2-L1C"), [2, 3, 7, 11], mask_name="TEST_SNOW_MASK")
+    resulting_eopatch = task(empty_eopatch) # checks if the task runs without errors
+    assert resulting_eopatch.mask["TEST_SNOW_MASK"].shape[0] == 0
