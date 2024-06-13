@@ -162,6 +162,7 @@ def spatially_resize_image(
     if resize_library is ResizeLib.CV2:
         resize_function = partial(cv2.resize, dsize=size, interpolation=resize_method.get_cv2_method(data.dtype))
     else:
+        # type: ignore[arg-type]
         resize_function = partial(_pil_resize_ndarray, size=size, method=resize_method.get_pil_method())
 
     resized_data = _apply_to_spatial_axes(resize_function, data, spatial_axes)
