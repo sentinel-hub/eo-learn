@@ -19,7 +19,7 @@ repos:
         language_version: python3
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.4.4"
+    rev: "v0.4.9"
     hooks:
       - id: ruff
 
