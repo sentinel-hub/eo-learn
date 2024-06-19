@@ -1,4 +1,4 @@
-## [Version 1.5.4] - 2024-06-19
+## [Version 1.5.5] - 2024-06-19
 
 - `SnowMaskTask` now correctly handles temporally empty eopatches.
 
