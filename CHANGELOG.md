@@ -1,3 +1,7 @@
+## [Version 1.5.6] - 2024-06-26
+
+- Limit `geopandas` version to < 1.0.0
+
 ## [Version 1.5.5] - 2024-06-19
 
 - `SnowMaskTask` now correctly handles temporally empty eopatches.
