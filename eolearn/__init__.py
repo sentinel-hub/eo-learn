@@ -1,6 +1,6 @@
 """Main module of the `eolearn` package."""
 
-__version__ = "1.5.5"
+__version__ = "1.5.6"
 
 import importlib.util
 import warnings
