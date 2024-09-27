@@ -62,7 +62,7 @@ def calculate_stats(array):
     return np.round(np.array(values), 4)
 
 
-@pytest.mark.sh_integration()
+@pytest.mark.sh_integration
 class TestProcessingIO:
     """Test cases for SentinelHubInputTask"""
 
@@ -554,7 +554,7 @@ class TestProcessingIO:
         assert masks.shape == (0, 101, 99, 1)
 
 
-@pytest.mark.sh_integration()
+@pytest.mark.sh_integration
 class TestSentinelHubInputTaskDataCollections:
     """Integration tests for all supported data collections"""
 
