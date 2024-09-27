@@ -330,7 +330,7 @@ class MatplotlibVisualization:
             **subplot_kwargs,
         )
         if title and self.config.show_title:
-            title_kwargs = {"t": title, "fontsize": 16, "y": 1.0, **self.config.title_kwargs}
+            title_kwargs: dict[str, Any] = {"t": title, "fontsize": 16, "y": 1.0, **self.config.title_kwargs}
             fig.suptitle(**title_kwargs)
 
         fig.subplots_adjust(wspace=0.06, hspace=0.06)

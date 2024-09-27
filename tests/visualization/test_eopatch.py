@@ -47,7 +47,7 @@ def eopatch_fixture():
         ((FeatureType.VECTOR_TIMELESS, "LULC"), {}),
     ],
 )
-@pytest.mark.sh_integration()
+@pytest.mark.sh_integration
 def test_eopatch_plot(eopatch: EOPatch, feature, params):
     """A simple test of EOPatch plotting for different features."""
     # We reduce width and height otherwise running matplotlib.pyplot.subplots in combination with pytest would

@@ -1,3 +1,7 @@
+## [Version 1.5.7] - 2024-09-27
+
+- Remove `numpy<2` restriction.
+
 ## [Version 1.5.6] - 2024-06-26
 
 - Limit `geopandas` version to < 1.0.0
