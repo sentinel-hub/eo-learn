@@ -112,7 +112,7 @@ def constant_pad(  # noqa: C901
         else:
             raise ValueError("Padding rule for columns not supported. Choose between even, left or right!")
 
-    return np.lib.pad(
+    return np.pad(
         array,
         ((row_padding_up, row_padding_down), (col_padding_left, col_padding_right)),
         "constant",

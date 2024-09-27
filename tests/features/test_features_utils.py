@@ -15,7 +15,7 @@ def test_spatially_resize_image_new_size(
 ):
     """Test that all methods and backends are able to downscale and upscale images of various dtypes."""
     if library is ResizeLib.CV2:  # noqa: SIM102
-        if np.issubdtype(dtype, np.integer) and method is ResizeMethod.CUBIC or dtype == bool:
+        if np.issubdtype(dtype, np.integer) and method is ResizeMethod.CUBIC or dtype is bool:
             return
 
     old_shape = (111, 111)

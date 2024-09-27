@@ -12,7 +12,7 @@ from __future__ import annotations
 import warnings
 from enum import Enum
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 import cv2
 import numpy as np
@@ -86,6 +86,8 @@ class ResizeLib(Enum):
 
     def get_compatible_dtype(self, dtype: np.dtype | type) -> np.dtype:
         """Returns a suitable dtype with which the library can work. Warns if information loss could occur."""
+        lossless: dict[type, type]
+        infoloss: dict[type, type]
         if self is ResizeLib.CV2:
             lossless = {bool: np.uint8, np.float16: np.float32}
             infoloss = {x: np.int32 for x in (np.uint32, np.int64, np.uint64, int)}
@@ -93,8 +95,8 @@ class ResizeLib(Enum):
             lossless = {np.float16: np.float32}
             infoloss = {x: np.int32 for x in (np.uint16, np.uint32, np.int64, np.uint64, int)}
 
-        lossless_casts = {np.dtype(k): np.dtype(v) for k, v in lossless.items()}
-        infoloss_casts = {np.dtype(k): np.dtype(v) for k, v in infoloss.items()}
+        lossless_casts: dict[np.dtype, np.dtype] = {np.dtype(k): np.dtype(v) for k, v in lossless.items()}
+        infoloss_casts: dict[np.dtype, np.dtype] = {np.dtype(k): np.dtype(v) for k, v in infoloss.items()}
         return self._extract_compatible_dtype(dtype, lossless_casts, infoloss_casts)
 
     @staticmethod
@@ -159,14 +161,11 @@ def spatially_resize_image(
     old_dtype, new_dtype = data.dtype, resize_library.get_compatible_dtype(data.dtype)
     data = data.astype(new_dtype)
 
+    resize_function: Callable[[np.ndarray], np.ndarray]
     if resize_library is ResizeLib.CV2:
         resize_function = partial(cv2.resize, dsize=size, interpolation=resize_method.get_cv2_method(data.dtype))
     else:
-        resize_function = partial(
-            _pil_resize_ndarray,  # type: ignore[arg-type]
-            size=size,
-            method=resize_method.get_pil_method(),
-        )
+        resize_function = partial(_pil_resize_ndarray, size=size, method=resize_method.get_pil_method())
 
     resized_data = _apply_to_spatial_axes(resize_function, data, spatial_axes)
 
