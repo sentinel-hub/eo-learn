@@ -21,7 +21,7 @@ def plot_confusion_matrix(
     classes: list[str],
     normalize: bool = True,
     title: str = "Confusion matrix",
-    cmap: str | Colormap | None = plt.cm.Blues,
+    cmap: str | Colormap | None = "Blues",
     xlabel: str = "Predicted label",
     ylabel: str = "True label",
 ) -> None:
