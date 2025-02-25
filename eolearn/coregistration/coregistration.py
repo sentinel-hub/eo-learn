@@ -114,7 +114,7 @@ class ECCRegistrationTask(EOTask):
                 warp_matrix,
                 warp_mode,
                 criteria,
-                valid_mask,  # type: ignore[arg-type]
+                valid_mask,
                 self.gauss_kernel_size,
             )
         except cv2.error as cv2err:  # pylint: disable=catching-non-exception
