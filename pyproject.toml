@@ -187,15 +187,16 @@ max-line-length = 120
 
 [tool.pylint.messages_control]
 disable = [
-    "no-member",
     "arguments-differ",
     "assignment-from-no-return",
-    "unsubscriptable-object",
-    "invalid-unary-operand-type",
-    "unspecified-encoding",
-    "unnecessary-ellipsis",
-    "use-dict-literal",
     "cyclic-import",
+    "invalid-unary-operand-type",
+    "no-member",
+    "too-many-positional-arguments",
+    "unnecessary-ellipsis",
+    "unspecified-encoding",
+    "unsubscriptable-object",
+    "use-dict-literal",
 ]
 
 [tool.pylint.design]
