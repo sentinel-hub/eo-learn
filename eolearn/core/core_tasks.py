@@ -13,7 +13,7 @@ import copy
 import datetime as dt
 import warnings
 from abc import ABCMeta
-from typing import Any, Callable, Iterable, Literal, cast
+from typing import Any, Callable, Iterable, Literal, Tuple, cast
 
 import fs
 import numpy as np
@@ -360,7 +360,7 @@ class InitializeFeatureTask(EOTask):
         self.features = self.parse_features(features)
 
         if all(isinstance(el, int) for el in shape):
-            self.shape = cast(tuple[int, ...], shape)
+            self.shape = cast(Tuple[int, ...], shape)
             self.shape_feature = None
         else:
             self.shape = None
