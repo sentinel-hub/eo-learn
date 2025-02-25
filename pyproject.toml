@@ -66,15 +66,15 @@ dependencies = [
 
 full = ["eo-learn[RAY,ZARR,EXTRA,VISUALIZATION]"]
 ray = ["ray[default]"]
-zarr = ["s3fs", "zarr"]
-extra = ["numba>=0.53.0", "scikit-learn", "scipy", "s2cloudless"]
+zarr = ["s3fs", "zarr<3.0.0"]
+extra = ["numba>=0.57", "scikit-learn", "scipy", "s2cloudless"]
 visualization = ["graphviz>=0.10.1", "jinja2", "matplotlib", "pygments"]
 docs = [
     "eo-learn[FULL]",
     "jupyter",
     "nbsphinx",
     "sphinx==7.1.2",
-    "sphinx_mdinclude==0.5.4",  #0.6 didn't work last time
+    "sphinx_mdinclude==0.5.4", #0.6 didn't work last time
     "sphinx_rtd_theme==1.3.0",
 ]
 dev = [
