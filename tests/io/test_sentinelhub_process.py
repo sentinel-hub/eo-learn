@@ -737,7 +737,7 @@ class TestSentinelHubInputTaskDataCollections:
             time_interval=("2021-02-10", "2021-02-15"),
             data_size=3,
             timestamp_length=13,
-            stats=[0.3173, 0.4804, 0.4041],
+            stats=[0.3151, 0.4765, 0.4010],
         ),
         IoTestCase(
             name="Sentinel-5P",
