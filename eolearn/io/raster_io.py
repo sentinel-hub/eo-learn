@@ -12,6 +12,7 @@ from __future__ import annotations
 import datetime as dt
 import functools
 import logging
+import os
 import warnings
 from abc import ABCMeta
 
@@ -43,7 +44,7 @@ class BaseRasterIoTask(IOTask, metaclass=ABCMeta):
     def __init__(
         self,
         feature: Feature,
-        path: str = ...,  # type: ignore[assignment]
+        path: str | os.PathLike = ...,  # type: ignore[assignment]
         *,
         filesystem: FS | None = None,
         image_dtype: np.dtype | type | None = None,
@@ -149,7 +150,7 @@ class ExportToTiffTask(BaseRasterIoTask):
     def __init__(
         self,
         feature: Feature,
-        path: str = ...,  # type: ignore[assignment]
+        path: str | os.PathLike = ...,  # type: ignore[assignment]
         *,
         date_indices: list[int] | tuple[int, int] | tuple[dt.datetime, dt.datetime] | tuple[str, str] | None = None,
         band_indices: list[int] | tuple[int, int] | None = None,
@@ -410,7 +411,7 @@ class ImportFromTiffTask(BaseRasterIoTask):
     def __init__(
         self,
         feature: Feature,
-        path: str = ...,  # type: ignore[assignment]
+        path: str | os.PathLike = ...,  # type: ignore[assignment]
         *,
         use_vsi: bool | None = None,
         timestamp_size: int | None = None,
