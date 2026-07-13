@@ -7,12 +7,17 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 
 from __future__ import annotations
 
+import os
+import tempfile
+
+import geopandas as gpd
 import pytest
+from shapely import Point
 
 from sentinelhub import CRS, BBox
 
-from eolearn.core import FeatureType
-from eolearn.io import VectorImportTask
+from eolearn.core import EOPatch, FeatureType
+from eolearn.io import VectorExportTask, VectorImportTask
 
 
 @pytest.mark.parametrize(
@@ -50,3 +55,94 @@ def test_clipping_wrong_crs(gpkg_file):
     import_task = VectorImportTask(feature=feature, path=gpkg_file, reproject=False, clip=True)
     with pytest.raises(ValueError):
         import_task.execute(bbox=BBox([657690, 5071637, 660493, 5074440], CRS.UTM_31N))
+
+
+def _create_test_geodataframe() -> gpd.GeoDataFrame:
+    """Create a simple GeoDataFrame with a few points for testing."""
+    return gpd.GeoDataFrame(
+        {"id": [1, 2, 3], "label": ["a", "b", "c"]},
+        geometry=[Point(0, 0), Point(1, 1), Point(2, 2)],
+        crs="EPSG:4326",
+    )
+
+
+class TestVectorExportTask:
+    """Tests for the VectorExportTask."""
+
+    def test_export_gpkg(self):
+        """Test exporting a vector feature to GPKG format."""
+        gdf = _create_test_geodataframe()
+        feature = FeatureType.VECTOR_TIMELESS, "test_geom"
+        eopatch = EOPatch(bbox=BBox([0, 0, 3, 3], CRS.WGS84))
+        eopatch[feature] = gdf
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = os.path.join(tmp_dir, "test.gpkg")
+            task = VectorExportTask(feature=feature, path=output_path, driver="GPKG")
+            task.execute(eopatch)
+
+            assert os.path.isfile(output_path), "GPKG file was not created"
+            result = gpd.read_file(output_path)
+            assert len(result) == 3, "Should have 3 features"
+            assert list(result.columns) == ["id", "label", "geometry"], "Unexpected columns"
+            assert result.crs == gdf.crs, "CRS should be preserved"
+
+    def test_export_geojson(self):
+        """Test exporting a vector feature to GeoJSON format."""
+        gdf = _create_test_geodataframe()
+        feature = FeatureType.VECTOR_TIMELESS, "test_geom"
+        eopatch = EOPatch(bbox=BBox([0, 0, 3, 3], CRS.WGS84))
+        eopatch[feature] = gdf
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = os.path.join(tmp_dir, "test.geojson")
+            task = VectorExportTask(feature=feature, path=output_path, driver="GeoJSON")
+            task.execute(eopatch)
+
+            assert os.path.isfile(output_path), "GeoJSON file was not created"
+            result = gpd.read_file(output_path)
+            assert len(result) == 3, "Should have 3 features"
+
+    def test_export_empty_feature(self):
+        """Test that exporting a non-existent feature raises an error."""
+        feature = FeatureType.VECTOR_TIMELESS, "nonexistent"
+        eopatch = EOPatch(bbox=BBox([0, 0, 3, 3], CRS.WGS84))
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = os.path.join(tmp_dir, "test.gpkg")
+            task = VectorExportTask(feature=feature, path=output_path)
+            with pytest.raises((KeyError, ValueError), match="nonexistent|no data"):
+                task.execute(eopatch)
+
+    def test_export_roundtrip_gpkg(self):
+        """Test export then import round-trip with GPKG format."""
+        gdf = _create_test_geodataframe()
+        feature = FeatureType.VECTOR_TIMELESS, "test_geom"
+        eopatch = EOPatch(bbox=BBox([0, 0, 3, 3], CRS.WGS84))
+        eopatch[feature] = gdf
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = os.path.join(tmp_dir, "roundtrip.gpkg")
+            export_task = VectorExportTask(feature=feature, path=output_path)
+            export_task.execute(eopatch)
+
+            # Import back and verify
+            import_task = VectorImportTask(feature=feature, path=output_path)
+            imported = import_task.execute(bbox=BBox([0, 0, 3, 3], CRS.WGS84))
+
+            assert len(imported[feature]) == 3, "Round-trip should preserve feature count"
+            assert imported[feature].crs.to_epsg() == gdf.crs.to_epsg(), "CRS should be preserved in round-trip"
+
+    def test_export_creates_new_eopatch_object(self):
+        """Test that export returns the same EOPatch object."""
+        gdf = _create_test_geodataframe()
+        feature = FeatureType.VECTOR_TIMELESS, "test_geom"
+        eopatch = EOPatch(bbox=BBox([0, 0, 3, 3], CRS.WGS84))
+        eopatch[feature] = gdf
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = os.path.join(tmp_dir, "test.gpkg")
+            task = VectorExportTask(feature=feature, path=output_path)
+            result = task.execute(eopatch)
+
+            assert result is eopatch, "Should return the same EOPatch instance"
