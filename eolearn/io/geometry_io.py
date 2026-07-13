@@ -10,6 +10,7 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import nullcontext
 from typing import Any
 
@@ -35,7 +36,7 @@ class VectorImportTask(EOTask):
     def __init__(
         self,
         feature: Feature,
-        path: str,
+        path: str | os.PathLike,
         reproject: bool = True,
         clip: bool = False,
         filesystem: FS | None = None,
