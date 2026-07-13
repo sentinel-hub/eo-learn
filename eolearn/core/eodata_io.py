@@ -654,13 +654,17 @@ class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
         return ".gpkg"
 
     def _read_from_file(self, file: BinaryIO | gzip.GzipFile) -> gpd.GeoDataFrame:
-        dataframe = gpd.read_file(file)
+        # pyogrio (geopandas >= 1) warns when reading GPKG from virtual in-memory
+        # files without a .gpkg extension. Suppress this warning as it's harmless.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*GPKG application_id.*", category=RuntimeWarning)
+            dataframe = gpd.read_file(file)
 
         if dataframe.crs is not None:
             # Trying to preserve a standard CRS and passing otherwise
             with contextlib.suppress(ValueError), warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=SHUserWarning)
-                dataframe.crs = CRS(dataframe.crs).pyproj_crs()
+                dataframe = dataframe.set_crs(CRS(dataframe.crs).pyproj_crs())
 
         if TIMESTAMP_COLUMN in dataframe:
             dataframe[TIMESTAMP_COLUMN] = pd.to_datetime(dataframe[TIMESTAMP_COLUMN])
