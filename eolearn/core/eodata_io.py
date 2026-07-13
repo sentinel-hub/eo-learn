@@ -15,8 +15,11 @@ import datetime
 import gzip
 import itertools
 import json
+import os
 import platform
+import shutil
 import sys
+import tempfile
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
@@ -674,6 +677,34 @@ class FeatureIOGeoDf(FeatureIOGZip[gpd.GeoDataFrame]):
                 category=UserWarning,
             )
             return data.to_file(file, driver="GPKG", encoding="utf-8", layer=layer, index=False)
+
+    @classmethod
+    def _save(cls, data: gpd.GeoDataFrame, filesystem: FS, path: str, compress_level: int) -> None:
+        """Save GeoDataFrame, handling pyogrio (geopandas >= 1) which requires a real file path
+        for GPKG format and cannot write to open file handles or gzip-wrapped file objects.
+
+        This overrides the parent's _save to first write to a temporary .gpkg file, then
+        copy (and optionally gzip-compress) the content to the target filesystem.
+        """
+        layer = fs.path.basename(path)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_gpkg = os.path.join(tmp_dir, "feature.gpkg")
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="You are attempting to write an empty DataFrame to file*",
+                    category=UserWarning,
+                )
+                data.to_file(tmp_gpkg, driver="GPKG", encoding="utf-8", layer=layer, index=False)
+
+            if compress_level == 0:
+                with open(tmp_gpkg, "rb") as gpkg_file:
+                    filesystem.writebytes(path, gpkg_file.read())
+            else:
+                with filesystem.openbin(path, "w") as file:
+                    with gzip.GzipFile(fileobj=file, compresslevel=compress_level, mode="wb") as gzip_file:
+                        with open(tmp_gpkg, "rb") as gpkg_file:
+                            shutil.copyfileobj(gpkg_file, gzip_file)
 
 
 class FeatureIOJson(FeatureIOGZip[T]):
