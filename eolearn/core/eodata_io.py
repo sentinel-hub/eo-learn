@@ -251,7 +251,7 @@ def _get_feature_io_constructor(ftype: FeatureType, use_zarr: bool) -> type[Feat
         return FeatureIOJson
     if ftype.is_vector():
         return FeatureIOGeoDf
-    return FeatureIOZarr if use_zarr else FeatureIONumpy  # type: ignore[return-value] # not sure why
+    return FeatureIOZarr if use_zarr else FeatureIONumpy
 
 
 def _remove_redundant_files(

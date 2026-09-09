@@ -351,6 +351,7 @@ def test_overwrite_failure(fs_loader, use_zarr: bool):
 @mock_aws
 @pytest.mark.parametrize("fs_loader", FS_LOADERS)
 @pytest.mark.parametrize("compress_level", [0, 1])
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="Boto3 complains with warnings in lower versions.")
 def test_compression_deprecation(eopatch, fs_loader, compress_level: int | None):
     folder = "foo-folder"
 

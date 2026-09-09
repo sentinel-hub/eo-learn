@@ -13,7 +13,7 @@ import copy
 import datetime as dt
 import warnings
 from abc import ABCMeta
-from typing import Any, Callable, Iterable, Literal, Tuple, Union, cast
+from typing import Any, Callable, Iterable, Literal, Tuple, cast
 
 import fs
 import numpy as np
@@ -22,7 +22,7 @@ from typing_extensions import deprecated
 
 from sentinelhub import SHConfig
 
-from .constants import FeatureType, OverwritePermission
+from .constants import OverwritePermission
 from .eodata import EOPatch
 from .eodata_merge import merge_eopatches
 from .eotask import EOTask
@@ -355,21 +355,16 @@ class InitializeFeatureTask(EOTask):
         :raises ValueError: Raises an exception when passing the wrong shape argument.
         """
 
+        self.shape_feature: Feature | None
+        self.shape: tuple[int, ...] | None
         self.features = self.parse_features(features)
-        self.shape_feature: tuple[FeatureType, str | None] | None
-        self.shape: None | tuple[int, int, int] | tuple[int, int, int, int]
 
-        try:
-            self.shape_feature = self.parse_feature(shape)  # type: ignore[arg-type]
-        except ValueError:
+        if all(isinstance(el, int) for el in shape):
+            self.shape = cast(Tuple[int, ...], shape)
             self.shape_feature = None
-
-        if self.shape_feature:
-            self.shape = None
-        elif isinstance(shape, tuple) and len(shape) in (3, 4) and all(isinstance(x, int) for x in shape):
-            self.shape = cast(Union[Tuple[int, int, int], Tuple[int, int, int, int]], shape)
         else:
-            raise ValueError("shape argument is not a shape tuple or a feature containing one.")
+            self.shape = None
+            self.shape_feature = self.parse_feature(cast(Feature, shape))
 
         self.init_value = init_value
         self.dtype = dtype
@@ -379,10 +374,14 @@ class InitializeFeatureTask(EOTask):
         :param eopatch: Input EOPatch.
         :return: Input EOPatch with the initialized additional features.
         """
-        shape = eopatch[self.shape_feature].shape if self.shape_feature else self.shape
+        if self.shape:
+            shape = self.shape
+        elif self.shape_feature:
+            shape = eopatch[self.shape_feature].shape
+        else:
+            raise ValueError("Shape or shape feature must be provided.")
 
         add_features = set(self.features) - set(self.parse_features(eopatch.get_features()))
-
         for feature in add_features:
             eopatch[feature] = np.ones(shape, dtype=self.dtype) * self.init_value
 

@@ -239,7 +239,7 @@ VECTOR_TO_RASTER_TEST_CASES = (
             no_data_value=0,
             raster_dtype=bool,
         ),
-        img_exp_statistics={"exp_shape": (100, 150, 1), "exp_dtype": bool, "exp_min": False, "exp_max": True},
+        img_exp_statistics={"exp_shape": (100, 150, 1), "exp_dtype": bool, "exp_min": np.False_, "exp_max": np.True_},
     ),
 )
 

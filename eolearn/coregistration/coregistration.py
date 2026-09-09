@@ -163,7 +163,7 @@ class ECCRegistrationTask(EOTask):
     def warp(self, img: np.ndarray, warp_matrix: np.ndarray, shape: tuple[int, int], flags: int) -> np.ndarray:
         """Transform the target image with the estimated transformation matrix"""
         if warp_matrix.shape == (3, 3):
-            return cv2.warpPerspective(  # type: ignore[call-overload]
+            return cv2.warpPerspective(
                 img.astype(np.float32),
                 warp_matrix,
                 shape,
@@ -171,7 +171,7 @@ class ECCRegistrationTask(EOTask):
                 borderMode=self.border_mode,
                 borderValue=self.border_value,
             )
-        return cv2.warpAffine(  # type: ignore[call-overload]
+        return cv2.warpAffine(
             img.astype(np.float32),
             warp_matrix,
             shape,
