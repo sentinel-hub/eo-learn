@@ -10,6 +10,9 @@ This source code is licensed under the MIT license, see the LICENSE file in the 
 from __future__ import annotations
 
 import logging
+import os
+import shutil
+import tempfile
 from contextlib import nullcontext
 from typing import Any
 
@@ -160,3 +163,91 @@ class VectorImportTask(EOTask):
         eopatch[self.feature] = self._reproject_and_clip(vectors, bbox)
 
         return eopatch
+
+
+class VectorExportTask(EOTask):
+    """Task exports a vector feature from an EOPatch to a file.
+
+    The task extracts a vector feature (e.g. :attr:`~eolearn.core.FeatureType.VECTOR_TIMELESS`) from an EOPatch
+    and exports it to a file in a supported vector format (GPKG, GeoJSON, Shapefile, etc.).
+
+    :param feature: A vector feature to be exported. Must be a vector feature type
+        (:attr:`~eolearn.core.FeatureType.VECTOR` or :attr:`~eolearn.core.FeatureType.VECTOR_TIMELESS`).
+    :param path: Path to the output file, including the extension (e.g. ``/path/to/output.gpkg``).
+    :param filesystem: An optional filesystem object for writing to non-local paths. If provided, the
+        file will be written to a temporary local path and then copied to the filesystem.
+    :param driver: The vector driver to use. Defaults to ``"GPKG"``. Other common options include
+        ``"GeoJSON"``, ``"ESRI Shapefile"``, ``"FlatGeobuf"``.
+    :param kwargs: Additional keyword arguments passed to :meth:`geopandas.GeoDataFrame.to_file`.
+    """
+
+    def __init__(
+        self,
+        feature: Feature,
+        path: str,
+        *,
+        filesystem: FS | None = None,
+        driver: str = "GPKG",
+        **kwargs: Any,
+    ):
+        self.feature = feature
+        self.path = path
+        self.filesystem = filesystem
+        self.driver = driver
+        self.kwargs = kwargs
+
+    def execute(self, eopatch: EOPatch) -> EOPatch:
+        """Exports the vector feature from the EOPatch to the specified file.
+
+        :param eopatch: Input EOPatch containing the vector feature to export.
+        :returns: The input EOPatch unchanged.
+        :raises ValueError: If the feature is not found or contains no data.
+        """
+        data = eopatch[self.feature]
+        if data is None:
+            raise ValueError(f"Feature {self.feature} has no data in the EOPatch")
+
+        _write_geodataframe(data, self.path, self.driver, self.filesystem, **self.kwargs)
+
+        return eopatch
+
+
+def _write_geodataframe(
+    data: gpd.GeoDataFrame,
+    path: str,
+    driver: str = "GPKG",
+    filesystem: FS | None = None,
+    **kwargs: Any,
+) -> None:
+    """Helper to write a GeoDataFrame to a path, optionally via a PyFilesystem abstraction.
+
+    Pyogrio (used by geopandas >= 1) requires a real file path for GPKG format, so when a
+    filesystem is provided the data is first written to a temporary local file and then copied.
+    """
+    if filesystem is None:
+        data.to_file(path, driver=driver, **kwargs)
+        return
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_file = os.path.join(tmp_dir, f"export.{_driver_to_extension(driver)}")
+        data.to_file(tmp_file, driver=driver, **kwargs)
+        with open(tmp_file, "rb") as tmp_handle:
+            filesystem.writebytes(path, tmp_handle.read())
+
+
+def _driver_to_extension(driver: str) -> str:
+    """Maps a GDAL/OGR driver name to a common file extension."""
+    extension_map = {
+        "GPKG": "gpkg",
+        "GeoJSON": "geojson",
+        "GeoJSONSeq": "geojson",
+        "ESRI Shapefile": "shp",
+        "FlatGeobuf": "fgb",
+        "CSV": "csv",
+        "KML": "kml",
+        "GML": "gml",
+        "GPX": "gpx",
+        "DXF": "dxf",
+        "TopoJSON": "topojson",
+    }
+    return extension_map.get(driver, "gpkg")
